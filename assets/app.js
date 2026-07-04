@@ -42,6 +42,21 @@ const state = {
     'Title Page': true, 'Abstract': true, 'Introduction': true, 'Review of Related Literature': true,
     'Methodology': true, 'Results and Discussion': true, 'Conclusion': true, 'Recommendations': true,
     'References': true, 'Appendices': true
+  },
+  activeAdviseeGroup: '',
+  activeWorkspaceSubTab: 'chat',
+  workspaceChatMessages: {
+    'Group AI-CCS-01': [
+      { from: 'student', name: 'Juan Reyes', text: 'Good day Ma\'am, we have updated Chapter 2 literature review.', time: 'Yesterday' },
+      { from: 'adviser', name: 'Dr. Rachel Lim', text: 'Thank you. I will review it shortly. Please prepare your prototype presentation notes.', time: 'Yesterday' }
+    ],
+    'Group SE-12': [
+      { from: 'student', name: 'Mark Ramos', text: 'Ma\'am, can we schedule a consultation for Monday?', time: '2 days ago' },
+      { from: 'adviser', name: 'Dr. Rachel Lim', text: 'Yes, please select the 10 AM slot in the schedule tab.', time: 'Yesterday' }
+    ],
+    'Group NET-08': [
+      { from: 'student', name: 'Alex Cruz', text: 'Chapter 3 methodology draft is ready for review.', time: '3 days ago' }
+    ]
   }
 };
 
@@ -357,14 +372,257 @@ function contributionModule(audience = 'student') {
 function openContributionModal(name) { const c = data.student.contributions.find(x => x.name === name); modal('Contribution Details', `<div class="profile-card"><div class="avatar lg gold">${initials(c.name)}</div><h3>${c.name}</h3><p>${c.role}</p></div><div class="grid grid-2 mt-16">${stat('Contribution', c.percent+'%', c.status, 'chart')}${stat('Submitted Tasks', c.tasks, 'Prototype record', 'checklist')}</div><div class="card mt-16"><h3 class="card-title">Remarks</h3><p class="card-desc">${c.remarks}</p></div>`, `<button class="btn" onclick="closeModal()">Close</button><button class="btn btn-primary" onclick="closeModal(); showToast('Contribution note saved.')">Save Note</button>`); }
 window.openContributionModal = openContributionModal;
 
+function addProfessorSubtaskRow() {
+  const container = document.getElementById('professor-subtasks-container');
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'form-row-inline';
+  row.style = 'grid-template-columns: 1fr 1fr auto; align-items: center; gap: 8px; margin-top: 8px;';
+  row.innerHTML = `
+    <input type="text" placeholder="Sub-task title" class="prof-subtask-title" required>
+    <select class="prof-subtask-milestone">
+      <option>Proposal Stage</option>
+      <option>Chapter 1</option>
+      <option>Chapter 2</option>
+      <option>Chapter 3</option>
+      <option>Pre-defense</option>
+      <option>Final Defense</option>
+      <option>Certificate Release</option>
+    </select>
+    <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()">Remove</button>
+  `;
+  container.appendChild(row);
+}
+
+function toggleAllProfessorGroups(source) {
+  const checkboxes = document.querySelectorAll('.prof-group-checkbox');
+  checkboxes.forEach(cb => cb.checked = source.checked);
+}
+
+function createProfessorTask(event) {
+  event.preventDefault();
+  const title = document.getElementById('task-title').value;
+  const desc = document.getElementById('task-desc').value;
+  const due = document.getElementById('task-due').value;
+  const priority = document.getElementById('task-priority').value;
+  const attachment = document.getElementById('task-attach').value;
+  const status = document.getElementById('task-status').value;
+  const eligibility = document.getElementById('task-eligibility').value;
+  const prereq = document.getElementById('task-prereq').value;
+
+  const checkedGroups = Array.from(document.querySelectorAll('.prof-group-checkbox:checked')).map(cb => cb.value);
+  const isAll = document.getElementById('prof-assign-all').checked;
+  const assignedTo = isAll ? 'All Capstone Groups' : (checkedGroups.length ? checkedGroups.join(', ') : 'All Capstone Groups');
+
+  const subtaskTitles = Array.from(document.querySelectorAll('.prof-subtask-title')).map(input => input.value);
+  const subtaskMilestones = Array.from(document.querySelectorAll('.prof-subtask-milestone')).map(select => select.value);
+  const subtasks = subtaskTitles.map((t, idx) => ({ title: t, milestone: subtaskMilestones[idx] }));
+
+  state.dynamicTasks.push({
+    title,
+    description: desc,
+    assignedTo,
+    due,
+    priority,
+    attachment,
+    status,
+    eligibility,
+    prereq,
+    subtasks
+  });
+
+  showToast('Milestone task created successfully!');
+  renderLayout('professor', 'create-task');
+}
+
 function taskCreationModule(owner = 'adviser') {
   const base = owner === 'professor' ? data.professor.tasks : data.student.tasks;
-  const rows = [...base, ...state.dynamicTasks].map(t => [t.title, t.assignedTo || 'Group AI-CCS-01', t.due, tag(t.priority || 'Medium'), t.attachment || 'Required', tag(t.status), `<div class="flex gap-8"><button class="btn btn-sm" onclick="openTaskDetails('${esc(t.title)}')">View Details</button><button class="btn btn-sm" onclick="showToast('Marked ${esc(t.title)} as done.')">Mark as Done</button><button class="btn btn-sm" onclick="openTaskModal('${owner}')">Edit</button></div>`]);
+  const rows = [...base, ...state.dynamicTasks].map(t => {
+    let actionButtons = `<div class="flex gap-8"><button class="btn btn-sm" onclick="openTaskDetails('${esc(t.title)}')">View Details</button><button class="btn btn-sm" onclick="showToast('Marked ${esc(t.title)} as done.')">Mark as Done</button>`;
+    if (owner !== 'professor') {
+      actionButtons += `<button class="btn btn-sm" onclick="openTaskModal('${owner}')">Edit</button>`;
+    }
+    actionButtons += `</div>`;
+    return [
+      t.title,
+      t.assignedTo || 'Group AI-CCS-01',
+      t.due,
+      tag(t.priority || 'Medium'),
+      t.attachment || 'Required',
+      tag(t.status),
+      actionButtons
+    ];
+  });
+
+  if (owner === 'professor') {
+    const groupCheckboxes = [
+      `<label class="check-label" style="margin-right: 12px;"><input type="checkbox" id="prof-assign-all" onchange="toggleAllProfessorGroups(this)"> <strong>All / Everyone</strong></label>`,
+      ...data.professor.groups.map(g => `<label class="check-label" style="margin-right: 12px;"><input type="checkbox" name="prof-group-assign" value="${g.group}" class="prof-group-checkbox">${g.group}</label>`)
+    ].join('');
+
+    const prerequisiteOptions = [
+      '<option value="None">None (No pre-requisite task)</option>',
+      ...[...data.professor.tasks, ...state.dynamicTasks].map(t => `<option value="${esc(t.title)}">${esc(t.title)}</option>`)
+    ].join('');
+
+    return `${hero('Create Research Milestone Task', 'Create milestones and general tasks with sub-tasks, eligibility requirements, pre-requisites, and assignments.', [['Milestones', 'plus'], ['Mock data only', 'file']], '')}
+    <div class="grid grid-2 mt-16">
+      <div class="card">
+        <h3 class="card-title">Create Milestone Task</h3>
+        <form class="form" onsubmit="createProfessorTask(event)">
+          <div class="form-row-inline">
+            <div class="form-row">
+              <label>General Task Name / Milestone Title</label>
+              <input id="task-title" placeholder="e.g. Chapter 3 Draft Submission" required>
+            </div>
+            <div class="form-row">
+              <label>Milestone Required for Eligibility</label>
+              <select id="task-eligibility">
+                <option value="None">None (Always eligible)</option>
+                <option value="Proposal Stage">Proposal Stage completed</option>
+                <option value="Chapter 1">Chapter 1 approved</option>
+                <option value="Chapter 2">Chapter 2 approved</option>
+                <option value="Chapter 3">Chapter 3 approved</option>
+                <option value="Pre-defense">Pre-defense cleared</option>
+                <option value="Final Defense">Final Defense passed</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-row">
+            <label>Description</label>
+            <textarea id="task-desc" placeholder="Write overall instructions for the milestone."></textarea>
+          </div>
+          
+          <div class="card" style="padding: 12px; background: var(--bg-secondary); border: 1px solid #e2e8f0; border-radius: 12px;">
+            <label style="display: block; margin-bottom: 8px;">Sub-tasks and Milestones</label>
+            <div id="professor-subtasks-container" style="display: grid; gap: 8px;">
+              <div class="form-row-inline" style="grid-template-columns: 1.2fr 1fr auto; align-items: center; gap: 8px;">
+                <input type="text" placeholder="Sub-task title (e.g. Review Methodology)" class="prof-subtask-title" required>
+                <select class="prof-subtask-milestone">
+                  <option>Proposal Stage</option>
+                  <option>Chapter 1</option>
+                  <option>Chapter 2</option>
+                  <option selected>Chapter 3</option>
+                  <option>Pre-defense</option>
+                  <option>Final Defense</option>
+                  <option>Certificate Release</option>
+                </select>
+                <button type="button" class="btn btn-sm btn-danger" onclick="this.parentElement.remove()" style="min-height: 38px;">Remove</button>
+              </div>
+            </div>
+            <div style="margin-top: 10px;">
+              <button type="button" class="btn btn-sm" onclick="addProfessorSubtaskRow()">+ Add Sub-task</button>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>Assigned Group(s)</label>
+            <div class="member-check-grid" style="display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; background: var(--bg-secondary);">
+              ${groupCheckboxes}
+            </div>
+          </div>
+
+          <div class="form-row-inline">
+            <div class="form-row">
+              <label>Pre-requisite Task</label>
+              <select id="task-prereq">
+                ${prerequisiteOptions}
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Deadline</label>
+              <input id="task-due" type="date" required>
+            </div>
+          </div>
+
+          <div class="form-row-inline" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="form-row">
+              <label>Priority</label>
+              <select id="task-priority">
+                <option>High</option>
+                <option selected>Medium</option>
+                <option>Low</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Attachment Requirement</label>
+              <select id="task-attach">
+                <option>Required</option>
+                <option>Optional</option>
+                <option>Not Required</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Status</label>
+              <select id="task-status">
+                <option>Pending</option>
+                <option>In Progress</option>
+                <option>Locked</option>
+                <option>Scheduled</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-block mt-12">Create Milestone</button>
+        </form>
+      </div>
+      <div class="card">
+        <h3 class="card-title">Milestone Rules</h3>
+        <div class="feature-grid">
+          ${feature('Eligibility Gate', 'Set milestone eligibility to control department deadlines.', 'lock', 'warning')}
+          ${feature('Group Assignments', 'Select specific research groups or assign to all/everyone.', 'users', 'gold')}
+          ${feature('Prerequisites', 'Establish logical dependencies between milestone tasks.', 'shield')}
+        </div>
+      </div>
+    </div>
+    <div class="card mt-16">
+      <h3 class="card-title">Class Milestones</h3>
+      ${table(['Task', 'Assigned To', 'Deadline', 'Priority', 'Attachment', 'Status', 'Actions'], rows)}
+    </div>`;
+  }
+
   return `${hero(owner === 'professor' ? 'Create Research Milestone Task' : 'Task Creation and Assignment','Create research-related tasks with title, description, assigned group/student, deadline, priority, attachment requirement, and status.', [['Task creation','plus'], ['Mock data only','file']], `<button class="btn btn-primary" onclick="openTaskModal('${owner}')">${icon('plus')} Create Task</button>`)}<div class="grid grid-2 mt-16"><div class="card"><h3 class="card-title">Create New Task</h3><form class="form" onsubmit="createTask(event,'${owner}')"><div class="form-row"><label>Task Title</label><input id="task-title" placeholder="Chapter 2 revision" required></div><div class="form-row"><label>Description</label><textarea id="task-desc" placeholder="Write adviser/professor instructions."></textarea></div><div class="form-row-inline"><div class="form-row"><label>Assigned Group/Student</label><input id="task-assignee" placeholder="Group AI-CCS-01" required></div><div class="form-row"><label>Deadline</label><input id="task-due" type="date" required></div></div><div class="form-row-inline"><div class="form-row"><label>Priority</label><select id="task-priority"><option>High</option><option>Medium</option><option>Low</option></select></div><div class="form-row"><label>Attachment Requirement</label><select id="task-attach"><option>Required</option><option>Optional</option><option>Not Required</option></select></div></div><div class="form-row"><label>Status</label><select id="task-status"><option>Pending</option><option>In Progress</option><option>Locked</option><option>Scheduled</option></select></div><button class="btn btn-primary">Create Task</button></form></div><div class="card"><h3 class="card-title">Task Rules</h3><div class="feature-grid">${feature('Edit', 'Update a prototype task record.', 'edit')}${feature('Mark as Done', 'Simulate task completion feedback.', 'checklist', 'success')}${feature('View Details', 'Open details in a modal preview.', 'eye')}</div></div></div><div class="card mt-16">${table(['Task','Assigned To','Deadline','Priority','Attachment','Status','Actions'], rows)}</div>`;
 }
 function createTask(event, owner) { event.preventDefault(); const title = document.getElementById('task-title').value; const assignedTo = document.getElementById('task-assignee').value; const due = document.getElementById('task-due').value; const priority = document.getElementById('task-priority').value; const attachment = document.getElementById('task-attach').value; const status = document.getElementById('task-status').value; state.dynamicTasks.push({ title, assignedTo, due, priority, attachment, status }); showToast('Task created and added to the prototype list.'); renderLayout(owner === 'professor' ? 'professor' : 'adviser', owner === 'professor' ? 'create-task' : 'tasks'); }
 function openTaskModal(owner = 'adviser') { modal('Create / Edit Task', `<form class="form"><div class="form-row"><label>Task Title</label><input placeholder="Chapter revision task"></div><div class="form-row"><label>Description</label><textarea placeholder="Instructions and expected output."></textarea></div><div class="form-row-inline"><div class="form-row"><label>Assigned To</label><input placeholder="Group AI-CCS-01"></div><div class="form-row"><label>Deadline</label><input type="date"></div></div></form>`, `<button class="btn" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="closeModal(); showToast('Task saved in prototype.')">Save Task</button>`); }
-function openTaskDetails(title) { modal('Task Details', `<div class="card"><h3 class="card-title">${title}</h3><p class="card-desc">This prototype task includes a deadline, priority level, attachment requirement, status, and student submission tracking.</p></div>`, `<button class="btn" onclick="closeModal()">Close</button>`); }
+function openTaskDetails(title) {
+  const task = [...data.professor.tasks, ...data.student.tasks, ...data.memberTasks, ...state.dynamicTasks].find(t => t.title === title);
+  if (task) {
+    let detailsHtml = `
+      <div class="card">
+        <h3 class="card-title">${esc(task.title)}</h3>
+        <p class="card-desc"><strong>Description:</strong> ${esc(task.description || task.notes || 'No description provided.')}</p>
+        <div class="grid grid-2 mt-12" style="gap: 8px;">
+          <div><strong>Assigned To:</strong> ${esc(task.assignedTo || 'Group AI-CCS-01')}</div>
+          <div><strong>Due Date:</strong> ${esc(task.due)}</div>
+          <div><strong>Priority:</strong> ${esc(task.priority)}</div>
+          <div><strong>Attachment:</strong> ${esc(task.attachment || 'Required')}</div>
+          <div><strong>Status:</strong> ${esc(task.status)}</div>
+        </div>`;
+    
+    if (task.eligibility && task.eligibility !== 'None') {
+      detailsHtml += `<p class="mt-12"><strong>Eligibility Requirement:</strong> Must have accomplished <strong>${esc(task.eligibility)}</strong></p>`;
+    }
+    if (task.prereq && task.prereq !== 'None') {
+      detailsHtml += `<p class="mt-4"><strong>Pre-requisite Task:</strong> ${esc(task.prereq)}</p>`;
+    }
+    if (task.subtasks && task.subtasks.length > 0) {
+      detailsHtml += `
+        <h4 class="mt-12" style="font-size:14px;font-weight:700;">Sub-tasks and Milestones:</h4>
+        <ul class="mt-8" style="padding-left: 20px; list-style-type: disc;">
+          ${task.subtasks.map(st => `<li>${esc(st.title)} (Milestone: <strong>${esc(st.milestone)}</strong>)</li>`).join('')}
+        </ul>`;
+    }
+    detailsHtml += `</div>`;
+    modal('Task Details', detailsHtml, `<button class="btn" onclick="closeModal()">Close</button>`);
+  } else {
+    modal('Task Details', `<div class="card"><h3 class="card-title">${title}</h3><p class="card-desc">This prototype task includes a deadline, priority level, attachment requirement, status, and student submission tracking.</p></div>`, `<button class="btn" onclick="closeModal()">Close</button>`);
+  }
+}
+window.addProfessorSubtaskRow = addProfessorSubtaskRow;
+window.toggleAllProfessorGroups = toggleAllProfessorGroups;
+window.createProfessorTask = createProfessorTask;
 window.createTask = createTask; window.openTaskModal = openTaskModal; window.openTaskDetails = openTaskDetails;
 
 
@@ -1202,15 +1460,273 @@ function renderGroupLeader(tab) {
   return pages[tab] || overview;
 }
 
+function setWorkspaceSubTab(tab) {
+  state.activeWorkspaceSubTab = tab;
+  renderLayout('adviser', 'review-workspace');
+}
+
+function sendWorkspaceChatMessage(event, groupName) {
+  event.preventDefault();
+  const input = document.getElementById('workspace-chat-message');
+  if (!input) return;
+  const msgText = input.value.trim();
+  if (!msgText) return;
+  
+  if (!state.workspaceChatMessages[groupName]) {
+    state.workspaceChatMessages[groupName] = [];
+  }
+  state.workspaceChatMessages[groupName].push({
+    from: 'adviser',
+    name: 'Dr. Rachel Lim',
+    text: msgText,
+    time: 'Now'
+  });
+  input.value = '';
+  
+  renderLayout('adviser', 'review-workspace');
+  showToast('Message sent to ' + groupName);
+  
+  setTimeout(() => {
+    const thread = document.getElementById('workspace-chat-thread');
+    if (thread) thread.scrollTop = thread.scrollHeight;
+  }, 50);
+}
+
+function createWorkspaceTask(event, groupName) {
+  event.preventDefault();
+  const title = document.getElementById('workspace-task-title').value;
+  const desc = document.getElementById('workspace-task-desc').value;
+  const due = document.getElementById('workspace-task-due').value;
+  const priority = document.getElementById('workspace-task-priority').value;
+  const attachment = document.getElementById('workspace-task-attach').value;
+  const status = document.getElementById('workspace-task-status').value;
+  
+  state.dynamicTasks.push({
+    title,
+    description: desc,
+    assignedTo: groupName,
+    due,
+    priority,
+    attachment,
+    status
+  });
+  
+  showToast('Task created and assigned to ' + groupName);
+  renderLayout('adviser', 'review-workspace');
+}
+
+function workspaceTaskModule(groupName) {
+  const base = data.student.tasks;
+  const filteredTasks = [...base, ...state.dynamicTasks].filter(t => t.assignedTo === groupName || (t.assignedTo && t.assignedTo.includes(groupName)));
+  
+  const rows = filteredTasks.map(t => [
+    t.title,
+    t.due,
+    tag(t.priority || 'Medium'),
+    t.attachment || 'Required',
+    tag(t.status),
+    `<div class="flex gap-8">
+      <button class="btn btn-sm" onclick="openTaskDetails('${esc(t.title)}')">View Details</button>
+      <button class="btn btn-sm" onclick="showToast('Marked ${esc(t.title)} as done.')">Mark as Done</button>
+    </div>`
+  ]);
+
+  return `
+    <div class="grid grid-2">
+      <div class="card">
+        <h3 class="card-title">Create Task for ${esc(groupName)}</h3>
+        <form class="form" onsubmit="createWorkspaceTask(event, '${esc(groupName)}')">
+          <div class="form-row">
+            <label>Task Title</label>
+            <input id="workspace-task-title" placeholder="Chapter 3 Methodology revision" required>
+          </div>
+          <div class="form-row">
+            <label>Description</label>
+            <textarea id="workspace-task-desc" placeholder="Write instructions for the group."></textarea>
+          </div>
+          <div class="form-row-inline">
+            <div class="form-row">
+              <label>Assigned Group</label>
+              <input id="workspace-task-assignee" value="${esc(groupName)}" readonly style="background: var(--bg-secondary); cursor: not-allowed;">
+            </div>
+            <div class="form-row">
+              <label>Deadline</label>
+              <input id="workspace-task-due" type="date" required>
+            </div>
+          </div>
+          <div class="form-row-inline">
+            <div class="form-row">
+              <label>Priority</label>
+              <select id="workspace-task-priority">
+                <option>High</option>
+                <option selected>Medium</option>
+                <option>Low</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Attachment Requirement</label>
+              <select id="workspace-task-attach">
+                <option>Required</option>
+                <option>Optional</option>
+                <option>Not Required</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Status</label>
+            <select id="workspace-task-status">
+              <option>Pending</option>
+              <option>In Progress</option>
+              <option>Locked</option>
+              <option>Scheduled</option>
+            </select>
+          </div>
+          <button class="btn btn-primary">Create Task</button>
+        </form>
+      </div>
+      <div class="card">
+        <h3 class="card-title">Group Task Rules</h3>
+        <div class="feature-grid">
+          ${feature('Direct Assignment', `Tasks are automatically assigned to ${esc(groupName)}.`, 'users')}
+          ${feature('Visibility', 'Group members can see this task on their dashboards.', 'eye', 'gold')}
+          ${feature('Status updates', 'Track student progress and final submission.', 'checklist', 'success')}
+        </div>
+      </div>
+    </div>
+    <div class="card mt-16">
+      <h3 class="card-title">Tasks for ${esc(groupName)}</h3>
+      ${table(['Task Name', 'Deadline', 'Priority', 'Attachment', 'Status', 'Actions'], rows)}
+    </div>`;
+}
+
+function workspaceReviewsModule(groupName) {
+  const groupReviews = data.adviser.reviews.filter(r => r.group === groupName);
+  const rows = groupReviews.map(r => [
+    r.doc,
+    r.due,
+    tag(r.status),
+    `<button class="btn btn-sm" onclick="showToast('Loading ${esc(r.doc)} for review...')">${icon('edit')} Review</button>`
+  ]);
+  
+  return `
+    <div class="card">
+      <h3 class="card-title">Submitted Papers for ${esc(groupName)}</h3>
+      ${table(['Document', 'Due Date', 'Status', 'Action'], rows)}
+    </div>
+    <div class="mt-16">
+      <div class="review-banner">${icon('shield')} Adviser access is limited to review, feedback, highlights, comments, section marks, and recommendations. The student remains the main editor of the paper.</div>
+      <div class="document-review mt-16">
+        <div class="document-page review-page" id="document-page">
+          <h3>Chapter 2: Review of Related Literature (${esc(groupName)})</h3>
+          <p>The study discusses digital research management systems and their effect on student progress monitoring. <span class="highlight">The literature synthesis needs stronger connection to consultation workflows.</span></p>
+          <p id="dynamic-highlight">Role-based visibility protects student data by ensuring that students can view only their own assigned tasks and contribution records.</p>
+          <p><span class="margin-note">Needs Revision</span> The methodology section should explain how usability testing and adviser review comments will be measured.</p>
+        </div>
+        <aside class="comment-panel">
+          <h3 class="card-title">Review Tools</h3>
+          <div class="review-tool-grid">
+            <button class="btn btn-sm btn-primary" onclick="highlightDoc()">Highlight Text</button>
+            <button class="btn btn-sm" onclick="addDocComment()">Inline Comment</button>
+            <button class="btn btn-sm" onclick="addMarginComment()">Margin Comment</button>
+            <select id="feedback-tag">
+              <option>Grammar</option>
+              <option>Content</option>
+              <option>Citation</option>
+              <option>Format</option>
+              <option>Methodology</option>
+              <option>Revision Needed</option>
+              <option>Approved</option>
+            </select>
+            <button class="btn btn-sm btn-danger" onclick="showToast('Section marked as Needs Revision.')">Mark Needs Revision</button>
+            <button class="btn btn-sm btn-success" onclick="showToast('Section marked as Approved.')">Mark Approved</button>
+          </div>
+          <h3 class="card-title mt-16">Feedback List</h3>
+          <div id="comment-list" class="list">
+            ${data.reviewComments.map(c=>`<div class="list-item"><div><div class="item-title">${c.type}</div><div class="item-sub">${c.note}</div></div>${tag(c.status)}</div>`).join('')}
+          </div>
+          <div class="form mt-16">
+            <label>General Adviser Feedback</label>
+            <textarea class="textarea" placeholder="Write overall feedback for the student group."></textarea>
+            <label>Final Recommendation</label>
+            <select>
+              <option>Return for Revision</option>
+              <option>Reviewed</option>
+              <option>Approved with Minor Revisions</option>
+              <option>Approved</option>
+            </select>
+            <button class="btn btn-primary" onclick="showToast('Paper returned to student with adviser feedback.')">Return Paper to Student</button>
+          </div>
+        </aside>
+      </div>
+    </div>`;
+}
+
+window.setWorkspaceSubTab = setWorkspaceSubTab;
+window.sendWorkspaceChatMessage = sendWorkspaceChatMessage;
+window.createWorkspaceTask = createWorkspaceTask;
+
 function renderAdviser(tab) {
   const a = data.adviser;
   const overview = `${hero('Adviser Dashboard','Review submitted papers, highlight text, add comments, mark revisions, monitor risk, and conduct consultations. Full student writing editor access is not shown for adviser accounts.', [['Paper review only','lock'], ['Risk monitoring','alert'], ['Consultation','video']], `<button class="btn btn-primary" onclick="routeTo('#/app/adviser/paper-review')">${icon('edit')} Open Paper Review</button>`)}<div class="grid grid-4 mt-16">${stat('Advisee Groups', a.advisees.length, 'Active workspaces', 'users')}${stat('High Risk', a.riskFactors.filter(r=>r.risk==='High').length, 'Needs immediate action', 'alert','danger')}${stat('Papers for Review', a.reviews.length, 'Chapters and letters', 'file')}${stat('Consultations', a.consultations.length, 'This week', 'calendar','gold')}</div><div class="module-layout"><div class="card"><h3 class="card-title">My Advisees</h3>${table(['Group','Project','Members','Progress','Risk'], a.advisees.map(g => [g.group, g.title, g.members, pct(g.progress), tag(g.risk)]))}</div><div class="card"><h3 class="card-title">Adviser Access Boundary</h3><div class="feature-grid">${feature('Paper Review only','Review papers using comments, highlights, and revision marks.','edit','gold')}${feature('No direct editing','Original student paper content stays with students.','lock','warning')}${feature('Review suggestions','Changes are suggested and returned for student revision.','message')}</div></div></div>`;
   const pages = { overview,
-    advisees: `${hero('My Advisees','Assigned research groups with progress and monitoring.', [['Group management','users']])}<div class="grid grid-3 mt-16">${a.advisees.map(g => `<div class="card"><div class="flex-between"><div><h3 class="card-title">${g.group}</h3><p class="card-desc">${g.title}</p></div>${tag(g.risk)}</div><div class="mt-12">${pct(g.progress)}</div><p class="card-desc mt-12">${g.factors}</p><button class="btn btn-sm mt-12" onclick="showToast('Opened ${g.group} review workspace.')">${icon('folder')} Review Workspace</button></div>`).join('')}</div>`,
+    advisees: `${hero('My Advisees','Assigned research groups with progress and monitoring.', [['Group management','users']])}<div class="grid grid-3 mt-16">${a.advisees.map(g => `<div class="card"><div class="flex-between"><div><h3 class="card-title">${g.group}</h3><p class="card-desc">${g.title}</p></div>${tag(g.risk)}</div><div class="mt-12">${pct(g.progress)}</div><p class="card-desc mt-12">${g.factors}</p><button class="btn btn-sm mt-12" onclick="state.activeAdviseeGroup = '${g.group}'; state.activeWorkspaceSubTab = 'chat'; routeTo('#/app/adviser/review-workspace')">${icon('folder')} Review Workspace</button></div>`).join('')}</div>`,
     'risk-dashboard': riskDashboard(), requests: `${hero('Advising Requests','Accept or reject student/group adviser requests.', [['Applications','mail']])}<div class="card mt-16">${table(['Group','Topic','Date','Status','Action'], a.requests.map(r => [r.group, r.topic, r.date, tag(r.status), `<div class="flex gap-8"><button class="btn btn-sm btn-success" onclick="showToast('Accepted ${r.group}.')">Accept</button><button class="btn btn-sm btn-danger" onclick="showToast('Rejected ${r.group}.')">Reject</button></div>`]))}</div>`,
     tasks: taskCreationModule('adviser'), submissions: `${hero('Submitted Papers','Review uploaded research files and their status.', [['Review queue','file']])}<div class="card mt-16">${table(['Document','Group','Due','Status','Action'], a.reviews.map(r => [r.doc, r.group, r.due, tag(r.status), `<button class="btn btn-sm" onclick="routeTo('#/app/adviser/paper-review')">Open Paper Review</button>`]))}</div>`,
     'paper-review': adviserReviewModule(), schedule: consultationJoinModule('adviser'), chat: chatModule('adviser'), 'video-call': videoCallModule('adviser'),
     'consultation-form': `${hero('Consultation Notes','Record consultation details, required revisions, next deadline, and follow-up status.', [['Notes','clipboard']])}<div class="grid grid-2 mt-16"><div class="card"><form class="form" onsubmit="fakeSubmit(event,'Consultation note saved.')"><div class="form-row"><label>Group</label><select><option>Group AI-CCS-01</option><option>Group SE-12</option></select></div><div class="form-row"><label>Topics Discussed</label><textarea placeholder="Research design, revisions, prototype testing"></textarea></div><div class="form-row"><label>Next Deadline</label><input type="date"></div><button class="btn btn-primary">Save Notes</button></form></div><div class="card"><h3 class="card-title">Recent Notes</h3><div class="list"><div class="list-item"><span>Chapter 2 synthesis revision</span>${tag('Follow-up Needed')}</div><div class="list-item"><span>Prototype evidence upload</span>${tag('Completed')}</div></div></div></div>`,
+    'review-workspace': (() => {
+      const groupName = state.activeAdviseeGroup || data.adviser.advisees[0].group;
+      const subtab = state.activeWorkspaceSubTab || 'chat';
+      const groupInfo = data.adviser.advisees.find(g => g.group === groupName) || data.adviser.advisees[0];
+      
+      let subView = '';
+      if (subtab === 'chat') {
+        const groupMsgs = state.workspaceChatMessages[groupName] || [];
+        const messagesHtml = groupMsgs.map(m => `
+          <div class="chat-bubble ${m.from === 'adviser' ? 'me' : ''}">
+            <div class="chat-name">${esc(m.name)} · ${esc(m.time)}</div>
+            <div>${esc(m.text)}</div>
+          </div>
+        `).join('');
+        subView = `
+          <div class="chat-shell mt-16" style="height: 500px; display: flex; flex-direction: column;">
+            <section class="chat-panel" style="flex: 1; display: flex; flex-direction: column;">
+              <div class="chat-header">
+                <div>
+                  <h3>Consultation Chat: ${esc(groupName)}</h3>
+                  <p>Adviser-Student direct channel</p>
+                </div>
+                ${tag('Online')}
+              </div>
+              <div class="chat-thread" id="workspace-chat-thread" style="flex: 1; overflow-y: auto; padding: 16px;">
+                ${messagesHtml}
+              </div>
+              <form class="chat-input" onsubmit="sendWorkspaceChatMessage(event, '${esc(groupName)}')">
+                <button type="button" class="btn" onclick="showToast('Attachment picker opened in prototype.')">${icon('upload')}</button>
+                <input id="workspace-chat-message" placeholder="Type a message to the group..." required>
+                <button class="btn btn-primary">Send</button>
+              </form>
+            </section>
+          </div>`;
+      } else if (subtab === 'tasks') {
+        subView = workspaceTaskModule(groupName);
+      } else if (subtab === 'reviews') {
+        subView = workspaceReviewsModule(groupName);
+      }
+
+      return `
+        ${hero('Review Workspace: ' + groupName, `Workspace dashboard for ${esc(groupInfo.title)}. Optimize reviews, create tasks, and chat with members.`, [['Members', groupInfo.members], ['Risk', groupInfo.risk], ['Progress', pct(groupInfo.progress)]], `<button class="btn" onclick="routeTo('#/app/adviser/advisees')">${icon('arrowRight')} Back to Advisees</button>`)}
+        
+        <div class="workspace-tabs mt-16" style="display: flex; gap: 8px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;">
+          <button class="btn ${subtab === 'chat' ? 'btn-primary' : ''}" onclick="setWorkspaceSubTab('chat')">${icon('message')} Group Chats</button>
+          <button class="btn ${subtab === 'tasks' ? 'btn-primary' : ''}" onclick="setWorkspaceSubTab('tasks')">${icon('checklist')} Create Task</button>
+          <button class="btn ${subtab === 'reviews' ? 'btn-primary' : ''}" onclick="setWorkspaceSubTab('reviews')">${icon('edit')} Paper Reviews</button>
+        </div>
+        
+        <div class="workspace-content mt-16">
+          ${subView}
+        </div>`;
+    })(),
     notifications: `${hero('Adviser Notifications','Updates for submissions, risks, consultations, and review queues.', [['Alerts','bell']])}<div class="card mt-16"><div class="list"><div class="list-item"><span>Group SE-12 became high risk</span>${tag('Unread')}</div><div class="list-item"><span>New paper submitted for review</span>${tag('Unread')}</div></div></div>`, profile: profileCard(roleMeta.adviser) };
   return pages[tab] || overview;
 }
