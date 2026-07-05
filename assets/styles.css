@@ -322,7 +322,19 @@ label { font-weight: 600; color: #334155; font-size: 13px; }
 .sidebar-foot { position: relative; z-index: 1; display: grid; gap: 8px; padding: 14px; border-top: 1px solid rgba(255,255,255,.08); }
 .sidebar-foot .btn { color: #fff; border-color: rgba(255,255,255,.12); background: rgba(255,255,255,.06); width: 100%; justify-content: flex-start; }
 .sidebar-foot .btn:hover { background: rgba(255,255,255,.1); }
-.main-area { min-width: 0; background: var(--bg-tertiary); }
+.main-area { min-width: 0; background: var(--bg-tertiary); position: relative; }
+.main-area::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url('school-logo.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: min(450px, 60%);
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 0;
+}
 .topbar {
   position: sticky;
   top: 0;
@@ -342,7 +354,7 @@ label { font-weight: 600; color: #334155; font-size: 13px; }
 .search-box { flex: 1; max-width: 420px; position: relative; }
 .search-box input { width: 100%; border: 1px solid #e2e8f0; border-radius: 999px; min-height: 40px; padding: 0 14px 0 40px; outline: 0; background: #fff; }
 .search-box .ico { position: absolute; left: 14px; top: 11px; color: var(--text-tertiary); }
-.content { padding: 24px; max-width: 1500px; margin: 0 auto; }
+.content { padding: 24px; max-width: 1500px; margin: 0 auto; position: relative; z-index: 1; }
 /* Core UI */
 .hero-panel {
   position: relative;
