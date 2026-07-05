@@ -30,6 +30,14 @@ const state = {
   activeSubmissionGroupId: '',
   activeSubmissionTaskId: '',
   activeGroupId: '',
+  studentWorkspaceTab: 'overview',
+  activeStudentTaskId: '',
+  studentGroupThreadTab: 'chat',
+  groupTasks: [
+    { id: 'gt-1', title: 'RRL Synthesis', assignedTo: 'Mika Santos', priority: 'High', due: '2026-07-12', desc: 'Synthesize the 5 local weather station papers.', status: 'Completed' },
+    { id: 'gt-2', title: 'Data Scraping Script', assignedTo: 'Noah Garcia', priority: 'High', due: '2026-07-15', desc: 'Create scrape script for historical rainfall data.', status: 'In Progress' },
+    { id: 'gt-3', title: 'Draft Methodology Section', assignedTo: 'Ella Cruz', priority: 'Medium', due: '2026-07-20', desc: 'Draft the data pipeline subsection for Chapter 3.', status: 'To Do' }
+  ],
   submissionFilter: 'All',
   submissionSort: 'date-desc',
   submissionQuery: '',
@@ -299,7 +307,7 @@ const roleMeta = {
 
 const navGroups = {
   student: [
-    { title: 'Research Work', items: [['overview', 'Dashboard', 'dashboard'], ['adviser-pool', 'Adviser', 'cap'], ['progress-tracker', 'Progress', 'chart'], ['tasks', 'Tasks', 'checklist'], ['submissions', 'Documents', 'upload'], ['contribution', 'Contribution', 'users']] },
+    { title: 'Research Work', items: [['overview', 'Dashboard', 'dashboard'], ['workspace-detail', 'Research Workspace', 'folder'], ['adviser-pool', 'Adviser', 'cap'], ['progress-tracker', 'Progress', 'chart'], ['tasks', 'Tasks', 'checklist'], ['submissions', 'Documents', 'upload'], ['contribution', 'Contribution', 'users']] },
     { title: 'Consultation', items: [['consultation-hub', 'Consultation', 'calendar'], ['chat', 'Chat', 'message'], ['video-call', 'Video Call', 'video']] },
     { title: 'Defense and Completion', items: [['defense-center', 'Defense', 'flag'], ['grades', 'Grades', 'star'], ['certificates', 'Certificates', 'certificate']] },
     { title: 'Account', items: [['notifications', 'Notifications', 'bell'], ['profile', 'Profile', 'user'], ['settings', 'Settings', 'settings']] }
@@ -727,6 +735,114 @@ window.duplicateTask = duplicateTask;
 window.archiveTask = archiveTask;
 window.sendGroupReminder = sendGroupReminder;
 window.submitDecision = submitDecision;
+
+function setStudentWorkspaceTab(tab) {
+  state.studentWorkspaceTab = tab;
+  renderLayout('student', 'workspace-detail');
+}
+
+function setStudentGroupThreadTab(tab) {
+  state.studentGroupThreadTab = tab;
+  renderLayout('student', 'workspace-detail');
+}
+
+function openStudentTaskDetail(taskId) {
+  state.activeStudentTaskId = taskId;
+  routeTo('#/app/student/task-detail');
+}
+
+function toggleGroupTaskStatus(taskId) {
+  const task = state.groupTasks.find(t => t.id === taskId);
+  if (task) {
+    task.status = task.status === 'Completed' ? 'In Progress' : 'Completed';
+    showToast(`Task "${task.title}" status updated to: ${task.status}`);
+    renderLayout('student', 'workspace-detail');
+  }
+}
+
+function createGroupTask(event) {
+  event.preventDefault();
+  const title = document.getElementById('gt-title').value;
+  const assigned = document.getElementById('gt-assigned').value;
+  const priority = document.getElementById('gt-priority').value;
+  const due = document.getElementById('gt-due').value;
+  const desc = document.getElementById('gt-desc').value;
+  
+  state.groupTasks.push({
+    id: 'gt-' + Date.now(),
+    title,
+    assignedTo: assigned,
+    priority,
+    due,
+    desc,
+    status: 'To Do'
+  });
+  
+  showToast(`Internal group task "${title}" created successfully.`);
+  renderLayout('student', 'workspace-detail');
+}
+
+function submitStudentRequirement(event, taskId) {
+  event.preventDefault();
+  const file = document.getElementById('student-file-upload').value.split('\\').pop() || 'submission.pdf';
+  const comments = document.getElementById('student-file-comments').value || 'No comments provided.';
+  const s = data.student;
+  const ws = getGroupWorkspace(s.group.name);
+  
+  const task = ws.tasks.find(t => t.id === taskId || t.title === taskId);
+  if (task) {
+    task.status = 'In Progress';
+  }
+
+  let sub = state.submissions.find(x => x.taskId === taskId && x.groupName === s.group.name);
+  if (sub) {
+    sub.history.push({
+      version: sub.version,
+      date: sub.date,
+      submittedBy: s.name,
+      status: sub.status,
+      remarks: sub.comments
+    });
+    const currentVerNum = parseInt(sub.version.replace('v', '')) || 1;
+    sub.version = 'v' + (currentVerNum + 1);
+    sub.date = new Date().toISOString().split('T')[0];
+    sub.file = file;
+    sub.comments = comments;
+    sub.status = 'Pending Review';
+  } else {
+    state.submissions.push({
+      id: 'sub-' + Date.now(),
+      workspaceId: ws.id,
+      taskId: taskId,
+      groupName: s.group.name,
+      members: s.group.members || ['Juan Reyes', 'Mika Santos', 'Ella Cruz', 'Noah Garcia'],
+      date: new Date().toISOString().split('T')[0],
+      version: 'v1',
+      status: 'Pending Review',
+      file: file,
+      comments: comments,
+      history: []
+    });
+  }
+
+  data.professor.notifications.push({
+    id: 'notif-' + Date.now() + '-sub',
+    title: `New submission received`,
+    message: `Group ${s.group.name} submitted a new version for "${task ? task.title : 'Milestone'}".`,
+    status: 'Unread',
+    date: 'Today'
+  });
+
+  showToast(`Successfully uploaded requirements for "${task ? task.title : 'Milestone'}".`);
+  routeTo('#/app/student/workspace-detail');
+}
+
+window.setStudentWorkspaceTab = setStudentWorkspaceTab;
+window.setStudentGroupThreadTab = setStudentGroupThreadTab;
+window.openStudentTaskDetail = openStudentTaskDetail;
+window.toggleGroupTaskStatus = toggleGroupTaskStatus;
+window.createGroupTask = createGroupTask;
+window.submitStudentRequirement = submitStudentRequirement;
 
 function createWorkspaceModal() {
   modal('Create Research Workspace', `
@@ -1243,21 +1359,24 @@ function riskDashboard() {
 function renderStudent(tab) {
   const s = data.student;
   const selected = data.advisers.find(a => a.id === state.selectedAdviser) || data.advisers[0];
-  const overview = `${hero('Student Dashboard','Submit documents, view tasks, chat with adviser, track progress, monitor contribution, and prepare for defense.', [['Adviser selected','cap'], ['Progress tracking','chart'], ['Documents','upload']], `<button class="btn" onclick="resetAdviserGate()">${icon('cap')} Change Adviser Gate</button><button class="btn btn-primary" onclick="routeTo('#/app/student/submissions')">${icon('upload')} Upload Document</button>`)}<div class="grid grid-4 mt-16">${stat('Research Progress', `${s.group.progress}%`, s.group.stage, 'chart')}${stat('Assigned Tasks', s.tasks.length, 'Adviser and professor tasks', 'checklist','gold')}${stat('Contribution Health','78%','One member needs follow-up','users','warning')}${stat('Unread Updates', s.notifications.filter(n => n.status === 'Unread').length, 'Requires attention', 'bell','warning')}</div><div class="module-layout"><div class="card"><h3 class="card-title">Workflow Timeline</h3><div class="timeline">${['Adviser selected','Chapter 1 approved','Chapter 2 returned with highlights','Chapter 3 locked','Defense readiness'].map((x,i)=>`<div class="timeline-item ${i<2?'done':i===2?'current':''}"><span class="timeline-dot"></span><div><div class="item-title">${x}</div><div class="item-sub">${i<2?'Completed and verified.':i===2?'Active revision cycle.':'Waiting for previous approval.'}</div></div></div>`).join('')}</div></div><div class="card"><h3 class="card-title">Selected Adviser</h3><div class="flex gap-12 mt-12"><div class="avatar lg gold">${initials(selected.name)}</div><div><div class="item-title">${selected.name}</div><div class="item-sub">${selected.expertise}</div><div class="flex wrap gap-8 mt-8">${tag(selected.status)}${tag(selected.load)}</div></div></div><div class="feature-grid">${feature('Chat', 'Message your adviser from one consultation thread.', 'message')}${feature('Video Call', 'Open the video consultation prototype.', 'video')}${feature('Certificates', 'Certificate automation is retained for completion.', 'certificate','gold')}</div></div></div>`;
+  const overview = renderStudentDashboardHome();
   const pages = {
     overview,
+    'workspace-detail': renderStudentWorkspaceDetailPage(),
+    'task-detail': renderStudentTaskDetailPage(),
     'adviser-pool': `${hero('Adviser Pool','View adviser credentials, expertise, advising load, and recommendation score before selection.', [['Smart matching','spark']], `<button class="btn" onclick="resetAdviserGate()">${icon('cap')} Reopen Selection Flow</button>`)}<div class="grid grid-3 mt-16">${data.advisers.map(a => adviserSelectionCard(a)).join('')}</div>`,
     'progress-tracker': renderStudentProgressStepper(s.group.name),
     tasks: studentAssignedTasksModule(),
+    'writing-editor': writingEditorModule('student'),
     submissions: documentPreviewModule('student'),
-    contribution: contributionModule('student'),
-    'consultation-hub': `${hero('Consultation Hub','Request consultation, view accepted slots, and save consultation summaries.', [['Schedule','calendar'], ['Notes','clipboard']], `<button class="btn btn-primary" onclick="openConsultationModal()">${icon('plus')} Request Consultation</button>`)}<div class="grid grid-2 mt-16"><div class="card"><h3 class="card-title">Upcoming Consultations</h3><div class="list">${data.adviser.consultations.map(c => `<div class="list-item"><div><div class="item-title">${c.topic}</div><div class="item-sub">${c.date} at ${c.time} via ${c.mode}</div></div>${tag(c.status)}</div>`).join('')}</div></div><div class="card"><h3 class="card-title">Consultation Summary</h3><form class="form" onsubmit="fakeSubmit(event,'Consultation summary saved.')"><textarea placeholder="Write summary and next actions."></textarea><button class="btn btn-primary">Save Summary</button></form></div></div>`,
+    contribution: ownContributionModule(),
+    'consultation-hub': consultationJoinModule('student'),
     chat: chatModule('student'),
-    'video-call': videoCallModule(),
-    'defense-center': `${hero('Defense Center','View defense readiness checklist, proposed schedule, and requirements.', [['Readiness checklist','checklist'], ['Defense schedule','flag']])}<div class="grid grid-2 mt-16"><div class="card"><h3 class="card-title">Defense Readiness</h3><div class="stepper">${['Adviser endorsement','Required chapters approved','Similarity check submitted','Panel assigned','Schedule confirmed'].map((x,i)=>`<div class="step ${i<2?'done':i===2?'current':''}"><div class="step-no">${i+1}</div><div><div class="item-title">${x}</div><div class="item-sub">${i<2?'Complete.':i===2?'In progress.':'Pending dean/admin action.'}</div></div>${tag(i<2?'Done':i===2?'Current':'Pending')}</div>`).join('')}</div></div><div class="card"><h3 class="card-title">Proposed Defense</h3>${table(['Type','Date','Venue','Status'], [['Proposal Defense','2026-07-24','CCS Seminar Hall', tag('For Confirmation')]])}</div></div>`,
+    'video-call': videoCallModule('student'),
+    'defense-center': `${hero('Defense Center','View defense readiness checklist, proposed schedule, and requirements.', [['Readiness checklist','checklist'], ['Defense schedule','flag']])}<div class="grid grid-2 mt-16"><div class="card"><h3 class="card-title">Defense Readiness</h3><div class="stepper">${['Adviser endorsement','Required chapters approved','Similarity check submitted','Panel assigned','Schedule confirmed'].map((x,i)=>`<div class="step ${i<2?'done':i===2?'current':''}"><div class="step-no">${i+1}</div><div><div class="item-title">${x}</div><div class="item-sub">${i<2?'Complete.':i===2?'In progress.':'Pending dean/admin action.'}</div></div>${tag(i<2?'Done':i===2?'current':'Pending')}</div>`).join('')}</div></div><div class="card"><h3 class="card-title">Proposed Defense</h3>${table(['Type','Date','Venue','Status'], [['Proposal Defense','2026-07-24','CCS Seminar Hall', tag('For Confirmation')]])}</div></div>`,
     grades: `${hero('Grades and Remarks','View panelist scores, recommendations, and research remarks.', [['Evaluation results','star']])}<div class="card mt-16">${table(['Criteria','Panelist','Score','Remarks'], s.grades.map(g => [g.criteria, g.panelist, g.score, g.remarks]))}</div>`,
-    certificates: `${hero('Certificates','Certificate automation is kept: students can preview QR-verified completion certificates after approval.', [['QR certificate','qr'], ['Completion record','certificate']], `<button class="btn btn-primary" onclick="showToast('Certificate preview opened.')">${icon('certificate')} Preview Certificate</button>`)}<div class="grid grid-2 mt-16"><div class="certificate-preview"><div class="brand-mark">A</div><h2>Certificate of Research Completion</h2><p>Presented to Group AI-CCS-01 after final approval and panel score verification.</p><div class="qr-box">QR</div></div><div class="card"><h3 class="card-title">Certificate Status</h3><div class="list"><div class="list-item"><span>Final defense result</span>${tag('Pending')}</div><div class="list-item"><span>Dean approval</span>${tag('Pending')}</div><div class="list-item"><span>QR verification</span>${tag('Ready after approval')}</div></div></div></div>`,
-    notifications: `${hero('Notifications','Central feed for task, document, consultation, defense, and certificate updates.', [['Alerts','bell']])}<div class="card mt-16"><div class="list">${s.notifications.map(n => `<div class="list-item"><div><div class="item-title">${n.title}</div><div class="item-sub">${n.body}</div></div>${tag(n.status)}</div>`).join('')}</div></div>`,
+    certificates: `${hero('Certificates','Preview QR-verified completion certificates after approval.', [['QR certificate','qr'], ['Completion record','certificate']], `<button class="btn btn-primary" onclick="showToast('Certificate preview opened.')">${icon('certificate')} Preview Certificate</button>`)}<div class="grid grid-2 mt-16"><div class="certificate-preview"><div class="brand-mark">A</div><h2>Certificate of Research Completion</h2><p>Presented to Group AI-CCS-01 after final approval and panel score verification.</p><div class="qr-box">QR</div></div><div class="card"><h3 class="card-title">Certificate Status</h3><div class="list"><div class="list-item"><span>Final defense result</span>${tag('Pending')}</div><div class="list-item"><span>Dean approval</span>${tag('Pending')}</div><div class="list-item"><span>QR verification</span>${tag('Ready after approval')}</div></div></div></div>`,
+    notifications: `${hero('Notifications','Central feed for task, document, consultation, defense, and certificate updates.', [['Alerts','bell']])}<div class="card mt-16"><div class="list">${s.notifications.map(n => `<div class="list-item"><div><div class="item-title">${n.title}</div><div class="item-sub">${n.body || n.message}</div></div>${tag(n.status)}</div>`).join('')}</div></div>`,
     profile: profileCard(roleMeta.student),
     settings: settingsCard('student')
   };
@@ -2113,13 +2232,13 @@ demoAccounts['leader01@university.edu.ph'] = 'group-leader';
 roleMeta.student.subtitle = 'Research Group Member';
 roleMeta['group-leader'] = { label: 'Group Leader', initials: 'JR', name: 'Juan Reyes', email: 'leader01@university.edu.ph', subtitle: 'Research Group Leader', defaultTab: 'overview' };
 navGroups.student = [
-  { title: 'My Research Work', items: [['overview', 'Dashboard', 'dashboard'], ['adviser-pool', 'Adviser', 'cap'], ['progress-tracker', 'Progress', 'chart'], ['tasks', 'My Tasks', 'checklist'], ['writing-editor', 'Writing Editor', 'edit'], ['submissions', 'My Documents', 'upload'], ['contribution', 'My Contribution', 'user']] },
+  { title: 'My Research Work', items: [['overview', 'Dashboard', 'dashboard'], ['workspace-detail', 'Research Workspace', 'folder'], ['adviser-pool', 'Adviser', 'cap'], ['progress-tracker', 'Progress', 'chart'], ['tasks', 'My Tasks', 'checklist'], ['writing-editor', 'Writing Editor', 'edit'], ['submissions', 'My Documents', 'upload'], ['contribution', 'My Contribution', 'user']] },
   { title: 'Consultation', items: [['consultation-hub', 'Consultation', 'calendar'], ['chat', 'Chat', 'message'], ['video-call', 'Video Call', 'video']] },
   { title: 'Defense and Completion', items: [['defense-center', 'Defense', 'flag'], ['grades', 'Grades', 'star'], ['certificates', 'Certificates', 'certificate']] },
   { title: 'Account', items: [['notifications', 'Notifications', 'bell'], ['profile', 'Profile', 'user'], ['settings', 'Settings', 'settings']] }
 ];
 navGroups['group-leader'] = [
-  { title: 'Group Workspace', items: [['overview', 'Dashboard', 'dashboard'], ['members', 'Members', 'users'], ['leader-tasks', 'Task Management', 'checklist'], ['writing-editor', 'Writing Editor', 'edit'], ['submissions', 'Group Papers', 'upload'], ['contribution', 'Contribution', 'chart']] },
+  { title: 'Group Workspace', items: [['overview', 'Dashboard', 'dashboard'], ['workspace-detail', 'Research Workspace', 'folder'], ['members', 'Members', 'users'], ['leader-tasks', 'Task Management', 'checklist'], ['writing-editor', 'Writing Editor', 'edit'], ['submissions', 'Group Papers', 'upload'], ['contribution', 'Contribution', 'chart']] },
   { title: 'Consultation', items: [['consultation-hub', 'Consultation', 'calendar'], ['chat', 'Chat', 'message'], ['video-call', 'Video Call', 'video']] },
   { title: 'Defense and Completion', items: [['defense-center', 'Defense', 'flag'], ['grades', 'Grades', 'star'], ['certificates', 'Certificates', 'certificate']] },
   { title: 'Account', items: [['notifications', 'Notifications', 'bell'], ['profile', 'Profile', 'user'], ['settings', 'Settings', 'settings']] }
@@ -2753,12 +2872,542 @@ function videoCallModule(role = 'student') {
 function enterCall() { const pre = document.getElementById('prejoin-lobby'); const live = document.getElementById('live-call'); if (pre && live) { pre.classList.add('hidden'); live.classList.remove('hidden'); showToast('Joined the consultation call.'); } }
 function toggleCallFullscreen() { const shell = document.getElementById('video-shell'); if (shell) shell.classList.toggle('call-fullscreen'); showToast('Full screen mode toggled.'); }
 
+function renderStudentDashboardHome() {
+  const s = data.student;
+  const ws = getGroupWorkspace(s.group.name);
+  const selectedAdviser = data.advisers.find(a => a.id === state.selectedAdviser) || data.advisers[0];
+
+  const pendingMilestones = ws.tasks.filter(t => t.status !== 'Approved').length;
+  const submittedMilestones = state.submissions.filter(sub => sub.groupName === s.group.name).length;
+  const consultationCount = data.adviser.consultations.length;
+  const unreadNotificationsCount = s.notifications.filter(n => n.status === 'Unread').length;
+
+  return `
+    ${hero('Student Dashboard', 'Access your assigned research workspace, submit milestone requirements, collaborate with team members, and prepare for evaluation.', [['Visibility', 'workspace'], ['Academic Year', '2026-2027']], `<button class="btn btn-primary" onclick="routeTo('#/app/student/workspace-detail')">${icon('folder')} Open Workspace</button>`)}
+    
+    <div class="grid grid-2 mt-16" style="gap: 16px;">
+      <div class="card" style="border-left: 4px solid var(--primary-color);">
+        <span style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--text-secondary);">Assigned Research Workspace</span>
+        <h2 style="font-size: 22px; font-weight: 800; margin-top: 4px; color: var(--text-primary);">${esc(ws.name)}</h2>
+        <div class="grid grid-2 mt-12" style="gap: 8px; font-size: 13px;">
+          <div>Academic Year: <strong>2026–2027</strong></div>
+          <div>Professor/Adviser: <strong>${esc(selectedAdviser.name)}</strong></div>
+          <div>Current Milestone: <strong>${esc(s.group.stage)}</strong></div>
+          <div>Status: <span style="color: var(--success-color); font-weight: 700;">Active</span></div>
+        </div>
+        <div class="mt-16">
+          <div class="flex-between mb-4" style="font-size: 12px;">
+            <span>Overall Progress</span>
+            <strong>${s.group.progress}%</strong>
+          </div>
+          ${pct(s.group.progress)}
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title" style="margin-bottom: 12px;">Quick Statistics</h3>
+        <div class="grid grid-3" style="gap: 12px; text-align: center;">
+          <div style="background: var(--bg-secondary); padding: 8px; border-radius: 8px;">
+            <strong style="font-size: 16px; color: var(--gold);">${pendingMilestones}</strong>
+            <span style="font-size: 11px; color: var(--text-secondary); display: block;">Pending Tasks</span>
+          </div>
+          <div style="background: var(--bg-secondary); padding: 8px; border-radius: 8px;">
+            <strong style="font-size: 16px; color: var(--primary-color);">${submittedMilestones}</strong>
+            <span style="font-size: 11px; color: var(--text-secondary); display: block;">Submitted Tasks</span>
+          </div>
+          <div style="background: var(--bg-secondary); padding: 8px; border-radius: 8px;">
+            <strong style="font-size: 16px; color: var(--success-color);">${consultationCount}</strong>
+            <span style="font-size: 11px; color: var(--text-secondary); display: block;">Consultations</span>
+          </div>
+        </div>
+        <div class="grid grid-2 mt-12" style="gap: 12px; text-align: center;">
+          <div style="background: var(--bg-secondary); padding: 8px; border-radius: 8px;">
+            <strong style="font-size: 14px; color: var(--danger-color);">July 20, 2026</strong>
+            <span style="font-size: 11px; color: var(--text-secondary); display: block;">Upcoming Deadline</span>
+          </div>
+          <div style="background: var(--bg-secondary); padding: 8px; border-radius: 8px; cursor: pointer;" onclick="routeTo('#/app/student/notifications')">
+            <strong style="font-size: 14px; color: var(--primary-color);">${unreadNotificationsCount}</strong>
+            <span style="font-size: 11px; color: var(--text-secondary); display: block;">Notifications</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-16">
+      <h3 class="card-title" style="margin-bottom: 12px;">Quick Actions</h3>
+      <div class="grid grid-6" style="gap: 12px;">
+        <div class="card" style="text-align: center; padding: 12px; cursor: pointer; background: var(--bg-secondary);" onclick="routeTo('#/app/student/workspace-detail'); setStudentWorkspaceTab('overview');">
+          <div style="font-size: 20px; color: var(--primary-color);">${icon('folder')}</div>
+          <strong style="font-size: 12px; display: block; margin-top: 4px;">Open Workspace</strong>
+        </div>
+        <div class="card" style="text-align: center; padding: 12px; cursor: pointer; background: var(--bg-secondary);" onclick="routeTo('#/app/student/workspace-detail'); setStudentWorkspaceTab('tasks');">
+          <div style="font-size: 20px; color: var(--gold);">${icon('upload')}</div>
+          <strong style="font-size: 12px; display: block; margin-top: 4px;">Submit Task</strong>
+        </div>
+        <div class="card" style="text-align: center; padding: 12px; cursor: pointer; background: var(--bg-secondary);" onclick="routeTo('#/app/student/workspace-detail'); setStudentWorkspaceTab('consultations');">
+          <div style="font-size: 20px; color: var(--success-color);">${icon('calendar')}</div>
+          <strong style="font-size: 12px; display: block; margin-top: 4px;">Request Consultation</strong>
+        </div>
+        <div class="card" style="text-align: center; padding: 12px; cursor: pointer; background: var(--bg-secondary);" onclick="routeTo('#/app/student/workspace-detail'); setStudentWorkspaceTab('announcements');">
+          <div style="font-size: 20px; color: var(--primary-color);">${icon('bell')}</div>
+          <strong style="font-size: 12px; display: block; margin-top: 4px;">Announcements</strong>
+        </div>
+        <div class="card" style="text-align: center; padding: 12px; cursor: pointer; background: var(--bg-secondary);" onclick="routeTo('#/app/student/workspace-detail'); setStudentWorkspaceTab('group-thread');">
+          <div style="font-size: 20px; color: var(--primary-color);">${icon('message')}</div>
+          <strong style="font-size: 12px; display: block; margin-top: 4px;">Group Thread</strong>
+        </div>
+        <div class="card" style="text-align: center; padding: 12px; cursor: pointer; background: var(--bg-secondary);" onclick="showToast('Repository link loaded in prototype.')">
+          <div style="font-size: 20px; color: var(--text-secondary);">${icon('code')}</div>
+          <strong style="font-size: 12px; display: block; margin-top: 4px;">Repository</strong>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderStudentWorkspaceDetailPage() {
+  const s = data.student;
+  const ws = getGroupWorkspace(s.group.name);
+  const selectedAdviser = data.advisers.find(a => a.id === state.selectedAdviser) || data.advisers[0];
+  const subtab = state.studentWorkspaceTab || 'overview';
+  
+  const tabButtons = `
+    <div class="workspace-tabs mt-16" style="display: flex; gap: 8px; border-bottom: 2px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px; overflow-x: auto;">
+      <button class="btn btn-sm ${subtab === 'overview' ? 'btn-primary' : ''}" onclick="setStudentWorkspaceTab('overview')">${icon('dashboard')} Overview</button>
+      <button class="btn btn-sm ${subtab === 'tasks' ? 'btn-primary' : ''}" onclick="setStudentWorkspaceTab('tasks')">${icon('checklist')} Tasks & Milestones</button>
+      <button class="btn btn-sm ${subtab === 'group-thread' ? 'btn-primary' : ''}" onclick="setStudentWorkspaceTab('group-thread')">${icon('message')} Group Thread</button>
+      <button class="btn btn-sm ${subtab === 'files' ? 'btn-primary' : ''}" onclick="setStudentWorkspaceTab('files')">${icon('folder')} Files</button>
+      <button class="btn btn-sm ${subtab === 'consultations' ? 'btn-primary' : ''}" onclick="setStudentWorkspaceTab('consultations')">${icon('video')} Consultations</button>
+      <button class="btn btn-sm ${subtab === 'announcements' ? 'btn-primary' : ''}" onclick="setStudentWorkspaceTab('announcements')">${icon('bell')} Announcements</button>
+    </div>
+  `;
+
+  let subtabContent = '';
+  
+  if (subtab === 'overview') {
+    const myGroupSubs = state.submissions.filter(x => x.groupName === s.group.name);
+    let latestFeedback = 'No feedback recorded yet.';
+    myGroupSubs.forEach(sb => {
+      if (sb.history && sb.history.length > 0) {
+        latestFeedback = `"${esc(sb.history[sb.history.length - 1].remarks)}"`;
+      }
+    });
+
+    const completedCount = ws.tasks.filter(t => t.status === 'Approved').length;
+
+    subtabContent = `
+      <div class="grid grid-2 gap-16 mt-16">
+        <div class="card">
+          <h3 class="card-title">Research Workspace Summary</h3>
+          <div class="grid grid-2 mt-8" style="gap: 8px; font-size: 13px;">
+            <div>Workspace: <strong>${esc(ws.name)}</strong></div>
+            <div>Professor/Adviser: <strong>${esc(selectedAdviser.name)}</strong></div>
+            <div>Current Milestone: <strong>${esc(s.group.stage)}</strong></div>
+            <div>Next Deadline: <strong>July 20, 2026</strong></div>
+          </div>
+          <div class="mt-16">
+            <div class="flex-between mb-4" style="font-size: 12px;">
+              <span>Overall Progress (${completedCount} of ${ws.tasks.length} Tasks Completed)</span>
+              <strong>${s.group.progress}%</strong>
+            </div>
+            ${pct(s.group.progress)}
+          </div>
+          <div class="mt-16">
+            <strong>Group Members:</strong>
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
+              ${(s.group.members || ['Juan Reyes', 'Mika Santos', 'Ella Cruz', 'Noah Garcia']).map(m => `<span style="background: var(--bg-secondary); padding: 4px 8px; border-radius: 4px; font-size: 11px;">${esc(m)}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div class="card">
+            <h3 class="card-title">Latest Announcement</h3>
+            <p style="font-size: 12px; font-weight: 700; margin-top: 6px;">Chapter 1 Deadline Reminder (June 15, 2026)</p>
+            <p class="card-desc" style="font-size: 11px;">Friendly reminder that the deadline for Chapter 1 final manuscript is on July 20, 2026.</p>
+          </div>
+          <div class="card">
+            <h3 class="card-title">Recent Feedback</h3>
+            <p class="card-desc" style="font-size: 12px; font-style: italic; margin-top: 6px;">${latestFeedback}</p>
+          </div>
+        </div>
+      </div>
+    `;
+  } 
+  else if (subtab === 'tasks') {
+    const steps = ws.tasks.map((t, i) => {
+      const sub = state.submissions.find(x => x.taskId === t.id && x.groupName === s.group.name);
+      
+      const isCompleted = t.status === 'Approved';
+      const hasPrereq = t.prereq && t.prereq !== 'None';
+      
+      const prereqTask = hasPrereq ? ws.tasks.find(pt => pt.title === t.prereq) : null;
+      const isPrereqCompleted = prereqTask ? prereqTask.status === 'Approved' : true;
+      
+      let statusText = 'Locked';
+      let tagColor = 'secondary';
+      let isBtnDisabled = false;
+      let checkMark = '';
+
+      if (isCompleted) {
+        statusText = 'Approved';
+        tagColor = 'success';
+        checkMark = '<span style="color: var(--success-color); margin-right: 6px;">✔</span>';
+      } else if (sub && sub.status === 'Pending Review') {
+        statusText = 'Pending Review';
+        tagColor = 'warning';
+      } else if (sub && sub.status === 'Returned for Revision') {
+        statusText = 'Revision Required';
+        tagColor = 'danger';
+      } else if (!isPrereqCompleted) {
+        statusText = 'Locked';
+        tagColor = 'secondary';
+        isBtnDisabled = true;
+      } else {
+        statusText = 'In Progress';
+        tagColor = 'primary';
+      }
+
+      return `
+        <div class="card" style="border-left: 4px solid var(--${isBtnDisabled ? 'border-color' : 'primary-color'}); margin-bottom: 12px; opacity: ${isBtnDisabled ? '0.6' : '1'};">
+          <div class="flex-between align-center">
+            <h3 class="card-title" style="margin: 0; font-size: 15px; display: flex; align-items: center;">
+              ${checkMark} ${i + 1}. ${esc(t.title)}
+            </h3>
+            ${tag(statusText, tagColor)}
+          </div>
+          <p class="card-desc" style="font-size: 12px; margin-top: 6px;">${esc(t.description || 'No description.')}</p>
+          <div class="flex-between align-center mt-12" style="font-size: 11px;">
+            <span>Due Date: <strong>${esc(t.due)}</strong> · Type: <strong>${esc(t.submissionType || 'Document')}</strong></span>
+            ${isBtnDisabled 
+              ? `<span style="font-weight: 700; color: var(--text-secondary);">Prerequisite: ${esc(t.prereq)}</span>` 
+              : `<button class="btn btn-sm btn-primary" onclick="openStudentTaskDetail('${esc(t.id)}')">View Details / Submit</button>`}
+          </div>
+          ${isBtnDisabled ? `<p class="card-desc mt-8" style="color: var(--text-secondary); font-size: 11px; font-style: italic;">"This task will become available once the required prerequisite has been approved."</p>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    subtabContent = `
+      <div class="card" style="margin-top: 16px;">
+        <h3 class="card-title" style="margin-bottom: 12px;">Milestones and Deliverables</h3>
+        <div class="timeline">
+          ${steps}
+        </div>
+      </div>
+    `;
+  }
+  else if (subtab === 'group-thread') {
+    const threadTab = state.studentGroupThreadTab || 'chat';
+    const subNav = `
+      <div class="group-thread-subtabs mb-12" style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+        <button class="btn btn-sm ${threadTab === 'chat' ? 'btn-primary' : ''}" onclick="setStudentGroupThreadTab('chat')">Chat Room</button>
+        <button class="btn btn-sm ${threadTab === 'tasks' ? 'btn-primary' : ''}" onclick="setStudentGroupThreadTab('tasks')">Group Tasks (Internal)</button>
+        <button class="btn btn-sm ${threadTab === 'notes' ? 'btn-primary' : ''}" onclick="setStudentGroupThreadTab('notes')">Meeting Notes</button>
+        <button class="btn btn-sm ${threadTab === 'files' ? 'btn-primary' : ''}" onclick="setStudentGroupThreadTab('files')">Shared Files</button>
+      </div>
+    `;
+    
+    let subContent = '';
+    if (threadTab === 'chat') {
+      subContent = chatModule('student');
+    } 
+    else if (threadTab === 'tasks') {
+      const completedG = state.groupTasks.filter(t => t.status === 'Completed').length;
+      const totalG = state.groupTasks.length;
+      const teamPctVal = Math.round((completedG / totalG) * 100);
+
+      const rows = state.groupTasks.map(t => [
+        t.title,
+        t.assignedTo,
+        tag(t.priority),
+        t.due,
+        t.desc,
+        tag(t.status),
+        `<button class="btn btn-sm btn-primary" onclick="toggleGroupTaskStatus('${esc(t.id)}')">${t.status === 'Completed' ? 'Mark In Progress' : 'Mark Completed'}</button>`
+      ]);
+
+      subContent = `
+        <div class="grid grid-2 gap-16">
+          <div class="card">
+            <h3 class="card-title">Create Group Internal Task</h3>
+            <form class="form mt-12" onsubmit="createGroupTask(event)">
+              <div class="form-row">
+                <label>Task Name</label>
+                <input id="gt-title" placeholder="e.g. Find references for Chapter 2" required>
+              </div>
+              <div class="form-row">
+                <label>Assigned Member</label>
+                <select id="gt-assigned">
+                  <option>Mika Santos</option>
+                  <option>Noah Garcia</option>
+                  <option>Ella Cruz</option>
+                  <option>Juan Reyes</option>
+                </select>
+              </div>
+              <div class="form-row-inline">
+                <div class="form-row">
+                  <label>Priority</label>
+                  <select id="gt-priority">
+                    <option>High</option>
+                    <option selected>Medium</option>
+                    <option>Low</option>
+                  </select>
+                </div>
+                <div class="form-row">
+                  <label>Due Date</label>
+                  <input id="gt-due" type="date" required>
+                </div>
+              </div>
+              <div class="form-row">
+                <label>Description</label>
+                <textarea id="gt-desc" placeholder="Details about this coordination task..."></textarea>
+              </div>
+              <button class="btn btn-primary">Create Task</button>
+            </form>
+          </div>
+          
+          <div>
+            <div class="card">
+              <h3 class="card-title">Team Progress</h3>
+              <div class="flex-between mt-8 mb-4" style="font-size: 12px;">
+                <span>Group Coordination Tasks (${completedG} of ${totalG} Completed)</span>
+                <strong>${teamPctVal}%</strong>
+              </div>
+              ${pct(teamPctVal)}
+            </div>
+            
+            <div class="card mt-16">
+              <h3 class="card-title">Group Board</h3>
+              ${table(['Task', 'Assigned', 'Priority', 'Due', 'Instructions', 'Status', 'Action'], rows)}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    else if (threadTab === 'notes') {
+      subContent = `
+        <div class="card">
+          <div class="flex-between align-center mb-12">
+            <h3 class="card-title">Meeting Notes & Summaries</h3>
+            <button class="btn btn-sm" onclick="showToast('Create Note modal opened.')">${icon('plus')} Add Note</button>
+          </div>
+          <div class="list">
+            <div class="list-item" style="display:block; padding:12px 0; border-bottom:1px solid var(--border-color);">
+              <div class="flex-between align-center"><strong>Chapter 2 RRL consultation follow-up</strong><span style="font-size:11px; color:var(--text-secondary);">July 03, 2026</span></div>
+              <p style="font-size:12px; margin-top:6px; color:var(--text-secondary);">Addressed weather feeds from local airports and validated our correlation indices. Ella will check the script tomorrow.</p>
+            </div>
+            <div class="list-item" style="display:block; padding:12px 0;">
+              <div class="flex-between align-center"><strong>Title Defense Feedback Consolidation</strong><span style="font-size:11px; color:var(--text-secondary);">June 08, 2026</span></div>
+              <p style="font-size:12px; margin-top:6px; color:var(--text-secondary);">Focus on agricultural crop yield rather than multi-weather features to keep scope manageable.</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    else if (threadTab === 'files') {
+      subContent = `
+        <div class="card">
+          <h3 class="card-title">Workspace Shared Assets</h3>
+          ${table(['Filename', 'Type', 'Upload Date', 'Uploaded By'], [
+            ['CropYieldPredictionDraft.docx', 'Manuscript', '2026-06-25', 'Mika Santos'],
+            ['AirportRainfallDataset.csv', 'CSV File', '2026-07-02', 'Noah Garcia']
+          ])}
+        </div>
+      `;
+    }
+
+    subtabContent = `
+      ${subNav}
+      ${subContent}
+    `;
+  }
+  else if (subtab === 'files') {
+    subtabContent = `
+      <div class="grid grid-3 gap-16 mt-16">
+        <div class="card" style="text-align: center; cursor: pointer; background: var(--bg-secondary);" onclick="showToast('Opening Templates folder...')">
+          <div style="font-size: 24px; color: var(--primary-color);">${icon('folder')}</div>
+          <strong style="font-size: 13px; display: block; margin-top: 4px;">Templates</strong>
+          <span style="font-size: 11px; color: var(--text-secondary);">2 files</span>
+        </div>
+        <div class="card" style="text-align: center; cursor: pointer; background: var(--bg-secondary);" onclick="showToast('Opening Research Files folder...')">
+          <div style="font-size: 24px; color: var(--primary-color);">${icon('folder')}</div>
+          <strong style="font-size: 13px; display: block; margin-top: 4px;">Research Files</strong>
+          <span style="font-size: 11px; color: var(--text-secondary);">4 files</span>
+        </div>
+        <div class="card" style="text-align: center; cursor: pointer; background: var(--bg-secondary);" onclick="showToast('Opening Meeting Minutes folder...')">
+          <div style="font-size: 24px; color: var(--primary-color);">${icon('folder')}</div>
+          <strong style="font-size: 13px; display: block; margin-top: 4px;">Meeting Minutes</strong>
+          <span style="font-size: 11px; color: var(--text-secondary);">3 files</span>
+        </div>
+      </div>
+      <div class="card mt-16">
+        <div class="flex-between align-center mb-12">
+          <h3 class="card-title">Shared reference list</h3>
+          <button class="btn btn-sm" onclick="showToast('Reference Materials upload opened.')">${icon('upload')} Upload Resource</button>
+        </div>
+        ${table(['Filename', 'Type', 'Size', 'Uploader'], [
+          ['Syllabus_Capstone_1.pdf', 'Syllabus', '1.2 MB', 'Prof. Rachel Lim'],
+          ['Proposal_Evaluation_Rubric.pdf', 'Rubric', '850 KB', 'Prof. Rachel Lim']
+        ])}
+      </div>
+    `;
+  }
+  else if (subtab === 'consultations') {
+    subtabContent = `
+      ${consultationJoinModule('student')}
+      <div class="card mt-16">
+        <h3 class="card-title">Consultation History Log</h3>
+        ${table(['Topic', 'Date', 'Time', 'Mode', 'Status'], [
+          ['Chapter 2 RRL Consultation', '2026-07-03', '10:00 AM', 'Video Call', tag('Completed')],
+          ['Title Proposal Brainstorm', '2026-06-08', '11:30 AM', 'Face-to-Face', tag('Completed')]
+        ])}
+      </div>
+    `;
+  }
+  else if (subtab === 'announcements') {
+    subtabContent = `
+      <div class="card mt-16">
+        <h3 class="card-title" style="margin-bottom: 12px;">Workspace Announcements</h3>
+        <div class="list">
+          <div class="list-item" style="display: block; padding: 12px 0; border-bottom: 1px solid var(--border-color); background: #fefcf0; border-left: 4px solid var(--gold);">
+            <div class="flex-between align-center"><strong>Chapter 1 Deadline Reminder</strong><span style="font-size: 11px; color: var(--text-secondary);">June 15, 2026</span></div>
+            <p style="font-size: 12px; margin-top: 6px; color: var(--text-secondary);">Friendly reminder that the deadline for Chapter 1 final manuscript is on July 20, 2026.</p>
+          </div>
+          <div class="list-item" style="display: block; padding: 12px 0;">
+            <div class="flex-between align-center"><strong>Welcome to Capstone 1</strong><span style="font-size: 11px; color: var(--text-secondary);">June 01, 2026</span></div>
+            <p style="font-size: 12px; margin-top: 6px; color: var(--text-secondary);">Please review the course syllabus and download the templates available in the Files tab.</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="flex-between align-center">
+      <div>
+        <span style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Student Portal</span>
+        <h2 style="font-size: 22px; font-weight: 800; color: var(--text-primary); margin: 0; margin-top: 4px;">Assigned Research Workspace: ${esc(ws.name)}</h2>
+      </div>
+      <button class="btn btn-sm" onclick="routeTo('#/app/student/overview')">${icon('arrow-left')} Dashboard Home</button>
+    </div>
+    
+    ${tabButtons}
+    ${subtabContent}
+  `;
+}
+
+function renderStudentTaskDetailPage() {
+  const taskId = state.activeStudentTaskId;
+  const s = data.student;
+  const ws = getGroupWorkspace(s.group.name);
+  
+  const task = ws.tasks.find(t => t.id === taskId || t.title === taskId);
+  if (!task) {
+    return `<div class="card"><p class="card-desc">Task not found.</p><button class="btn" onclick="routeTo('#/app/student/workspace-detail')">Go Back</button></div>`;
+  }
+
+  const sub = state.submissions.find(x => x.taskId === task.id && x.groupName === s.group.name);
+  let statusText = 'Pending Submission';
+  let colorClass = 'secondary';
+  
+  if (task.status === 'Approved') {
+    statusText = 'Approved';
+    colorClass = 'success';
+  } else if (sub && sub.status === 'Pending Review') {
+    statusText = 'Awaiting Professor Approval';
+    colorClass = 'warning';
+  } else if (sub && sub.status === 'Returned for Revision') {
+    statusText = 'Revision Required';
+    colorClass = 'danger';
+  }
+
+  const prevVersionsList = sub && sub.history && sub.history.length > 0 
+    ? sub.history.map(h => `<div style="font-size: 12px; padding: 6px 0; border-bottom: 1px solid var(--border-color); color: var(--text-secondary);">
+        <strong>Version ${esc(h.version)}</strong> - Submitted on ${esc(h.date)} · Status: <strong>${esc(h.status)}</strong> <br/>
+        Remarks: "${esc(h.remarks || 'No remarks')}"
+      </div>`).join('')
+    : '<p class="card-desc" style="font-size:12px;">No previous versions submitted.</p>';
+
+  const currentVersionSection = sub 
+    ? `
+      <div style="background: var(--bg-secondary); padding: 12px; border-radius: 8px; margin-top: 12px; border: 1px solid var(--border-color);">
+        <div class="flex-between align-center">
+          <strong>Current Submission: ${esc(sub.file)} (${esc(sub.version)})</strong>
+          <span style="font-size: 11px; color: var(--text-secondary);">Submitted on ${esc(sub.date)}</span>
+        </div>
+        <p style="font-size: 12px; margin-top: 4px; font-style: italic;">"${esc(sub.comments || 'No submission comments.')}"</p>
+      </div>`
+    : '<p class="card-desc" style="margin-top: 12px;">No current submission file.</p>';
+
+  return `
+    <div class="flex-between align-center">
+      <div>
+        <span style="font-size: 12px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Milestone Deliverable Detail</span>
+        <h2 style="font-size: 22px; font-weight: 800; color: var(--text-primary); margin: 0; margin-top: 4px;">Milestone: ${esc(task.title)}</h2>
+      </div>
+      <button class="btn btn-sm" onclick="routeTo('#/app/student/workspace-detail'); setStudentWorkspaceTab('tasks');">${icon('arrow-left')} Back to Tasks</button>
+    </div>
+
+    <div class="grid grid-2 gap-16 mt-16">
+      <div class="card">
+        <h3 class="card-title">Milestone Instructions</h3>
+        <p style="font-size: 13px; line-height: 1.6; margin-top: 8px; color: var(--text-primary);">${esc(task.description || 'Deliver the required research manuscript parts according to adviser rules.')}</p>
+        
+        <div class="grid grid-3 mt-16" style="gap: 8px; font-size: 12px; background: var(--bg-secondary); padding: 12px; border-radius: 8px;">
+          <div>Allowed Types: <br/><strong>PDF, DOCX</strong></div>
+          <div>Max Size: <br/><strong>50 MB</strong></div>
+          <div>Prerequisite: <br/><strong>${esc(task.prereq || 'None')}</strong></div>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px;">
+          <h3 class="card-title">Submission History & Versioning</h3>
+          <div class="mt-8">
+            ${prevVersionsList}
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="border-top: 4px solid var(--${colorClass}-color);">
+          <h3 class="card-title">Evaluation Status</h3>
+          <div class="flex-between align-center mt-8">
+            <span>Current Status:</span>
+            ${tag(statusText, colorClass)}
+          </div>
+          ${currentVersionSection}
+        </div>
+
+        <div class="card mt-16">
+          <h3 class="card-title">${sub ? 'Replace Submission' : 'Submit Requirement'}</h3>
+          <form class="form mt-12" onsubmit="submitStudentRequirement(event, '${esc(task.id)}')">
+            <div class="form-row">
+              <label>Select Document File</label>
+              <input id="student-file-upload" type="file" class="input" style="padding: 6px;" required>
+            </div>
+            <div class="form-row">
+              <label>Remarks for the Professor</label>
+              <textarea id="student-file-comments" placeholder="Write remarks, e.g. We consolidated meteorological dataset records for Correlation validation." style="height: 100px;"></textarea>
+            </div>
+            <button class="btn btn-primary" ${task.status === 'Approved' ? 'disabled' : ''}>
+              ${task.status === 'Approved' ? 'Requirement Approved' : (sub ? 'Upload New Version' : 'Upload Submission')}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function renderStudent(tab) {
   const s = data.student;
   const selected = data.advisers.find(a => a.id === state.selectedAdviser) || data.advisers[0];
-  const overview = `${hero('Student Dashboard','Access your own tasks, your own contribution, writing tools, submissions, consultations, and defense requirements.', [['Private visibility','lock'], ['Writing workspace','edit'], ['Consultation','video']], `<button class="btn" onclick="resetAdviserGate()">${icon('cap')} Change Adviser Gate</button><button class="btn btn-primary" onclick="routeTo('#/app/student/writing-editor')">${icon('edit')} Open Writing Editor</button>`)}<div class="grid grid-4 mt-16">${stat('Research Progress', `${s.group.progress}%`, s.group.stage, 'chart')}${stat('My Tasks', data.memberTasks.filter(t=>canStudentSeeTask(t)).length, 'Assigned to me only', 'checklist','gold')}${stat('My Contribution','35%','Only my record visible','user','warning')}${stat('Unread Updates', s.notifications.filter(n => n.status === 'Unread').length, 'Requires attention', 'bell','warning')}</div><div class="module-layout"><div class="card"><h3 class="card-title">Privacy Rules Active</h3><div class="feature-grid">${feature('Own tasks only','You cannot see other members’ tasks, progress, submissions, or percentages.','lock','warning')}${feature('Editor access','You can write and improve your assigned sections.','edit','gold')}${feature('Writing support','Assistant suggestions help improve your draft without replacing your work.','spark')}</div></div><div class="card"><h3 class="card-title">Selected Adviser</h3><div class="flex gap-12 mt-12"><div class="avatar lg gold">${initials(selected.name)}</div><div><div class="item-title">${selected.name}</div><div class="item-sub">${selected.expertise}</div><div class="flex wrap gap-8 mt-8">${tag(selected.status)}${tag(selected.load)}</div></div></div></div></div>`;
-  const pages = { overview,
-    'adviser-pool': `${hero('Adviser Pool','View adviser credentials, expertise, advising load, and recommendation score before selection.', [['Smart matching','spark']], `<button class="btn" onclick="resetAdviserGate()">${icon('cap')} Reopen Selection Flow</button>`)}<div class="grid grid-3 mt-16">${data.advisers.map(adviserSelectionCard).join('')}</div>`,
+  const overview = renderStudentDashboardHome();
+  const pages = {
+    overview,
+    'workspace-detail': renderStudentWorkspaceDetailPage(),
+    'task-detail': renderStudentTaskDetailPage(),
+    'adviser-pool': `${hero('Adviser Pool','View adviser credentials, expertise, advising load, and recommendation score before selection.', [['Smart matching','spark']], `<button class="btn" onclick="resetAdviserGate()">${icon('cap')} Reopen Selection Flow</button>`)}<div class="grid grid-3 mt-16">${data.advisers.map(a => adviserSelectionCard(a)).join('')}</div>`,
     'progress-tracker': renderStudentProgressStepper(s.group.name),
     tasks: studentAssignedTasksModule(),
     'writing-editor': writingEditorModule('student'),
@@ -2767,11 +3416,13 @@ function renderStudent(tab) {
     'consultation-hub': consultationJoinModule('student'),
     chat: chatModule('student'),
     'video-call': videoCallModule('student'),
-    'defense-center': `${hero('Defense Center','View defense readiness checklist, proposed schedule, and requirements.', [['Readiness checklist','checklist'], ['Defense schedule','flag']])}<div class="grid grid-2 mt-16"><div class="card"><h3 class="card-title">Defense Readiness</h3><div class="stepper">${['Adviser endorsement','Required chapters approved','Similarity check submitted','Panel assigned','Schedule confirmed'].map((x,i)=>`<div class="step ${i<2?'done':i===2?'current':''}"><div class="step-no">${i+1}</div><div><div class="item-title">${x}</div><div class="item-sub">${i<2?'Complete.':i===2?'In progress.':'Pending dean/admin action.'}</div></div>${tag(i<2?'Done':i===2?'Current':'Pending')}</div>`).join('')}</div></div><div class="card"><h3 class="card-title">Proposed Defense</h3>${table(['Type','Date','Venue','Status'], [['Proposal Defense','2026-07-24','CCS Seminar Hall', tag('For Confirmation')]])}</div></div>`,
+    'defense-center': `${hero('Defense Center','View defense readiness checklist, proposed schedule, and requirements.', [['Readiness checklist','checklist'], ['Defense schedule','flag']])}<div class="grid grid-2 mt-16"><div class="card"><h3 class="card-title">Defense Readiness</h3><div class="stepper">${['Adviser endorsement','Required chapters approved','Similarity check submitted','Panel assigned','Schedule confirmed'].map((x,i)=>`<div class="step ${i<2?'done':i===2?'current':''}"><div class="step-no">${i+1}</div><div><div class="item-title">${x}</div><div class="item-sub">${i<2?'Complete.':i===2?'In progress.':'Pending dean/admin action.'}</div></div>${tag(i<2?'Done':i===2?'current':'Pending')}</div>`).join('')}</div></div><div class="card"><h3 class="card-title">Proposed Defense</h3>${table(['Type','Date','Venue','Status'], [['Proposal Defense','2026-07-24','CCS Seminar Hall', tag('For Confirmation')]])}</div></div>`,
     grades: `${hero('Grades and Remarks','View panelist scores, recommendations, and research remarks.', [['Evaluation results','star']])}<div class="card mt-16">${table(['Criteria','Panelist','Score','Remarks'], s.grades.map(g => [g.criteria, g.panelist, g.score, g.remarks]))}</div>`,
     certificates: `${hero('Certificates','Preview QR-verified completion certificates after approval.', [['QR certificate','qr'], ['Completion record','certificate']], `<button class="btn btn-primary" onclick="showToast('Certificate preview opened.')">${icon('certificate')} Preview Certificate</button>`)}<div class="grid grid-2 mt-16"><div class="certificate-preview"><div class="brand-mark">A</div><h2>Certificate of Research Completion</h2><p>Presented to Group AI-CCS-01 after final approval and panel score verification.</p><div class="qr-box">QR</div></div><div class="card"><h3 class="card-title">Certificate Status</h3><div class="list"><div class="list-item"><span>Final defense result</span>${tag('Pending')}</div><div class="list-item"><span>Dean approval</span>${tag('Pending')}</div><div class="list-item"><span>QR verification</span>${tag('Ready after approval')}</div></div></div></div>`,
-    notifications: `${hero('Notifications','Central feed for task, document, consultation, defense, and certificate updates.', [['Alerts','bell']])}<div class="card mt-16"><div class="list">${s.notifications.map(n => `<div class="list-item"><div><div class="item-title">${n.title}</div><div class="item-sub">${n.body}</div></div>${tag(n.status)}</div>`).join('')}</div></div>`,
-    profile: profileCard(roleMeta.student), settings: settingsCard('student') };
+    notifications: `${hero('Notifications','Central feed for task, document, consultation, defense, and certificate updates.', [['Alerts','bell']])}<div class="card mt-16"><div class="list">${s.notifications.map(n => `<div class="list-item"><div><div class="item-title">${n.title}</div><div class="item-sub">${n.body || n.message}</div></div>${tag(n.status)}</div>`).join('')}</div></div>`,
+    profile: profileCard(roleMeta.student),
+    settings: settingsCard('student')
+  };
   return pages[tab] || overview;
 }
 
@@ -2779,6 +3430,8 @@ function renderGroupLeader(tab) {
   const s = data.student;
   const overview = `${hero('Group Leader Dashboard','Manage group members, assign tasks, monitor progress, review contribution, write the group paper, and coordinate consultations.', [['Leader controls','shield'], ['Task assignment','checklist'], ['Contribution dashboard','chart']], `<button class="btn btn-primary" onclick="openLeaderTaskModal()">${icon('plus')} Create Task</button>`)}<div class="grid grid-4 mt-16">${stat('Group Progress', `${s.group.progress}%`, s.group.stage, 'chart')}${stat('Group Members', s.group.members.length, 'Full list visible', 'users','gold')}${stat('Member Tasks', data.memberTasks.length, 'All assignments', 'checklist')}${stat('At-Risk Items', 1, 'Needs revision', 'alert','danger')}</div><div class="card mt-16">${table(['Member','Role','Contribution','Status','Remarks'], data.student.contributions.map(c=>[c.name,c.role,c.percent+'%',tag(c.status),c.remarks]))}</div>`;
   const pages = { overview,
+    'workspace-detail': renderStudent('workspace-detail'),
+    'task-detail': renderStudent('task-detail'),
     members: `${hero('Group Members','View all members and their roles, activity, assigned outputs, and contribution status.', [['Members','users']])}<div class="card mt-16">${table(['Member','Role','Assigned Tasks','Contribution','Status','Remarks'], data.student.contributions.map(c=>[c.name,c.role,data.memberTasks.filter(t=>t.assignedTo.includes(c.name)).length,c.percent+'%',tag(c.status),c.remarks]))}</div>`,
     'leader-tasks': leaderTaskManagementModule(),
     'writing-editor': writingEditorModule('group-leader'),
