@@ -354,7 +354,7 @@ label { font-weight: 600; color: #334155; font-size: 13px; }
 .search-box { flex: 1; max-width: 420px; position: relative; }
 .search-box input { width: 100%; border: 1px solid #e2e8f0; border-radius: 999px; min-height: 40px; padding: 0 14px 0 40px; outline: 0; background: #fff; }
 .search-box .ico { position: absolute; left: 14px; top: 11px; color: var(--text-tertiary); }
-.content { padding: 24px; max-width: 1500px; margin: 0 auto; position: relative; z-index: 1; }
+.content { padding: 24px; max-width: 100%; box-sizing: border-box; position: relative; z-index: 1; }
 /* Core UI */
 .hero-panel {
   position: relative;
@@ -410,6 +410,7 @@ label { font-weight: 600; color: #334155; font-size: 13px; }
 .tag-success { background: var(--bg-success); color: var(--text-success); }
 .tag-warn { background: var(--bg-warning); color: var(--text-warning); }
 .tag-danger { background: var(--bg-danger); color: var(--text-danger); }
+.tag-secondary { background: #e2e8f0; color: #475569; }
 .table-wrap { overflow-x: auto; margin-top: 12px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { text-align: left; color: var(--text-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; padding: 10px 8px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
