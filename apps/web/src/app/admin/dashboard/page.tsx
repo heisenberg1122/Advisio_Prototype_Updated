@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useState, Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { useTheme } from "@/providers/theme-provider";
+import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 
 // ─── MOCK DATABASE / STATE FOR ADMINISTRATIVE PANEL ───
@@ -32,11 +35,58 @@ const INITIAL_DEFENSES = [
 function AdminDashboardContent() {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
+  const { isDark, toggleTheme } = useTheme();
+
+  // Query live users and projects
+  const { data: usersData } = useQuery({
+    queryKey: ["admin-users"],
+    queryFn: () => apiClient.get<{ users: any[] }>("/api/users").catch(() => ({ users: [] })),
+    staleTime: 60000,
+  });
+
+  const { data: researchData } = useQuery({
+    queryKey: ["admin-research"],
+    queryFn: () => apiClient.get<{ projects: any[] }>("/api/research").catch(() => ({ projects: [] })),
+    staleTime: 60000,
+  });
 
   // Data states
   const [users, setUsers] = useState(INITIAL_USERS);
   const [projects, setProjects] = useState(INITIAL_PROJECTS);
   const [defenses, setDefenses] = useState(INITIAL_DEFENSES);
+
+  useEffect(() => {
+    if (usersData?.users && usersData.users.length > 0) {
+      setUsers(
+        usersData.users.map((u: any) => ({
+          id: u.id,
+          name: `${u.firstName} ${u.lastName}`,
+          email: u.email,
+          idNumber: u.universityId || "2026-0001",
+          role: u.roles?.[0]?.role?.name?.toLowerCase() || "student",
+          status: u.status?.toLowerCase() || "active",
+          department: u.program?.name || u.college?.name || "College of Computing",
+        }))
+      );
+    }
+  }, [usersData]);
+
+  useEffect(() => {
+    if (researchData?.projects && researchData.projects.length > 0) {
+      setProjects(
+        researchData.projects.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          student: p.members?.[0]?.user?.firstName ? `${p.members[0].user.firstName} ${p.members[0].user.lastName}` : "Student Lead",
+          adviser: "Dr. Rachel Lim",
+          department: p.program?.name || "Computer Science",
+          status: p.status?.toLowerCase() || "ongoing",
+          progress: 60,
+        }))
+      );
+    }
+  }, [researchData]);
+
   const [deadlines, setDeadlines] = useState([
     { id: "dl1", title: "Proposal Outline Upload", date: "2026-07-01", type: "Proposal", status: "upcoming" },
     { id: "dl2", title: "Chapter 1-3 Final Draft Submission", date: "2026-07-15", type: "Milestone", status: "upcoming" },
@@ -63,36 +113,43 @@ function AdminDashboardContent() {
   const [defDate, setDefDate] = useState("");
   const [defTime, setDefTime] = useState("");
   const [defVenue, setDefVenue] = useState("");
-  const [defPanelists, setDefPanelists] = useState<string[]>(["Dr. Lisa Wong", "Prof. Arthur Pendleton"]);
+  const [defPanelists, setDefPanelists] = useState<string[]>([]);
   
   const [modalCert, setModalCert] = useState(false);
   const [certProject, setCertProject] = useState<any>(null);
   
   const [modalDeadline, setModalDeadline] = useState(false);
   const [dlTitle, setDlTitle] = useState("");
-  const [dlType, setDlType] = useState("Proposal");
+  const [dlType, setDlType] = useState("Milestone");
   const [dlDate, setDlDate] = useState("");
   
   const [modalExport, setModalExport] = useState(false);
   const [exportFormat, setExportFormat] = useState("pdf");
 
   // Success Feedback Toast Mock
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
   const triggerToast = (msg: string) => {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(null), 3000);
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
   };
 
   // Actions handlers
-  const handleApproveConfirm = () => {
+  const handleApproveConfirm = async () => {
     if (!selectedUser) return;
+    try {
+      await apiClient.patch(`/api/users/${selectedUser.id}/status`, { status: "ACTIVE" });
+    } catch (e) {}
     setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, status: "active" } : u));
     setModalApprove(false);
     triggerToast(`Approved account for ${selectedUser.name} successfully.`);
   };
 
-  const handleSuspendConfirm = () => {
+  const handleSuspendConfirm = async () => {
     if (!selectedUser) return;
+    try {
+      await apiClient.patch(`/api/users/${selectedUser.id}/status`, { status: "SUSPENDED" });
+    } catch (e) {}
     setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, status: "suspended" } : u));
     setModalSuspend(false);
     setSuspendReason("");
@@ -141,15 +198,58 @@ function AdminDashboardContent() {
     triggerToast(`Added academic deadline: ${dlTitle}`);
   };
 
+  const router = useRouter();
+  const handleTabChange = (tab: string) => {
+    router.push(`/admin/dashboard?tab=${tab}`);
+  };
+
+  const tabsList = [
+    { id: "overview", label: "Overview", icon: "ti-layout-dashboard" },
+    { id: "users", label: "User Accounts", icon: "ti-users", badge: users.filter(u=>u.status==="pending").length },
+    { id: "defense", label: "Defense Scheduling", icon: "ti-calendar-event" },
+    { id: "projects", label: "Research Projects", icon: "ti-folder-check", badge: projects.length },
+    { id: "deadlines", label: "Deadlines & Calendar", icon: "ti-clock" },
+    { id: "certificates", label: "Certificates", icon: "ti-certificate" },
+    { id: "reports", label: "Reports & Analytics", icon: "ti-file-analytics" },
+  ];
+
   return (
     <div className="flex-1 flex flex-col min-h-screen text-slate-800 bg-white font-sans">
       
-      {successMsg && (
+      {toast && (
         <div className="fixed top-5 right-5 z-55 bg-[#1b4264] border-l-4 border-[#ffa400] text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 animate-fade-in-up">
           <i className="ti ti-circle-check text-[#ffa400] text-lg" />
-          <span className="text-[12.5px] font-bold">{successMsg}</span>
+          <span className="text-[12.5px] font-bold">{toast}</span>
         </div>
       )}
+
+      {/* TABS HEADER BAR */}
+      <div className="bg-white border-b border-slate-200 px-6 pt-3 flex gap-2 overflow-x-auto shadow-sm">
+        {tabsList.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-lg text-[12px] font-bold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? "border-[#1b4264] text-[#1b4264] bg-slate-50 shadow-sm"
+                  : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50/50"
+              }`}
+            >
+              <i className={`ti ${tab.icon} text-sm ${isActive ? "text-[#1b4264]" : ""}`} />
+              <span>{tab.label}</span>
+              {tab.badge !== undefined && tab.badge > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                  isActive ? "bg-[#1b4264] text-[#ffa400]" : "bg-slate-200 text-slate-700"
+                }`}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       {/* BODY PANEL */}
       <main className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto bg-slate-50">
@@ -508,7 +608,12 @@ function AdminDashboardContent() {
                       <span className="font-bold text-[#1b4264] block">Dark Mode</span>
                       <span className="text-[10px] text-slate-400">Switch platform styling theme to night vision.</span>
                     </div>
-                    <input type="checkbox" className="accent-[#ffa400] w-4 h-4 cursor-pointer" />
+                    <input
+                      type="checkbox"
+                      checked={isDark}
+                      onChange={toggleTheme}
+                      className="accent-[#ffa400] w-4 h-4 cursor-pointer"
+                    />
                   </div>
                 </div>
               </div>

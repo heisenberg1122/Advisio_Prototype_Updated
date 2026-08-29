@@ -1,7 +1,8 @@
-"use client";
-
-import React, { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useState, Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { useTheme } from "@/providers/theme-provider";
+import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 
 // Mock colleges, departments, configurations, audit logs
@@ -22,13 +23,57 @@ const INITIAL_DEPARTMENTS = [
 function SystemAdminDashboardContent() {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
+  const { isDark, toggleTheme } = useTheme();
+
+  // Query live colleges and programs
+  const { data: collegesData } = useQuery({
+    queryKey: ["admin-colleges"],
+    queryFn: () => apiClient.get<{ colleges: any[] }>("/api/colleges").catch(() => ({ colleges: [] })),
+    staleTime: 60000,
+  });
+
+  const { data: programsData } = useQuery({
+    queryKey: ["admin-programs"],
+    queryFn: () => apiClient.get<{ programs: any[] }>("/api/programs").catch(() => ({ programs: [] })),
+    staleTime: 60000,
+  });
 
   const [colleges, setColleges] = useState(INITIAL_COLLEGES);
   const [departments, setDepartments] = useState(INITIAL_DEPARTMENTS);
+
+  useEffect(() => {
+    if (collegesData?.colleges && collegesData.colleges.length > 0) {
+      setColleges(
+        collegesData.colleges.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          code: c.code,
+          status: "active",
+          deptsCount: c.programs?.length || 0,
+          adminName: "Dean Officer",
+        }))
+      );
+    }
+  }, [collegesData]);
+
+  useEffect(() => {
+    if (programsData?.programs && programsData.programs.length > 0) {
+      setDepartments(
+        programsData.programs.map((p: any) => ({
+          id: p.id,
+          collegeId: p.collegeId,
+          name: p.name,
+          code: p.code,
+          status: "active",
+        }))
+      );
+    }
+  }, [programsData]);
+
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [configStatus, setConfigStatus] = useState("Optimal");
   const [uptime, setUptime] = useState("99.98%");
-  const [roleCount, setRoleCount] = useState(6);
+  const [roleCount, setRoleCount] = useState(8);
   const [alertsCount, setAlertsCount] = useState(0);
 
   // Modals state
@@ -53,8 +98,11 @@ function SystemAdminDashboardContent() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleAddCollege = (e: React.FormEvent) => {
+  const handleAddCollege = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      await apiClient.post("/api/colleges", { name: colName, code: colCode.toUpperCase() });
+    } catch (e) {}
     setColleges(prev => [...prev, { id: Math.random().toString(), name: colName, code: colCode.toUpperCase(), status: "active", deptsCount: 0, adminName: "None" }]);
     setModalCol(false);
     setColName("");
@@ -72,6 +120,20 @@ function SystemAdminDashboardContent() {
     triggerToast(`Added department ${deptCode.toUpperCase()}`);
   };
 
+  const router = useRouter();
+  const handleTabChange = (tab: string) => {
+    router.push(`/system-admin/dashboard?tab=${tab}`);
+  };
+
+  const tabsList = [
+    { id: "overview", label: "Overview", icon: "ti-layout-dashboard" },
+    { id: "onboarding", label: "College & Programs", icon: "ti-building", badge: colleges.length },
+    { id: "roles", label: "Role Permissions", icon: "ti-shield-lock", badge: roleCount },
+    { id: "config", label: "System Config", icon: "ti-settings" },
+    { id: "logs", label: "Audit Logs", icon: "ti-file-text" },
+    { id: "backups", label: "Database Backups", icon: "ti-database" },
+  ];
+
   return (
     <div className="flex-1 flex flex-col min-h-screen text-slate-800 bg-slate-50 font-sans">
       
@@ -82,6 +144,33 @@ function SystemAdminDashboardContent() {
         </div>
       )}
 
+      {/* TABS HEADER BAR */}
+      <div className="bg-white border-b border-slate-200 px-6 pt-3 flex gap-2 overflow-x-auto shadow-sm">
+        {tabsList.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-lg text-[12px] font-bold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? "border-[#1b4264] text-[#1b4264] bg-slate-50 shadow-sm"
+                  : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50/50"
+              }`}
+            >
+              <i className={`ti ${tab.icon} text-sm ${isActive ? "text-[#1b4264]" : ""}`} />
+              <span>{tab.label}</span>
+              {tab.badge !== undefined && tab.badge > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                  isActive ? "bg-[#1b4264] text-[#ffa400]" : "bg-slate-200 text-slate-700"
+                }`}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       {/* MAIN MAIN CONTAINER */}
       <main className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
@@ -325,7 +414,12 @@ function SystemAdminDashboardContent() {
                       <span className="font-bold text-[#1b4264] block">Dark Mode</span>
                       <span className="text-[10px] text-slate-400">Switch platform styling theme to night vision.</span>
                     </div>
-                    <input type="checkbox" className="accent-[#ffa400] w-4 h-4 cursor-pointer" />
+                    <input
+                      type="checkbox"
+                      checked={isDark}
+                      onChange={toggleTheme}
+                      className="accent-[#ffa400] w-4 h-4 cursor-pointer"
+                    />
                   </div>
                 </div>
               </div>

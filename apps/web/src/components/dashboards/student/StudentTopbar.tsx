@@ -4,6 +4,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useProfile } from "@/hooks/use-profile";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const PAGE_TITLES: Record<string, string> = {
@@ -57,6 +58,7 @@ export function StudentTopbar() {
       <span className="text-[13px] font-medium text-slate-800" aria-label="Current page">{title}</span>
 
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <Link
           href="/student/notifications"
           className={cn(

@@ -1,6 +1,5 @@
-"use client";
-
 import React, { useState, useEffect, useRef } from "react";
+import { apiClient } from "@/lib/api-client";
 
 export interface StudentDocument {
   id: string;
@@ -177,13 +176,31 @@ export function StudentWorkspace({ triggerToast }: StudentWorkspaceProps) {
     triggerToast("Downloading document txt export.");
   };
 
-  const handleOneTapSubmit = () => {
+  const handleOneTapSubmit = async () => {
     if (!docTitle.trim()) {
       triggerToast("Please enter a document title first.");
       return;
     }
 
-    // 1. Submit to submissions system
+    // 1. Attempt live API submission
+    try {
+      const researchList = await apiClient.get<{ projects: any[] }>("/api/research").catch(() => ({ projects: [] }));
+      const project = researchList.projects?.[0];
+      if (project) {
+        await apiClient.post(`/api/research/${project.id}/documents`, {
+          title: docTitle.trim(),
+          documentType: targetMilestone,
+          content: docContent,
+          leftMargin,
+          rightMargin,
+          targetMilestone,
+        });
+      }
+    } catch (e) {
+      console.warn("Backend unavailable, using local persistence.");
+    }
+
+    // 2. Submit to local submissions system
     const newSubmission = {
       id: "sub-" + Date.now(),
       docName: `${docTitle.trim()} (System Workspace)`,
@@ -201,7 +218,7 @@ export function StudentWorkspace({ triggerToast }: StudentWorkspaceProps) {
     submissionsList.unshift(newSubmission);
     localStorage.setItem("advisio_student_submissions", JSON.stringify(submissionsList));
 
-    // 2. Alert Adviser
+    // 3. Alert Adviser
     const storedChat = localStorage.getItem("advisio_chat_store");
     if (storedChat) {
       try {

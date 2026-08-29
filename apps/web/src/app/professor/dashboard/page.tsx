@@ -1,19 +1,49 @@
-"use client";
-
-import React, { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useState, Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { useTheme } from "@/providers/theme-provider";
+import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 
 function ProfessorDashboardContent() {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
+  const { isDark, toggleTheme } = useTheme();
 
-  // Mock State Data
+  // Query live workflows and research projects
+  const { data: workflowData } = useQuery({
+    queryKey: ["professor-workflows"],
+    queryFn: () => apiClient.get<{ workflows: any[] }>("/api/workflows").catch(() => ({ workflows: [] })),
+    staleTime: 60000,
+  });
+
+  const { data: researchData } = useQuery({
+    queryKey: ["professor-research"],
+    queryFn: () => apiClient.get<{ projects: any[] }>("/api/research").catch(() => ({ projects: [] })),
+    staleTime: 60000,
+  });
+
+  // Mock State Data with live fallbacks
   const [studentsCount, setStudentsCount] = useState(48);
   const [projects, setProjects] = useState([
     { id: "p1", title: "AI-based Crop Yield Prediction System Using ML", group: "Group AI-CCS-01", progress: 65, status: "ongoing" },
     { id: "p2", title: "Smart Traffic Management System", group: "Group IoT-IT-03", progress: 85, status: "for defense" },
   ]);
+
+  useEffect(() => {
+    if (researchData?.projects && researchData.projects.length > 0) {
+      setProjects(
+        researchData.projects.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          group: p.title?.substring(0, 16) || "Capstone Group",
+          progress: 50,
+          status: p.status?.toLowerCase() || "ongoing",
+        }))
+      );
+      setStudentsCount(researchData.projects.length * 3);
+    }
+  }, [researchData]);
 
   const [topics, setTopics] = useState([
     { id: "top-1", name: "Capstone 1" },
@@ -84,6 +114,21 @@ function ProfessorDashboardContent() {
     triggerToast("Task deleted successfully.");
   };
 
+  const router = useRouter();
+  const handleTabChange = (tab: string) => {
+    router.push(`/professor/dashboard?tab=${tab}`);
+  };
+
+  const tabsList = [
+    { id: "overview", label: "Overview", icon: "ti-layout-dashboard" },
+    { id: "monitoring", label: "Cohort Monitoring", icon: "ti-users", badge: projects.length },
+    { id: "builder", label: "Task & Stage Builder", icon: "ti-settings-automation" },
+    { id: "locking", label: "Milestone Locking", icon: "ti-lock", badge: milestones.filter(m=>m.locked).length },
+    { id: "deployment", label: "Workflow Deployment", icon: "ti-rocket" },
+    { id: "tracking", label: "Progress Tracking", icon: "ti-chart-line" },
+    { id: "completion", label: "Completion Status", icon: "ti-certificate" },
+  ];
+
   return (
     <div className="flex-1 flex flex-col min-h-screen text-slate-800 bg-slate-50 font-sans">
 
@@ -94,6 +139,33 @@ function ProfessorDashboardContent() {
         </div>
       )}
 
+      {/* TABS HEADER BAR */}
+      <div className="bg-white border-b border-slate-200 px-6 pt-3 flex gap-2 overflow-x-auto shadow-sm">
+        {tabsList.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-lg text-[12px] font-bold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? "border-[#1b4264] text-[#1b4264] bg-slate-50 shadow-sm"
+                  : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50/50"
+              }`}
+            >
+              <i className={`ti ${tab.icon} text-sm ${isActive ? "text-[#1b4264]" : ""}`} />
+              <span>{tab.label}</span>
+              {tab.badge !== undefined && tab.badge > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                  isActive ? "bg-[#1b4264] text-[#ffa400]" : "bg-slate-200 text-slate-700"
+                }`}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       {/* MAIN CONTAINER */}
       <main className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
@@ -521,7 +593,12 @@ function ProfessorDashboardContent() {
                       <span className="font-bold text-[#1b4264] block">Dark Mode</span>
                       <span className="text-[10px] text-slate-400">Switch platform styling theme to night vision.</span>
                     </div>
-                    <input type="checkbox" className="accent-[#ffa400] w-4 h-4 cursor-pointer" />
+                    <input
+                      type="checkbox"
+                      checked={isDark}
+                      onChange={toggleTheme}
+                      className="accent-[#ffa400] w-4 h-4 cursor-pointer"
+                    />
                   </div>
                 </div>
               </div>

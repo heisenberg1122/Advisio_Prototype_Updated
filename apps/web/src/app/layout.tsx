@@ -1,15 +1,5 @@
-import type { Metadata } from "next";
+import React from "react";
 import "./globals.css";
-
-export const metadata: Metadata = {
-  title: {
-    default: "Advisio — Research Management System",
-    template: "%s | Advisio RMS",
-  },
-  description:
-    "Advisio is a Research Management System for universities — managing student submissions, adviser assignments, consultations, defense scheduling, and grading workflows.",
-  keywords: ["research management", "capstone", "thesis", "university", "advisio"],
-};
 
 export default function RootLayout({
   children,

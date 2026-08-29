@@ -7,6 +7,7 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { UserChip } from "@/components/shared/UserChip";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const MENU_SECTIONS = [
@@ -215,6 +216,7 @@ function AdminTopbar() {
     >
       <span className="text-[13px] font-medium text-slate-800">{title}</span>
       <div className="flex items-center gap-2">
+        <ThemeToggle />
         <Link
           href="/admin/notifications"
           className={cn("icon-btn relative p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition", unreadCount > 0 && "badge-dot")}
