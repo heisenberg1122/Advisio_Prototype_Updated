@@ -1,7 +1,2 @@
-export const useAuth = () => {
-  return {
-    user: null,
-    isLoading: false,
-    isAuthenticated: false,
-  };
-};
+export { useAuth } from "@/providers/auth-provider";
+export type { UserProfile, AuthContextType } from "@/providers/auth-provider";

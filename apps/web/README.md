@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Advisio Web Portal (`apps/web`)
 
-## Getting Started
+> **Client Application** for the Advisio Research, Advising, and Management Platform.  
+> Built with **Vite 6 + React 19 + TypeScript + React Router v6 + Tailwind CSS v4**.
 
-First, run the development server:
+---
 
+## 1. Overview & Portals
+
+Advisio provides dedicated, role-tailored dashboards and workspace environments for academic research governance:
+
+| Route | Role | Description |
+|---|---|---|
+| `/student/*` | **Researcher / Student** | Research group workspace, manuscript submission, milestone progress, and consultation requests. |
+| `/adviser/*` | **Faculty Adviser** | Advisee tracking, inline document reviews, commenting, consultation scheduling, and milestone approvals. |
+| `/panelist/*` | **Defense Panelist** | Defense session schedule, manuscript evaluation, digital scoring sheets, and grading records. |
+| `/professor/*` | **Course Professor** | Blank-canvas task builder, project progress monitoring, progression deployment, and milestone locking. |
+| `/admin/*` | **Institutional Admin** | User account management, defense panel assignments, deadline calendar, and completion certificate generation. |
+| `/system-admin/*` | **System Administrator** | College/program onboarding, global RBAC matrix oversight, audit logs, and maintenance. |
+
+---
+
+## 2. Key Features
+
+- **Configuration-Driven Design**: Dynamic workflows and navigation tabs driven by parameters rather than hardcoded rules.
+- **Adaptive Dark Mode**: Global theme provider with automatic OS detection, local storage persistence, and topbar/settings quick toggles.
+- **Collapsible Navigation**: Responsive two-column sidebar layout with animated transition between expanded (`240px`) and collapsed (`64px`) states.
+- **Tabler Icons & Google Fonts**: Institutional typography (Inter) paired with Tabler icon webfonts.
+
+---
+
+## 3. Getting Started
+
+### Prerequisites
+- Node.js `>= 20.0.0`
+- npm `>= 10.0.0`
+
+### Running the Frontend
+From the root directory:
 ```bash
+# Start all workspaces in dev mode
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Or start only the web application
+npm run dev --workspace=web
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The application will be accessible at [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Building for Production
+```bash
+npm run build --workspace=web
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 4. Architecture & Directory Structure
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```text
+apps/web/
+├── src/
+│   ├── app/                    # Portal views & layouts
+│   │   ├── (public)/           # Login, Register, Forgot Password
+│   │   ├── student/            # Researcher Portal
+│   │   ├── adviser/            # Faculty Adviser Portal
+│   │   ├── panelist/           # Defense Panelist Portal
+│   │   ├── professor/          # Professor / Coordinator Portal
+│   │   ├── admin/              # Institutional Admin Portal
+│   │   ├── system-admin/       # System Admin Portal
+│   │   └── globals.css         # Tailwind v4 design system & dark mode tokens
+│   ├── components/             # Reusable UI component modules
+│   │   ├── dashboards/         # Role-specific topbars & sidebars
+│   │   ├── shared/             # ThemeToggle, NavItem, UserChip
+│   │   └── ui/                 # Buttons, Cards, Tags, Modals
+│   ├── hooks/                  # Custom React hooks (notifications, profile, sidebar)
+│   ├── lib/                    # Utilities and router compatibility bridge
+│   ├── providers/              # React Query & Theme providers
+│   ├── routes.tsx              # React Router v6 routing table
+│   ├── App.tsx                 # Root application component
+│   └── main.tsx                # SPA entry point
+├── index.html                  # HTML template
+└── vite.config.ts              # Vite configuration
+```

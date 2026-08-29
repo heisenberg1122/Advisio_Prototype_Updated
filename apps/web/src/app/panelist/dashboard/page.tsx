@@ -1,14 +1,23 @@
-"use client";
-
-import React, { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useState, Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { useTheme } from "@/providers/theme-provider";
+import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 
 function PanelistDashboardContent() {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
+  const { isDark, toggleTheme } = useTheme();
 
-  // Mock State Data
+  // Query assigned defense research projects
+  const { data: researchData } = useQuery({
+    queryKey: ["panelist-research"],
+    queryFn: () => apiClient.get<{ projects: any[] }>("/api/research").catch(() => ({ projects: [] })),
+    staleTime: 60000,
+  });
+
+  // Mock State Data with live fallbacks
   const [schedules, setSchedules] = useState([
     { id: "d1", title: "AI Crop Yield Prediction System Using ML", type: "Proposal Defense", date: "2026-07-10", time: "10:00 AM", venue: "CCS Seminar Hall" },
     { id: "d2", title: "Smart Traffic Management System", type: "Final Defense", date: "2026-07-12", time: "02:00 PM", venue: "CCS Webex B" },
@@ -41,12 +50,44 @@ function PanelistDashboardContent() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleSubmitEvaluation = (id: string, title: string) => {
+  const handleSubmitEvaluation = async (id: string, title: string) => {
+    try {
+      const templates = await apiClient.get<{ templates: any[] }>("/api/evaluation-templates").catch(() => ({ templates: [] }));
+      const templateId = templates.templates?.[0]?.id;
+      const researchList = await apiClient.get<{ projects: any[] }>("/api/research").catch(() => ({ projects: [] }));
+      const project = researchList.projects?.[0];
+
+      if (templateId && project) {
+        await apiClient.post("/api/evaluations", {
+          templateId,
+          researchId: project.id,
+          totalScore: activeScore,
+          recommendation: "APPROVE",
+        });
+      }
+    } catch (e) {
+      console.warn("Backend unavailable, using local persistence.");
+    }
+
     setEvaluations(prev => prev.filter(e => e.id !== id));
     setGradesSubmitted(prev => [...prev, { id, title, score: activeScore, status: "submitted" }]);
     triggerToast(`Scoring and grades submitted for ${title}`);
     setActiveRecs("");
   };
+
+  const router = useRouter();
+  const handleTabChange = (tab: string) => {
+    router.push(`/panelist/dashboard?tab=${tab}`);
+  };
+
+  const tabsList = [
+    { id: "overview", label: "Overview", icon: "ti-layout-dashboard" },
+    { id: "schedule", label: "Defense Schedules", icon: "ti-calendar-event", badge: schedules.length },
+    { id: "documents", label: "Manuscript Reviews", icon: "ti-file-text", badge: documents.length },
+    { id: "evaluations", label: "Evaluations & Scoring", icon: "ti-certificate", badge: evaluations.length },
+    { id: "grades", label: "Grades & Recommendations", icon: "ti-clipboard-check", badge: gradesSubmitted.length },
+    { id: "history", label: "Defense Archives", icon: "ti-history" },
+  ];
 
   return (
     <div className="flex-1 flex flex-col min-h-screen text-slate-800 bg-slate-50 font-sans">
@@ -58,6 +99,33 @@ function PanelistDashboardContent() {
         </div>
       )}
 
+      {/* TABS HEADER BAR */}
+      <div className="bg-white border-b border-slate-200 px-6 pt-3 flex gap-2 overflow-x-auto shadow-sm">
+        {tabsList.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-lg text-[12px] font-bold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? "border-[#1b4264] text-[#1b4264] bg-slate-50 shadow-sm"
+                  : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50/50"
+              }`}
+            >
+              <i className={`ti ${tab.icon} text-sm ${isActive ? "text-[#1b4264]" : ""}`} />
+              <span>{tab.label}</span>
+              {tab.badge !== undefined && tab.badge > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                  isActive ? "bg-[#1b4264] text-[#ffa400]" : "bg-slate-200 text-slate-700"
+                }`}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       {/* MAIN CONTAINER */}
       <main className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
@@ -276,7 +344,12 @@ function PanelistDashboardContent() {
                       <span className="font-bold text-[#1b4264] block">Dark Mode</span>
                       <span className="text-[10px] text-slate-400">Switch platform styling theme to night vision.</span>
                     </div>
-                    <input type="checkbox" className="accent-[#ffa400] w-4 h-4 cursor-pointer" />
+                    <input
+                      type="checkbox"
+                      checked={isDark}
+                      onChange={toggleTheme}
+                      className="accent-[#ffa400] w-4 h-4 cursor-pointer"
+                    />
                   </div>
                 </div>
               </div>

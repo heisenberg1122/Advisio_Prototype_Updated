@@ -2,11 +2,12 @@
   "name": "web",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "node -e \"console.error(JSON.stringify(process.env, null, 2))\" && next build",
-    "start": "next start",
-    "lint": "eslint",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -16,9 +17,9 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.21.0",
-    "next": "16.2.9",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-router-dom": "^6.28.0",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
@@ -26,9 +27,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.4.20",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "postcss": "^8.4.49",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^6.0.0"
   }
 }

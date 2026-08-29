@@ -1,12 +1,12 @@
-"use client";
-
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
 import { loginAction } from "@/actions/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -26,33 +26,44 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await loginAction({ email, password });
+      // First try live backend API
+      const result = await login(email, password);
       
-      if (!result.success) {
-        setError(result.error || "Invalid email or password.");
-        setLoading(false);
+      if (result.success && result.role) {
+        const role = result.role.toLowerCase();
+        if (role.includes("researcher") || role.includes("student")) {
+          router.push("/student/dashboard");
+        } else if (role.includes("adviser")) {
+          router.push("/adviser/dashboard");
+        } else if (role.includes("professor") || role.includes("coordinator")) {
+          router.push("/professor/dashboard");
+        } else if (role.includes("panelist")) {
+          router.push("/panelist/dashboard");
+        } else if (role.includes("admin")) {
+          router.push("/admin/dashboard");
+        } else {
+          router.push("/student/dashboard");
+        }
         return;
       }
 
-      const role = result.user?.role;
-      if (role === "student") {
-        router.push("/student/dashboard");
-      } else if (role === "adviser") {
-        router.push("/adviser/dashboard");
-      } else if (role === "professor") {
-        router.push("/professor/dashboard");
-      } else if (role === "panelist") {
-        router.push("/panelist/dashboard");
-      } else if (role === "admin") {
-        router.push("/admin/dashboard");
-      } else if (role === "system_admin") {
-        router.push("/system-admin/dashboard");
-      } else {
-        setError("No dashboard assigned to this account.");
-        setLoading(false);
+      // Fallback to local demo action if backend is unavailable
+      const fallbackResult = await loginAction({ email, password });
+      if (fallbackResult.success) {
+        const role = fallbackResult.user?.role;
+        if (role === "student") router.push("/student/dashboard");
+        else if (role === "adviser") router.push("/adviser/dashboard");
+        else if (role === "professor") router.push("/professor/dashboard");
+        else if (role === "panelist") router.push("/panelist/dashboard");
+        else if (role === "admin") router.push("/admin/dashboard");
+        else if (role === "system_admin") router.push("/system-admin/dashboard");
+        return;
       }
-    } catch (err) {
-      setError("Failed to connect to the authentication service.");
+
+      setError(result.error || fallbackResult.error || "Invalid email or password.");
+      setLoading(false);
+    } catch (err: any) {
+      setError(err.message || "Failed to authenticate.");
       setLoading(false);
     }
   };

@@ -1,23 +1,212 @@
-"use client";
-
 import React, { useState, Suspense, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { useTheme } from "@/providers/theme-provider";
+import { useAuth } from "@/hooks/use-auth";
+import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { StudentGroupChats } from "@/components/dashboards/student/StudentGroupChats";
 import { StudentWorkspace } from "@/components/dashboards/student/StudentWorkspace";
 import { getChatStore } from "@/lib/chat-store";
+import { getStoredMeetingSession, saveMeetingSession, DEFAULT_SHARED_MEET_URL } from "@/lib/meeting-store";
+import { GoogleMeetConnectModal } from "@/components/consultations/GoogleMeetConnectModal";
+import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consultations/GoogleMeetTranscriptModal";
+import { getStoredConsultations, addStoredConsultation, saveStoredConsultations, updateStoredConsultationNotes, ConsultationItem } from "@/lib/consultation-store";
 
 function StudentDashboardContent() {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
+  const { isDark, toggleTheme } = useTheme();
+  const { user } = useAuth();
 
-  // Mock State Data
+  // Synchronized Floating Google Meet Conference Session State
+  const initialSession = getStoredMeetingSession();
+  const [isMeetingActive, setIsMeetingActive] = useState(initialSession.isActive);
+  const [meetingDuration, setMeetingDuration] = useState(0);
+  const [activeMeetingUrl, setActiveMeetingUrl] = useState(initialSession.meetingUrl || DEFAULT_SHARED_MEET_URL);
+  const [activeMeetingTopic, setActiveMeetingTopic] = useState(initialSession.topic || "Student Group Conferencing");
+  const [activeParticipants, setActiveParticipants] = useState(
+    initialSession.participants.length > 0
+      ? initialSession.participants
+      : [
+          { id: "p1", name: "Juan Reyes", role: "Lead Researcher", email: "juan.reyes@student.university.edu.ph", joinedAt: "Just now" },
+          { id: "p2", name: "Dr. Rachel Lim", role: "Faculty Adviser", email: "rachel.lim@university.edu.ph", joinedAt: "Just now" },
+        ]
+  );
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [showTranscriptModal, setShowTranscriptModal] = useState(false);
+  const [selectedConsultationForTranscript, setSelectedConsultationForTranscript] = useState<ConsultationItem | null>(null);
+
+  // Live query for consultations with 1s auto-polling
+  const { data: consultationsApiData, refetch: refetchConsultations } = useQuery({
+    queryKey: ["consultations"],
+    queryFn: () => apiClient.get<{ consultations: any[] }>("/api/consultations").catch(() => ({ consultations: [] })),
+    refetchInterval: 1000,
+  });
+
+  const [consultations, setConsultations] = useState<ConsultationItem[]>(getStoredConsultations());
+
+  useEffect(() => {
+    const syncConsultations = () => {
+      if (consultationsApiData?.consultations && consultationsApiData.consultations.length > 0) {
+        setConsultations(consultationsApiData.consultations);
+        saveStoredConsultations(consultationsApiData.consultations);
+      } else {
+        setConsultations(getStoredConsultations());
+      }
+    };
+
+    syncConsultations();
+    window.addEventListener("storage", syncConsultations);
+    return () => window.removeEventListener("storage", syncConsultations);
+  }, [consultationsApiData]);
+
+  // Poll backend database for active stream across different browsers (Edge, Brave, etc.)
+  useEffect(() => {
+    const fetchActiveStream = async () => {
+      try {
+        const res = await apiClient.get<{ success: boolean; stream: any }>("/api/consultations/active-stream?groupId=g1");
+        if (res?.stream) {
+          const s = res.stream;
+          setIsMeetingActive(s.isActive);
+          if (s.meetingUrl) setActiveMeetingUrl(s.meetingUrl);
+          if (s.topic) setActiveMeetingTopic(s.topic);
+          if (s.participants && s.participants.length > 0) {
+            setActiveParticipants(s.participants);
+          }
+          saveMeetingSession({
+            groupId: s.groupId || "g1",
+            groupName: s.groupName || "Group AI-CCS-01",
+            topic: s.topic,
+            meetingUrl: s.meetingUrl,
+            isActive: s.isActive,
+            participants: s.participants || [],
+          });
+        }
+      } catch {
+        // Fallback to local store
+      }
+    };
+
+    fetchActiveStream();
+    const interval = setInterval(fetchActiveStream, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isMeetingActive) {
+      timer = setInterval(() => {
+        setMeetingDuration(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isMeetingActive]);
+
+  const handleLaunchSyncedMeeting = async (targetUrl: string, selectedEmail: string) => {
+    setShowConnectModal(false);
+    setActiveMeetingUrl(targetUrl);
+    setIsMeetingActive(true);
+
+    const studentParticipant = {
+      id: "p2",
+      name: `${user?.firstName || "Juan"} ${user?.lastName || "Reyes"}`,
+      role: "Lead Researcher",
+      email: selectedEmail,
+      joinedAt: "Just now",
+    };
+
+    const updatedParticipants = [
+      ...activeParticipants.filter(p => p.email !== selectedEmail),
+      studentParticipant,
+    ];
+
+    setActiveParticipants(updatedParticipants);
+
+    // Broadcast active stream to backend database so other browser receives exact same URL
+    try {
+      await apiClient.post("/api/consultations/active-stream", {
+        groupId: "g1",
+        groupName: "Group AI-CCS-01",
+        topic: activeMeetingTopic,
+        meetingUrl: targetUrl,
+        gmailAccount: selectedEmail,
+      });
+    } catch {
+      // Graceful fallback
+    }
+
+    saveMeetingSession({
+      groupId: "g1",
+      groupName: "Group AI-CCS-01",
+      topic: activeMeetingTopic,
+      meetingUrl: targetUrl,
+      isActive: true,
+      startedAt: Date.now(),
+      participants: updatedParticipants,
+    });
+
+    window.open(targetUrl, "GoogleMeetWindow", "width=1024,height=720,resizable=yes");
+  };
+
+  const handleStartConference = (url?: string, topicTitle: string = "Group Conferencing") => {
+    if (url) setActiveMeetingUrl(url);
+    if (topicTitle) setActiveMeetingTopic(topicTitle);
+    setShowConnectModal(true);
+  };
+
+  const handleReopenMeetingWindow = () => {
+    window.open(activeMeetingUrl, "GoogleMeetWindow", "width=1024,height=720,resizable=yes");
+  };
+
+  const handleEndConference = async () => {
+    setIsMeetingActive(false);
+    setMeetingDuration(0);
+    saveMeetingSession({
+      ...getStoredMeetingSession(),
+      isActive: false,
+      participants: [],
+    });
+    try {
+      await apiClient.post("/api/consultations/active-stream/end", { groupId: "g1" });
+    } catch {
+      // Graceful fallback
+    }
+  };
+
+  const formatMeetingTime = (secs: number) => {
+    const mins = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${mins.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
+  // Query live projects from API
+  const { data: researchData } = useQuery({
+    queryKey: ["student-research"],
+    queryFn: () => apiClient.get<{ projects: any[] }>("/api/research").catch(() => ({ projects: [] })),
+    staleTime: 60000,
+  });
+
+  const activeProject = researchData?.projects?.[0];
+
+  // State Data with live fallbacks
   const [group, setGroup] = useState({
     name: "Group AI-CCS-01",
     projectTitle: "AI-based Crop Yield Prediction System Using ML",
     members: ["Juan Reyes", "Marc Santos", "Sarah Garcia"],
     status: "active",
   });
+
+  useEffect(() => {
+    if (activeProject) {
+      setGroup({
+        name: activeProject.title?.substring(0, 20) || "Cap-Project-01",
+        projectTitle: activeProject.title || "Untitled Research",
+        members: activeProject.members?.map((m: any) => `${m.user.firstName} ${m.user.lastName}`) || ["Student Member"],
+        status: activeProject.status?.toLowerCase() || "active",
+      });
+    }
+  }, [activeProject]);
 
   const [aiMatches, setAiMatches] = useState([
     { name: "Dr. Rachel Lim", match: 98, expertise: "Machine Learning, Neural Networks", status: "Available" },
@@ -47,11 +236,6 @@ function StudentDashboardContent() {
   }, []);
 
   const combinedSubmissions = [...workspaceSubmissions, ...submissions];
-
-  const [consultations, setConsultations] = useState([
-    { id: "c1", topic: "Methodology & Neural Network Architecture", date: "2026-07-03", time: "10:00 AM", mode: "Video Call", status: "pending" },
-    { id: "c2", topic: "Introduction Outline Review", date: "2026-06-24", time: "02:00 PM", mode: "In-Person (CL3)", status: "completed" },
-  ]);
 
   const [milestones, setMilestones] = useState([
     { id: "m1", title: "Proposal Outline Selection", status: "completed", date: "2026-06-20" },
@@ -125,22 +309,92 @@ function StudentDashboardContent() {
     triggerToast(`Submitted ${newDoc.docName} for verification.`);
   };
 
-  const handleRequestConsult = (e: React.FormEvent) => {
+  const handleRequestConsult = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newConsult = {
-      id: Math.random().toString(),
-      topic: consultTopic,
-      date: consultDate,
-      time: consultTime,
-      mode: consultMode,
-      status: "pending",
-    };
-    setConsultations(prev => [newConsult, ...prev]);
+    if (!consultTopic) return;
+    try {
+      const startDateTime = new Date(`${consultDate || new Date().toISOString().split("T")[0]}T${consultTime || "10:00"}:00`);
+      const endDateTime = new Date(startDateTime.getTime() + 3600000);
+
+      let meetUrl = DEFAULT_SHARED_MEET_URL;
+      try {
+        const res = await apiClient.post<{ consultation: any; meetingUrl?: string }>("/api/consultations", {
+          researchId: activeProject?.id || "default-id",
+          title: consultTopic,
+          description: `Student consultation requested by ${user?.firstName || "Student"}`,
+          scheduledStart: startDateTime.toISOString(),
+          scheduledEnd: endDateTime.toISOString(),
+        });
+        if (res?.meetingUrl) meetUrl = res.meetingUrl;
+      } catch {
+        const letters = "abcdefghijklmnopqrstuvwxyz";
+        let p1 = "", p2 = "", p3 = "";
+        for (let i = 0; i < 3; i++) p1 += letters[Math.floor(Math.random() * 26)];
+        for (let i = 0; i < 4; i++) p2 += letters[Math.floor(Math.random() * 26)];
+        for (let i = 0; i < 3; i++) p3 += letters[Math.floor(Math.random() * 26)];
+        meetUrl = `https://meet.google.com/${p1}-${p2}-${p3}`;
+      }
+
+      const newConsult: ConsultationItem = {
+        id: Math.random().toString(),
+        groupName: "Group AI-CCS-01",
+        topic: consultTopic,
+        date: consultDate || new Date().toISOString().split("T")[0],
+        time: consultTime || "10:00 AM",
+        mode: consultMode === "In-Person" ? "In-Person" : "Google Meet",
+        meetingUrl: consultMode !== "In-Person" ? meetUrl : undefined,
+        status: "pending",
+      };
+
+      addStoredConsultation(newConsult);
+      setConsultations(prev => [newConsult, ...prev.filter(c => c.id !== newConsult.id)]);
+      refetchConsultations();
+      triggerToast(`Consultation request submitted! Awaiting adviser approval.`);
+    } catch {
+      // Graceful fallback
+    }
     setConsultTopic("");
     setConsultDate("");
     setConsultTime("");
-    triggerToast("Sent consultation appointment request to Dr. Rachel Lim.");
   };
+
+  const handleOpenTranscriptModal = (consultation: ConsultationItem) => {
+    setSelectedConsultationForTranscript(consultation);
+    setShowTranscriptModal(true);
+  };
+
+  const handleSaveConsultationNotes = (
+    consultationId: string,
+    notes: string,
+    actionItems: string[],
+    transcript: ParsedChatMessage[]
+  ) => {
+    updateStoredConsultationNotes(consultationId, notes, actionItems, transcript);
+    setConsultations((prev) =>
+      prev.map((c) =>
+        c.id === consultationId
+          ? { ...c, notes, actionItems, transcript }
+          : c
+      )
+    );
+    refetchConsultations();
+    triggerToast("Saved consultation notes and Google Meet chat transcript!");
+  };
+
+  const router = useRouter();
+  const handleTabChange = (tab: string) => {
+    router.push(`/student/dashboard?tab=${tab}`);
+  };
+
+  const tabsList = [
+    { id: "overview", label: "Overview", icon: "ti-layout-dashboard" },
+    { id: "workspace", label: "Document Workspace", icon: "ti-file-text" },
+    { id: "submissions", label: "Submissions", icon: "ti-folder-check", badge: combinedSubmissions.length },
+    { id: "consultations", label: "Consultations", icon: "ti-calendar-event", badge: consultations.length },
+    { id: "history", label: "Consultation History", icon: "ti-history" },
+    { id: "milestones", label: "Workflow Milestones", icon: "ti-timeline" },
+    { id: "chat", label: "Group Chat", icon: "ti-messages" },
+  ];
 
   return (
     <div className="flex-1 flex flex-col min-h-screen text-slate-800 bg-slate-50 font-sans">
@@ -152,6 +406,33 @@ function StudentDashboardContent() {
         </div>
       )}
 
+      {/* TABS HEADER BAR */}
+      <div className="bg-white border-b border-slate-200 px-6 pt-3 flex gap-2 overflow-x-auto shadow-sm">
+        {tabsList.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-lg text-[12px] font-bold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+                isActive
+                  ? "border-[#1b4264] text-[#1b4264] bg-slate-50 shadow-sm"
+                  : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50/50"
+              }`}
+            >
+              <i className={`ti ${tab.icon} text-sm ${isActive ? "text-[#1b4264]" : ""}`} />
+              <span>{tab.label}</span>
+              {tab.badge !== undefined && tab.badge > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                  isActive ? "bg-[#1b4264] text-[#ffa400]" : "bg-slate-200 text-slate-700"
+                }`}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       {/* MAIN CONTAINER */}
       <main className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
@@ -375,21 +656,92 @@ function StudentDashboardContent() {
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">In-App Voice and Video Group Conferencing</h3>
                 <p className="text-[11px] text-slate-400 font-bold">Coordinate with peers and advisers using localized sandbox stream channels.</p>
-                <div className="bg-slate-50 p-6 border border-slate-200 rounded-xl text-center flex flex-col gap-4 shadow-sm">
-                  <div className="w-16 h-16 bg-[#1b4264]/10 rounded-full flex items-center justify-center mx-auto text-[#1b4264]">
-                    <i className="ti ti-video text-3xl animate-pulse" />
+                
+                {!isMeetingActive ? (
+                  <div className="bg-slate-50 p-6 border border-slate-200 rounded-xl text-center flex flex-col gap-4 shadow-sm">
+                    <div className="w-16 h-16 bg-[#1b4264]/10 rounded-full flex items-center justify-center mx-auto text-[#1b4264]">
+                      <i className="ti ti-video text-3xl animate-pulse" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-[#1b4264] text-[14px] block">Live Stream Channels Ready</span>
+                      <span className="text-[10.5px] text-slate-400">Current Room ID: <strong>Group AI-CCS-01</strong></span>
+                    </div>
+                    <button 
+                      onClick={() => handleStartConference("https://meet.google.com/new", "Group AI-CCS-01 Study Stream")} 
+                      className="px-5 py-2.5 bg-[#ffa400] text-[#1b4264] hover:bg-[#e09000] font-extrabold rounded-lg shadow border border-[#ffa400] self-center cursor-pointer transition-colors flex items-center gap-2"
+                    >
+                      <i className="ti ti-video text-lg" />
+                      <span>Start Stream Conference</span>
+                    </button>
                   </div>
-                  <div>
-                    <span className="font-bold text-[#1b4264] text-[14px] block">Live Stream Channel Available</span>
-                    <span className="text-[10.5px] text-slate-400">Current Room ID: <strong>Group AI-CCS-01</strong></span>
+                ) : (
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50/60 p-6 border-2 border-emerald-400/80 rounded-xl text-center flex flex-col gap-4 shadow-md animate-fade-in">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="relative flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                      </span>
+                      <span className="font-extrabold text-emerald-800 text-[15px] uppercase tracking-wider">Meeting in Progress</span>
+                    </div>
+
+                    <div className="flex flex-col items-center justify-center gap-1">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Active Call Duration</span>
+                      <span className="font-mono text-3xl font-black text-[#1b4264] tracking-tight">{formatMeetingTime(meetingDuration)}</span>
+                      <span className="text-[11px] text-slate-500 mt-1">Google Meet session is running in floating window</span>
+                    </div>
+
+                    {/* LIVE ATTENDEES LIST */}
+                    <div className="bg-white/80 border border-emerald-200/80 rounded-xl p-3.5 max-w-lg mx-auto w-full text-left shadow-sm">
+                      <div className="flex items-center justify-between border-b border-emerald-100 pb-2 mb-2.5">
+                        <span className="text-[11px] font-extrabold text-[#1b4264] flex items-center gap-1.5">
+                          <i className="ti ti-users text-emerald-600" />
+                          <span>Connected Attendees ({activeParticipants.length})</span>
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100/70 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Live Sync
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        {activeParticipants.map((p) => (
+                          <div key={p.id} className="flex items-center justify-between text-[11.5px] p-1.5 rounded-lg hover:bg-emerald-50/50 transition">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-[#1b4264] text-[#ffa400] text-[10px] font-black flex items-center justify-center">
+                                {p.name.split(" ").map(n => n[0]).slice(0, 2).join("")}
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-800 block leading-tight">{p.name}</span>
+                                <span className="text-[9.5px] text-slate-500">{p.role} · {p.email}</span>
+                              </div>
+                            </div>
+                            <span className="text-[9.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                              {p.joinedAt}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-center gap-3 mt-2">
+                      <button
+                        onClick={handleReopenMeetingWindow}
+                        className="px-4 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-xs"
+                      >
+                        <i className="ti ti-external-link" />
+                        <span>Reopen Meeting Window</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleEndConference()}
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-xs"
+                      >
+                        <i className="ti ti-phone-off" />
+                        <span>End Session</span>
+                      </button>
+                    </div>
                   </div>
-                  <button 
-                    onClick={() => setModalJoinConferencing(true)} 
-                    className="px-4 py-2 bg-[#ffa400] text-[#1b4264] hover:bg-[#e09000] font-extrabold rounded-lg shadow border border-[#ffa400] self-center cursor-pointer transition-colors"
-                  >
-                    Join Channel Stream
-                  </button>
-                </div>
+                )}
               </div>
             ),
             submission: (
@@ -475,16 +827,120 @@ function StudentDashboardContent() {
             ),
             "consultation-repo": (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Consultation Repository</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Access historical transcripts, advisory notes, and recorded session indexes.</p>
-                <div className="flex flex-col gap-3 mt-2 text-[12px]">
-                  {consultations.map(c => (
-                    <div key={c.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center shadow-sm">
-                      <div>
-                        <span className="font-bold text-[#1b4264] block">{c.topic}</span>
-                        <span className="text-[10px] text-slate-400">{c.date} · {c.time} ({c.mode})</span>
+                <h3 className="font-extrabold text-[#1b4264] text-[16px] flex items-center gap-2">
+                  <i className="ti ti-video text-[#ffa400]" />
+                  Consultation Repository & Scheduled Meetings
+                </h3>
+                <p className="text-[11px] text-slate-400 font-bold">Access historical transcripts, advisory notes, and join scheduled Google Meet video rooms.</p>
+                <div className="flex flex-col gap-3.5 mt-2 text-[12px]">
+                  {consultations.map((c: any) => (
+                    <div key={c.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-3 shadow-sm hover:border-[#1b4264] transition">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-[#1b4264] block text-[13.5px]">{c.topic}</span>
+                            <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
+                              {c.status === "pending" || c.status === "requested" ? "Pending Adviser Approval" : "Approved & Confirmed"}
+                            </Tag>
+                          </div>
+                          <span className="text-[11px] text-slate-500">{c.date} · {c.time} ({c.mode})</span>
+                          {c.meetingUrl && (
+                            <div className="font-mono text-[10.5px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 inline-block mt-1">
+                              {c.meetingUrl}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleOpenTranscriptModal(c)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-xs shadow-sm cursor-pointer transition"
+                          >
+                            <i className="ti ti-file-text text-amber-500" />
+                            <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "View Notes & Chat" : "Import Google Meet Chat"}</span>
+                          </button>
+
+                          {c.status === "pending" || c.status === "requested" ? (
+                            <button
+                              disabled
+                              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 font-bold rounded-lg text-[11px] cursor-not-allowed opacity-90"
+                              title="Awaiting adviser approval"
+                            >
+                              <i className="ti ti-clock" />
+                              <span>Awaiting Approval</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
+                              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] shadow-sm transition cursor-pointer"
+                            >
+                              <i className="ti ti-video" />
+                              <span>Join Google Meet</span>
+                            </button>
+                          )}
+                          {c.meetingUrl && (
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(c.meetingUrl);
+                                triggerToast("Copied Google Meet link to clipboard!");
+                              }}
+                              title="Copy Link"
+                              className="p-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-slate-600 cursor-pointer text-xs"
+                            >
+                              <i className="ti ti-copy" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <Tag variant={c.status==='completed'?'success':'warn'}>{c.status}</Tag>
+
+                      {/* Adviser Notes & Recommendations preview */}
+                      {c.notes && (
+                        <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs flex flex-col gap-1">
+                          <span className="font-bold text-[#1b4264] flex items-center gap-1">
+                            <i className="ti ti-notes" />
+                            <span>Meeting Summary & Adviser Feedback:</span>
+                          </span>
+                          <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{c.notes}</p>
+                        </div>
+                      )}
+
+                      {/* Action items preview */}
+                      {c.actionItems && c.actionItems.length > 0 && (
+                        <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs flex flex-col gap-1">
+                          <span className="font-bold text-[#1b4264] flex items-center gap-1">
+                            <i className="ti ti-checklist text-emerald-600" />
+                            <span>Agreed Action Items ({c.actionItems.length}):</span>
+                          </span>
+                          <ul className="list-disc list-inside text-slate-700 space-y-0.5 pl-1">
+                            {c.actionItems.map((item: string, idx: number) => (
+                              <li key={idx} className="text-[11.5px]">{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* In-call Google Meet chat transcript preview */}
+                      {c.transcript && c.transcript.length > 0 && (
+                        <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-1">
+                            <span className="font-bold text-[#1b4264] flex items-center gap-1.5">
+                              <i className="ti ti-messages text-blue-600" />
+                              <span>Google Meet In-Call Messages ({c.transcript.length})</span>
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">Auto-Indexed</span>
+                          </div>
+                          <div className="max-h-28 overflow-y-auto flex flex-col gap-1 pr-1">
+                            {c.transcript.map((msg: any) => (
+                              <div key={msg.id} className="p-1.5 bg-slate-50 rounded border border-slate-100 text-[11px]">
+                                <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
+                                  <span>{msg.sender}</span>
+                                  <span className="font-mono text-slate-400">{msg.time}</span>
+                                </div>
+                                <p className="text-slate-800 mt-0.5 whitespace-pre-wrap">{msg.content}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -529,6 +985,108 @@ function StudentDashboardContent() {
                     </div>
                   </div>
                 ))}
+              </div>
+            ),
+            history: (
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                  <div>
+                    <h3 className="font-extrabold text-[#1b4264] text-[16px]">Consultation History & Transcript Archive</h3>
+                    <p className="text-[11px] text-slate-400 font-bold">Review historical meeting schedules, faculty advice, and Google Meet chat records.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11.5px] font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                      <strong>{consultations.length}</strong> Total Records
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-4">
+                  {consultations.map((c: any) => (
+                    <div
+                      key={c.id}
+                      className="bg-slate-50 p-5 border border-slate-200 rounded-xl shadow-sm flex flex-col gap-3 hover:border-[#1b4264] transition"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-[#1b4264] text-[14px]">{c.topic}</span>
+                            <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
+                              {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
+                            </Tag>
+                          </div>
+                          <span className="text-[11.5px] text-slate-500 font-medium block mt-0.5">
+                            {c.groupName || "Group AI-CCS-01"} · {c.date} at {c.time} ({c.mode})
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => handleOpenTranscriptModal(c)}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-xs shadow-sm cursor-pointer self-start sm:self-auto transition"
+                        >
+                          <i className="ti ti-file-text text-amber-500" />
+                          <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "View Notes & Chat" : "Import Google Meet Chat"}</span>
+                        </button>
+                      </div>
+
+                      {/* Adviser Notes & Recommendations preview */}
+                      {c.notes && (
+                        <div className="bg-white p-3.5 rounded-lg border border-slate-200 text-xs flex flex-col gap-1">
+                          <span className="font-bold text-[#1b4264] flex items-center gap-1">
+                            <i className="ti ti-notes" />
+                            <span>Meeting Summary & Adviser Feedback:</span>
+                          </span>
+                          <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{c.notes}</p>
+                        </div>
+                      )}
+
+                      {/* Action items preview */}
+                      {c.actionItems && c.actionItems.length > 0 && (
+                        <div className="bg-white p-3.5 rounded-lg border border-slate-200 text-xs flex flex-col gap-1.5">
+                          <span className="font-bold text-[#1b4264] flex items-center gap-1">
+                            <i className="ti ti-checklist text-emerald-600" />
+                            <span>Agreed Action Items ({c.actionItems.length}):</span>
+                          </span>
+                          <ul className="list-disc list-inside text-slate-700 space-y-1 pl-1">
+                            {c.actionItems.map((item: string, idx: number) => (
+                              <li key={idx} className="text-[11.5px]">{item}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* In-call Google Meet chat transcript preview */}
+                      {c.transcript && c.transcript.length > 0 && (
+                        <div className="bg-white p-3.5 rounded-lg border border-slate-200 text-xs flex flex-col gap-2">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                            <span className="font-bold text-[#1b4264] flex items-center gap-1.5">
+                              <i className="ti ti-messages text-blue-600" />
+                              <span>Google Meet In-Call Messages ({c.transcript.length})</span>
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">Auto-Indexed</span>
+                          </div>
+                          <div className="max-h-36 overflow-y-auto flex flex-col gap-1.5 pr-1">
+                            {c.transcript.map((msg: any) => (
+                              <div key={msg.id} className="p-2 bg-slate-50 rounded border border-slate-100 text-[11px]">
+                                <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
+                                  <span>{msg.sender}</span>
+                                  <span className="font-mono text-slate-400">{msg.time}</span>
+                                </div>
+                                <p className="text-slate-800 mt-0.5 whitespace-pre-wrap">{msg.content}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {consultations.length === 0 && (
+                    <div className="text-center py-8 text-slate-400 font-medium">
+                      No consultation records logged yet.
+                    </div>
+                  )}
+                </div>
               </div>
             ),
             notifications: (
@@ -582,7 +1140,12 @@ function StudentDashboardContent() {
                       <span className="font-bold text-[#1b4264] block">Dark Mode</span>
                       <span className="text-[10px] text-slate-400">Switch platform styling theme to night vision.</span>
                     </div>
-                    <input type="checkbox" className="accent-[#ffa400] w-4 h-4 cursor-pointer" />
+                    <input
+                      type="checkbox"
+                      checked={isDark}
+                      onChange={toggleTheme}
+                      className="accent-[#ffa400] w-4 h-4 cursor-pointer"
+                    />
                   </div>
                 </div>
               </div>
@@ -627,24 +1190,22 @@ function StudentDashboardContent() {
         </div>
       )}
 
-      {modalJoinConferencing && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border-t-4 border-[#1b4264] max-w-md w-full p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4">
-            <h3 className="font-extrabold text-[#1b4264] text-[16px] flex items-center gap-2">
-              <i className="ti ti-video text-[#ffa400] text-xl" />
-              Join Voice & Video Channel
-            </h3>
-            <p className="text-[12.5px] text-slate-500 leading-relaxed">
-              You are joining study channel <strong className="text-slate-800">Group AI-CCS-01</strong>. This will activate your simulated microphone and web camera.
-            </p>
-            <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
-              <button onClick={()=>setModalJoinConferencing(false)} className="px-4 py-2 border border-slate-350 hover:bg-slate-50 rounded-lg text-[12px] font-bold text-slate-700 cursor-pointer">Cancel</button>
-              <button onClick={()=>{setModalJoinConferencing(false); triggerToast("Connected to group call stream.");}} className="px-4 py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-lg text-[12px] cursor-pointer">Join Stream</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <GoogleMeetConnectModal
+        isOpen={showConnectModal}
+        currentUrl={activeMeetingUrl}
+        defaultEmail={user?.email || "juan.reyes@student.university.edu.ph"}
+        defaultName={`${user?.firstName || "Juan"} ${user?.lastName || "Reyes"}`}
+        role="Lead Researcher"
+        onClose={() => setShowConnectModal(false)}
+        onLaunch={handleLaunchSyncedMeeting}
+      />
 
+      <GoogleMeetTranscriptModal
+        isOpen={showTranscriptModal}
+        onClose={() => setShowTranscriptModal(false)}
+        consultation={selectedConsultationForTranscript}
+        onSaveNotes={handleSaveConsultationNotes}
+      />
     </div>
   );
 }
