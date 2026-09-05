@@ -32,8 +32,12 @@ jobs:
       - name: Install Monorepo Dependencies
         run: npm ci
 
-      - name: Generate Prisma Client
-        run: npm run build --workspace=@research-management/database
+      - name: Build Internal Packages
+        run: |
+          npm run build --workspace=@research-management/database
+          npm run build --workspace=@research-management/auth
+          npm run build --workspace=@research-management/validations
+          npm run build --workspace=@research-management/email
 
       - name: Run ESLint
         run: npm run lint
