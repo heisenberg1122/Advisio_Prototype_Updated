@@ -237,7 +237,11 @@
 ### 2.28 Transactional Email Engine (`@research-management/email`)
 - **Production HTML Templates:** Built responsive, institutionally branded email templates for user provisioning (`renderWelcomeEmail`) and defense sessions (`renderDefenseScheduledEmail`).
 - **Resend API Integration & Fallback:** Implemented delivery client sending via Resend API when `RESEND_API_KEY` is present, with safe mock console delivery fallback for local dev and automated tests.
-- **Full Monorepo Automated Test Suite:** Expanded test suite to **22/22 passing tests** across 4 packages (`auth`, `validations`, `email`, and `api`).
+- **Full Monorepo Automated Test Suite:** Expanded test suite across 4 packages (`auth`, `validations`, `email`, and `api`).
+
+### 2.29 Deployment Runbook & Native React Product Tour
+- **Production Runbook (`DEPLOYMENT.md`):** Published a comprehensive production guide detailing single-command Docker deployment (`docker-compose.prod.yml`), bare-metal Nginx reverse proxy + SSL configuration, database migrations (`npx prisma migrate deploy`), health probe verification, backup/restore procedures, and troubleshooting.
+- **Native React Product Tour (`ProductTour.tsx`):** Engineered a high-polish, accessible guided onboarding tour component featuring spotlight cutouts, keyboard navigation (Escape, arrows), and `localStorage` persistence. Integrated directly into the Student Dashboard with trigger buttons across key tabs (`overview`, `workspace`, `submissions`, `consultations`, `milestones`, `chat`).
 
 ---
 

@@ -12,12 +12,51 @@ import { getStoredMeetingSession, saveMeetingSession, DEFAULT_SHARED_MEET_URL } 
 import { GoogleMeetConnectModal } from "@/components/consultations/GoogleMeetConnectModal";
 import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consultations/GoogleMeetTranscriptModal";
 import { getStoredConsultations, addStoredConsultation, saveStoredConsultations, updateStoredConsultationNotes, ConsultationItem } from "@/lib/consultation-store";
+import { ProductTour, TourStep } from "@/components/shared/ProductTour";
+
+const STUDENT_TOUR_STEPS: TourStep[] = [
+  {
+    title: "Welcome to Advisio Research Portal",
+    content: "This is your comprehensive workspace for capstone and thesis research. Let's take a quick tour of your essential tools.",
+  },
+  {
+    selector: '[data-tour="tab-overview"]',
+    title: "Project Overview",
+    content: "Monitor your active research topic, assigned group members, and overall milestone progress at a glance.",
+  },
+  {
+    selector: '[data-tour="tab-workspace"]',
+    title: "Document Workspace",
+    content: "Draft chapters, annotate PDF manuscripts, collaborate with teammates, and review inline faculty comments.",
+  },
+  {
+    selector: '[data-tour="tab-submissions"]',
+    title: "Formal Submissions",
+    content: "Submit versioned manuscript drafts for adviser endorsement, ethics review, and defense panel evaluations.",
+  },
+  {
+    selector: '[data-tour="tab-consultations"]',
+    title: "Adviser Consultations & Meet",
+    content: "Book consultation slots with your faculty adviser, launch synchronized Google Meet rooms, and review AI transcripts.",
+  },
+  {
+    selector: '[data-tour="tab-milestones"]',
+    title: "Institutional Milestones",
+    content: "Keep track of institutional deadlines, defense schedules, and college research workflow stages.",
+  },
+  {
+    selector: '[data-tour="tab-chat"]',
+    title: "Real-Time Group Chat",
+    content: "Direct, instant group chat with your research partners and faculty adviser powered by real-time event streaming.",
+  },
+];
 
 function StudentDashboardContent() {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
   const { isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const [isTourOpen, setIsTourOpen] = useState(false);
 
   // Synchronized Floating Google Meet Conference Session State
   const initialSession = getStoredMeetingSession();
@@ -408,32 +447,52 @@ function StudentDashboardContent() {
       )}
 
       {/* TABS HEADER BAR */}
-      <div className="bg-white border-b border-slate-200 px-6 pt-3 flex gap-2 overflow-x-auto shadow-sm">
-        {tabsList.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-lg text-[12px] font-bold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-                isActive
-                  ? "border-[#1b4264] text-[#1b4264] bg-slate-50 shadow-sm"
-                  : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50/50"
-              }`}
-            >
-              <i className={`ti ${tab.icon} text-sm ${isActive ? "text-[#1b4264]" : ""}`} />
-              <span>{tab.label}</span>
-              {tab.badge !== undefined && tab.badge > 0 && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
-                  isActive ? "bg-[#1b4264] text-[#ffa400]" : "bg-slate-200 text-slate-700"
-                }`}>
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      <div className="bg-white border-b border-slate-200 px-6 pt-3 flex items-center justify-between overflow-x-auto shadow-sm">
+        <div className="flex gap-2">
+          {tabsList.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                data-tour={`tab-${tab.id}`}
+                onClick={() => handleTabChange(tab.id)}
+                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-lg text-[12px] font-bold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? "border-[#1b4264] text-[#1b4264] bg-slate-50 shadow-sm"
+                    : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50/50"
+                }`}
+              >
+                <i className={`ti ${tab.icon} text-sm ${isActive ? "text-[#1b4264]" : ""}`} />
+                <span>{tab.label}</span>
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                    isActive ? "bg-[#1b4264] text-[#ffa400]" : "bg-slate-200 text-slate-700"
+                  }`}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={() => setIsTourOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors mb-1.5 cursor-pointer whitespace-nowrap border border-slate-200"
+          title="Start interactive product tour"
+        >
+          <i className="ti ti-sparkles text-amber-500" />
+          <span>Product Tour</span>
+        </button>
       </div>
+
+      <ProductTour
+        tourKey="student_onboarding_v1"
+        steps={STUDENT_TOUR_STEPS}
+        isOpen={isTourOpen ? true : undefined}
+        onClose={() => setIsTourOpen(false)}
+        autoStart={true}
+      />
 
       {/* MAIN CONTAINER */}
       <main className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
