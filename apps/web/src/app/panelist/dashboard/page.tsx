@@ -17,29 +17,12 @@ function PanelistDashboardContent() {
     staleTime: 60000,
   });
 
-  // Mock State Data with live fallbacks
-  const [schedules, setSchedules] = useState([
-    { id: "d1", title: "AI Crop Yield Prediction System Using ML", type: "Proposal Defense", date: "2026-07-10", time: "10:00 AM", venue: "CCS Seminar Hall" },
-    { id: "d2", title: "Smart Traffic Management System", type: "Final Defense", date: "2026-07-12", time: "02:00 PM", venue: "CCS Webex B" },
-  ]);
-
-  const [documents, setDocuments] = useState([
-    { id: "doc1", title: "AI Crop Yield Prediction Chapter 1-3 v2.1", group: "Group AI-CCS-01", status: "Ready for scoring" },
-    { id: "doc2", title: "Smart Traffic Management Final Review v1", group: "Group IoT-IT-03", status: "Needs review" },
-  ]);
-
-  const [evaluations, setEvaluations] = useState([
-    { id: "e1", title: "AI Crop Yield Prediction (Proposal)", status: "pending", score: 0, recommendations: "" },
-    { id: "e2", title: "Smart Traffic Management (Final)", status: "pending", score: 0, recommendations: "" },
-  ]);
-
-  const [gradesSubmitted, setGradesSubmitted] = useState([
-    { id: "g1", title: "Blockchain Credential Verification", score: 92, status: "submitted" },
-  ]);
-
-  const [notifications, setNotifications] = useState([
-    { id: "n1", msg: "New defense panel assigned for Group IoT-IT-03 on July 12", date: "1 day ago" },
-  ]);
+  // Real State Data with live fallbacks
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [evaluations, setEvaluations] = useState<any[]>([]);
+  const [gradesSubmitted, setGradesSubmitted] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   const [activeScore, setActiveScore] = useState<number>(85);
   const [activeRecs, setActiveRecs] = useState<string>("");
@@ -192,29 +175,41 @@ function PanelistDashboardContent() {
                   <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
                     <h3 className="font-extrabold text-[#1b4264] text-[14px]">Assigned Defense Schedules</h3>
                     <div className="flex flex-col gap-2.5">
-                      {schedules.map(s => (
-                        <div key={s.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px] flex justify-between items-center shadow-sm">
-                          <div>
-                            <span className="font-bold text-[#1b4264] block">{s.title}</span>
-                            <span className="text-[10px] text-slate-450">{s.date} · {s.time} ({s.venue})</span>
+                      {schedules.length > 0 ? (
+                        schedules.map(s => (
+                          <div key={s.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px] flex justify-between items-center shadow-sm">
+                            <div>
+                              <span className="font-bold text-[#1b4264] block">{s.title}</span>
+                              <span className="text-[10px] text-slate-450">{s.date} · {s.time} ({s.venue})</span>
+                            </div>
+                            <Tag variant="warn">{s.type}</Tag>
                           </div>
-                          <Tag variant="warn">{s.type}</Tag>
+                        ))
+                      ) : (
+                        <div className="text-xs text-slate-400 py-4 text-center">
+                          No assigned defense schedules.
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
 
                   <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
                     <h3 className="font-extrabold text-[#1b4264] text-[14px]">Pending Digital Evaluations</h3>
                     <div className="flex flex-col gap-2.5">
-                      {evaluations.map(e => (
-                        <div key={e.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px] flex justify-between items-center shadow-sm">
-                          <span>{e.title}</span>
-                          <button onClick={()=>triggerToast("Opening evaluation rubric sheet.")} className="px-2.5 py-1 bg-[#ffa400] text-[#1b4264] font-extrabold text-[10px] rounded border border-[#ffa400] cursor-pointer">
-                            Evaluate
-                          </button>
+                      {evaluations.length > 0 ? (
+                        evaluations.map(e => (
+                          <div key={e.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px] flex justify-between items-center shadow-sm">
+                            <span>{e.title}</span>
+                            <button onClick={()=>triggerToast("Opening evaluation rubric sheet.")} className="px-2.5 py-1 bg-[#ffa400] text-[#1b4264] font-extrabold text-[10px] rounded border border-[#ffa400] cursor-pointer">
+                              Evaluate
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-xs text-slate-400 py-4 text-center">
+                          No pending digital evaluations.
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
                 </div>
@@ -225,15 +220,21 @@ function PanelistDashboardContent() {
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Defense Schedule Management</h3>
                 <p className="text-[11px] text-slate-400 font-bold">Review defense panel timings, assignees, and digital venues.</p>
                 <div className="flex flex-col gap-3 mt-2">
-                  {schedules.map(s => (
-                    <div key={s.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
-                      <div>
-                        <span className="font-bold text-[#1b4264] block">{s.title}</span>
-                        <span className="text-[11px] text-slate-500">{s.date} at {s.time} · Venue: {s.venue}</span>
+                  {schedules.length > 0 ? (
+                    schedules.map(s => (
+                      <div key={s.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
+                        <div>
+                          <span className="font-bold text-[#1b4264] block">{s.title}</span>
+                          <span className="text-[11px] text-slate-500">{s.date} at {s.time} · Venue: {s.venue}</span>
+                        </div>
+                        <Tag variant="warn">{s.type}</Tag>
                       </div>
-                      <Tag variant="warn">{s.type}</Tag>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-400 py-6 text-center">
+                      No defense schedules assigned yet.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ),
@@ -242,15 +243,21 @@ function PanelistDashboardContent() {
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Submitted Research Documents</h3>
                 <p className="text-[11px] text-slate-400 font-bold">Review draft submissions, download version histories, and checklist files.</p>
                 <div className="flex flex-col gap-3 mt-2">
-                  {documents.map(d => (
-                    <div key={d.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
-                      <div>
-                        <span className="font-bold text-[#1b4264] block">{d.title}</span>
-                        <span className="text-[11px] text-slate-500">{d.group}</span>
+                  {documents.length > 0 ? (
+                    documents.map(d => (
+                      <div key={d.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
+                        <div>
+                          <span className="font-bold text-[#1b4264] block">{d.title}</span>
+                          <span className="text-[11px] text-slate-500">{d.group}</span>
+                        </div>
+                        <span className="text-[11px] font-bold text-[#ffa400]">{d.status}</span>
                       </div>
-                      <span className="text-[11px] font-bold text-[#ffa400]">{d.status}</span>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-400 py-6 text-center">
+                      No submitted research documents assigned for panel review.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ),

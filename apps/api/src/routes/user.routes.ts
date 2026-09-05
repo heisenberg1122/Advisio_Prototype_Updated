@@ -10,7 +10,6 @@ const router = Router();
 router.get(
   "/",
   requireAuth,
-  requirePermission(Permissions.USER_MANAGE),
   async (req: Request, res: Response) => {
     try {
       const { role, collegeId, programId, status } = req.query;

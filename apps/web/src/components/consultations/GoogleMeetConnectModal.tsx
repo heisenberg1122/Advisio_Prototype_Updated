@@ -126,7 +126,7 @@ export const GoogleMeetConnectModal: React.FC<GoogleMeetConnectModalProps> = ({
               required
             />
             <p className="text-[10px] text-slate-400 leading-tight">
-              Both you and all participants in <strong>Group AI-CCS-01</strong> will enter this exact same Google Meet room.
+              Both you and all participants in this consultation will enter this exact same Google Meet room.
             </p>
           </div>
 

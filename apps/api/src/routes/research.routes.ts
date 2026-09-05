@@ -57,7 +57,6 @@ router.post(
   "/",
   requireAuth,
   requirePermission(Permissions.RESEARCH_CREATE),
-  validateBody(createResearchSchema),
   async (req: Request, res: Response) => {
     try {
       if (!req.user) {
@@ -65,24 +64,69 @@ router.post(
         return;
       }
 
-      const { researchTypeId, programId, collegeId, academicYearId, title, abstract } = req.body;
+      const { title, abstract } = req.body;
+      let { researchTypeId, programId, collegeId, academicYearId } = req.body;
 
-      // Check research type and its workflow
-      const researchType = await prisma.researchType.findUnique({
-        where: { id: researchTypeId },
-        include: {
-          workflow: {
-            include: {
-              stages: {
-                orderBy: { sequence: "asc" },
+      if (!title || typeof title !== "string" || title.trim().length < 3) {
+        res.status(400).json({ error: "Research title must be at least 3 characters long." });
+        return;
+      }
+
+      // Auto-resolve missing IDs from active database records
+      if (!collegeId || !programId) {
+        const userDb = await prisma.user.findUnique({
+          where: { id: req.user.id },
+          select: { collegeId: true, programId: true },
+        });
+        if (!collegeId) {
+          collegeId = userDb?.collegeId || (await prisma.college.findFirst())?.id;
+        }
+        if (!programId) {
+          programId = userDb?.programId || (await prisma.program.findFirst())?.id;
+        }
+      }
+
+      if (!academicYearId) {
+        const defaultAY = (await prisma.academicYear.findFirst({ where: { isCurrent: true } }))
+          || (await prisma.academicYear.findFirst());
+        academicYearId = defaultAY?.id;
+      }
+
+      let researchType = null;
+      if (researchTypeId) {
+        researchType = await prisma.researchType.findUnique({
+          where: { id: researchTypeId },
+          include: {
+            workflow: {
+              include: {
+                stages: {
+                  orderBy: { sequence: "asc" },
+                },
               },
             },
           },
-        },
-      });
+        });
+      } else {
+        researchType = await prisma.researchType.findFirst({
+          include: {
+            workflow: {
+              include: {
+                stages: {
+                  orderBy: { sequence: "asc" },
+                },
+              },
+            },
+          },
+        });
+        if (researchType) {
+          researchTypeId = researchType.id;
+        }
+      }
 
-      if (!researchType) {
-        res.status(404).json({ error: "Research type not found" });
+      if (!researchType || !researchTypeId || !collegeId || !programId || !academicYearId) {
+        res.status(400).json({
+          error: "Unable to resolve required academic program, college, or workflow type.",
+        });
         return;
       }
 
@@ -96,8 +140,8 @@ router.post(
             programId,
             collegeId,
             academicYearId,
-            title,
-            abstract: abstract || null,
+            title: title.trim(),
+            abstract: abstract?.trim() || null,
             status: "DRAFT",
             createdBy: req.user!.id,
           },
@@ -132,7 +176,35 @@ router.post(
         return newProject;
       });
 
-      res.status(201).json({ project });
+      const fullProject = await prisma.researchProject.findUnique({
+        where: { id: project.id },
+        include: {
+          researchType: true,
+          program: true,
+          college: true,
+          academicYear: true,
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  universityId: true,
+                },
+              },
+            },
+          },
+          workflowInstance: {
+            include: {
+              currentStage: true,
+            },
+          },
+        },
+      });
+
+      res.status(201).json({ project: fullProject });
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Failed to create research project" });
     }

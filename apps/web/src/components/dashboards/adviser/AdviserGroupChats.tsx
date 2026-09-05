@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { getChatStore, saveChatStore, GroupChat, GroupChatInvitation, GroupChatMessage } from "@/lib/chat-store";
+import { useAuth } from "@/providers/auth-provider";
+import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 
 interface AdviserGroupChatsProps {
@@ -9,15 +11,12 @@ interface AdviserGroupChatsProps {
 }
 
 export function AdviserGroupChats({ triggerToast }: AdviserGroupChatsProps) {
-  const adviserEmail = "rachel.lim@university.edu.ph";
-  const adviserName = "Dr. Rachel Lim";
+  const { user } = useAuth();
+  const adviserEmail = user?.email || "";
+  const adviserName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "Faculty Adviser";
 
-  // Mock student list under Dr Rachel Lim's assigned group Group AI-CCS-01
-  const assignedStudents = [
-    { email: "juan.reyes@university.edu.ph", name: "Juan Reyes", group: "Group AI-CCS-01" },
-    { email: "marc.santos@university.edu.ph", name: "Marc Santos", group: "Group AI-CCS-01" },
-    { email: "sarah.garcia@university.edu.ph", name: "Sarah Garcia", group: "Group AI-CCS-01" },
-  ];
+  // Dynamic student list under assigned research groups
+  const [assignedStudents, setAssignedStudents] = useState<Array<{ email: string; name: string; group: string }>>([]);
 
   // Local component states synced with localStorage store
   const [chats, setChats] = useState<GroupChat[]>([]);
@@ -28,7 +27,7 @@ export function AdviserGroupChats({ triggerToast }: AdviserGroupChatsProps) {
   // Group chat builder form states
   const [chatTitle, setChatTitle] = useState("");
   const [chatDescription, setChatDescription] = useState("");
-  const [selectedGroup, setSelectedGroup] = useState("Group AI-CCS-01");
+  const [selectedGroup, setSelectedGroup] = useState("");
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [msgInput, setMsgInput] = useState("");
 
@@ -42,6 +41,31 @@ export function AdviserGroupChats({ triggerToast }: AdviserGroupChatsProps) {
   useEffect(() => {
     syncWithStore();
 
+    const fetchRealStudents = async () => {
+      try {
+        const res = await apiClient.get<{ projects: any[] }>("/api/research");
+        if (res?.projects && Array.isArray(res.projects)) {
+          const list: Array<{ email: string; name: string; group: string }> = [];
+          res.projects.forEach((p) => {
+            const grpName = p.title?.substring(0, 20) || "Research Group";
+            p.members?.forEach((m: any) => {
+              if (m.user?.email && !list.some((existing) => existing.email === m.user.email)) {
+                list.push({
+                  email: m.user.email,
+                  name: `${m.user.firstName || ""} ${m.user.lastName || ""}`.trim() || m.user.email,
+                  group: grpName,
+                });
+              }
+            });
+          });
+          setAssignedStudents(list);
+        }
+      } catch (e) {
+        // Fallback
+      }
+    };
+    fetchRealStudents();
+
     // Listen for storage updates (for real-time sync between browser tabs)
     const handleStorage = (e: StorageEvent) => {
       if (e.key === "advisio_chat_store") {
@@ -50,7 +74,7 @@ export function AdviserGroupChats({ triggerToast }: AdviserGroupChatsProps) {
     };
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+  }, [adviserEmail]);
 
   const handleStudentSelectToggle = (email: string) => {
     setSelectedStudents(prev =>

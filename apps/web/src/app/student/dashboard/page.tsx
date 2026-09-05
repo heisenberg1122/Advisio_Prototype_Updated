@@ -1,6 +1,6 @@
 import React, { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { apiClient } from "@/lib/api-client";
@@ -56,7 +56,14 @@ function StudentDashboardContent() {
   const activeTab = searchParams.get("tab") || "overview";
   const { isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [isTourOpen, setIsTourOpen] = useState(false);
+
+  // Project Registration State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createTitle, setCreateTitle] = useState("");
+  const [createAbstract, setCreateAbstract] = useState("");
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   // Synchronized Floating Google Meet Conference Session State
   const initialSession = getStoredMeetingSession();
@@ -65,12 +72,7 @@ function StudentDashboardContent() {
   const [activeMeetingUrl, setActiveMeetingUrl] = useState(initialSession.meetingUrl || DEFAULT_SHARED_MEET_URL);
   const [activeMeetingTopic, setActiveMeetingTopic] = useState(initialSession.topic || "Student Group Conferencing");
   const [activeParticipants, setActiveParticipants] = useState(
-    initialSession.participants.length > 0
-      ? initialSession.participants
-      : [
-          { id: "p1", name: "Juan Reyes", role: "Lead Researcher", email: "juan.reyes@student.university.edu.ph", joinedAt: "Just now" },
-          { id: "p2", name: "Dr. Rachel Lim", role: "Faculty Adviser", email: "rachel.lim@university.edu.ph", joinedAt: "Just now" },
-        ]
+    initialSession.participants.length > 0 ? initialSession.participants : []
   );
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showTranscriptModal, setShowTranscriptModal] = useState(false);
@@ -115,8 +117,8 @@ function StudentDashboardContent() {
             setActiveParticipants(s.participants);
           }
           saveMeetingSession({
-            groupId: s.groupId || "g1",
-            groupName: s.groupName || "Group AI-CCS-01",
+            groupId: s.groupId || "default",
+            groupName: s.groupName || "Research Group",
             topic: s.topic,
             meetingUrl: s.meetingUrl,
             isActive: s.isActive,
@@ -150,7 +152,7 @@ function StudentDashboardContent() {
 
     const studentParticipant = {
       id: "p2",
-      name: `${user?.firstName || "Juan"} ${user?.lastName || "Reyes"}`,
+      name: `${user?.firstName || "Student"} ${user?.lastName || "Researcher"}`.trim(),
       role: "Lead Researcher",
       email: selectedEmail,
       joinedAt: "Just now",
@@ -166,8 +168,8 @@ function StudentDashboardContent() {
     // Broadcast active stream to backend database so other browser receives exact same URL
     try {
       await apiClient.post("/api/consultations/active-stream", {
-        groupId: "g1",
-        groupName: "Group AI-CCS-01",
+        groupId: activeProject?.id || "default",
+        groupName: group?.name || activeProject?.title || "Research Group",
         topic: activeMeetingTopic,
         meetingUrl: targetUrl,
         gmailAccount: selectedEmail,
@@ -177,8 +179,8 @@ function StudentDashboardContent() {
     }
 
     saveMeetingSession({
-      groupId: "g1",
-      groupName: "Group AI-CCS-01",
+      groupId: activeProject?.id || "default",
+      groupName: group?.name || activeProject?.title || "Research Group",
       topic: activeMeetingTopic,
       meetingUrl: targetUrl,
       isActive: true,
@@ -229,36 +231,36 @@ function StudentDashboardContent() {
 
   const activeProject = researchData?.projects?.[0];
 
-  // State Data with live fallbacks
-  const [group, setGroup] = useState({
-    name: "Group AI-CCS-01",
-    projectTitle: "AI-based Crop Yield Prediction System Using ML",
-    members: ["Juan Reyes", "Marc Santos", "Sarah Garcia"],
-    status: "active",
-  });
+  // State Data strictly from live API
+  const [group, setGroup] = useState<any>(null);
 
   useEffect(() => {
     if (activeProject) {
       setGroup({
-        name: activeProject.title?.substring(0, 20) || "Cap-Project-01",
+        id: activeProject.id,
+        name: activeProject.title?.length > 25 ? activeProject.title.substring(0, 25) + "..." : activeProject.title,
         projectTitle: activeProject.title || "Untitled Research",
-        members: activeProject.members?.map((m: any) => `${m.user.firstName} ${m.user.lastName}`) || ["Student Member"],
-        status: activeProject.status?.toLowerCase() || "active",
+        members: activeProject.members?.map((m: any) => `${m.user.firstName} ${m.user.lastName}`) || [],
+        status: activeProject.status?.toLowerCase() || "draft",
       });
+      if (activeProject.workflowInstance?.currentStage) {
+        setMilestones([
+          {
+            id: activeProject.workflowInstance.currentStage.id,
+            title: activeProject.workflowInstance.currentStage.name,
+            status: "in-progress",
+            date: new Date().toISOString().split("T")[0],
+          },
+        ]);
+      }
+    } else {
+      setGroup(null);
+      setMilestones([]);
     }
   }, [activeProject]);
 
-  const [aiMatches, setAiMatches] = useState([
-    { name: "Dr. Rachel Lim", match: 98, expertise: "Machine Learning, Neural Networks", status: "Available" },
-    { name: "Dr. Lisa Wong", match: 85, expertise: "Computer Vision, Data Analytics", status: "Available" },
-    { name: "Prof. Arthur Pendleton", match: 72, expertise: "Big Data Systems, Cloud Tech", status: "Busy" },
-  ]);
-
-  const [submissions, setSubmissions] = useState([
-    { id: "s1", docName: "Proposal Draft Outline v1", milestone: "Proposal Outline", date: "2026-06-25", version: "v1.0", status: "approved" },
-    { id: "s2", docName: "Chapter 1-3 Review Draft v2", milestone: "Draft Submission", date: "2026-06-27", version: "v2.1", status: "pending" },
-  ]);
-
+  const [aiMatches, setAiMatches] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]);
   const [workspaceSubmissions, setWorkspaceSubmissions] = useState<any[]>([]);
 
   useEffect(() => {
@@ -266,7 +268,11 @@ function StudentDashboardContent() {
       const stored = localStorage.getItem("advisio_student_submissions");
       if (stored) {
         try {
-          setWorkspaceSubmissions(JSON.parse(stored));
+          const parsed = JSON.parse(stored);
+          const filtered = Array.isArray(parsed)
+            ? parsed.filter((s: any) => !s.docName?.includes("Chapter 3 Methodology Draft"))
+            : [];
+          setWorkspaceSubmissions(filtered);
         } catch (e) {}
       }
     };
@@ -277,37 +283,23 @@ function StudentDashboardContent() {
 
   const combinedSubmissions = [...workspaceSubmissions, ...submissions];
 
-  const [milestones, setMilestones] = useState([
-    { id: "m1", title: "Proposal Outline Selection", status: "completed", date: "2026-06-20" },
-    { id: "m2", title: "Chapter 1-3 Submission", status: "in-progress", date: "2026-07-15" },
-    { id: "m3", title: "Ethics Clearance Review", status: "upcoming", date: "2026-07-30" },
-    { id: "m4", title: "Pre-Defense Presentation", status: "upcoming", date: "2026-08-15" },
-    { id: "m5", title: "Final Oral Defense", status: "upcoming", date: "2026-09-10" },
-  ]);
-
-  const [defenses, setDefenses] = useState([
-    { id: "d1", title: "AI Crop Yield Prediction System", type: "Proposal Defense", date: "2026-07-10", time: "10:00 AM", venue: "CCS Seminar Hall", panelists: ["Dr. Lisa Wong", "Prof. A. Pendleton"] },
-  ]);
-
-  const [notifications, setNotifications] = useState([
-    { id: "n1", msg: "Dr. Rachel Lim approved your outline version v1.0", date: "June 25, 2026", type: "system" },
-    { id: "n2", msg: "Institutional Ethics Deadline scheduled for July 30", date: "June 24, 2026", type: "announcement" },
-  ]);
-
+  const [milestones, setMilestones] = useState<any[]>([]);
+  const [defenses, setDefenses] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [chatStoreNotifications, setChatStoreNotifications] = useState<any[]>([]);
 
   useEffect(() => {
     const syncNotifs = () => {
       const store = getChatStore();
       const userNotifs = store.notifications.filter(
-        n => n.userId === "juan.reyes@university.edu.ph"
+        n => n.userId === user?.email
       );
       setChatStoreNotifications(userNotifs);
     };
     syncNotifs();
     window.addEventListener("storage", syncNotifs);
     return () => window.removeEventListener("storage", syncNotifs);
-  }, []);
+  }, [user]);
 
   const combinedNotifications = [
     ...chatStoreNotifications.map(n => ({ id: n.id, msg: n.msg, date: n.date || "Just now", type: "system" })),
@@ -377,7 +369,7 @@ function StudentDashboardContent() {
 
       const newConsult: ConsultationItem = {
         id: Math.random().toString(),
-        groupName: "Group AI-CCS-01",
+        groupName: group?.name || activeProject?.title || "Research Group",
         topic: consultTopic,
         date: consultDate || new Date().toISOString().split("T")[0],
         time: consultTime || "10:00 AM",
@@ -396,6 +388,27 @@ function StudentDashboardContent() {
     setConsultTopic("");
     setConsultDate("");
     setConsultTime("");
+  };
+
+  const handleCreateResearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createTitle.trim()) return;
+    setIsCreatingProject(true);
+    try {
+      await apiClient.post("/api/research", {
+        title: createTitle.trim(),
+        abstract: createAbstract.trim() || undefined,
+      });
+      queryClient.invalidateQueries({ queryKey: ["student-research"] });
+      setShowCreateModal(false);
+      setCreateTitle("");
+      setCreateAbstract("");
+      triggerToast("Research study registered successfully!");
+    } catch (err: any) {
+      triggerToast(err.message || "Failed to register project");
+    } finally {
+      setIsCreatingProject(false);
+    }
   };
 
   const handleOpenTranscriptModal = (consultation: ConsultationItem) => {
@@ -520,6 +533,39 @@ function StudentDashboardContent() {
           const tabContent: Record<string, React.ReactNode> = {
             overview: (
               <>
+                {!group ? (
+                  <div className="bg-white border-2 border-dashed border-slate-300 rounded-2xl p-10 text-center flex flex-col items-center justify-center shadow-sm my-2">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1b4264]/10 to-[#ffa400]/20 flex items-center justify-center text-[#1b4264] mb-4">
+                      <i className="ti ti-folder-plus text-3xl text-[#1b4264]" />
+                    </div>
+                    <h3 className="text-xl font-extrabold text-[#1b4264] mb-2">No Research Project Registered Yet</h3>
+                    <p className="text-slate-500 text-sm max-w-md mb-6 leading-relaxed">
+                      You are not enrolled in an active research study yet. Create your capstone or thesis project to start collaborating with faculty advisers, submitting drafts, and booking consultations.
+                    </p>
+                    <button
+                      onClick={() => setShowCreateModal(true)}
+                      className="px-6 py-3 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-extrabold rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer text-sm"
+                    >
+                      <i className="ti ti-plus font-bold" />
+                      <span>Register Research Project</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-gradient-to-r from-[#1b4264] to-[#255883] text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                      <span className="text-[11px] font-extrabold text-[#ffa400] uppercase tracking-wider block">Active Research Study</span>
+                      <h2 className="text-xl font-black mt-0.5">{group.projectTitle}</h2>
+                      <p className="text-xs text-slate-200 mt-1">Study Leader: {user?.firstName} {user?.lastName} · Status: <span className="uppercase font-bold text-[#ffa400]">{group.status}</span></p>
+                    </div>
+                    <button
+                      onClick={() => handleTabChange("workspace")}
+                      className="px-4 py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-xl text-xs shadow transition cursor-pointer"
+                    >
+                      Open Document Workspace
+                    </button>
+                  </div>
+                )}
+
                 {/* EXACT STUDENT CARDS */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
@@ -528,7 +574,7 @@ function StudentDashboardContent() {
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Research Group Status</span>
-                      <span className="text-[15px] font-extrabold text-[#1b4264]">{group.name} ({group.status})</span>
+                      <span className="text-[15px] font-extrabold text-[#1b4264]">{group ? `${group.name} (${group.status})` : "Not Registered"}</span>
                     </div>
                   </div>
 
@@ -538,7 +584,7 @@ function StudentDashboardContent() {
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Adviser Recs</span>
-                      <span className="text-[15px] font-extrabold text-[#1b4264]">{aiMatches[0].name} (98%)</span>
+                      <span className="text-[15px] font-extrabold text-[#1b4264]">{aiMatches.length > 0 ? `${aiMatches[0].name} (${aiMatches[0].match}%)` : "None yet"}</span>
                     </div>
                   </div>
 
@@ -558,7 +604,7 @@ function StudentDashboardContent() {
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Pending Consults</span>
-                      <span className="text-[15px] font-extrabold text-[#1b4264]">{consultations.filter(c=>c.status==='pending').length} Requested</span>
+                      <span className="text-[15px] font-extrabold text-[#1b4264]">{consultations.filter(c=>c.status==='pending' || c.status==='requested').length} Requested</span>
                     </div>
                   </div>
 
@@ -569,13 +615,13 @@ function StudentDashboardContent() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold leading-none">Milestone Progress</span>
-                        <span className="text-[14.5px] font-extrabold text-[#1b4264] mt-1.5 block leading-none">20% Complete</span>
+                        <span className="text-[14.5px] font-extrabold text-[#1b4264] mt-1.5 block leading-none">{group ? "In Progress" : "0% Complete"}</span>
                       </div>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200/50">
                       <div 
-                        className="bg-gradient-to-r from-[#1b4264] to-[#ffa400] h-full rounded-full transition-all duration-500 ease-out animate-pulse" 
-                        style={{ width: "20%" }} 
+                        className="bg-gradient-to-r from-[#1b4264] to-[#ffa400] h-full rounded-full transition-all duration-500 ease-out" 
+                        style={{ width: group ? "20%" : "0%" }} 
                       />
                     </div>
                   </div>
@@ -586,7 +632,7 @@ function StudentDashboardContent() {
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Defense Schedule</span>
-                      <span className="text-[15px] font-extrabold text-[#1b4264]">July 10, 2026</span>
+                      <span className="text-[15px] font-extrabold text-[#1b4264]">{defenses.length > 0 ? defenses[0].date : "Not Scheduled"}</span>
                     </div>
                   </div>
 
@@ -596,7 +642,7 @@ function StudentDashboardContent() {
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Certificate Status</span>
-                      <span className="text-[15px] font-extrabold text-[#1b4264]">Locked (Pending Oral)</span>
+                      <span className="text-[15px] font-extrabold text-[#1b4264]">{group ? "Locked (Pending Defense)" : "Locked"}</span>
                     </div>
                   </div>
                 </div>
@@ -606,21 +652,27 @@ function StudentDashboardContent() {
                   <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
                     <h3 className="font-extrabold text-[#1b4264] text-[14px]">Active Study Information</h3>
                     <div className="text-[12px] text-slate-650 flex flex-col gap-2">
-                      <div><strong>Title:</strong> {group.projectTitle}</div>
-                      <div><strong>Represented Group:</strong> {group.members.join(", ")}</div>
-                      <div><strong>Official Adviser:</strong> Dr. Rachel Lim</div>
+                      <div><strong>Title:</strong> {group?.projectTitle || "No project registered"}</div>
+                      <div><strong>Represented Group:</strong> {group?.members?.length > 0 ? group.members.join(", ") : `${user?.firstName || "Student"} ${user?.lastName || ""}`}</div>
+                      <div><strong>Official Adviser:</strong> {group?.adviser || "Not Assigned"}</div>
                     </div>
                   </div>
 
                   <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
                     <h3 className="font-extrabold text-[#1b4264] text-[14px]">Upcoming Milestones</h3>
                     <div className="flex flex-col gap-2.5">
-                      {milestones.slice(0, 3).map(m => (
-                        <div key={m.id} className="flex justify-between items-center text-[12.5px] p-2 bg-slate-50 border border-slate-200 rounded">
-                          <span className="font-bold text-[#1b4264]">{m.title}</span>
-                          <Tag variant={m.status==='completed'?'success':m.status==='in-progress'?'warn':'info'}>{m.status}</Tag>
+                      {milestones.length > 0 ? (
+                        milestones.slice(0, 3).map(m => (
+                          <div key={m.id} className="flex justify-between items-center text-[12.5px] p-2 bg-slate-50 border border-slate-200 rounded">
+                            <span className="font-bold text-[#1b4264]">{m.title}</span>
+                            <Tag variant={m.status==='completed'?'success':m.status==='in-progress'?'warn':'info'}>{m.status}</Tag>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-xs text-slate-400 py-4 text-center">
+                          No milestones recorded yet. Register your research study to initiate workflow.
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
                 </div>
@@ -633,15 +685,15 @@ function StudentDashboardContent() {
                 <div className="flex flex-col gap-3 mt-2 text-[12px]">
                   <div className="flex flex-col gap-1">
                     <label className="font-bold text-slate-600">Student Name</label>
-                    <input type="text" readOnly value="Juan Reyes" className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg focus:outline-none" />
+                    <input type="text" readOnly value={`${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Student Researcher"} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg focus:outline-none" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="font-bold text-slate-600">Represented Department</label>
-                    <input type="text" readOnly value="College of Computer Studies" className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg focus:outline-none" />
+                    <input type="text" readOnly value={user?.college?.name || user?.program?.name || "College of Computing"} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg focus:outline-none" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="font-bold text-slate-600">Student ID Number</label>
-                    <input type="text" readOnly value="2023-10045" className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg focus:outline-none" />
+                    <input type="text" readOnly value={user?.universityId || "Not Assigned"} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg focus:outline-none" />
                   </div>
                 </div>
               </div>
@@ -650,11 +702,23 @@ function StudentDashboardContent() {
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Research Group Management</h3>
                 <p className="text-[11px] text-slate-400 font-bold">Organize peer study divisions, invitation codes, and collaborative assignments.</p>
-                <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl text-[12.5px] mt-2 flex flex-col gap-2 shadow-sm">
-                  <div className="font-bold text-[#1b4264]">Group Identifier: {group.name}</div>
-                  <div><strong>Active Title:</strong> {group.projectTitle}</div>
-                  <div><strong>Group Members:</strong> {group.members.join(", ")}</div>
-                </div>
+                {group ? (
+                  <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl text-[12.5px] mt-2 flex flex-col gap-2 shadow-sm">
+                    <div className="font-bold text-[#1b4264]">Group Identifier: {group.name}</div>
+                    <div><strong>Active Title:</strong> {group.projectTitle}</div>
+                    <div><strong>Group Members:</strong> {group.members?.join(", ") || `${user?.firstName} ${user?.lastName}`}</div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 p-6 border border-slate-200 rounded-xl text-center flex flex-col items-center gap-3">
+                    <p className="text-slate-500 text-xs">You do not have a research group registered yet.</p>
+                    <button
+                      onClick={() => setShowCreateModal(true)}
+                      className="px-4 py-2 bg-[#1b4264] text-[#ffa400] font-bold rounded-lg text-xs cursor-pointer"
+                    >
+                      Register Research Study
+                    </button>
+                  </div>
+                )}
               </div>
             ),
             "adviser-credentials": (
@@ -724,10 +788,10 @@ function StudentDashboardContent() {
                     </div>
                     <div>
                       <span className="font-bold text-[#1b4264] text-[14px] block">Live Stream Channels Ready</span>
-                      <span className="text-[10.5px] text-slate-400">Current Room ID: <strong>Group AI-CCS-01</strong></span>
+                      <span className="text-[10.5px] text-slate-400">Current Room ID: <strong>{group?.name || "Research Room"}</strong></span>
                     </div>
                     <button 
-                      onClick={() => handleStartConference("https://meet.google.com/new", "Group AI-CCS-01 Study Stream")} 
+                      onClick={() => handleStartConference("https://meet.google.com/new", `${group?.name || "Research"} Study Stream`)} 
                       className="px-5 py-2.5 bg-[#ffa400] text-[#1b4264] hover:bg-[#e09000] font-extrabold rounded-lg shadow border border-[#ffa400] self-center cursor-pointer transition-colors flex items-center gap-2"
                     >
                       <i className="ti ti-video text-lg" />
@@ -830,17 +894,22 @@ function StudentDashboardContent() {
             "version-control": (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Document Version Control</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Monitor historical draft changes, track comments, and compare version indexes.</p>
-                <div className="flex flex-col gap-3.5 mt-2">
-                  {combinedSubmissions.map(sub => (
-                    <div key={sub.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
-                      <div>
-                        <span className="font-bold text-[#1b4264] block">{sub.docName}</span>
-                        <span className="text-[10px] text-slate-400">Version: {sub.version} · Date: {sub.date}</span>
+                <p className="text-[11px] text-slate-400 font-bold">Monitor historical draft changes, track comments, and compare version indexes.</p>                <div className="flex flex-col gap-3.5 mt-2">
+                  {combinedSubmissions.length > 0 ? (
+                    combinedSubmissions.map(sub => (
+                      <div key={sub.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
+                        <div>
+                          <span className="font-bold text-[#1b4264] block">{sub.docName}</span>
+                          <span className="text-[10px] text-slate-400">Version: {sub.version} · Date: {sub.date}</span>
+                        </div>
+                        <Tag variant={sub.status === "approved" ? "success" : "warn"}>{sub.status}</Tag>
                       </div>
-                      <Tag variant={sub.status === "approved" ? "success" : "warn"}>{sub.status}</Tag>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-400 py-6 text-center">
+                      No document versions submitted yet. Submit draft files or save from the workspace.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ),
@@ -849,14 +918,20 @@ function StudentDashboardContent() {
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Project Milestones</h3>
                 <p className="text-[11px] text-slate-400 font-bold">View sequence boundaries, check tasks list, and monitor lock states.</p>
                 <div className="flex flex-col gap-2.5 mt-2">
-                  {milestones.map(m => (
-                    <div key={m.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center text-[12.5px] shadow-sm">
-                      <div>
-                        <span className="font-bold text-[#1b4264] block">{m.title}</span>
+                  {milestones.length > 0 ? (
+                    milestones.map(m => (
+                      <div key={m.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center text-[12.5px] shadow-sm">
+                        <div>
+                          <span className="font-bold text-[#1b4264] block">{m.title}</span>
+                        </div>
+                        <Tag variant={m.status === 'completed' ? 'success' : m.status === 'in-progress' ? 'warn' : 'info'}>{m.status}</Tag>
                       </div>
-                      <Tag variant={m.status === 'completed' ? 'success' : m.status === 'in-progress' ? 'warn' : 'info'}>{m.status}</Tag>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-400 py-6 text-center">
+                      No project milestones recorded. Register your research study to initiate workflow.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ),
@@ -867,7 +942,7 @@ function StudentDashboardContent() {
                 <form onSubmit={handleRequestConsult} className="flex flex-col gap-3.5 mt-2 text-[12.5px]">
                   <div className="flex flex-col gap-1">
                     <label className="font-bold text-slate-600">Consultation Topic</label>
-                    <input required type="text" value={consultTopic} onChange={(e)=>setConsultTopic(e.target.value)} placeholder="Methodology neural network details..." className="bg-white border border-slate-350 rounded-lg p-2.5 focus:outline-none" />
+                    <input required type="text" value={consultTopic} onChange={(e)=>setConsultTopic(e.target.value)} placeholder="Topic inquiry..." className="bg-white border border-slate-350 rounded-lg p-2.5 focus:outline-none" />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
@@ -893,116 +968,119 @@ function StudentDashboardContent() {
                 </h3>
                 <p className="text-[11px] text-slate-400 font-bold">Access historical transcripts, advisory notes, and join scheduled Google Meet video rooms.</p>
                 <div className="flex flex-col gap-3.5 mt-2 text-[12px]">
-                  {consultations.map((c: any) => (
-                    <div key={c.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-3 shadow-sm hover:border-[#1b4264] transition">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-[#1b4264] block text-[13.5px]">{c.topic}</span>
-                            <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
-                              {c.status === "pending" || c.status === "requested" ? "Pending Adviser Approval" : "Approved & Confirmed"}
-                            </Tag>
-                          </div>
-                          <span className="text-[11px] text-slate-500">{c.date} · {c.time} ({c.mode})</span>
-                          {c.meetingUrl && (
-                            <div className="font-mono text-[10.5px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 inline-block mt-1">
-                              {c.meetingUrl}
+                  {consultations.length > 0 ? (
+                    consultations.map((c: any) => (
+                      <div key={c.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-3 shadow-sm hover:border-[#1b4264] transition">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-[#1b4264] block text-[13.5px]">{c.topic}</span>
+                              <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
+                                {c.status === "pending" || c.status === "requested" ? "Pending Adviser Approval" : "Approved & Confirmed"}
+                              </Tag>
                             </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleOpenTranscriptModal(c)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-xs shadow-sm cursor-pointer transition"
-                          >
-                            <i className="ti ti-file-text text-amber-500" />
-                            <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "View Notes & Chat" : "Import Google Meet Chat"}</span>
-                          </button>
-
-                          {c.status === "pending" || c.status === "requested" ? (
-                            <button
-                              disabled
-                              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 font-bold rounded-lg text-[11px] cursor-not-allowed opacity-90"
-                              title="Awaiting adviser approval"
-                            >
-                              <i className="ti ti-clock" />
-                              <span>Awaiting Approval</span>
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
-                              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] shadow-sm transition cursor-pointer"
-                            >
-                              <i className="ti ti-video" />
-                              <span>Join Google Meet</span>
-                            </button>
-                          )}
-                          {c.meetingUrl && (
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(c.meetingUrl);
-                                triggerToast("Copied Google Meet link to clipboard!");
-                              }}
-                              title="Copy Link"
-                              className="p-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-slate-600 cursor-pointer text-xs"
-                            >
-                              <i className="ti ti-copy" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Adviser Notes & Recommendations preview */}
-                      {c.notes && (
-                        <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs flex flex-col gap-1">
-                          <span className="font-bold text-[#1b4264] flex items-center gap-1">
-                            <i className="ti ti-notes" />
-                            <span>Meeting Summary & Adviser Feedback:</span>
-                          </span>
-                          <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{c.notes}</p>
-                        </div>
-                      )}
-
-                      {/* Action items preview */}
-                      {c.actionItems && c.actionItems.length > 0 && (
-                        <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs flex flex-col gap-1">
-                          <span className="font-bold text-[#1b4264] flex items-center gap-1">
-                            <i className="ti ti-checklist text-emerald-600" />
-                            <span>Agreed Action Items ({c.actionItems.length}):</span>
-                          </span>
-                          <ul className="list-disc list-inside text-slate-700 space-y-0.5 pl-1">
-                            {c.actionItems.map((item: string, idx: number) => (
-                              <li key={idx} className="text-[11.5px]">{item}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* In-call Google Meet chat transcript preview */}
-                      {c.transcript && c.transcript.length > 0 && (
-                        <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs flex flex-col gap-1.5">
-                          <div className="flex items-center justify-between border-b border-slate-100 pb-1">
-                            <span className="font-bold text-[#1b4264] flex items-center gap-1.5">
-                              <i className="ti ti-messages text-blue-600" />
-                              <span>Google Meet In-Call Messages ({c.transcript.length})</span>
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-mono">Auto-Indexed</span>
-                          </div>
-                          <div className="max-h-28 overflow-y-auto flex flex-col gap-1 pr-1">
-                            {c.transcript.map((msg: any) => (
-                              <div key={msg.id} className="p-1.5 bg-slate-50 rounded border border-slate-100 text-[11px]">
-                                <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
-                                  <span>{msg.sender}</span>
-                                  <span className="font-mono text-slate-400">{msg.time}</span>
-                                </div>
-                                <p className="text-slate-800 mt-0.5 whitespace-pre-wrap">{msg.content}</p>
+                            <span className="text-[11px] text-slate-500">{c.date} · {c.time} ({c.mode})</span>
+                            {c.meetingUrl && (
+                              <div className="font-mono text-[10.5px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 inline-block mt-1">
+                                {c.meetingUrl}
                               </div>
-                            ))}
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleOpenTranscriptModal(c)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-xs shadow-sm cursor-pointer transition"
+                            >
+                              <i className="ti ti-file-text text-amber-500" />
+                              <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "View Notes & Chat" : "Import Google Meet Chat"}</span>
+                            </button>
+
+                            {c.status === "pending" || c.status === "requested" ? (
+                              <button
+                                disabled
+                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 font-bold rounded-lg text-[11px] cursor-not-allowed opacity-90"
+                                title="Awaiting adviser approval"
+                              >
+                                <i className="ti ti-clock" />
+                                <span>Awaiting Approval</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
+                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] shadow-sm transition cursor-pointer"
+                              >
+                                <i className="ti ti-video" />
+                                <span>Join Google Meet</span>
+                              </button>
+                            )}
+                            {c.meetingUrl && (
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(c.meetingUrl);
+                                  triggerToast("Copied Google Meet link to clipboard!");
+                                }}
+                                title="Copy Link"
+                                className="p-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-slate-600 cursor-pointer text-xs"
+                              >
+                                <i className="ti ti-copy" />
+                              </button>
+                            )}
                           </div>
                         </div>
-                      )}
+
+                        {c.notes && (
+                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs flex flex-col gap-1">
+                            <span className="font-bold text-[#1b4264] flex items-center gap-1">
+                              <i className="ti ti-notes" />
+                              <span>Meeting Summary & Adviser Feedback:</span>
+                            </span>
+                            <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{c.notes}</p>
+                          </div>
+                        )}
+
+                        {c.actionItems && c.actionItems.length > 0 && (
+                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs flex flex-col gap-1">
+                            <span className="font-bold text-[#1b4264] flex items-center gap-1">
+                              <i className="ti ti-checklist text-emerald-600" />
+                              <span>Agreed Action Items ({c.actionItems.length}):</span>
+                            </span>
+                            <ul className="list-disc list-inside text-slate-700 space-y-0.5 pl-1">
+                              {c.actionItems.map((item: string, idx: number) => (
+                                <li key={idx} className="text-[11.5px]">{item}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {c.transcript && c.transcript.length > 0 && (
+                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-1">
+                              <span className="font-bold text-[#1b4264] flex items-center gap-1.5">
+                                <i className="ti ti-messages text-blue-600" />
+                                <span>Google Meet In-Call Messages ({c.transcript.length})</span>
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono">Auto-Indexed</span>
+                            </div>
+                            <div className="max-h-28 overflow-y-auto flex flex-col gap-1 pr-1">
+                              {c.transcript.map((msg: any) => (
+                                <div key={msg.id} className="p-1.5 bg-slate-50 rounded border border-slate-100 text-[11px]">
+                                  <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
+                                    <span>{msg.sender}</span>
+                                    <span className="font-mono text-slate-400">{msg.time}</span>
+                                  </div>
+                                  <p className="text-slate-800 mt-0.5 whitespace-pre-wrap">{msg.content}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-400 py-6 text-center">
+                      No scheduled or requested consultations yet. Book a session using Consultation Requests.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ),
@@ -1013,17 +1091,17 @@ function StudentDashboardContent() {
                 <div className="bg-slate-50 p-6 border border-slate-200 rounded-2xl mt-2 shadow-sm flex flex-col gap-4">
                   <div className="flex justify-between items-center text-[13px] font-extrabold text-[#1b4264]">
                     <span>Overall Study Progression</span>
-                    <span className="bg-[#1b4264]/10 text-[#1b4264] px-2.5 py-0.5 rounded text-[11px] font-extrabold font-mono">20% COMPLETE</span>
+                    <span className="bg-[#1b4264]/10 text-[#1b4264] px-2.5 py-0.5 rounded text-[11px] font-extrabold font-mono">{group ? "20% COMPLETE" : "0% COMPLETE"}</span>
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-4 p-1 overflow-hidden border border-slate-300/40 shadow-inner flex items-center">
                     <div 
                       className="bg-gradient-to-r from-[#1b4264] to-[#ffa400] h-2.5 rounded-full transition-all duration-500 ease-out animate-pulse shadow-sm" 
-                      style={{ width: "20%" }} 
+                      style={{ width: group ? "20%" : "0%" }} 
                     />
                   </div>
                   <div className="text-[11px] text-slate-500 font-medium leading-relaxed mt-1 flex items-center gap-1.5">
                     <i className="ti ti-info-circle text-[#1b4264]" />
-                    <span>Next Milestone: <strong>Chapter 1-3 Submission</strong>. Target deadline is July 15, 2026.</span>
+                    <span>{group ? `Current Milestone: ${milestones[0]?.title || "Topic Proposal"}` : "Register your research study to begin tracking milestones."}</span>
                   </div>
                 </div>
               </div>
@@ -1032,19 +1110,25 @@ function StudentDashboardContent() {
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Defense Schedule Viewing</h3>
                 <p className="text-[11px] text-slate-400 font-bold">Review defense panel timings, assignees, and digital venues.</p>
-                {defenses.map(d => (
-                  <div key={d.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-[12.5px] flex flex-col gap-2 mt-2 shadow-sm">
-                    <div className="flex justify-between items-center">
-                      <span className="font-extrabold text-[#1b4264] text-[14px]">{d.title}</span>
-                      <Tag variant="warn">{d.type}</Tag>
+                {defenses.length > 0 ? (
+                  defenses.map(d => (
+                    <div key={d.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-[12.5px] flex flex-col gap-2 mt-2 shadow-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="font-extrabold text-[#1b4264] text-[14px]">{d.title}</span>
+                        <Tag variant="warn">{d.type}</Tag>
+                      </div>
+                      <div className="text-slate-500 font-medium">
+                        <div><strong>Date / Time:</strong> {d.date} at {d.time}</div>
+                        <div><strong>Venue:</strong> {d.venue}</div>
+                        <div><strong>Panelists:</strong> {d.panelists?.join(", ")}</div>
+                      </div>
                     </div>
-                    <div className="text-slate-500 font-medium">
-                      <div><strong>Date / Time:</strong> {d.date} at {d.time}</div>
-                      <div><strong>Venue:</strong> {d.venue}</div>
-                      <div><strong>Panelists:</strong> {d.panelists.join(", ")}</div>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-xs text-slate-400 py-6 text-center">
+                    No defense presentations scheduled yet. Complete required chapters to be eligible for defense.
                   </div>
-                ))}
+                )}
               </div>
             ),
             history: (
@@ -1062,88 +1146,71 @@ function StudentDashboardContent() {
                 </div>
 
                 <div className="flex flex-col gap-4">
-                  {consultations.map((c: any) => (
-                    <div
-                      key={c.id}
-                      className="bg-slate-50 p-5 border border-slate-200 rounded-xl shadow-sm flex flex-col gap-3 hover:border-[#1b4264] transition"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-extrabold text-[#1b4264] text-[14px]">{c.topic}</span>
-                            <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
-                              {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
-                            </Tag>
-                          </div>
-                          <span className="text-[11.5px] text-slate-500 font-medium block mt-0.5">
-                            {c.groupName || "Group AI-CCS-01"} · {c.date} at {c.time} ({c.mode})
-                          </span>
-                        </div>
-
-                        <button
-                          onClick={() => handleOpenTranscriptModal(c)}
-                          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-xs shadow-sm cursor-pointer self-start sm:self-auto transition"
-                        >
-                          <i className="ti ti-file-text text-amber-500" />
-                          <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "View Notes & Chat" : "Import Google Meet Chat"}</span>
-                        </button>
-                      </div>
-
-                      {/* Adviser Notes & Recommendations preview */}
-                      {c.notes && (
-                        <div className="bg-white p-3.5 rounded-lg border border-slate-200 text-xs flex flex-col gap-1">
-                          <span className="font-bold text-[#1b4264] flex items-center gap-1">
-                            <i className="ti ti-notes" />
-                            <span>Meeting Summary & Adviser Feedback:</span>
-                          </span>
-                          <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{c.notes}</p>
-                        </div>
-                      )}
-
-                      {/* Action items preview */}
-                      {c.actionItems && c.actionItems.length > 0 && (
-                        <div className="bg-white p-3.5 rounded-lg border border-slate-200 text-xs flex flex-col gap-1.5">
-                          <span className="font-bold text-[#1b4264] flex items-center gap-1">
-                            <i className="ti ti-checklist text-emerald-600" />
-                            <span>Agreed Action Items ({c.actionItems.length}):</span>
-                          </span>
-                          <ul className="list-disc list-inside text-slate-700 space-y-1 pl-1">
-                            {c.actionItems.map((item: string, idx: number) => (
-                              <li key={idx} className="text-[11.5px]">{item}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {/* In-call Google Meet chat transcript preview */}
-                      {c.transcript && c.transcript.length > 0 && (
-                        <div className="bg-white p-3.5 rounded-lg border border-slate-200 text-xs flex flex-col gap-2">
-                          <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
-                            <span className="font-bold text-[#1b4264] flex items-center gap-1.5">
-                              <i className="ti ti-messages text-blue-600" />
-                              <span>Google Meet In-Call Messages ({c.transcript.length})</span>
+                  {consultations.length > 0 ? (
+                    consultations.map((c: any) => (
+                      <div
+                        key={c.id}
+                        className="bg-slate-50 p-5 border border-slate-200 rounded-xl shadow-sm flex flex-col gap-3 hover:border-[#1b4264] transition"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-[#1b4264] text-[14px]">{c.topic}</span>
+                              <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
+                                {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
+                              </Tag>
+                            </div>
+                            <span className="text-[11.5px] text-slate-500 font-medium block mt-0.5">
+                              {c.groupName || "Research Consultation"} · {c.date} at {c.time} ({c.mode})
                             </span>
-                            <span className="text-[10px] text-slate-400 font-mono">Auto-Indexed</span>
                           </div>
-                          <div className="max-h-36 overflow-y-auto flex flex-col gap-1.5 pr-1">
-                            {c.transcript.map((msg: any) => (
-                              <div key={msg.id} className="p-2 bg-slate-50 rounded border border-slate-100 text-[11px]">
-                                <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
-                                  <span>{msg.sender}</span>
-                                  <span className="font-mono text-slate-400">{msg.time}</span>
-                                </div>
-                                <p className="text-slate-800 mt-0.5 whitespace-pre-wrap">{msg.content}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
 
-                  {consultations.length === 0 && (
-                    <div className="text-center py-8 text-slate-400 font-medium">
-                      No consultation records logged yet.
+                          <button
+                            onClick={() => handleOpenTranscriptModal(c)}
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-xs shadow-sm cursor-pointer self-start sm:self-auto transition"
+                          >
+                            <i className="ti ti-file-text text-amber-500" />
+                            <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "View Notes & Chat" : "Import Google Meet Chat"}</span>
+                          </button>
+                        </div>
+
+                        {c.notes && (
+                          <div className="bg-white p-3.5 rounded-lg border border-slate-200 text-xs flex flex-col gap-1">
+                            <span className="font-bold text-[#1b4264] flex items-center gap-1">
+                              <i className="ti ti-notes" />
+                              <span>Meeting Summary & Adviser Feedback:</span>
+                            </span>
+                            <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{c.notes}</p>
+                          </div>
+                        )}
+
+                        {c.transcript && c.transcript.length > 0 && (
+                          <div className="bg-white p-3.5 rounded-lg border border-slate-200 text-xs flex flex-col gap-2">
+                            <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+                              <span className="font-bold text-[#1b4264] flex items-center gap-1.5">
+                                <i className="ti ti-messages text-blue-600" />
+                                <span>Google Meet In-Call Messages ({c.transcript.length})</span>
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono">Auto-Indexed</span>
+                            </div>
+                            <div className="max-h-36 overflow-y-auto flex flex-col gap-1.5 pr-1">
+                              {c.transcript.map((msg: any) => (
+                                <div key={msg.id} className="p-2 bg-slate-50 rounded border border-slate-100 text-[11px]">
+                                  <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
+                                    <span>{msg.sender}</span>
+                                    <span className="font-mono text-slate-400">{msg.time}</span>
+                                  </div>
+                                  <p className="text-slate-800 mt-0.5 whitespace-pre-wrap">{msg.content}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-400 py-6 text-center">
+                      No consultation records or transcripts recorded yet.
                     </div>
                   )}
                 </div>
@@ -1154,14 +1221,20 @@ function StudentDashboardContent() {
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Notifications & Announcements</h3>
                 <p className="text-[11px] text-slate-400 font-bold">Real-time alerts, chapter approvals, and institutional announcements.</p>
                 <div className="flex flex-col gap-3 mt-2">
-                  {combinedNotifications.map(n => (
-                    <div key={n.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center text-[12px] shadow-sm">
-                      <div>
-                        <span className="font-bold text-[#1b4264] block">{n.msg}</span>
+                  {combinedNotifications.length > 0 ? (
+                    combinedNotifications.map(n => (
+                      <div key={n.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center text-[12px] shadow-sm">
+                        <div>
+                          <span className="font-bold text-[#1b4264] block">{n.msg}</span>
+                        </div>
+                        <span className="text-slate-400 font-bold text-[10.5px]">{n.date}</span>
                       </div>
-                      <span className="text-slate-400 font-bold text-[10.5px]">{n.date}</span>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-400 py-6 text-center">
+                      No new notifications.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ),
@@ -1250,11 +1323,70 @@ function StudentDashboardContent() {
         </div>
       )}
 
+      {/* REGISTER RESEARCH STUDY MODAL */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border-t-4 border-[#1b4264] max-w-lg w-full p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-extrabold text-[#1b4264] text-[16px] flex items-center gap-2">
+                <i className="ti ti-folder-plus text-[#ffa400] text-xl" />
+                Register Research Study
+              </h3>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <i className="ti ti-x text-lg" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateResearch} className="flex flex-col gap-4 text-xs">
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-slate-700">Research Project Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Real-Time Water Quality Monitoring Using IoT"
+                  value={createTitle}
+                  onChange={(e) => setCreateTitle(e.target.value)}
+                  className="p-3 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-[#ffa400]"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-slate-700">Abstract / Problem Scope (Optional)</label>
+                <textarea
+                  rows={4}
+                  placeholder="Provide an overview of the proposed study, methodology, or objectives..."
+                  value={createAbstract}
+                  onChange={(e) => setCreateAbstract(e.target.value)}
+                  className="p-3 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-[#ffa400] resize-none"
+                />
+              </div>
+              <div className="flex justify-end gap-2.5 border-t border-slate-100 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingProject || !createTitle.trim()}
+                  className="px-5 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-extrabold rounded-xl shadow cursor-pointer disabled:opacity-50"
+                >
+                  {isCreatingProject ? "Registering..." : "Submit Registration"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <GoogleMeetConnectModal
         isOpen={showConnectModal}
         currentUrl={activeMeetingUrl}
-        defaultEmail={user?.email || "juan.reyes@student.university.edu.ph"}
-        defaultName={`${user?.firstName || "Juan"} ${user?.lastName || "Reyes"}`}
+        defaultEmail={user?.email || ""}
+        defaultName={`${user?.firstName || "Student"} ${user?.lastName || "Researcher"}`.trim()}
         role="Lead Researcher"
         onClose={() => setShowConnectModal(false)}
         onLaunch={handleLaunchSyncedMeeting}

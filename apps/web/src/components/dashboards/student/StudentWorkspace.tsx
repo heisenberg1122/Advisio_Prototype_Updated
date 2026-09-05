@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/providers/auth-provider";
 import { apiClient } from "@/lib/api-client";
 
 export interface StudentDocument {
@@ -15,6 +16,7 @@ interface StudentWorkspaceProps {
 }
 
 export function StudentWorkspace({ triggerToast }: StudentWorkspaceProps) {
+  const { user } = useAuth();
   const [documents, setDocuments] = useState<StudentDocument[]>([]);
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
 
@@ -49,29 +51,22 @@ export function StudentWorkspace({ triggerToast }: StudentWorkspaceProps) {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setDocuments(parsed);
-        if (parsed.length > 0 && !activeDocId) {
-          loadDoc(parsed[0]);
+        // Purge any legacy default placeholder docs
+        const filtered = Array.isArray(parsed)
+          ? parsed.filter((d) => d.id !== "doc-default" && !d.title?.includes("Chapter 3 Methodology Draft"))
+          : [];
+        if (Array.isArray(parsed) && filtered.length !== parsed.length) {
+          localStorage.setItem("advisio_student_documents", JSON.stringify(filtered));
+        }
+        setDocuments(filtered);
+        if (filtered.length > 0 && !activeDocId) {
+          loadDoc(filtered[0]);
         }
       } catch (e) {
         setDocuments([]);
       }
     } else {
-      // Default placeholder doc
-      const defaultDoc: StudentDocument = {
-        id: "doc-default",
-        title: "Chapter 3 Methodology Draft Outline",
-        content: `<div><strong><h2>Chapter 3: Methodology</h2></strong><br>
-        This section describes the research parameters and experimental setup. The study utilizes a convolutional neural network pipeline (CNN) to predict crop yield margins based on multispectral satellite imagery feeds.<br><br>
-        <strong><h3>3.1 Model Architecture</h3></strong>
-        The architecture includes convolutional layers, max-pooling pools, and a fully connected linear layer. We evaluate dropouts between 0.2 and 0.5 to prevent overfitting algorithms.</div>`,
-        lastSavedAt: new Date().toLocaleDateString(),
-        leftMargin: 1.0,
-        rightMargin: 1.0
-      };
-      localStorage.setItem("advisio_student_documents", JSON.stringify([defaultDoc]));
-      setDocuments([defaultDoc]);
-      loadDoc(defaultDoc);
+      setDocuments([]);
     }
   };
 
@@ -223,10 +218,11 @@ export function StudentWorkspace({ triggerToast }: StudentWorkspaceProps) {
     if (storedChat) {
       try {
         const store = JSON.parse(storedChat);
+        const studentName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "Student";
         store.notifications.push({
           id: "notif-" + Math.random().toString(36).substr(2, 9),
-          userId: "rachel.lim@university.edu.ph",
-          msg: `Juan Reyes submitted a workspace document for "${targetMilestone}" verification.`,
+          userId: "adviser@university.edu.ph",
+          msg: `${studentName} submitted a workspace document for "${targetMilestone}" verification.`,
           date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
           read: false
         });

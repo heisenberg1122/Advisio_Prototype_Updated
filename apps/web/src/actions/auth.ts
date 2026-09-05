@@ -11,88 +11,14 @@ export interface LoginResult {
   };
 }
 
-const MOCK_USERS = [
-  {
-    id: "u1",
-    name: "Juan Reyes",
-    email: "student01@university.edu.ph",
-    password: "password123",
-    role: "student",
-    status: "active",
-  },
-  {
-    id: "u2",
-    name: "Dr. Rachel Lim",
-    email: "adviser01@university.edu.ph",
-    password: "password123",
-    role: "adviser",
-    status: "active",
-  },
-  {
-    id: "u3",
-    name: "Prof. Arthur Pendleton",
-    email: "professor01@university.edu.ph",
-    password: "password123",
-    role: "professor",
-    status: "active",
-  },
-  {
-    id: "u4",
-    name: "Dr. Lisa Wong",
-    email: "panelist01@university.edu.ph",
-    password: "password123",
-    role: "panelist",
-    status: "active",
-  },
-  {
-    id: "u5",
-    name: "Admin User",
-    email: "admin01@university.edu.ph",
-    password: "password123",
-    role: "admin",
-    status: "active",
-  },
-  {
-    id: "u6",
-    name: "System Super Admin",
-    email: "superadmin01@university.edu.ph",
-    password: "password123",
-    role: "system_admin",
-    status: "active",
-  },
-  {
-    id: "u7",
-    name: "Pending Account Student",
-    email: "pending@university.edu.ph",
-    password: "password123",
-    role: "student",
-    status: "pending",
-  },
-  {
-    id: "u8",
-    name: "Inactive Account User",
-    email: "inactive@university.edu.ph",
-    password: "password123",
-    role: "student",
-    status: "inactive",
-  },
-  {
-    id: "u9",
-    name: "Suspended Account User",
-    email: "suspended@university.edu.ph",
-    password: "password123",
-    role: "student",
-    status: "suspended",
-  },
-  {
-    id: "u10",
-    name: "No Role User",
-    email: "norole@university.edu.ph",
-    password: "password123",
-    role: "", // empty role
-    status: "active",
-  },
-];
+const MOCK_USERS: Array<{
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  role: string;
+  status: string;
+}> = [];
 
 export async function loginAction({
   email,

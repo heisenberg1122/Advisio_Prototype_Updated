@@ -10,8 +10,10 @@ import { getStoredMeetingSession, saveMeetingSession, DEFAULT_SHARED_MEET_URL } 
 import { GoogleMeetConnectModal } from "@/components/consultations/GoogleMeetConnectModal";
 import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consultations/GoogleMeetTranscriptModal";
 import { getStoredConsultations, addStoredConsultation, saveStoredConsultations, updateStoredConsultationStatus, updateStoredConsultationNotes, ConsultationItem } from "@/lib/consultation-store";
+import { useAuth } from "@/providers/auth-provider";
 
 function AdviserDashboardContent() {
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const activeTab = searchParams.get("tab") || "overview";
@@ -24,12 +26,7 @@ function AdviserDashboardContent() {
   const [activeMeetingUrl, setActiveMeetingUrl] = useState(initialSession.meetingUrl || DEFAULT_SHARED_MEET_URL);
   const [activeMeetingTopic, setActiveMeetingTopic] = useState(initialSession.topic || "Advising Stream Conference");
   const [activeParticipants, setActiveParticipants] = useState(
-    initialSession.participants.length > 0
-      ? initialSession.participants
-      : [
-          { id: "p1", name: "Dr. Rachel Lim", role: "Faculty Adviser", email: "rachel.lim@university.edu.ph", joinedAt: "Just now" },
-          { id: "p2", name: "Juan Reyes", role: "Lead Researcher", email: "juan.reyes@student.university.edu.ph", joinedAt: "Just now" },
-        ]
+    initialSession.participants.length > 0 ? initialSession.participants : []
   );
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showTranscriptModal, setShowTranscriptModal] = useState(false);
@@ -74,8 +71,8 @@ function AdviserDashboardContent() {
             setActiveParticipants(s.participants);
           }
           saveMeetingSession({
-            groupId: s.groupId || "g1",
-            groupName: s.groupName || "Group AI-CCS-01",
+            groupId: s.groupId || "default",
+            groupName: s.groupName || "Advisee Consultation",
             topic: s.topic,
             meetingUrl: s.meetingUrl,
             isActive: s.isActive,
@@ -125,8 +122,8 @@ function AdviserDashboardContent() {
     // Broadcast active stream to backend database so other browser receives exact same URL
     try {
       await apiClient.post("/api/consultations/active-stream", {
-        groupId: "g1",
-        groupName: "Group AI-CCS-01",
+        groupId: "default",
+        groupName: "Advisee Consultation",
         topic: activeMeetingTopic,
         meetingUrl: targetUrl,
         gmailAccount: selectedEmail,
@@ -136,8 +133,8 @@ function AdviserDashboardContent() {
     }
 
     saveMeetingSession({
-      groupId: "g1",
-      groupName: "Group AI-CCS-01",
+      groupId: "default",
+      groupName: "Advisee Consultation",
       topic: activeMeetingTopic,
       meetingUrl: targetUrl,
       isActive: true,
@@ -190,11 +187,8 @@ function AdviserDashboardContent() {
     staleTime: 60000,
   });
 
-  // Mock State Data with live fallbacks
-  const [advisees, setAdvisees] = useState([
-    { id: "g1", groupName: "Group AI-CCS-01", projectTitle: "AI Crop Yield Prediction System Using ML", leader: "Juan Reyes", status: "active" },
-    { id: "g2", groupName: "Group IoT-IT-03", projectTitle: "Smart Traffic Management System", leader: "Lando Vance", status: "active" },
-  ]);
+  // Real State Data strictly from database queries
+  const [advisees, setAdvisees] = useState<any[]>([]);
 
   useEffect(() => {
     if (researchData?.projects && researchData.projects.length > 0) {
@@ -210,9 +204,7 @@ function AdviserDashboardContent() {
     }
   }, [researchData]);
 
-  const [reviews, setReviews] = useState([
-    { id: "r1", groupName: "Group AI-CCS-01", docName: "Chapter 1-3 Review Draft v2.1", milestone: "Draft Submission", date: "2026-06-27", comments: [] },
-  ]);
+  const [reviews, setReviews] = useState<any[]>([]);
 
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [consultTopic, setConsultTopic] = useState("");
@@ -248,7 +240,7 @@ function AdviserDashboardContent() {
 
       const newC: ConsultationItem = {
         id: Math.random().toString(),
-        groupName: selectedAdv?.groupName || "Group AI-CCS-01",
+        groupName: selectedAdv?.groupName || "Advisee Group",
         topic: consultTopic,
         date: consultDate || new Date().toISOString().split("T")[0],
         time: consultTime || "10:00 AM",
@@ -315,30 +307,22 @@ function AdviserDashboardContent() {
     triggerToast("Saved consultation notes and Google Meet chat transcript!");
   };
 
-  const [approvals, setApprovals] = useState([
-    { id: "a1", groupName: "Group AI-CCS-01", milestone: "Proposal Outline Upload", date: "2026-06-25", status: "pending" },
-    { id: "a2", groupName: "Group IoT-IT-03", milestone: "Chapter 1-3 Final Draft", date: "2026-06-28", status: "pending" },
-  ]);
-
-  const [notifications, setNotifications] = useState([
-    { id: "n1", msg: "Marc Santos uploaded Chapter 1-3 Review Draft v2.1", date: "2 hours ago" },
-    { id: "n2", msg: "Lando Vance requested a consultation for July 5", date: "4 hours ago" },
-  ]);
-
+  const [approvals, setApprovals] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [chatStoreNotifications, setChatStoreNotifications] = useState<any[]>([]);
 
   useEffect(() => {
     const syncNotifs = () => {
       const store = getChatStore();
       const userNotifs = store.notifications.filter(
-        n => n.userId === "rachel.lim@university.edu.ph"
+        n => n.userId === user?.email
       );
       setChatStoreNotifications(userNotifs);
     };
     syncNotifs();
     window.addEventListener("storage", syncNotifs);
     return () => window.removeEventListener("storage", syncNotifs);
-  }, []);
+  }, [user]);
 
   const combinedNotifications = [
     ...chatStoreNotifications.map(n => ({ id: n.id, msg: n.msg, date: n.date || "Just now" })),
@@ -457,7 +441,7 @@ function AdviserDashboardContent() {
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Recent Consultations</span>
-                      <span className="text-[18px] font-extrabold text-[#ffa400]">4 Records</span>
+                      <span className="text-[18px] font-extrabold text-[#ffa400]">{consultations.length} Records</span>
                     </div>
                   </div>
 
@@ -480,32 +464,44 @@ function AdviserDashboardContent() {
                   <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
                     <h3 className="font-extrabold text-[#1b4264] text-[14px]">Pending Milestone Approvals</h3>
                     <div className="flex flex-col gap-2.5">
-                      {approvals.map(a => (
-                        <div key={a.id} className="flex justify-between items-center p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px]">
-                          <div>
-                            <span className="font-bold text-[#1b4264] block">{a.groupName}</span>
-                            <span className="text-[10px] text-slate-450">{a.milestone}</span>
+                      {approvals.length > 0 ? (
+                        approvals.map(a => (
+                          <div key={a.id} className="flex justify-between items-center p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px]">
+                            <div>
+                              <span className="font-bold text-[#1b4264] block">{a.groupName}</span>
+                              <span className="text-[10px] text-slate-450">{a.milestone}</span>
+                            </div>
+                            <button onClick={()=>handleApproveMilestone(a.id, a.groupName)} className="px-2.5 py-1 bg-[#ffa400] text-[#1b4264] font-extrabold text-[10px] rounded border border-[#ffa400] cursor-pointer">
+                              Approve
+                            </button>
                           </div>
-                          <button onClick={()=>handleApproveMilestone(a.id, a.groupName)} className="px-2.5 py-1 bg-[#ffa400] text-[#1b4264] font-extrabold text-[10px] rounded border border-[#ffa400] cursor-pointer">
-                            Approve
-                          </button>
+                        ))
+                      ) : (
+                        <div className="text-xs text-slate-400 py-4 text-center">
+                          No pending milestone approvals.
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
 
                   <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
                     <h3 className="font-extrabold text-[#1b4264] text-[14px]">Upcoming Scheduled Consultations</h3>
                     <div className="flex flex-col gap-2.5">
-                      {consultations.map(c => (
-                        <div key={c.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px] flex justify-between items-center">
-                          <div>
-                            <span className="font-bold text-slate-800 block">{c.topic}</span>
-                            <span className="text-[10px] text-slate-400">{c.groupName} · {c.time}</span>
+                      {consultations.length > 0 ? (
+                        consultations.map(c => (
+                          <div key={c.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px] flex justify-between items-center">
+                            <div>
+                              <span className="font-bold text-slate-800 block">{c.topic}</span>
+                              <span className="text-[10px] text-slate-400">{c.groupName} · {c.time}</span>
+                            </div>
+                            <Tag variant="success">{c.mode}</Tag>
                           </div>
-                          <Tag variant="success">{c.mode}</Tag>
+                        ))
+                      ) : (
+                        <div className="text-xs text-slate-400 py-4 text-center">
+                          No upcoming consultations scheduled.
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
                 </div>
@@ -516,15 +512,21 @@ function AdviserDashboardContent() {
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Assigned Advisees</h3>
                 <p className="text-[11px] text-slate-400 font-bold">List of research student groups under your advisory monitoring panel.</p>
                 <div className="flex flex-col gap-3 mt-2">
-                  {advisees.map(adv => (
-                    <div key={adv.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
-                      <div>
-                        <span className="font-bold text-[#1b4264] block">{adv.groupName}</span>
-                        <span className="text-[11px] text-slate-500">{adv.projectTitle} · Representative: {adv.leader}</span>
+                  {advisees.length > 0 ? (
+                    advisees.map(adv => (
+                      <div key={adv.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
+                        <div>
+                          <span className="font-bold text-[#1b4264] block">{adv.groupName}</span>
+                          <span className="text-[11px] text-slate-500">{adv.projectTitle} · Representative: {adv.leader}</span>
+                        </div>
+                        <Tag variant="success">{adv.status}</Tag>
                       </div>
-                      <Tag variant="success">{adv.status}</Tag>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-400 py-6 text-center">
+                      No assigned advisee groups registered yet.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ),
@@ -532,31 +534,37 @@ function AdviserDashboardContent() {
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Research Document Review & Commenting</h3>
                 <p className="text-[11px] text-slate-400 font-bold">Review draft submissions, download version history, and submit comments.</p>
-                {reviews.map(rev => (
-                  <div key={rev.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-3 text-[12.5px] shadow-sm">
-                    <div className="flex justify-between items-center border-b border-slate-150 pb-2">
-                      <div>
-                        <span className="font-bold text-[#1b4264] block">{rev.docName}</span>
-                        <span className="text-[10px] text-slate-400">{rev.groupName} · {rev.milestone}</span>
+                {reviews.length > 0 ? (
+                  reviews.map(rev => (
+                    <div key={rev.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-3 text-[12.5px] shadow-sm">
+                      <div className="flex justify-between items-center border-b border-slate-150 pb-2">
+                        <div>
+                          <span className="font-bold text-[#1b4264] block">{rev.docName}</span>
+                          <span className="text-[10px] text-slate-400">{rev.groupName} · {rev.milestone}</span>
+                        </div>
+                        <button onClick={()=>triggerToast("Downloading draft files.")} className="text-[#ffa400] font-bold hover:underline cursor-pointer">
+                          Download File
+                        </button>
                       </div>
-                      <button onClick={()=>triggerToast("Downloading draft files.")} className="text-[#ffa400] font-bold hover:underline cursor-pointer">
-                        Download File
-                      </button>
+                      <div className="flex flex-col gap-1.5 mt-1">
+                        <label className="font-bold text-slate-600 text-[11px]">Submit Review Comments</label>
+                        <textarea 
+                          value={commentInput} 
+                          onChange={(e)=>setCommentInput(e.target.value)} 
+                          placeholder="Provide detailed feedback comments..." 
+                          className="bg-white border border-slate-350 rounded-lg p-2.5 text-[12px] focus:outline-none" 
+                        />
+                        <button onClick={()=>handleReviewComment(rev.id)} className="px-4 py-2 bg-[#ffa400] text-[#1b4264] font-extrabold rounded-lg border border-[#ffa400] self-start mt-2">
+                          Submit Comments
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-1.5 mt-1">
-                      <label className="font-bold text-slate-600 text-[11px]">Submit Review Comments</label>
-                      <textarea 
-                        value={commentInput} 
-                        onChange={(e)=>setCommentInput(e.target.value)} 
-                        placeholder="Provide detailed feedback comments..." 
-                        className="bg-white border border-slate-350 rounded-lg p-2.5 text-[12px] focus:outline-none" 
-                      />
-                      <button onClick={()=>handleReviewComment(rev.id)} className="px-4 py-2 bg-[#ffa400] text-[#1b4264] font-extrabold rounded-lg border border-[#ffa400] self-start mt-2">
-                        Submit Comments
-                      </button>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-xs text-slate-400 py-6 text-center">
+                    No pending student draft reviews.
                   </div>
-                ))}
+                )}
               </div>
             ),
             consultations: (
@@ -907,7 +915,7 @@ function AdviserDashboardContent() {
                     </div>
                     <div>
                       <span className="font-bold text-[#1b4264] text-[14px] block">Live Stream Channels Ready</span>
-                      <span className="text-[10.5px] text-slate-400">Join call for Group AI-CCS-01 or Group IoT-IT-03</span>
+                      <span className="text-[10.5px] text-slate-400">Join consultation call with your assigned advisee groups</span>
                     </div>
                     <button 
                       onClick={() => handleStartConference("https://meet.google.com/new", "In-App Voice and Video Group Conferencing")} 

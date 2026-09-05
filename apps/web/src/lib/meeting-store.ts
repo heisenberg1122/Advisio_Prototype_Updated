@@ -23,34 +23,32 @@ const STORAGE_KEY = "advisio_active_conferencing_session";
 export const DEFAULT_SHARED_MEET_URL = "https://meet.google.com/psf-shyj-wxf";
 
 export const getStoredMeetingSession = (): MeetingSession => {
+  const emptySession: MeetingSession = {
+    groupId: "",
+    groupName: "",
+    topic: "",
+    meetingUrl: "",
+    isActive: false,
+    participants: [],
+  };
+
   if (typeof window === "undefined") {
-    return {
-      groupId: "g1",
-      groupName: "Group AI-CCS-01",
-      topic: "Methodology & Neural Network Architecture",
-      meetingUrl: DEFAULT_SHARED_MEET_URL,
-      isActive: false,
-      participants: [],
-    };
+    return emptySession;
   }
 
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (parsed && !parsed.groupName?.includes("Group AI-CCS-01")) {
+        return parsed;
+      }
     }
   } catch {
     // Ignore JSON errors
   }
 
-  return {
-    groupId: "g1",
-    groupName: "Group AI-CCS-01",
-    topic: "Methodology & Neural Network Architecture",
-    meetingUrl: DEFAULT_SHARED_MEET_URL,
-    isActive: false,
-    participants: [],
-  };
+  return emptySession;
 };
 
 export const saveMeetingSession = (session: MeetingSession): void => {

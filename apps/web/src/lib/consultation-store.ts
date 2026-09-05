@@ -25,40 +25,24 @@ export interface ConsultationItem {
 
 const STORAGE_KEY = "advisio_consultations_store";
 
-export const INITIAL_CONSULTATIONS: ConsultationItem[] = [
-  {
-    id: "c1",
-    groupName: "Group AI-CCS-01",
-    topic: "Methodology & Neural Network Architecture",
-    date: "2026-07-03",
-    time: "10:00 AM",
-    mode: "Google Meet",
-    meetingUrl: "https://meet.google.com/psf-shyj-wxf",
-    status: "scheduled",
-  },
-  {
-    id: "c2",
-    groupName: "Group AI-CCS-01",
-    topic: "Introduction Outline Review",
-    date: "2026-06-24",
-    time: "02:00 PM",
-    mode: "In-Person (CL3)",
-    status: "completed",
-  },
-];
+export const INITIAL_CONSULTATIONS: ConsultationItem[] = [];
 
 export const getStoredConsultations = (): ConsultationItem[] => {
-  if (typeof window === "undefined") return INITIAL_CONSULTATIONS;
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        // Filter out legacy prototype dummy consultations
+        const filtered = parsed.filter((c: any) => c.id !== "c1" && c.id !== "c2" && !c.groupName?.includes("Group AI-CCS-01"));
+        return filtered;
+      }
     }
   } catch {
     // Ignore JSON errors
   }
-  return INITIAL_CONSULTATIONS;
+  return [];
 };
 
 export const saveStoredConsultations = (items: ConsultationItem[]): void => {

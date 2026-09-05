@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { studentMockData } from "@/lib/mock-data/student";
-import type { TaskStatus } from "@/types/student";
+import { apiClient } from "@/lib/api-client";
+import type { TaskStatus, DefenseEligibility, DefenseRequirement, GradeReport } from "@/types/student";
 
 export const studentKeys = {
   all: ["student"] as const,
@@ -21,8 +21,22 @@ export function useStudentOverview() {
   return useQuery({
     queryKey: studentKeys.overview(),
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 300)); // simulate network
-      return studentMockData.overview;
+      try {
+        const research = await apiClient.get<{ projects: any[] }>("/api/research");
+        const active = research?.projects?.[0];
+        if (!active) return null;
+        return {
+          id: active.id,
+          projectTitle: active.title,
+          abstract: active.abstract || "",
+          status: active.status,
+          currentMilestone: active.workflowInstance?.currentStage?.name || "Topic Proposal",
+          overallProgress: 10,
+          pendingTasks: [],
+        };
+      } catch {
+        return null;
+      }
     },
     staleTime: 30_000,
   });
@@ -33,8 +47,12 @@ export function useSubmissions() {
   return useQuery({
     queryKey: studentKeys.submissions(),
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 200));
-      return studentMockData.submissions;
+      try {
+        const res = await apiClient.get<{ documents: any[] }>("/api/documents");
+        return res.documents || [];
+      } catch {
+        return [];
+      }
     },
   });
 }
@@ -44,11 +62,15 @@ export function useConsultations() {
   return useQuery({
     queryKey: studentKeys.consultations(),
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 200));
-      return {
-        list: studentMockData.consultations,
-        next: studentMockData.nextConsultation,
-      };
+      try {
+        const res = await apiClient.get<{ consultations: any[] }>("/api/consultations");
+        return {
+          list: res.consultations || [],
+          next: res.consultations?.[0] || null,
+        };
+      } catch {
+        return { list: [], next: null };
+      }
     },
   });
 }
@@ -58,8 +80,12 @@ export function useNotifications() {
   return useQuery({
     queryKey: studentKeys.notifications(),
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 150));
-      return studentMockData.notifications;
+      try {
+        const res = await apiClient.get<{ notifications: any[] }>("/api/notifications");
+        return res.notifications || [];
+      } catch {
+        return [];
+      }
     },
   });
 }
@@ -69,8 +95,30 @@ export function useStudentGroup() {
   return useQuery({
     queryKey: studentKeys.group(),
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 200));
-      return studentMockData.group;
+      try {
+        const res = await apiClient.get<{ projects: any[] }>("/api/research");
+        const active = res?.projects?.[0];
+        if (!active) return null;
+        return {
+          id: active.id,
+          name: active.title?.substring(0, 24) || "Research Group",
+          title: active.title,
+          researchTitle: active.title,
+          members: active.members?.map((m: any) => ({
+            id: m.id || m.userId,
+            name: `${m.user?.firstName || ""} ${m.user?.lastName || ""}`.trim() || m.user?.email || "Member",
+            initials: `${(m.user?.firstName?.[0] || "M")}${(m.user?.lastName?.[0] || "")}`.toUpperCase(),
+            email: m.user?.email,
+            role: m.projectRole?.toLowerCase() === "leader" ? "leader" : "member",
+            isYou: false,
+            colorVariant: "info",
+          })) || [],
+          adviser: null,
+          status: active.status,
+        };
+      } catch {
+        return null;
+      }
     },
   });
 }
@@ -80,24 +128,27 @@ export function useAdvisers() {
   return useQuery({
     queryKey: studentKeys.advisers(),
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 200));
-      return {
-        assigned: studentMockData.assignedAdviser,
-        available: studentMockData.availableAdvisers,
-      };
+      try {
+        const res = await apiClient.get<{ users: any[] }>("/api/users?role=ADVISER");
+        return {
+          assigned: null,
+          available: res.users || [],
+        };
+      } catch {
+        return { assigned: null, available: [] };
+      }
     },
   });
 }
 
 // ── Defense ───────────────────────────────────────────────────
 export function useDefense() {
-  return useQuery({
+  return useQuery<{ requirements: DefenseRequirement[]; eligibility: DefenseEligibility }>({
     queryKey: studentKeys.defense(),
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 200));
       return {
-        requirements: studentMockData.defenseRequirements,
-        eligibility: studentMockData.defenseEligibility,
+        requirements: [],
+        eligibility: "not_eligible" as DefenseEligibility,
       };
     },
   });
@@ -105,11 +156,15 @@ export function useDefense() {
 
 // ── Grades ────────────────────────────────────────────────────
 export function useGrades() {
-  return useQuery({
+  return useQuery<GradeReport>({
     queryKey: studentKeys.grades(),
     queryFn: async () => {
-      await new Promise((r) => setTimeout(r, 200));
-      return studentMockData.grades;
+      return {
+        finalGrade: null,
+        gpa: null,
+        status: "pending",
+        panelistScores: [],
+      };
     },
   });
 }
@@ -120,25 +175,7 @@ export function useToggleTask() {
 
   return useMutation({
     mutationFn: async ({ taskId, status }: { taskId: string; status: TaskStatus }) => {
-      await new Promise((r) => setTimeout(r, 150));
       return { taskId, status };
-    },
-    onMutate: async ({ taskId, status }) => {
-      await queryClient.cancelQueries({ queryKey: studentKeys.overview() });
-      const previous = queryClient.getQueryData(studentKeys.overview());
-      queryClient.setQueryData(studentKeys.overview(), (old: typeof studentMockData.overview | undefined) => {
-        if (!old) return old;
-        return {
-          ...old,
-          pendingTasks: old.pendingTasks.map((t) =>
-            t.id === taskId ? { ...t, status } : t
-          ),
-        };
-      });
-      return { previous };
-    },
-    onError: (_err, _vars, ctx) => {
-      queryClient.setQueryData(studentKeys.overview(), ctx?.previous);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: studentKeys.overview() });

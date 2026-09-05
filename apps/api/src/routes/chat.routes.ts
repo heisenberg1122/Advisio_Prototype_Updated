@@ -36,61 +36,10 @@ export interface GroupChatMessage {
   createdAt: string;
 }
 
-// In-memory synchronized store for group chat messages & invitations
-const chatsStore: GroupChat[] = [
-  {
-    id: "chat-1",
-    title: "Group AI-CCS-01 Thread",
-    description: "Discussion for AI Crop Yield Prediction System",
-    createdByAdviserId: "rachel.lim@university.edu.ph",
-    adviserName: "Dr. Rachel Lim",
-    relatedResearchGroupId: "Group AI-CCS-01",
-    createdAt: "June 28, 2026",
-  },
-];
-
-const invitationsStore: GroupChatInvitation[] = [
-  {
-    id: "inv-1",
-    groupChatId: "chat-1",
-    studentId: "juan.reyes@university.edu.ph",
-    studentName: "Juan Reyes",
-    invitedByAdviserId: "rachel.lim@university.edu.ph",
-    status: "accepted",
-    invitedAt: "June 28, 2026",
-    respondedAt: "June 28, 2026",
-  },
-  {
-    id: "inv-2",
-    groupChatId: "chat-1",
-    studentId: "marc.santos@university.edu.ph",
-    studentName: "Marc Santos",
-    invitedByAdviserId: "rachel.lim@university.edu.ph",
-    status: "pending",
-    invitedAt: "June 28, 2026",
-  },
-];
-
-const messagesStore: GroupChatMessage[] = [
-  {
-    id: "msg-1",
-    groupChatId: "chat-1",
-    senderId: "rachel.lim@university.edu.ph",
-    senderName: "Dr. Rachel Lim",
-    senderRole: "adviser",
-    message: "Hello everyone, please post your updates for Chapter 1-3 draft in this thread.",
-    createdAt: "2026-06-28T10:00:00Z",
-  },
-  {
-    id: "msg-2",
-    groupChatId: "chat-1",
-    senderId: "juan.reyes@university.edu.ph",
-    senderName: "Juan Reyes",
-    senderRole: "student",
-    message: "Hi Dr. Lim! We have updated the dataset split and will upload the v2 draft shortly.",
-    createdAt: "2026-06-28T10:15:00Z",
-  },
-];
+// Synchronized in-memory store for real-time group chat messages & invitations (created by users)
+const chatsStore: GroupChat[] = [];
+const invitationsStore: GroupChatInvitation[] = [];
+const messagesStore: GroupChatMessage[] = [];
 
 // GET /api/chats - return all chats & invitations
 router.get("/", optionalAuth, (_req: Request, res: Response) => {

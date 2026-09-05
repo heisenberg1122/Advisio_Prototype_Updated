@@ -23,12 +23,9 @@ function ProfessorDashboardContent() {
     staleTime: 60000,
   });
 
-  // Mock State Data with live fallbacks
-  const [studentsCount, setStudentsCount] = useState(48);
-  const [projects, setProjects] = useState([
-    { id: "p1", title: "AI-based Crop Yield Prediction System Using ML", group: "Group AI-CCS-01", progress: 65, status: "ongoing" },
-    { id: "p2", title: "Smart Traffic Management System", group: "Group IoT-IT-03", progress: 85, status: "for defense" },
-  ]);
+  // Live State Data with live fallbacks
+  const [studentsCount, setStudentsCount] = useState(0);
+  const [projects, setProjects] = useState<any[]>([]);
 
   useEffect(() => {
     if (researchData?.projects && researchData.projects.length > 0) {
@@ -45,21 +42,39 @@ function ProfessorDashboardContent() {
     }
   }, [researchData]);
 
-  const [topics, setTopics] = useState([
-    { id: "top-1", name: "Capstone 1" },
-    { id: "top-2", name: "Capstone 2" },
-  ]);
-
-  const [milestones, setMilestones] = useState([
-    { id: "m1", topicId: "top-1", title: "Proposal Title Selection", scope: "Milestone", locked: false, prerequisiteTaskId: "" },
-    { id: "m2", topicId: "top-1", title: "Chapter 1-3 Outline", scope: "Milestone", locked: false, prerequisiteTaskId: "m1" },
-    { id: "m3", topicId: "top-1", title: "Ethics Certification Clear", scope: "Compliance", locked: true, prerequisiteTaskId: "m2" },
-    { id: "m4", topicId: "top-2", title: "System Architecture Design", scope: "Milestone", locked: false, prerequisiteTaskId: "" },
-    { id: "m5", topicId: "top-2", title: "Final Defense Presentation", scope: "Milestone", locked: true, prerequisiteTaskId: "m4" },
-  ]);
-
+  const [topics, setTopics] = useState<any[]>([]);
+  const [milestones, setMilestones] = useState<any[]>([]);
   const [workflowStatus, setWorkflowStatus] = useState("Active Track");
-  const [deadlineAlerts, setDeadlineAlerts] = useState(3);
+  const [deadlineAlerts, setDeadlineAlerts] = useState(0);
+
+  useEffect(() => {
+    if (workflowData?.workflows && workflowData.workflows.length > 0) {
+      const topList = workflowData.workflows.map((w: any) => ({
+        id: w.id,
+        name: w.name,
+      }));
+      setTopics(topList);
+      if (topList.length > 0 && !selectedTopicId) {
+        setSelectedTopicId(topList[0].id);
+      }
+      const msList: any[] = [];
+      workflowData.workflows.forEach((w: any) => {
+        w.stages?.forEach((s: any) => {
+          msList.push({
+            id: s.id,
+            topicId: w.id,
+            title: s.name,
+            scope: "Milestone",
+            locked: false,
+            prerequisiteTaskId: "",
+          });
+        });
+      });
+      if (msList.length > 0) {
+        setMilestones(msList);
+      }
+    }
+  }, [workflowData]);
 
   // Form input controllers
   const [newMilestoneTitle, setNewMilestoneTitle] = useState("");

@@ -7,30 +7,10 @@ import { useTheme } from "@/providers/theme-provider";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 
-// ─── MOCK DATABASE / STATE FOR ADMINISTRATIVE PANEL ───
-const INITIAL_USERS = [
-  { id: "u1", name: "Juan Reyes", email: "student01@university.edu.ph", idNumber: "2023-10045", role: "student", status: "active", department: "Computer Science" },
-  { id: "u2", name: "Dr. Rachel Lim", email: "adviser01@university.edu.ph", idNumber: "EMP-2015-88", role: "adviser", status: "active", department: "Information Technology" },
-  { id: "u3", name: "Prof. Arthur Pendleton", email: "professor01@university.edu.ph", idNumber: "EMP-2010-12", role: "professor", status: "active", department: "Computer Science" },
-  { id: "u4", name: "Dr. Lisa Wong", email: "panelist01@university.edu.ph", idNumber: "EMP-2018-45", role: "panelist", status: "active", department: "Software Engineering" },
-  { id: "u5", name: "Sarah G. Garcia", email: "sarah.garcia@university.edu.ph", idNumber: "2023-11882", role: "student", status: "pending", department: "Information Systems" },
-  { id: "u6", name: "Marc A. Santos", email: "marc.santos@university.edu.ph", idNumber: "2023-12001", role: "student", status: "pending", department: "Computer Science" },
-  { id: "u7", name: "John Doe", email: "john.doe@university.edu.ph", idNumber: "2022-10492", role: "student", status: "suspended", department: "Software Engineering" },
-];
-
-const INITIAL_PROJECTS = [
-  { id: "p1", title: "AI-based Crop Yield Prediction System Using ML", student: "Juan Reyes", adviser: "Dr. Rachel Lim", department: "Computer Science", status: "ongoing", progress: 65 },
-  { id: "p2", title: "Smart Traffic Management System using IoT & Edge Computing", student: "Lando Vance", adviser: "Prof. Arthur Pendleton", department: "Information Technology", status: "for defense", progress: 85 },
-  { id: "p3", title: "Blockchain-based Academic Credentials Verification System", student: "Santi Perez", adviser: "Dr. Rachel Lim", department: "Computer Science", status: "revision", progress: 45 },
-  { id: "p4", title: "Automated Waste Sorting System using Computer Vision", student: "Clara Gomez", adviser: "Dr. Lisa Wong", department: "Software Engineering", status: "proposal", progress: 20 },
-  { id: "p5", title: "Virtual Class VR Laboratory Environment for STEM", student: "Alex Ramos", adviser: "Dr. Rachel Lim", department: "Information Systems", status: "completed", progress: 100 },
-];
-
-const INITIAL_DEFENSES = [
-  { id: "d1", title: "AI Crop Yield Prediction System", type: "Proposal", date: "2026-07-10", time: "10:00 AM", venue: "CL-3 Lab", panelists: ["Dr. Lisa Wong", "Prof. A. Pendleton"], status: "scheduled" },
-  { id: "d2", title: "Smart Traffic Management System", type: "Final Defense", date: "2026-07-12", time: "02:00 PM", venue: "CCS Seminar Hall", panelists: ["Dr. Rachel Lim", "Dr. Lisa Wong"], status: "scheduled" },
-  { id: "d3", title: "Blockchain Credentials System", type: "Pre-Defense", date: "2026-06-25", time: "09:00 AM", venue: "Zoom Room A", panelists: ["Prof. A. Pendleton", "Dr. Rachel Lim"], status: "completed" },
-];
+// ─── REAL DATABASE / STATE FOR ADMINISTRATIVE PANEL ───
+const INITIAL_USERS: any[] = [];
+const INITIAL_PROJECTS: any[] = [];
+const INITIAL_DEFENSES: any[] = [];
 
 function AdminDashboardContent() {
   const searchParams = useSearchParams();
@@ -78,24 +58,17 @@ function AdminDashboardContent() {
           id: p.id,
           title: p.title,
           student: p.members?.[0]?.user?.firstName ? `${p.members[0].user.firstName} ${p.members[0].user.lastName}` : "Student Lead",
-          adviser: "Dr. Rachel Lim",
-          department: p.program?.name || "Computer Science",
+          adviser: p.adviser?.user?.firstName ? `${p.adviser.user.firstName} ${p.adviser.user.lastName}` : "Not Assigned",
+          department: p.program?.name || p.college?.name || "Computing",
           status: p.status?.toLowerCase() || "ongoing",
-          progress: 60,
+          progress: 50,
         }))
       );
     }
   }, [researchData]);
 
-  const [deadlines, setDeadlines] = useState([
-    { id: "dl1", title: "Proposal Outline Upload", date: "2026-07-01", type: "Proposal", status: "upcoming" },
-    { id: "dl2", title: "Chapter 1-3 Final Draft Submission", date: "2026-07-15", type: "Milestone", status: "upcoming" },
-    { id: "dl3", title: "Ethics Clearance Letter", date: "2026-06-24", type: "Compliance", status: "completed" },
-  ]);
-  const [certificates, setCertificates] = useState([
-    { id: "c1", project: "Virtual Class VR Lab", student: "Alex Ramos", date: "2026-06-20", number: "CERT-2026-904", status: "released" },
-    { id: "c2", project: "Smart Traffic Management", student: "Lando Vance", date: "Pending Defense", number: "", status: "pending" },
-  ]);
+  const [deadlines, setDeadlines] = useState<any[]>([]);
+  const [certificates, setCertificates] = useState<any[]>([]);
 
   // Search & Filters
   const [userSearch, setUserSearch] = useState("");
@@ -319,32 +292,44 @@ function AdminDashboardContent() {
                   <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
                     <h3 className="font-extrabold text-[#1b4264] text-[14px]">Pending User Account Actions</h3>
                     <div className="flex flex-col gap-2.5">
-                      {users.filter(u => u.status === "pending").slice(0, 3).map(u => (
-                        <div key={u.id} className="flex justify-between items-center p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px]">
-                          <div>
-                            <span className="font-bold text-[#1b4264] block">{u.name}</span>
-                            <span className="text-[10px] text-slate-400">{u.role} · {u.email}</span>
+                      {users.filter(u => u.status === "pending").length > 0 ? (
+                        users.filter(u => u.status === "pending").slice(0, 3).map(u => (
+                          <div key={u.id} className="flex justify-between items-center p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px]">
+                            <div>
+                              <span className="font-bold text-[#1b4264] block">{u.name}</span>
+                              <span className="text-[10px] text-slate-400">{u.role} · {u.email}</span>
+                            </div>
+                            <button onClick={() => { setSelectedUser(u); setModalApprove(true); }} className="px-2.5 py-1 bg-[#ffa400] text-[#1b4264] font-extrabold text-[10px] rounded border border-[#ffa400] cursor-pointer">
+                              Activate
+                            </button>
                           </div>
-                          <button onClick={() => { setSelectedUser(u); setModalApprove(true); }} className="px-2.5 py-1 bg-[#ffa400] text-[#1b4264] font-extrabold text-[10px] rounded border border-[#ffa400] cursor-pointer">
-                            Activate
-                          </button>
+                        ))
+                      ) : (
+                        <div className="text-xs text-slate-400 py-3 text-center">
+                          No pending user account actions.
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
 
                   <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
                     <h3 className="font-extrabold text-[#1b4264] text-[14px]">Upcoming Academic Deadlines</h3>
                     <div className="flex flex-col gap-2.5">
-                      {deadlines.slice(0, 3).map(dl => (
-                        <div key={dl.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px] flex justify-between items-center">
-                          <div>
-                            <span className="font-bold text-[#1b4264] block">{dl.title}</span>
-                            <span className="text-[10px] text-slate-400">{dl.date}</span>
+                      {deadlines.length > 0 ? (
+                        deadlines.slice(0, 3).map(dl => (
+                          <div key={dl.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px] flex justify-between items-center">
+                            <div>
+                              <span className="font-bold text-[#1b4264] block">{dl.title}</span>
+                              <span className="text-[10px] text-slate-400">{dl.date}</span>
+                            </div>
+                            <Tag variant={dl.status==='completed'?'success':'warn'}>{dl.status}</Tag>
                           </div>
-                          <Tag variant={dl.status==='completed'?'success':'warn'}>{dl.status}</Tag>
+                        ))
+                      ) : (
+                        <div className="text-xs text-slate-400 py-3 text-center">
+                          No upcoming academic deadlines.
                         </div>
-                      ))}
+                      )}
                     </div>
                   </div>
                 </div>
@@ -434,16 +419,22 @@ function AdminDashboardContent() {
                   </button>
                 </div>
                 <div className="flex flex-col gap-3.5 mt-2">
-                  {defenses.map(d => (
-                    <div key={d.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
-                      <div>
-                        <span className="font-bold text-[#1b4264] block">{d.title}</span>
-                        <span className="text-[11px] text-slate-500">{d.date} at {d.time} · Venue: {d.venue}</span>
-                        <span className="text-[10px] text-slate-400 block mt-1">Panelists: {d.panelists.join(", ")}</span>
+                  {defenses.length > 0 ? (
+                    defenses.map(d => (
+                      <div key={d.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
+                        <div>
+                          <span className="font-bold text-[#1b4264] block">{d.title}</span>
+                          <span className="text-[11px] text-slate-500">{d.date} at {d.time} · Venue: {d.venue}</span>
+                          <span className="text-[10px] text-slate-400 block mt-1">Panelists: {d.panelists?.join(", ")}</span>
+                        </div>
+                        <Tag variant="warn">{d.type}</Tag>
                       </div>
-                      <Tag variant="warn">{d.type}</Tag>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-400 py-6 text-center">
+                      No defense sessions scheduled. Click &quot;Schedule Panel&quot; to organize defense sessions.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ),
@@ -452,15 +443,21 @@ function AdminDashboardContent() {
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Research Project Monitoring</h3>
                 <p className="text-[11px] text-slate-400 font-bold">Oversight indicators showing status indexes, advisee metadata, and milestones.</p>
                 <div className="flex flex-col gap-3.5 mt-2">
-                  {projects.map(p => (
-                    <div key={p.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
-                      <div>
-                        <span className="font-bold text-[#1b4264] block">{p.title}</span>
-                        <span className="text-[11px] text-slate-500">Representative: {p.student} · Adviser: {p.adviser}</span>
+                  {projects.length > 0 ? (
+                    projects.map(p => (
+                      <div key={p.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
+                        <div>
+                          <span className="font-bold text-[#1b4264] block">{p.title}</span>
+                          <span className="text-[11px] text-slate-500">Representative: {p.student} · Adviser: {p.adviser}</span>
+                        </div>
+                        <Tag variant={p.status === "completed" ? "success" : "warn"}>{p.status}</Tag>
                       </div>
-                      <Tag variant={p.status === "completed" ? "success" : "warn"}>{p.status}</Tag>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-400 py-6 text-center">
+                      No research projects registered yet. Projects will appear here as students register studies.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ),
@@ -479,15 +476,21 @@ function AdminDashboardContent() {
                   </button>
                 </div>
                 <div className="flex flex-col gap-3.5 mt-2">
-                  {deadlines.map(dl => (
-                    <div key={dl.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
-                      <div>
-                        <span className="font-bold text-[#1b4264] block">{dl.title}</span>
-                        <span className="text-[11px] text-slate-500">Due Date: {dl.date}</span>
+                  {deadlines.length > 0 ? (
+                    deadlines.map(dl => (
+                      <div key={dl.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
+                        <div>
+                          <span className="font-bold text-[#1b4264] block">{dl.title}</span>
+                          <span className="text-[11px] text-slate-500">Due Date: {dl.date}</span>
+                        </div>
+                        <Tag variant={dl.status === "completed" ? "success" : "warn"}>{dl.status}</Tag>
                       </div>
-                      <Tag variant={dl.status === "completed" ? "success" : "warn"}>{dl.status}</Tag>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-400 py-6 text-center">
+                      No academic deadlines scheduled.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             ),
@@ -503,34 +506,46 @@ function AdminDashboardContent() {
                   {/* Completed Projects List */}
                   <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3 bg-white">
                     <h4 className="font-extrabold text-[13px] text-[#1b4264] border-b border-slate-100 pb-2">Completed Research Status</h4>
-                    {projects.filter(p => p.status === "completed").map(proj => (
-                      <div key={proj.id} className="p-3 bg-white border border-slate-200 rounded-lg flex justify-between items-center text-[12px] shadow-sm">
-                        <div>
-                          <span className="font-bold text-slate-800 block">{proj.title}</span>
-                          <span className="text-[10px] text-slate-400">{proj.student} · Adviser: {proj.adviser}</span>
+                    {projects.filter(p => p.status === "completed").length > 0 ? (
+                      projects.filter(p => p.status === "completed").map(proj => (
+                        <div key={proj.id} className="p-3 bg-white border border-slate-200 rounded-lg flex justify-between items-center text-[12px] shadow-sm">
+                          <div>
+                            <span className="font-bold text-slate-800 block">{proj.title}</span>
+                            <span className="text-[10px] text-slate-400">{proj.student} · Adviser: {proj.adviser}</span>
+                          </div>
+                          <button 
+                            onClick={() => { setCertProject(proj); setModalCert(true); }}
+                            className="px-3 py-1 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold text-[11px] rounded shadow cursor-pointer border border-[#ffa400]"
+                          >
+                            Generate Cert
+                          </button>
                         </div>
-                        <button 
-                          onClick={() => { setCertProject(proj); setModalCert(true); }}
-                          className="px-3 py-1 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold text-[11px] rounded shadow cursor-pointer border border-[#ffa400]"
-                        >
-                          Generate Cert
-                        </button>
+                      ))
+                    ) : (
+                      <div className="text-xs text-slate-400 py-6 text-center">
+                        No completed research projects pending certification.
                       </div>
-                    ))}
+                    )}
                   </div>
 
                   {/* Generated Certificates List */}
                   <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3 bg-white">
                     <h4 className="font-extrabold text-[13px] text-[#1b4264] border-b border-slate-100 pb-2">Released Certificates Archive</h4>
-                    {certificates.map(c => (
-                      <div key={c.id} className="p-3 bg-white border border-slate-200 rounded-lg flex justify-between items-center text-[12px] shadow-sm">
-                        <div>
-                          <span className="font-bold text-slate-800 block">{c.project}</span>
-                          <span className="text-[10px] text-[#1b4264] font-mono">{c.number} · {c.date}</span>
+                    {certificates.length > 0 ? (
+                      certificates.map(c => (
+                        <div key={c.id} className="p-3 bg-white border border-slate-200 rounded-lg flex justify-between items-center text-[12px] shadow-sm">
+                          <div>
+                            <span className="font-bold text-slate-800 block">{c.project}</span>
+                            <span className="text-[10px] text-[#1b4264] font-mono">{c.number} · {c.date}</span>
+                          </div>
+                          <Tag variant="success">{c.status}</Tag>
                         </div>
-                        <Tag variant="success">{c.status}</Tag>
+                      ))
+                    ) : (
+                      <div className="text-xs text-slate-400 py-6 text-center">
+                        No released certificates archived yet.
                       </div>
-                    ))}
+                    )}
                   </div>
 
                 </div>

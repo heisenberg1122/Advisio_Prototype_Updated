@@ -32,94 +32,70 @@ export interface ProfileData {
 
 const DEFAULT_PROFILES: Record<string, ProfileData> = {
   student: {
-    id: "student-001",
-    name: "Juan Reyes",
-    initials: "JR",
+    id: "student-user",
+    name: "Student Researcher",
+    initials: "SR",
     role: "student",
-    email: "student01@university.edu.ph",
-    contactNumber: "+63 917 123 4567",
+    email: "",
+    contactNumber: "",
     academicYear: "AY 2025–2026",
     program: "Capstone",
-    college: "BSCS",
-    studentId: "2023-10045",
-    yearLevel: "3rd Year",
-    section: "A",
-    researchInterests: "Machine Learning, Natural Language Processing",
+    college: "College of Computing",
   },
   adviser: {
-    id: "adviser-001",
-    name: "Dr. Rachel Lim",
-    initials: "RL",
+    id: "adviser-user",
+    name: "Faculty Adviser",
+    initials: "FA",
     role: "adviser",
-    email: "adviser01@university.edu.ph",
-    contactNumber: "+63 918 234 5678",
+    email: "",
+    contactNumber: "",
     academicYear: "AY 2025–2026",
     program: "Capstone",
-    college: "CCS",
-    employeeId: "EMP-2021-089",
-    department: "Computer Science Department",
-    expertise: "Machine Learning, Neural Networks, Computer Vision",
-    specialization: "Deep Learning & AI Applications",
-    availability: "Mon/Wed/Fri 10:00 AM - 12:00 PM",
-    credentials: "Ph.D. in Computer Science, 10+ publications in AI",
+    college: "College of Computing",
   },
   professor: {
-    id: "prof-001",
-    name: "Prof. Arthur Pendleton",
-    initials: "AP",
+    id: "prof-user",
+    name: "Course Professor",
+    initials: "CP",
     role: "professor",
     academicYear: "AY 2025–2026",
     program: "Capstone",
-    college: "CCS",
-    email: "professor01@university.edu.ph",
-    contactNumber: "+63 919 345 6789",
-    employeeId: "EMP-2018-042",
-    department: "Information Technology Department",
-    specialization: "Big Data, Cloud Computing, Distributed Systems",
-    subjects: "Capstone 1, Capstone 2",
+    college: "College of Computing",
+    email: "",
+    contactNumber: "",
   },
   panelist: {
-    id: "panelist-001",
-    name: "Dr. Lisa Wong",
-    initials: "LW",
+    id: "panelist-user",
+    name: "Defense Panelist",
+    initials: "DP",
     role: "panelist",
     academicYear: "AY 2025–2026",
     program: "Capstone",
-    college: "CCS",
-    email: "panelist01@university.edu.ph",
-    contactNumber: "+63 920 456 7890",
-    employeeId: "EMP-2019-112",
-    department: "Computer Science Department",
-    specialization: "Cybersecurity, Cryptography, Blockchain",
-    panelDetails: "Panel Chair for AI/ML Tracks",
+    college: "College of Computing",
+    email: "",
+    contactNumber: "",
   },
   admin: {
-    id: "admin-001",
-    name: "Admin User",
-    initials: "AU",
+    id: "admin-user",
+    name: "System Admin",
+    initials: "SA",
     role: "admin",
     academicYear: "AY 2025–2026",
     program: "Capstone",
-    college: "CCS",
-    email: "admin01@university.edu.ph",
-    contactNumber: "+63 921 567 8901",
-    employeeId: "EMP-2020-001",
-    department: "CCS Dean's Office",
-    position: "Dean's Administrative Assistant",
+    college: "College of Computing",
+    email: "",
+    contactNumber: "",
   },
   system_admin: {
-    id: "system-admin-001",
-    name: "System Super Admin",
+    id: "sysadmin-user",
+    name: "Super Admin",
     initials: "SA",
     role: "system_admin",
     academicYear: "AY 2025–2026",
     program: "Capstone",
-    college: "CCS",
-    email: "superadmin01@university.edu.ph",
-    contactNumber: "+63 922 678 9012",
-    employeeId: "EMP-2015-000",
-    department: "Management Information Systems (MIS)",
-    position: "Lead IT Infrastructure Administrator",
+    college: "College of Computing",
+    email: "",
+    contactNumber: "",
   },
 };
 
@@ -157,16 +133,16 @@ export function useProfile() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (user) {
-        const dynamicInitials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "AD";
+        const dynamicInitials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "SR";
         const dynamicProfile: ProfileData = {
           id: user.id,
-          name: `${user.firstName} ${user.lastName}`.trim(),
+          name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
           initials: dynamicInitials,
           role: user.roles?.[0]?.toLowerCase() || role,
           email: user.email,
-          contactNumber: "+63 917 000 0000",
+          contactNumber: "",
           academicYear: "AY 2025–2026",
-          college: user.college?.name || user.college?.code || "College of Information Technology",
+          college: user.college?.name || user.college?.code || "College of Computing",
           program: user.program?.name || user.program?.code || "BS Information Technology",
           studentId: user.universityId,
           employeeId: user.universityId,
@@ -181,7 +157,14 @@ export function useProfile() {
       const saved = localStorage.getItem(key);
       if (saved) {
         try {
-          setProfile(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          if (parsed && !parsed.name?.includes("Juan Reyes") && !parsed.name?.includes("Dr. Rachel Lim") && !parsed.email?.includes("student01@")) {
+            setProfile(parsed);
+          } else {
+            const defaultProf = DEFAULT_PROFILES[role];
+            localStorage.setItem(key, JSON.stringify(defaultProf));
+            setProfile(defaultProf);
+          }
         } catch {
           setProfile(DEFAULT_PROFILES[role]);
         }

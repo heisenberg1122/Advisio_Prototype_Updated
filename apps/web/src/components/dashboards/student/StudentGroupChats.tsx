@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { getChatStore, saveChatStore, GroupChat, GroupChatInvitation, GroupChatMessage } from "@/lib/chat-store";
+import { useAuth } from "@/providers/auth-provider";
 import { Tag } from "@/components/ui/Tag";
 
 interface StudentGroupChatsProps {
@@ -9,8 +10,9 @@ interface StudentGroupChatsProps {
 }
 
 export function StudentGroupChats({ triggerToast }: StudentGroupChatsProps) {
-  const studentEmail = "juan.reyes@university.edu.ph";
-  const studentName = "Juan Reyes";
+  const { user } = useAuth();
+  const studentEmail = user?.email || "";
+  const studentName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "Student Researcher";
 
   // Shared store state
   const [chats, setChats] = useState<GroupChat[]>([]);

@@ -5,27 +5,7 @@ import { googleCalendarService } from "../services/google-calendar.service.js";
 
 const router = Router();
 
-let inMemoryConsultations: any[] = [
-  {
-    id: "c1",
-    groupName: "Group AI-CCS-01",
-    topic: "Methodology & Neural Network Architecture",
-    date: "2026-07-03",
-    time: "10:00 AM",
-    mode: "Google Meet",
-    meetingUrl: "https://meet.google.com/psf-shyj-wxf",
-    status: "scheduled",
-  },
-  {
-    id: "c2",
-    groupName: "Group AI-CCS-01",
-    topic: "Introduction Outline Review",
-    date: "2026-06-24",
-    time: "02:00 PM",
-    mode: "In-Person (CL3)",
-    status: "completed",
-  },
-];
+let inMemoryConsultations: any[] = [];
 
 // GET /api/consultations
 router.get("/", optionalAuth, async (req: Request, res: Response) => {
@@ -57,12 +37,12 @@ router.get("/", optionalAuth, async (req: Request, res: Response) => {
       ...inMemoryConsultations,
       ...dbConsultations.map((c) => ({
         id: c.id,
-        groupName: c.research?.title?.substring(0, 16) || "Group AI-CCS-01",
+        groupName: c.research?.title ? (c.research.title.length > 25 ? c.research.title.substring(0, 25) + "..." : c.research.title) : "Research Group",
         topic: c.title,
-        date: c.scheduledStart ? new Date(c.scheduledStart).toISOString().split("T")[0] : "2026-07-03",
-        time: c.scheduledStart ? new Date(c.scheduledStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "10:00 AM",
+        date: c.scheduledStart ? new Date(c.scheduledStart).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+        time: c.scheduledStart ? new Date(c.scheduledStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "TBD",
         mode: "Google Meet",
-        meetingUrl: c.meetingUrl || "https://meet.google.com/psf-shyj-wxf",
+        meetingUrl: c.meetingUrl || "",
         status: c.status?.toLowerCase() || "scheduled",
       })),
     ];
@@ -137,7 +117,7 @@ router.post(
 
       const newConsultationItem = {
         id: Math.random().toString(),
-        groupName: "Group AI-CCS-01",
+        groupName: req.body.groupName || (validResearchId ? "Research Group" : "General Consultation"),
         topic: title,
         date: new Date(scheduledStart).toISOString().split("T")[0],
         time: new Date(scheduledStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -377,27 +357,16 @@ let globalActiveStreams: Record<
     startedAt: string;
     participants: Array<{ id: string; name: string; role: string; email: string; joinedAt: string }>;
   }
-> = {
-  "g1": {
-    groupId: "g1",
-    groupName: "Group AI-CCS-01",
-    topic: "Methodology & Neural Network Architecture",
-    meetingUrl: "https://meet.google.com/psf-shyj-wxf",
-    isActive: false,
-    startedBy: "Dr. Rachel Lim",
-    startedAt: new Date().toISOString(),
-    participants: [],
-  },
-};
+> = {};
 
 // GET /api/consultations/active-stream — Synchronize live Google Meet room across browsers
 router.get("/active-stream", optionalAuth, (req: Request, res: Response) => {
-  const groupId = String(req.query.groupId || "g1");
+  const groupId = String(req.query.groupId || "default");
   const stream = globalActiveStreams[groupId] || {
     groupId,
-    groupName: "Group AI-CCS-01",
+    groupName: "",
     topic: "In-App Voice and Video Group Conferencing",
-    meetingUrl: "https://meet.google.com/psf-shyj-wxf",
+    meetingUrl: "",
     isActive: false,
     startedBy: "",
     startedAt: new Date().toISOString(),
@@ -410,7 +379,7 @@ router.get("/active-stream", optionalAuth, (req: Request, res: Response) => {
 // POST /api/consultations/active-stream — Start/Broadcast synchronized Google Meet room
 router.post("/active-stream", optionalAuth, async (req: Request, res: Response) => {
   try {
-    const { groupId = "g1", groupName = "Group AI-CCS-01", topic = "Group Conferencing", meetingUrl, gmailAccount } = req.body;
+    const { groupId = "default", groupName = "Research Group", topic = "Group Conferencing", meetingUrl, gmailAccount } = req.body;
 
     const user = req.user;
     const dbUser = user
