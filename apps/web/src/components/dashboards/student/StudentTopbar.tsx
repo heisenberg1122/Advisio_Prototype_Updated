@@ -7,6 +7,8 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { cn } from "@/lib/utils";
 
+import { useAuth } from "@/hooks/use-auth";
+
 const PAGE_TITLES: Record<string, string> = {
   "/student/groups":       "My Group",
   "/student/adviser-pool": "Adviser Pool",
@@ -50,6 +52,7 @@ export function StudentTopbar() {
   }
   const { unreadCount } = useNotifications();
   const { profile } = useProfile();
+  const { logout } = useAuth();
 
   return (
     <header
@@ -79,6 +82,17 @@ export function StudentTopbar() {
         >
           {profile?.initials || "ST"}
         </Link>
+
+        {/* Permanent Topbar Logout Button — Accessible without scrolling */}
+        <button
+          onClick={() => logout()}
+          title="Sign Out"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-red-600 hover:bg-red-50 border border-red-200 transition text-[12px] font-bold cursor-pointer shrink-0 ml-1"
+          aria-label="Sign out of your account"
+        >
+          <i className="ti ti-logout text-sm" />
+          <span className="hidden sm:inline">Logout</span>
+        </button>
       </div>
     </header>
   );

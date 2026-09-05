@@ -93,16 +93,16 @@ export function AdviserSidebar() {
         <i className={`ti ${collapsed ? "ti-chevron-right" : "ti-chevron-left"} text-xs font-bold`} />
       </button>
 
-      <div className="flex flex-col min-h-0">
+      <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
         {/* Logo block */}
-        <div className={`px-3 py-4 border-b border-white/10 flex items-center ${collapsed ? "justify-center" : "justify-between gap-2"}`}>
+        <div className={`px-3 py-4 border-b border-white/10 shrink-0 flex items-center ${collapsed ? "justify-center" : "justify-between gap-2"}`}>
           {!collapsed && (
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
                 <i className="ti ti-school text-base text-[#ffa400]" />
               </div>
               <div>
-                <span className="font-extrabold text-[15px] tracking-tight block leading-none text-white">ADVISIO</span>
+                <span className="font-extrabold text-[15px] tracking-tight block leading-none text-white font-sans">ADVISIO</span>
                 <span className="text-[8px] uppercase tracking-wider text-[#ffa400] font-semibold mt-0.5 block">Adviser Panel</span>
               </div>
             </div>
@@ -115,7 +115,7 @@ export function AdviserSidebar() {
         </div>
 
         {/* Navigation */}
-        <nav className="p-2 flex flex-col gap-1 overflow-y-auto flex-1">
+        <nav className="p-2 flex flex-col gap-1 overflow-y-auto flex-1 min-h-0">
           {MENU_SECTIONS.map((section) => (
             <div key={section.title} className="flex flex-col gap-0.5">
               {!collapsed && (
@@ -149,8 +149,8 @@ export function AdviserSidebar() {
         </nav>
       </div>
 
-      {/* Bottom: user + logout */}
-      <div className={`p-3 border-t border-white/10 flex flex-col gap-2 ${collapsed ? "items-center" : ""}`}>
+      {/* Bottom: user + logout — PERMANENTLY PINNED, NEVER SCROLLED */}
+      <div className={`shrink-0 p-3 border-t border-white/10 bg-[#1b4264] flex flex-col gap-2 z-10 ${collapsed ? "items-center" : ""}`}>
         <UserChip profile={profile as any} collapsed={collapsed} />
         <button
           onClick={handleLogout}

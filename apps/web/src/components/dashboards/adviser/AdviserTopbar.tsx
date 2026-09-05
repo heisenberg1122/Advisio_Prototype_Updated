@@ -32,6 +32,8 @@ const ADVISER_TAB_TITLES: Record<string, string> = {
   settings: "Settings",
 };
 
+import { useAuth } from "@/hooks/use-auth";
+
 export function AdviserTopbar() {
   const pathname = usePathname() || "";
   const searchParams = useSearchParams();
@@ -43,6 +45,7 @@ export function AdviserTopbar() {
   }
   const { unreadCount } = useNotifications();
   const { profile } = useProfile();
+  const { logout } = useAuth();
 
   return (
     <header className="h-[52px] flex-shrink-0 flex items-center justify-between px-6 border-b border-slate-200 bg-white">
@@ -68,6 +71,17 @@ export function AdviserTopbar() {
         >
           {profile?.initials || "RL"}
         </Link>
+
+        {/* Permanent Topbar Logout Button */}
+        <button
+          onClick={() => logout()}
+          title="Sign Out"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-red-600 hover:bg-red-50 border border-red-200 transition text-[12px] font-bold cursor-pointer shrink-0 ml-1"
+          aria-label="Sign out of your account"
+        >
+          <i className="ti ti-logout text-sm" />
+          <span className="hidden sm:inline">Logout</span>
+        </button>
       </div>
     </header>
   );

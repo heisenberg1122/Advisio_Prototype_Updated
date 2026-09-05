@@ -3,6 +3,7 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useProfile } from "@/hooks/use-profile";
+import { useAuth } from "@/providers/auth-provider";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 
@@ -38,6 +39,7 @@ export function ProfessorTopbar() {
   }
   const { unreadCount } = useNotifications();
   const { profile } = useProfile();
+  const { logout } = useAuth();
 
   return (
     <header className="h-[52px] flex-shrink-0 flex items-center justify-between px-6 border-b border-slate-200 bg-white">
@@ -63,6 +65,17 @@ export function ProfessorTopbar() {
         >
           {profile?.initials || "AP"}
         </Link>
+
+        {/* Permanent Topbar Logout Button */}
+        <button
+          onClick={() => logout()}
+          title="Sign Out"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-red-600 hover:bg-red-50 border border-red-200 transition text-[12px] font-bold cursor-pointer shrink-0 ml-1"
+          aria-label="Sign out of your account"
+        >
+          <i className="ti ti-logout text-sm" />
+          <span className="hidden sm:inline">Logout</span>
+        </button>
       </div>
     </header>
   );
