@@ -34,9 +34,5 @@ function ProfessorLayoutInner({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProfessorLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <Providers>
-      <ProfessorLayoutInner>{children}</ProfessorLayoutInner>
-    </Providers>
-  );
+  return <ProfessorLayoutInner>{children}</ProfessorLayoutInner>;
 }

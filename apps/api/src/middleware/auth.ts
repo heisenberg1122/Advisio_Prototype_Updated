@@ -3,12 +3,14 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 import { InstitutionalRole } from "@research-management/auth";
 
-const JWT_SECRET = process.env.JWT_SECRET || "advisio-dev-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET || process.env.AUTH_SECRET || "advisio-dev-secret-key-change-in-production";
 
 export interface AuthenticatedUser {
   id: string;
   email: string;
   universityId: string;
+  firstName?: string;
+  lastName?: string;
   roles: InstitutionalRole[];
   permissions: string[];
 }
@@ -80,6 +82,8 @@ export async function requireAuth(
       id: user.id,
       email: user.email,
       universityId: user.universityId,
+      firstName: user.firstName,
+      lastName: user.lastName,
       roles,
       permissions: Array.from(permissionSet),
     };
@@ -140,6 +144,8 @@ export async function optionalAuth(
           id: user.id,
           email: user.email,
           universityId: user.universityId,
+          firstName: user.firstName,
+          lastName: user.lastName,
           roles,
           permissions: Array.from(permissionSet),
         };
@@ -148,23 +154,7 @@ export async function optionalAuth(
       }
     }
   } catch {
-    // Ignore error in optionalAuth
-  }
-
-  // Fallback default user for cross-browser / multi-window dev mode
-  try {
-    const firstUser = await prisma.user.findFirst();
-    if (firstUser) {
-      req.user = {
-        id: firstUser.id,
-        email: firstUser.email,
-        universityId: firstUser.universityId,
-        roles: ["STUDENT" as InstitutionalRole],
-        permissions: [],
-      };
-    }
-  } catch {
-    // Ignore fallback errors
+    // Token is invalid/expired; leave req.user undefined
   }
   next();
 }

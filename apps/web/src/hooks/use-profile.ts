@@ -1,7 +1,6 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/providers/auth-provider";
 
 export interface ProfileData {
   id: string;
@@ -137,6 +136,7 @@ export const getInitials = (name: string) => {
 
 export function useProfile() {
   const pathname = usePathname() || "";
+  const { user } = useAuth();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -156,6 +156,27 @@ export function useProfile() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      if (user) {
+        const dynamicInitials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "AD";
+        const dynamicProfile: ProfileData = {
+          id: user.id,
+          name: `${user.firstName} ${user.lastName}`.trim(),
+          initials: dynamicInitials,
+          role: user.roles?.[0]?.toLowerCase() || role,
+          email: user.email,
+          contactNumber: "+63 917 000 0000",
+          academicYear: "AY 2025–2026",
+          college: user.college?.name || user.college?.code || "College of Information Technology",
+          program: user.program?.name || user.program?.code || "BS Information Technology",
+          studentId: user.universityId,
+          employeeId: user.universityId,
+          position: user.roles?.[0] || "User",
+        };
+        setProfile(dynamicProfile);
+        setLoading(false);
+        return;
+      }
+
       const key = `advisio_profile_${role}`;
       const saved = localStorage.getItem(key);
       if (saved) {
@@ -171,7 +192,7 @@ export function useProfile() {
       }
       setLoading(false);
     }
-  }, [role]);
+  }, [role, user]);
 
   const updateProfile = (data: Partial<ProfileData>) => {
     if (!profile) return false;

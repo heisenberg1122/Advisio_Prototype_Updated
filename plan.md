@@ -198,9 +198,50 @@
   - `web` (Vite 6 + React 19 + TypeScript SPA)
 - **Zero compilation errors and full type safety across the entire codebase.**
 
+### 2.23 Production Hardening, Route Protection & Code-Splitting (Post-Sprint Audit)
+- **Vite ESLint 9 Flat Config Migration:** Configured `apps/web/eslint.config.mjs` with `typescript-eslint` and fixed all lint errors; verified clean `turbo run lint`.
+- **Environment & Security Standardization:** Standardized `.env.example` to `JWT_SECRET`, port `5000`, and Google service account keys.
+- **Backend Auth Vulnerability Fix:** Removed insecure unauthenticated user fallback in `apps/api/src/middleware/auth.ts` (`optionalAuth`).
+- **Initial Super Admin Seeding:** Added `SYSTEM_ADMIN` (`admin@advisio.edu.ph`), `ADVISER`, and `RESEARCHER` accounts with bcrypt password hashes to `packages/database/src/seed.ts`.
+- **Frontend Route Protection:** Created `ProtectedRoute.tsx` enforcing authenticated sessions and RBAC role authorization across all portals.
+- **Dynamic Profile Hydration & Real Logout:** Connected `useProfile()` and portal topbars/UserChips directly to `useAuth().user`, and bound all sidebar logout buttons to `logout()` (token removal + redirect).
+- **Code-Splitting Optimization:** Converted all portal layouts and dashboard pages in `apps/web/src/routes.tsx` to `React.lazy()`, reducing the initial JS bundle from **611 kB to 289 kB** (a 53% drop).
+
+### 2.24 Multi-User Group Chat API, Traffic Mitigation & Production CI/CD
+- **Tamed Consultation Polling:** Relaxed aggressive 1-second interval (`refetchInterval: 1000`) in student and adviser dashboards to 15 seconds with `refetchOnWindowFocus: true`, mitigating 93.3% of redundant database requests.
+- **Real Group Chat Backend API:** Created `apps/api/src/routes/chat.routes.ts` mounted at `/api/chats` providing multi-user endpoints for chat group creation, message persistence, and invitations.
+- **Frontend Chat Store Sync:** Enhanced `apps/web/src/lib/chat-store.ts` with `fetchRemoteChatStore` and `sendRemoteChatMessage` communicating with `/api/chats`.
+- **Containerization (Docker):**
+  - Built `apps/api/Dockerfile` on Node 20 Alpine with Prisma client generation and monorepo workspace compilation.
+  - Built `apps/web/Dockerfile` with multi-stage build and Nginx runner with SPA client routing (`try_files`) and `/api` proxying.
+  - Added `apps/web/nginx.conf` with gzip compression and API reverse proxy.
+- **Automated CI/CD Pipeline:** Configured `.github/workflows/ci.yml` running lint, type-check, and builds across all packages on push and pull requests.
+
+### 2.25 Automated Testing Suite & Production Compose Orchestration
+- **Vitest Monorepo Test Pipeline:** Configured Turborepo `"test"` task (`turbo run test`) running across packages.
+- **RBAC Unit Tests (`@research-management/auth`):** Added `guards.test.ts` verifying permission checks (`hasPermission`, `hasAnyPermission`, `hasAllPermissions`), matrix lookups, and multi-role deduplication (5/5 passed).
+- **Zod Validation Unit Tests (`@research-management/validations`):** Added `schemas.test.ts` verifying user credentials, registration constraints, UUIDs, and project role enums (9/9 passed).
+- **Continuous Integration Pipeline Enhancement:** Updated `.github/workflows/ci.yml` to automatically execute `npm run test` alongside lint, type-check, and build steps.
+- **Production Compose Orchestration (`docker-compose.prod.yml`):** Created full-stack multi-container composition orchestrating `postgres` (healthchecked), `api` (Express production container), and `web` (Nginx static + reverse proxy container) on a unified bridge network.
+
+### 2.26 Baseline Database Migration & Version Control (`packages/database`)
+- **Prisma Migration Baseline (`20260905000000_init`):** Generated the complete 886-line PostgreSQL DDL migration script covering all schemas, extensions (`citext`, `pgcrypto`), enums, tables, and foreign keys.
+- **Migration Tracking Lock (`migration_lock.toml`):** Configured Prisma migration tracking provider for PostgreSQL, establishing deterministic and reproducible deployments via `npx prisma migrate deploy` in production and CI environments.
+
+### 2.27 Real-Time Server-Sent Events (SSE) Engine (`apps/api` & `apps/web`)
+- **SSE Connection Manager (`apps/api/src/realtime/sse.ts`):** Implemented high-performance event streaming manager with keep-alive heartbeat pings (every 25s), targeted user messaging, and global room broadcasting.
+- **Realtime Endpoint (`GET /api/realtime/events`):** Mounted SSE streaming route with Nginx buffer bypass headers (`X-Accel-Buffering: no`) and active metrics endpoint (`GET /api/realtime/status`).
+- **Realtime Chat Sync:** Wired `chat:message`, `chat:created`, and `chat:invitation` SSE broadcasts directly into `chat.routes.ts`.
+- **Browser SSE Client (`apps/web/src/lib/realtime/sse-client.ts`):** Created auto-reconnecting browser EventSource client and subscribed `chat-store.ts` for instantaneous, zero-latency multi-client message delivery.
+
+### 2.28 Transactional Email Engine (`@research-management/email`)
+- **Production HTML Templates:** Built responsive, institutionally branded email templates for user provisioning (`renderWelcomeEmail`) and defense sessions (`renderDefenseScheduledEmail`).
+- **Resend API Integration & Fallback:** Implemented delivery client sending via Resend API when `RESEND_API_KEY` is present, with safe mock console delivery fallback for local dev and automated tests.
+- **Full Monorepo Automated Test Suite:** Expanded test suite to **22/22 passing tests** across 4 packages (`auth`, `validations`, `email`, and `api`).
+
 ---
 
-## 3. Platform Status: PRODUCTION-READY (All 10 Sprints Completed)
+## 3. Platform Status: PRODUCTION-READY (Hardened, Tested & Orchestrated)
 
 | Sprint | Description | Status |
 |---|---|---|

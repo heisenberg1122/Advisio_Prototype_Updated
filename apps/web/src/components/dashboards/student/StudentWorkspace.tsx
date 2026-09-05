@@ -128,7 +128,7 @@ export function StudentWorkspace({ triggerToast }: StudentWorkspaceProps) {
       lastSavedAt: new Date().toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
     };
 
-    let newDocs = [...documents];
+    const newDocs = [...documents];
     const index = documents.findIndex(d => d.id === docId);
     if (index >= 0) {
       newDocs[index] = updatedDoc;

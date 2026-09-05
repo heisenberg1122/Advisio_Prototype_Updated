@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: advisio-prod-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-advisio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-advisiopassword}
+      POSTGRES_DB: ${POSTGRES_DB:-advisio_prod}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U advisio -d advisio_prod"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - advisio-network
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: advisio-prod-api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-advisio}:${POSTGRES_PASSWORD:-advisiopassword}@postgres:5432/${POSTGRES_DB:-advisio_prod}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-advisio-super-secret-key-change-in-production}
+      AUTH_SECRET: ${JWT_SECRET:-advisio-super-secret-key-change-in-production}
+      CORS_ORIGIN: ${WEB_URL:-http://localhost}
+    ports:
+      - "5000:5000"
+    networks:
+      - advisio-network
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: advisio-prod-web
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+    networks:
+      - advisio-network
+
+volumes:
+  postgres_prod_data:
+
+networks:
+  advisio-network:
+    driver: bridge

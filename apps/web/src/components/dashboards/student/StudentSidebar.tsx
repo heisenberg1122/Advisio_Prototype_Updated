@@ -3,8 +3,9 @@
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { UserChip } from "@/components/shared/UserChip";
-import { studentMockData } from "@/lib/mock-data/student";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
+import { useAuth } from "@/providers/auth-provider";
+import { useProfile } from "@/hooks/use-profile";
 
 const MENU_SECTIONS = [
   {
@@ -85,11 +86,12 @@ export function StudentSidebar() {
   const router = useRouter();
   const pathname = usePathname() || "";
   const currentTab = searchParams.get("tab") || "overview";
-  const { profile } = studentMockData.overview;
+  const { profile } = useProfile();
+  const { logout } = useAuth();
   const { collapsed, toggle } = useSidebarCollapsed();
 
   const handleLogout = () => {
-    router.push("/login");
+    logout();
   };
 
   return (
@@ -166,7 +168,7 @@ export function StudentSidebar() {
 
       {/* Bottom: user + logout */}
       <div className={`p-3 border-t border-white/10 flex flex-col gap-2 ${collapsed ? "items-center" : ""}`}>
-        <UserChip profile={profile} collapsed={collapsed} />
+        <UserChip profile={profile as any} collapsed={collapsed} />
         <button
           onClick={handleLogout}
           title={collapsed ? "Logout" : undefined}

@@ -4,6 +4,8 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { UserChip } from "@/components/shared/UserChip";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
+import { useAuth } from "@/providers/auth-provider";
+import { useProfile } from "@/hooks/use-profile";
 
 const MENU_SECTIONS = [
   {
@@ -59,19 +61,11 @@ export function ProfessorSidebar() {
   const pathname = usePathname() || "";
   const currentTab = searchParams.get("tab") || "overview";
   const { collapsed, toggle } = useSidebarCollapsed();
-
-  const profile = {
-    id: "prof-001",
-    name: "Dr. Arthur Pendelton",
-    initials: "AP",
-    role: "professor",
-    academicYear: "AY 2025–2026",
-    program: "Capstone",
-    college: "CCS",
-  };
+  const { profile } = useProfile();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    router.push("/login");
+    logout();
   };
 
   return (

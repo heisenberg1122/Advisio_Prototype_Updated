@@ -34,9 +34,5 @@ function AdviserLayoutInner({ children }: { children: React.ReactNode }) {
 }
 
 export default function AdviserLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <Providers>
-      <AdviserLayoutInner>{children}</AdviserLayoutInner>
-    </Providers>
-  );
+  return <AdviserLayoutInner>{children}</AdviserLayoutInner>;
 }

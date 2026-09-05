@@ -16,6 +16,8 @@ import evaluationRoutes from "./routes/evaluation.routes";
 import adminRoutes from "./routes/admin.routes";
 import consultationRoutes from "./routes/consultation.routes";
 import notificationRoutes from "./routes/notification.routes";
+import chatRoutes from "./routes/chat.routes";
+import realtimeRoutes from "./routes/realtime.routes";
 import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
@@ -46,6 +48,8 @@ app.use("/api", evaluationRoutes);
 app.use("/api", adminRoutes);
 app.use("/api/consultations", consultationRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/chats", chatRoutes);
+app.use("/api/realtime", realtimeRoutes);
 
 // Root fallback
 app.get("/", (_req, res) => {

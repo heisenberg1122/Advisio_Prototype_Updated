@@ -37,11 +37,12 @@ function StudentDashboardContent() {
   const [showTranscriptModal, setShowTranscriptModal] = useState(false);
   const [selectedConsultationForTranscript, setSelectedConsultationForTranscript] = useState<ConsultationItem | null>(null);
 
-  // Live query for consultations with 1s auto-polling
+  // Live query for consultations with background refresh
   const { data: consultationsApiData, refetch: refetchConsultations } = useQuery({
     queryKey: ["consultations"],
     queryFn: () => apiClient.get<{ consultations: any[] }>("/api/consultations").catch(() => ({ consultations: [] })),
-    refetchInterval: 1000,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
   });
 
   const [consultations, setConsultations] = useState<ConsultationItem[]>(getStoredConsultations());

@@ -179,7 +179,76 @@ async function main() {
     });
   }
 
-  console.log("✅ Seed completed successfully!");
+  // 5. Bootstrap Initial Accounts (System Admin, Adviser, Researcher)
+  console.log("Seeding Core Initial User Accounts...");
+  const initialUsers = [
+    {
+      universityId: "SYSADMIN-001",
+      email: "admin@advisio.edu.ph",
+      firstName: "System",
+      lastName: "Administrator",
+      passwordHash: "$2b$10$uciAmngb6Ztr3vbzoL6o1uVgFpDcpflshI8Q41QQFjY8ackpOMsgW", // Admin@12345
+      roleName: "SYSTEM_ADMIN",
+    },
+    {
+      universityId: "ADVISER-001",
+      email: "adviser@advisio.edu.ph",
+      firstName: "Rachel",
+      lastName: "Lim",
+      passwordHash: "$2b$10$BbiQOmLIW0ipJR7m25KE7.H4MUNz5aah/F4MBnyiUcx.LRdO9O78i", // Adviser@12345
+      roleName: "ADVISER",
+    },
+    {
+      universityId: "STUDENT-001",
+      email: "student@advisio.edu.ph",
+      firstName: "Juan",
+      lastName: "Reyes",
+      passwordHash: "$2b$10$zCmHCBBl4OrmXMc2Ed6Rz.RAyvM6o0pI6KQ6j592uOx/AFr4yO6Wq", // Student@12345
+      roleName: "RESEARCHER",
+    },
+  ];
+
+  for (const u of initialUsers) {
+    const user = await prisma.user.upsert({
+      where: { email: u.email },
+      update: {
+        firstName: u.firstName,
+        lastName: u.lastName,
+        status: "ACTIVE",
+        collegeId: cit.id,
+        programId: bsit.id,
+      },
+      create: {
+        universityId: u.universityId,
+        email: u.email,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        passwordHash: u.passwordHash,
+        status: "ACTIVE",
+        collegeId: cit.id,
+        programId: bsit.id,
+      },
+    });
+
+    const roleId = rolesMap[u.roleName];
+    if (roleId) {
+      await prisma.userRole.upsert({
+        where: {
+          userId_roleId: {
+            userId: user.id,
+            roleId: roleId,
+          },
+        },
+        update: {},
+        create: {
+          userId: user.id,
+          roleId: roleId,
+        },
+      });
+    }
+  }
+
+  console.log("✅ Seed completed successfully! Default admin: admin@advisio.edu.ph / Admin@12345");
 }
 
 main()

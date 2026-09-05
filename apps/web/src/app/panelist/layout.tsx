@@ -34,9 +34,5 @@ function PanelistLayoutInner({ children }: { children: React.ReactNode }) {
 }
 
 export default function PanelistLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <Providers>
-      <PanelistLayoutInner>{children}</PanelistLayoutInner>
-    </Providers>
-  );
+  return <PanelistLayoutInner>{children}</PanelistLayoutInner>;
 }

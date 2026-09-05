@@ -8,6 +8,8 @@ import { UserChip } from "@/components/shared/UserChip";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import { useAuth } from "@/providers/auth-provider";
+import { useProfile } from "@/hooks/use-profile";
 import { cn } from "@/lib/utils";
 
 const MENU_SECTIONS = [
@@ -60,15 +62,11 @@ function SystemAdminSidebar() {
   const currentTab = searchParams.get("tab") || "overview";
   const { collapsed, toggle } = useSidebarCollapsed();
 
-  const profile = {
-    id: "system-admin-001",
-    name: "System Super Admin",
-    initials: "SA",
-    role: "system_admin",
-  };
+  const { profile } = useProfile();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    router.push("/login");
+    logout();
   };
 
   return (
@@ -166,6 +164,7 @@ function SystemAdminTopbar() {
   const searchParams = useSearchParams();
   const currentTab = searchParams.get("tab") || "overview";
   const { unreadCount } = useNotifications();
+  const { profile } = useProfile();
 
   const PAGE_TITLES: Record<string, string> = {
     "/system-admin/notifications": "Notifications",
@@ -208,7 +207,7 @@ function SystemAdminTopbar() {
           title="My Profile"
           aria-label="Go to profile"
         >
-          SA
+          {profile?.initials || "SA"}
         </Link>
       </div>
     </header>
@@ -238,9 +237,5 @@ function SystemAdminLayoutInner({ children }: { children: React.ReactNode }) {
 }
 
 export default function SystemAdminLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <Providers>
-      <SystemAdminLayoutInner>{children}</SystemAdminLayoutInner>
-    </Providers>
-  );
+  return <SystemAdminLayoutInner>{children}</SystemAdminLayoutInner>;
 }

@@ -102,6 +102,9 @@ const DEFAULT_DATA: ChatStoreData = {
   notifications: []
 };
 
+import { apiClient } from "./api-client";
+import { realtimeClient } from "./realtime/sse-client";
+
 export function getChatStore(): ChatStoreData {
   if (IS_SERVER) return DEFAULT_DATA;
   const stored = localStorage.getItem("advisio_chat_store");
@@ -119,4 +122,69 @@ export function getChatStore(): ChatStoreData {
 export function saveChatStore(data: ChatStoreData) {
   if (IS_SERVER) return;
   localStorage.setItem("advisio_chat_store", JSON.stringify(data));
+}
+
+// Auto-subscribe to SSE real-time chat messages
+if (!IS_SERVER) {
+  realtimeClient.on<GroupChatMessage>("chat:message", (newMessage) => {
+    if (!newMessage || !newMessage.id) return;
+    const current = getChatStore();
+    if (!current.messages.some((m) => m.id === newMessage.id)) {
+      current.messages.push(newMessage);
+      saveChatStore(current);
+      window.dispatchEvent(new CustomEvent("advisio:chat_updated", { detail: newMessage }));
+    }
+  });
+
+  realtimeClient.on<GroupChat>("chat:created", (newChat) => {
+    if (!newChat || !newChat.id) return;
+    const current = getChatStore();
+    if (!current.chats.some((c) => c.id === newChat.id)) {
+      current.chats.push(newChat);
+      saveChatStore(current);
+      window.dispatchEvent(new CustomEvent("advisio:chat_updated", { detail: newChat }));
+    }
+  });
+
+  realtimeClient.on<GroupChatInvitation>("chat:invitation", (newInv) => {
+    if (!newInv || !newInv.id) return;
+    const current = getChatStore();
+    if (!current.invitations.some((i) => i.id === newInv.id)) {
+      current.invitations.push(newInv);
+      saveChatStore(current);
+      window.dispatchEvent(new CustomEvent("advisio:chat_updated", { detail: newInv }));
+    }
+  });
+}
+
+export async function fetchRemoteChatStore(): Promise<ChatStoreData> {
+  try {
+    const data = await apiClient.get<ChatStoreData>("/api/chats");
+    if (data && data.chats) {
+      saveChatStore(data);
+      return data;
+    }
+  } catch {
+    // Fallback to local cache
+  }
+  return getChatStore();
+}
+
+export async function sendRemoteChatMessage(
+  chatId: string,
+  message: string,
+  senderName?: string,
+  senderRole?: "student" | "adviser"
+): Promise<GroupChatMessage | null> {
+  try {
+    const res = await apiClient.post<{ message: GroupChatMessage }>(`/api/chats/${chatId}/messages`, {
+      message,
+      senderName,
+      senderRole,
+    });
+    return res.message;
+  } catch (err) {
+    console.warn("Failed to send message to backend:", err);
+    return null;
+  }
 }

@@ -8,6 +8,8 @@ import { UserChip } from "@/components/shared/UserChip";
 import { useNotifications } from "@/hooks/use-notifications";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import { useAuth } from "@/providers/auth-provider";
+import { useProfile } from "@/hooks/use-profile";
 import { cn } from "@/lib/utils";
 
 const MENU_SECTIONS = [
@@ -79,15 +81,11 @@ function AdminSidebar() {
   const currentTab = searchParams.get("tab") || "overview";
   const { collapsed, toggle } = useSidebarCollapsed();
 
-  const profile = {
-    id: "admin-001",
-    name: "Admin User",
-    initials: "AU",
-    role: "admin",
-  };
+  const { profile } = useProfile();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    router.push("/login");
+    logout();
   };
 
   return (
@@ -185,6 +183,7 @@ function AdminTopbar() {
   const searchParams = useSearchParams();
   const currentTab = searchParams.get("tab") || "overview";
   const { unreadCount } = useNotifications();
+  const { profile } = useProfile();
 
   const PAGE_TITLES: Record<string, string> = {
     "/admin/notifications": "Notifications",
@@ -233,7 +232,7 @@ function AdminTopbar() {
           title="My Profile"
           aria-label="Go to profile"
         >
-          AU
+          {profile?.initials || "AU"}
         </Link>
       </div>
     </header>
@@ -263,9 +262,5 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 }
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <Providers>
-      <AdminLayoutInner>{children}</AdminLayoutInner>
-    </Providers>
-  );
+  return <AdminLayoutInner>{children}</AdminLayoutInner>;
 }
