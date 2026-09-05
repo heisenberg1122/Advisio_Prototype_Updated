@@ -306,9 +306,33 @@ export default function RegisterPage() {
 
               {/* Error Alert Display */}
               {error && (
-                <div className="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-[12px] text-red-700 flex items-start gap-2.5 animate-pulse-soft">
-                  <i className="ti ti-alert-circle text-base text-red-500 flex-shrink-0 mt-0.5" />
-                  <span>{error}</span>
+                <div className={`mb-5 p-3.5 rounded-xl border text-[12px] flex items-start gap-2.5 animate-pulse-soft ${
+                  error.toLowerCase().includes("already exists")
+                    ? "bg-amber-50 border-amber-300 text-amber-950"
+                    : "bg-red-50 border-red-200 text-red-700"
+                }`}>
+                  <i className={`text-base flex-shrink-0 mt-0.5 ${
+                    error.toLowerCase().includes("already exists")
+                      ? "ti ti-user-exclamation text-amber-600"
+                      : "ti ti-alert-circle text-red-500"
+                  }`} />
+                  <div className="leading-relaxed flex-1">
+                    {error.toLowerCase().includes("already exists") && (
+                      <strong className="block text-amber-950 font-bold mb-0.5">Account Already Exists</strong>
+                    )}
+                    <span>{error}</span>
+                    {error.toLowerCase().includes("already exists") && (
+                      <div className="mt-2 pt-2 border-t border-amber-200 flex items-center justify-between">
+                        <span className="text-[11px] text-amber-800">Did you already register this account?</span>
+                        <Link
+                          href="/login"
+                          className="font-extrabold text-[#1b4264] hover:text-[#ffa400] underline text-[11.5px] transition"
+                        >
+                          Sign In Here →
+                        </Link>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

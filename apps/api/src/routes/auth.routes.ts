@@ -21,7 +21,13 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
     });
 
     if (existingUser) {
-      res.status(409).json({ error: "User with this email or university ID already exists" });
+      const isEmailMatch = existingUser.email.toLowerCase() === normalizedEmail;
+      const matchLabel = isEmailMatch 
+        ? `email address (${normalizedEmail})` 
+        : `University ID (${universityId})`;
+      res.status(409).json({ 
+        error: `An account with this ${matchLabel} already exists. If this is your account, please sign in or contact admin01@university.edu.ph.` 
+      });
       return;
     }
 
