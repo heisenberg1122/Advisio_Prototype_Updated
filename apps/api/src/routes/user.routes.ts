@@ -92,4 +92,58 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+// PATCH /api/users/:id/status
+router.patch("/:id/status", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { status } = req.body;
+
+    if (!status || !["ACTIVE", "INACTIVE", "SUSPENDED", "PENDING"].includes(String(status).toUpperCase())) {
+      res.status(400).json({ error: "Invalid status value" });
+      return;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: { status: String(status).toUpperCase() as any },
+      select: {
+        id: true,
+        universityId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        status: true,
+      },
+    });
+
+    res.json({ message: `User status updated to ${updatedUser.status}`, user: updatedUser });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to update user status" });
+  }
+});
+
+// POST /api/users/:id/approve
+router.post("/:id/approve", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: { status: "ACTIVE" },
+      select: {
+        id: true,
+        universityId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        status: true,
+      },
+    });
+
+    res.json({ message: "User account verified and approved successfully", user: updatedUser });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to approve user account" });
+  }
+});
+
 export default router;

@@ -184,6 +184,14 @@ async function main() {
   const initialUsers = [
     {
       universityId: "SYSADMIN-001",
+      email: "admin01@university.edu.ph",
+      firstName: "Admin",
+      lastName: "Officer",
+      passwordHash: "$2b$10$uciAmngb6Ztr3vbzoL6o1uVgFpDcpflshI8Q41QQFjY8ackpOMsgW", // Admin@12345
+      roleName: "SYSTEM_ADMIN",
+    },
+    {
+      universityId: "SYSADMIN-002",
       email: "admin@advisio.edu.ph",
       firstName: "System",
       lastName: "Administrator",

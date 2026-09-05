@@ -20,7 +20,7 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password?: string) => Promise<{ success: boolean; role?: string; error?: string }>;
-  register: (payload: any) => Promise<{ success: boolean; error?: string }>;
+  register: (payload: any) => Promise<{ success: boolean; isPending?: boolean; message?: string; user?: any; error?: string }>;
   logout: () => void;
 }
 
@@ -85,19 +85,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await apiClient.post<{
         message: string;
-        token: string;
+        token?: string;
+        status?: string;
         user: any;
       }>("/api/auth/register", payload);
 
-      localStorage.setItem("advisio_token", data.token);
-      setToken(data.token);
+      if (data.token) {
+        localStorage.setItem("advisio_token", data.token);
+        setToken(data.token);
 
-      const profile = await apiClient.get<{ user: UserProfile }>("/api/auth/me").catch(() => null);
-      if (profile) {
-        setUser(profile.user);
+        const profile = await apiClient.get<{ user: UserProfile }>("/api/auth/me").catch(() => null);
+        if (profile) {
+          setUser(profile.user);
+        }
       }
 
-      return { success: true };
+      return {
+        success: true,
+        isPending: data.status === "PENDING" || !data.token,
+        message: data.message,
+        user: data.user,
+      };
     } catch (error: any) {
       return { success: false, error: error.message || "Failed to register" };
     }

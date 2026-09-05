@@ -186,9 +186,22 @@ export default function LoginPage() {
 
             {/* Error Alert Display */}
             {error && (
-              <div className="mb-5 p-3 rounded-lg bg-red-50 border border-red-200 text-[12px] text-red-700 flex items-start gap-2 animate-pulse-soft">
-                <i className="ti ti-alert-circle text-[16px] text-red-500 flex-shrink-0 mt-0.5" />
-                <span>{error}</span>
+              <div className={`mb-5 p-3.5 rounded-xl border text-[12px] flex items-start gap-2.5 animate-pulse-soft ${
+                error.toLowerCase().includes("pending") || error.toLowerCase().includes("admin01")
+                  ? "bg-amber-50 border-amber-300 text-amber-900"
+                  : "bg-red-50 border-red-200 text-red-700"
+              }`}>
+                <i className={`text-[16px] flex-shrink-0 mt-0.5 ${
+                  error.toLowerCase().includes("pending") || error.toLowerCase().includes("admin01")
+                    ? "ti ti-clock-pause text-amber-600"
+                    : "ti ti-alert-circle text-red-500"
+                }`} />
+                <div className="leading-relaxed">
+                  {error.toLowerCase().includes("pending") && (
+                    <strong className="block text-amber-950 font-bold mb-0.5">Verification Required</strong>
+                  )}
+                  <span>{error}</span>
+                </div>
               </div>
             )}
 
@@ -275,12 +288,12 @@ export default function LoginPage() {
 
             {/* Bottom Activation Hint */}
             <div className="text-center text-[12.5px] text-slate-500 mt-6 pt-4 border-t border-slate-100">
-              Don't have access yet?{" "}
+              Don't have an account yet?{" "}
               <Link 
                 href="/register" 
                 className="font-bold text-[#1b4264] hover:text-[#ffa400] transition-colors"
               >
-                Activate Account
+                Create Account (Requires Admin Approval)
               </Link>
             </div>
             
@@ -339,9 +352,9 @@ export default function LoginPage() {
                     </button>
                     <button 
                       onClick={() => handleFillDemo("admin01@university.edu.ph")}
-                      className="px-2 py-1 text-left bg-slate-50 hover:bg-[#ffa400]/10 border border-slate-200 rounded text-slate-700 hover:border-[#ffa400] transition text-[10px] cursor-pointer"
+                      className="px-2 py-1 text-left bg-[#1b4264]/5 hover:bg-[#ffa400]/15 border border-[#1b4264]/20 rounded text-slate-700 hover:border-[#ffa400] transition text-[10px] cursor-pointer"
                     >
-                      <span className="font-bold block text-[#1b4264]">Administrator</span>
+                      <span className="font-extrabold block text-[#1b4264]">Admin (Verifies Users)</span>
                       admin01@university...
                     </button>
                     <button 

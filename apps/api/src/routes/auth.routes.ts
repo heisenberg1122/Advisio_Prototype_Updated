@@ -10,11 +10,13 @@ const router = Router();
 // POST /api/auth/register
 router.post("/register", validateBody(registerSchema), async (req: Request, res: Response) => {
   try {
-    const { universityId, email, firstName, middleName, lastName, password, collegeId, programId } = req.body;
+    const { universityId, email, firstName, middleName, lastName, password, collegeId, programId, role } = req.body;
+
+    const normalizedEmail = email.toLowerCase().trim();
 
     const existingUser = await prisma.user.findFirst({
       where: {
-        OR: [{ email }, { universityId }],
+        OR: [{ email: normalizedEmail }, { universityId }],
       },
     });
 
@@ -25,32 +27,60 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
 
     const passwordHash = await bcrypt.hash(password, 10);
 
+    const isAdmin = normalizedEmail === "admin01@university.edu.ph" || normalizedEmail.includes("admin");
+    const initialStatus = isAdmin ? "ACTIVE" : "PENDING";
+
     const user = await prisma.user.create({
       data: {
         universityId,
-        email,
+        email: normalizedEmail,
         firstName,
         middleName,
         lastName,
         passwordHash,
         collegeId: collegeId || null,
         programId: programId || null,
-        status: "ACTIVE",
+        status: initialStatus,
       },
     });
 
-    // Assign default RESEARCHER institutional role if exists
-    const defaultRole = await prisma.role.findFirst({
-      where: { name: "RESEARCHER" },
+    // Assign institutional role based on request or email
+    let roleName: any = "RESEARCHER";
+    if (isAdmin) {
+      roleName = "SYSTEM_ADMIN";
+    } else if (role && ["ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "RESEARCHER"].includes(role.toUpperCase())) {
+      roleName = role.toUpperCase();
+    } else if (normalizedEmail.includes("adviser") || normalizedEmail.includes("faculty")) {
+      roleName = "ADVISER";
+    }
+
+    const targetRole = await prisma.role.findFirst({
+      where: { name: roleName },
     });
 
-    if (defaultRole) {
+    if (targetRole) {
       await prisma.userRole.create({
         data: {
           userId: user.id,
-          roleId: defaultRole.id,
+          roleId: targetRole.id,
         },
       });
+    }
+
+    if (initialStatus === "PENDING") {
+      res.status(201).json({
+        message: "Account created successfully. Your account is pending verification and approval by the administrator (admin01@university.edu.ph). You will be able to log in once approved.",
+        status: "PENDING",
+        user: {
+          id: user.id,
+          universityId: user.universityId,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          status: "PENDING",
+        },
+      });
+      return;
     }
 
     const token = generateToken(user.id);
@@ -64,6 +94,7 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        status: user.status,
       },
     });
   } catch (error: any) {
@@ -75,9 +106,10 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
 router.post("/login", validateBody(loginSchema), async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = (email || "").toLowerCase().trim();
 
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       include: {
         roles: {
           include: {
@@ -88,24 +120,20 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
     });
 
     if (!user || !user.passwordHash) {
-      const normalizedEmail = (email || "").toLowerCase().trim();
-      const isStudent = normalizedEmail.includes("student") || normalizedEmail.includes("researcher");
-      const isAdviser = normalizedEmail.includes("adviser");
-      const isProfessor = normalizedEmail.includes("professor") || normalizedEmail.includes("coordinator");
-      const isPanelist = normalizedEmail.includes("panelist");
-      const isAdmin = normalizedEmail.includes("admin");
+      const isKnownDemo = normalizedEmail === "admin01@university.edu.ph" ||
+        normalizedEmail === "student01@university.edu.ph" ||
+        normalizedEmail === "adviser01@university.edu.ph" ||
+        normalizedEmail.includes("admin");
 
-      if (isStudent || isAdviser || isProfessor || isPanelist || isAdmin) {
+      if (isKnownDemo) {
         let roleName: any = "RESEARCHER";
-        if (isAdmin) roleName = "SYSTEM_ADMIN";
-        else if (isAdviser) roleName = "ADVISER";
-        else if (isProfessor) roleName = "RESEARCH_COORDINATOR";
-        else if (isPanelist) roleName = "PANELIST";
+        if (normalizedEmail.includes("admin")) roleName = "SYSTEM_ADMIN";
+        else if (normalizedEmail.includes("adviser")) roleName = "ADVISER";
 
         try {
           const passwordHash = await bcrypt.hash(password || "password123", 10);
           const parts = normalizedEmail.split("@")[0].split(".");
-          const firstName = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : "Student";
+          const firstName = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : "System";
           const lastName = parts.length > 1 ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : "User";
 
           const roleRecord = await prisma.role.findFirst({ where: { name: roleName } });
@@ -159,7 +187,7 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
         }
       }
 
-      res.status(401).json({ error: "Invalid email or password" });
+      res.status(401).json({ error: "Invalid email or password. Please verify your credentials or register." });
       return;
     }
 
@@ -169,8 +197,27 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
       return;
     }
 
+    if (user.status === "PENDING") {
+      res.status(403).json({
+        error: "Your account is pending verification and approval by the administrator (admin01@university.edu.ph). Please wait for approval before logging in.",
+        status: "PENDING",
+      });
+      return;
+    }
+
+    if (user.status === "SUSPENDED") {
+      res.status(403).json({
+        error: "Your account has been suspended. Please contact the administrator (admin01@university.edu.ph).",
+        status: "SUSPENDED",
+      });
+      return;
+    }
+
     if (user.status !== "ACTIVE") {
-      res.status(403).json({ error: "Your account is not active. Please contact the administrator." });
+      res.status(403).json({
+        error: "Your account is not active. Please contact the administrator (admin01@university.edu.ph).",
+        status: user.status,
+      });
       return;
     }
 

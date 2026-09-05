@@ -18,7 +18,7 @@ function AdminDashboardContent() {
   const { isDark, toggleTheme } = useTheme();
 
   // Query live users and projects
-  const { data: usersData } = useQuery({
+  const { data: usersData, refetch: refetchUsers } = useQuery({
     queryKey: ["admin-users"],
     queryFn: () => apiClient.get<{ users: any[] }>("/api/users").catch(() => ({ users: [] })),
     staleTime: 60000,
@@ -112,6 +112,7 @@ function AdminDashboardContent() {
     if (!selectedUser) return;
     try {
       await apiClient.patch(`/api/users/${selectedUser.id}/status`, { status: "ACTIVE" });
+      refetchUsers();
     } catch (e) {}
     setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, status: "active" } : u));
     setModalApprove(false);
@@ -122,6 +123,7 @@ function AdminDashboardContent() {
     if (!selectedUser) return;
     try {
       await apiClient.patch(`/api/users/${selectedUser.id}/status`, { status: "SUSPENDED" });
+      refetchUsers();
     } catch (e) {}
     setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, status: "suspended" } : u));
     setModalSuspend(false);
