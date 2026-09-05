@@ -14,10 +14,12 @@ interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
 }
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { params, headers = {}, ...rest } = options;
 
-  let url = endpoint;
+  let url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint}`;
   if (params) {
     const searchParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -48,7 +50,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
   if (!response.ok) {
     throw new ApiError(
-      data.error || data.message || "An unexpected error occurred",
+      data.error || data.message || (response.status === 404 ? "Backend API service is unreachable (404). Please ensure the API server is running." : "An unexpected error occurred"),
       response.status,
       data.details
     );
