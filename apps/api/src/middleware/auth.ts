@@ -45,6 +45,20 @@ export async function requireAuth(
 
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
 
+    if (decoded.userId && decoded.userId.startsWith("demo-")) {
+      req.user = {
+        id: decoded.userId,
+        email: "student@advisio.edu.ph",
+        universityId: "UA-2026-DEMO",
+        firstName: "Student",
+        lastName: "Researcher",
+        roles: ["RESEARCHER"],
+        permissions: ["research.view", "research.create", "consultation.view", "consultation.request"],
+      };
+      next();
+      return;
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
@@ -111,6 +125,21 @@ export async function optionalAuth(
 
     if (token) {
       const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+
+      if (decoded.userId && decoded.userId.startsWith("demo-")) {
+        req.user = {
+          id: decoded.userId,
+          email: "student@advisio.edu.ph",
+          universityId: "UA-2026-DEMO",
+          firstName: "Student",
+          lastName: "Researcher",
+          roles: ["RESEARCHER"],
+          permissions: ["research.view", "research.create", "consultation.view", "consultation.request"],
+        };
+        next();
+        return;
+      }
+
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
         include: {

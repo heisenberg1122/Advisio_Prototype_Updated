@@ -19,7 +19,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "node dist/seed.js"
+    "db:seed": "node dist/seed.js",
+    "seed": "node dist/seed.js"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1"
