@@ -21,13 +21,13 @@ function AdviserLayoutInner({ children }: { children: React.ReactNode }) {
         <AdviserSidebar />
       </Suspense>
 
-      <div className="flex flex-col bg-slate-50 overflow-hidden text-slate-800 min-w-0">
+      <div className="flex flex-col bg-slate-50 overflow-hidden text-slate-800 min-w-0 h-screen">
         <Suspense fallback={<header className="h-[52px] bg-white border-b border-slate-200" />}>
           <AdviserTopbar />
         </Suspense>
-        <main className="flex-1 overflow-y-auto p-6 lg:px-8">
+        <div className="flex-1 overflow-y-auto min-w-0 flex flex-col">
           {children}
-        </main>
+        </div>
       </div>
     </div>
   );

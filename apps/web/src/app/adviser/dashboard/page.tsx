@@ -1041,6 +1041,9 @@ function AdviserDashboardContent() {
             "group-chats": (
               <AdviserGroupChats triggerToast={triggerToast} />
             ),
+            chat: (
+              <AdviserGroupChats triggerToast={triggerToast} />
+            ),
           };
 
           return tabContent[activeTab] || tabContent.overview;

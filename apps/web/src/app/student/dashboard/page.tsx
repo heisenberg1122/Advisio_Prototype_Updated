@@ -439,14 +439,452 @@ function StudentDashboardContent() {
     router.push(`/student/dashboard?tab=${tab}`);
   };
 
+  const [consultFilter, setConsultFilter] = useState<"all" | "approved" | "pending">("all");
+
+  const renderConsultationsHub = () => {
+    const filteredConsultations = consultations.filter((c: any) => {
+      if (consultFilter === "approved") return c.status !== "pending" && c.status !== "requested";
+      if (consultFilter === "pending") return c.status === "pending" || c.status === "requested";
+      return true;
+    });
+
+    return (
+      <div className="flex flex-col gap-6">
+        {/* Header Banner */}
+        <div className="bg-gradient-to-r from-[#1b4264] via-[#225580] to-[#1b4264] text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <span className="text-[11px] font-extrabold text-[#ffa400] uppercase tracking-wider block">
+              Adviser Consultations & Scheduled Meetings
+            </span>
+            <h2 className="text-xl font-black mt-0.5">Faculty Consultation Repository & Video Rooms</h2>
+            <p className="text-xs text-slate-200 mt-1">
+              Book advising slots, launch synchronized Google Meet rooms, and review auto-indexed meeting transcripts.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleStartConference(DEFAULT_SHARED_MEET_URL, "Advising Video Conference")}
+              className="px-4 py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-xl text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <i className="ti ti-video font-bold" />
+              <span>Instant Google Meet</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 2-Column Responsive Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column: Scheduled Sessions & History (7 of 12) */}
+          <div className="lg:col-span-7 flex flex-col gap-5">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-extrabold text-[#1b4264] text-[15px] flex items-center gap-2">
+                    <i className="ti ti-calendar-time text-[#ffa400]" />
+                    Scheduled Sessions
+                  </h3>
+                  <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                    {consultations.length}
+                  </span>
+                </div>
+
+                {/* Filter Chips */}
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-bold">
+                  <button
+                    onClick={() => setConsultFilter("all")}
+                    className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                      consultFilter === "all" ? "bg-white text-[#1b4264] shadow-sm" : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    All ({consultations.length})
+                  </button>
+                  <button
+                    onClick={() => setConsultFilter("approved")}
+                    className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                      consultFilter === "approved" ? "bg-white text-[#1b4264] shadow-sm" : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Confirmed
+                  </button>
+                  <button
+                    onClick={() => setConsultFilter("pending")}
+                    className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                      consultFilter === "pending" ? "bg-white text-[#1b4264] shadow-sm" : "text-slate-500 hover:text-slate-800"
+                    }`}
+                  >
+                    Pending
+                  </button>
+                </div>
+              </div>
+
+              {filteredConsultations.length > 0 ? (
+                <div className="flex flex-col gap-3.5">
+                  {filteredConsultations.map((c: any) => (
+                    <div
+                      key={c.id}
+                      className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-3 shadow-sm hover:border-[#1b4264] transition"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-[#1b4264] text-[13.5px]">{c.topic}</span>
+                            <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
+                              {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
+                            </Tag>
+                          </div>
+                          <span className="text-[11px] text-slate-500 block mt-0.5">
+                            {c.groupName || "Research Group"} · {c.date} at {c.time} ({c.mode})
+                          </span>
+                          {c.meetingUrl && (
+                            <span className="font-mono text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 inline-block mt-1">
+                              {c.meetingUrl}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                          <button
+                            onClick={() => handleOpenTranscriptModal(c)}
+                            className="px-3 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-xs shadow-sm cursor-pointer transition flex items-center gap-1"
+                          >
+                            <i className="ti ti-file-text text-amber-500" />
+                            <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "Notes & Chat" : "Import Chat"}</span>
+                          </button>
+                          {c.status === "pending" || c.status === "requested" ? (
+                            <span className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 font-bold rounded-lg text-xs flex items-center gap-1">
+                              <i className="ti ti-clock" />
+                              <span>Pending</span>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow transition cursor-pointer flex items-center gap-1"
+                            >
+                              <i className="ti ti-video" />
+                              <span>Join Meet</span>
+                            </button>
+                          )}
+                          {c.meetingUrl && (
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(c.meetingUrl);
+                                triggerToast("Copied Google Meet link!");
+                              }}
+                              title="Copy Meet Link"
+                              className="p-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-slate-600 cursor-pointer text-xs"
+                            >
+                              <i className="ti ti-copy" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {c.notes && (
+                        <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs text-slate-700">
+                          <span className="font-bold text-[#1b4264] block mb-1">Adviser Feedback & Summary:</span>
+                          <p className="whitespace-pre-wrap">{c.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-2xl">
+                    <i className="ti ti-calendar-off" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-[#1b4264] text-sm">No Consultations Found</h4>
+                    <p className="text-slate-500 text-xs max-w-sm mt-1">
+                      {consultFilter === "all"
+                        ? "You have not booked any advising consultations yet. Use the booking form on the right to schedule a session."
+                        : `No ${consultFilter} consultations found.`}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Quick Booking Form + Instant Meet + Guidelines (5 of 12) */}
+          <div className="lg:col-span-5 flex flex-col gap-5">
+            {/* Card 1: Book Consultation Form */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
+              <h3 className="font-extrabold text-[#1b4264] text-[15px] flex items-center gap-2">
+                <i className="ti ti-calendar-plus text-[#ffa400]" />
+                Book a Consultation Session
+              </h3>
+              <p className="text-slate-400 text-[11px] font-bold">
+                Submit your preferred date and topic to your research adviser.
+              </p>
+              <form onSubmit={handleRequestConsult} className="flex flex-col gap-3 text-xs">
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold text-slate-700">Discussion Topic *</label>
+                  <input
+                    required
+                    type="text"
+                    value={consultTopic}
+                    onChange={(e) => setConsultTopic(e.target.value)}
+                    placeholder="e.g. Chapter 3 Methodology Validation"
+                    className="bg-white border border-slate-300 rounded-lg p-2.5 focus:outline-none focus:border-[#ffa400]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold text-slate-700">Preferred Date *</label>
+                    <input
+                      required
+                      type="date"
+                      value={consultDate}
+                      onChange={(e) => setConsultDate(e.target.value)}
+                      className="bg-white border border-slate-300 rounded-lg p-2.5 focus:outline-none focus:border-[#ffa400]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="font-bold text-slate-700">Preferred Time *</label>
+                    <input
+                      required
+                      type="text"
+                      value={consultTime}
+                      onChange={(e) => setConsultTime(e.target.value)}
+                      placeholder="10:00 AM"
+                      className="bg-white border border-slate-300 rounded-lg p-2.5 focus:outline-none focus:border-[#ffa400]"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold text-slate-700">Meeting Mode</label>
+                  <select
+                    value={consultMode}
+                    onChange={(e) => setConsultMode(e.target.value)}
+                    className="bg-white border border-slate-300 rounded-lg p-2.5 focus:outline-none focus:border-[#ffa400]"
+                  >
+                    <option value="Video Call">Google Meet (Online Video Conference)</option>
+                    <option value="In-Person">In-Person (Faculty Consultation Room)</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-lg shadow transition cursor-pointer mt-1"
+                >
+                  Submit Consultation Request
+                </button>
+              </form>
+            </div>
+
+            {/* Card 2: Instant Meet Launch */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-extrabold text-[#1b4264] uppercase tracking-wider flex items-center gap-1.5">
+                  <i className="ti ti-video text-emerald-600" />
+                  Live Conferencing Room
+                </span>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Ready
+                </span>
+              </div>
+              <p className="text-slate-500 text-xs">
+                Need an immediate sync with your team members or adviser? Launch a synchronized Google Meet room with floating transcript window.
+              </p>
+              <button
+                onClick={() => handleStartConference(DEFAULT_SHARED_MEET_URL, `${group?.name || "Student"} Instant Room`)}
+                className="w-full py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-extrabold rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <i className="ti ti-external-link" />
+                <span>Launch Instant Meet Room</span>
+              </button>
+            </div>
+
+            {/* Card 3: Consultation Guidelines */}
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 text-xs flex flex-col gap-2">
+              <span className="font-bold text-[#1b4264] flex items-center gap-1.5">
+                <i className="ti ti-info-circle text-[#ffa400]" />
+                Advising Guidelines & Policies
+              </span>
+              <ul className="list-disc list-inside text-slate-600 space-y-1 text-[11px]">
+                <li>Book consultations at least 48 hours in advance.</li>
+                <li>Upload your updated draft to Document Workspace prior to the call.</li>
+                <li>In-call chats and action items are automatically preserved for compliance.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSubmissionsHub = () => {
+    return (
+      <div className="flex flex-col gap-6">
+        {/* Header Banner */}
+        <div className="bg-gradient-to-r from-[#1b4264] via-[#225580] to-[#1b4264] text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <span className="text-[11px] font-extrabold text-[#ffa400] uppercase tracking-wider block">
+              Research Submissions & Version Control
+            </span>
+            <h2 className="text-xl font-black mt-0.5">Manuscript Draft Submissions & Review Center</h2>
+            <p className="text-xs text-slate-200 mt-1">
+              Submit formal drafts for faculty review, track incremental version diffs, and view approval endorsements.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleTabChange("workspace")}
+              className="px-4 py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-xl text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <i className="ti ti-edit font-bold" />
+              <span>Open Document Workspace</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 2-Column Responsive Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column: Submissions & Version Control History (7 of 12) */}
+          <div className="lg:col-span-7 flex flex-col gap-5">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <h3 className="font-extrabold text-[#1b4264] text-[15px] flex items-center gap-2">
+                  <i className="ti ti-history text-[#ffa400]" />
+                  Manuscript Versions & Upload History
+                </h3>
+                <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+                  {combinedSubmissions.length} Version{combinedSubmissions.length === 1 ? "" : "s"}
+                </span>
+              </div>
+
+              {combinedSubmissions.length > 0 ? (
+                <div className="flex flex-col gap-3">
+                  {combinedSubmissions.map((sub: any) => (
+                    <div
+                      key={sub.id}
+                      className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs shadow-sm hover:border-[#1b4264] transition"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-lg flex-shrink-0">
+                          <i className="ti ti-file-text" />
+                        </div>
+                        <div>
+                          <span className="font-bold text-[#1b4264] text-[13px] block">{sub.docName}</span>
+                          <span className="text-[11px] text-slate-500">
+                            {sub.milestone || "Chapter Draft"} · Version {sub.version} · {sub.date}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Tag variant={sub.status === "approved" ? "success" : "warn"}>
+                          {sub.status === "approved" ? "Approved" : "Pending Review"}
+                        </Tag>
+                        <button
+                          onClick={() => handleTabChange("workspace")}
+                          className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-[#1b4264] font-bold text-xs cursor-pointer transition flex items-center gap-1"
+                        >
+                          <i className="ti ti-edit" />
+                          <span>Edit</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-2xl">
+                    <i className="ti ti-upload" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-[#1b4264] text-sm">No Manuscript Submissions Yet</h4>
+                    <p className="text-slate-500 text-xs max-w-sm mt-1">
+                      Upload your initial proposal outline or chapter drafts using the submission form on the right.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Upload Form + Guidelines (5 of 12) */}
+          <div className="lg:col-span-5 flex flex-col gap-5">
+            {/* Card 1: Upload Manuscript Form */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
+              <h3 className="font-extrabold text-[#1b4264] text-[15px] flex items-center gap-2">
+                <i className="ti ti-cloud-upload text-[#ffa400]" />
+                Submit Draft Manuscript
+              </h3>
+              <p className="text-slate-400 text-[11px] font-bold">
+                Submit your document draft for adviser endorsement and review.
+              </p>
+              <form onSubmit={handleUploadDoc} className="flex flex-col gap-3 text-xs">
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold text-slate-700">Milestone Stage *</label>
+                  <select
+                    value={uploadMilestone}
+                    onChange={(e) => setUploadMilestone(e.target.value)}
+                    className="bg-white border border-slate-300 rounded-lg p-2.5 focus:outline-none focus:border-[#ffa400]"
+                  >
+                    <option value="Proposal Outline">Proposal Outline & Scope</option>
+                    <option value="Draft Submission">Chapter 1-3 Review Draft</option>
+                    <option value="Ethics Application">Ethics Clearance Forms</option>
+                    <option value="Final Manuscript">Final Defense Full Manuscript</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="font-bold text-slate-700">Document Title *</label>
+                  <input
+                    required
+                    type="text"
+                    value={uploadFileName}
+                    onChange={(e) => setUploadFileName(e.target.value)}
+                    placeholder="e.g. Chapter 3 Methodology Draft v1.0"
+                    className="bg-white border border-slate-300 rounded-lg p-2.5 focus:outline-none focus:border-[#ffa400]"
+                  />
+                </div>
+
+                <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center flex flex-col items-center justify-center gap-1.5">
+                  <i className="ti ti-file-upload text-2xl text-slate-400" />
+                  <span className="text-[11.5px] font-bold text-slate-600">Drag & Drop Manuscript (PDF / DOCX)</span>
+                  <span className="text-[10px] text-slate-400">Maximum file size: 25 MB</span>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-lg shadow transition cursor-pointer mt-1"
+                >
+                  Submit Manuscript for Review
+                </button>
+              </form>
+            </div>
+
+            {/* Card 2: Submission Guidelines */}
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 text-xs flex flex-col gap-2">
+              <span className="font-bold text-[#1b4264] flex items-center gap-1.5">
+                <i className="ti ti-checklist text-emerald-600" />
+                Submission Standards Checklist
+              </span>
+              <ul className="list-disc list-inside text-slate-600 space-y-1 text-[11px]">
+                <li>Turnitin similarity score must be strictly under 15%.</li>
+                <li>Include faculty adviser formal endorsement slip.</li>
+                <li>Use standard institutional margins (1.5" left, 1" top/right/bottom).</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const tabsList = [
-    { id: "overview", label: "Overview", icon: "ti-layout-dashboard" },
-    { id: "workspace", label: "Document Workspace", icon: "ti-file-text" },
-    { id: "submissions", label: "Submissions", icon: "ti-folder-check", badge: combinedSubmissions.length },
-    { id: "consultations", label: "Consultations", icon: "ti-calendar-event", badge: consultations.length },
-    { id: "history", label: "Consultation History", icon: "ti-history" },
-    { id: "milestones", label: "Workflow Milestones", icon: "ti-timeline" },
-    { id: "chat", label: "Group Chat", icon: "ti-messages" },
+    { id: "overview", label: "Overview", icon: "ti-layout-dashboard", matches: ["overview", ""] },
+    { id: "workspace", label: "Document Workspace", icon: "ti-file-text", matches: ["workspace"] },
+    { id: "submissions", label: "Submissions", icon: "ti-folder-check", badge: combinedSubmissions.length, matches: ["submissions", "submission", "version-control"] },
+    { id: "consultations", label: "Consultations", icon: "ti-calendar-event", badge: consultations.length, matches: ["consultations", "consultation-repo", "consultation-requests", "conferencing"] },
+    { id: "history", label: "Consultation History", icon: "ti-history", matches: ["history"] },
+    { id: "milestones", label: "Workflow Milestones", icon: "ti-timeline", matches: ["milestones", "progress"] },
+    { id: "group-chats", label: "Group Chat", icon: "ti-messages", matches: ["group-chats", "chat"] },
   ];
 
   return (
@@ -463,7 +901,7 @@ function StudentDashboardContent() {
       <div className="bg-white border-b border-slate-200 px-6 pt-3 flex items-center justify-between overflow-x-auto shadow-sm">
         <div className="flex gap-2">
           {tabsList.map((tab) => {
-            const isActive = activeTab === tab.id;
+            const isActive = tab.matches ? tab.matches.includes(activeTab) : activeTab === tab.id;
             return (
               <button
                 key={tab.id}
@@ -647,32 +1085,143 @@ function StudentDashboardContent() {
                   </div>
                 </div>
 
-                {/* Quick Summary View */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                    <h3 className="font-extrabold text-[#1b4264] text-[14px]">Active Study Information</h3>
-                    <div className="text-[12px] text-slate-650 flex flex-col gap-2">
-                      <div><strong>Title:</strong> {group?.projectTitle || "No project registered"}</div>
-                      <div><strong>Represented Group:</strong> {group?.members?.length > 0 ? group.members.join(", ") : `${user?.firstName || "Student"} ${user?.lastName || ""}`}</div>
-                      <div><strong>Official Adviser:</strong> {group?.adviser || "Not Assigned"}</div>
+                {/* Enhanced Bottom Cards: 4-card balanced grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {/* Card 1: Active Study Information */}
+                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
+                    <div className="flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
+                          <i className="ti ti-school text-[#ffa400]" />
+                          Study Overview
+                        </span>
+                        <Tag variant={group ? "success" : "info"}>{group ? "Enrolled" : "Draft"}</Tag>
+                      </div>
+                      <h4 className="font-extrabold text-[#1b4264] text-[13.5px] leading-snug line-clamp-2">
+                        {group?.projectTitle || "No project registered yet"}
+                      </h4>
+                      <div className="text-[11.5px] text-slate-500 flex flex-col gap-1 mt-1">
+                        <div><strong className="text-slate-700">Team:</strong> {group?.members?.length > 0 ? group.members.join(", ") : `${user?.firstName || "Student"} ${user?.lastName || ""}`}</div>
+                        <div><strong className="text-slate-700">Adviser:</strong> {group?.adviser || "Not Assigned"}</div>
+                      </div>
                     </div>
+                    <button
+                      onClick={() => handleTabChange(group ? "workspace" : "group")}
+                      className="w-full py-2 bg-slate-100 hover:bg-[#1b4264] hover:text-[#ffa400] text-slate-700 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <i className="ti ti-arrow-right text-xs" />
+                      <span>{group ? "Open Workspace" : "Manage Group"}</span>
+                    </button>
                   </div>
 
-                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                    <h3 className="font-extrabold text-[#1b4264] text-[14px]">Upcoming Milestones</h3>
+                  {/* Card 2: Upcoming Milestones */}
+                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
                     <div className="flex flex-col gap-2.5">
-                      {milestones.length > 0 ? (
-                        milestones.slice(0, 3).map(m => (
-                          <div key={m.id} className="flex justify-between items-center text-[12.5px] p-2 bg-slate-50 border border-slate-200 rounded">
-                            <span className="font-bold text-[#1b4264]">{m.title}</span>
-                            <Tag variant={m.status==='completed'?'success':m.status==='in-progress'?'warn':'info'}>{m.status}</Tag>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
+                          <i className="ti ti-timeline text-[#ffa400]" />
+                          Workflow Milestones
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-400">{milestones.length} Tasks</span>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        {milestones.length > 0 ? (
+                          milestones.slice(0, 2).map(m => (
+                            <div key={m.id} className="flex justify-between items-center text-[12px] p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                              <span className="font-bold text-[#1b4264] truncate max-w-[140px]">{m.title}</span>
+                              <Tag variant={m.status === "completed" ? "success" : m.status === "in-progress" ? "warn" : "info"}>{m.status}</Tag>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                            No active milestones. Register your project to generate deadlines.
                           </div>
-                        ))
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleTabChange("milestones")}
+                      className="w-full py-2 bg-slate-100 hover:bg-[#1b4264] hover:text-[#ffa400] text-slate-700 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <i className="ti ti-list-details text-xs" />
+                      <span>View All Milestones</span>
+                    </button>
+                  </div>
+
+                  {/* Card 3: Next Consultation & Google Meet */}
+                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
+                    <div className="flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
+                          <i className="ti ti-calendar-event text-[#ffa400]" />
+                          Next Consultation
+                        </span>
+                        <Tag variant={consultations.length > 0 ? "success" : "info"}>{consultations.length > 0 ? "Scheduled" : "None"}</Tag>
+                      </div>
+                      {consultations.length > 0 ? (
+                        <div className="p-2.5 bg-blue-50/50 border border-blue-100 rounded-lg flex flex-col gap-1 text-[12px]">
+                          <span className="font-bold text-[#1b4264] truncate">{consultations[0].topic}</span>
+                          <span className="text-[11px] text-slate-500">{consultations[0].date} · {consultations[0].time}</span>
+                        </div>
                       ) : (
-                        <div className="text-xs text-slate-400 py-4 text-center">
-                          No milestones recorded yet. Register your research study to initiate workflow.
+                        <div className="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                          No upcoming consultations booked yet.
                         </div>
                       )}
+                    </div>
+                    <button
+                      onClick={() => handleTabChange("consultations")}
+                      className="w-full py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] text-xs font-extrabold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                    >
+                      <i className="ti ti-plus font-bold text-xs" />
+                      <span>Book Consultation</span>
+                    </button>
+                  </div>
+
+                  {/* Card 4: Quick Collaboration Tools */}
+                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
+                    <div className="flex flex-col gap-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
+                          <i className="ti ti-bolt text-[#ffa400]" />
+                          Quick Actions
+                        </span>
+                        <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded">Shortcuts</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => handleTabChange("workspace")}
+                          className="p-2.5 bg-slate-50 hover:bg-[#1b4264]/10 rounded-lg border border-slate-200 text-left transition cursor-pointer"
+                        >
+                          <i className="ti ti-file-text text-[#1b4264] text-sm block mb-0.5" />
+                          <span className="text-[11px] font-bold text-[#1b4264] block">Editor</span>
+                          <span className="text-[9px] text-slate-400">Draft Chapters</span>
+                        </button>
+                        <button
+                          onClick={() => handleTabChange("group-chats")}
+                          className="p-2.5 bg-slate-50 hover:bg-[#1b4264]/10 rounded-lg border border-slate-200 text-left transition cursor-pointer"
+                        >
+                          <i className="ti ti-messages text-[#1b4264] text-sm block mb-0.5" />
+                          <span className="text-[11px] font-bold text-[#1b4264] block">Group Chat</span>
+                          <span className="text-[9px] text-slate-400">Message Team</span>
+                        </button>
+                        <button
+                          onClick={() => handleTabChange("submissions")}
+                          className="p-2.5 bg-slate-50 hover:bg-[#1b4264]/10 rounded-lg border border-slate-200 text-left transition cursor-pointer"
+                        >
+                          <i className="ti ti-upload text-[#1b4264] text-sm block mb-0.5" />
+                          <span className="text-[11px] font-bold text-[#1b4264] block">Submit Draft</span>
+                          <span className="text-[9px] text-slate-400">Upload Files</span>
+                        </button>
+                        <button
+                          onClick={() => handleTabChange("defense")}
+                          className="p-2.5 bg-slate-50 hover:bg-[#1b4264]/10 rounded-lg border border-slate-200 text-left transition cursor-pointer"
+                        >
+                          <i className="ti ti-calendar text-[#1b4264] text-sm block mb-0.5" />
+                          <span className="text-[11px] font-bold text-[#1b4264] block">Defense</span>
+                          <span className="text-[9px] text-slate-400">View Schedule</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -868,51 +1417,9 @@ function StudentDashboardContent() {
                 )}
               </div>
             ),
-            submission: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Research Document Submission</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Upload draft files and outline scopes directly to assigned reviewers.</p>
-                <form onSubmit={handleUploadDoc} className="flex flex-col gap-3 mt-2 text-[12px]">
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-slate-600">Select Document Type</label>
-                    <select value={uploadMilestone} onChange={(e)=>setUploadMilestone(e.target.value)} className="bg-white border border-slate-350 rounded-lg p-2.5 focus:outline-none">
-                      <option value="Proposal Outline">Proposal Outline</option>
-                      <option value="Draft Submission">Chapter 1-3 Review Draft</option>
-                      <option value="Ethics Application">Ethics Application Forms</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-slate-600">Document Name</label>
-                    <input required type="text" value={uploadFileName} onChange={(e)=>setUploadFileName(e.target.value)} className="bg-white border border-slate-350 rounded-lg p-2.5 focus:outline-none" />
-                  </div>
-                  <button type="submit" className="px-4 py-2 bg-[#ffa400] text-[#1b4264] hover:bg-[#e09000] font-extrabold rounded-lg shadow border border-[#ffa400] self-start mt-2">
-                    Submit Draft
-                  </button>
-                </form>
-              </div>
-            ),
-            "version-control": (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Document Version Control</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Monitor historical draft changes, track comments, and compare version indexes.</p>                <div className="flex flex-col gap-3.5 mt-2">
-                  {combinedSubmissions.length > 0 ? (
-                    combinedSubmissions.map(sub => (
-                      <div key={sub.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
-                        <div>
-                          <span className="font-bold text-[#1b4264] block">{sub.docName}</span>
-                          <span className="text-[10px] text-slate-400">Version: {sub.version} · Date: {sub.date}</span>
-                        </div>
-                        <Tag variant={sub.status === "approved" ? "success" : "warn"}>{sub.status}</Tag>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-xs text-slate-400 py-6 text-center">
-                      No document versions submitted yet. Submit draft files or save from the workspace.
-                    </div>
-                  )}
-                </div>
-              </div>
-            ),
+            submissions: renderSubmissionsHub(),
+            submission: renderSubmissionsHub(),
+            "version-control": renderSubmissionsHub(),
             milestones: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Project Milestones</h3>
@@ -935,155 +1442,9 @@ function StudentDashboardContent() {
                 </div>
               </div>
             ),
-            "consultation-requests": (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Consultation Requests</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Book voice or messaging slots with designated coordinators and advisers.</p>
-                <form onSubmit={handleRequestConsult} className="flex flex-col gap-3.5 mt-2 text-[12.5px]">
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-slate-600">Consultation Topic</label>
-                    <input required type="text" value={consultTopic} onChange={(e)=>setConsultTopic(e.target.value)} placeholder="Topic inquiry..." className="bg-white border border-slate-350 rounded-lg p-2.5 focus:outline-none" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex flex-col gap-1">
-                      <label className="font-bold text-slate-600">Preferred Date</label>
-                      <input required type="date" value={consultDate} onChange={(e)=>setConsultDate(e.target.value)} className="bg-white border border-slate-350 rounded-lg p-2.5 focus:outline-none" />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="font-bold text-slate-600">Preferred Time</label>
-                      <input required type="text" value={consultTime} onChange={(e)=>setConsultTime(e.target.value)} placeholder="10:00 AM" className="bg-white border border-slate-350 rounded-lg p-2.5 focus:outline-none" />
-                    </div>
-                  </div>
-                  <button type="submit" className="px-4 py-2 bg-[#ffa400] text-[#1b4264] hover:bg-[#e09000] font-extrabold rounded-lg shadow border border-[#ffa400] self-start mt-2">
-                    Request Consultation
-                  </button>
-                </form>
-              </div>
-            ),
-            "consultation-repo": (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px] flex items-center gap-2">
-                  <i className="ti ti-video text-[#ffa400]" />
-                  Consultation Repository & Scheduled Meetings
-                </h3>
-                <p className="text-[11px] text-slate-400 font-bold">Access historical transcripts, advisory notes, and join scheduled Google Meet video rooms.</p>
-                <div className="flex flex-col gap-3.5 mt-2 text-[12px]">
-                  {consultations.length > 0 ? (
-                    consultations.map((c: any) => (
-                      <div key={c.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-3 shadow-sm hover:border-[#1b4264] transition">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-[#1b4264] block text-[13.5px]">{c.topic}</span>
-                              <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
-                                {c.status === "pending" || c.status === "requested" ? "Pending Adviser Approval" : "Approved & Confirmed"}
-                              </Tag>
-                            </div>
-                            <span className="text-[11px] text-slate-500">{c.date} · {c.time} ({c.mode})</span>
-                            {c.meetingUrl && (
-                              <div className="font-mono text-[10.5px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200 inline-block mt-1">
-                                {c.meetingUrl}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleOpenTranscriptModal(c)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-xs shadow-sm cursor-pointer transition"
-                            >
-                              <i className="ti ti-file-text text-amber-500" />
-                              <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "View Notes & Chat" : "Import Google Meet Chat"}</span>
-                            </button>
-
-                            {c.status === "pending" || c.status === "requested" ? (
-                              <button
-                                disabled
-                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 font-bold rounded-lg text-[11px] cursor-not-allowed opacity-90"
-                                title="Awaiting adviser approval"
-                              >
-                                <i className="ti ti-clock" />
-                                <span>Awaiting Approval</span>
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
-                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[11px] shadow-sm transition cursor-pointer"
-                              >
-                                <i className="ti ti-video" />
-                                <span>Join Google Meet</span>
-                              </button>
-                            )}
-                            {c.meetingUrl && (
-                              <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(c.meetingUrl);
-                                  triggerToast("Copied Google Meet link to clipboard!");
-                                }}
-                                title="Copy Link"
-                                className="p-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-slate-600 cursor-pointer text-xs"
-                              >
-                                <i className="ti ti-copy" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {c.notes && (
-                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs flex flex-col gap-1">
-                            <span className="font-bold text-[#1b4264] flex items-center gap-1">
-                              <i className="ti ti-notes" />
-                              <span>Meeting Summary & Adviser Feedback:</span>
-                            </span>
-                            <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{c.notes}</p>
-                          </div>
-                        )}
-
-                        {c.actionItems && c.actionItems.length > 0 && (
-                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs flex flex-col gap-1">
-                            <span className="font-bold text-[#1b4264] flex items-center gap-1">
-                              <i className="ti ti-checklist text-emerald-600" />
-                              <span>Agreed Action Items ({c.actionItems.length}):</span>
-                            </span>
-                            <ul className="list-disc list-inside text-slate-700 space-y-0.5 pl-1">
-                              {c.actionItems.map((item: string, idx: number) => (
-                                <li key={idx} className="text-[11.5px]">{item}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {c.transcript && c.transcript.length > 0 && (
-                          <div className="bg-white p-3 rounded-lg border border-slate-200 text-xs flex flex-col gap-1.5">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-1">
-                              <span className="font-bold text-[#1b4264] flex items-center gap-1.5">
-                                <i className="ti ti-messages text-blue-600" />
-                                <span>Google Meet In-Call Messages ({c.transcript.length})</span>
-                              </span>
-                              <span className="text-[10px] text-slate-400 font-mono">Auto-Indexed</span>
-                            </div>
-                            <div className="max-h-28 overflow-y-auto flex flex-col gap-1 pr-1">
-                              {c.transcript.map((msg: any) => (
-                                <div key={msg.id} className="p-1.5 bg-slate-50 rounded border border-slate-100 text-[11px]">
-                                  <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
-                                    <span>{msg.sender}</span>
-                                    <span className="font-mono text-slate-400">{msg.time}</span>
-                                  </div>
-                                  <p className="text-slate-800 mt-0.5 whitespace-pre-wrap">{msg.content}</p>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-xs text-slate-400 py-6 text-center">
-                      No scheduled or requested consultations yet. Book a session using Consultation Requests.
-                    </div>
-                  )}
-                </div>
-              </div>
-            ),
+            consultations: renderConsultationsHub(),
+            "consultation-repo": renderConsultationsHub(),
+            "consultation-requests": renderConsultationsHub(),
             progress: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Progress Tracking Dashboard</h3>
@@ -1284,6 +1645,9 @@ function StudentDashboardContent() {
               </div>
             ),
             "group-chats": (
+              <StudentGroupChats triggerToast={triggerToast} />
+            ),
+            chat: (
               <StudentGroupChats triggerToast={triggerToast} />
             ),
             workspace: (
