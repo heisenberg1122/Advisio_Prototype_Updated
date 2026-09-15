@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { StorageClient } from "@supabase/storage-js";
 import crypto from "crypto";
 
 export interface StorageUploadOptions {
@@ -19,7 +19,7 @@ export interface StorageFileResult {
 }
 
 class SupabaseStorageService {
-  private client: SupabaseClient | null = null;
+  private client: StorageClient | null = null;
   private bucketName: string = process.env.SUPABASE_STORAGE_BUCKET || "manuscripts";
 
   constructor() {
@@ -27,13 +27,12 @@ class SupabaseStorageService {
   }
 
   private init() {
-    const url = process.env.SUPABASE_URL || "https://lodfsclvqiyaqidycyhq.supabase.co";
+    const url = (process.env.SUPABASE_URL || "https://lodfsclvqiyaqidycyhq.supabase.co").replace(/\/$/, "");
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
     if (url && key) {
-      this.client = createClient(url, key, {
-        auth: {
-          persistSession: false,
-        },
+      this.client = new StorageClient(`${url}/storage/v1`, {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
       });
     }
   }
@@ -50,7 +49,7 @@ class SupabaseStorageService {
       const safeName = options.fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
       const filePath = options.folder ? `${options.folder}/${fileId}-${safeName}` : `${fileId}-${safeName}`;
 
-      const { data, error } = await this.client.storage
+      const { data, error } = await this.client
         .from(this.bucketName)
         .upload(filePath, options.buffer, {
           contentType: options.mimeType,
@@ -62,7 +61,7 @@ class SupabaseStorageService {
         return null;
       }
 
-      const { data: publicUrlData } = this.client.storage
+      const { data: publicUrlData } = this.client
         .from(this.bucketName)
         .getPublicUrl(filePath);
 
