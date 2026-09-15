@@ -1,4 +1,4 @@
-import React, { useState, Suspense, useEffect } from "react";
+import React, { useState, Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
@@ -310,6 +310,11 @@ function StudentDashboardContent() {
   const [topicInput, setTopicInput] = useState("");
   const [uploadMilestone, setUploadMilestone] = useState("Draft Submission");
   const [uploadFileName, setUploadFileName] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [consultTopic, setConsultTopic] = useState("");
   const [consultDate, setConsultDate] = useState("");
   const [consultTime, setConsultTime] = useState("");
@@ -325,20 +330,55 @@ function StudentDashboardContent() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleUploadDoc = (e: React.FormEvent) => {
+  const handleUploadDoc = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFileName) return;
-    const newDoc = {
-      id: Math.random().toString(),
-      docName: uploadFileName,
-      milestone: uploadMilestone,
-      date: new Date().toISOString().split("T")[0],
-      version: `v${(submissions.length + 1).toFixed(1)}`,
-      status: "pending",
-    };
-    setSubmissions(prev => [newDoc, ...prev]);
-    setUploadFileName("");
-    triggerToast(`Submitted ${newDoc.docName} for verification.`);
+    if (!uploadFileName.trim()) {
+      triggerToast("Please enter a document title.");
+      return;
+    }
+    if (!selectedFile) {
+      triggerToast("Please click or drag & drop a PDF or DOCX file first.");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      if (activeProject?.id) {
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        formData.append("title", uploadFileName.trim());
+        formData.append("documentType", uploadMilestone);
+
+        const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+        const token = localStorage.getItem("advisio_token");
+
+        await fetch(`${API_BASE}/api/research/${activeProject.id}/documents`, {
+          method: "POST",
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: formData,
+        });
+      }
+
+      const newDoc = {
+        id: Math.random().toString(),
+        docName: uploadFileName.trim(),
+        milestone: uploadMilestone,
+        date: new Date().toISOString().split("T")[0],
+        version: `v${(submissions.length + 1).toFixed(1)}`,
+        status: "pending",
+      };
+      setSubmissions(prev => [newDoc, ...prev]);
+      setUploadFileName("");
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      triggerToast(`Submitted "${newDoc.docName}" for adviser review!`);
+    } catch (err: any) {
+      triggerToast(`Submission failed: ${err.message || "Network error"}`);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleRequestConsult = async (e: React.FormEvent) => {
@@ -844,17 +884,84 @@ function StudentDashboardContent() {
                   />
                 </div>
 
-                <div className="p-4 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-center flex flex-col items-center justify-center gap-1.5">
-                  <i className="ti ti-file-upload text-2xl text-slate-400" />
-                  <span className="text-[11.5px] font-bold text-slate-600">Drag & Drop Manuscript (PDF / DOCX)</span>
-                  <span className="text-[10px] text-slate-400">Maximum file size: 25 MB</span>
+                {/* Hidden File Input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".pdf,.doc,.docx"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setSelectedFile(file);
+                      if (!uploadFileName) {
+                        setUploadFileName(file.name.replace(/\.[^/.]+$/, ""));
+                      }
+                    }
+                  }}
+                />
+
+                {/* Interactive Clickable & Drag & Drop Zone */}
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) {
+                      setSelectedFile(file);
+                      if (!uploadFileName) {
+                        setUploadFileName(file.name.replace(/\.[^/.]+$/, ""));
+                      }
+                    }
+                  }}
+                  className={`p-5 border-2 border-dashed rounded-xl text-center flex flex-col items-center justify-center gap-2 cursor-pointer transition-all ${
+                    isDragging
+                      ? "bg-amber-50 border-[#ffa400] scale-[1.01]"
+                      : selectedFile
+                      ? "bg-emerald-50/70 border-emerald-400"
+                      : "bg-slate-50 border-slate-300 hover:border-[#ffa400] hover:bg-slate-100/70"
+                  }`}
+                >
+                  {selectedFile ? (
+                    <>
+                      <i className="ti ti-file-check text-3xl text-emerald-600" />
+                      <span className="text-[12px] font-bold text-emerald-800 break-all px-2">
+                        {selectedFile.name}
+                      </span>
+                      <span className="text-[10.5px] text-emerald-600 font-medium">
+                        {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Click or drop to replace
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <i className={`ti ti-cloud-upload text-3xl ${isDragging ? "text-[#ffa400]" : "text-slate-400"}`} />
+                      <span className="text-[12px] font-bold text-slate-700">
+                        {isDragging ? "Drop your manuscript here" : "Click to browse or Drag & Drop Manuscript"}
+                      </span>
+                      <span className="text-[10.5px] text-slate-400">Supported formats: PDF or DOCX (Max: 25 MB)</span>
+                    </>
+                  )}
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-lg shadow transition cursor-pointer mt-1"
+                  disabled={isUploading}
+                  className="w-full py-2.5 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-lg shadow transition cursor-pointer mt-1 disabled:opacity-60 flex items-center justify-center gap-2"
                 >
-                  Submit Manuscript for Review
+                  {isUploading ? (
+                    <>
+                      <i className="ti ti-loader animate-spin" />
+                      <span>Uploading Manuscript...</span>
+                    </>
+                  ) : (
+                    <span>Submit Manuscript for Review</span>
+                  )}
                 </button>
               </form>
             </div>
