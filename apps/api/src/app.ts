@@ -26,9 +26,28 @@ const app = express();
 
 // Security and standard middlewares
 app.use(helmet());
+
+const configuredOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like server-to-server, mobile apps, or curl)
+      if (!origin) return callback(null, true);
+      if (
+        configuredOrigins.length === 0 ||
+        configuredOrigins.includes(origin) ||
+        configuredOrigins.includes("*") ||
+        origin.endsWith(".vercel.app") ||
+        origin.includes("localhost")
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
     credentials: true,
   })
 );
