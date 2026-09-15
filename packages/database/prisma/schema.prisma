@@ -862,3 +862,55 @@ model DashboardConfig {
   @@unique([collegeId, widgetId])
   @@map("dashboard_configs")
 }
+
+// ─────────────────────────────────────────────────────────────
+// CHAT & COLLABORATION
+// ─────────────────────────────────────────────────────────────
+
+model ChatGroup {
+  id                     String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                  String           @db.VarChar(200)
+  description            String?          @db.Text
+  createdByAdviserId     String           @map("created_by_adviser_id") @db.VarChar(255)
+  adviserName            String           @map("adviser_name") @db.VarChar(150)
+  relatedResearchGroupId String?          @map("related_research_group_id") @db.VarChar(100)
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt              DateTime         @updatedAt @map("updated_at")
+
+  messages    ChatMessage[]
+  invitations ChatInvitation[]
+
+  @@map("chat_groups")
+}
+
+model ChatInvitation {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chatGroupId        String    @map("chat_group_id") @db.Uuid
+  studentId          String    @map("student_id") @db.VarChar(255)
+  studentName        String    @map("student_name") @db.VarChar(150)
+  invitedByAdviserId String    @map("invited_by_adviser_id") @db.VarChar(255)
+  status             String    @default("pending") @db.VarChar(20)
+  invitedAt          DateTime  @default(now()) @map("invited_at")
+  respondedAt        DateTime? @map("responded_at")
+
+  chatGroup ChatGroup @relation(fields: [chatGroupId], references: [id], onDelete: Cascade)
+
+  @@index([chatGroupId])
+  @@index([studentId])
+  @@map("chat_invitations")
+}
+
+model ChatMessage {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chatGroupId String   @map("chat_group_id") @db.Uuid
+  senderId    String   @map("sender_id") @db.VarChar(255)
+  senderName  String   @map("sender_name") @db.VarChar(150)
+  senderRole  String   @map("sender_role") @db.VarChar(50)
+  message     String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  chatGroup ChatGroup @relation(fields: [chatGroupId], references: [id], onDelete: Cascade)
+
+  @@index([chatGroupId])
+  @@map("chat_messages")
+}
