@@ -125,7 +125,7 @@ router.post("/", optionalAuth, async (req: Request, res: Response) => {
 });
 
 // GET /api/chats/:id/messages - get messages for a specific chat
-router.get("/:id/messages", optionalAuth, async (req: Request, res: Response) => {
+router.get("/:id/messages", optionalAuth, async (req: Request<{ id: string }>, res: Response) => {
   try {
     const { id } = req.params;
     const dbMessages = await prisma.chatMessage.findMany({
@@ -151,7 +151,7 @@ router.get("/:id/messages", optionalAuth, async (req: Request, res: Response) =>
 });
 
 // POST /api/chats/:id/messages - send and persist message in database
-router.post("/:id/messages", optionalAuth, async (req: Request, res: Response) => {
+router.post("/:id/messages", optionalAuth, async (req: Request<{ id: string }>, res: Response) => {
   try {
     const { id } = req.params;
     const { message, senderName, senderRole } = req.body;
@@ -194,7 +194,7 @@ router.post("/:id/messages", optionalAuth, async (req: Request, res: Response) =
 });
 
 // POST /api/chats/:id/invitations - send invitation and persist in database
-router.post("/:id/invitations", optionalAuth, async (req: Request, res: Response) => {
+router.post("/:id/invitations", optionalAuth, async (req: Request<{ id: string }>, res: Response) => {
   try {
     const { id } = req.params;
     const { studentId, studentName } = req.body;
@@ -228,7 +228,7 @@ router.post("/:id/invitations", optionalAuth, async (req: Request, res: Response
 });
 
 // PATCH /api/chats/invitations/:invId - accept or decline invitation in database
-router.patch("/invitations/:invId", optionalAuth, async (req: Request, res: Response) => {
+router.patch("/invitations/:invId", optionalAuth, async (req: Request<{ invId: string }>, res: Response) => {
   try {
     const { invId } = req.params;
     const { status } = req.body;
