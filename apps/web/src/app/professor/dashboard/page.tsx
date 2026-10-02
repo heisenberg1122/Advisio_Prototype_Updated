@@ -27,13 +27,14 @@ function ProfessorDashboardContent() {
         apiClient.get<{ sessions: any[] }>("/api/defense-management"),
       refetchInterval: 15000,
     });
-  const { data: eligibleDefenseData, refetch: refetchEligibleDefenseGroups } = useQuery({
-    queryKey: ["defense-eligible-groups"],
-    queryFn: () =>
-      apiClient.get<{ projects: any[] }>(
-        "/api/defense-management/eligible-groups",
-      ),
-  });
+  const { data: eligibleDefenseData, refetch: refetchEligibleDefenseGroups } =
+    useQuery({
+      queryKey: ["defense-eligible-groups"],
+      queryFn: () =>
+        apiClient.get<{ projects: any[] }>(
+          "/api/defense-management/eligible-groups",
+        ),
+    });
   const { data: defenseCandidateData } = useQuery({
     queryKey: ["defense-participant-candidates"],
     queryFn: () =>
@@ -59,6 +60,21 @@ function ProfessorDashboardContent() {
     any | null
   >(null);
   const [replacementUserId, setReplacementUserId] = useState("");
+  const { data: announcementData, refetch: refetchAnnouncements } = useQuery({
+    queryKey: ["professor-announcements"],
+    queryFn: () =>
+      apiClient.get<{ announcements: any[] }>(
+        "/api/notifications/announcements",
+      ),
+    refetchInterval: 30000,
+  });
+  const announcements = announcementData?.announcements || [];
+  const [announcementTitle, setAnnouncementTitle] = useState("");
+  const [announcementMessage, setAnnouncementMessage] = useState("");
+  const [announcementCategory, setAnnouncementCategory] = useState("GENERAL");
+  const [announcementSeverity, setAnnouncementSeverity] = useState("INFO");
+  const [announcementExpiresAt, setAnnouncementExpiresAt] = useState("");
+  const [announcementPublishing, setAnnouncementPublishing] = useState(false);
 
   // Query live workflows and research projects
   const {
@@ -196,6 +212,9 @@ function ProfessorDashboardContent() {
   const [milestoneSaveStatus, setMilestoneSaveStatus] = useState<
     "idle" | "saving" | "saved"
   >("idle");
+  const [milestonePendingDelete, setMilestonePendingDelete] = useState<
+    any | null
+  >(null);
 
   const [toast, setToast] = useState<string | null>(null);
   const triggerToast = (msg: string) => {
@@ -324,14 +343,48 @@ function ProfessorDashboardContent() {
   };
 
   const handleDeleteTask = async (id: string) => {
-    if (!window.confirm("Delete this milestone? This cannot be undone."))
-      return;
     try {
       await apiClient.delete(`/api/workflows/stages/${id}`);
       await refetchWorkflows();
+      setMilestonePendingDelete(null);
+      setEditingMilestone(null);
       triggerToast("Milestone deleted.");
     } catch (error: any) {
       triggerToast(error?.message || "Milestone could not be deleted.");
+    }
+  };
+
+  const publishCollegeAnnouncement = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAnnouncementPublishing(true);
+    try {
+      const result = await apiClient.post<{
+        recipientCount: number;
+        collegeName?: string;
+      }>("/api/notifications/announcements", {
+        title: announcementTitle,
+        message: announcementMessage,
+        category: announcementCategory,
+        severity: announcementSeverity,
+        expiresAt: announcementExpiresAt
+          ? new Date(announcementExpiresAt).toISOString()
+          : null,
+      });
+      setAnnouncementTitle("");
+      setAnnouncementMessage("");
+      setAnnouncementCategory("GENERAL");
+      setAnnouncementSeverity("INFO");
+      setAnnouncementExpiresAt("");
+      await refetchAnnouncements();
+      triggerToast(
+        `Announcement published to ${result.recipientCount} ${result.collegeName || "college"} account(s).`,
+      );
+    } catch (error: any) {
+      triggerToast(
+        error?.message || "The announcement could not be published.",
+      );
+    } finally {
+      setAnnouncementPublishing(false);
     }
   };
 
@@ -500,7 +553,10 @@ function ProfessorDashboardContent() {
           "Defense invitations sent to the panel and research group.",
         );
       }
-      await Promise.all([refetchDefenseManagement(), refetchEligibleDefenseGroups()]);
+      await Promise.all([
+        refetchDefenseManagement(),
+        refetchEligibleDefenseGroups(),
+      ]);
       resetDefenseForm();
     } catch (error: any) {
       triggerToast(error?.message || "The defense request could not be saved.");
@@ -850,7 +906,18 @@ function ProfessorDashboardContent() {
               </section>
             </div>
             <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4">
-              <div className="text-sm font-bold" aria-live="polite">
+              <div
+                className="flex items-center gap-3 text-sm font-bold"
+                aria-live="polite"
+              >
+                <button
+                  type="button"
+                  onClick={() => setMilestonePendingDelete(editingMilestone)}
+                  className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-extrabold text-rose-700 hover:bg-rose-100"
+                >
+                  <i className="ti ti-trash mr-1.5" />
+                  Delete milestone
+                </button>
                 {milestoneSaveStatus === "saved" && (
                   <span className="text-emerald-600">
                     <i className="ti ti-circle-check-filled" /> Saved
@@ -881,6 +948,53 @@ function ProfessorDashboardContent() {
               </div>
             </div>
           </aside>
+        </div>
+      )}
+
+      {milestonePendingDelete && (
+        <div
+          className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/50 p-4"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="delete-milestone-title"
+          aria-describedby="delete-milestone-description"
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <span className="grid h-12 w-12 place-items-center rounded-full bg-rose-100 text-rose-700">
+              <i className="ti ti-alert-triangle text-2xl" />
+            </span>
+            <h2
+              id="delete-milestone-title"
+              className="mt-4 text-xl font-extrabold text-[#102f49]"
+            >
+              Delete “{milestonePendingDelete.title}”?
+            </h2>
+            <p
+              id="delete-milestone-description"
+              className="mt-2 text-sm leading-6 text-slate-600"
+            >
+              This permanently removes the milestone and its submission
+              requirements. Milestones with existing student submissions cannot
+              be deleted.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setMilestonePendingDelete(null)}
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600"
+              >
+                Keep milestone
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteTask(milestonePendingDelete.id)}
+                className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white"
+              >
+                <i className="ti ti-trash mr-1.5" />
+                Yes, delete permanently
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1268,6 +1382,7 @@ function ProfessorDashboardContent() {
         {(() => {
           const tabTitles: Record<string, string> = {
             overview: "Professor Dashboard",
+            announcements: "Announcements",
             monitoring: "Student & Project Monitoring",
             submissions: "Student Submissions",
             defense: "Defense Management",
@@ -1284,131 +1399,60 @@ function ProfessorDashboardContent() {
           const tabContent: Record<string, React.ReactNode> = {
             overview: (
               <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4">
-                <section
-                  className={`rounded-2xl border-2 p-5 ${liveDefense ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-white"}`}
-                >
-                  {liveDefense ? (
-                    <div className="grid gap-5 xl:grid-cols-[1fr_auto]">
-                      <div>
-                        <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-emerald-700">
-                          <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />{" "}
-                          Live defense control
-                        </div>
-                        <h2 className="mt-2 text-xl font-extrabold text-[#102f49]">
-                          {liveDefense.research.title}
-                        </h2>
-                        <p className="mt-1 text-sm text-slate-600">
-                          {
-                            liveDefense.evaluations.filter(
-                              (item: any) => item.status === "LOCKED",
-                            ).length
-                          }{" "}
-                          of{" "}
-                          {
-                            liveDefense.research.members.filter(
-                              (item: any) => item.projectRole === "PANELIST",
-                            ).length
-                          }{" "}
-                          panelists submitted
-                        </p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {liveDefense.research.members
-                            .filter(
-                              (item: any) => item.projectRole === "PANELIST",
-                            )
-                            .map((member: any) => {
-                              const evaluation = liveDefense.evaluations.find(
-                                (item: any) =>
-                                  item.evaluatorId === member.userId,
-                              );
-                              return (
-                                <span
-                                  key={member.id}
-                                  className={`rounded-full px-3 py-1 text-xs font-bold ${evaluation?.status === "LOCKED" ? "bg-emerald-600 text-white" : evaluation ? "bg-amber-100 text-amber-800" : "bg-white text-slate-600"}`}
-                                >
-                                  {member.user.firstName} {member.user.lastName}
-                                  :{" "}
-                                  {evaluation?.status === "LOCKED"
-                                    ? "Submitted"
-                                    : evaluation
-                                      ? "Draft"
-                                      : "Not started"}
-                                </span>
-                              );
-                            })}
-                        </div>
-                      </div>
-                      <div className="flex min-w-[260px] flex-col gap-2">
-                        <label className="text-xs font-bold text-slate-600">
-                          Official decision
-                          <select
-                            value={officialDecision}
-                            onChange={(event) =>
-                              setOfficialDecision(event.target.value)
-                            }
-                            className="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3"
-                          >
-                            <option value="APPROVED">Approved</option>
-                            <option value="APPROVED_WITH_MINOR_REVISIONS">
-                              Approved with minor revisions
-                            </option>
-                            <option value="MAJOR_REVISIONS_REQUIRED">
-                              Major revisions required
-                            </option>
-                            <option value="REJECTED">Rejected</option>
-                          </select>
-                        </label>
-                        <button
-                          onClick={releaseDefenseResult}
-                          disabled={defenseActionPending}
-                          className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
-                        >
-                          Release official result
-                        </button>
-                        <p className="text-[10px] text-slate-500">
-                          Release is blocked until every assigned panelist
-                          submits.
-                        </p>
-                      </div>
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
+                        Announcements
+                      </p>
+                      <h2 className="mt-1 text-lg font-extrabold text-[#102f49]">
+                        College and system updates
+                      </h2>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Official notices are labeled by source so you can
+                        quickly distinguish department and system messages.
+                      </p>
                     </div>
-                  ) : (
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center">
-                      <div className="flex-1">
-                        <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
-                          Defense management
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange("announcements")}
+                      className="shrink-0 text-sm font-bold text-[#173f63]"
+                    >
+                      View all <i className="ti ti-chevron-right" />
+                    </button>
+                  </div>
+                  <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                    {announcements.slice(0, 3).map((announcement) => (
+                      <article
+                        key={announcement.id}
+                        className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full ${announcement.source === "SYSTEM_ADMIN" ? "bg-violet-500" : announcement.source === "DEAN" ? "bg-blue-500" : "bg-emerald-500"}`}
+                          />
+                          <span className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+                            {announcement.source === "SYSTEM_ADMIN"
+                              ? "System Admin"
+                              : announcement.source === "DEAN"
+                                ? "Dean / Admin"
+                                : "Professor"}
+                          </span>
+                        </div>
+                        <h3 className="mt-2 truncate text-sm font-extrabold text-[#102f49]">
+                          {announcement.title}
+                        </h3>
+                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
+                          {announcement.message}
                         </p>
-                        <h2 className="mt-1 text-lg font-extrabold text-[#102f49]">
-                          Schedule and confirm the next defense
-                        </h2>
-                        <p className="mt-1 text-sm text-slate-500">
-                          Only eligible groups can be invited. Required
-                          participants must acknowledge before the session can
-                          start.
-                        </p>
+                      </article>
+                    ))}
+                    {!announcements.length && (
+                      <div className="col-span-full rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">
+                        No current announcements.
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-bold text-[#102f49]">
-                          {
-                            defenseSessions.filter((session) =>
-                              [
-                                "PENDING_ACKNOWLEDGEMENT",
-                                "NEEDS_RESCHEDULING",
-                                "SCHEDULED",
-                              ].includes(session.status),
-                            ).length
-                          }{" "}
-                          active requests
-                        </p>
-                        <button
-                          onClick={() => handleTabChange("defense")}
-                          className="mt-2 h-11 rounded-xl bg-[#f6a800] px-5 text-sm font-extrabold text-[#102f49]"
-                        >
-                          <i className="ti ti-calendar-event mr-2" />
-                          Manage defenses
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </section>
                 <section className="relative min-h-[176px] overflow-hidden rounded-2xl border border-slate-200 bg-white px-7 py-6 shadow-[0_1px_3px_rgba(15,47,73,0.04)] lg:px-8">
                   <div className="relative z-10 max-w-2xl">
@@ -1771,6 +1815,200 @@ function ProfessorDashboardContent() {
                 </div>
               </>
             ),
+            announcements: (
+              <div className="mx-auto grid w-full max-w-[1440px] gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
+                        Announcement feed
+                      </p>
+                      <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">
+                        Official updates
+                      </h2>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Global announcements and notices for your college
+                        department.
+                      </p>
+                    </div>
+                    <div className="hidden flex-wrap gap-3 text-[10px] font-bold text-slate-500 sm:flex">
+                      <span>
+                        <i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-blue-500" />
+                        Dean / Admin
+                      </span>
+                      <span>
+                        <i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-violet-500" />
+                        System Admin
+                      </span>
+                      <span>
+                        <i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                        Professor
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-5 space-y-3">
+                    {announcements.map((announcement) => (
+                      <article
+                        key={announcement.id}
+                        className="rounded-2xl border border-slate-200 p-4"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`h-3 w-3 rounded-full ${announcement.source === "SYSTEM_ADMIN" ? "bg-violet-500" : announcement.source === "DEAN" ? "bg-blue-500" : "bg-emerald-500"}`}
+                          />
+                          <span className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+                            {announcement.source === "SYSTEM_ADMIN"
+                              ? "System Administrator"
+                              : announcement.source === "DEAN"
+                                ? "Dean / College Admin"
+                                : "Professor"}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${announcement.severity === "CRITICAL" ? "bg-rose-100 text-rose-700" : announcement.severity === "WARNING" ? "bg-amber-100 text-amber-800" : "bg-blue-50 text-blue-700"}`}
+                          >
+                            {announcement.severity}
+                          </span>
+                          {announcement.audienceCollege ? (
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                              {announcement.audienceCollege.code}
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">
+                              All colleges
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="mt-3 text-base font-extrabold text-[#102f49]">
+                          {announcement.title}
+                        </h3>
+                        <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                          {announcement.message}
+                        </p>
+                        <p className="mt-3 text-xs text-slate-400">
+                          {announcement.creator.firstName}{" "}
+                          {announcement.creator.lastName} ·{" "}
+                          {new Date(announcement.publishedAt).toLocaleString()}
+                        </p>
+                      </article>
+                    ))}
+                    {!announcements.length && (
+                      <div className="rounded-2xl border border-dashed border-slate-300 py-14 text-center">
+                        <i className="ti ti-speakerphone text-3xl text-slate-300" />
+                        <p className="mt-2 font-bold text-[#102f49]">
+                          No current announcements
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          New college and system notices will appear here.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+                <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+                  <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-700">
+                    Your college only
+                  </p>
+                  <h2 className="mt-1 text-lg font-extrabold text-[#102f49]">
+                    Post an announcement
+                  </h2>
+                  <p className="mt-1 text-sm leading-5 text-slate-500">
+                    This will only be visible to active accounts assigned to
+                    your college department.
+                  </p>
+                  <form
+                    onSubmit={publishCollegeAnnouncement}
+                    className="mt-5 space-y-4"
+                  >
+                    <label className="block text-sm font-bold text-slate-700">
+                      Title
+                      <input
+                        required
+                        minLength={3}
+                        maxLength={200}
+                        value={announcementTitle}
+                        onChange={(event) =>
+                          setAnnouncementTitle(event.target.value)
+                        }
+                        placeholder="e.g. Capstone consultation schedule"
+                        className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal"
+                      />
+                    </label>
+                    <label className="block text-sm font-bold text-slate-700">
+                      Message
+                      <textarea
+                        required
+                        minLength={10}
+                        maxLength={5000}
+                        rows={6}
+                        value={announcementMessage}
+                        onChange={(event) =>
+                          setAnnouncementMessage(event.target.value)
+                        }
+                        placeholder="Write the announcement details…"
+                        className="mt-1.5 w-full resize-y rounded-xl border border-slate-300 p-3 text-sm font-normal leading-6"
+                      />
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="text-sm font-bold text-slate-700">
+                        Category
+                        <select
+                          value={announcementCategory}
+                          onChange={(event) =>
+                            setAnnouncementCategory(event.target.value)
+                          }
+                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm font-normal"
+                        >
+                          <option value="GENERAL">General</option>
+                          <option value="UPDATE">Update</option>
+                          <option value="DEADLINE">Deadline</option>
+                        </select>
+                      </label>
+                      <label className="text-sm font-bold text-slate-700">
+                        Priority
+                        <select
+                          value={announcementSeverity}
+                          onChange={(event) =>
+                            setAnnouncementSeverity(event.target.value)
+                          }
+                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm font-normal"
+                        >
+                          <option value="INFO">Information</option>
+                          <option value="WARNING">Important</option>
+                          <option value="CRITICAL">Critical</option>
+                        </select>
+                      </label>
+                    </div>
+                    <label className="block text-sm font-bold text-slate-700">
+                      Expires{" "}
+                      <span className="font-normal text-slate-400">
+                        (optional)
+                      </span>
+                      <input
+                        type="datetime-local"
+                        value={announcementExpiresAt}
+                        onChange={(event) =>
+                          setAnnouncementExpiresAt(event.target.value)
+                        }
+                        className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal"
+                      />
+                    </label>
+                    <button
+                      disabled={
+                        announcementPublishing ||
+                        !announcementTitle.trim() ||
+                        announcementMessage.trim().length < 10
+                      }
+                      className="w-full rounded-xl bg-[#173f63] px-4 py-3 text-sm font-extrabold text-white disabled:opacity-50"
+                    >
+                      <i className="ti ti-send mr-2" />
+                      {announcementPublishing
+                        ? "Publishing…"
+                        : "Publish to college"}
+                    </button>
+                  </form>
+                </aside>
+              </div>
+            ),
             defense: (
               <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
@@ -1808,6 +2046,64 @@ function ProfessorDashboardContent() {
                     </p>
                   )}
                 </section>
+                {liveDefense && (
+                  <section className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
+                    <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
+                      <div>
+                        <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-700">
+                          <span className="mr-2 inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
+                          Live defense control
+                        </p>
+                        <h2 className="mt-2 text-xl font-extrabold text-[#102f49]">
+                          {liveDefense.research.title}
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-600">
+                          {
+                            liveDefense.evaluations.filter(
+                              (item: any) => item.status === "LOCKED",
+                            ).length
+                          }{" "}
+                          of{" "}
+                          {
+                            liveDefense.research.members.filter(
+                              (item: any) => item.projectRole === "PANELIST",
+                            ).length
+                          }{" "}
+                          panelists submitted their final evaluation.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-600">
+                          Official decision
+                          <select
+                            value={officialDecision}
+                            onChange={(event) =>
+                              setOfficialDecision(event.target.value)
+                            }
+                            className="mt-1 h-10 w-full rounded-xl border border-slate-300 bg-white px-3"
+                          >
+                            <option value="APPROVED">Approved</option>
+                            <option value="APPROVED_WITH_MINOR_REVISIONS">
+                              Approved with minor revisions
+                            </option>
+                            <option value="MAJOR_REVISIONS_REQUIRED">
+                              Major revisions required
+                            </option>
+                            <option value="REJECTED">Rejected</option>
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={releaseDefenseResult}
+                          disabled={defenseActionPending}
+                          className="mt-2 w-full rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
+                        >
+                          Release official result
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+                )}
                 <section className="grid gap-4 sm:grid-cols-3">
                   {[
                     {
@@ -2249,13 +2545,70 @@ function ProfessorDashboardContent() {
                   </div>
                 )}
                 {replacementInvitation && (
-                  <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="replace-panelist-title">
+                  <div
+                    className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="replace-panelist-title"
+                  >
                     <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-                      <p className="text-xs font-extrabold uppercase tracking-wider text-rose-600">Unavailable participant</p>
-                      <h2 id="replace-panelist-title" className="mt-1 text-xl font-extrabold text-[#102f49]">Replace {replacementInvitation.invitee.firstName} {replacementInvitation.invitee.lastName}</h2>
-                      <p className="mt-1 text-sm text-slate-500">The schedule stays unchanged, so participants who already accepted will not need to reconfirm.</p>
-                      <label className="mt-5 block text-sm font-bold text-slate-700">Replacement<select value={replacementUserId} onChange={(event) => setReplacementUserId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm"><option value="">Select participant</option>{defenseCandidates.filter((person) => person.id !== replacementInvitation.inviteeId).map((person) => <option key={person.id} value={person.id}>{person.firstName} {person.lastName} · {person.roles.join(", ")}</option>)}</select></label>
-                      <div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => { setReplacementInvitation(null); setReplacementUserId(""); }} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button><button type="button" onClick={replaceDefenseParticipant} disabled={!replacementUserId || defenseActionPending} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">Send replacement invitation</button></div>
+                      <p className="text-xs font-extrabold uppercase tracking-wider text-rose-600">
+                        Unavailable participant
+                      </p>
+                      <h2
+                        id="replace-panelist-title"
+                        className="mt-1 text-xl font-extrabold text-[#102f49]"
+                      >
+                        Replace {replacementInvitation.invitee.firstName}{" "}
+                        {replacementInvitation.invitee.lastName}
+                      </h2>
+                      <p className="mt-1 text-sm text-slate-500">
+                        The schedule stays unchanged, so participants who
+                        already accepted will not need to reconfirm.
+                      </p>
+                      <label className="mt-5 block text-sm font-bold text-slate-700">
+                        Replacement
+                        <select
+                          value={replacementUserId}
+                          onChange={(event) =>
+                            setReplacementUserId(event.target.value)
+                          }
+                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm"
+                        >
+                          <option value="">Select participant</option>
+                          {defenseCandidates
+                            .filter(
+                              (person) =>
+                                person.id !== replacementInvitation.inviteeId,
+                            )
+                            .map((person) => (
+                              <option key={person.id} value={person.id}>
+                                {person.firstName} {person.lastName} ·{" "}
+                                {person.roles.join(", ")}
+                              </option>
+                            ))}
+                        </select>
+                      </label>
+                      <div className="mt-5 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReplacementInvitation(null);
+                            setReplacementUserId("");
+                          }}
+                          className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={replaceDefenseParticipant}
+                          disabled={!replacementUserId || defenseActionPending}
+                          className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
+                        >
+                          Send replacement invitation
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}

@@ -970,15 +970,15 @@ model Notification {
 }
 
 model SystemAnnouncement {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title       String    @db.VarChar(200)
-  message     String    @db.Text
-  category    String    @default("GENERAL") @db.VarChar(30)
-  severity    String    @default("INFO") @db.VarChar(20)
-  createdBy   String    @map("created_by") @db.Uuid
-  audienceCollegeId String? @map("audience_college_id") @db.Uuid
-  publishedAt DateTime  @default(now()) @map("published_at")
-  expiresAt   DateTime? @map("expires_at")
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title             String    @db.VarChar(200)
+  message           String    @db.Text
+  category          String    @default("GENERAL") @db.VarChar(30)
+  severity          String    @default("INFO") @db.VarChar(20)
+  createdBy         String    @map("created_by") @db.Uuid
+  audienceCollegeId String?   @map("audience_college_id") @db.Uuid
+  publishedAt       DateTime  @default(now()) @map("published_at")
+  expiresAt         DateTime? @map("expires_at")
 
   creator         User     @relation("AnnouncementCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   audienceCollege College? @relation(fields: [audienceCollegeId], references: [id], onDelete: Cascade)

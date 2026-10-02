@@ -103,10 +103,13 @@ export const getInitials = (name: string) => {
   if (!name) return "";
   const parts = name.split(" ");
   const filteredParts = parts.filter(
-    (p) => !/^(dr\.?|prof\.?|dean|mr\.?|ms\.?|mrs\.?)$/i.test(p)
+    (p) => !/^(dr\.?|prof\.?|dean|mr\.?|ms\.?|mrs\.?)$/i.test(p),
   );
   if (filteredParts.length === 0) return name.substring(0, 2).toUpperCase();
-  const initials = filteredParts.map((p) => p[0]).join("").toUpperCase();
+  const initials = filteredParts
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
   return initials.substring(0, 2);
 };
 
@@ -133,21 +136,37 @@ export function useProfile() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (user) {
-        const dynamicInitials = `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "SR";
+        const key = `advisio_profile_${role}_${user.id}`;
+        let savedOverrides: Partial<ProfileData> = {};
+        try {
+          savedOverrides = JSON.parse(localStorage.getItem(key) || "{}");
+        } catch {
+          savedOverrides = {};
+        }
+        const dynamicInitials =
+          `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() ||
+          "SR";
         const dynamicProfile: ProfileData = {
           id: user.id,
-          name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
+          name:
+            `${user.firstName || ""} ${user.lastName || ""}`.trim() || "User",
           initials: dynamicInitials,
-          role: user.roles?.[0]?.toLowerCase() || role,
+          role,
           email: user.email,
           contactNumber: "",
           academicYear: "AY 2025–2026",
-          college: user.college?.name || user.college?.code || "College of Computing",
-          program: user.program?.name || user.program?.code || "BS Information Technology",
+          college:
+            user.college?.name || user.college?.code || "College of Computing",
+          program:
+            user.program?.name ||
+            user.program?.code ||
+            "BS Information Technology",
           studentId: user.universityId,
           employeeId: user.universityId,
           position: user.roles?.[0] || "User",
+          ...savedOverrides,
         };
+        dynamicProfile.initials = getInitials(dynamicProfile.name);
         setProfile(dynamicProfile);
         setLoading(false);
         return;
@@ -158,7 +177,12 @@ export function useProfile() {
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (parsed && !parsed.name?.includes("Juan Reyes") && !parsed.name?.includes("Dr. Rachel Lim") && !parsed.email?.includes("student01@")) {
+          if (
+            parsed &&
+            !parsed.name?.includes("Juan Reyes") &&
+            !parsed.name?.includes("Dr. Rachel Lim") &&
+            !parsed.email?.includes("student01@")
+          ) {
             setProfile(parsed);
           } else {
             const defaultProf = DEFAULT_PROFILES[role];
@@ -184,15 +208,38 @@ export function useProfile() {
       ...data,
       initials: data.name ? getInitials(data.name) : profile.initials,
     };
-    
-    const key = `advisio_profile_${role}`;
+
+    const key = user?.id
+      ? `advisio_profile_${role}_${user.id}`
+      : `advisio_profile_${role}`;
     localStorage.setItem(key, JSON.stringify(updated));
     setProfile(updated);
-    
+
     // Dispatch storage event to notify other components (like sidebar/header UserChip)
     window.dispatchEvent(new Event("profile-updated"));
     return true;
   };
+
+  useEffect(() => {
+    const refresh = () => {
+      if (!user) return;
+      const key = `advisio_profile_${role}_${user.id}`;
+      try {
+        const saved = JSON.parse(localStorage.getItem(key) || "{}");
+        setProfile((current) =>
+          current
+            ? {
+                ...current,
+                ...saved,
+                initials: getInitials(saved.name || current.name),
+              }
+            : current,
+        );
+      } catch {}
+    };
+    window.addEventListener("profile-updated", refresh);
+    return () => window.removeEventListener("profile-updated", refresh);
+  }, [role, user]);
 
   return {
     profile: profile || DEFAULT_PROFILES[role],
