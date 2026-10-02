@@ -13,6 +13,8 @@ import { GoogleMeetConnectModal } from "@/components/consultations/GoogleMeetCon
 import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consultations/GoogleMeetTranscriptModal";
 import { getStoredConsultations, addStoredConsultation, saveStoredConsultations, updateStoredConsultationNotes, ConsultationItem } from "@/lib/consultation-store";
 import { ProductTour, TourStep } from "@/components/shared/ProductTour";
+import { StudentGanttChart } from "@/components/dashboards/student/StudentGanttChart";
+import { calculateWorkflowProgress, getOrderedWorkflowStages } from "@/lib/workflow-progress";
 
 const STUDENT_TOUR_STEPS: TourStep[] = [
   {
@@ -64,6 +66,7 @@ function StudentDashboardContent() {
   const [createTitle, setCreateTitle] = useState("");
   const [createAbstract, setCreateAbstract] = useState("");
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
 
   // Synchronized Floating Google Meet Conference Session State
   const initialSession = getStoredMeetingSession();
@@ -223,13 +226,30 @@ function StudentDashboardContent() {
   };
 
   // Query live projects from API
-  const { data: researchData } = useQuery({
+  const { data: researchData, isLoading: isResearchLoading, isError: isResearchError, refetch: refetchResearch } = useQuery({
     queryKey: ["student-research"],
-    queryFn: () => apiClient.get<{ projects: any[] }>("/api/research").catch(() => ({ projects: [] })),
-    staleTime: 60000,
+    queryFn: () => apiClient.get<{ projects: any[] }>("/api/research"),
+    staleTime: 5000,
+    refetchInterval: 5000,
   });
 
   const activeProject = researchData?.projects?.[0];
+  const { data: defenseResultData } = useQuery({
+    queryKey: ["student-defense-result", activeProject?.id],
+    queryFn: () => apiClient.get<{ result: any | null }>(`/api/research/${activeProject.id}/defense-result`),
+    enabled: Boolean(activeProject?.id),
+    refetchInterval: 5000,
+  });
+  const officialDefenseResult = defenseResultData?.result || null;
+  const { data: defenseManagementData } = useQuery({
+    queryKey: ["student-defense-management"],
+    queryFn: () => apiClient.get<{ sessions: any[] }>("/api/defense-management"),
+    refetchInterval: 15000,
+  });
+  const projectProgress = calculateWorkflowProgress(activeProject);
+  const projectStatusLabel = activeProject?.status
+    ? activeProject.status.toLowerCase().replace(/_/g, " ").replace(/^\w/, (letter: string) => letter.toUpperCase())
+    : "Not registered";
 
   // State Data strictly from live API
   const [group, setGroup] = useState<any>(null);
@@ -243,16 +263,21 @@ function StudentDashboardContent() {
         members: activeProject.members?.map((m: any) => `${m.user.firstName} ${m.user.lastName}`) || [],
         status: activeProject.status?.toLowerCase() || "draft",
       });
-      if (activeProject.workflowInstance?.currentStage) {
-        setMilestones([
-          {
-            id: activeProject.workflowInstance.currentStage.id,
-            title: activeProject.workflowInstance.currentStage.name,
-            status: "in-progress",
-            date: new Date().toISOString().split("T")[0],
-          },
-        ]);
-      }
+      const currentSequence = activeProject.workflowInstance?.currentStage?.sequence || 0;
+      setMilestones(getOrderedWorkflowStages(activeProject).map((stage) => ({
+        id: stage.id,
+        title: stage.name,
+        status: activeProject.status === "COMPLETED" || stage.sequence < currentSequence
+          ? "completed"
+          : stage.sequence === currentSequence
+            ? "in-progress"
+            : "upcoming",
+        deadlineDays: stage.deadlineDays,
+        requiresApproval: stage.requiresApproval,
+        sequence: stage.sequence,
+        description: stage.description || "",
+        category: stage.category || "Milestone",
+      })));
     } else {
       setGroup(null);
       setMilestones([]);
@@ -287,6 +312,20 @@ function StudentDashboardContent() {
   const [defenses, setDefenses] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [chatStoreNotifications, setChatStoreNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    setDefenses((defenseManagementData?.sessions || []).map((session: any) => ({
+      id: session.id,
+      title: session.research?.title || "Research defense",
+      date: session.scheduledStart ? new Date(session.scheduledStart).toLocaleDateString() : "Pending",
+      time: session.scheduledStart ? new Date(session.scheduledStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Awaiting confirmation",
+      venue: session.venue || (session.meetingUrl ? "Online defense" : "To be announced"),
+      meetingUrl: session.meetingUrl,
+      type: session.status.replace(/_/g, " "),
+      status: session.status,
+      panelists: (session.invitations || []).filter((item: any) => item.status !== "REMOVED").map((item: any) => `${item.invitee.firstName} ${item.invitee.lastName} (${item.role.replace(/_/g, " ")})`),
+    })));
+  }, [defenseManagementData]);
 
   useEffect(() => {
     const syncNotifs = () => {
@@ -432,6 +471,13 @@ function StudentDashboardContent() {
 
   const handleCreateResearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (activeProject) {
+      setShowCreateModal(false);
+      triggerToast(activeProject.status === "REJECTED"
+        ? "Delete the rejected project before registering a replacement."
+        : "You already have a registered research project.");
+      return;
+    }
     if (!createTitle.trim()) return;
     setIsCreatingProject(true);
     try {
@@ -448,6 +494,22 @@ function StudentDashboardContent() {
       triggerToast(err.message || "Failed to register project");
     } finally {
       setIsCreatingProject(false);
+    }
+  };
+
+  const handleDeleteRejectedProject = async () => {
+    if (!activeProject || activeProject.status !== "REJECTED") return;
+    if (!window.confirm(`Delete the rejected project “${activeProject.title}”? This cannot be undone.`)) return;
+
+    setIsDeletingProject(true);
+    try {
+      await apiClient.delete(`/api/research/${activeProject.id}`);
+      await queryClient.invalidateQueries({ queryKey: ["student-research"] });
+      triggerToast("Rejected project deleted. You can now register a replacement project.");
+    } catch (err: any) {
+      triggerToast(err.message || "Failed to delete the rejected project.");
+    } finally {
+      setIsDeletingProject(false);
     }
   };
 
@@ -1004,60 +1066,20 @@ function StudentDashboardContent() {
         </div>
       )}
 
-      {/* TABS HEADER BAR */}
-      <div className="bg-white border-b border-slate-200 px-6 pt-3 flex items-center justify-between overflow-x-auto shadow-sm">
-        <div className="flex gap-2">
-          {tabsList.map((tab) => {
-            const isActive = tab.matches ? tab.matches.includes(activeTab) : activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                data-tour={`tab-${tab.id}`}
-                onClick={() => handleTabChange(tab.id)}
-                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-lg text-[12px] font-bold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-                  isActive
-                    ? "border-[#1b4264] text-[#1b4264] bg-slate-50 shadow-sm"
-                    : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50/50"
-                }`}
-              >
-                <i className={`ti ${tab.icon} text-sm ${isActive ? "text-[#1b4264]" : ""}`} />
-                <span>{tab.label}</span>
-                {tab.badge !== undefined && tab.badge > 0 && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
-                    isActive ? "bg-[#1b4264] text-[#ffa400]" : "bg-slate-200 text-slate-700"
-                  }`}>
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          onClick={() => setIsTourOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors mb-1.5 cursor-pointer whitespace-nowrap border border-slate-200"
-          title="Start interactive product tour"
-        >
-          <i className="ti ti-sparkles text-amber-500" />
-          <span>Product Tour</span>
-        </button>
-      </div>
-
       <ProductTour
         tourKey="student_onboarding_v1"
         steps={STUDENT_TOUR_STEPS}
         isOpen={isTourOpen ? true : undefined}
         onClose={() => setIsTourOpen(false)}
-        autoStart={true}
+        autoStart={false}
       />
 
       {/* MAIN CONTAINER */}
-      <main className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto bg-[#f6f8fb] p-5 lg:p-6">
         
         {(() => {
           const tabTitles: Record<string, string> = {
-            overview: "Student Dashboard",
+            overview: "Researcher Dashboard",
             group: "Research Group Management",
             milestones: "Project Milestones",
             progress: "Progress Tracking",
@@ -1077,6 +1099,119 @@ function StudentDashboardContent() {
 
           const tabContent: Record<string, React.ReactNode> = {
             overview: (
+              <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4">
+                {officialDefenseResult && <section className={`rounded-2xl border-2 p-5 ${officialDefenseResult.decision === "REJECTED" ? "border-rose-200 bg-rose-50" : officialDefenseResult.decision === "MAJOR_REVISIONS_REQUIRED" ? "border-amber-200 bg-amber-50" : "border-emerald-200 bg-emerald-50"}`}><div className="flex items-start gap-4"><span className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl text-2xl ${officialDefenseResult.decision === "REJECTED" ? "bg-rose-100 text-rose-700" : officialDefenseResult.decision === "MAJOR_REVISIONS_REQUIRED" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}><i className="ti ti-certificate" /></span><div><p className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Official defense result</p><h2 className="mt-1 text-xl font-extrabold text-[#102f49]">{String(officialDefenseResult.decision).replace(/_/g, " ")}</h2><p className="mt-1 text-sm text-slate-600">Released by the defense facilitator on {new Date(officialDefenseResult.releasedAt).toLocaleString()}.</p></div></div></section>}
+                <section className="relative min-h-[176px] overflow-hidden rounded-2xl border border-slate-200 bg-white px-7 py-6 shadow-[0_1px_3px_rgba(15,47,73,0.04)] lg:px-8">
+                  <div className="relative z-10 max-w-[620px]">
+                    <h2 className="text-[26px] font-extrabold tracking-tight text-[#102f49] lg:text-[30px]">
+                      Good morning, {user?.firstName || "Student01"}
+                    </h2>
+                    <p className="mt-1 text-[15px] text-slate-500">Ready to make progress on your research project?</p>
+                    {isResearchLoading ? (
+                      <div className="mt-5 inline-flex h-12 items-center gap-3 rounded-xl bg-slate-100 px-6 text-sm font-bold text-slate-500">
+                        <i className="ti ti-loader-2 animate-spin text-lg" /> Checking your project…
+                      </div>
+                    ) : isResearchError ? (
+                      <button onClick={() => refetchResearch()} className="mt-5 inline-flex h-12 items-center gap-3 rounded-xl bg-rose-50 px-6 text-[14px] font-extrabold text-rose-700 ring-1 ring-rose-200 transition hover:bg-rose-100">
+                        <i className="ti ti-refresh text-lg" /> Retry Project Lookup
+                      </button>
+                    ) : !activeProject ? (
+                      <button onClick={() => setShowCreateModal(true)} className="mt-5 inline-flex h-12 items-center gap-3 rounded-xl bg-[#f6a800] px-6 text-[15px] font-extrabold text-[#102f49] shadow-sm transition hover:bg-[#e99f00]">
+                        <i className="ti ti-plus text-xl" /> Register Project
+                      </button>
+                    ) : activeProject.status === "REJECTED" ? (
+                      <div className="mt-5 flex flex-wrap items-center gap-3">
+                        <button onClick={handleDeleteRejectedProject} disabled={isDeletingProject} className="inline-flex h-12 items-center gap-3 rounded-xl bg-rose-600 px-6 text-[14px] font-extrabold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
+                          <i className="ti ti-trash text-lg" /> {isDeletingProject ? "Deleting…" : "Delete Rejected Project"}
+                        </button>
+                        <span className="max-w-sm text-xs font-medium text-rose-600">Delete this rejected record before registering a replacement.</span>
+                      </div>
+                    ) : (
+                      <button onClick={() => handleTabChange("group")} className="mt-5 inline-flex h-12 items-center gap-3 rounded-xl bg-[#173f63] px-6 text-[15px] font-extrabold text-white shadow-sm transition hover:bg-[#102f49]">
+                        <i className="ti ti-folder-open text-xl text-[#f6a800]" /> View My Project
+                      </button>
+                    )}
+                  </div>
+                  <div className="absolute bottom-0 right-8 hidden h-full w-[42%] items-center justify-center lg:flex" aria-hidden="true">
+                    <div className="absolute h-32 w-72 rounded-[50%] bg-[#f2f6fa]" />
+                    <div className="relative flex items-end gap-5">
+                      <div className="mb-3 space-y-1">
+                        <div className="h-4 w-28 rounded bg-[#f6a800]" />
+                        <div className="h-5 w-36 rounded bg-[#173f63]" />
+                        <div className="h-4 w-28 rounded border border-slate-300 bg-white" />
+                        <div className="h-5 w-40 rounded bg-[#244e70]" />
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <i className="ti ti-plant-2 text-[88px] leading-none text-[#173f63]" />
+                        <div className="-mt-3 h-11 w-12 rounded-b-xl rounded-t-sm bg-white shadow-sm" />
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {[
+                    { label: "Project Status", value: projectStatusLabel, icon: "ti-file-description", tone: "bg-blue-50 text-[#173f63]" },
+                    { label: "Documents", value: `${combinedSubmissions.length} submitted`, icon: "ti-file", tone: "bg-amber-50 text-[#e49700]" },
+                    { label: "Consultations", value: consultations.length ? "Scheduled" : "None scheduled", icon: "ti-calendar-event", tone: "bg-blue-50 text-[#173f63]" },
+                    { label: "Progress", value: `${projectProgress}%`, icon: "ti-chart-bar", tone: "bg-emerald-50 text-emerald-600" },
+                  ].map((item) => (
+                    <article key={item.label} className="flex min-h-[102px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_1px_3px_rgba(15,47,73,0.04)]">
+                      <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl ${item.tone}`}><i className={`ti ${item.icon} text-[26px]`} /></span>
+                      <div className="min-w-0"><p className="text-[13px] font-medium text-slate-500">{item.label}</p><p className="mt-1 truncate text-[18px] font-extrabold text-[#102f49]">{item.value}</p>{item.label === "Progress" && <div className="mt-2 h-2 w-full min-w-28 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${projectProgress}%` }} /></div>}</div>
+                    </article>
+                  ))}
+                </section>
+
+                <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.95fr]">
+                  <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,47,73,0.04)]">
+                    <h3 className="text-[18px] font-extrabold text-[#102f49]">Getting Started</h3>
+                    <p className="mt-0.5 text-sm text-slate-500">Complete these steps to begin your research journey.</p>
+                    <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+                      {[
+                        { title: "Register project", caption: "Tell us about your research topic.", icon: "ti-file-description", tab: "group" },
+                        { title: "Add group members", caption: "Invite your team, if any.", icon: "ti-users", tab: "group" },
+                        { title: "Choose an adviser", caption: "Browse verified faculty and send a formal request.", icon: "ti-user", tab: "adviser-pool" },
+                      ].map((step, index) => (
+                        <button key={step.title} onClick={() => index === 0 && !group ? setShowCreateModal(true) : step.tab === "adviser-pool" ? router.push("/student/adviser-pool") : handleTabChange(step.tab)} className="group relative flex flex-col items-center px-2 text-center">
+                          {index < 2 && <span className="absolute left-[68%] top-[38px] hidden h-0.5 w-[65%] bg-slate-200 md:block" />}
+                          <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-[#8aa0b5] text-xs font-bold text-white">{index + 1}</span>
+                          <span className="relative z-10 -mt-1 flex h-16 w-16 items-center justify-center rounded-full bg-slate-50 text-[#173f63] transition group-hover:bg-blue-50"><i className={`ti ${step.icon} text-[28px]`} /></span>
+                          <span className="mt-2 text-[14px] font-bold text-[#102f49]">{step.title}</span><span className="mt-1 max-w-40 text-xs leading-5 text-slate-500">{step.caption}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </article>
+
+                  <article className="flex min-h-[286px] flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,47,73,0.04)]">
+                    <div className="flex items-center justify-between"><h3 className="text-[18px] font-extrabold text-[#102f49]">Next Consultation</h3><i className="ti ti-chevron-right text-xl text-[#173f63]" /></div>
+                    <div className="flex flex-1 flex-col items-center justify-center text-center">
+                      <span className="relative flex h-20 w-20 items-center justify-center rounded-full bg-slate-50 text-[#8aa0b5]"><i className="ti ti-calendar-time text-[52px]" /></span>
+                      <p className="mt-3 text-[16px] font-bold text-[#102f49]">{consultations.length ? consultations[0].topic : "No upcoming consultation"}</p>
+                      <p className="mt-1 max-w-sm text-sm leading-5 text-slate-500">{consultations.length ? `${consultations[0].date} · ${consultations[0].time}` : "Book a consultation with your adviser to get feedback and guidance."}</p>
+                    </div>
+                    <button onClick={() => handleTabChange("consultations")} className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#f6a800] text-sm font-extrabold text-[#102f49] transition hover:bg-[#e99f00]"><i className="ti ti-calendar-plus" /> Book consultation</button>
+                  </article>
+                </section>
+
+                <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.95fr]">
+                  <article className="min-h-[190px] rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,47,73,0.04)]">
+                    <div className="flex items-center justify-between"><h3 className="text-[18px] font-extrabold text-[#102f49]">Recent Activity</h3><i className="ti ti-chevron-right text-xl text-[#173f63]" /></div>
+                    <div className="flex flex-col items-center justify-center py-5 text-center text-slate-500"><span className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-50 text-[#8aa0b5]"><i className="ti ti-file-description text-3xl" /></span><p className="mt-2 font-semibold text-[#102f49]">No recent activity</p><p className="mt-1 text-xs">Your updates, submissions, and consultations will appear here.</p></div>
+                  </article>
+                  <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_1px_3px_rgba(15,47,73,0.04)]">
+                    <h3 className="text-[18px] font-extrabold text-[#102f49]">Quick Actions</h3>
+                    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {[
+                        { label: "New document", icon: "ti-file-text", tab: "workspace" }, { label: "Submit draft", icon: "ti-upload", tab: "submissions" },
+                        { label: "Message group", icon: "ti-message", tab: "group-chats" }, { label: "View milestones", icon: "ti-chart-bar", tab: "milestones" },
+                      ].map((action) => <button key={action.label} onClick={() => handleTabChange(action.tab)} className="flex min-h-[102px] flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-2 text-center text-[#102f49] transition hover:border-[#f6a800] hover:bg-amber-50/30"><i className={`ti ${action.icon} text-[28px]`} /><span className="text-xs font-bold">{action.label}</span></button>)}
+                    </div>
+                  </article>
+                </section>
+              </div>
+            ),
+            "overview-legacy": (
               <>
                 {!group ? (
                   <div className="bg-white border-2 border-dashed border-slate-300 rounded-2xl p-10 text-center flex flex-col items-center justify-center shadow-sm my-2">
@@ -1160,13 +1295,13 @@ function StudentDashboardContent() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold leading-none">Milestone Progress</span>
-                        <span className="text-[14.5px] font-extrabold text-[#1b4264] mt-1.5 block leading-none">{group ? "In Progress" : "0% Complete"}</span>
+                        <span className="text-[14.5px] font-extrabold text-[#1b4264] mt-1.5 block leading-none">{group ? `${projectProgress}% Complete` : "0% Complete"}</span>
                       </div>
                     </div>
                     <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200/50">
                       <div 
                         className="bg-gradient-to-r from-[#1b4264] to-[#ffa400] h-full rounded-full transition-all duration-500 ease-out" 
-                        style={{ width: group ? "20%" : "0%" }} 
+                        style={{ width: `${projectProgress}%` }}
                       />
                     </div>
                   </div>
@@ -1380,23 +1515,8 @@ function StudentDashboardContent() {
             "adviser-credentials": (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Adviser Credentials Hub</h3>
-                <p className="text-[11px] text-slate-400 font-bold">View faculty profiles, research expertise indices, and verified publication records.</p>
-                <div className="flex flex-col gap-3.5 mt-2">
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
-                    <div>
-                      <span className="font-extrabold text-[#1b4264] block">Dr. Rachel Lim</span>
-                      <span className="text-[11px] text-slate-500">Expertise: Machine Learning, Computer Vision, Neural Nets</span>
-                    </div>
-                    <Tag variant="success">Available</Tag>
-                  </div>
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
-                    <div>
-                      <span className="font-extrabold text-[#1b4264] block">Dr. Lisa Wong</span>
-                      <span className="text-[11px] text-slate-500">Expertise: Data Infrastructures, Cryptographic Security Systems</span>
-                    </div>
-                    <Tag variant="success">Available</Tag>
-                  </div>
-                </div>
+                <p className="text-[11px] text-slate-400 font-bold">Adviser credentials now come from verified institutional accounts instead of sample profiles.</p>
+                <button onClick={() => router.push("/student/adviser-pool")} className="mt-2 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-left transition hover:border-[#f6a800]"><span><span className="block text-sm font-extrabold text-[#102f49]">Open Verified Adviser Pool</span><span className="mt-1 block text-xs text-slate-600">Browse active advisers and submit group details or an adviser-request PDF.</span></span><i className="ti ti-arrow-right text-xl text-[#173f63]" /></button>
               </div>
             ),
             "ai-recommendation": (
@@ -1528,15 +1648,19 @@ function StudentDashboardContent() {
             submission: renderSubmissionsHub(),
             "version-control": renderSubmissionsHub(),
             milestones: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Project Milestones</h3>
-                <p className="text-[11px] text-slate-400 font-bold">View sequence boundaries, check tasks list, and monitor lock states.</p>
-                <div className="flex flex-col gap-2.5 mt-2">
+              <div className="flex flex-col gap-5">
+                <StudentGanttChart project={activeProject} />
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
+                  <h3 className="font-extrabold text-[#1b4264] text-[16px]">Milestone Details</h3>
+                  <p className="text-[11px] text-slate-400 font-bold">Review the professor-defined sequence, duration, approval gates, and current status.</p>
+                  <div className="flex flex-col gap-2.5 mt-2">
                   {milestones.length > 0 ? (
                     milestones.map(m => (
-                      <div key={m.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-center text-[12.5px] shadow-sm">
-                        <div>
-                          <span className="font-bold text-[#1b4264] block">{m.title}</span>
+                      <div key={m.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-start gap-4 text-[12.5px] shadow-sm">
+                        <div className="min-w-0 flex-1">
+                          <span className="font-bold text-[#1b4264] block">{m.sequence}. {m.title}</span>
+                          <span className="mt-0.5 block text-[10px] text-slate-500">{m.category} · {m.deadlineDays ? `${m.deadlineDays} days` : "No target duration"}{m.requiresApproval ? " · Adviser approval required" : ""}</span>
+                          {m.description && <p className="mt-2 whitespace-pre-wrap text-[11.5px] leading-5 text-slate-600">{m.description}</p>}
                         </div>
                         <Tag variant={m.status === 'completed' ? 'success' : m.status === 'in-progress' ? 'warn' : 'info'}>{m.status}</Tag>
                       </div>
@@ -1546,6 +1670,7 @@ function StudentDashboardContent() {
                       No project milestones recorded. Register your research study to initiate workflow.
                     </div>
                   )}
+                  </div>
                 </div>
               </div>
             ),
@@ -1559,17 +1684,17 @@ function StudentDashboardContent() {
                 <div className="bg-slate-50 p-6 border border-slate-200 rounded-2xl mt-2 shadow-sm flex flex-col gap-4">
                   <div className="flex justify-between items-center text-[13px] font-extrabold text-[#1b4264]">
                     <span>Overall Study Progression</span>
-                    <span className="bg-[#1b4264]/10 text-[#1b4264] px-2.5 py-0.5 rounded text-[11px] font-extrabold font-mono">{group ? "20% COMPLETE" : "0% COMPLETE"}</span>
+                    <span className="bg-[#1b4264]/10 text-[#1b4264] px-2.5 py-0.5 rounded text-[11px] font-extrabold font-mono">{projectProgress}% COMPLETE</span>
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-4 p-1 overflow-hidden border border-slate-300/40 shadow-inner flex items-center">
                     <div 
                       className="bg-gradient-to-r from-[#1b4264] to-[#ffa400] h-2.5 rounded-full transition-all duration-500 ease-out animate-pulse shadow-sm" 
-                      style={{ width: group ? "20%" : "0%" }} 
+                      style={{ width: `${projectProgress}%` }}
                     />
                   </div>
                   <div className="text-[11px] text-slate-500 font-medium leading-relaxed mt-1 flex items-center gap-1.5">
                     <i className="ti ti-info-circle text-[#1b4264]" />
-                    <span>{group ? `Current Milestone: ${milestones[0]?.title || "Topic Proposal"}` : "Register your research study to begin tracking milestones."}</span>
+                    <span>{group ? `Current Milestone: ${activeProject?.workflowInstance?.currentStage?.name || "Not started"}` : "Register your research study to begin tracking milestones."}</span>
                   </div>
                 </div>
               </div>
@@ -1583,12 +1708,15 @@ function StudentDashboardContent() {
                     <div key={d.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-[12.5px] flex flex-col gap-2 mt-2 shadow-sm">
                       <div className="flex justify-between items-center">
                         <span className="font-extrabold text-[#1b4264] text-[14px]">{d.title}</span>
-                        <Tag variant="warn">{d.type}</Tag>
+                        <Tag variant={d.status === "SCHEDULED" ? "success" : d.status === "NEEDS_RESCHEDULING" ? "danger" : "warn"}>{d.type}</Tag>
                       </div>
                       <div className="text-slate-500 font-medium">
                         <div><strong>Date / Time:</strong> {d.date} at {d.time}</div>
                         <div><strong>Venue:</strong> {d.venue}</div>
                         <div><strong>Panelists:</strong> {d.panelists?.join(", ")}</div>
+                        {d.meetingUrl && d.status === "SCHEDULED" && <div><strong>Meeting:</strong> <a href={d.meetingUrl} target="_blank" rel="noreferrer" className="font-bold text-blue-700 underline">Open meeting link</a></div>}
+                        {d.status === "PENDING_ACKNOWLEDGEMENT" && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">The proposed schedule is awaiting confirmation from required panel members.</p>}
+                        {d.status === "NEEDS_RESCHEDULING" && <p className="mt-2 rounded-lg bg-blue-50 p-2 text-xs text-blue-800">The professor is adjusting the schedule. Private decline reasons are not shown to the group.</p>}
                       </div>
                     </div>
                   ))

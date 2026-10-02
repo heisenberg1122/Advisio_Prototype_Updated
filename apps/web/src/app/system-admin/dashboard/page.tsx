@@ -4,21 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
-
-// Mock colleges, departments, configurations, audit logs
-const INITIAL_COLLEGES = [
-  { id: "c1", name: "College of Computer Studies", code: "CCS", status: "active", deptsCount: 4, adminName: "Admin Officer" },
-  { id: "c2", name: "College of Engineering", code: "COE", status: "active", deptsCount: 6, adminName: "Engr. Clara Santos" },
-  { id: "c3", name: "College of Business Administration", code: "CBA", status: "active", deptsCount: 5, adminName: "Prof. Leo Gomez" },
-  { id: "c4", name: "College of Science", code: "COS", status: "pending setup", deptsCount: 3, adminName: "None" },
-];
-
-const INITIAL_DEPARTMENTS = [
-  { id: "d1", collegeId: "c1", name: "Computer Science", code: "CS", status: "active" },
-  { id: "d2", collegeId: "c1", name: "Information Technology", code: "IT", status: "active" },
-  { id: "d3", collegeId: "c1", name: "Software Engineering", code: "SE", status: "active" },
-  { id: "d4", collegeId: "c2", name: "Civil Engineering", code: "CE", status: "active" },
-];
+import { SystemAnnouncements } from "@/components/system-admin/SystemAnnouncements";
+import { UserManagement } from "@/components/system-admin/UserManagement";
 
 function SystemAdminDashboardContent() {
   const searchParams = useSearchParams();
@@ -26,23 +13,23 @@ function SystemAdminDashboardContent() {
   const { isDark, toggleTheme } = useTheme();
 
   // Query live colleges and programs
-  const { data: collegesData } = useQuery({
+  const { data: collegesData, isLoading: collegesLoading, isError: collegesError, refetch: refetchColleges } = useQuery({
     queryKey: ["admin-colleges"],
-    queryFn: () => apiClient.get<{ colleges: any[] }>("/api/colleges").catch(() => ({ colleges: [] })),
+    queryFn: () => apiClient.get<{ colleges: any[] }>("/api/colleges"),
     staleTime: 60000,
   });
 
-  const { data: programsData } = useQuery({
+  const { data: programsData, isLoading: programsLoading, isError: programsError, refetch: refetchPrograms } = useQuery({
     queryKey: ["admin-programs"],
-    queryFn: () => apiClient.get<{ programs: any[] }>("/api/programs").catch(() => ({ programs: [] })),
+    queryFn: () => apiClient.get<{ programs: any[] }>("/api/programs"),
     staleTime: 60000,
   });
 
-  const [colleges, setColleges] = useState(INITIAL_COLLEGES);
-  const [departments, setDepartments] = useState(INITIAL_DEPARTMENTS);
+  const [colleges, setColleges] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
 
   useEffect(() => {
-    if (collegesData?.colleges && collegesData.colleges.length > 0) {
+    if (collegesData?.colleges) {
       setColleges(
         collegesData.colleges.map((c: any) => ({
           id: c.id,
@@ -57,7 +44,7 @@ function SystemAdminDashboardContent() {
   }, [collegesData]);
 
   useEffect(() => {
-    if (programsData?.programs && programsData.programs.length > 0) {
+    if (programsData?.programs) {
       setDepartments(
         programsData.programs.map((p: any) => ({
           id: p.id,
@@ -70,8 +57,8 @@ function SystemAdminDashboardContent() {
     }
   }, [programsData]);
 
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [configStatus, setConfigStatus] = useState("Optimal");
+  const [maintenanceMode] = useState(false);
+  const [configStatus] = useState("Not connected");
   const [uptime, setUptime] = useState("99.98%");
   const [roleCount, setRoleCount] = useState(8);
   const [alertsCount, setAlertsCount] = useState(0);
@@ -101,23 +88,30 @@ function SystemAdminDashboardContent() {
   const handleAddCollege = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await apiClient.post("/api/colleges", { name: colName, code: colCode.toUpperCase() });
-    } catch (e) {}
-    setColleges(prev => [...prev, { id: Math.random().toString(), name: colName, code: colCode.toUpperCase(), status: "active", deptsCount: 0, adminName: "None" }]);
-    setModalCol(false);
-    setColName("");
-    setColCode("");
-    triggerToast(`Successfully onboarded college ${colCode.toUpperCase()}`);
+      await apiClient.post("/api/colleges", { name: colName.trim(), code: colCode.trim().toUpperCase(), isActive: true });
+      await refetchColleges();
+      setModalCol(false);
+      setColName("");
+      setColCode("");
+      triggerToast(`Successfully onboarded college ${colCode.trim().toUpperCase()}`);
+    } catch (error) {
+      triggerToast(error instanceof Error ? `Could not onboard college: ${error.message}` : "Could not onboard college.");
+    }
   };
 
-  const handleAddDept = (e: React.FormEvent) => {
+  const handleAddDept = async (e: React.FormEvent) => {
     e.preventDefault();
-    setDepartments(prev => [...prev, { id: Math.random().toString(), collegeId: deptCollege, name: deptName, code: deptCode.toUpperCase(), status: "active" }]);
-    setColleges(prev => prev.map(c => c.id === deptCollege ? { ...c, deptsCount: c.deptsCount + 1 } : c));
-    setModalDept(false);
-    setDeptName("");
-    setDeptCode("");
-    triggerToast(`Added department ${deptCode.toUpperCase()}`);
+    try {
+      await apiClient.post("/api/programs", { collegeId: deptCollege, name: deptName.trim(), code: deptCode.trim().toUpperCase(), isActive: true });
+      await Promise.all([refetchPrograms(), refetchColleges()]);
+      setModalDept(false);
+      setDeptCollege("");
+      setDeptName("");
+      setDeptCode("");
+      triggerToast(`Added department ${deptCode.trim().toUpperCase()}`);
+    } catch (error) {
+      triggerToast(error instanceof Error ? `Could not add department: ${error.message}` : "Could not add department.");
+    }
   };
 
   const router = useRouter();
@@ -127,6 +121,8 @@ function SystemAdminDashboardContent() {
 
   const tabsList = [
     { id: "overview", label: "Overview", icon: "ti-layout-dashboard" },
+    { id: "announcements", label: "Announcements", icon: "ti-speakerphone" },
+    { id: "users", label: "Users", icon: "ti-users" },
     { id: "onboarding", label: "College & Programs", icon: "ti-building", badge: colleges.length },
     { id: "roles", label: "Role Permissions", icon: "ti-shield-lock", badge: roleCount },
     { id: "config", label: "System Config", icon: "ti-settings" },
@@ -184,9 +180,13 @@ function SystemAdminDashboardContent() {
             roles: "Global Role Permission Matrix",
             config: "System Parameter Configuration",
             settings: "Settings",
+            announcements: "System Announcements",
+            users: "User Management",
           };
 
           const tabContent: Record<string, React.ReactNode> = {
+            announcements: <SystemAnnouncements />,
+            users: <UserManagement />,
             overview: (
               <>
                 {/* EXACT SYSTEM ADMIN CARDS */}
@@ -227,7 +227,7 @@ function SystemAdminDashboardContent() {
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Maintenance Status</span>
-                      <span className="text-[18px] font-extrabold text-[#1b4264]">{maintenanceMode ? "Active" : "Live"}</span>
+                      <span className="text-[18px] font-extrabold text-[#1b4264]">{maintenanceMode ? "Active" : "Unavailable"}</span>
                     </div>
                   </div>
                 </div>
@@ -237,6 +237,9 @@ function SystemAdminDashboardContent() {
                   <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
                     <h3 className="font-extrabold text-[#1b4264] text-[14px]">Onboarded Colleges</h3>
                     <div className="flex flex-col gap-3">
+                      {collegesLoading && <div className="h-16 animate-pulse rounded-lg bg-slate-100" />}
+                      {collegesError && <button onClick={() => void refetchColleges()} className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-left text-[12px] font-semibold text-rose-700">Colleges could not be loaded. Click to retry.</button>}
+                      {!collegesLoading && !collegesError && colleges.length === 0 && <div className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-[12px] text-slate-500">No colleges have been onboarded.</div>}
                       {colleges.map(c => (
                         <div key={c.id} className="p-3 border border-slate-200 rounded-lg flex justify-between items-center text-[12px] bg-slate-50 hover:border-[#ffa400] transition shadow-sm">
                           <div>
@@ -250,20 +253,9 @@ function SystemAdminDashboardContent() {
                   </div>
 
                   <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
-                    <h3 className="font-extrabold text-[#1b4264] text-[14px]">System Audit Action Logs</h3>
-                    <div className="flex flex-col gap-3 text-[11px] text-slate-500">
-                      <div className="p-2 border-b border-slate-100 flex justify-between">
-                        <span>Onboarded College Unit (Science)</span>
-                        <span className="font-bold text-slate-450">Just now</span>
-                      </div>
-                      <div className="p-2 border-b border-slate-100 flex justify-between">
-                        <span>Assigned CCS Admin Officer to layout portal</span>
-                        <span className="font-bold text-slate-450">1 hour ago</span>
-                      </div>
-                      <div className="p-2 border-b border-slate-100 flex justify-between">
-                        <span>Modified Database Maintenance Configuration</span>
-                        <span className="font-bold text-slate-450">3 hours ago</span>
-                      </div>
+                    <h3 className="font-extrabold text-[#1b4264] text-[14px]">Recent Administrative Activity</h3>
+                    <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] text-slate-500">
+                      Audit activity will appear here when the audit log query endpoint is connected.
                     </div>
                   </div>
                 </div>
@@ -289,7 +281,7 @@ function SystemAdminDashboardContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3 bg-white">
                     <h4 className="font-bold text-[13px] text-[#1b4264] border-b border-slate-100 pb-2">Colleges</h4>
-                    {colleges.map(c => (
+                    {collegesLoading ? <div className="h-12 animate-pulse rounded bg-slate-100" /> : collegesError ? <button onClick={() => void refetchColleges()} className="text-left text-[12px] font-semibold text-rose-600">Unable to load colleges. Retry</button> : colleges.map(c => (
                       <div key={c.id} className="p-2 bg-slate-50 rounded border border-slate-200 flex justify-between items-center text-[12px]">
                         <span className="font-bold text-[#1b4264]">{c.name}</span>
                         <span className="font-mono text-[10px] bg-[#1b4264]/10 text-[#1b4264] px-1.5 py-0.5 rounded font-extrabold">{c.code}</span>
@@ -299,7 +291,7 @@ function SystemAdminDashboardContent() {
 
                   <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3 bg-white">
                     <h4 className="font-bold text-[13px] text-[#1b4264] border-b border-slate-100 pb-2">Departments</h4>
-                    {departments.map(d => (
+                    {programsLoading ? <div className="h-12 animate-pulse rounded bg-slate-100" /> : programsError ? <button onClick={() => void refetchPrograms()} className="text-left text-[12px] font-semibold text-rose-600">Unable to load departments. Retry</button> : departments.map(d => (
                       <div key={d.id} className="p-2 bg-slate-50 rounded border border-slate-200 flex justify-between items-center text-[12px]">
                         <span className="font-bold text-slate-800">{d.name}</span>
                         <span className="text-[10px] text-slate-450 uppercase font-mono font-extrabold text-[#ffa400]">{d.code}</span>
@@ -313,15 +305,8 @@ function SystemAdminDashboardContent() {
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">System Audit Logs</h3>
                 <p className="text-[11px] text-slate-400 font-bold">Monitor server actions, configuration updates, and error alerts.</p>
-                <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl text-[12.5px] mt-2 shadow-sm text-slate-650 flex flex-col gap-2">
-                  <div><strong>Database Integrity:</strong> Verified Healthy</div>
-                  <div><strong>Total Requests Logged:</strong> 4,212 Actions</div>
-                  <div className="h-px bg-slate-200 my-2" />
-                  <div className="text-[11.5px] font-medium flex flex-col gap-2">
-                    <div>1. INFO — Database Sync success at 2026-06-28 14:00:12</div>
-                    <div>2. WARN — Session timeout threshold reached for admin user</div>
-                    <div>3. ERROR — Failed login attempt from ip 192.168.1.1</div>
-                  </div>
+                <div className="bg-slate-50 p-6 border border-dashed border-slate-200 rounded-xl text-[12.5px] mt-2 text-center text-slate-600">
+                  Audit log browsing is not connected yet. No sample events are shown as live system data.
                 </div>
               </div>
             ),
@@ -335,10 +320,10 @@ function SystemAdminDashboardContent() {
                   </div>
                   <div>
                     <span className="font-bold text-[#1b4264] text-[14px] block">Full Database Backup Ready</span>
-                    <span className="text-[10.5px] text-slate-400">Last Snapshot: June 28, 2026 at 12:00 PM</span>
+                    <span className="text-[10.5px] text-slate-400">Backup service status is not connected.</span>
                   </div>
-                  <button onClick={() => triggerToast("Initiated full PostgreSQL database backup download...")} className="px-4 py-2 bg-[#ffa400] text-[#1b4264] hover:bg-[#e09000] font-extrabold rounded-lg shadow border border-[#ffa400] self-center cursor-pointer transition-colors">
-                    Download Snapshot (SQL)
+                  <button disabled className="px-4 py-2 bg-slate-200 text-slate-500 font-extrabold rounded-lg border border-slate-300 self-center cursor-not-allowed">
+                    Backup integration coming soon
                   </button>
                 </div>
               </div>
@@ -385,14 +370,14 @@ function SystemAdminDashboardContent() {
                       <span className="font-bold text-[#1b4264] block">Maintenance Mode</span>
                       <span className="text-[10px] text-slate-400">Lock the platform database for scheduled upgrades.</span>
                     </div>
-                    <input type="checkbox" checked={maintenanceMode} onChange={(e)=>setMaintenanceMode(e.target.checked)} className="accent-[#ffa400] w-4 h-4 cursor-pointer" />
+                    <input type="checkbox" checked={maintenanceMode} disabled title="Maintenance service is not connected" className="accent-[#ffa400] w-4 h-4 cursor-not-allowed opacity-50" />
                   </div>
                   <div className="flex justify-between items-center pb-3 border-b border-slate-200">
                     <div>
                       <span className="font-bold text-[#1b4264] block">DB Query Cache</span>
                       <span className="text-[10px] text-slate-400">Cache user role matrices to optimize performance.</span>
                     </div>
-                    <input type="checkbox" defaultChecked className="accent-[#ffa400] w-4 h-4 cursor-pointer" />
+                    <input type="checkbox" disabled title="Configuration service is not connected" className="accent-[#ffa400] w-4 h-4 cursor-not-allowed opacity-50" />
                   </div>
                 </div>
               </div>

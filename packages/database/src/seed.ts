@@ -133,16 +133,38 @@ async function main() {
     },
   });
 
+  // The workflow owner must exist before the workflow so notification recipients
+  // and the workflow creator foreign key always reference a real professor.
+  const workflowOwner = await prisma.user.upsert({
+    where: { email: "professor01@university.edu.ph" },
+    update: { status: "ACTIVE", collegeId: cit.id, programId: bsit.id },
+    create: {
+      universityId: "PROFESSOR-DEMO-001",
+      email: "professor01@university.edu.ph",
+      firstName: "Maria Clara",
+      lastName: "Santos",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS",
+      status: "ACTIVE",
+      collegeId: cit.id,
+      programId: bsit.id,
+    },
+  });
+  await prisma.userRole.upsert({
+    where: { userId_roleId: { userId: workflowOwner.id, roleId: rolesMap["RESEARCH_COORDINATOR"] } },
+    update: {},
+    create: { userId: workflowOwner.id, roleId: rolesMap["RESEARCH_COORDINATOR"] },
+  });
+
   const capstoneWorkflow = await prisma.workflow.upsert({
     where: { researchTypeId_version: { researchTypeId: capstoneType.id, version: 1 } },
-    update: { name: "BSIT Capstone Standard Workflow" },
+    update: { name: "BSIT Capstone Standard Workflow", createdBy: workflowOwner.id },
     create: {
       researchTypeId: capstoneType.id,
       name: "BSIT Capstone Standard Workflow",
       description: "7-stage workflow for BSIT Capstone projects",
       version: 1,
       status: "PUBLISHED",
-      createdBy: "00000000-0000-0000-0000-000000000000",
+      createdBy: workflowOwner.id,
       publishedAt: new Date(),
     },
   });
@@ -179,15 +201,223 @@ async function main() {
     });
   }
 
-  // 5. Bootstrap Initial Accounts (System Admin, Adviser, Researcher)
+  // 5. Bootstrap initial accounts and the demo accounts advertised by the login page
   console.log("Seeding Core Initial User Accounts...");
   const initialUsers = [
     {
-      universityId: "SYSADMIN-001",
+      universityId: "STUDENT-DEMO-001",
+      email: "student01@university.edu.ph",
+      firstName: "Student",
+      lastName: "Researcher",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RESEARCHER",
+    },
+    {
+      universityId: "ADVISER-DEMO-001",
+      email: "adviser01@university.edu.ph",
+      firstName: "Faculty",
+      lastName: "Adviser",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "ADVISER",
+    },
+    {
+      universityId: "PROFESSOR-DEMO-001",
+      email: "professor01@university.edu.ph",
+      firstName: "Maria Clara",
+      lastName: "Santos",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RESEARCH_COORDINATOR",
+    },
+    {
+      universityId: "PROFESSOR-DEMO-002",
+      email: "professor02@university.edu.ph",
+      firstName: "Arthur",
+      lastName: "Pendelton",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RESEARCH_COORDINATOR",
+    },
+    {
+      universityId: "PROFESSOR-DEMO-003",
+      email: "professor03@university.edu.ph",
+      firstName: "Elena",
+      lastName: "Rostova",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RESEARCH_COORDINATOR",
+    },
+    {
+      universityId: "PROFESSOR-DEMO-004",
+      email: "professor04@university.edu.ph",
+      firstName: "Marcus",
+      lastName: "Vance",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RESEARCH_COORDINATOR",
+    },
+    {
+      universityId: "PROFESSOR-DEMO-005",
+      email: "professor05@university.edu.ph",
+      firstName: "Sophia",
+      lastName: "Delgado",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RESEARCH_COORDINATOR",
+    },
+    {
+      universityId: "PANELIST-DEMO-001",
+      email: "panelist01@university.edu.ph",
+      firstName: "Defense",
+      lastName: "Panelist",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "PANELIST",
+    },
+    {
+      universityId: "PANELIST-DEMO-002",
+      email: "panelist02@university.edu.ph",
+      firstName: "Dr. Fernando",
+      lastName: "Gomez",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "PANELIST",
+    },
+    {
+      universityId: "PANELIST-DEMO-003",
+      email: "panelist03@university.edu.ph",
+      firstName: "Prof. Lilian",
+      lastName: "Morales",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "PANELIST",
+    },
+    {
+      universityId: "PANELIST-DEMO-004",
+      email: "panelist04@university.edu.ph",
+      firstName: "Dr. Eduardo",
+      lastName: "Castillo",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "PANELIST",
+    },
+    {
+      universityId: "PANELIST-DEMO-005",
+      email: "panelist05@university.edu.ph",
+      firstName: "Prof. Victoria",
+      lastName: "Navarro",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "PANELIST",
+    },
+    {
+      universityId: "ADVISER-DEMO-002",
+      email: "adviser02@university.edu.ph",
+      firstName: "Dr. Ramon",
+      lastName: "Bautista",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "ADVISER",
+    },
+    {
+      universityId: "ADVISER-DEMO-003",
+      email: "adviser03@university.edu.ph",
+      firstName: "Prof. Teresa",
+      lastName: "Mercado",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "ADVISER",
+    },
+    {
+      universityId: "ADVISER-DEMO-004",
+      email: "adviser04@university.edu.ph",
+      firstName: "Dr. Antonio",
+      lastName: "Villanueva",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "ADVISER",
+    },
+    {
+      universityId: "ADVISER-DEMO-005",
+      email: "adviser05@university.edu.ph",
+      firstName: "Prof. Carmen",
+      lastName: "Salazar",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "ADVISER",
+    },
+    {
+      universityId: "STUDENT-DEMO-002",
+      email: "student02@university.edu.ph",
+      firstName: "Mateo",
+      lastName: "Alvarez",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RESEARCHER",
+    },
+    {
+      universityId: "STUDENT-DEMO-003",
+      email: "student03@university.edu.ph",
+      firstName: "Beatrice",
+      lastName: "Cruz",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RESEARCHER",
+    },
+    {
+      universityId: "STUDENT-DEMO-004",
+      email: "student04@university.edu.ph",
+      firstName: "Gabriel",
+      lastName: "Santos",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RESEARCHER",
+    },
+    {
+      universityId: "STUDENT-DEMO-005",
+      email: "student05@university.edu.ph",
+      firstName: "Alyssa",
+      lastName: "Dizon",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RESEARCHER",
+    },
+    {
+      universityId: "RES-DEMO-001",
+      email: "researcher01@university.edu.ph",
+      firstName: "Carlos",
+      lastName: "Mendoza",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RESEARCHER",
+    },
+    {
+      universityId: "RES-DEMO-002",
+      email: "researcher02@university.edu.ph",
+      firstName: "Patricia",
+      lastName: "Reyes",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RESEARCHER",
+    },
+    {
+      universityId: "DEAN-DEMO-001",
+      email: "dean01@university.edu.ph",
+      firstName: "Dr. Manuel",
+      lastName: "Soriano",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RPO",
+    },
+    {
+      universityId: "DEAN-DEMO-002",
+      email: "dean.cit@university.edu.ph",
+      firstName: "Dr. Angelica",
+      lastName: "Flores",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RPO",
+    },
+    {
+      universityId: "DEAN-001",
+      email: "dean@advisio.edu.ph",
+      firstName: "Dr. Ernesto",
+      lastName: "Valerio",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RPO",
+    },
+    {
+      universityId: "ADMIN-001",
       email: "admin01@university.edu.ph",
       firstName: "Admin",
       lastName: "Officer",
-      passwordHash: "$2b$10$uciAmngb6Ztr3vbzoL6o1uVgFpDcpflshI8Q41QQFjY8ackpOMsgW", // Admin@12345
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
+      roleName: "RPO",
+    },
+    {
+      universityId: "SYSADMIN-001",
+      email: "superadmin01@university.edu.ph",
+      firstName: "System",
+      lastName: "Administrator",
+      passwordHash: "$2b$10$w/lINNxlnWGkbSqJY8M/A.Dz/W7RmRPILC8/lyoAk4K7iuwGYi/KS", // password123
       roleName: "SYSTEM_ADMIN",
     },
     {
@@ -220,8 +450,10 @@ async function main() {
     const user = await prisma.user.upsert({
       where: { email: u.email },
       update: {
+        universityId: u.universityId,
         firstName: u.firstName,
         lastName: u.lastName,
+        passwordHash: u.passwordHash,
         status: "ACTIVE",
         collegeId: cit.id,
         programId: bsit.id,
@@ -240,6 +472,10 @@ async function main() {
 
     const roleId = rolesMap[u.roleName];
     if (roleId) {
+      // Demo accounts have one deterministic primary role so dashboard routing is stable.
+      await prisma.userRole.deleteMany({
+        where: { userId: user.id, roleId: { not: roleId } },
+      });
       await prisma.userRole.upsert({
         where: {
           userId_roleId: {
@@ -256,7 +492,8 @@ async function main() {
     }
   }
 
-  console.log("✅ Seed completed successfully! Default admin: admin@advisio.edu.ph / Admin@12345");
+  console.log("✅ Seed completed successfully! Admin: admin01@university.edu.ph / password123");
+  console.log("   System admin: superadmin01@university.edu.ph / password123");
 }
 
 main()

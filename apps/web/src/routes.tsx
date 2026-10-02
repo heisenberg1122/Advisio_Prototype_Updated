@@ -5,6 +5,17 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 // Lazy-loaded Portal Layouts & Pages for route-based code splitting
 const StudentLayout = lazy(() => import('./app/student/layout'));
 const StudentDashboardPage = lazy(() => import('./app/student/dashboard/page'));
+const StudentGroupsPage = lazy(() => import('./app/student/groups/page'));
+const StudentAdviserPoolPage = lazy(() => import('./app/student/adviser-pool/page'));
+const StudentTasksPage = lazy(() => import('./app/student/tasks/page'));
+const StudentSubmissionsPage = lazy(() => import('./app/student/submissions/page'));
+const StudentConsultationsPage = lazy(() => import('./app/student/consultations/page'));
+const StudentDefensePage = lazy(() => import('./app/student/defense/page'));
+const StudentGradesPage = lazy(() => import('./app/student/grades/page'));
+const StudentNotificationsPage = lazy(() => import('./app/student/notifications/page'));
+const StudentProfilePage = lazy(() => import('./app/student/profile/page'));
+const StudentProfileEditPage = lazy(() => import('./app/student/profile/edit/page'));
+const StudentSettingsPage = lazy(() => import('./app/student/settings/page'));
 
 const AdviserLayout = lazy(() => import('./app/adviser/layout'));
 const AdviserDashboardPage = lazy(() => import('./app/adviser/dashboard/page'));
@@ -17,6 +28,9 @@ const ProfessorDashboardPage = lazy(() => import('./app/professor/dashboard/page
 
 const SystemAdminLayout = lazy(() => import('./app/system-admin/layout'));
 const SystemAdminDashboardPage = lazy(() => import('./app/system-admin/dashboard/page'));
+const SystemAdminNotificationsPage = lazy(() => import('./app/system-admin/notifications/page'));
+const SystemAdminProfilePage = lazy(() => import('./app/system-admin/profile/page'));
+const SystemAdminProfileEditPage = lazy(() => import('./app/system-admin/profile/edit/page'));
 
 const AdminLayout = lazy(() => import('./app/admin/layout'));
 const AdminDashboardPage = lazy(() => import('./app/admin/dashboard/page'));
@@ -38,6 +52,14 @@ function RouteLoader() {
   );
 }
 
+function StudentPortal({ children }: { children: React.ReactNode }) {
+  return (
+    <ProtectedRoute allowedRoles={['RESEARCHER', 'STUDENT']}>
+      <StudentLayout>{children}</StudentLayout>
+    </ProtectedRoute>
+  );
+}
+
 export function AppRoutes() {
   return (
     <Suspense fallback={<RouteLoader />}>
@@ -50,17 +72,21 @@ export function AppRoutes() {
         <Route path="/first-login-setup" element={<FirstTimeSetupPage />} />
 
         {/* Student / Researcher Portal */}
+        <Route path="/dashboard" element={<StudentPortal><StudentDashboardPage /></StudentPortal>} />
         <Route path="/student" element={<Navigate to="/student/dashboard" replace />} />
-        <Route
-          path="/student/*"
-          element={
-            <ProtectedRoute allowedRoles={['RESEARCHER', 'STUDENT']}>
-              <StudentLayout>
-                <StudentDashboardPage />
-              </StudentLayout>
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/student/dashboard" element={<StudentPortal><StudentDashboardPage /></StudentPortal>} />
+        <Route path="/student/groups" element={<StudentPortal><StudentGroupsPage /></StudentPortal>} />
+        <Route path="/student/adviser-pool" element={<StudentPortal><StudentAdviserPoolPage /></StudentPortal>} />
+        <Route path="/student/tasks" element={<StudentPortal><StudentTasksPage /></StudentPortal>} />
+        <Route path="/student/submissions" element={<StudentPortal><StudentSubmissionsPage /></StudentPortal>} />
+        <Route path="/student/consultations" element={<StudentPortal><StudentConsultationsPage /></StudentPortal>} />
+        <Route path="/student/defense" element={<StudentPortal><StudentDefensePage /></StudentPortal>} />
+        <Route path="/student/grades" element={<StudentPortal><StudentGradesPage /></StudentPortal>} />
+        <Route path="/student/notifications" element={<StudentPortal><StudentNotificationsPage /></StudentPortal>} />
+        <Route path="/student/profile" element={<StudentPortal><StudentProfilePage /></StudentPortal>} />
+        <Route path="/student/profile/edit" element={<StudentPortal><StudentProfileEditPage /></StudentPortal>} />
+        <Route path="/student/settings" element={<StudentPortal><StudentSettingsPage /></StudentPortal>} />
+        <Route path="/student/*" element={<Navigate to="/student/dashboard" replace />} />
 
         {/* Adviser Portal */}
         <Route path="/adviser" element={<Navigate to="/adviser/dashboard" replace />} />
@@ -103,14 +129,14 @@ export function AppRoutes() {
 
         {/* System Admin Portal */}
         <Route path="/system-admin" element={<Navigate to="/system-admin/dashboard" replace />} />
+        <Route path="/system-admin/dashboard" element={<ProtectedRoute allowedRoles={['SYSTEM_ADMIN']}><SystemAdminLayout><SystemAdminDashboardPage /></SystemAdminLayout></ProtectedRoute>} />
+        <Route path="/system-admin/notifications" element={<ProtectedRoute allowedRoles={['SYSTEM_ADMIN']}><SystemAdminLayout><SystemAdminNotificationsPage /></SystemAdminLayout></ProtectedRoute>} />
+        <Route path="/system-admin/profile" element={<ProtectedRoute allowedRoles={['SYSTEM_ADMIN']}><SystemAdminLayout><SystemAdminProfilePage /></SystemAdminLayout></ProtectedRoute>} />
+        <Route path="/system-admin/profile/edit" element={<ProtectedRoute allowedRoles={['SYSTEM_ADMIN']}><SystemAdminLayout><SystemAdminProfileEditPage /></SystemAdminLayout></ProtectedRoute>} />
         <Route
           path="/system-admin/*"
           element={
-            <ProtectedRoute allowedRoles={['SYSTEM_ADMIN']}>
-              <SystemAdminLayout>
-                <SystemAdminDashboardPage />
-              </SystemAdminLayout>
-            </ProtectedRoute>
+            <Navigate to="/system-admin/dashboard" replace />
           }
         />
 

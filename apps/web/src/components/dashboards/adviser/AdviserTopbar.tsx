@@ -1,87 +1,42 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { useNotifications } from "@/hooks/use-notifications";
-import { useProfile } from "@/hooks/use-profile";
 import Link from "next/link";
-import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import { NotificationPopover } from "@/components/notifications/NotificationPopover";
+import { useProfile } from "@/hooks/use-profile";
 
 const PAGE_TITLES: Record<string, string> = {
-  "/adviser/advisees":      "Assigned Advisees",
-  "/adviser/requests":      "Milestone Requests",
-  "/adviser/consultations": "Consultations",
-  "/adviser/reviews":       "Document Reviews",
-  "/adviser/tasks":         "Tasks Management",
-  "/adviser/announcements": "Announcements",
-  "/adviser/profile":       "My Profile",
-  "/adviser/profile/edit":  "Edit Profile",
-  "/adviser/notifications":  "Notifications",
+  "/adviser/advisees": "My Advisees", "/adviser/requests": "Milestone Requests", "/adviser/consultations": "Consultations",
+  "/adviser/reviews": "Document Reviews", "/adviser/tasks": "Tasks", "/adviser/announcements": "Announcements",
+  "/adviser/profile": "My Profile", "/adviser/profile/edit": "Edit Profile", "/adviser/notifications": "Notifications",
 };
 
-const ADVISER_TAB_TITLES: Record<string, string> = {
-  overview: "Adviser Dashboard",
-  advisees: "Assigned Advisee Management",
-  reviews: "Research Document Review",
-  consultations: "Consultation Schedule Management",
-  progress: "Progress Monitoring",
-  approvals: "Approval and Recommendation of Milestones",
-  history: "Consultation History Records",
-  conferencing: "Group Conferencing",
-  "group-chats": "Adviser Group Chats",
-  defense: "Defense Schedule",
-  settings: "Settings",
+const TAB_TITLES: Record<string, string> = {
+  overview: "Dashboard", advisees: "My Advisees", reviews: "Document Reviews", consultations: "Consultations",
+  progress: "Group Progress", approvals: "Milestone Approvals", history: "Consultation History", conferencing: "Video Meetings",
+  "group-chats": "Messages", chat: "Messages", defense: "Defense Schedule", settings: "Settings",
 };
-
-import { useAuth } from "@/hooks/use-auth";
 
 export function AdviserTopbar() {
   const pathname = usePathname() || "";
-  const searchParams = useSearchParams();
-  const currentTab = searchParams.get("tab") || "overview";
-
-  let title = PAGE_TITLES[pathname] ?? "Adviser Dashboard";
-  if (pathname === "/adviser/dashboard") {
-    title = ADVISER_TAB_TITLES[currentTab] || "Adviser Dashboard";
-  }
-  const { unreadCount } = useNotifications();
+  const currentTab = useSearchParams().get("tab") || "overview";
   const { profile } = useProfile();
-  const { logout } = useAuth();
+  const title = pathname === "/adviser/dashboard" ? TAB_TITLES[currentTab] || "Dashboard" : PAGE_TITLES[pathname] || "Dashboard";
 
   return (
-    <header className="h-[52px] flex-shrink-0 flex items-center justify-between px-6 border-b border-slate-200 bg-white">
-      <span className="text-[13px] font-medium text-slate-800" aria-label="Current page">{title}</span>
-
-      <div className="flex items-center gap-2">
-        <ThemeToggle />
-        <Link
-          href="/adviser/notifications"
-          className="relative p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition"
-          aria-label={unreadCount > 0 ? `Notifications — ${unreadCount} unread` : "Notifications"}
-        >
-          <i className="ti ti-bell text-base" aria-hidden="true" />
-          {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-          )}
+    <header className="flex h-[68px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-7">
+      <h1 className="text-[22px] font-extrabold tracking-tight text-[#102f49]">{title}</h1>
+      <div className="flex items-center gap-5">
+        <label className="hidden h-10 w-[280px] items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-slate-400 lg:flex">
+          <i className="ti ti-search text-lg" />
+          <input aria-label="Search" placeholder="Search anything..." className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400" />
+        </label>
+        <NotificationPopover viewAllHref="/adviser/notifications" compact />
+        <Link href="/adviser/profile" className="flex items-center gap-3" aria-label="Go to profile">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#173f63] text-xs font-bold text-white">{profile?.initials || "FA"}</span>
+          <span className="hidden text-sm font-semibold text-[#102f49] sm:inline">{profile?.name || "Faculty Adviser"}</span>
+          <i className="ti ti-chevron-down hidden text-sm text-[#173f63] sm:block" />
         </Link>
-        <Link
-          href="/adviser/profile"
-          className="w-8 h-8 rounded-full bg-[#1b4264] text-white flex items-center justify-center text-[11px] font-bold hover:opacity-90 transition flex-shrink-0"
-          title="My Profile"
-          aria-label="Go to my profile"
-        >
-          {profile?.initials || "RL"}
-        </Link>
-
-        {/* Permanent Topbar Logout Button */}
-        <button
-          onClick={() => logout()}
-          title="Sign Out"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-red-600 hover:bg-red-50 border border-red-200 transition text-[12px] font-bold cursor-pointer shrink-0 ml-1"
-          aria-label="Sign out of your account"
-        >
-          <i className="ti ti-logout text-sm" />
-          <span className="hidden sm:inline">Logout</span>
-        </button>
       </div>
     </header>
   );

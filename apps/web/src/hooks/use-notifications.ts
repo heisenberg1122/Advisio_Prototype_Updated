@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { apiClient } from "@/lib/api-client";
 
 export interface AppNotification {
   id: string;
@@ -10,8 +11,9 @@ export interface AppNotification {
   time: string;
   read: boolean;
   type: "success" | "info" | "warning" | "danger";
-  module?: "Documents" | "Consultation" | "Defense" | "Milestones" | "Announcements";
+  module?: "Documents" | "Consultation" | "Defense" | "Milestones" | "Announcements" | "Adviser Requests";
   link?: string;
+  source?: "api" | "local";
 }
 
 const DEFAULT_NOTIFICATIONS: Record<string, AppNotification[]> = {
@@ -43,7 +45,7 @@ export function useNotifications() {
   }
 
   // Load notifications helper
-  const loadNotifications = () => {
+  const loadNotifications = async () => {
     const key = `advisio_notifications_${role}`;
     const saved = localStorage.getItem(key);
     if (saved) {
@@ -62,28 +64,53 @@ export function useNotifications() {
                 !n.message?.includes("Group AI-CCS-01")
             )
           : [];
-        setNotifications(clean);
         localStorage.setItem(key, JSON.stringify(clean));
       } catch {
-        setNotifications([]);
+        // Invalid local cache should not prevent API notifications from loading.
       }
     } else {
-      setNotifications([]);
       localStorage.setItem(key, JSON.stringify([]));
+    }
+
+    let localItems: AppNotification[] = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+      localItems = Array.isArray(parsed) ? parsed.map((item: AppNotification) => ({ ...item, source: "local" as const })) : [];
+    } catch {
+      localItems = [];
+    }
+
+    try {
+      const response = await apiClient.get<{ notifications: any[] }>("/api/notifications");
+      const apiItems: AppNotification[] = (response.notifications || []).map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        message: item.message,
+        time: new Date(item.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }),
+        read: item.isRead,
+        type: item.type === "SYSTEM_ANNOUNCEMENT" ? "warning" : item.type === "ADVISER_REQUESTED" ? "warning" : item.type === "ADVISER_REQUEST_DECIDED" ? "success" : "info",
+        module: item.type === "SYSTEM_ANNOUNCEMENT" ? "Announcements" : item.type?.startsWith("ADVISER_") ? "Adviser Requests" : undefined,
+        link: item.type === "ADVISER_REQUESTED" ? "/adviser/dashboard" : undefined,
+        source: "api",
+      }));
+      setNotifications([...apiItems, ...localItems.filter((local) => !apiItems.some((api) => api.id === local.id))]);
+    } catch {
+      setNotifications(localItems);
     }
   };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      loadNotifications();
-      setLoading(false);
+      loadNotifications().finally(() => setLoading(false));
 
       // Listen for notifications-updated events
       const handleUpdate = () => {
-        loadNotifications();
+        void loadNotifications();
       };
+      const refreshInterval = window.setInterval(() => void loadNotifications(), 15_000);
       window.addEventListener("notifications-updated", handleUpdate);
       return () => {
+        window.clearInterval(refreshInterval);
         window.removeEventListener("notifications-updated", handleUpdate);
       };
     }
@@ -98,6 +125,10 @@ export function useNotifications() {
   };
 
   const markAsRead = (id: string) => {
+    const target = notifications.find((notification) => notification.id === id);
+    if (target?.source === "api") {
+      apiClient.patch(`/api/notifications/${id}/read`).catch(() => undefined);
+    }
     const updated = notifications.map((n) =>
       n.id === id ? { ...n, read: true } : n
     );
@@ -105,6 +136,9 @@ export function useNotifications() {
   };
 
   const markAllAsRead = () => {
+    if (notifications.some((notification) => !notification.read && notification.source === "api")) {
+      apiClient.patch("/api/notifications/read-all").catch(() => undefined);
+    }
     const updated = notifications.map((n) => ({ ...n, read: true }));
     saveNotifications(updated);
   };

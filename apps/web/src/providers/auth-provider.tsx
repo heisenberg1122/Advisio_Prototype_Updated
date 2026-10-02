@@ -111,11 +111,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const confirmLogout = () => {
+    setShowLogoutModal(false);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("advisio_token");
+      setToken(null);
+      setUser(null);
+      window.location.href = "/login";
+    }
+  };
+
   const logout = () => {
-    localStorage.removeItem("advisio_token");
-    setToken(null);
-    setUser(null);
-    window.location.href = "/login";
+    setShowLogoutModal(true);
   };
 
   return (
@@ -131,6 +140,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+      {showLogoutModal && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowLogoutModal(false);
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="logout-modal-title"
+        >
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-slate-100 flex flex-col gap-4">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600 border border-red-100">
+                <i className="ti ti-logout text-2xl" />
+              </div>
+              <div className="flex-1">
+                <h3 id="logout-modal-title" className="text-lg font-bold text-slate-900">
+                  Are you sure you want to log out?
+                </h3>
+                <p className="mt-1 text-sm text-slate-500 leading-relaxed">
+                  You will be signed out of your session and returned to the login screen.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-2 flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(false)}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmLogout}
+                className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-red-700 active:scale-[0.98] transition-all cursor-pointer"
+              >
+                <i className="ti ti-logout text-base" />
+                <span>Log Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AuthContext.Provider>
   );
 }

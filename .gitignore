@@ -15,6 +15,7 @@ build/
 .env.*.local
 .env.development
 .env.production
+!.env.example
 
 # Turbo cache
 .turbo/
@@ -37,6 +38,10 @@ yarn-error.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# Uploads & Temp
+apps/api/uploads/*
+!apps/api/uploads/.gitkeep
 
 # Misc
 coverage/

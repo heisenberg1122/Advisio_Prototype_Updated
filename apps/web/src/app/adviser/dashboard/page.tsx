@@ -12,6 +12,23 @@ import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consu
 import { getStoredConsultations, addStoredConsultation, saveStoredConsultations, updateStoredConsultationStatus, updateStoredConsultationNotes, ConsultationItem } from "@/lib/consultation-store";
 import { useAuth } from "@/providers/auth-provider";
 
+const resolveApiFileUrl = (value: string) => value.startsWith("/")
+  ? `${(import.meta.env.VITE_API_URL || "").replace(/\/$/, "")}${value}`
+  : value;
+
+const openAuthenticatedFile = async (value: string) => {
+  if (!value.startsWith("/")) {
+    window.open(value, "_blank", "noopener,noreferrer");
+    return;
+  }
+  const token = localStorage.getItem("advisio_token");
+  const response = await fetch(resolveApiFileUrl(value), { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
+  if (!response.ok) throw new Error("Unable to open the adviser request form.");
+  const objectUrl = URL.createObjectURL(await response.blob());
+  window.open(objectUrl, "_blank", "noopener,noreferrer");
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+};
+
 function AdviserDashboardContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
@@ -181,10 +198,12 @@ function AdviserDashboardContent() {
   };
 
   // Live query for assigned advisee research projects
-  const { data: researchData } = useQuery({
+  const { data: researchData, refetch: refetchResearch } = useQuery({
     queryKey: ["adviser-research"],
     queryFn: () => apiClient.get<{ projects: any[] }>("/api/research").catch(() => ({ projects: [] })),
     staleTime: 60000,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
   });
 
   // Real State Data strictly from database queries
@@ -193,18 +212,98 @@ function AdviserDashboardContent() {
   useEffect(() => {
     if (researchData?.projects && researchData.projects.length > 0) {
       setAdvisees(
-        researchData.projects.map((p: any) => ({
-          id: p.id,
-          groupName: p.title?.substring(0, 16) || "Research Group",
-          projectTitle: p.title,
-          leader: p.members?.find((m: any) => m.projectRole === "LEADER")?.user?.firstName || "Group Leader",
-          status: p.status?.toLowerCase() || "active",
-        }))
+        researchData.projects
+          .filter((p: any) => p.members?.some((member: any) => member.projectRole === "ADVISER" && member.user?.id === user?.id && !member.leftAt))
+          .map((p: any) => {
+            const stages = p.workflowInstance?.workflow?.stages || [];
+            const currentStageId = p.workflowInstance?.currentStage?.id;
+            const currentIndex = stages.findIndex((stage: any) => stage.id === currentStageId);
+            const progress = stages.length > 0 ? Math.max(0, Math.round(((currentIndex + 1) / stages.length) * 100)) : 0;
+            const taskSubmissions = new Map((p.taskSubmissions || []).map((submission: any) => [submission.taskId, submission]));
+            const tasks = stages.flatMap((stage: any) => (stage.tasks || []).map((task: any) => ({
+              ...task,
+              stageName: stage.name,
+              stageSequence: stage.sequence,
+              submission: taskSubmissions.get(task.id),
+            })));
+            return {
+              id: p.id,
+              groupName: p.title?.substring(0, 24) || "Research Group",
+              projectTitle: p.title,
+              leader: p.members?.find((m: any) => m.projectRole === "LEADER")?.user?.firstName || "Group Leader",
+              status: p.status?.toLowerCase() || "active",
+              progress,
+              currentStage: p.workflowInstance?.currentStage?.name || "Not started",
+              tasks,
+            };
+          })
       );
     }
-  }, [researchData]);
+  }, [researchData, user?.id]);
 
   const [reviews, setReviews] = useState<any[]>([]);
+
+  const { data: reviewQueueData, refetch: refetchReviewQueue } = useQuery({
+    queryKey: ["adviser-review-queue", user?.id, researchData?.projects?.map((project: any) => project.id).join(",")],
+    enabled: Boolean(researchData?.projects),
+    queryFn: async () => {
+      const assignedProjects = (researchData?.projects || []).filter((project: any) =>
+        project.members?.some((member: any) => member.projectRole === "ADVISER" && member.user?.id === user?.id && !member.leftAt)
+      );
+      const projectDocuments = await Promise.all(assignedProjects.map(async (project: any) => {
+        const response = await apiClient.get<{ documents: any[] }>(`/api/research/${project.id}/documents`).catch(() => ({ documents: [] }));
+        return (response.documents || []).flatMap((document: any) => {
+          const latestVersion = document.versions?.[0];
+          if (!latestVersion || latestVersion.reviews?.some((review: any) => review.reviewerId === user?.id && review.status === "SUBMITTED")) return [];
+          return [{
+            id: latestVersion.id,
+            versionId: latestVersion.id,
+            docName: document.title,
+            groupName: project.title,
+            milestone: project.workflowInstance?.currentStage?.name || "Research document",
+            fileUrl: latestVersion.webViewLink,
+            submittedAt: latestVersion.createdAt,
+          }];
+        });
+      }));
+      return projectDocuments.flat().sort((a: any, b: any) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime());
+    },
+  });
+
+  useEffect(() => {
+    setReviews(reviewQueueData || []);
+  }, [reviewQueueData]);
+
+  const { data: adviserRequestData, refetch: refetchAdviserRequests } = useQuery({
+    queryKey: ["adviser-requests"],
+    queryFn: () => apiClient.get<{ requests: any[] }>("/api/adviser-requests").catch(() => ({ requests: [] })),
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
+  });
+  const adviserRequests = adviserRequestData?.requests || [];
+  const pendingAdviserRequests = adviserRequests.filter((request: any) => request.status === "PENDING");
+  const [requestDecision, setRequestDecision] = useState<{ request: any; decision: "accept" | "reject" } | null>(null);
+  const [requestResponseNote, setRequestResponseNote] = useState("");
+  const [isRespondingToRequest, setIsRespondingToRequest] = useState(false);
+
+  const handleAdviserRequestResponse = async () => {
+    if (!requestDecision) return;
+    setIsRespondingToRequest(true);
+    try {
+      await apiClient.patch(`/api/adviser-requests/${requestDecision.request.id}/respond`, {
+        decision: requestDecision.decision,
+        note: requestResponseNote,
+      });
+      triggerToast(requestDecision.decision === "accept" ? "Adviser request accepted." : "Adviser request declined.");
+      setRequestDecision(null);
+      setRequestResponseNote("");
+      await Promise.all([refetchAdviserRequests(), refetchResearch()]);
+    } catch (error: any) {
+      triggerToast(error?.message || "Unable to respond to the adviser request.");
+    } finally {
+      setIsRespondingToRequest(false);
+    }
+  };
 
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [consultTopic, setConsultTopic] = useState("");
@@ -337,6 +436,13 @@ function AdviserDashboardContent() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const getWaitingLabel = (date?: string) => {
+    if (!date) return "Recently submitted";
+    const days = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 86_400_000));
+    if (days === 0) return "Submitted today";
+    return `Waiting ${days} ${days === 1 ? "day" : "days"}`;
+  };
+
   const handleApproveMilestone = async (id: string, groupName: string) => {
     setApprovals(prev => prev.filter(a => a.id !== id));
     triggerToast(`Approved milestone for ${groupName}`);
@@ -344,8 +450,18 @@ function AdviserDashboardContent() {
 
   const handleReviewComment = async (reviewId: string) => {
     if (!commentInput.trim()) return;
-    triggerToast("Comment submitted and persisted successfully.");
-    setCommentInput("");
+    try {
+      await apiClient.post(`/api/documents/versions/${reviewId}/reviews`, {
+        reviewType: "ADVISER",
+        overallComment: commentInput.trim(),
+        recommendation: "MINOR_REVISION",
+      });
+      triggerToast("Review feedback submitted successfully.");
+      setCommentInput("");
+      await refetchReviewQueue();
+    } catch (error: any) {
+      triggerToast(error?.message || "Unable to submit review feedback.");
+    }
   };
 
   const tabsList = [
@@ -369,143 +485,134 @@ function AdviserDashboardContent() {
         </div>
       )}
 
-      {/* TABS HEADER BAR */}
-      <div className="bg-white border-b border-slate-200 px-6 pt-3 flex gap-2 overflow-x-auto shadow-sm">
-        {tabsList.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-lg text-[12px] font-bold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-                isActive
-                  ? "border-[#ffa400] text-[#1b4264] bg-slate-50 shadow-sm"
-                  : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50/50"
-              }`}
-            >
-              <i className={`ti ${tab.icon} text-sm ${isActive ? "text-[#ffa400]" : ""}`} />
-              <span>{tab.label}</span>
-              {tab.badge !== undefined && tab.badge > 0 && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
-                  isActive ? "bg-[#1b4264] text-[#ffa400]" : "bg-slate-200 text-slate-700"
-                }`}>
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {requestDecision && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="adviser-response-title">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl ${requestDecision.decision === "accept" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}><i className={`ti ${requestDecision.decision === "accept" ? "ti-user-check" : "ti-user-x"}`} /></span>
+              <div><h2 id="adviser-response-title" className="text-lg font-extrabold text-[#102f49]">{requestDecision.decision === "accept" ? "Accept adviser request" : "Decline adviser request"}</h2><p className="mt-1 text-sm text-slate-500">{requestDecision.request.research?.title}</p></div>
+            </div>
+            <div className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-600"><span className="font-bold text-[#102f49]">Group message:</span><p className="mt-1 whitespace-pre-line">{requestDecision.request.note || "No message was included."}</p>{requestDecision.request.research?.members?.length > 0 && <p className="mt-3 text-xs"><span className="font-bold text-[#102f49]">Members:</span> {requestDecision.request.research.members.filter((member: any) => member.projectRole !== "ADVISER").map((member: any) => `${member.user.firstName} ${member.user.lastName}`).join(", ")}</p>}{requestDecision.request.requestFormDocument?.versions?.[0]?.storagePath && <button type="button" onClick={() => openAuthenticatedFile(requestDecision.request.requestFormDocument.versions[0].storagePath).catch((error) => triggerToast(error.message))} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-extrabold text-[#173f63] ring-1 ring-slate-200 hover:ring-[#f6a800]"><i className="ti ti-file-type-pdf text-rose-600" />Open adviser request PDF</button>}</div>
+            <label className="mt-5 block text-sm font-bold text-slate-700">Note to the group <span className="font-normal text-slate-400">(optional)</span></label>
+            <textarea value={requestResponseNote} onChange={(event) => setRequestResponseNote(event.target.value)} maxLength={1000} rows={4} placeholder={requestDecision.decision === "accept" ? "Share your expectations or next steps." : "Briefly explain your decision or suggest another direction."} className="mt-2 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm outline-none focus:border-[#173f63]" />
+            <div className="mt-5 flex justify-end gap-2"><button onClick={() => { setRequestDecision(null); setRequestResponseNote(""); }} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-600">Cancel</button><button onClick={handleAdviserRequestResponse} disabled={isRespondingToRequest} className={`rounded-lg px-4 py-2 text-sm font-extrabold text-white disabled:opacity-60 ${requestDecision.decision === "accept" ? "bg-emerald-600" : "bg-rose-600"}`}>{isRespondingToRequest ? "Saving…" : requestDecision.decision === "accept" ? "Accept request" : "Decline request"}</button></div>
+          </div>
+        </div>
+      )}
 
       {/* MAIN CONTAINER */}
-      <main className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto bg-[#f6f8fb] p-5 lg:p-6">
         
         {(() => {
           const tabContent: Record<string, React.ReactNode> = {
             overview: (
-              <>
-                {/* EXACT ADVISER CARDS (CLICKABLE) */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div 
-                    onClick={() => handleTabChange("advisees")}
-                    className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-[#1b4264] hover:shadow-md transition cursor-pointer"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-lg">
-                      <i className="ti ti-users" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Assigned Advisees</span>
-                      <span className="text-[18px] font-extrabold text-[#1b4264]">{advisees.length} Groups</span>
+              <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-4">
+                <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white px-6 py-6 shadow-sm md:px-8">
+                  <div className="absolute inset-y-0 right-0 hidden w-[46%] overflow-hidden lg:block" aria-hidden="true">
+                    <div className="absolute -right-12 -top-24 h-72 w-72 rounded-full bg-[#1b4264]/5" />
+                    <div className="absolute right-36 top-8 h-40 w-40 rounded-full bg-[#ffa400]/10" />
+                    <i className="ti ti-books absolute bottom-5 right-40 text-[92px] text-[#1b4264]/90" />
+                    <i className="ti ti-sparkles absolute right-28 top-7 text-3xl text-[#ffa400]" />
+                  </div>
+                  <div className="relative z-10 max-w-2xl">
+                    <span className="mb-2 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-[#c98200]">
+                      <span className="h-2 w-2 rounded-full bg-[#ffa400]" /> Adviser workspace
+                    </span>
+                    <h1 className="text-2xl font-black tracking-tight text-[#102f4d] md:text-3xl">
+                      Welcome back, {user?.firstName || "Adviser"}
+                    </h1>
+                    <p className="mt-1 text-sm text-slate-500">Your advisees, reviews, and meetings—at a glance.</p>
+                    <div className="mt-5 flex flex-wrap gap-3">
+                      <button onClick={() => handleTabChange("reviews")} className="inline-flex items-center gap-2 rounded-lg bg-[#ffa400] px-4 py-2.5 text-sm font-extrabold text-[#102f4d] shadow-sm transition hover:bg-[#ee9900]">
+                        <i className="ti ti-file-search" /> Review documents
+                      </button>
+                      <button onClick={() => setShowScheduleModal(true)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-[#1b4264] transition hover:bg-slate-50">
+                        <i className="ti ti-calendar-plus" /> Schedule meeting
+                      </button>
                     </div>
                   </div>
+                </section>
 
-                  <div 
-                    onClick={() => handleTabChange("reviews")}
-                    className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-[#ffa400] hover:shadow-md transition cursor-pointer"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#ffa400] flex items-center justify-center text-lg">
-                      <i className="ti ti-file-text" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Pending Reviews</span>
-                      <span className="text-[18px] font-extrabold text-[#1b4264]">{reviews.length} Documents</span>
-                    </div>
-                  </div>
+                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {[
+                    { label: "Advisee groups", value: advisees.length, suffix: "assigned", icon: "ti-users", tone: "bg-blue-50 text-[#1b4264]", tab: "advisees" },
+                    { label: "Document reviews", value: reviews.length, suffix: "pending", icon: "ti-file-text", tone: "bg-amber-50 text-[#e08d00]", tab: "reviews" },
+                    { label: "Milestones", value: approvals.length, suffix: "for approval", icon: "ti-circle-check", tone: "bg-emerald-50 text-emerald-600", tab: "approvals" },
+                    { label: "Consultations", value: consultations.length, suffix: "scheduled", icon: "ti-calendar-event", tone: "bg-violet-50 text-violet-600", tab: "consultations" },
+                  ].map((item) => (
+                    <button key={item.label} onClick={() => handleTabChange(item.tab)} className="group flex min-h-24 items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#1b4264]/30 hover:shadow-md">
+                      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl ${item.tone}`}><i className={`ti ${item.icon}`} /></span>
+                      <span className="min-w-0">
+                        <span className="block text-xs font-semibold text-slate-500">{item.label}</span>
+                        <span className="mt-0.5 block text-xl font-black text-[#102f4d]">{item.value} <small className="text-xs font-semibold text-slate-400">{item.suffix}</small></span>
+                      </span>
+                    </button>
+                  ))}
+                </section>
 
-                  <div 
-                    onClick={() => handleTabChange("consultations")}
-                    className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-[#1b4264] hover:shadow-md transition cursor-pointer"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-lg">
-                      <i className="ti ti-calendar" />
+                <section className="grid grid-cols-1 gap-4 xl:grid-cols-5">
+                  <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-3">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div>
+                        <h2 className="flex items-center gap-2 text-base font-extrabold text-[#102f4d]">Needs your attention {pendingAdviserRequests.length > 0 && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800">{pendingAdviserRequests.length} adviser {pendingAdviserRequests.length === 1 ? "request" : "requests"}</span>}</h2>
+                        <p className="text-xs text-slate-400">Your highest-priority advising work.</p>
+                      </div>
+                      <button onClick={() => handleTabChange("approvals")} className="text-xs font-bold text-[#1b4264] hover:text-[#ffa400]">View all <i className="ti ti-chevron-right" /></button>
                     </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Recent Consultations</span>
-                      <span className="text-[18px] font-extrabold text-[#ffa400]">{consultations.length} Records</span>
-                    </div>
-                  </div>
-
-                  <div 
-                    onClick={() => handleTabChange("overview")}
-                    className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 hover:shadow-md transition cursor-pointer"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-lg">
-                      <i className="ti ti-bell" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Notifications</span>
-                      <span className="text-[18px] font-extrabold text-[#1b4264]">{combinedNotifications.length} Alerts</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick summaries */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                    <h3 className="font-extrabold text-[#1b4264] text-[14px]">Pending Milestone Approvals</h3>
-                    <div className="flex flex-col gap-2.5">
-                      {approvals.length > 0 ? (
-                        approvals.map(a => (
-                          <div key={a.id} className="flex justify-between items-center p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px]">
-                            <div>
-                              <span className="font-bold text-[#1b4264] block">{a.groupName}</span>
-                              <span className="text-[10px] text-slate-450">{a.milestone}</span>
-                            </div>
-                            <button onClick={()=>handleApproveMilestone(a.id, a.groupName)} className="px-2.5 py-1 bg-[#ffa400] text-[#1b4264] font-extrabold text-[10px] rounded border border-[#ffa400] cursor-pointer">
-                              Approve
-                            </button>
+                    {pendingAdviserRequests.length > 0 || approvals.length > 0 || reviews.length > 0 ? (
+                      <div className="space-y-2">
+                        {pendingAdviserRequests.slice(0, 3).map((request: any) => (
+                          <div key={request.id} className="rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                            <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white text-[#1b4264] shadow-sm"><i className="ti ti-user-plus" /></span><div className="min-w-0"><p className="truncate text-sm font-extrabold text-[#102f4d]">{request.research?.title || "Research group"}</p><p className="mt-0.5 text-xs text-slate-500">Requested by {request.requestedBy ? `${request.requestedBy.firstName} ${request.requestedBy.lastName}` : "group representative"}</p>{request.note && <p className="mt-2 line-clamp-2 text-xs text-slate-600">“{request.note}”</p>}</div></div><span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-amber-700">Adviser request</span></div>
+                            <div className="mt-3 flex justify-end gap-2"><button onClick={() => { setRequestDecision({ request, decision: "reject" }); setRequestResponseNote(""); }} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:border-rose-300 hover:text-rose-600">Reject</button><button onClick={() => { setRequestDecision({ request, decision: "accept" }); setRequestResponseNote(""); }} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-extrabold text-white hover:bg-emerald-700">Accept</button></div>
                           </div>
-                        ))
-                      ) : (
-                        <div className="text-xs text-slate-400 py-4 text-center">
-                          No pending milestone approvals.
-                        </div>
-                      )}
-                    </div>
+                        ))}
+                        {approvals.slice(0, 2).map((a) => (
+                          <div key={a.id} className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-3">
+                            <div className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 text-amber-700"><i className="ti ti-flag" /></span><div className="min-w-0"><p className="truncate text-sm font-bold text-[#102f4d]">{a.groupName}</p><p className="truncate text-xs text-slate-500">{a.milestone}</p></div></div>
+                            <button onClick={() => handleApproveMilestone(a.id, a.groupName)} className="ml-3 rounded-lg bg-[#ffa400] px-3 py-1.5 text-xs font-extrabold text-[#102f4d]">Review</button>
+                          </div>
+                        ))}
+                        {reviews.slice(0, 2).map((review) => (
+                          <button key={review.id} onClick={() => handleTabChange("reviews")} className="flex w-full items-center justify-between rounded-lg border border-slate-100 bg-slate-50 p-3 text-left">
+                            <span className="flex min-w-0 items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 text-[#1b4264]"><i className="ti ti-file-text" /></span><span className="min-w-0"><span className="block truncate text-sm font-bold text-[#102f4d]">{review.docName || "Document review"}</span><span className="block truncate text-xs text-slate-500">{review.groupName} · {getWaitingLabel(review.submittedAt)}</span></span></span><i className="ti ti-chevron-right text-slate-400" />
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 text-center">
+                        <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-xl text-emerald-600"><i className="ti ti-circle-check" /></span>
+                        <p className="text-sm font-extrabold text-[#102f4d]">You’re all caught up</p>
+                        <p className="mt-1 text-xs text-slate-400">New reviews and approvals will appear here.</p>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                    <h3 className="font-extrabold text-[#1b4264] text-[14px]">Upcoming Scheduled Consultations</h3>
-                    <div className="flex flex-col gap-2.5">
-                      {consultations.length > 0 ? (
-                        consultations.map(c => (
-                          <div key={c.id} className="p-2.5 bg-slate-50 border border-slate-200 rounded text-[12px] flex justify-between items-center">
-                            <div>
-                              <span className="font-bold text-slate-800 block">{c.topic}</span>
-                              <span className="text-[10px] text-slate-400">{c.groupName} · {c.time}</span>
-                            </div>
-                            <Tag variant="success">{c.mode}</Tag>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-xs text-slate-400 py-4 text-center">
-                          No upcoming consultations scheduled.
-                        </div>
-                      )}
-                    </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+                    <div className="mb-4 flex items-center justify-between"><h2 className="text-base font-extrabold text-[#102f4d]">Next consultation</h2><button onClick={() => handleTabChange("consultations")} className="text-slate-400 hover:text-[#1b4264]" aria-label="Open consultations"><i className="ti ti-chevron-right" /></button></div>
+                    {consultations.length > 0 ? (
+                      <div className="flex min-h-40 flex-col justify-between rounded-xl bg-[#1b4264] p-4 text-white">
+                        <div><span className="inline-flex rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">Upcoming</span><h3 className="mt-3 text-lg font-extrabold">{consultations[0].topic}</h3><p className="mt-1 text-xs text-slate-300">{consultations[0].groupName} · {consultations[0].date} · {consultations[0].time}</p></div>
+                        <button onClick={() => handleStartConference(consultations[0].meetingUrl || DEFAULT_SHARED_MEET_URL, consultations[0].topic)} className="mt-4 rounded-lg bg-[#ffa400] py-2.5 text-sm font-extrabold text-[#102f4d]"><i className="ti ti-video mr-2" />Join meeting</button>
+                      </div>
+                    ) : (
+                      <div className="flex min-h-40 flex-col items-center justify-center rounded-xl bg-slate-50 px-4 text-center"><span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-xl text-[#1b4264]"><i className="ti ti-calendar-time" /></span><p className="text-sm font-extrabold text-[#102f4d]">No consultation scheduled</p><button onClick={() => setShowScheduleModal(true)} className="mt-3 rounded-lg bg-[#ffa400] px-4 py-2 text-xs font-extrabold text-[#102f4d]">Schedule one</button></div>
+                    )}
                   </div>
-                </div>
-              </>
+                </section>
+
+                <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h2 className="mb-4 text-base font-extrabold text-[#102f4d]">Quick actions</h2>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    {[
+                      { label: "View advisees", icon: "ti-users", tab: "advisees" },
+                      { label: "Review documents", icon: "ti-file-search", tab: "reviews" },
+                      { label: "Track progress", icon: "ti-chart-line", tab: "progress" },
+                      { label: "Message groups", icon: "ti-messages", tab: "group-chats" },
+                    ].map((action) => <button key={action.label} onClick={() => handleTabChange(action.tab)} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-left transition hover:border-[#ffa400] hover:bg-amber-50/40"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-lg text-[#1b4264]"><i className={`ti ${action.icon}`} /></span><span className="text-xs font-bold text-[#102f4d]">{action.label}</span></button>)}
+                  </div>
+                </section>
+              </div>
             ),
             advisees: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
@@ -540,10 +647,10 @@ function AdviserDashboardContent() {
                       <div className="flex justify-between items-center border-b border-slate-150 pb-2">
                         <div>
                           <span className="font-bold text-[#1b4264] block">{rev.docName}</span>
-                          <span className="text-[10px] text-slate-400">{rev.groupName} · {rev.milestone}</span>
+                          <span className="text-[10px] text-slate-400">{rev.groupName} · {rev.milestone} · {getWaitingLabel(rev.submittedAt)}</span>
                         </div>
-                        <button onClick={()=>triggerToast("Downloading draft files.")} className="text-[#ffa400] font-bold hover:underline cursor-pointer">
-                          Download File
+                        <button onClick={() => rev.fileUrl ? window.open(rev.fileUrl, "_blank", "noopener,noreferrer") : triggerToast("No document preview is available.")} className="text-[#ffa400] font-bold hover:underline cursor-pointer">
+                          Open document
                         </button>
                       </div>
                       <div className="flex flex-col gap-1.5 mt-1">
@@ -769,10 +876,20 @@ function AdviserDashboardContent() {
                     <div key={adv.id} className="bg-slate-50 p-4 border border-slate-200 rounded-xl shadow-sm flex flex-col gap-3">
                       <div className="flex justify-between items-center text-[12px] font-extrabold text-[#1b4264]">
                         <span>{adv.groupName} · {adv.projectTitle}</span>
-                        <span className="font-mono text-[#ffa400]">40% COMPLETE</span>
+                        <span className="font-mono text-[#ffa400]">{adv.progress}% COMPLETE</span>
                       </div>
                       <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                        <div className="bg-gradient-to-r from-[#1b4264] to-[#ffa400] h-full rounded-full" style={{ width: "40%" }} />
+                        <div className="bg-gradient-to-r from-[#1b4264] to-[#ffa400] h-full rounded-full" style={{ width: `${adv.progress}%` }} />
+                      </div>
+                      <span className="text-[11px] font-medium text-slate-500">Current stage: {adv.currentStage}</span>
+                      <div className="mt-1 grid gap-2 border-t border-slate-200 pt-3">
+                        <div className="flex items-center justify-between"><span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Shared task status</span><span className="text-[10px] font-bold text-slate-500">Adviser view</span></div>
+                        {adv.tasks?.length ? adv.tasks.map((task: any) => {
+                          const submission = task.submission;
+                          const status = submission?.status || "NOT SUBMITTED";
+                          const submitter = submission?.submittedByUser ? `${submission.submittedByUser.firstName} ${submission.submittedByUser.lastName}` : null;
+                          return <div key={task.id} className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold text-[#1b4264]">{task.stageSequence}. {task.title}</p><p className="text-[10px] text-slate-500">{submitter ? `Submitted by: ${submitter}` : task.stageName}</p></div><Tag variant={status === "APPROVED" ? "success" : status === "REVISION_REQUIRED" || status === "REJECTED" ? "warn" : "info"}>{status.replace(/_/g, " ")}</Tag></div>;
+                        }) : <p className="rounded-lg bg-white p-3 text-xs text-slate-500">No submission requirements configured for this workflow.</p>}
                       </div>
                     </div>
                   ))}

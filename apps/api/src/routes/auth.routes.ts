@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import { prisma } from "../lib/prisma.js";
+import { prisma, type InstitutionalRole } from "../lib/prisma.js";
 import { loginSchema, registerSchema } from "@research-management/validations";
 import { validateBody } from "../middleware/validate";
 import { requireAuth, generateToken } from "../middleware/auth";
@@ -126,26 +126,70 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
     });
 
     if (!user || !user.passwordHash) {
-      const isKnownDemo = normalizedEmail === "admin01@university.edu.ph" ||
-        normalizedEmail === "student01@university.edu.ph" ||
-        normalizedEmail === "adviser01@university.edu.ph" ||
-        normalizedEmail.includes("admin");
+      const demoAccounts: Record<string, { role: InstitutionalRole; firstName: string; lastName: string; universityId: string }> = {
+        // Students / Researchers
+        "student01@university.edu.ph": { role: "RESEARCHER", firstName: "Student", lastName: "Researcher", universityId: "STUDENT-DEMO-001" },
+        "student@advisio.edu.ph": { role: "RESEARCHER", firstName: "Juan", lastName: "Reyes", universityId: "STUDENT-001" },
+        "student02@university.edu.ph": { role: "RESEARCHER", firstName: "Mateo", lastName: "Alvarez", universityId: "STUDENT-DEMO-002" },
+        "student03@university.edu.ph": { role: "RESEARCHER", firstName: "Beatrice", lastName: "Cruz", universityId: "STUDENT-DEMO-003" },
+        "student04@university.edu.ph": { role: "RESEARCHER", firstName: "Gabriel", lastName: "Santos", universityId: "STUDENT-DEMO-004" },
+        "student05@university.edu.ph": { role: "RESEARCHER", firstName: "Alyssa", lastName: "Dizon", universityId: "STUDENT-DEMO-005" },
+        "researcher01@university.edu.ph": { role: "RESEARCHER", firstName: "Carlos", lastName: "Mendoza", universityId: "RES-DEMO-001" },
+        "researcher02@university.edu.ph": { role: "RESEARCHER", firstName: "Patricia", lastName: "Reyes", universityId: "RES-DEMO-002" },
 
-      if (isKnownDemo) {
-        let roleName: any = "RESEARCHER";
-        if (normalizedEmail.includes("admin")) roleName = "SYSTEM_ADMIN";
-        else if (normalizedEmail.includes("adviser")) roleName = "ADVISER";
+        // Advisers
+        "adviser01@university.edu.ph": { role: "ADVISER", firstName: "Faculty", lastName: "Adviser", universityId: "ADVISER-DEMO-001" },
+        "adviser@advisio.edu.ph": { role: "ADVISER", firstName: "Rachel", lastName: "Lim", universityId: "ADVISER-001" },
+        "adviser02@university.edu.ph": { role: "ADVISER", firstName: "Dr. Ramon", lastName: "Bautista", universityId: "ADVISER-DEMO-002" },
+        "adviser03@university.edu.ph": { role: "ADVISER", firstName: "Prof. Teresa", lastName: "Mercado", universityId: "ADVISER-DEMO-003" },
+        "adviser04@university.edu.ph": { role: "ADVISER", firstName: "Dr. Antonio", lastName: "Villanueva", universityId: "ADVISER-DEMO-004" },
+        "adviser05@university.edu.ph": { role: "ADVISER", firstName: "Prof. Carmen", lastName: "Salazar", universityId: "ADVISER-DEMO-005" },
+
+        // Coordinators / Professors
+        "professor01@university.edu.ph": { role: "RESEARCH_COORDINATOR", firstName: "Maria Clara", lastName: "Santos", universityId: "PROFESSOR-DEMO-001" },
+        "prof.santos@university.edu.ph": { role: "RESEARCH_COORDINATOR", firstName: "Maria Clara", lastName: "Santos", universityId: "PROFESSOR-DEMO-001" },
+        "professor02@university.edu.ph": { role: "RESEARCH_COORDINATOR", firstName: "Arthur", lastName: "Pendelton", universityId: "PROFESSOR-DEMO-002" },
+        "prof.pendelton@university.edu.ph": { role: "RESEARCH_COORDINATOR", firstName: "Arthur", lastName: "Pendelton", universityId: "PROFESSOR-DEMO-002" },
+        "professor03@university.edu.ph": { role: "RESEARCH_COORDINATOR", firstName: "Elena", lastName: "Rostova", universityId: "PROFESSOR-DEMO-003" },
+        "prof.rostova@university.edu.ph": { role: "RESEARCH_COORDINATOR", firstName: "Elena", lastName: "Rostova", universityId: "PROFESSOR-DEMO-003" },
+        "professor04@university.edu.ph": { role: "RESEARCH_COORDINATOR", firstName: "Marcus", lastName: "Vance", universityId: "PROFESSOR-DEMO-004" },
+        "prof.vance@university.edu.ph": { role: "RESEARCH_COORDINATOR", firstName: "Marcus", lastName: "Vance", universityId: "PROFESSOR-DEMO-004" },
+        "professor05@university.edu.ph": { role: "RESEARCH_COORDINATOR", firstName: "Sophia", lastName: "Delgado", universityId: "PROFESSOR-DEMO-005" },
+        "prof.delgado@university.edu.ph": { role: "RESEARCH_COORDINATOR", firstName: "Sophia", lastName: "Delgado", universityId: "PROFESSOR-DEMO-005" },
+
+        // Panelists
+        "panelist01@university.edu.ph": { role: "PANELIST", firstName: "Defense", lastName: "Panelist", universityId: "PANELIST-DEMO-001" },
+        "panelist02@university.edu.ph": { role: "PANELIST", firstName: "Dr. Fernando", lastName: "Gomez", universityId: "PANELIST-DEMO-002" },
+        "panelist03@university.edu.ph": { role: "PANELIST", firstName: "Prof. Lilian", lastName: "Morales", universityId: "PANELIST-DEMO-003" },
+        "panelist04@university.edu.ph": { role: "PANELIST", firstName: "Dr. Eduardo", lastName: "Castillo", universityId: "PANELIST-DEMO-004" },
+        "panelist05@university.edu.ph": { role: "PANELIST", firstName: "Prof. Victoria", lastName: "Navarro", universityId: "PANELIST-DEMO-005" },
+
+        // Deans & Admin
+        "dean01@university.edu.ph": { role: "RPO", firstName: "Dr. Manuel", lastName: "Soriano", universityId: "DEAN-DEMO-001" },
+        "dean.cit@university.edu.ph": { role: "RPO", firstName: "Dr. Angelica", lastName: "Flores", universityId: "DEAN-DEMO-002" },
+        "dean@advisio.edu.ph": { role: "RPO", firstName: "Dr. Ernesto", lastName: "Valerio", universityId: "DEAN-001" },
+        "admin01@university.edu.ph": { role: "RPO", firstName: "Admin", lastName: "Officer", universityId: "ADMIN-001" },
+        "superadmin01@university.edu.ph": { role: "SYSTEM_ADMIN", firstName: "System", lastName: "Administrator", universityId: "SYSADMIN-001" },
+        "admin@advisio.edu.ph": { role: "SYSTEM_ADMIN", firstName: "System", lastName: "Administrator", universityId: "SYSADMIN-002" },
+      };
+      const demoAccount = demoAccounts[normalizedEmail];
+
+      if (demoAccount) {
+        if (password !== "password123" && password !== "Admin@12345" && password !== "Adviser@12345" && password !== "Student@12345") {
+          res.status(401).json({ error: "Invalid email or password" });
+          return;
+        }
 
         try {
           const passwordHash = await bcrypt.hash(password || "password123", 10);
-          const parts = normalizedEmail.split("@")[0].split(".");
-          const firstName = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : "System";
-          const lastName = parts.length > 1 ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : "User";
+          const firstName = demoAccount.firstName;
+          const lastName = demoAccount.lastName;
+          const roleName = demoAccount.role;
 
           const roleRecord = await prisma.role.findFirst({ where: { name: roleName } });
           const newUser = await prisma.user.create({
             data: {
-              universityId: `UA-${Date.now().toString().slice(-6)}`,
+              universityId: demoAccount.universityId || `UA-${Date.now().toString().slice(-6)}`,
               email: normalizedEmail,
               firstName,
               lastName,
@@ -182,11 +226,11 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
             token,
             user: {
               id: demoId,
-              universityId: "UA-2026-DEMO",
+              universityId: demoAccount.universityId || "UA-2026-DEMO",
               email: normalizedEmail,
-              firstName: normalizedEmail.split("@")[0],
-              lastName: "User",
-              roles: [roleName],
+              firstName: demoAccount.firstName,
+              lastName: demoAccount.lastName,
+              roles: [demoAccount.role],
             },
           });
           return;

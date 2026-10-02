@@ -1,166 +1,74 @@
 "use client";
 
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { UserChip } from "@/components/shared/UserChip";
-import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
-import { useAuth } from "@/providers/auth-provider";
 import { useProfile } from "@/hooks/use-profile";
+import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
+import { useAuth } from "@/hooks/use-auth";
 
-const MENU_SECTIONS = [
-  {
-    title: "HOME",
-    items: [
-      { label: "Dashboard", href: "/adviser/dashboard", tabName: "overview", icon: "ti-layout-dashboard" },
-    ],
-  },
-  {
-    title: "MY ADVISEES",
-    items: [
-      { label: "Assigned Advisees", href: "/adviser/dashboard?tab=advisees", tabName: "advisees", icon: "ti-users" },
-      { label: "Milestone Approval & Recommendation", href: "/adviser/dashboard?tab=approvals", tabName: "approvals", icon: "ti-circle-check" },
-      { label: "Research Group Progress", href: "/adviser/dashboard?tab=progress", tabName: "progress", icon: "ti-chart-line" },
-    ],
-  },
-  {
-    title: "DOCUMENTS",
-    items: [
-      { label: "Document Review & Commenting", href: "/adviser/dashboard?tab=reviews", tabName: "reviews", icon: "ti-file-text" },
-    ],
-  },
-  {
-    title: "CONSULTATIONS",
-    items: [
-      { label: "Consultation Schedule", href: "/adviser/dashboard?tab=consultations", tabName: "consultations", icon: "ti-calendar-event" },
-      { label: "Consultation History", href: "/adviser/dashboard?tab=history", tabName: "history", icon: "ti-history" },
-      { label: "Group Conferencing", href: "/adviser/dashboard?tab=conferencing", tabName: "conferencing", icon: "ti-video" },
-      { label: "Adviser Group Chats", href: "/adviser/dashboard?tab=group-chats", tabName: "group-chats", icon: "ti-messages" },
-    ],
-  },
-  {
-    title: "ACCOUNT",
-    items: [
-      { label: "Settings", href: "/adviser/dashboard?tab=settings", tabName: "settings", icon: "ti-settings" },
-    ],
-  },
+const NAV_ITEMS = [
+  { label: "Overview", href: "/adviser/dashboard", tabName: "overview", icon: "ti-home" },
+  { label: "My Advisees", href: "/adviser/dashboard?tab=advisees", tabName: "advisees", icon: "ti-users" },
+  { label: "Reviews", href: "/adviser/dashboard?tab=reviews", tabName: "reviews", icon: "ti-file-search" },
+  { label: "Consultations", href: "/adviser/dashboard?tab=consultations", tabName: "consultations", icon: "ti-calendar-event" },
+  { label: "Messages", href: "/adviser/dashboard?tab=group-chats", tabName: "group-chats", icon: "ti-message" },
 ];
 
-function normalizePath(p: string) {
-  return p.split("?")[0].replace(/\/$/, "");
-}
-
-function isActiveRoute(item: { href: string; tabName: string }, pathname: string, currentTab: string) {
-  const cleanHref = normalizePath(item.href);
-  const cleanPathname = normalizePath(pathname);
-  const isDashboardLink = cleanHref.endsWith("/dashboard") && !item.href.includes("?tab=");
-  const isTabItem = item.href.includes("?tab=");
-
-  if (isDashboardLink) {
-    return cleanPathname === cleanHref && (currentTab === "overview" || currentTab === "");
-  }
-  if (isTabItem) {
-    return cleanPathname === cleanHref && currentTab === item.tabName;
-  }
-  return cleanPathname === cleanHref;
-}
+const TAB_FAMILIES: Record<string, string[]> = {
+  advisees: ["advisees", "approvals", "progress", "defense"],
+  reviews: ["reviews"],
+  consultations: ["consultations", "history", "conferencing"],
+  "group-chats": ["group-chats", "chat"],
+};
 
 export function AdviserSidebar() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
   const pathname = usePathname() || "";
-  const currentTab = searchParams.get("tab") || "overview";
+  const currentTab = useSearchParams().get("tab") || "overview";
   const { collapsed, toggle } = useSidebarCollapsed();
   const { profile } = useProfile();
   const { logout } = useAuth();
 
-  const handleLogout = () => {
-    logout();
-  };
-
   return (
-    <aside
-      className={`relative bg-[#1b4264] border-r border-[#ffa400]/10 flex flex-col justify-between select-none h-full transition-all duration-300 ease-in-out text-slate-350 ${
-        collapsed ? "w-[64px]" : "w-[240px]"
-      }`}
-    >
-      {/* Edge collapse toggle button */}
-      <button
-        onClick={toggle}
-        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="absolute top-1/2 -translate-y-1/2 -right-3 z-50 w-6 h-6 rounded-full bg-[#ffa400] text-[#1b4264] shadow-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all border border-[#1b4264] cursor-pointer"
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      >
+    <aside className={`relative flex h-full flex-col bg-[#143d5d] text-white transition-all duration-300 ${collapsed ? "w-16" : "w-60"}`}>
+      <button onClick={toggle} title={collapsed ? "Expand sidebar" : "Collapse sidebar"} className="absolute -right-3 top-1/2 z-50 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-[#f6a800] text-[#143d5d] shadow-md transition hover:scale-105" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
         <i className={`ti ${collapsed ? "ti-chevron-right" : "ti-chevron-left"} text-xs font-bold`} />
       </button>
 
-      <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
-        {/* Logo block */}
-        <div className={`px-3 py-4 border-b border-white/10 shrink-0 flex items-center ${collapsed ? "justify-center" : "justify-between gap-2"}`}>
-          {!collapsed && (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
-                <i className="ti ti-school text-base text-[#ffa400]" />
-              </div>
-              <div>
-                <span className="font-extrabold text-[15px] tracking-tight block leading-none text-white font-sans">ADVISIO</span>
-                <span className="text-[8px] uppercase tracking-wider text-[#ffa400] font-semibold mt-0.5 block">Adviser Panel</span>
-              </div>
-            </div>
-          )}
-          {collapsed && (
-            <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center">
-              <i className="ti ti-school text-base text-[#ffa400]" />
-            </div>
-          )}
+      <div className={`flex h-[76px] shrink-0 items-center border-b border-white/10 ${collapsed ? "justify-center px-2" : "px-5"}`}>
+        <div className="flex items-center gap-3">
+          <i className="ti ti-school text-[30px] text-[#f6a800]" />
+          {!collapsed && <div><div className="text-[20px] font-extrabold leading-none tracking-tight">ADVISIO</div><div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-300">Adviser Panel</div></div>}
         </div>
-
-        {/* Navigation */}
-        <nav className="p-2 flex flex-col gap-1 overflow-y-auto flex-1 min-h-0">
-          {MENU_SECTIONS.map((section) => (
-            <div key={section.title} className="flex flex-col gap-0.5">
-              {!collapsed && (
-                <span className="px-3 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-wider text-slate-400/70 select-none">
-                  {section.title}
-                </span>
-              )}
-              {collapsed && <div className="pt-2" />}
-              {section.items.map((item) => {
-                const isActive = isActiveRoute(item, pathname, currentTab);
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    title={collapsed ? item.label : undefined}
-                    className={`flex items-center gap-2.5 rounded-lg text-[12px] transition-all ${
-                      collapsed ? "px-0 py-2 justify-center" : "px-3 py-2"
-                    } ${
-                      isActive
-                        ? "bg-[#ffa400] text-[#1b4264] font-bold shadow-md shadow-[#ffa400]/10"
-                        : "hover:bg-white/5 hover:text-white text-slate-300"
-                    }`}
-                  >
-                    <i className={`ti ${item.icon} text-base flex-shrink-0`} />
-                    {!collapsed && <span className="font-medium truncate">{item.label}</span>}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
       </div>
 
-      {/* Bottom: user + logout — PERMANENTLY PINNED, NEVER SCROLLED */}
-      <div className={`shrink-0 p-3 border-t border-white/10 bg-[#1b4264] flex flex-col gap-2 z-10 ${collapsed ? "items-center" : ""}`}>
-        <UserChip profile={profile as any} collapsed={collapsed} />
+      <nav className={`flex flex-1 flex-col gap-2 pt-5 ${collapsed ? "px-2" : "px-3"}`} aria-label="Adviser navigation">
+        {NAV_ITEMS.map((item) => {
+          const inFamily = TAB_FAMILIES[item.tabName]?.includes(currentTab);
+          const active = pathname === "/adviser/dashboard" && (item.tabName === "overview" ? currentTab === "overview" : inFamily);
+          return (
+            <Link key={item.label} href={item.href} title={collapsed ? item.label : undefined} className={`flex h-[52px] items-center rounded-xl transition ${collapsed ? "justify-center px-0" : "gap-4 px-4"} ${active ? "bg-[#f6a800] font-bold text-[#102f49] shadow-sm" : "text-slate-100 hover:bg-white/10"}`}>
+              <i className={`ti ${item.icon} text-[22px]`} />
+              {!collapsed && <span className="text-[15px]">{item.label}</span>}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div className={`shrink-0 border-t border-white/15 p-3 ${collapsed ? "space-y-2" : "space-y-1"}`}>
+        <Link href="/adviser/dashboard?tab=settings" className={`flex h-11 items-center rounded-xl text-slate-100 transition hover:bg-white/10 ${collapsed ? "justify-center" : "gap-4 px-3"}`}>
+          <i className="ti ti-settings text-xl" />{!collapsed && <span className="text-sm">Settings</span>}
+        </Link>
+        <Link href="/adviser/profile" className={`flex items-center rounded-xl py-2 transition hover:bg-white/10 ${collapsed ? "justify-center" : "gap-3 px-2"}`}>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/10 text-sm font-bold">{profile?.initials || "FA"}</span>
+          {!collapsed && <><span className="min-w-0 flex-1 truncate text-sm font-medium">{profile?.name || "Faculty Adviser"}</span><i className="ti ti-chevron-down text-sm text-slate-300" /></>}
+        </Link>
         <button
-          onClick={handleLogout}
-          title={collapsed ? "Logout" : undefined}
-          className={`flex items-center gap-2.5 rounded-lg text-[12px] text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-all font-semibold cursor-pointer ${
-            collapsed ? "px-0 py-2 justify-center w-full" : "px-3 py-2 w-full"
-          }`}
+          onClick={logout}
+          title={collapsed ? "Sign Out" : undefined}
+          className={`flex h-11 w-full items-center rounded-xl text-red-300 transition hover:bg-red-500/10 hover:text-red-200 cursor-pointer ${collapsed ? "justify-center" : "gap-4 px-3"}`}
         >
-          <i className="ti ti-logout text-base flex-shrink-0" />
-          {!collapsed && <span>Logout</span>}
+          <i className="ti ti-logout text-xl" />
+          {!collapsed && <span className="text-sm font-semibold">Sign Out</span>}
         </button>
       </div>
     </aside>

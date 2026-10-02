@@ -124,6 +124,39 @@ enum EvaluationStatus {
   LOCKED
 }
 
+enum DefenseSessionStatus {
+  DRAFT
+  PENDING_ACKNOWLEDGEMENT
+  NEEDS_RESCHEDULING
+  SCHEDULED
+  LIVE
+  DELIBERATION
+  COMPLETED
+  CANCELLED
+}
+
+enum DefenseInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  RECONFIRMATION_REQUIRED
+  REMOVED
+}
+
+enum DefenseParticipantRole {
+  PANEL_CHAIR
+  PANELIST
+  ADVISER
+  OBSERVER
+}
+
+enum DefenseDecision {
+  APPROVED
+  APPROVED_WITH_MINOR_REVISIONS
+  MAJOR_REVISIONS_REQUIRED
+  REJECTED
+}
+
 enum ConsultationStatus {
   SCHEDULED
   ONGOING
@@ -177,6 +210,28 @@ enum NotificationType {
   CERTIFICATE_READY
   DEADLINE_APPROACHING
   RESEARCH_ASSIGNED
+  ADVISER_REQUESTED
+  ADVISER_REQUEST_DECIDED
+  DEFENSE_INVITATION
+  DEFENSE_RESPONSE
+  DEFENSE_CONFIRMED
+  DEFENSE_RESCHEDULED
+  SYSTEM_ANNOUNCEMENT
+}
+
+enum AdviserRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum TaskSubmissionStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  REVISION_REQUIRED
+  APPROVED
+  REJECTED
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -184,19 +239,20 @@ enum NotificationType {
 // ─────────────────────────────────────────────────────────────
 
 model College {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code         String   @unique @db.VarChar(20)
-  name         String   @db.VarChar(150)
-  description  String?  @db.Text
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String   @unique @db.VarChar(20)
+  name        String   @db.VarChar(150)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   programs         Program[]
   users            User[]
   researchProjects ResearchProject[]
   forms            Form[]
   dashboardConfigs DashboardConfig[]
+  announcements    SystemAnnouncement[]
 
   @@index([isActive])
   @@map("colleges")
@@ -254,19 +310,26 @@ model User {
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  college             College?          @relation(fields: [collegeId], references: [id], onDelete: SetNull)
-  program             Program?          @relation(fields: [programId], references: [id], onDelete: SetNull)
-  roles               UserRole[]
-  memberships         ResearchMember[]
-  ownedResearch            ResearchProject[]          @relation("ProjectCreator")
+  college                  College?                  @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+  program                  Program?                  @relation(fields: [programId], references: [id], onDelete: SetNull)
+  roles                    UserRole[]
+  memberships              ResearchMember[]
+  ownedResearch            ResearchProject[]         @relation("ProjectCreator")
   reviews                  Review[]
   comments                 ReviewComment[]
   evaluations              Evaluation[]
   notifications            Notification[]
   auditLogs                AuditLog[]
-  certificatesIssued       Certificate[]              @relation("CertificateIssuer")
+  certificatesIssued       Certificate[]             @relation("CertificateIssuer")
   workflowTransitions      WorkflowTransition[]
   consultationParticipants ConsultationParticipant[]
+  adviserRequestsReceived  AdviserRequest[]          @relation("RequestedAdviser")
+  adviserRequestsCreated   AdviserRequest[]          @relation("AdviserRequestCreator")
+  taskSubmissions          TaskSubmission[]          @relation("TaskSubmissionSubmitter")
+  announcementsCreated     SystemAnnouncement[]      @relation("AnnouncementCreator")
+  workflowsCreated         Workflow[]                @relation("WorkflowCreator")
+  defenseSessionsCreated   DefenseSession[]          @relation("DefenseSessionCreator")
+  defenseInvitations       DefenseInvitation[]
 
   @@index([collegeId])
   @@index([programId])
@@ -382,11 +445,39 @@ model ResearchProject {
   evaluations     Evaluation[]
   consultations   Consultation[]
   certificates    Certificate[]
+  adviserRequests AdviserRequest[]
+  taskSubmissions TaskSubmission[]
+  defenseSessions DefenseSession[]
 
   @@index([status])
   @@index([collegeId, academicYearId])
   @@index([researchTypeId])
   @@map("research_projects")
+}
+
+model AdviserRequest {
+  id                    String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId            String               @map("research_id") @db.Uuid
+  adviserId             String               @map("adviser_id") @db.Uuid
+  requestedById         String               @map("requested_by_id") @db.Uuid
+  status                AdviserRequestStatus @default(PENDING)
+  note                  String?              @db.Text
+  responseNote          String?              @map("response_note") @db.Text
+  requestFormDocumentId String?              @map("request_form_document_id") @db.Uuid
+  respondedAt           DateTime?            @map("responded_at")
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+
+  research            ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  adviser             User            @relation("RequestedAdviser", fields: [adviserId], references: [id], onDelete: Cascade)
+  requestedBy         User            @relation("AdviserRequestCreator", fields: [requestedById], references: [id], onDelete: Cascade)
+  requestFormDocument Document?       @relation(fields: [requestFormDocumentId], references: [id], onDelete: SetNull)
+
+  @@unique([researchId, adviserId])
+  @@index([adviserId, status])
+  @@index([researchId, status])
+  @@index([requestFormDocumentId])
+  @@map("adviser_requests")
 }
 
 model ResearchMember {
@@ -424,6 +515,7 @@ model Workflow {
   researchTypes ResearchType[]
   stages        WorkflowStage[]
   instances     WorkflowInstance[]
+  creator       User               @relation("WorkflowCreator", fields: [createdBy], references: [id], onDelete: Restrict)
 
   @@unique([researchTypeId, version])
   @@index([status])
@@ -431,24 +523,71 @@ model Workflow {
 }
 
 model WorkflowStage {
-  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workflowId        String   @map("workflow_id") @db.Uuid
-  name              String   @db.VarChar(150)
-  description       String?  @db.Text
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowId        String  @map("workflow_id") @db.Uuid
+  name              String  @db.VarChar(150)
+  description       String? @db.Text
+  category          String  @default("Milestone") @db.VarChar(50)
   sequence          Int
-  responsibleRoleId String   @map("responsible_role_id") @db.Uuid
-  requiresApproval  Boolean  @default(true) @map("requires_approval")
-  deadlineDays      Int?     @map("deadline_days")
-  isFinal           Boolean  @default(false) @map("is_final")
+  responsibleRoleId String  @map("responsible_role_id") @db.Uuid
+  requiresApproval  Boolean @default(true) @map("requires_approval")
+  requiresDocument  Boolean @default(true) @map("requires_document")
+  deadlineDays      Int?    @map("deadline_days")
+  isFinal           Boolean @default(false) @map("is_final")
 
-  workflow        Workflow             @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  responsible     Role                 @relation(fields: [responsibleRoleId], references: [id], onDelete: Restrict)
-  fromTransitions WorkflowTransition[] @relation("FromStage")
-  toTransitions   WorkflowTransition[] @relation("ToStage")
+  workflow         Workflow             @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  responsible      Role                 @relation(fields: [responsibleRoleId], references: [id], onDelete: Restrict)
+  fromTransitions  WorkflowTransition[] @relation("FromStage")
+  toTransitions    WorkflowTransition[] @relation("ToStage")
   currentInstances WorkflowInstance[]
+  tasks            WorkflowTask[]
 
   @@unique([workflowId, sequence])
   @@map("workflow_stages")
+}
+
+model WorkflowTask {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  stageId          String   @map("stage_id") @db.Uuid
+  title            String   @db.VarChar(180)
+  instructions     String?  @db.Text
+  sequence         Int
+  dueDays          Int?     @map("due_days")
+  allowedFileTypes String   @default("PDF,DOCX") @map("allowed_file_types") @db.VarChar(100)
+  isRequired       Boolean  @default(true) @map("is_required")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  stage       WorkflowStage    @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  submissions TaskSubmission[]
+
+  @@unique([stageId, sequence])
+  @@index([stageId])
+  @@map("workflow_tasks")
+}
+
+model TaskSubmission {
+  id          String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId  String               @map("research_id") @db.Uuid
+  taskId      String               @map("task_id") @db.Uuid
+  documentId  String               @map("document_id") @db.Uuid
+  submittedBy String               @map("submitted_by") @db.Uuid
+  status      TaskSubmissionStatus @default(SUBMITTED)
+  note        String?              @db.Text
+  reviewNote  String?              @map("review_note") @db.Text
+  submittedAt DateTime             @default(now()) @map("submitted_at")
+  reviewedAt  DateTime?            @map("reviewed_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  research        ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  task            WorkflowTask    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  document        Document        @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  submittedByUser User            @relation("TaskSubmissionSubmitter", fields: [submittedBy], references: [id], onDelete: Restrict)
+
+  @@unique([researchId, taskId])
+  @@index([taskId, status])
+  @@index([submittedBy])
+  @@map("task_submissions")
 }
 
 model WorkflowInstance {
@@ -503,9 +642,11 @@ model Document {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  research ResearchProject   @relation(fields: [researchId], references: [id], onDelete: Cascade)
-  versions DocumentVersion[]
-  reviews  Review[]
+  research        ResearchProject   @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  versions        DocumentVersion[]
+  reviews         Review[]
+  adviserRequests AdviserRequest[]
+  taskSubmissions TaskSubmission[]
 
   @@index([researchId])
   @@map("documents")
@@ -590,8 +731,8 @@ model Form {
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
 
-  college      College?        @relation(fields: [collegeId], references: [id], onDelete: SetNull)
-  researchType ResearchType?   @relation(fields: [researchTypeId], references: [id], onDelete: SetNull)
+  college      College?         @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+  researchType ResearchType?    @relation(fields: [researchTypeId], references: [id], onDelete: SetNull)
   fields       FormField[]
   submissions  FormSubmission[]
 
@@ -673,24 +814,83 @@ model EvaluationCriterion {
 }
 
 model Evaluation {
-  id             String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  templateId     String                @map("template_id") @db.Uuid
-  researchId     String                @map("research_id") @db.Uuid
-  evaluatorId    String                @map("evaluator_id") @db.Uuid
-  status         EvaluationStatus      @default(DRAFT)
-  totalScore     Decimal?              @map("total_score") @db.Decimal(6, 2)
-  recommendation ReviewRecommendation? @map("recommendation")
-  submittedAt    DateTime?             @map("submitted_at")
-  createdAt      DateTime              @default(now()) @map("created_at")
-  updatedAt      DateTime              @updatedAt @map("updated_at")
+  id               String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  templateId       String                @map("template_id") @db.Uuid
+  researchId       String                @map("research_id") @db.Uuid
+  evaluatorId      String                @map("evaluator_id") @db.Uuid
+  defenseSessionId String?               @map("defense_session_id") @db.Uuid
+  status           EvaluationStatus      @default(DRAFT)
+  totalScore       Decimal?              @map("total_score") @db.Decimal(6, 2)
+  recommendation   ReviewRecommendation? @map("recommendation")
+  criteriaScores   Json?                 @map("criteria_scores")
+  remarks          String?               @db.Text
+  integrityHash    String?               @map("integrity_hash") @db.VarChar(64)
+  lockedAt         DateTime?             @map("locked_at")
+  submittedAt      DateTime?             @map("submitted_at")
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
 
-  template  EvaluationTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
-  research  ResearchProject    @relation(fields: [researchId], references: [id], onDelete: Cascade)
-  evaluator User               @relation(fields: [evaluatorId], references: [id], onDelete: Restrict)
+  template       EvaluationTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  research       ResearchProject    @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  evaluator      User               @relation(fields: [evaluatorId], references: [id], onDelete: Restrict)
+  defenseSession DefenseSession?    @relation(fields: [defenseSessionId], references: [id], onDelete: Restrict)
 
-  @@unique([templateId, researchId, evaluatorId])
+  @@unique([defenseSessionId, evaluatorId])
+  @@index([templateId, researchId, evaluatorId])
   @@index([researchId])
+  @@index([defenseSessionId])
   @@map("evaluations")
+}
+
+model DefenseSession {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId     String               @map("research_id") @db.Uuid
+  status         DefenseSessionStatus @default(SCHEDULED)
+  decision       DefenseDecision?
+  venue          String?              @db.VarChar(200)
+  meetingUrl     String?              @map("meeting_url") @db.VarChar(500)
+  notes          String?              @db.Text
+  scheduledStart DateTime?            @map("scheduled_start")
+  scheduledEnd   DateTime?            @map("scheduled_end")
+  createdBy      String?              @map("created_by") @db.Uuid
+  startedAt      DateTime?            @map("started_at")
+  startedBy      String?              @map("started_by") @db.Uuid
+  endedAt        DateTime?            @map("ended_at")
+  releasedAt     DateTime?            @map("released_at")
+  releasedBy     String?              @map("released_by") @db.Uuid
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  research    ResearchProject     @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  creator     User?               @relation("DefenseSessionCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  invitations DefenseInvitation[]
+  evaluations Evaluation[]
+
+  @@index([researchId, status])
+  @@index([status, startedAt])
+  @@index([createdBy])
+  @@map("defense_sessions")
+}
+
+model DefenseInvitation {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  defenseSessionId      String                  @map("defense_session_id") @db.Uuid
+  inviteeId             String                  @map("invitee_id") @db.Uuid
+  role                  DefenseParticipantRole  @default(PANELIST)
+  status                DefenseInvitationStatus @default(PENDING)
+  isRequired            Boolean                 @default(true) @map("is_required")
+  responseNote          String?                 @map("response_note") @db.Text
+  suggestedAvailability Json?                   @map("suggested_availability")
+  respondedAt           DateTime?               @map("responded_at")
+  createdAt             DateTime                @default(now()) @map("created_at")
+  updatedAt             DateTime                @updatedAt @map("updated_at")
+
+  defenseSession DefenseSession @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
+  invitee        User           @relation(fields: [inviteeId], references: [id], onDelete: Restrict)
+
+  @@unique([defenseSessionId, inviteeId])
+  @@index([inviteeId, status])
+  @@map("defense_invitations")
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -767,6 +967,26 @@ model Notification {
   @@index([recipientId, isRead])
   @@index([createdAt])
   @@map("notifications")
+}
+
+model SystemAnnouncement {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String    @db.VarChar(200)
+  message     String    @db.Text
+  category    String    @default("GENERAL") @db.VarChar(30)
+  severity    String    @default("INFO") @db.VarChar(20)
+  createdBy   String    @map("created_by") @db.Uuid
+  audienceCollegeId String? @map("audience_college_id") @db.Uuid
+  publishedAt DateTime  @default(now()) @map("published_at")
+  expiresAt   DateTime? @map("expires_at")
+
+  creator         User     @relation("AnnouncementCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  audienceCollege College? @relation(fields: [audienceCollegeId], references: [id], onDelete: Cascade)
+
+  @@index([publishedAt])
+  @@index([category])
+  @@index([audienceCollegeId, publishedAt])
+  @@map("system_announcements")
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -868,14 +1088,14 @@ model DashboardConfig {
 // ─────────────────────────────────────────────────────────────
 
 model ChatGroup {
-  id                     String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title                  String           @db.VarChar(200)
-  description            String?          @db.Text
-  createdByAdviserId     String           @map("created_by_adviser_id") @db.VarChar(255)
-  adviserName            String           @map("adviser_name") @db.VarChar(150)
-  relatedResearchGroupId String?          @map("related_research_group_id") @db.VarChar(100)
-  createdAt              DateTime         @default(now()) @map("created_at")
-  updatedAt              DateTime         @updatedAt @map("updated_at")
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                  String   @db.VarChar(200)
+  description            String?  @db.Text
+  createdByAdviserId     String   @map("created_by_adviser_id") @db.VarChar(255)
+  adviserName            String   @map("adviser_name") @db.VarChar(150)
+  relatedResearchGroupId String?  @map("related_research_group_id") @db.VarChar(100)
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
 
   messages    ChatMessage[]
   invitations ChatInvitation[]

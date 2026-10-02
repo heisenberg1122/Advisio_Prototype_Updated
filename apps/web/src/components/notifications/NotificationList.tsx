@@ -19,6 +19,7 @@ const moduleVariantMap: Record<string, "info" | "success" | "warn" | "danger" | 
   Defense: "warn",
   Milestones: "danger",
   Announcements: "neutral",
+  "Adviser Requests": "warn",
 };
 
 export function NotificationList() {

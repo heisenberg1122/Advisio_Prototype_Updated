@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
-import { InstitutionalRole } from "@research-management/auth";
+import { getPermissionsForRoles, InstitutionalRole } from "@research-management/auth";
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.AUTH_SECRET || "advisio-dev-secret-key-change-in-production";
 
@@ -13,6 +13,8 @@ export interface AuthenticatedUser {
   lastName?: string;
   roles: InstitutionalRole[];
   permissions: string[];
+  collegeId?: string | null;
+  programId?: string | null;
 }
 
 declare global {
@@ -84,7 +86,7 @@ export async function requireAuth(
     }
 
     const roles = user.roles.map((ur) => ur.role.name as InstitutionalRole);
-    const permissionSet = new Set<string>();
+    const permissionSet = new Set<string>(getPermissionsForRoles(roles));
 
     for (const ur of user.roles) {
       for (const rp of ur.role.permissions) {
@@ -100,6 +102,8 @@ export async function requireAuth(
       lastName: user.lastName,
       roles,
       permissions: Array.from(permissionSet),
+      collegeId: user.collegeId,
+      programId: user.programId,
     };
 
     next();
@@ -161,7 +165,7 @@ export async function optionalAuth(
 
       if (user && user.status === "ACTIVE") {
         const roles = user.roles.map((ur) => ur.role.name as InstitutionalRole);
-        const permissionSet = new Set<string>();
+        const permissionSet = new Set<string>(getPermissionsForRoles(roles));
 
         for (const ur of user.roles) {
           for (const rp of ur.role.permissions) {
@@ -177,6 +181,8 @@ export async function optionalAuth(
           lastName: user.lastName,
           roles,
           permissions: Array.from(permissionSet),
+          collegeId: user.collegeId,
+          programId: user.programId,
         };
         next();
         return;

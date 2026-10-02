@@ -12,12 +12,19 @@ const router = Router();
 router.get("/", optionalAuth, async (req: Request, res: Response) => {
   try {
     const { status, programId, academicYearId } = req.query;
+    const isResearcher = req.user?.roles.includes("RESEARCHER");
 
     const projects = await prisma.researchProject.findMany({
       where: {
         ...(status && { status: String(status) as any }),
         ...(programId && { programId: String(programId) }),
         ...(academicYearId && { academicYearId: String(academicYearId) }),
+        ...(isResearcher && req.user && {
+          OR: [
+            { createdBy: req.user.id },
+            { members: { some: { userId: req.user.id, leftAt: null } } },
+          ],
+        }),
       },
       include: {
         researchType: true,
@@ -40,6 +47,40 @@ router.get("/", optionalAuth, async (req: Request, res: Response) => {
         workflowInstance: {
           include: {
             currentStage: true,
+            workflow: {
+              include: {
+                stages: { orderBy: { sequence: "asc" }, include: { tasks: { orderBy: { sequence: "asc" } } } },
+              },
+            },
+            transitions: { orderBy: { createdAt: "desc" } },
+          },
+        },
+        taskSubmissions: {
+          include: {
+            task: true,
+            document: {
+              select: {
+                id: true,
+                title: true,
+                currentVersion: true,
+                versions: {
+                  where: { status: "ACTIVE" },
+                  orderBy: { versionNumber: "desc" },
+                  take: 1,
+                  select: {
+                    id: true,
+                    versionNumber: true,
+                    fileName: true,
+                    mimeType: true,
+                    googleDriveFileId: true,
+                    uploadedAt: true,
+                  },
+                },
+              },
+            },
+            submittedByUser: {
+              select: { id: true, firstName: true, lastName: true, universityId: true },
+            },
           },
         },
       },
@@ -92,6 +133,29 @@ router.post(
         academicYearId = defaultAY?.id;
       }
 
+      const existingProject = academicYearId
+        ? await prisma.researchProject.findFirst({
+            where: {
+              academicYearId,
+              OR: [
+                { createdBy: req.user.id },
+                { members: { some: { userId: req.user.id, leftAt: null } } },
+              ],
+            },
+            select: { id: true, title: true, status: true },
+          })
+        : null;
+
+      if (existingProject) {
+        res.status(409).json({
+          error: existingProject.status === "REJECTED"
+            ? "Your rejected project must be deleted before you can register a replacement."
+            : "You already have a research project for the current academic year.",
+          project: existingProject,
+        });
+        return;
+      }
+
       let researchType = null;
       if (researchTypeId) {
         researchType = await prisma.researchType.findUnique({
@@ -101,6 +165,7 @@ router.post(
               include: {
                 stages: {
                   orderBy: { sequence: "asc" },
+                  include: { tasks: { orderBy: { sequence: "asc" } } },
                 },
               },
             },
@@ -113,6 +178,9 @@ router.post(
               include: {
                 stages: {
                   orderBy: { sequence: "asc" },
+                  include: {
+                    tasks: { orderBy: { sequence: "asc" } },
+                  },
                 },
               },
             },
@@ -242,6 +310,9 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
               include: {
                 stages: {
                   orderBy: { sequence: "asc" },
+                  include: {
+                    tasks: { orderBy: { sequence: "asc" } },
+                  },
                 },
               },
             },
@@ -262,6 +333,23 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
           include: {
             versions: {
               orderBy: { versionNumber: "desc" },
+            },
+          },
+        },
+        taskSubmissions: {
+          include: {
+            task: true,
+            submittedByUser: {
+              select: { id: true, firstName: true, lastName: true, universityId: true },
+            },
+            document: {
+              include: {
+                versions: {
+                  orderBy: { versionNumber: "desc" },
+                  take: 1,
+                  select: { id: true, fileName: true, mimeType: true, storagePath: true },
+                },
+              },
             },
           },
         },
@@ -299,6 +387,57 @@ router.patch(
     }
   }
 );
+
+// DELETE /api/research/:id
+// Researchers may only remove their own rejected project before registering a replacement.
+router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const id = req.params.id as string;
+    const project = await prisma.researchProject.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        createdBy: true,
+        workflowInstanceId: true,
+        members: {
+          where: { userId: req.user.id, projectRole: "LEADER" },
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: "Research project not found." });
+      return;
+    }
+    if (project.createdBy !== req.user.id && project.members.length === 0) {
+      res.status(403).json({ error: "Only the project creator or group leader may delete this project." });
+      return;
+    }
+    if (project.status !== "REJECTED") {
+      res.status(409).json({ error: "Only a rejected project can be deleted and replaced." });
+      return;
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.researchProject.delete({ where: { id: project.id } });
+      if (project.workflowInstanceId) {
+        await tx.workflowInstance.delete({ where: { id: project.workflowInstanceId } });
+      }
+    });
+
+    res.status(204).send();
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to delete rejected research project" });
+  }
+});
 
 // POST /api/research/:id/members
 router.post(

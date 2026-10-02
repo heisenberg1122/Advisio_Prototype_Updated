@@ -133,7 +133,7 @@ class GoogleDriveService {
       fileName: options.fileName,
       mimeType: options.mimeType,
       sizeBytes: options.buffer.length,
-      webViewLink: `https://drive.google.com/file/d/${uniqueFileId}/view`,
+      webViewLink: `/api/documents/files/${uniqueFileId}`,
       webContentLink: `/api/documents/download/${uniqueFileId}`,
       storagePath: diskPath,
     };

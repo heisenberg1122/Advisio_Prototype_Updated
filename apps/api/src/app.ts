@@ -14,10 +14,13 @@ import userRoutes from "./routes/user.routes";
 import documentRoutes from "./routes/document.routes";
 import evaluationRoutes from "./routes/evaluation.routes";
 import adminRoutes from "./routes/admin.routes";
+import deanRoutes from "./routes/dean.routes";
 import consultationRoutes from "./routes/consultation.routes";
 import notificationRoutes from "./routes/notification.routes";
+import adviserRequestRoutes from "./routes/adviser-request.routes";
 import chatRoutes from "./routes/chat.routes";
 import realtimeRoutes from "./routes/realtime.routes";
+import liveDefenseRoutes from "./routes/live-defense.routes";
 import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
@@ -65,10 +68,13 @@ app.use("/api/users", userRoutes);
 app.use("/api", documentRoutes);
 app.use("/api", evaluationRoutes);
 app.use("/api", adminRoutes);
+app.use("/api", deanRoutes);
 app.use("/api/consultations", consultationRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/adviser-requests", adviserRequestRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api/realtime", realtimeRoutes);
+app.use("/api", liveDefenseRoutes);
 
 // Root fallback
 app.get("/", (_req, res) => {

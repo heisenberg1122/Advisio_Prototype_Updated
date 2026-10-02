@@ -5,7 +5,7 @@ import { Providers } from "@/providers";
 import Link from "next/link";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { UserChip } from "@/components/shared/UserChip";
-import { useNotifications } from "@/hooks/use-notifications";
+import { NotificationPopover } from "@/components/notifications/NotificationPopover";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { useAuth } from "@/providers/auth-provider";
@@ -17,19 +17,22 @@ const MENU_SECTIONS = [
     title: "HOME",
     items: [
       { label: "Dashboard", href: "/system-admin/dashboard", tabName: "overview", icon: "ti-layout-dashboard" },
+      { label: "Announcements", href: "/system-admin/dashboard?tab=announcements", tabName: "announcements", icon: "ti-speakerphone" },
     ],
   },
   {
     title: "SYSTEM CONTROL",
     items: [
-      { label: "Platform Maintenance & Configuration", href: "/system-admin/dashboard?tab=maintenance", tabName: "maintenance", icon: "ti-tool" },
-      { label: "System-Wide Analytics & Reporting", href: "/system-admin/dashboard?tab=analytics", tabName: "analytics", icon: "ti-presentation" },
+      { label: "Platform Configuration", href: "/system-admin/dashboard?tab=config", tabName: "config", icon: "ti-tool" },
+      { label: "Audit Logs", href: "/system-admin/dashboard?tab=logs", tabName: "logs", icon: "ti-file-text" },
+      { label: "Database Backups", href: "/system-admin/dashboard?tab=backups", tabName: "backups", icon: "ti-database" },
       { label: "Settings", href: "/system-admin/dashboard?tab=settings", tabName: "settings", icon: "ti-settings" },
     ],
   },
   {
     title: "USER ACCESS",
     items: [
+      { label: "User Management", href: "/system-admin/dashboard?tab=users", tabName: "users", icon: "ti-users" },
       { label: "College & Department Onboarding", href: "/system-admin/dashboard?tab=onboarding", tabName: "onboarding", icon: "ti-building" },
       { label: "User Role & Access Oversight", href: "/system-admin/dashboard?tab=roles", tabName: "roles", icon: "ti-shield" },
     ],
@@ -163,7 +166,6 @@ function SystemAdminTopbar() {
   const pathname = usePathname() || "";
   const searchParams = useSearchParams();
   const currentTab = searchParams.get("tab") || "overview";
-  const { unreadCount } = useNotifications();
   const { profile } = useProfile();
   const { logout } = useAuth();
 
@@ -180,6 +182,9 @@ function SystemAdminTopbar() {
     roles: "Global Role Permission Matrix",
     config: "System Parameter Configuration",
     settings: "Settings",
+    onboarding: "College & Department Onboarding",
+    announcements: "System Announcements",
+    users: "User Management",
   };
 
   let title = PAGE_TITLES[pathname] ?? "System Admin Dashboard";
@@ -192,16 +197,7 @@ function SystemAdminTopbar() {
       <span className="text-[13px] font-medium text-slate-800">{title}</span>
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <Link
-          href="/system-admin/notifications"
-          className={cn("icon-btn relative p-2 rounded-full hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition", unreadCount > 0 && "badge-dot")}
-          aria-label={unreadCount > 0 ? `Notifications — ${unreadCount} unread` : "Notifications"}
-        >
-          <i className="ti ti-bell text-base" />
-          {unreadCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-          )}
-        </Link>
+        <NotificationPopover viewAllHref="/system-admin/notifications" compact />
         <Link
           href="/system-admin/profile"
           className="w-8 h-8 rounded-full bg-[#1b4264] text-white flex items-center justify-center text-[11px] font-bold hover:opacity-90 transition flex-shrink-0"

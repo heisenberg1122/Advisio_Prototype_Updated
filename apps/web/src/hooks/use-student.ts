@@ -113,7 +113,9 @@ export function useStudentGroup() {
             isYou: false,
             colorVariant: "info",
           })) || [],
-          adviser: null,
+          adviser: active.members?.find((m: any) => m.projectRole === "ADVISER" && !m.leftAt)?.user
+            ? `${active.members.find((m: any) => m.projectRole === "ADVISER" && !m.leftAt).user.firstName} ${active.members.find((m: any) => m.projectRole === "ADVISER" && !m.leftAt).user.lastName}`.trim()
+            : null,
           status: active.status,
         };
       } catch {
@@ -129,13 +131,28 @@ export function useAdvisers() {
     queryKey: studentKeys.advisers(),
     queryFn: async () => {
       try {
-        const res = await apiClient.get<{ users: any[] }>("/api/users?role=ADVISER");
+        const res = await apiClient.get<{ users: any[] }>("/api/users?role=ADVISER&status=ACTIVE");
+        const research = await apiClient.get<{ projects: any[] }>("/api/research");
+        const project = research.projects?.[0];
+        const assignedMember = project?.members?.find((m: any) => m.projectRole === "ADVISER" && !m.leftAt);
+        const requests = await apiClient.get<{ requests: any[] }>("/api/adviser-requests").catch(() => ({ requests: [] }));
+        const mapAdviser = (adviser: any) => ({
+          ...adviser,
+          name: adviser.name || `${adviser.firstName || ""} ${adviser.lastName || ""}`.trim() || adviser.email,
+          initials: adviser.initials || `${adviser.firstName?.[0] || "F"}${adviser.lastName?.[0] || "A"}`.toUpperCase(),
+          college: adviser.college?.name || adviser.college || "Faculty",
+          adviseeCount: adviser.adviseeCount || 0,
+          avgResponseDays: adviser.avgResponseDays || "—",
+          requestStatus: requests.requests.find((r: any) => r.adviserId === adviser.id && r.researchId === project?.id)?.status,
+        });
         return {
-          assigned: null,
-          available: res.users || [],
+          projectId: project?.id || null,
+          project: project || null,
+          assigned: assignedMember ? mapAdviser(assignedMember.user) : null,
+          available: (res.users || []).map(mapAdviser),
         };
       } catch {
-        return { assigned: null, available: [] };
+        return { projectId: null, project: null, assigned: null, available: [] };
       }
     },
   });

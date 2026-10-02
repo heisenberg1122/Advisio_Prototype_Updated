@@ -1,5 +1,7 @@
 import { Router, Request, Response } from "express";
 import multer from "multer";
+import fs from "node:fs";
+import path from "node:path";
 import {
   prisma,
   ReviewType,
@@ -17,6 +19,32 @@ const router = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+});
+
+// GET /api/documents/files/:fileId — authenticated preview/download for Drive or local fallback files.
+router.get("/documents/files/:fileId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const fileId = req.params.fileId as string;
+    const version = await prisma.documentVersion.findFirst({
+      where: { googleDriveFileId: fileId },
+      select: { storagePath: true, fileName: true, mimeType: true },
+    });
+    if (!version) return void res.status(404).json({ error: "File not found" });
+
+    if (!fileId.startsWith("gdrive-") && version.storagePath.startsWith("http")) {
+      res.redirect(version.storagePath);
+      return;
+    }
+
+    const uploadDir = path.resolve(process.cwd(), "uploads");
+    const diskName = fs.existsSync(uploadDir) ? fs.readdirSync(uploadDir).find((name) => name.startsWith(`${fileId}-`)) : undefined;
+    if (!diskName) return void res.status(404).json({ error: "Stored file is unavailable" });
+    res.type(version.mimeType);
+    res.setHeader("Content-Disposition", `inline; filename="${version.fileName.replace(/"/g, "")}"`);
+    res.sendFile(path.resolve(uploadDir, diskName));
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to open file" });
+  }
 });
 
 // GET /api/research/:researchId/documents

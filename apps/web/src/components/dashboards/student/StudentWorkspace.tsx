@@ -31,19 +31,39 @@ export function StudentWorkspace({ triggerToast }: StudentWorkspaceProps) {
   const [activeFontSize, setActiveFontSize] = useState("11");
   const [textColor, setTextColor] = useState("#000000");
   const [highlightColor, setHighlightColor] = useState("transparent");
-  const [targetMilestone, setTargetMilestone] = useState("Chapter 1-3 Submission");
+  const [targetMilestone, setTargetMilestone] = useState("");
+  const [availableMilestones, setAvailableMilestones] = useState<any[]>([]);
+  const [researchProjectId, setResearchProjectId] = useState("");
 
   const editorRef = useRef<HTMLDivElement>(null);
 
   const fontOptions = ["Arial", "Times New Roman", "Courier New", "Georgia", "Verdana", "Impact", "Comic Sans MS"];
   const fontSizeOptions = ["9", "10", "11", "12", "14", "16", "18", "24", "30", "36"];
-  const milestonesList = [
-    "Proposal Outline Selection",
-    "Chapter 1-3 Submission",
-    "Ethics Clearance Review",
-    "Pre-Defense Presentation",
-    "Final Oral Defense"
-  ];
+  useEffect(() => {
+    const loadSubmissionMilestones = async () => {
+      try {
+        const response = await apiClient.get<{ projects: any[] }>("/api/research");
+        const project = response.projects?.[0];
+        if (!project) return;
+        setResearchProjectId(project.id);
+        const currentSequence = project.workflowInstance?.currentStage?.sequence || 0;
+        const milestones = (project.workflowInstance?.workflow?.stages || [])
+          .filter((stage: any) => stage.sequence <= currentSequence && stage.requiresDocument !== false)
+          .flatMap((stage: any) => (stage.tasks || []).filter((task: any) => /DOC|DOCX|HTML|TXT/i.test(task.allowedFileTypes || "")).map((task: any) => ({
+            id: task.id,
+            stageId: stage.id,
+            label: `${stage.sequence}. ${task.title}`,
+            stageName: stage.name,
+          })));
+        setAvailableMilestones(milestones);
+        const requestedTaskId = new URLSearchParams(window.location.search).get("taskId");
+        setTargetMilestone(milestones.some((milestone: any) => milestone.id === requestedTaskId) ? requestedTaskId! : (milestones[0]?.id || ""));
+      } catch {
+        setAvailableMilestones([]);
+      }
+    };
+    loadSubmissionMilestones();
+  }, []);
 
   // Sync documents list from localStorage
   const syncDocs = () => {
@@ -176,30 +196,36 @@ export function StudentWorkspace({ triggerToast }: StudentWorkspaceProps) {
       triggerToast("Please enter a document title first.");
       return;
     }
+    const selectedMilestone = availableMilestones.find((milestone) => milestone.id === targetMilestone);
+    if (!selectedMilestone || !researchProjectId) {
+      triggerToast("No unlocked document milestone is available for submission.");
+      return;
+    }
 
-    // 1. Attempt live API submission
     try {
-      const researchList = await apiClient.get<{ projects: any[] }>("/api/research").catch(() => ({ projects: [] }));
-      const project = researchList.projects?.[0];
-      if (project) {
-        await apiClient.post(`/api/research/${project.id}/documents`, {
-          title: docTitle.trim(),
-          documentType: targetMilestone,
-          content: docContent,
-          leftMargin,
-          rightMargin,
-          targetMilestone,
-        });
-      }
-    } catch (e) {
-      console.warn("Backend unavailable, using local persistence.");
+      const upload = await apiClient.post<{ document: any }>(`/api/research/${researchProjectId}/documents`, {
+        title: docTitle.trim(),
+        documentType: `TASK_${selectedMilestone.id}`,
+        content: docContent,
+        leftMargin,
+        rightMargin,
+        targetMilestone: selectedMilestone.stageName,
+      });
+      await apiClient.post(`/api/workflows/tasks/${selectedMilestone.id}/submissions`, {
+        researchId: researchProjectId,
+        documentId: upload.document.id,
+        note: "Created and submitted from the Documents workspace.",
+      });
+    } catch (error: any) {
+      triggerToast(error?.message || "The document could not be submitted.");
+      return;
     }
 
     // 2. Submit to local submissions system
     const newSubmission = {
       id: "sub-" + Date.now(),
       docName: `${docTitle.trim()} (System Workspace)`,
-      milestone: targetMilestone,
+      milestone: selectedMilestone.stageName,
       date: new Date().toISOString().split("T")[0],
       version: `v1.${Math.floor(Math.random() * 9) + 1}`,
       status: "pending"
@@ -222,7 +248,7 @@ export function StudentWorkspace({ triggerToast }: StudentWorkspaceProps) {
         store.notifications.push({
           id: "notif-" + Math.random().toString(36).substr(2, 9),
           userId: "adviser@university.edu.ph",
-          msg: `${studentName} submitted a workspace document for "${targetMilestone}" verification.`,
+          msg: `${studentName} submitted a workspace document for "${selectedMilestone.stageName}" verification.`,
           date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
           read: false
         });
@@ -230,7 +256,7 @@ export function StudentWorkspace({ triggerToast }: StudentWorkspaceProps) {
       } catch (e) {}
     }
 
-    triggerToast(`Submitted "${docTitle}" directly to "${targetMilestone}"!`);
+    triggerToast(`Submitted "${docTitle}" directly to "${selectedMilestone.stageName}"!`);
   };
 
   // Google Docs Command Execs
@@ -562,15 +588,16 @@ export function StudentWorkspace({ triggerToast }: StudentWorkspaceProps) {
                 onChange={(e) => setTargetMilestone(e.target.value)}
                 className="bg-white border border-slate-350 rounded-lg p-1.5 focus:outline-none text-[11px] font-semibold cursor-pointer"
               >
-                {milestonesList.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
+                {availableMilestones.length ? availableMilestones.map((milestone) => (
+                  <option key={milestone.id} value={milestone.id}>{milestone.label}</option>
+                )) : <option value="">No unlocked document milestones</option>}
               </select>
             </div>
 
             <button
               onClick={handleOneTapSubmit}
-              className="w-full sm:w-auto px-4 py-2 bg-[#1b4264] text-white hover:bg-slate-800 font-extrabold rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5 border border-[#1b4264] shadow-md"
+              disabled={!targetMilestone}
+              className="w-full sm:w-auto px-4 py-2 bg-[#1b4264] text-white hover:bg-slate-800 font-extrabold rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5 border border-[#1b4264] shadow-md disabled:cursor-not-allowed disabled:opacity-50"
             >
               <i className="ti ti-circle-check text-[#ffa400] text-sm animate-pulse" />
               1-Tap Submit to System
