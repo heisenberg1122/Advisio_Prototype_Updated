@@ -52,10 +52,10 @@ export function NavItem({
 
   const renderIcon = () => {
     if (typeof Icon === "string") {
-      return <i className={cn("ti", Icon, "shrink-0 text-lg")} aria-hidden="true" />;
+      return <i className={cn("ti", Icon, "shrink-0 text-xl")} aria-hidden="true" />;
     }
     const LucideIcon = Icon;
-    return <LucideIcon className="h-5 w-5 shrink-0 transition-colors" />;
+    return <LucideIcon className="h-[22px] w-[22px] shrink-0 transition-colors" />;
   };
 
   return (
@@ -64,9 +64,9 @@ export function NavItem({
       onClick={onClick}
       title={collapsed ? label : undefined}
       className={cn(
-        "group relative flex items-center text-sm font-medium transition-all duration-150 select-none outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0",
-        appearance === "workspace" ? "h-11 rounded-xl" : "h-10 rounded-xl",
-        collapsed ? "justify-center px-0 w-10 mx-auto" : "gap-3 px-3 mx-2",
+        "group relative flex items-center transition-all duration-150 select-none outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0",
+        appearance === "workspace" ? "h-12 rounded-xl text-[15px]" : "h-11 rounded-xl text-[15px]",
+        collapsed ? "justify-center px-0 w-11 h-11 mx-auto" : "gap-3.5 px-3.5 mx-2 font-medium",
         isItemActive
           ? appearance === "workspace"
             ? "bg-[#DDEBF1] text-[#0B3A53] font-bold shadow-none dark:bg-[#38bdf8]/15 dark:text-[#38bdf8]"
@@ -88,7 +88,7 @@ export function NavItem({
       </span>
 
       {!collapsed && (
-        <span className="flex-1 truncate text-sm tracking-normal">
+        <span className="flex-1 truncate text-[15px] tracking-normal">
           {label}
         </span>
       )}
@@ -96,7 +96,7 @@ export function NavItem({
       {!collapsed && badge !== undefined && (
         <span
           className={cn(
-            "ml-auto shrink-0 rounded-full px-2 py-0.5 text-xs font-bold",
+            "ml-auto shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold",
             badgeVariant === "accent" && "bg-[#C9A227]/20 text-[#8A6A0B] dark:bg-[#C9A227]/30 dark:text-[#C9A227]",
             badgeVariant === "primary" && "bg-[#0B3A53] text-white",
             badgeVariant === "danger" && "bg-red-500 text-white",
