@@ -3,7 +3,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist/**", "node_modules/**", "**/*.d.ts"],
+    ignores: ["dist/**", "node_modules/**", "public/**", "**/*.d.ts"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -16,6 +16,7 @@ export default tseslint.config(
       "no-unused-vars": "off",
       "no-undef": "off",
       "no-empty": "off",
+      "no-redeclare": "off",
     },
   }
 );

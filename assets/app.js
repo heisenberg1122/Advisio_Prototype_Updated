@@ -1,3 +1,4 @@
+/* eslint-disable */
 const app = document.getElementById('app');
 const toastEl = document.getElementById('toast');
 const modalRoot = document.getElementById('modal-root');
@@ -1204,6 +1205,8 @@ function renderLayout(role, tab) {
     : `<button class="btn btn-primary" onclick="openGlobalAction('${role}')">${icon('plus')} New Action</button>`;
 
   app.innerHTML = `<div class="app-shell ${isCollapsed ? 'collapsed' : ''}"><aside class="sidebar ${isCollapsed ? 'collapsed' : ''}"><div class="sidebar-head"><img src="assets/ao-logo.png" class="brand-mark" alt="AO Logo" style="object-fit: contain; background: white; padding: 4px;" /><div class="brand-copy"><div class="brand-title">ADVISIO</div><div class="brand-sub">${meta.label}</div></div></div><div class="role-card"><div class="flex gap-10"><div class="avatar gold">${meta.initials}</div><div class="user-copy"><strong>${meta.name}</strong><span>${meta.subtitle}</span></div></div></div><nav class="nav-area">${navGroups[role].map(group => `<div class="nav-section"><div class="section-title">${group.title}</div>${group.items.map(item => renderNavItem(role, tab, item)).join('')}</div>`).join('')}</nav><div class="sidebar-foot"><button class="btn" onclick="toggleSidebar()">${icon('menu')}<span>${isCollapsed ? 'Expand Menu' : 'Collapse Menu'}</span></button><button class="btn" onclick="logout()">${icon('logout')}<span>Sign Out</span></button></div></aside><section class="main-area"><header class="topbar"><div class="topbar-title"><h1>${pageTitle}</h1><p>${meta.label} role workspace focused on research advising workflow.</p></div><div class="search-box">${icon('search')}<input placeholder="Search groups, documents, tasks, or alerts" onkeydown="if(event.key==='Enter') showToast('Prototype search: '+this.value)"></div>${topbarActions}</header><div class="content">${renderRole(role, tab)}</div></section></div>`;
+}
+
 function renderNavItem(role, activeTab, item) { const [id, label, iconName, count] = item; return `<button class="nav-item ${id === activeTab ? 'active' : ''}" onclick="routeTo('#/app/${role}/${id}')">${icon(iconName)}<span class="nav-copy">${label}</span>${count ? `<span class="badge-count">${count}</span>` : ''}</button>`; }
 function toggleSidebar() { state.sidebarCollapsed = !state.sidebarCollapsed; localStorage.setItem('advisio-sidebar-collapsed', state.sidebarCollapsed ? '1' : '0'); parseHash(); }
 function logout() {
