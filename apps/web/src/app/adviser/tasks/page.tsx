@@ -5,8 +5,7 @@ import { Card } from "@/components/ui/Card";
 
 export default function TasksPage() {
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-[18px] font-semibold text-[var(--color-text-primary)]">Tasks Management</h1>
+    <div>
       <Card>
         <p className="text-[13px] text-[var(--color-text-secondary)] mb-4">
           Adviser task lists and action items are handled on the central dashboard. Click below to view and track your tasks.

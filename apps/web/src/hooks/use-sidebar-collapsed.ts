@@ -7,6 +7,8 @@ const STORAGE_KEY = "advisio-sidebar-collapsed";
 // Set up a simple subscription system for the sidebar collapse state
 const listeners = new Set<(val: boolean) => void>();
 let globalCollapsed = false;
+const mobileListeners = new Set<(val: boolean) => void>();
+let globalMobileOpen = false;
 
 // Initialize from localStorage if on client
 if (typeof window !== "undefined") {
@@ -24,8 +26,15 @@ const notify = (val: boolean) => {
   }
 };
 
+const notifyMobile = (val: boolean) => {
+  for (const listener of mobileListeners) {
+    listener(val);
+  }
+};
+
 export function useSidebarCollapsed() {
   const [collapsed, setCollapsed] = useState(globalCollapsed);
+  const [mobileOpen, setMobileOpen] = useState(globalMobileOpen);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -36,9 +45,15 @@ export function useSidebarCollapsed() {
       setCollapsed(val);
     };
 
+    const handleMobileListener = (val: boolean) => {
+      setMobileOpen(val);
+    };
+
     listeners.add(handleListener);
+    mobileListeners.add(handleMobileListener);
     return () => {
       listeners.delete(handleListener);
+      mobileListeners.delete(handleMobileListener);
     };
   }, []);
 
@@ -51,5 +66,21 @@ export function useSidebarCollapsed() {
     notify(next);
   }, []);
 
-  return { collapsed: mounted ? collapsed : false, toggle };
+  const openMobile = useCallback(() => {
+    globalMobileOpen = true;
+    notifyMobile(true);
+  }, []);
+
+  const closeMobile = useCallback(() => {
+    globalMobileOpen = false;
+    notifyMobile(false);
+  }, []);
+
+  return {
+    collapsed: mounted ? collapsed : false,
+    toggle,
+    mobileOpen: mounted ? mobileOpen : false,
+    openMobile,
+    closeMobile,
+  };
 }

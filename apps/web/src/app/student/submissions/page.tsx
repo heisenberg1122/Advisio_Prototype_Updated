@@ -43,25 +43,18 @@ export default function SubmissionsPage() {
   );
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-[18px] font-medium mb-0.5">Submissions</h1>
-        <p className="text-[13px] text-[var(--color-text-secondary)]">
-          Document submission and version history
-        </p>
-      </div>
-
+    <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {/* Tabs */}
-      <div className="flex border-b border-[var(--color-border-tertiary)] mb-4">
+      <div className="flex border-b border-[#DDE3E8] dark:border-white/10 gap-2">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "px-3.5 py-2 text-[13px] border-b-2 -mb-px transition-colors duration-100",
+              "px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 -mb-px transition-colors duration-150 cursor-pointer",
               activeTab === tab.id
-                ? "text-[var(--color-text-info)] border-[var(--color-border-info)]"
-                : "text-[var(--color-text-secondary)] border-transparent hover:text-[var(--color-text-primary)]"
+                ? "text-[#0B3A53] dark:text-[#C9A227] border-[#0B3A53] dark:border-[#C9A227]"
+                : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 border-transparent"
             )}
           >
             {tab.label}
@@ -117,8 +110,8 @@ export default function SubmissionsPage() {
         </Card>
       )}
 
-      <div className="flex justify-end mt-4">
-        <button className="btn btn-primary">
+      <div className="flex justify-end mt-2">
+        <button className="inline-flex items-center gap-2 rounded-xl bg-[#0B3A53] hover:bg-[#072A3D] text-white px-5 py-2.5 text-xs font-bold shadow-xs transition cursor-pointer">
           <i className="ti ti-upload" aria-hidden="true" />
           Upload new document
         </button>

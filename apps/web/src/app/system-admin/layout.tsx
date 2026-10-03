@@ -1,249 +1,95 @@
 "use client";
 
 import React, { Suspense } from "react";
-import { Providers } from "@/providers";
-import Link from "next/link";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { UserChip } from "@/components/shared/UserChip";
-import { NotificationPopover } from "@/components/notifications/NotificationPopover";
+import { usePathname, useSearchParams } from "next/navigation";
+import {
+  LayoutDashboard,
+  Megaphone,
+  Wrench,
+  FileText,
+  Database,
+  Users,
+  Building2,
+  Shield,
+} from "lucide-react";
+import { AppSidebar } from "@/components/layout/AppSidebar";
+import { AppTopbar } from "@/components/layout/AppTopbar";
+import { AppWorkspaceFrame } from "@/components/layout/AppWorkspaceFrame";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
-import { ThemeToggle } from "@/components/shared/ThemeToggle";
-import { useAuth } from "@/providers/auth-provider";
-import { useProfile } from "@/hooks/use-profile";
-import { cn } from "@/lib/utils";
 
-const MENU_SECTIONS = [
-  {
-    title: "HOME",
-    items: [
-      { label: "Dashboard", href: "/system-admin/dashboard", tabName: "overview", icon: "ti-layout-dashboard" },
-      { label: "Announcements", href: "/system-admin/dashboard?tab=announcements", tabName: "announcements", icon: "ti-speakerphone" },
-    ],
-  },
-  {
-    title: "SYSTEM CONTROL",
-    items: [
-      { label: "Platform Configuration", href: "/system-admin/dashboard?tab=config", tabName: "config", icon: "ti-tool" },
-      { label: "Audit Logs", href: "/system-admin/dashboard?tab=logs", tabName: "logs", icon: "ti-file-text" },
-      { label: "Database Backups", href: "/system-admin/dashboard?tab=backups", tabName: "backups", icon: "ti-database" },
-      { label: "Settings", href: "/system-admin/dashboard?tab=settings", tabName: "settings", icon: "ti-settings" },
-    ],
-  },
-  {
-    title: "USER ACCESS",
-    items: [
-      { label: "User Management", href: "/system-admin/dashboard?tab=users", tabName: "users", icon: "ti-users" },
-      { label: "College & Department Onboarding", href: "/system-admin/dashboard?tab=onboarding", tabName: "onboarding", icon: "ti-building" },
-      { label: "User Role & Access Oversight", href: "/system-admin/dashboard?tab=roles", tabName: "roles", icon: "ti-shield" },
-    ],
-  },
+const NAV_ITEMS = [
+  { label: "Overview", href: "/system-admin/dashboard", tabName: "overview", icon: LayoutDashboard },
+  { label: "Announcements", href: "/system-admin/dashboard?tab=announcements", tabName: "announcements", icon: Megaphone },
+  { label: "Users", href: "/system-admin/dashboard?tab=users", tabName: "users", icon: Users },
+  { label: "College & Programs", href: "/system-admin/dashboard?tab=onboarding", tabName: "onboarding", icon: Building2 },
+  { label: "Role Permissions", href: "/system-admin/dashboard?tab=roles", tabName: "roles", icon: Shield },
+  { label: "System Configuration", href: "/system-admin/dashboard?tab=config", tabName: "config", icon: Wrench },
+  { label: "Audit Logs", href: "/system-admin/dashboard?tab=logs", tabName: "logs", icon: FileText },
+  { label: "Database Backups", href: "/system-admin/dashboard?tab=backups", tabName: "backups", icon: Database },
 ];
 
-function normalizePath(p: string) {
-  return p.split("?")[0].replace(/\/$/, "");
-}
-
-function isActiveRoute(item: { href: string; tabName: string }, pathname: string, currentTab: string) {
-  const cleanHref = normalizePath(item.href);
-  const cleanPathname = normalizePath(pathname);
-  const isDashboardLink = cleanHref.endsWith("/dashboard") && !item.href.includes("?tab=");
-  const isTabItem = item.href.includes("?tab=");
-
-  if (isDashboardLink) {
-    return cleanPathname === cleanHref && (currentTab === "overview" || currentTab === "");
-  }
-  if (isTabItem) {
-    return cleanPathname === cleanHref && currentTab === item.tabName;
-  }
-  return cleanPathname === cleanHref;
-}
-
-function SystemAdminSidebar() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname() || "";
-  const currentTab = searchParams.get("tab") || "overview";
-  const { collapsed, toggle } = useSidebarCollapsed();
-
-  const { profile } = useProfile();
-  const { logout } = useAuth();
-
-  const handleLogout = () => {
-    logout();
-  };
-
-  return (
-    <aside
-      className={`relative bg-[#1b4264] border-r border-[#ffa400]/10 flex flex-col justify-between select-none h-full transition-all duration-300 ease-in-out text-slate-350 ${
-        collapsed ? "w-[64px]" : "w-[240px]"
-      }`}
-    >
-      {/* Edge collapse toggle button */}
-      <button
-        onClick={toggle}
-        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className="absolute top-1/2 -translate-y-1/2 -right-3 z-50 w-6 h-6 rounded-full bg-[#ffa400] text-[#1b4264] shadow-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all border border-[#1b4264] cursor-pointer"
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      >
-        <i className={`ti ${collapsed ? "ti-chevron-right" : "ti-chevron-left"} text-xs font-bold`} />
-      </button>
-
-      <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
-        {/* Logo block */}
-        <div className={`px-3 py-4 border-b border-white/10 shrink-0 flex items-center ${collapsed ? "justify-center" : "justify-between gap-2"}`}>
-          {!collapsed && (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
-                <i className="ti ti-lock text-base text-[#ffa400]" />
-              </div>
-              <div>
-                <span className="font-extrabold text-[15px] tracking-tight block leading-none text-white">ADVISIO</span>
-                <span className="text-[8px] uppercase tracking-wider text-[#ffa400] font-semibold mt-0.5 block">System Admin</span>
-              </div>
-            </div>
-          )}
-          {collapsed && (
-            <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center">
-              <i className="ti ti-lock text-base text-[#ffa400]" />
-            </div>
-          )}
-        </div>
-
-        {/* Navigation */}
-        <nav className="p-2 flex flex-col gap-1 overflow-y-auto flex-1 min-h-0">
-          {MENU_SECTIONS.map((section) => (
-            <div key={section.title} className="flex flex-col gap-0.5">
-              {!collapsed && (
-                <span className="px-3 pt-2 pb-1 text-[9.5px] font-bold uppercase tracking-wider text-slate-400/70 select-none">
-                  {section.title}
-                </span>
-              )}
-              {collapsed && <div className="pt-2" />}
-              {section.items.map((item) => {
-                const isActive = isActiveRoute(item, pathname, currentTab);
-                return (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    title={collapsed ? item.label : undefined}
-                    className={`flex items-center gap-3 rounded-lg text-[12.5px] transition-all ${
-                      collapsed ? "px-0 py-2 justify-center" : "px-3 py-2.5"
-                    } ${
-                      isActive
-                        ? "bg-[#ffa400] text-[#1b4264] font-bold shadow-md shadow-[#ffa400]/10"
-                        : "hover:bg-white/5 hover:text-white text-slate-350"
-                    }`}
-                  >
-                    <i className={`ti ${item.icon} text-base flex-shrink-0`} />
-                    {!collapsed && <span className="font-medium truncate">{item.label}</span>}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-      </div>
-
-      {/* Bottom: user + logout — PERMANENTLY PINNED, NEVER SCROLLED */}
-      <div className={`shrink-0 p-3 border-t border-white/10 bg-[#1b4264] flex flex-col gap-2 z-10 ${collapsed ? "items-center" : ""}`}>
-        <UserChip profile={profile as any} collapsed={collapsed} />
-        <button
-          onClick={handleLogout}
-          title={collapsed ? "Logout" : undefined}
-          className={`flex items-center gap-3 rounded-lg text-[12.5px] text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-all font-semibold cursor-pointer ${
-            collapsed ? "px-0 py-2 justify-center w-full" : "px-3 py-2.5 w-full"
-          }`}
-        >
-          <i className="ti ti-logout text-base flex-shrink-0" />
-          {!collapsed && <span>Logout</span>}
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-function SystemAdminTopbar() {
-  const pathname = usePathname() || "";
-  const searchParams = useSearchParams();
-  const currentTab = searchParams.get("tab") || "overview";
-  const { profile } = useProfile();
-  const { logout } = useAuth();
-
-  const PAGE_TITLES: Record<string, string> = {
-    "/system-admin/notifications": "Notifications",
-    "/system-admin/profile": "My Profile",
-    "/system-admin/profile/edit": "Edit Profile",
-  };
-
-  const SYSADMIN_TAB_TITLES: Record<string, string> = {
-    overview: "System Admin Dashboard",
-    logs: "System Audit Logs",
-    backups: "Backup & Restore Management",
-    roles: "Global Role Permission Matrix",
-    config: "System Parameter Configuration",
-    settings: "Settings",
-    onboarding: "College & Department Onboarding",
-    announcements: "System Announcements",
-    users: "User Management",
-  };
-
-  let title = PAGE_TITLES[pathname] ?? "System Admin Dashboard";
-  if (pathname === "/system-admin/dashboard") {
-    title = SYSADMIN_TAB_TITLES[currentTab] || "System Admin Dashboard";
-  }
-
-  return (
-    <header className="h-[52px] flex-shrink-0 flex items-center justify-between px-6 border-b border-slate-200 bg-white">
-      <span className="text-[13px] font-medium text-slate-800">{title}</span>
-      <div className="flex items-center gap-2">
-        <ThemeToggle />
-        <NotificationPopover viewAllHref="/system-admin/notifications" compact />
-        <Link
-          href="/system-admin/profile"
-          className="w-8 h-8 rounded-full bg-[#1b4264] text-white flex items-center justify-center text-[11px] font-bold hover:opacity-90 transition flex-shrink-0"
-          title="My Profile"
-          aria-label="Go to profile"
-        >
-          {profile?.initials || "SA"}
-        </Link>
-
-        {/* Permanent Topbar Logout Button */}
-        <button
-          onClick={() => logout()}
-          title="Sign Out"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-red-600 hover:bg-red-50 border border-red-200 transition text-[12px] font-bold cursor-pointer shrink-0 ml-1"
-          aria-label="Sign out of your account"
-        >
-          <i className="ti ti-logout text-sm" />
-          <span className="hidden sm:inline">Logout</span>
-        </button>
-      </div>
-    </header>
-  );
-}
+const PAGE_TITLES: Record<string, string> = {
+  overview: "System Admin Dashboard",
+  announcements: "System Announcements",
+  users: "User Management",
+  onboarding: "College & Department Onboarding",
+  roles: "Global Role Permission Matrix",
+  config: "System Parameter Configuration",
+  logs: "System Audit Logs",
+  backups: "Backup & Restore Management",
+  settings: "Portal Settings",
+};
 
 function SystemAdminLayoutInner({ children }: { children: React.ReactNode }) {
-  const { collapsed } = useSidebarCollapsed();
+  const { collapsed, toggle } = useSidebarCollapsed();
+  const activeTab = useSearchParams().get("tab") || "overview";
+  const pathname = usePathname() || "";
+  const pageTitle =
+    pathname === "/system-admin/profile"
+      ? "My Profile"
+      : pathname === "/system-admin/profile/edit"
+        ? "Edit Profile"
+        : pathname === "/system-admin/notifications"
+          ? "Notifications"
+          : PAGE_TITLES[activeTab] || "System Administration";
+
   return (
-    <div
-      className="flex h-full min-h-screen text-slate-100"
-      style={{ display: "grid", gridTemplateColumns: collapsed ? "64px 1fr" : "240px 1fr", transition: "grid-template-columns 300ms cubic-bezier(0.4, 0, 0.2, 1)" }}
+    <AppWorkspaceFrame
+      collapsed={collapsed}
+      dashboardPath="/system-admin/dashboard"
+      padSecondaryPages
+      sidebar={
+        <AppSidebar
+          roleTitle="System Administrator"
+          roleBadge="ADMIN CONSOLE"
+          navItems={NAV_ITEMS}
+          collapsed={collapsed}
+          onToggleCollapse={toggle}
+          settingsHref="/system-admin/dashboard?tab=settings"
+          profileHref="/system-admin/profile"
+          variant="workspace"
+        />
+      }
+      topbar={
+        <AppTopbar
+          title={pageTitle}
+          subtitle="Platform Control Center"
+          notificationsHref="/system-admin/notifications"
+          profileHref="/system-admin/profile"
+          searchPlaceholder="Search audit logs, users, system settings..."
+          variant="workspace"
+        />
+      }
     >
-      <Suspense fallback={<div className="bg-[#1b4264] w-[240px] h-full" />}>
-        <SystemAdminSidebar />
-      </Suspense>
-      <div className="flex flex-col bg-slate-50 overflow-hidden text-slate-800 min-w-0">
-        <Suspense fallback={<header className="h-[52px] bg-white border-b border-slate-200" />}>
-          <SystemAdminTopbar />
-        </Suspense>
-        <main className="flex-1 overflow-y-auto p-6 lg:px-8">
-          {children}
-        </main>
-      </div>
-    </div>
+      {children}
+    </AppWorkspaceFrame>
   );
 }
 
 export default function SystemAdminLayout({ children }: { children: React.ReactNode }) {
-  return <SystemAdminLayoutInner>{children}</SystemAdminLayoutInner>;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F4F6F8] dark:bg-[#080E18]" />}>
+      <SystemAdminLayoutInner>{children}</SystemAdminLayoutInner>
+    </Suspense>
+  );
 }

@@ -25,13 +25,6 @@ function PanelistProfilePageContent() {
         </div>
       )}
 
-      <div className="mb-6">
-        <h1 className="text-[18px] font-medium mb-0.5">My Profile</h1>
-        <p className="text-[13px] text-[var(--color-text-secondary)]">
-          Manage your panel assignments, department information, and research expertise fields
-        </p>
-      </div>
-
       <ProfileCard />
     </div>
   );

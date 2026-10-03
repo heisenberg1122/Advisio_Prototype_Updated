@@ -6,13 +6,6 @@ import { NotificationList } from "@/components/notifications/NotificationList";
 export default function AdminNotificationsPage() {
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-[18px] font-medium mb-0.5">Notifications</h1>
-        <p className="text-[13px] text-[var(--color-text-secondary)]">
-          Account registrations, department workflow approval logs, calendar validation alerts, and system logs
-        </p>
-      </div>
-
       <Card>
         <NotificationList />
       </Card>

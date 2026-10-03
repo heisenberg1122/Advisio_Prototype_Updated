@@ -5,11 +5,14 @@ import { useTheme } from "@/providers/theme-provider";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { calculateWorkflowProgress } from "@/lib/workflow-progress";
+import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
+import { useAuth } from "@/providers/auth-provider";
 
 function ProfessorDashboardContent() {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
   const { isDark, toggleTheme } = useTheme();
+  const { user } = useAuth();
 
   const { data: defenseData, refetch: refetchDefense } = useQuery({
     queryKey: ["professor-live-defense"],
@@ -629,7 +632,7 @@ function ProfessorDashboardContent() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen text-slate-800 bg-slate-50 font-sans">
+    <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
       {toast && (
         <div
           role="status"
@@ -1378,32 +1381,43 @@ function ProfessorDashboardContent() {
       )}
 
       {/* MAIN CONTAINER */}
-      <main className="flex-1 overflow-y-auto bg-[#f6f8fb] p-5 lg:p-6">
+      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col space-y-6 p-4 sm:p-6 lg:p-8">
         {(() => {
-          const tabTitles: Record<string, string> = {
-            overview: "Professor Dashboard",
-            announcements: "Announcements",
-            monitoring: "Student & Project Monitoring",
-            submissions: "Student Submissions",
-            defense: "Defense Management",
-            builder: "Blank-Canvas Task Builder",
-            deployment: "Master Progression Deployment",
-            locking: "Task-Locking",
-            workflow: "Research Workflow Management",
-            tracking: "Student Group Progress Tracking",
-            completion: "Project Completion Monitoring",
-            deadlines: "Deadline Enforcement & Monitoring",
-            settings: "Settings",
-          };
-
           const tabContent: Record<string, React.ReactNode> = {
             overview: (
               <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4">
+                <DashboardWelcome
+                  firstName={user?.firstName}
+                  fallbackName="Professor"
+                  summary="Here's an overview of the research activity and submissions you are monitoring."
+                  actions={
+                    <>
+                      <button
+                        onClick={() => handleTabChange("builder")}
+                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#C9A227] px-5 text-sm font-bold text-[#0B3A53] shadow-xs transition hover:bg-[#B38E1E]"
+                      >
+                        <i className="ti ti-plus text-base" /> Create Milestone
+                      </button>
+                      <button
+                        onClick={() => handleTabChange("monitoring")}
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur-xs transition hover:bg-white/20"
+                      >
+                        <i className="ti ti-folders text-base" /> Monitor Groups ({projects.length})
+                      </button>
+                      <button
+                        onClick={() => handleTabChange("submissions")}
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur-xs transition hover:bg-white/20"
+                      >
+                        <i className="ti ti-file-text text-base" /> Submissions
+                      </button>
+                    </>
+                  }
+                />
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
-                        Announcements
+                        Recent activity
                       </p>
                       <h2 className="mt-1 text-lg font-extrabold text-[#102f49]">
                         College and system updates
@@ -1454,126 +1468,100 @@ function ProfessorDashboardContent() {
                     )}
                   </div>
                 </section>
-                <section className="relative min-h-[176px] overflow-hidden rounded-2xl border border-slate-200 bg-white px-7 py-6 shadow-[0_1px_3px_rgba(15,47,73,0.04)] lg:px-8">
-                  <div className="relative z-10 max-w-2xl">
-                    <h2 className="text-[26px] font-extrabold tracking-tight text-[#102f49] lg:text-[30px]">
-                      Good morning, Professor
-                    </h2>
-                    <p className="mt-1 text-[15px] text-slate-500">
-                      Keep research groups moving with clear workflows and
-                      timely guidance.
-                    </p>
-                    <button
-                      onClick={() => handleTabChange("builder")}
-                      className="mt-5 inline-flex h-12 items-center gap-3 rounded-xl bg-[#f6a800] px-6 text-[15px] font-extrabold text-[#102f49]"
-                    >
-                      <i className="ti ti-plus text-xl" /> Create milestone
-                    </button>
-                  </div>
-                  <div
-                    className="absolute bottom-0 right-12 hidden h-full w-[38%] items-center justify-center lg:flex"
-                    aria-hidden="true"
-                  >
-                    <div className="absolute h-32 w-72 rounded-[50%] bg-[#f2f6fa]" />
-                    <div className="relative flex items-end gap-5">
-                      <div className="space-y-2">
-                        <div className="h-5 w-36 rounded bg-[#173f63]" />
-                        <div className="h-4 w-28 rounded bg-[#f6a800]" />
-                        <div className="h-5 w-40 rounded bg-[#244e70]" />
-                      </div>
-                      <i className="ti ti-presentation-analytics text-[92px] text-[#173f63]" />
-                    </div>
-                  </div>
-                </section>
+                {/* Key Metrics Grid - Standardized UA Institutional Pattern */}
                 <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   {[
                     {
-                      label: "Students",
-                      value: `${studentsCount} monitored`,
+                      label: "Students Monitored",
+                      value: studentsCount,
+                      suffix: "active",
                       icon: "ti-users",
-                      tone: "bg-blue-50 text-[#173f63]",
+                      tone: "bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#38bdf8]",
                       tab: "monitoring",
                     },
                     {
-                      label: "Research groups",
-                      value: `${projects.length} active`,
+                      label: "Active Research Projects",
+                      value: projects.length,
+                      suffix: "cohorts",
                       icon: "ti-folders",
-                      tone: "bg-amber-50 text-[#d98d00]",
+                      tone: "bg-[#C9A227]/15 text-[#8A6A0B] dark:text-[#C9A227]",
                       tab: "monitoring",
                     },
                     {
-                      label: "Milestones",
-                      value: `${milestones.length} tasks`,
+                      label: "Research Milestones",
+                      value: milestones.length,
+                      suffix: "milestones",
                       icon: "ti-flag",
-                      tone: "bg-emerald-50 text-emerald-600",
+                      tone: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
                       tab: "builder",
                     },
                     {
-                      label: "Awaiting review",
-                      value: `${needsReviewCount} submissions`,
+                      label: "Pending Reviews",
+                      value: needsReviewCount,
+                      suffix: "pending",
                       icon: "ti-inbox",
-                      tone: "bg-rose-50 text-rose-600",
+                      tone: "bg-blue-50 text-[#0B3A53] dark:bg-white/10 dark:text-white",
                       tab: "submissions",
                     },
                   ].map((item) => (
                     <button
                       key={item.label}
                       onClick={() => handleTabChange(item.tab)}
-                      className="flex min-h-[102px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-[0_1px_3px_rgba(15,47,73,0.04)] transition hover:border-[#f6a800]"
+                      className="group flex min-h-[96px] items-center gap-4 rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-4 sm:p-5 text-left shadow-xs transition hover:shadow-md hover:border-[#0B3A53]/40 hover:-translate-y-0.5 outline-none"
                     >
-                      <span
-                        className={`flex h-14 w-14 items-center justify-center rounded-xl ${item.tone}`}
-                      >
-                        <i className={`ti ${item.icon} text-[26px]`} />
+                      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl ${item.tone}`}>
+                        <i className={`ti ${item.icon}`} />
                       </span>
-                      <span>
-                        <span className="block text-[13px] text-slate-500">
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
                           {item.label}
                         </span>
-                        <span className="mt-1 block text-[18px] font-extrabold text-[#102f49]">
-                          {item.value}
+                        <span className="mt-0.5 block text-2xl font-black text-[#0B3A53] dark:text-white truncate">
+                          {item.value} <small className="text-xs font-semibold text-slate-400">· {item.suffix}</small>
                         </span>
                       </span>
                     </button>
                   ))}
                 </section>
-                <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.95fr]">
-                  <article className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <div className="flex items-center justify-between">
+
+                {/* Progress & Attention Grid */}
+                <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.95fr]">
+                  <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
+                    <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-[18px] font-extrabold text-[#102f49]">
-                          Group Progress
+                        <h3 className="text-base sm:text-lg font-bold text-[#17212B] dark:text-white">
+                          Research Monitoring Overview
                         </h3>
-                        <p className="mt-0.5 text-sm text-slate-500">
-                          A quick view of active research groups.
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          Live monitoring stream of active student research groups.
                         </p>
                       </div>
                       <button
                         onClick={() => handleTabChange("tracking")}
-                        className="text-sm font-bold text-[#173f63]"
+                        className="flex items-center gap-1 text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
                       >
-                        View all <i className="ti ti-chevron-right" />
+                        View all <i className="ti ti-chevron-right text-xs" />
                       </button>
                     </div>
-                    <div className="mt-5 space-y-3">
+                    <div className="space-y-3">
                       {projects.length ? (
                         projects.slice(0, 4).map((p) => (
                           <button
                             key={p.id}
                             onClick={() => handleTabChange("tracking")}
-                            className="block w-full rounded-xl border border-slate-100 bg-slate-50 p-3 text-left"
+                            className="block w-full rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5"
                           >
                             <span className="flex items-center justify-between">
-                              <span className="font-bold text-[#102f49]">
+                              <span className="font-bold text-sm text-[#17212B] dark:text-white">
                                 {p.group}
                               </span>
-                              <span className="text-sm font-bold text-[#d98d00]">
+                              <span className="text-xs font-bold text-[#0B3A53] dark:text-[#C9A227]">
                                 {p.progress}%
                               </span>
                             </span>
-                            <span className="mt-2 block h-2 overflow-hidden rounded-full bg-slate-200">
+                            <span className="mt-2 block h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
                               <span
-                                className="block h-full rounded-full bg-[#173f63]"
+                                className="block h-full rounded-full bg-gradient-to-r from-[#0B3A53] to-[#C9A227]"
                                 style={{ width: `${p.progress}%` }}
                               />
                             </span>
@@ -1581,37 +1569,38 @@ function ProfessorDashboardContent() {
                         ))
                       ) : (
                         <div className="flex min-h-40 flex-col items-center justify-center text-center">
-                          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-[#173f63]">
+                          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#C9A227]">
                             <i className="ti ti-users-group text-2xl" />
                           </span>
-                          <p className="mt-3 font-bold text-[#102f49]">
+                          <p className="mt-3 font-bold text-sm text-[#17212B] dark:text-white">
                             No active groups yet
                           </p>
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                             Research groups will appear here once registered.
                           </p>
                         </div>
                       )}
                     </div>
                   </article>
-                  <article className="rounded-2xl border border-slate-200 bg-white p-5">
-                    <div className="flex items-start justify-between">
+
+                  <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
+                    <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h3 className="text-[18px] font-extrabold text-[#102f49]">
+                        <h3 className="text-base sm:text-lg font-bold text-[#17212B] dark:text-white">
                           Needs your attention
                         </h3>
-                        <p className="mt-0.5 text-sm text-slate-500">
-                          Recent student work waiting for a decision.
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          Recent student work waiting for instructor review.
                         </p>
                       </div>
                       <button
                         onClick={() => handleTabChange("submissions")}
-                        className="text-sm font-bold text-[#173f63]"
+                        className="flex items-center gap-1 text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
                       >
-                        View queue <i className="ti ti-chevron-right" />
+                        View queue <i className="ti ti-chevron-right text-xs" />
                       </button>
                     </div>
-                    <div className="mt-4 space-y-2">
+                    <div className="space-y-2.5">
                       {submissions
                         .filter((item) =>
                           ["SUBMITTED", "UNDER_REVIEW"].includes(item.status),
@@ -1624,28 +1613,30 @@ function ProfessorDashboardContent() {
                               openSubmissionReview(item);
                               handleTabChange("submissions");
                             }}
-                            className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 text-left transition hover:border-[#f6a800]"
+                            className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5"
                           >
                             <span className="min-w-0">
-                              <span className="block truncate text-sm font-bold text-[#102f49]">
+                              <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">
                                 {item.task?.title}
                               </span>
-                              <span className="block truncate text-xs text-slate-500">
+                              <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
                                 {item.projectTitle}
                               </span>
                             </span>
-                            <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800">
+                            <span className="shrink-0 rounded-full bg-[#C9A227]/20 px-2.5 py-1 text-[11px] font-bold text-[#8A6A0B] dark:text-[#C9A227]">
                               Review
                             </span>
                           </button>
                         ))}
                       {needsReviewCount === 0 && (
-                        <div className="flex min-h-32 flex-col items-center justify-center rounded-xl bg-emerald-50 text-center">
-                          <i className="ti ti-circle-check text-3xl text-emerald-600" />
-                          <p className="mt-2 font-bold text-emerald-800">
+                        <div className="flex min-h-36 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 text-center dark:border-white/10 dark:bg-white/5">
+                          <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                            <i className="ti ti-circle-check text-lg" />
+                          </span>
+                          <p className="text-sm font-bold text-[#17212B] dark:text-white">
                             You’re all caught up
                           </p>
-                          <p className="text-xs text-emerald-700">
+                          <p className="text-xs text-slate-400">
                             New submissions will appear here.
                           </p>
                         </div>
@@ -1653,11 +1644,13 @@ function ProfessorDashboardContent() {
                     </div>
                   </article>
                 </section>
-                <section className="rounded-2xl border border-slate-200 bg-white p-5">
-                  <h3 className="text-[18px] font-extrabold text-[#102f49]">
+
+                {/* Quick Actions */}
+                <section className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
+                  <h3 className="mb-4 text-base font-bold text-[#17212B] dark:text-white">
                     Quick Actions
                   </h3>
-                  <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {[
                       {
                         label: "View groups",
@@ -1683,12 +1676,12 @@ function ProfessorDashboardContent() {
                       <button
                         key={action.label}
                         onClick={() => handleTabChange(action.tab)}
-                        className="flex min-h-24 items-center gap-3 rounded-xl border border-slate-200 p-3 text-left transition hover:border-[#f6a800]"
+                        className="flex items-center gap-3 rounded-xl border border-[#E2E8F0] dark:border-white/10 bg-slate-50/50 dark:bg-white/5 p-3 text-left transition hover:border-[#0B3A53] dark:hover:border-[#C9A227] hover:bg-white hover:shadow-xs"
                       >
-                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 text-xl text-[#173f63]">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0B3A53]/10 dark:bg-white/10 text-lg text-[#0B3A53] dark:text-[#C9A227]">
                           <i className={`ti ${action.icon}`} />
                         </span>
-                        <span className="text-sm font-bold text-[#102f49]">
+                        <span className="text-xs font-bold text-[#17212B] dark:text-white">
                           {action.label}
                         </span>
                       </button>
@@ -3449,7 +3442,7 @@ function ProfessorDashboardContent() {
 
           return tabContent[activeTab] || tabContent.overview;
         })()}
-      </main>
+      </div>
     </div>
   );
 }

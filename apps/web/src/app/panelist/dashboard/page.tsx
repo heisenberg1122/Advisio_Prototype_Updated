@@ -4,11 +4,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
+import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
+import { useAuth } from "@/providers/auth-provider";
 
 function PanelistDashboardContent() {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
   const { isDark, toggleTheme } = useTheme();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: researchData } = useQuery({
@@ -151,7 +154,7 @@ function PanelistDashboardContent() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen text-slate-800 bg-slate-50 font-sans">
+    <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
       
       {toast && (
         <div className="fixed top-5 right-5 z-55 bg-[#1b4264] border-l-4 border-[#ffa400] text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
@@ -163,33 +166,286 @@ function PanelistDashboardContent() {
       {respondingInvitation && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="decline-defense-title"><div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-start justify-between"><div><p className="text-xs font-extrabold uppercase tracking-wider text-rose-600">Availability response</p><h2 id="decline-defense-title" className="mt-1 text-xl font-extrabold text-[#102f49]">Cannot attend this schedule?</h2><p className="mt-1 text-sm text-slate-500">Your reason is shared with the professor, not the research group.</p></div><button type="button" onClick={() => setRespondingInvitation(null)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100"><i className="ti ti-x" /></button></div><label className="mt-5 block text-sm font-bold text-slate-700">Reason<textarea required value={declineReason} onChange={(event) => setDeclineReason(event.target.value)} rows={4} placeholder="Explain why you are unavailable…" className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm font-normal" /></label><label className="mt-4 block text-sm font-bold text-slate-700">Suggested alternative <span className="font-normal text-slate-400">(optional)</span><input type="datetime-local" value={suggestedAvailability} onChange={(event) => setSuggestedAvailability(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal" /></label><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setRespondingInvitation(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Keep invitation</button><button type="button" onClick={() => respondToInvitation(respondingInvitation, "DECLINED")} disabled={invitationSaving || !declineReason.trim()} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">Decline and notify professor</button></div></div></div>}
 
       {/* MAIN CONTAINER */}
-      <main className="flex-1 overflow-y-auto bg-[#f6f8fb] p-5 lg:p-6">
+      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col space-y-6 p-4 sm:p-6 lg:p-8">
         
         {(() => {
-          const tabTitles: Record<string, string> = {
-            overview: "Panelist Dashboard",
-            schedule: "Defense Schedule Management",
-            documents: "Submitted Research Documents",
-            evaluation: "Digital Evaluation & Scoring Sheets",
-            grades: "Grades & Recommendations",
-            history: "Historical Grading Records",
-            settings: "Settings",
-          };
-
           const tabContent: Record<string, React.ReactNode> = {
             overview: (
-              <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4">
-                <section className="relative min-h-[176px] overflow-hidden rounded-2xl border border-slate-200 bg-white px-7 py-6 shadow-[0_1px_3px_rgba(15,47,73,0.04)] lg:px-8"><div className="relative z-10 max-w-2xl"><h2 className="text-[26px] font-extrabold tracking-tight text-[#102f49] lg:text-[30px]">Good morning, Panelist</h2><p className="mt-1 text-[15px] text-slate-500">Review assigned defenses and complete evaluations with confidence.</p><button onClick={() => handleTabChange("evaluation")} className="mt-5 inline-flex h-12 items-center gap-3 rounded-xl bg-[#f6a800] px-6 text-[15px] font-extrabold text-[#102f49]"><i className="ti ti-clipboard-check text-xl" /> Start evaluation</button></div><div className="absolute bottom-0 right-12 hidden h-full w-[38%] items-center justify-center lg:flex" aria-hidden="true"><div className="absolute h-32 w-72 rounded-[50%] bg-[#f2f6fa]" /><div className="relative flex items-end gap-5"><div className="space-y-2"><div className="h-5 w-36 rounded bg-[#173f63]" /><div className="h-4 w-28 rounded bg-[#f6a800]" /><div className="h-5 w-40 rounded bg-[#244e70]" /></div><i className="ti ti-award text-[94px] text-[#173f63]" /></div></div></section>
-                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{[
-                  { label: "Defense panels", value: `${schedules.length} assigned`, icon: "ti-calendar-event", tone: "bg-blue-50 text-[#173f63]", tab: "schedule" }, { label: "Documents", value: `${documents.length} available`, icon: "ti-file-text", tone: "bg-amber-50 text-[#d98d00]", tab: "documents" }, { label: "Evaluations", value: `${evaluations.length} pending`, icon: "ti-clipboard-check", tone: "bg-rose-50 text-rose-600", tab: "evaluation" }, { label: "Submitted", value: `${gradesSubmitted.length} results`, icon: "ti-circle-check", tone: "bg-emerald-50 text-emerald-600", tab: "grades" },
-                ].map((item) => <button key={item.label} onClick={() => handleTabChange(item.tab)} className="flex min-h-[102px] items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-[0_1px_3px_rgba(15,47,73,0.04)] transition hover:border-[#f6a800]"><span className={`flex h-14 w-14 items-center justify-center rounded-xl ${item.tone}`}><i className={`ti ${item.icon} text-[26px]`} /></span><span><span className="block text-[13px] text-slate-500">{item.label}</span><span className="mt-1 block text-[18px] font-extrabold text-[#102f49]">{item.value}</span></span></button>)}</section>
-                <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.95fr]">
-                  <article className="rounded-2xl border border-slate-200 bg-white p-5"><div className="flex items-center justify-between"><div><h3 className="text-[18px] font-extrabold text-[#102f49]">Upcoming Defenses</h3><p className="mt-0.5 text-sm text-slate-500">Your next assigned panel sessions.</p></div><button onClick={() => handleTabChange("schedule")} className="text-sm font-bold text-[#173f63]">View schedule <i className="ti ti-chevron-right" /></button></div><div className="mt-5 space-y-3">{schedules.length ? schedules.slice(0, 3).map((s) => <button key={s.id} onClick={() => handleTabChange("schedule")} className="flex w-full items-center gap-4 rounded-xl border border-slate-100 bg-slate-50 p-3 text-left"><span className="flex h-12 w-12 flex-col items-center justify-center rounded-xl bg-white text-[#173f63]"><i className="ti ti-calendar text-xl" /></span><span className="min-w-0 flex-1"><span className="block truncate font-bold text-[#102f49]">{s.title}</span><span className="mt-0.5 block text-xs text-slate-500">{s.date} · {s.time} · {s.venue}</span></span><i className="ti ti-chevron-right text-slate-400" /></button>) : <div className="flex min-h-40 flex-col items-center justify-center text-center"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-[#173f63]"><i className="ti ti-calendar-time text-2xl" /></span><p className="mt-3 font-bold text-[#102f49]">No defenses scheduled</p><p className="mt-1 text-xs text-slate-500">New panel assignments will appear here.</p></div>}</div></article>
-                  <article className="rounded-2xl border border-slate-200 bg-white p-5"><h3 className="text-[18px] font-extrabold text-[#102f49]">Evaluation Queue</h3><p className="mt-0.5 text-sm text-slate-500">Research groups waiting for your score.</p><div className="mt-5 space-y-3">{evaluations.length ? evaluations.slice(0, 3).map((e) => <div key={e.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-3"><span className="min-w-0"><span className="block truncate font-bold text-[#102f49]">{e.title}</span><span className="text-xs text-slate-500">Ready for evaluation</span></span><button onClick={() => handleTabChange("evaluation")} className="ml-3 rounded-lg bg-[#f6a800] px-3 py-2 text-xs font-extrabold text-[#102f49]">Evaluate</button></div>) : <div className="flex min-h-40 flex-col items-center justify-center text-center"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><i className="ti ti-circle-check text-2xl" /></span><p className="mt-3 font-bold text-[#102f49]">You’re all caught up</p><p className="mt-1 text-xs text-slate-500">New evaluation sheets will appear here.</p></div>}</div></article>
+              <div className="flex w-full flex-col gap-6">
+                <DashboardWelcome
+                  firstName={user?.firstName}
+                  fallbackName="Panelist"
+                  summary="Here's an overview of your assigned research projects, defense schedules, and evaluations."
+                  actions={
+                    <>
+                      <button
+                        onClick={() => handleTabChange("evaluation")}
+                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#C9A227] px-5 text-sm font-bold text-[#0B3A53] shadow-xs transition hover:bg-[#B38E1E]"
+                      >
+                        <i className="ti ti-clipboard-check text-base" /> Start Evaluation
+                      </button>
+                      <button
+                        onClick={() => handleTabChange("schedule")}
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur-xs transition hover:bg-white/20"
+                      >
+                        <i className="ti ti-calendar-event text-base" /> Defense Schedule ({schedules.length})
+                      </button>
+                      <button
+                        onClick={() => handleTabChange("documents")}
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur-xs transition hover:bg-white/20"
+                      >
+                        <i className="ti ti-file-text text-base" /> Review Manuscripts ({documents.length})
+                      </button>
+                    </>
+                  }
+                />
+                {/* Key Metrics Grid - Standardized UA Institutional Pattern */}
+                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {[
+                    {
+                      label: "Assigned Projects",
+                      value: researchData?.projects?.length || 0,
+                      suffix: "projects",
+                      icon: "ti-flask",
+                      tone: "bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#38bdf8]",
+                      tab: "documents",
+                    },
+                    {
+                      label: "Pending Evaluations",
+                      value: evaluations.length,
+                      suffix: "to score",
+                      icon: "ti-clipboard-check",
+                      tone: "bg-[#C9A227]/15 text-[#8A6A0B] dark:text-[#C9A227]",
+                      tab: "evaluation",
+                    },
+                    {
+                      label: "Completed Evaluations",
+                      value: gradesSubmitted.length,
+                      suffix: "submitted",
+                      icon: "ti-circle-check",
+                      tone: "bg-blue-50 text-[#0B3A53] dark:bg-white/10 dark:text-white",
+                      tab: "grades",
+                    },
+                    {
+                      label: "Upcoming Defenses",
+                      value: schedules.length,
+                      suffix: "scheduled",
+                      icon: "ti-calendar-event",
+                      tone: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+                      tab: "schedule",
+                    },
+                  ].map((item) => (
+                    <button
+                      key={item.label}
+                      onClick={() => handleTabChange(item.tab)}
+                      className="group flex min-h-[96px] items-center gap-4 rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-4 sm:p-5 text-left shadow-xs transition hover:shadow-md hover:border-[#0B3A53]/40 hover:-translate-y-0.5 outline-none"
+                    >
+                      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl ${item.tone}`}>
+                        <i className={`ti ${item.icon}`} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          {item.label}
+                        </span>
+                        <span className="mt-0.5 block text-2xl font-black text-[#0B3A53] dark:text-white truncate">
+                          {item.value} <small className="text-xs font-semibold text-slate-400">· {item.suffix}</small>
+                        </span>
+                      </span>
+                    </button>
+                  ))}
                 </section>
-                <section className="rounded-2xl border border-slate-200 bg-white p-5"><h3 className="text-[18px] font-extrabold text-[#102f49]">Quick Actions</h3><div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">{[
-                  { label: "View schedule", icon: "ti-calendar-event", tab: "schedule" }, { label: "Review documents", icon: "ti-file-search", tab: "documents" }, { label: "Score defense", icon: "ti-clipboard-check", tab: "evaluation" }, { label: "View results", icon: "ti-award", tab: "grades" },
-                ].map((action) => <button key={action.label} onClick={() => handleTabChange(action.tab)} className="flex min-h-24 items-center gap-3 rounded-xl border border-slate-200 p-3 text-left transition hover:border-[#f6a800]"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 text-xl text-[#173f63]"><i className={`ti ${action.icon}`} /></span><span className="text-sm font-bold text-[#102f49]">{action.label}</span></button>)}</div></section>
+
+                <section className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
+                  <div className="mb-4 flex items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-base font-bold text-[#17212B] dark:text-white sm:text-lg">Assigned Research Projects</h3>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Research work currently available within your panel assignment scope.</p>
+                    </div>
+                    <button onClick={() => handleTabChange("documents")} className="shrink-0 text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]">
+                      Review manuscripts <i className="ti ti-chevron-right" />
+                    </button>
+                  </div>
+                  {(researchData?.projects || []).length > 0 ? (
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      {(researchData?.projects || []).slice(0, 3).map((project: any) => (
+                        <button key={project.id} onClick={() => handleTabChange("documents")} className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 text-left transition hover:border-[#0B3A53]/30 hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5">
+                          <span className="flex items-start justify-between gap-3">
+                            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i className="ti ti-flask" /></span>
+                            <Tag variant={project.status === "COMPLETED" ? "success" : "info"}>{String(project.status || "ACTIVE").replace(/_/g, " ")}</Tag>
+                          </span>
+                          <span className="mt-3 block truncate text-sm font-bold text-[#17212B] dark:text-white">{project.title || "Untitled research project"}</span>
+                          <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">{project.workflowInstance?.currentStage?.name || "Research review"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex min-h-32 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 px-4 text-center dark:border-white/10">
+                      <i className="ti ti-flask-off text-2xl text-slate-300" />
+                      <p className="mt-2 text-sm font-bold text-[#17212B] dark:text-white">No assigned research projects</p>
+                      <p className="text-xs text-slate-400">Projects will appear here when a defense panel is assigned.</p>
+                    </div>
+                  )}
+                </section>
+
+                {/* Upcoming Defenses & Evaluation Queue */}
+                <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.95fr]">
+                  <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h3 className="text-base sm:text-lg font-bold text-[#17212B] dark:text-white">
+                          Upcoming Defenses
+                        </h3>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          Your assigned oral defense panel schedule.
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleTabChange("schedule")}
+                        className="flex items-center gap-1 text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
+                      >
+                        View schedule <i className="ti ti-chevron-right text-xs" />
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {schedules.length ? (
+                        schedules.slice(0, 3).map((s) => (
+                          <button
+                            key={s.id}
+                            onClick={() => handleTabChange("schedule")}
+                            className="flex w-full items-center gap-4 rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5"
+                          >
+                            <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-white">
+                              <i className="ti ti-calendar text-xl" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate font-bold text-sm text-[#17212B] dark:text-white">
+                                {s.title}
+                              </span>
+                              <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">
+                                {s.date} · {s.time} · {s.venue}
+                              </span>
+                            </span>
+                            <i className="ti ti-chevron-right text-slate-400" />
+                          </button>
+                        ))
+                      ) : (
+                        <div className="flex min-h-40 flex-col items-center justify-center text-center">
+                          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#C9A227]">
+                            <i className="ti ti-calendar-time text-2xl" />
+                          </span>
+                          <p className="mt-3 font-bold text-sm text-[#17212B] dark:text-white">
+                            No defenses scheduled
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            New panel assignments will appear here.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+
+                  <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
+                    <h3 className="text-base sm:text-lg font-bold text-[#17212B] dark:text-white">
+                      Evaluation Queue
+                    </h3>
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 mb-4">
+                      Research groups waiting for your evaluation score.
+                    </p>
+                    <div className="space-y-3">
+                      {evaluations.length ? (
+                        evaluations.slice(0, 3).map((e) => (
+                          <div
+                            key={e.id}
+                            className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 dark:border-white/5 dark:bg-white/5"
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate font-bold text-sm text-[#17212B] dark:text-white">
+                                {e.title}
+                              </span>
+                              <span className="text-xs text-slate-500 dark:text-slate-400">
+                                Ready for evaluation
+                              </span>
+                            </span>
+                            <button
+                              onClick={() => handleTabChange("evaluation")}
+                              className="ml-3 rounded-xl bg-[#C9A227] hover:bg-[#B38E1E] px-4 py-2 text-xs font-bold text-[#0B3A53] shadow-xs transition"
+                            >
+                              Evaluate
+                            </button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 text-center dark:border-white/10 dark:bg-white/5">
+                          <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                            <i className="ti ti-circle-check text-lg" />
+                          </span>
+                          <p className="font-bold text-sm text-[#17212B] dark:text-white">
+                            You’re all caught up
+                          </p>
+                          <p className="mt-1 text-xs text-slate-400">
+                            New evaluation sheets will appear here.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                </section>
+
+                {/* Recent Activity & Quick Actions */}
+                <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_.85fr]">
+                  <article className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
+                    <h3 className="text-base font-bold text-[#17212B] dark:text-white">Recent Evaluation Activity</h3>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Your latest completed evaluations and available manuscripts.</p>
+                    <div className="mt-4 space-y-2.5">
+                      {gradesSubmitted.slice(0, 3).map((grade) => (
+                        <button key={grade.id} onClick={() => handleTabChange("grades")} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5">
+                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"><i className="ti ti-circle-check" /></span>
+                          <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">{grade.title}</span><span className="block text-xs text-slate-500 dark:text-slate-400">Evaluation submitted · {grade.score} points</span></span>
+                        </button>
+                      ))}
+                      {gradesSubmitted.length === 0 && documents.slice(0, 3).map((document) => (
+                        <button key={document.id} onClick={() => handleTabChange("documents")} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5">
+                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i className="ti ti-file-text" /></span>
+                          <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">{document.title || document.name || "Defense manuscript"}</span><span className="block truncate text-xs text-slate-500 dark:text-slate-400">{document.group} · available for review</span></span>
+                        </button>
+                      ))}
+                      {gradesSubmitted.length === 0 && documents.length === 0 && (
+                        <div className="flex min-h-32 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 px-4 text-center dark:border-white/10">
+                          <i className="ti ti-history text-2xl text-slate-300" />
+                          <p className="mt-2 text-sm font-bold text-[#17212B] dark:text-white">No recent evaluation activity</p>
+                          <p className="text-xs text-slate-400">Completed evaluations and manuscript reviews will appear here.</p>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+
+                  <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
+                  <h3 className="mb-4 text-base font-bold text-[#17212B] dark:text-white">
+                    Quick Actions
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    {[
+                      { label: "View schedule", icon: "ti-calendar-event", tab: "schedule" },
+                      { label: "Review documents", icon: "ti-file-search", tab: "documents" },
+                      { label: "Score defense", icon: "ti-clipboard-check", tab: "evaluation" },
+                      { label: "View results", icon: "ti-award", tab: "grades" },
+                    ].map((action) => (
+                      <button
+                        key={action.label}
+                        onClick={() => handleTabChange(action.tab)}
+                        className="flex items-center gap-3 rounded-xl border border-[#E2E8F0] dark:border-white/10 bg-slate-50/50 dark:bg-white/5 p-3 text-left transition hover:border-[#0B3A53] dark:hover:border-[#C9A227] hover:bg-white hover:shadow-xs"
+                      >
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0B3A53]/10 dark:bg-white/10 text-lg text-[#0B3A53] dark:text-[#C9A227]">
+                          <i className={`ti ${action.icon}`} />
+                        </span>
+                        <span className="text-xs font-bold text-[#17212B] dark:text-white">
+                          {action.label}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  </article>
+                </section>
               </div>
             ),
             "overview-legacy": (
@@ -414,7 +670,7 @@ function PanelistDashboardContent() {
           return tabContent[activeTab] || tabContent.overview;
         })()}
 
-      </main>
+      </div>
 
     </div>
   );

@@ -5,8 +5,7 @@ import { Card } from "@/components/ui/Card";
 
 export default function ConsultationsPage() {
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-[18px] font-semibold text-[var(--color-text-primary)]">Consultations Schedule & History</h1>
+    <div>
       <Card>
         <p className="text-[13px] text-[var(--color-text-secondary)] mb-4">
           Consultation slots, schedules, logs, and video conferencing are managed through the central Adviser Dashboard. Click below to view.

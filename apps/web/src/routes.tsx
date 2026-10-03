@@ -10,6 +10,7 @@ const StudentAdviserPoolPage = lazy(
   () => import("./app/student/adviser-pool/page"),
 );
 const StudentTasksPage = lazy(() => import("./app/student/tasks/page"));
+const StudentDocumentsPage = lazy(() => import("./app/student/documents/page"));
 const JoinResearchGroupPage = lazy(() => import("./app/student/join-group/page"));
 const StudentSubmissionsPage = lazy(
   () => import("./app/student/submissions/page"),
@@ -142,6 +143,14 @@ export function AppRoutes() {
           element={
             <StudentPortal>
               <StudentTasksPage />
+            </StudentPortal>
+          }
+        />
+        <Route
+          path="/student/documents"
+          element={
+            <StudentPortal>
+              <StudentDocumentsPage />
             </StudentPortal>
           }
         />

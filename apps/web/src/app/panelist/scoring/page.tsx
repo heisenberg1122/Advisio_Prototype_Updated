@@ -7,15 +7,6 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 export default function PanelistScoring() {
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center bg-[var(--color-background-secondary)] p-5 rounded-[var(--border-radius-lg)] border border-[var(--color-border-tertiary)]">
-        <div>
-          <h1 className="text-[20px] font-semibold text-[var(--color-text-primary)]">Evaluation & Scoring</h1>
-          <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
-            Fill out evaluation forms, log grades, and select defense recommendations.
-          </p>
-        </div>
-      </div>
-
       <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[300px]">
         <div className="w-12 h-12 rounded-full bg-[var(--color-background-info)] flex items-center justify-center mb-4">
           <i className="ti ti-stars text-xl text-[var(--color-text-info)]" />

@@ -12,66 +12,63 @@ export default function GroupsPage() {
   if (!group) return null;
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-[18px] font-medium mb-0.5">My group</h1>
-        <p className="text-[13px] text-[var(--color-text-secondary)]">
-          Group management and workspace
-        </p>
-      </div>
-
+    <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {/* Group info card */}
-      <Card className="mb-4">
+      <Card>
         <CardHeader>
           <CardTitle icon="ti-users">{group.name}</CardTitle>
           <Tag variant="info">Active</Tag>
         </CardHeader>
-        <p className="text-[13px] text-[var(--color-text-secondary)] mb-4">
-          Research title: {group.researchTitle}
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-4">
+          Research title: <span className="font-semibold text-slate-800 dark:text-slate-200">{group.researchTitle}</span>
         </p>
 
-        <div className="text-[12px] font-medium text-[var(--color-text-tertiary)] mb-2 uppercase tracking-[0.04em]">
+        <div className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-2">
           Members
         </div>
 
-        {group.members.map((member, i) => (
-          <div
-            key={member.id}
-            className={`flex items-center gap-3 py-3 ${i < group.members.length - 1 ? "border-b border-[var(--color-border-tertiary)]" : ""}`}
-          >
-            <Avatar
-              initials={member.initials}
-              colorVariant={member.colorVariant ?? "info"}
-              size="lg"
-            />
-            <div className="flex-1">
-              <div className="text-[13px]">
-                {member.name}
-                {member.isYou && (
-                  <span className="text-[var(--color-text-tertiary)] ml-1">(you)</span>
-                )}
+        <div className="divide-y divide-[#EEF2F6] dark:divide-white/10">
+          {group.members.map((member) => (
+            <div
+              key={member.id}
+              className="flex items-center gap-3.5 py-3"
+            >
+              <Avatar
+                initials={member.initials}
+                colorVariant={member.colorVariant ?? "info"}
+                size="lg"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs sm:text-sm font-bold text-[#17212B] dark:text-white">
+                  {member.name}
+                  {member.isYou && (
+                    <span className="text-slate-400 font-normal ml-1.5">(you)</span>
+                  )}
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {member.role === "leader" ? "Group leader" : "Member"}
+                </div>
               </div>
-              <div className="text-[11px] text-[var(--color-text-tertiary)]">
-                {member.role === "leader" ? "Group leader" : "Member"}
-              </div>
+              {member.role === "leader" && <Tag variant="info">Leader</Tag>}
             </div>
-            {member.role === "leader" && <Tag variant="info">Leader</Tag>}
-          </div>
-        ))}
+          ))}
+        </div>
       </Card>
 
       {/* Workspace thread card */}
       <Card>
-        <CardTitle icon="ti-message-circle" className="mb-4">
+        <CardTitle icon="ti-message-circle" className="mb-2">
           Group workspace thread
         </CardTitle>
-        <p className="text-[13px] text-[var(--color-text-secondary)] mb-4">
+        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-4">
           Created by your adviser — you were added automatically.
         </p>
-        <button className="btn btn-primary">
-          <i className="ti ti-external-link" aria-hidden="true" />
-          Open workspace
-        </button>
+        <div>
+          <button className="inline-flex items-center gap-2 rounded-xl bg-[#0B3A53] hover:bg-[#072A3D] text-white px-5 py-2.5 text-xs font-bold shadow-xs transition cursor-pointer">
+            <i className="ti ti-external-link" aria-hidden="true" />
+            Open workspace
+          </button>
+        </div>
       </Card>
     </div>
   );
@@ -79,9 +76,8 @@ export default function GroupsPage() {
 
 function PageSkeleton() {
   return (
-    <div className="animate-pulse space-y-4">
-      <div className="h-6 w-32 bg-[var(--color-background-secondary)] rounded" />
-      <div className="h-48 bg-[var(--color-background-primary)] rounded-[var(--border-radius-lg)]" />
+    <div className="mx-auto flex w-full max-w-screen-2xl animate-pulse flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      <div className="h-64 bg-slate-200 dark:bg-white/5 rounded-2xl" />
     </div>
   );
 }

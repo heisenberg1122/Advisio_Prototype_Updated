@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, BookOpen, CalendarDays, Check, ChevronDown, ChevronUp, Eye, EyeOff, FileCheck2, GraduationCap, LockKeyhole, Mail, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronUp, Eye, EyeOff, FileCheck2, LockKeyhole, Mail, ShieldCheck, Users } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { loginAction } from "@/actions/auth";
 
@@ -143,14 +143,28 @@ export default function LoginPage() {
         <div className="pointer-events-none absolute -left-28 top-[38%] h-80 w-80 rounded-full bg-[#ffab19]/20 blur-[100px]" />
         <div className="pointer-events-none absolute -right-20 -top-16 h-96 w-96 rounded-full bg-[#2d7ba8]/30 blur-[110px]" />
 
-        <header className="relative z-10 flex items-center gap-3.5">
-          <div className="grid h-12 w-12 place-items-center rounded-2xl border border-white/15 bg-white/10 shadow-lg backdrop-blur"><GraduationCap size={25} className="text-[#ffb21c]" /></div>
-          <div><div className="text-[21px] font-extrabold tracking-[.05em]">ADVISIO</div><div className="text-[9px] font-bold uppercase tracking-[.28em] text-[#ffb21c]">Research portal</div></div>
+        <header className="relative z-10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white p-1.5 shadow-lg backdrop-blur">
+              <img src="/ao-logo.png" alt="Advisio" className="h-full w-full object-contain" />
+            </div>
+            <div>
+              <div className="text-[21px] font-extrabold tracking-[.05em]">ADVISIO</div>
+              <div className="text-[9px] font-bold uppercase tracking-[.28em] text-[#ffb21c]">Research portal</div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 rounded-2xl border border-white/15 bg-white/10 px-3.5 py-2 backdrop-blur shadow-sm">
+            <img src="/school-logo.png" alt="University of the Assumption" className="h-9 w-9 object-contain" />
+            <div className="text-left">
+              <p className="text-[11px] font-bold leading-tight text-white">University of the Assumption</p>
+              <p className="text-[9px] font-medium text-slate-300">Academic Research</p>
+            </div>
+          </div>
         </header>
 
         <div className="relative z-10 my-auto grid items-center gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(270px,.78fr)] xl:gap-12">
           <div className="max-w-[590px]">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.07] px-3.5 py-2 text-[11px] font-semibold tracking-wide text-slate-200 backdrop-blur"><Sparkles size={14} className="text-[#ffb21c]" /> One workspace. Every research milestone.</div>
             <h1 className="text-[clamp(2.6rem,4.5vw,4.75rem)] font-bold leading-[1.02] tracking-[-.045em]">Research moves<br />better <span className="text-[#ffb21c]">together.</span></h1>
             <p className="mt-6 max-w-[510px] text-[15px] leading-7 text-slate-300">From first proposal to final defense, keep your team, feedback, and deadlines in one clear place.</p>
             <div className="mt-9 flex items-center gap-2.5 text-[12px] font-semibold text-slate-200">
@@ -175,14 +189,40 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
-        <footer className="relative z-10 flex items-center justify-between border-t border-white/10 pt-5 text-[10px] text-slate-400"><span>University Research Management System</span><span>ADVISIO • 2026</span></footer>
+        <div className="pointer-events-none absolute -bottom-12 -right-12 h-80 w-80 opacity-[0.04] select-none">
+          <img src="/school-logo.png" alt="" className="h-full w-full object-contain" />
+        </div>
+        <footer className="relative z-10 flex items-center justify-between border-t border-white/10 pt-5 text-[10px] text-slate-400"><span>University of the Assumption • Research Management System</span><span>ADVISIO • 2026</span></footer>
       </section>
 
       <section className="relative flex min-h-screen items-center justify-center px-5 py-10 sm:px-10 lg:px-[clamp(3rem,7vw,7.5rem)]">
         <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-[#ffb21c]/10 blur-3xl" />
         <div className="w-full max-w-[430px] animate-fade-in-up">
-          <div className="mb-9 flex items-center gap-3 lg:hidden"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#092f4f] text-[#ffb21c]"><GraduationCap size={23} /></span><div><p className="font-extrabold tracking-wider text-[#092f4f]">ADVISIO</p><p className="text-[9px] font-bold uppercase tracking-[.2em] text-[#d98600]">Research portal</p></div></div>
-          <div className="mb-8"><div className="mb-4 grid h-11 w-11 place-items-center rounded-2xl bg-[#092f4f] text-[#ffb21c] shadow-lg shadow-[#092f4f]/15"><BookOpen size={20} /></div><h2 className="text-[32px] font-bold tracking-[-.035em] text-[#102f49]">Welcome back</h2><p className="mt-2 text-[14px] text-slate-500">Sign in to continue your research journey.</p></div>
+          <div className="mb-8 flex items-center justify-between border-b border-slate-200/80 pb-4 lg:hidden">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                <img src="/ao-logo.png" alt="Advisio" className="h-full w-full object-contain" />
+              </div>
+              <div>
+                <p className="font-extrabold text-[15px] tracking-wider text-[#092f4f] leading-none">ADVISIO</p>
+                <p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#d98600] mt-0.5">Research portal</p>
+              </div>
+            </div>
+            <img src="/school-logo.png" alt="University of the Assumption" className="h-9 w-9 object-contain" />
+          </div>
+          <div className="mb-8">
+            <div className="mb-5 hidden items-center gap-3 lg:flex">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+                <img src="/ao-logo.png" alt="Advisio" className="h-full w-full object-contain" />
+              </div>
+              <div className="h-7 w-px bg-slate-200" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+                <img src="/school-logo.png" alt="University of the Assumption" className="h-full w-full object-contain" />
+              </div>
+            </div>
+            <h2 className="text-[32px] font-bold tracking-[-.035em] text-[#102f49]">Welcome back</h2>
+            <p className="mt-2 text-[14px] text-slate-500">Sign in to continue your research journey.</p>
+          </div>
 
           {error && <div role="alert" className={`mb-5 flex gap-3 rounded-xl border p-3.5 text-[12px] ${error.toLowerCase().includes("pending") ? "border-amber-200 bg-amber-50 text-amber-900" : "border-red-200 bg-red-50 text-red-700"}`}><ShieldCheck size={17} className="shrink-0" /><span>{error}</span></div>}
 

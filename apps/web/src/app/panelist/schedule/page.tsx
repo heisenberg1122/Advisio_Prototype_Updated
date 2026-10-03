@@ -12,15 +12,6 @@ export default function PanelistSchedule() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center bg-[var(--color-background-secondary)] p-5 rounded-[var(--border-radius-lg)] border border-[var(--color-border-tertiary)]">
-        <div>
-          <h1 className="text-[20px] font-semibold text-[var(--color-text-primary)]">Defense Schedule</h1>
-          <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
-            View allocated schedule slots, panels list, and defense platforms.
-          </p>
-        </div>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle icon="ti-calendar">Assigned Defense Slots</CardTitle>

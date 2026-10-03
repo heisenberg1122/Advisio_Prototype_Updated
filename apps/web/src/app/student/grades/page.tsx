@@ -14,16 +14,15 @@ export default function GradesPage() {
   const isReleased = grades.status === "released";
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-[18px] font-medium mb-0.5">Grades</h1>
-        <p className="text-[13px] text-[var(--color-text-secondary)]">
-          Panelist scores, final grade, and evaluation remarks
-        </p>
+    <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-1">
+          <FinalGradeCard finalGrade={grades.finalGrade} isReleased={isReleased} />
+        </div>
+        <div className="md:col-span-2">
+          <PanelistScoresCard scores={grades.panelistScores} isReleased={isReleased} />
+        </div>
       </div>
-
-      <FinalGradeCard finalGrade={grades.finalGrade} isReleased={isReleased} />
-      <PanelistScoresCard scores={grades.panelistScores} isReleased={isReleased} />
     </div>
   );
 }

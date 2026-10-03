@@ -52,16 +52,6 @@ export default function ProfessorMilestones() {
         </div>
       )}
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center bg-[var(--color-background-secondary)] p-5 rounded-[var(--border-radius-lg)] border border-[var(--color-border-tertiary)]">
-        <div>
-          <h1 className="text-[20px] font-semibold text-[var(--color-text-primary)]">Milestones & Custom Tasks</h1>
-          <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
-            Configure default milestone progressions, enforce task locking, and deploy curriculum templates.
-          </p>
-        </div>
-      </div>
-
       {/* TEMPLATE PICKER & ACTION BAR */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[var(--color-background-primary)] border border-[var(--color-border-tertiary)] rounded-[var(--border-radius-lg)] p-4">
         <div className="flex items-center gap-3">

@@ -19,14 +19,7 @@ export default function ProfessorAnalytics() {
   return (
     <div className="flex flex-col gap-6">
       
-      {/* HEADER */}
-      <div className="flex justify-between items-center bg-[var(--color-background-secondary)] p-5 rounded-[var(--border-radius-lg)] border border-[var(--color-border-tertiary)]">
-        <div>
-          <h1 className="text-[20px] font-semibold text-[var(--color-text-primary)]">Analytics & Monitoring</h1>
-          <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
-            Track submission trends, group activity rates, and completion projections.
-          </p>
-        </div>
+      <div className="flex justify-end">
         <div className="flex bg-[var(--color-background-primary)] border border-[var(--color-border-tertiary)] rounded-[var(--border-radius-md)] p-1">
           {(["week", "month", "semester"] as const).map((t) => (
             <button
@@ -158,7 +151,7 @@ export default function ProfessorAnalytics() {
           <CardTitle icon="ti-list-check">Group Activity Metrics & Rating</CardTitle>
         </CardHeader>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-[13px]">
+          <table className="w-full min-w-[720px] border-collapse text-left text-[13px]">
             <thead>
               <tr className="border-b border-[var(--color-border-tertiary)] text-[var(--color-text-tertiary)] uppercase tracking-wider text-[10px] pb-2">
                 <th className="pb-3 font-semibold">Group Name</th>

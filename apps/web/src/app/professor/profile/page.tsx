@@ -25,13 +25,6 @@ function ProfessorProfilePageContent() {
         </div>
       )}
 
-      <div className="mb-6">
-        <h1 className="text-[18px] font-medium mb-0.5">My Profile</h1>
-        <p className="text-[13px] text-[var(--color-text-secondary)]">
-          Manage your research supervision fields, handled subjects, and academic information
-        </p>
-      </div>
-
       <ProfileCard />
     </div>
   );

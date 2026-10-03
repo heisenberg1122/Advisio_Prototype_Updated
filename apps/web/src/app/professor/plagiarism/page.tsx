@@ -57,16 +57,6 @@ export default function ProfessorPlagiarism() {
         </div>
       )}
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center bg-[var(--color-background-secondary)] p-5 rounded-[var(--border-radius-lg)] border border-[var(--color-border-tertiary)]">
-        <div>
-          <h1 className="text-[20px] font-semibold text-[var(--color-text-primary)]">Plagiarism Detection Center</h1>
-          <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
-            Scan research uploads, analyze similarity index indices, and verify intellectual property alignment.
-          </p>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Scanned files table */}
@@ -77,7 +67,7 @@ export default function ProfessorPlagiarism() {
             </CardHeader>
 
             <div className="overflow-x-auto mt-2">
-              <table className="w-full text-left border-collapse text-[13px]">
+              <table className="w-full min-w-[760px] border-collapse text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-[var(--color-border-tertiary)] text-[var(--color-text-tertiary)] uppercase tracking-wider text-[10px]">
                     <th className="pb-3 font-semibold">Group & Document</th>

@@ -47,16 +47,6 @@ export default function ProfessorRubrics() {
         </div>
       )}
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center bg-[var(--color-background-secondary)] p-5 rounded-[var(--border-radius-lg)] border border-[var(--color-border-tertiary)]">
-        <div>
-          <h1 className="text-[20px] font-semibold text-[var(--color-text-primary)]">Rubrics & Evaluation Criteria</h1>
-          <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
-            Establish evaluation categories and slide to adjust weights for final defense grading.
-          </p>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Rubrics Form */}
         <div className="lg:col-span-2 flex flex-col gap-6">

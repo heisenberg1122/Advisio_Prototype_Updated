@@ -5,8 +5,7 @@ import { Card } from "@/components/ui/Card";
 
 export default function ReviewsPage() {
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-[18px] font-semibold text-[var(--color-text-primary)]">Document Reviews</h1>
+    <div>
       <Card>
         <p className="text-[13px] text-[var(--color-text-secondary)] mb-4">
           Research document review, page annotations, and commenting are managed through the central Adviser Dashboard. Click below to open.

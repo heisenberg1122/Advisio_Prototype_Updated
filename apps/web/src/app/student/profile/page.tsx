@@ -17,20 +17,13 @@ function StudentProfilePageContent() {
   }, [searchParams]);
 
   return (
-    <div>
+    <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {toast && (
-        <div className="fixed top-5 right-5 z-55 bg-[#1b4264] border-l-4 border-[#ffa400] text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
-          <i className="ti ti-circle-check text-[#ffa400] text-lg" />
-          <span className="text-[12px] font-bold">{toast}</span>
+        <div className="fixed top-5 right-5 z-50 bg-[#0B3A53] border-l-4 border-[#C9A227] text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3">
+          <i className="ti ti-circle-check text-[#C9A227] text-lg" />
+          <span className="text-xs font-bold">{toast}</span>
         </div>
       )}
-
-      <div className="mb-6">
-        <h1 className="text-[18px] font-medium mb-0.5">My Profile</h1>
-        <p className="text-[13px] text-[var(--color-text-secondary)]">
-          Manage your personal information, department routing, and research settings
-        </p>
-      </div>
 
       <ProfileCard />
     </div>

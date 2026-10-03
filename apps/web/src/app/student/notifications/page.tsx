@@ -5,14 +5,7 @@ import { NotificationList } from "@/components/notifications/NotificationList";
 
 export default function NotificationsPage() {
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-[18px] font-medium mb-0.5">Notifications</h1>
-        <p className="text-[13px] text-[var(--color-text-secondary)]">
-          All alerts and updates
-        </p>
-      </div>
-
+    <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <Card>
         <NotificationList />
       </Card>

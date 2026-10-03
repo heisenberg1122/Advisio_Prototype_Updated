@@ -114,16 +114,21 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
     const { email, password } = req.body;
     const normalizedEmail = (email || "").toLowerCase().trim();
 
-    const user = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-      include: {
-        roles: {
-          include: {
-            role: true,
+    let user = null;
+    try {
+      user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        include: {
+          roles: {
+            include: {
+              role: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (dbError) {
+      console.warn("Database lookup failed, falling back to demo check:", dbError);
+    }
 
     if (!user || !user.passwordHash) {
       const demoAccounts: Record<string, { role: InstitutionalRole; firstName: string; lastName: string; universityId: string }> = {
@@ -272,10 +277,14 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
     }
 
     // Update last login
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      });
+    } catch {
+      // Non-critical update, ignore
+    }
 
     const token = generateToken(user.id);
 

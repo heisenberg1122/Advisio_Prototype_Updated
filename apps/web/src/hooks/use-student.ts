@@ -136,6 +136,8 @@ export function useAdvisers() {
         const project = research.projects?.[0];
         const assignedMember = project?.members?.find((m: any) => m.projectRole === "ADVISER" && !m.leftAt);
         const requests = await apiClient.get<{ requests: any[] }>("/api/adviser-requests").catch(() => ({ requests: [] }));
+        const requestsList = Array.isArray(requests?.requests) ? requests.requests : [];
+        const usersList = Array.isArray(res?.users) ? res.users : [];
         const mapAdviser = (adviser: any) => ({
           ...adviser,
           name: adviser.name || `${adviser.firstName || ""} ${adviser.lastName || ""}`.trim() || adviser.email,
@@ -147,15 +149,16 @@ export function useAdvisers() {
           isAcceptingAdvisees: adviser.isAcceptingAdvisees ?? true,
           isFull: adviser.isFull ?? false,
           avgResponseDays: adviser.avgResponseDays || "—",
-          requestStatus: requests.requests.find((r: any) => r.adviserId === adviser.id && r.researchId === project?.id)?.status,
+          requestStatus: requestsList.find((r: any) => r.adviserId === adviser.id && r.researchId === project?.id)?.status,
         });
         return {
           projectId: project?.id || null,
           project: project || null,
           assigned: assignedMember ? mapAdviser(assignedMember.user) : null,
-          available: (res.users || []).map(mapAdviser),
+          available: usersList.map(mapAdviser),
         };
-      } catch {
+      } catch (err) {
+        console.error("Failed to load advisers:", err);
         return { projectId: null, project: null, assigned: null, available: [] };
       }
     },

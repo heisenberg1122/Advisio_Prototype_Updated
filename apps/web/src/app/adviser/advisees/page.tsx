@@ -5,8 +5,7 @@ import { Card } from "@/components/ui/Card";
 
 export default function AdviseesPage() {
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-[18px] font-semibold text-[var(--color-text-primary)]">Assigned Advisees</h1>
+    <div>
       <Card>
         <p className="text-[13px] text-[var(--color-text-secondary)] mb-4">
           Advisees and group progress are managed through the central Adviser Dashboard. Click below to monitor and review your assigned research groups.

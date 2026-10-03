@@ -14,22 +14,13 @@ export default function PanelistEvaluations() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center bg-[var(--color-background-secondary)] p-5 rounded-[var(--border-radius-lg)] border border-[var(--color-border-tertiary)]">
-        <div>
-          <h1 className="text-[20px] font-semibold text-[var(--color-text-primary)]">Submitted Capstone Documents</h1>
-          <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
-            Access manuscripts and check similarity metrics.
-          </p>
-        </div>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle icon="ti-file-description">Group Artifacts & Manuscripts</CardTitle>
         </CardHeader>
 
         <div className="overflow-x-auto mt-4">
-          <table className="w-full text-left border-collapse text-[13px]">
+          <table className="w-full min-w-[760px] border-collapse text-left text-[13px]">
             <thead>
               <tr className="border-b border-[var(--color-border-tertiary)] text-[var(--color-text-tertiary)] uppercase tracking-wider text-[10px]">
                 <th className="pb-3 font-semibold">Group & Project Title</th>

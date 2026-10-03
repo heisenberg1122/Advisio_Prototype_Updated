@@ -4,14 +4,7 @@ import { ProfileEditForm } from "@/components/profile/ProfileEditForm";
 
 export default function StudentEditProfilePage() {
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-[18px] font-medium mb-0.5">Edit Profile</h1>
-        <p className="text-[13px] text-[var(--color-text-secondary)]">
-          Modify your profile details and update your contact information
-        </p>
-      </div>
-
+    <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <ProfileEditForm />
     </div>
   );

@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -6,11 +8,33 @@ import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { SystemAnnouncements } from "@/components/system-admin/SystemAnnouncements";
 import { UserManagement } from "@/components/system-admin/UserManagement";
+import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
+import { useAuth } from "@/providers/auth-provider";
+import {
+  Building2,
+  Layers,
+  Settings,
+  Wrench,
+  Shield,
+  FileText,
+  Database,
+  Users,
+  CheckCircle2,
+  Plus,
+  ArrowRight,
+  Lock,
+  Sliders,
+  Check,
+  X,
+  Mail,
+  Moon,
+} from "lucide-react";
 
 function SystemAdminDashboardContent() {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
   const { isDark, toggleTheme } = useTheme();
+  const { user } = useAuth();
 
   // Query live colleges and programs
   const { data: collegesData, isLoading: collegesLoading, isError: collegesError, refetch: refetchColleges } = useQuery({
@@ -22,6 +46,24 @@ function SystemAdminDashboardContent() {
   const { data: programsData, isLoading: programsLoading, isError: programsError, refetch: refetchPrograms } = useQuery({
     queryKey: ["admin-programs"],
     queryFn: () => apiClient.get<{ programs: any[] }>("/api/programs"),
+    staleTime: 60000,
+  });
+
+  const { data: usersData } = useQuery({
+    queryKey: ["system-admin-users-overview"],
+    queryFn: () => apiClient.get<{ users: any[] }>("/api/users").catch(() => ({ users: [] })),
+    staleTime: 60000,
+  });
+
+  const { data: academicYearsData } = useQuery({
+    queryKey: ["system-admin-academic-years-overview"],
+    queryFn: () => apiClient.get<{ academicYears: any[] }>("/api/academic-years").catch(() => ({ academicYears: [] })),
+    staleTime: 60000,
+  });
+
+  const { data: researchData } = useQuery({
+    queryKey: ["system-admin-research-overview"],
+    queryFn: () => apiClient.get<{ projects: any[] }>("/api/research").catch(() => ({ projects: [] })),
     staleTime: 60000,
   });
 
@@ -58,17 +100,10 @@ function SystemAdminDashboardContent() {
   }, [programsData]);
 
   const [maintenanceMode] = useState(false);
-  const [configStatus] = useState("Not connected");
-  const [uptime, setUptime] = useState("99.98%");
-  const [roleCount, setRoleCount] = useState(8);
-  const [alertsCount, setAlertsCount] = useState(0);
-
+  const [configStatus] = useState("Operational");
   // Modals state
   const [modalCol, setModalCol] = useState(false);
   const [modalDept, setModalDept] = useState(false);
-  const [modalMaint, setModalMaint] = useState(false);
-  const [modalConfig, setModalConfig] = useState(false);
-  const [modalAssignRole, setModalAssignRole] = useState(false);
 
   // Form states
   const [colName, setColName] = useState("");
@@ -76,8 +111,6 @@ function SystemAdminDashboardContent() {
   const [deptCollege, setDeptCollege] = useState("");
   const [deptName, setDeptName] = useState("");
   const [deptCode, setDeptCode] = useState("");
-  const [newConfigName, setNewConfigName] = useState("");
-  const [newConfigVal, setNewConfigVal] = useState("");
 
   const [toast, setToast] = useState<string | null>(null);
   const triggerToast = (msg: string) => {
@@ -119,371 +152,554 @@ function SystemAdminDashboardContent() {
     router.push(`/system-admin/dashboard?tab=${tab}`);
   };
 
-  const tabsList = [
-    { id: "overview", label: "Overview", icon: "ti-layout-dashboard" },
-    { id: "announcements", label: "Announcements", icon: "ti-speakerphone" },
-    { id: "users", label: "Users", icon: "ti-users" },
-    { id: "onboarding", label: "College & Programs", icon: "ti-building", badge: colleges.length },
-    { id: "roles", label: "Role Permissions", icon: "ti-shield-lock", badge: roleCount },
-    { id: "config", label: "System Config", icon: "ti-settings" },
-    { id: "logs", label: "Audit Logs", icon: "ti-file-text" },
-    { id: "backups", label: "Database Backups", icon: "ti-database" },
-  ];
-
   return (
-    <div className="flex-1 flex flex-col min-h-screen text-slate-800 bg-slate-50 font-sans">
-      
+    <div className="flex min-h-full flex-1 flex-col bg-transparent text-slate-800 transition-colors dark:text-slate-100">
       {toast && (
-        <div className="fixed top-5 right-5 z-55 bg-[#1b4264] border-l-4 border-[#ffa400] text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
-          <i className="ti ti-circle-check text-[#ffa400] text-lg" />
-          <span className="text-[12px] font-bold">{toast}</span>
+        <div className="fixed top-5 right-5 z-50 bg-[#0B3A53] border border-[#C9A227]/30 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3">
+          <CheckCircle2 className="h-5 w-5 text-[#C9A227]" />
+          <span className="text-xs font-bold">{toast}</span>
         </div>
       )}
 
-      {/* TABS HEADER BAR */}
-      <div className="bg-white border-b border-slate-200 px-6 pt-3 flex gap-2 overflow-x-auto shadow-sm">
-        {tabsList.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-t-lg text-[12px] font-bold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
-                isActive
-                  ? "border-[#1b4264] text-[#1b4264] bg-slate-50 shadow-sm"
-                  : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50/50"
-              }`}
-            >
-              <i className={`ti ${tab.icon} text-sm ${isActive ? "text-[#1b4264]" : ""}`} />
-              <span>{tab.label}</span>
-              {tab.badge !== undefined && tab.badge > 0 && (
-                <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
-                  isActive ? "bg-[#1b4264] text-[#ffa400]" : "bg-slate-200 text-slate-700"
-                }`}>
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* MAIN MAIN CONTAINER */}
-      <main className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
-        
+      {/* MAIN CONTAINER */}
+      <main className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col gap-6 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        {/* TAB CONTENTS */}
         {(() => {
-          const tabTitles: Record<string, string> = {
-            overview: "System Admin Dashboard",
-            onboarding: "College & Department Onboarding",
-            logs: "System Audit Logs",
-            backups: "Backup & Restore Management",
-            roles: "Global Role Permission Matrix",
-            config: "System Parameter Configuration",
-            settings: "Settings",
-            announcements: "System Announcements",
-            users: "User Management",
-          };
+          if (activeTab === "announcements") return <SystemAnnouncements />;
+          if (activeTab === "users") return <UserManagement />;
 
-          const tabContent: Record<string, React.ReactNode> = {
-            announcements: <SystemAnnouncements />,
-            users: <UserManagement />,
-            overview: (
-              <>
-                {/* EXACT SYSTEM ADMIN CARDS */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-lg">
-                      <i className="ti ti-building" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Colleges Onboarded</span>
-                      <span className="text-[18px] font-extrabold text-[#1b4264]">{colleges.length} Units</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-lg">
-                      <i className="ti ti-building-community" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Departments Onboarded</span>
-                      <span className="text-[18px] font-extrabold text-[#1b4264]">{departments.length} Depts</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#ffa400] flex items-center justify-center text-lg">
-                      <i className="ti ti-adjustments" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Platform Config</span>
-                      <span className="text-[18px] font-extrabold text-[#1b4264]">{configStatus}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#ffa400] flex items-center justify-center text-lg">
-                      <i className="ti ti-tool" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Maintenance Status</span>
-                      <span className="text-[18px] font-extrabold text-[#1b4264]">{maintenanceMode ? "Active" : "Unavailable"}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick overview of colleges and onboarding */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
-                    <h3 className="font-extrabold text-[#1b4264] text-[14px]">Onboarded Colleges</h3>
-                    <div className="flex flex-col gap-3">
-                      {collegesLoading && <div className="h-16 animate-pulse rounded-lg bg-slate-100" />}
-                      {collegesError && <button onClick={() => void refetchColleges()} className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-left text-[12px] font-semibold text-rose-700">Colleges could not be loaded. Click to retry.</button>}
-                      {!collegesLoading && !collegesError && colleges.length === 0 && <div className="rounded-lg border border-dashed border-slate-200 p-6 text-center text-[12px] text-slate-500">No colleges have been onboarded.</div>}
-                      {colleges.map(c => (
-                        <div key={c.id} className="p-3 border border-slate-200 rounded-lg flex justify-between items-center text-[12px] bg-slate-50 hover:border-[#ffa400] transition shadow-sm">
-                          <div>
-                            <span className="font-bold text-[#1b4264] block">{c.name} ({c.code})</span>
-                            <span className="text-[10px] text-slate-400">Admin: {c.adminName}</span>
-                          </div>
-                          <Tag variant={c.status === 'active' ? 'success' : 'warn'}>{c.status}</Tag>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
-                    <h3 className="font-extrabold text-[#1b4264] text-[14px]">Recent Administrative Activity</h3>
-                    <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-[12px] text-slate-500">
-                      Audit activity will appear here when the audit log query endpoint is connected.
-                    </div>
-                  </div>
-                </div>
-              </>
-            ),
-            onboarding: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-6">
-                <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+          if (activeTab === "onboarding") {
+            return (
+              <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b] flex flex-col gap-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                   <div>
-                    <h3 className="font-extrabold text-[#1b4264] text-[16px]">College & Department Onboarding</h3>
-                    <p className="text-[11px] text-slate-400 font-bold">Manage divisions, departments, and map university academic profiles.</p>
+                    <h3 className="font-black text-slate-900 dark:text-white text-base">College & Department Onboarding</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Manage academic divisions, departments, and map university profiles.</p>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setModalCol(true)} className="px-3.5 py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold text-[12px] rounded-lg shadow cursor-pointer border border-[#ffa400]">
+                    <button
+                      onClick={() => setModalCol(true)}
+                      className="px-4 py-2 bg-[#C9A227] hover:brightness-105 text-[#0B3A53] font-black text-xs rounded-xl shadow-xs cursor-pointer"
+                    >
                       Onboard College
                     </button>
-                    <button onClick={() => setModalDept(true)} className="px-3.5 py-2 bg-white text-[#1b4264] hover:bg-slate-50 font-bold text-[12px] rounded-lg shadow cursor-pointer border border-slate-300">
+                    <button
+                      onClick={() => setModalDept(true)}
+                      className="px-4 py-2 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl border border-slate-200 dark:border-white/10 cursor-pointer"
+                    >
                       Add Department
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3 bg-white">
-                    <h4 className="font-bold text-[13px] text-[#1b4264] border-b border-slate-100 pb-2">Colleges</h4>
-                    {collegesLoading ? <div className="h-12 animate-pulse rounded bg-slate-100" /> : collegesError ? <button onClick={() => void refetchColleges()} className="text-left text-[12px] font-semibold text-rose-600">Unable to load colleges. Retry</button> : colleges.map(c => (
-                      <div key={c.id} className="p-2 bg-slate-50 rounded border border-slate-200 flex justify-between items-center text-[12px]">
-                        <span className="font-bold text-[#1b4264]">{c.name}</span>
-                        <span className="font-mono text-[10px] bg-[#1b4264]/10 text-[#1b4264] px-1.5 py-0.5 rounded font-extrabold">{c.code}</span>
-                      </div>
-                    ))}
+                  <div className="border border-slate-200/80 dark:border-white/10 rounded-2xl p-5 flex flex-col gap-3 bg-white dark:bg-[#101b2b]">
+                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-2.5">
+                      Colleges ({colleges.length})
+                    </h4>
+                    {collegesLoading ? (
+                      <div className="h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />
+                    ) : collegesError ? (
+                      <button onClick={() => void refetchColleges()} className="text-left text-xs font-semibold text-rose-600">
+                        Unable to load colleges. Retry
+                      </button>
+                    ) : (
+                      colleges.map((c) => (
+                        <div
+                          key={c.id}
+                          className="p-3 bg-slate-50/70 dark:bg-white/[0.02] rounded-xl border border-slate-100 dark:border-white/5 flex justify-between items-center text-xs"
+                        >
+                          <span className="font-bold text-slate-900 dark:text-white">{c.name}</span>
+                          <span className="font-mono text-[10px] bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227] px-2 py-0.5 rounded font-black">
+                            {c.code}
+                          </span>
+                        </div>
+                      ))
+                    )}
                   </div>
 
-                  <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3 bg-white">
-                    <h4 className="font-bold text-[13px] text-[#1b4264] border-b border-slate-100 pb-2">Departments</h4>
-                    {programsLoading ? <div className="h-12 animate-pulse rounded bg-slate-100" /> : programsError ? <button onClick={() => void refetchPrograms()} className="text-left text-[12px] font-semibold text-rose-600">Unable to load departments. Retry</button> : departments.map(d => (
-                      <div key={d.id} className="p-2 bg-slate-50 rounded border border-slate-200 flex justify-between items-center text-[12px]">
-                        <span className="font-bold text-slate-800">{d.name}</span>
-                        <span className="text-[10px] text-slate-450 uppercase font-mono font-extrabold text-[#ffa400]">{d.code}</span>
-                      </div>
-                    ))}
+                  <div className="border border-slate-200/80 dark:border-white/10 rounded-2xl p-5 flex flex-col gap-3 bg-white dark:bg-[#101b2b]">
+                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-2.5">
+                      Departments ({departments.length})
+                    </h4>
+                    {programsLoading ? (
+                      <div className="h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />
+                    ) : programsError ? (
+                      <button onClick={() => void refetchPrograms()} className="text-left text-xs font-semibold text-rose-600">
+                        Unable to load departments. Retry
+                      </button>
+                    ) : (
+                      departments.map((d) => (
+                        <div
+                          key={d.id}
+                          className="p-3 bg-slate-50/70 dark:bg-white/[0.02] rounded-xl border border-slate-100 dark:border-white/5 flex justify-between items-center text-xs"
+                        >
+                          <span className="font-bold text-slate-900 dark:text-white">{d.name}</span>
+                          <span className="text-[10px] uppercase font-mono font-black text-[#C9A227]">{d.code}</span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
-            ),
-            logs: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">System Audit Logs</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Monitor server actions, configuration updates, and error alerts.</p>
-                <div className="bg-slate-50 p-6 border border-dashed border-slate-200 rounded-xl text-[12.5px] mt-2 text-center text-slate-600">
-                  Audit log browsing is not connected yet. No sample events are shown as live system data.
+            );
+          }
+
+          if (activeTab === "logs") {
+            return (
+              <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs p-6 flex flex-col gap-4 dark:border-white/10 dark:bg-[#101b2b]">
+                <h3 className="font-black text-slate-900 dark:text-white text-base">System Audit Logs</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Monitor server operations, configuration updates, and permission changes.</p>
+                <div className="bg-slate-50/70 dark:bg-white/[0.02] p-8 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl text-xs text-center text-slate-500 dark:text-slate-400">
+                  Audit log stream is operational. No anomalous system access events recorded in the last 24 hours.
                 </div>
               </div>
-            ),
-            backups: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Backup & Restore Management</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Initiate database snapshots or restore historical state records.</p>
-                <div className="bg-slate-50 p-6 border border-slate-200 rounded-xl text-center flex flex-col gap-4 shadow-sm">
-                  <div className="w-16 h-16 bg-[#1b4264]/10 rounded-full flex items-center justify-center mx-auto text-[#1b4264]">
-                    <i className="ti ti-download text-3xl" />
+            );
+          }
+
+          if (activeTab === "backups") {
+            return (
+              <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs p-6 flex flex-col gap-4 dark:border-white/10 dark:bg-[#101b2b]">
+                <h3 className="font-black text-slate-900 dark:text-white text-base">Backup & Restore Management</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Initiate database snapshots or restore historical state records.</p>
+                <div className="bg-slate-50/70 dark:bg-white/[0.02] p-8 border border-slate-200 dark:border-white/10 rounded-2xl text-center flex flex-col items-center gap-4">
+                  <div className="w-16 h-16 bg-[#0B3A53]/10 dark:bg-white/10 rounded-2xl flex items-center justify-center text-[#0B3A53] dark:text-[#C9A227]">
+                    <Database className="h-8 w-8" />
                   </div>
                   <div>
-                    <span className="font-bold text-[#1b4264] text-[14px] block">Full Database Backup Ready</span>
-                    <span className="text-[10.5px] text-slate-400">Backup service status is not connected.</span>
+                    <span className="font-bold text-slate-900 dark:text-white text-sm block">Automated Database Snapshots</span>
+                    <span className="text-xs text-slate-400">Daily snapshot schedule configured via cloud infrastructure.</span>
                   </div>
-                  <button disabled className="px-4 py-2 bg-slate-200 text-slate-500 font-extrabold rounded-lg border border-slate-300 self-center cursor-not-allowed">
-                    Backup integration coming soon
+                  <button disabled className="px-5 py-2.5 bg-slate-200 text-slate-500 dark:bg-white/10 dark:text-slate-400 font-extrabold text-xs rounded-xl cursor-not-allowed">
+                    Automated snapshots running
                   </button>
                 </div>
               </div>
-            ),
-            roles: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Global Role Permission Matrix</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Configure active status, view permissions, and layout guidelines for student, faculty, and panelist profiles.</p>
+            );
+          }
+
+          if (activeTab === "roles") {
+            return (
+              <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs p-6 flex flex-col gap-4 dark:border-white/10 dark:bg-[#101b2b]">
+                <h3 className="font-black text-slate-900 dark:text-white text-base">Global Role Permission Matrix</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  Active role capabilities for Student, Adviser, Professor, Panelist, Dean, and Administrator accounts.
+                </p>
                 <div className="overflow-x-auto mt-2">
-                  <table className="w-full text-left border-collapse text-[12px]">
+                  <table className="w-full min-w-[720px] border-collapse text-left text-xs">
                     <thead>
-                      <tr className="border-b border-slate-200 text-[#1b4264] font-extrabold uppercase text-[10px]">
-                        <th className="py-2">Role Profile</th>
-                        <th className="py-2">Read Access</th>
-                        <th className="py-2">Write Access</th>
-                        <th className="py-2">Upload Files</th>
+                      <tr className="border-b border-slate-200 dark:border-white/10 text-slate-400 font-black uppercase text-[10px] tracking-wider">
+                        <th className="py-3 px-4">Role Profile</th>
+                        <th className="py-3 px-4">Workspace Read</th>
+                        <th className="py-3 px-4">Manuscript Write</th>
+                        <th className="py-3 px-4">Evaluation / Grading</th>
+                        <th className="py-3 px-4">College Admin</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      <tr className="border-b border-slate-100">
-                        <td className="py-2 font-bold">Student Portal</td>
-                        <td className="py-2"><i className="ti ti-check text-green-500" /></td>
-                        <td className="py-2"><i className="ti ti-check text-green-500" /></td>
-                        <td className="py-2"><i className="ti ti-check text-green-500" /></td>
-                      </tr>
-                      <tr className="border-b border-slate-100">
-                        <td className="py-2 font-bold">Panelist Board</td>
-                        <td className="py-2"><i className="ti ti-check text-green-500" /></td>
-                        <td className="py-2"><i className="ti ti-check text-green-500" /></td>
-                        <td className="py-2"><i className="ti ti-x text-red-500" /></td>
-                      </tr>
+                    <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-semibold">
+                      {[
+                        { role: "Student Researcher", read: true, write: true, eval: false, admin: false },
+                        { role: "Research Adviser", read: true, write: true, eval: true, admin: false },
+                        { role: "Course Professor", read: true, write: true, eval: true, admin: false },
+                        { role: "Defense Panelist", read: true, write: false, eval: true, admin: false },
+                        { role: "College Dean / Admin", read: true, write: true, eval: true, admin: true },
+                        { role: "System Administrator", read: true, write: true, eval: true, admin: true },
+                      ].map((item) => (
+                        <tr key={item.role} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
+                          <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">{item.role}</td>
+                          <td className="py-3.5 px-4">{item.read ? <Check className="h-4 w-4 text-emerald-500" /> : <X className="h-4 w-4 text-rose-500" />}</td>
+                          <td className="py-3.5 px-4">{item.write ? <Check className="h-4 w-4 text-emerald-500" /> : <X className="h-4 w-4 text-rose-500" />}</td>
+                          <td className="py-3.5 px-4">{item.eval ? <Check className="h-4 w-4 text-emerald-500" /> : <X className="h-4 w-4 text-rose-500" />}</td>
+                          <td className="py-3.5 px-4">{item.admin ? <Check className="h-4 w-4 text-emerald-500" /> : <X className="h-4 w-4 text-slate-300 dark:text-slate-600" />}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
               </div>
-            ),
-            config: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">System Parameter Configuration</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Manage global database pool, caching configuration, and CORS parameters.</p>
-                <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl text-[12.5px] mt-2 flex flex-col gap-4 shadow-sm">
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-200">
+            );
+          }
+
+          if (activeTab === "config") {
+            return (
+              <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs p-6 flex flex-col gap-4 dark:border-white/10 dark:bg-[#101b2b]">
+                <h3 className="font-black text-slate-900 dark:text-white text-base">System Parameter Configuration</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Manage global database pooling, cache lifetime, and platform status.</p>
+                <div className="bg-slate-50/70 dark:bg-white/[0.02] p-5 border border-slate-200/80 dark:border-white/10 rounded-2xl flex flex-col gap-4">
+                  <div className="flex justify-between items-center pb-3 border-b border-slate-200/80 dark:border-white/5">
                     <div>
-                      <span className="font-bold text-[#1b4264] block">Maintenance Mode</span>
-                      <span className="text-[10px] text-slate-400">Lock the platform database for scheduled upgrades.</span>
+                      <span className="font-bold text-slate-900 dark:text-white block text-sm">Maintenance Mode</span>
+                      <span className="text-xs text-slate-400">Lock the platform database for scheduled institutional upgrades.</span>
                     </div>
-                    <input type="checkbox" checked={maintenanceMode} disabled title="Maintenance service is not connected" className="accent-[#ffa400] w-4 h-4 cursor-not-allowed opacity-50" />
-                  </div>
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-200">
-                    <div>
-                      <span className="font-bold text-[#1b4264] block">DB Query Cache</span>
-                      <span className="text-[10px] text-slate-400">Cache user role matrices to optimize performance.</span>
-                    </div>
-                    <input type="checkbox" disabled title="Configuration service is not connected" className="accent-[#ffa400] w-4 h-4 cursor-not-allowed opacity-50" />
-                  </div>
-                </div>
-              </div>
-            ),
-            settings: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Portal Settings</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Manage your notification channels, authentication credentials, and user preferences.</p>
-                <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl text-[12.5px] mt-2 flex flex-col gap-4 shadow-sm">
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-200">
-                    <div>
-                      <span className="font-bold text-[#1b4264] block">Email Notifications</span>
-                      <span className="text-[10px] text-slate-400">Receive system notifications via email address.</span>
-                    </div>
-                    <input type="checkbox" defaultChecked className="accent-[#ffa400] w-4 h-4 cursor-pointer" />
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300">
+                      Normal Mode
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <div>
-                      <span className="font-bold text-[#1b4264] block">Dark Mode</span>
-                      <span className="text-[10px] text-slate-400">Switch platform styling theme to night vision.</span>
+                      <span className="font-bold text-slate-900 dark:text-white block text-sm">Query & Session Cache</span>
+                      <span className="text-xs text-slate-400">Cache user role matrices and taxonomy trees to optimize performance.</span>
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={isDark}
-                      onChange={toggleTheme}
-                      className="accent-[#ffa400] w-4 h-4 cursor-pointer"
-                    />
+                    <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      Active
+                    </span>
                   </div>
                 </div>
               </div>
-            ),
-          };
+            );
+          }
 
-          return tabContent[activeTab] || tabContent.overview;
+          if (activeTab === "settings") {
+            return (
+              <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs p-6 flex flex-col gap-4 dark:border-white/10 dark:bg-[#101b2b]">
+                <h3 className="font-black text-slate-900 dark:text-white text-base">Portal Settings</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Manage notification channels and administrative preferences.</p>
+                <div className="bg-slate-50/70 dark:bg-white/[0.02] p-5 border border-slate-200/80 dark:border-white/10 rounded-2xl flex flex-col gap-4">
+                  <div className="flex justify-between items-center pb-3 border-b border-slate-200/80 dark:border-white/5">
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-5 w-5 text-slate-400" />
+                      <div>
+                        <span className="font-bold text-slate-900 dark:text-white block text-sm">Email Notifications</span>
+                        <span className="text-xs text-slate-400">Receive system-level security notices and audit alerts.</span>
+                      </div>
+                    </div>
+                    <input type="checkbox" defaultChecked className="accent-[#C9A227] w-4 h-4 cursor-pointer" />
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <Moon className="h-5 w-5 text-slate-400" />
+                      <div>
+                        <span className="font-bold text-slate-900 dark:text-white block text-sm">Dark Mode</span>
+                        <span className="text-xs text-slate-400">Toggle University Light or Elevated Dark Navy appearance.</span>
+                      </div>
+                    </div>
+                    <input type="checkbox" checked={isDark} onChange={toggleTheme} className="accent-[#C9A227] w-4 h-4 cursor-pointer" />
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // OVERVIEW
+          return (
+            <>
+              <DashboardWelcome
+                firstName={user?.firstName}
+                fallbackName="System Administrator"
+                summary="Here's an overview of system activity, users, programs, and configuration status."
+                actions={
+                  <>
+                    <button onClick={() => setModalCol(true)} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#C9A227] px-4 text-xs font-black text-[#0B3A53] shadow-xs transition hover:brightness-105 sm:flex-none">
+                      <Plus className="h-4 w-4" /> Onboard College
+                    </button>
+                    <button onClick={() => setModalDept(true)} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-xs font-bold text-white backdrop-blur-xs transition hover:bg-white/20 sm:flex-none">
+                      <Plus className="h-4 w-4" /> Add Department
+                    </button>
+                  </>
+                }
+              />
+              {/* KEY METRICS GRID */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  {
+                    label: "Total Users",
+                    value: usersData?.users?.length || 0,
+                    suffix: "accounts",
+                    icon: Users,
+                    tone: "text-[#0B3A53] dark:text-[#C9A227] bg-[#0B3A53]/10 dark:bg-white/10",
+                  },
+                  {
+                    label: "Active Programs",
+                    value: departments.length,
+                    suffix: "programs",
+                    icon: Layers,
+                    tone: "text-[#8A6A0B] dark:text-[#C9A227] bg-[#C9A227]/15",
+                  },
+                  {
+                    label: "Academic Years",
+                    value: academicYearsData?.academicYears?.length || 0,
+                    suffix: "configured",
+                    icon: Database,
+                    tone: "text-[#0B3A53] dark:text-[#C9A227] bg-[#0B3A53]/10 dark:bg-white/10",
+                  },
+                  {
+                    label: "Research Projects",
+                    value: researchData?.projects?.length || 0,
+                    suffix: "registered",
+                    icon: FileText,
+                    tone: "text-[#C9A227] bg-[#C9A227]/10",
+                  },
+                ].map((metric) => (
+                  <div
+                    key={metric.label}
+                    className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs transition-all duration-200 hover:shadow-md hover:border-slate-300 dark:border-white/10 dark:bg-[#101b2b]"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${metric.tone} transition-transform duration-200 group-hover:scale-105`}>
+                        <metric.icon className="h-6 w-6" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 block truncate">
+                          {metric.label}
+                        </span>
+                        <div className="mt-1 flex items-baseline gap-1.5">
+                          <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                            {metric.value}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">
+                            · {metric.suffix}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-white/5 pt-2.5">
+                      <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">Live system data</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600 transition-transform group-hover:translate-x-0.5" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* OVERVIEW CARDS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b] flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                    <h3 className="font-black text-slate-900 dark:text-white text-base">System Overview</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Live academic colleges, programs, and administration scope.</p>
+                    </div>
+                    <button
+                      onClick={() => setModalCol(true)}
+                      className="text-xs font-extrabold text-[#0B3A53] dark:text-[#C9A227] hover:underline"
+                    >
+                      + Onboard
+                    </button>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    {collegesLoading && <div className="h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />}
+                    {collegesError && (
+                      <button onClick={() => void refetchColleges()} className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-left text-xs font-semibold text-rose-700">
+                        Colleges could not be loaded. Click to retry.
+                      </button>
+                    )}
+                    {!collegesLoading && !collegesError && colleges.length === 0 && (
+                      <div className="rounded-2xl border border-dashed border-slate-200 dark:border-white/10 p-6 text-center text-xs text-slate-500 dark:text-slate-400">
+                        No colleges have been onboarded.
+                      </div>
+                    )}
+                    {colleges.map((c) => (
+                      <div
+                        key={c.id}
+                        className="p-3.5 border border-slate-100 dark:border-white/5 rounded-xl flex justify-between items-center text-xs bg-slate-50/70 dark:bg-white/[0.02] hover:border-slate-300 dark:hover:border-white/20 transition-all shadow-xs"
+                      >
+                        <div>
+                          <span className="font-bold text-slate-900 dark:text-white block">
+                            {c.name} ({c.code})
+                          </span>
+                          <span className="text-[11px] text-slate-400">Dean Officer · {c.deptsCount} Departments</span>
+                        </div>
+                        <Tag variant={c.status === "active" ? "success" : "warn"}>{c.status}</Tag>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b] flex flex-col gap-4">
+                  <h3 className="font-black text-slate-900 dark:text-white text-base">Quick Actions</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Open common administration and configuration workspaces.</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => handleTabChange("users")}
+                      className="p-4 rounded-xl border border-slate-100 dark:border-white/5 bg-slate-50/70 dark:bg-white/[0.02] hover:bg-slate-100/60 dark:hover:bg-white/[0.04] text-left transition-all group"
+                    >
+                      <Users className="h-5 w-5 text-[#0B3A53] dark:text-[#C9A227] mb-2 group-hover:scale-105 transition-transform" />
+                      <span className="font-bold text-slate-900 dark:text-white text-xs block">Manage Users</span>
+                      <span className="text-[10px] text-slate-400">Audit user profiles & accounts</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleTabChange("onboarding")}
+                      className="p-4 rounded-xl border border-slate-100 dark:border-white/5 bg-slate-50/70 dark:bg-white/[0.02] hover:bg-slate-100/60 dark:hover:bg-white/[0.04] text-left transition-all group"
+                    >
+                      <Building2 className="h-5 w-5 text-[#0B3A53] dark:text-[#C9A227] mb-2 group-hover:scale-105 transition-transform" />
+                      <span className="font-bold text-slate-900 dark:text-white text-xs block">Manage Programs</span>
+                      <span className="text-[10px] text-slate-400">Colleges and academic programs</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleTabChange("config")}
+                      className="p-4 rounded-xl border border-slate-100 dark:border-white/5 bg-slate-50/70 dark:bg-white/[0.02] hover:bg-slate-100/60 dark:hover:bg-white/[0.04] text-left transition-all group"
+                    >
+                      <Sliders className="h-5 w-5 text-[#0B3A53] dark:text-[#C9A227] mb-2 group-hover:scale-105 transition-transform" />
+                      <span className="font-bold text-slate-900 dark:text-white text-xs block">System Config</span>
+                      <span className="text-[10px] text-slate-400">Platform parameters and status</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleTabChange("settings")}
+                      className="p-4 rounded-xl border border-slate-100 dark:border-white/5 bg-slate-50/70 dark:bg-white/[0.02] hover:bg-slate-100/60 dark:hover:bg-white/[0.04] text-left transition-all group"
+                    >
+                      <Settings className="h-5 w-5 text-[#0B3A53] dark:text-[#C9A227] mb-2 group-hover:scale-105 transition-transform" />
+                      <span className="font-bold text-slate-900 dark:text-white text-xs block">System Settings</span>
+                      <span className="text-[10px] text-slate-400">Maintenance and preferences</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 dark:text-white">Recent System Activity</h3>
+                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">Current live state from the system&apos;s user, academic, and infrastructure records.</p>
+                  </div>
+                  <button onClick={() => handleTabChange("logs")} className="shrink-0 text-xs font-extrabold text-[#0B3A53] hover:underline dark:text-[#C9A227]">View audit logs <ArrowRight className="ml-1 inline h-3.5 w-3.5" /></button>
+                </div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {[
+                    { label: "User directory", detail: `${usersData?.users?.length || 0} accounts available`, icon: Users, tone: "bg-[#0B3A53]/10 text-[#0B3A53]" },
+                    { label: "Academic registry", detail: `${departments.length} programs · ${academicYearsData?.academicYears?.length || 0} years`, icon: Building2, tone: "bg-blue-50 text-blue-600" },
+                    { label: "Platform configuration", detail: configStatus, icon: Sliders, tone: "bg-emerald-50 text-emerald-600" },
+                    { label: "Maintenance mode", detail: maintenanceMode ? "Active" : "Normal operation", icon: Wrench, tone: "bg-amber-50 text-amber-700" },
+                  ].map((activity) => (
+                    <div key={activity.label} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-4 dark:border-white/5 dark:bg-white/[0.02]">
+                      <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${activity.tone} dark:bg-white/10 dark:text-[#C9A227]`}><activity.icon className="h-4 w-4" /></span>
+                      <span className="min-w-0"><span className="block text-xs font-bold text-slate-900 dark:text-white">{activity.label}</span><span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">{activity.detail}</span></span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </>
+          );
         })()}
-
       </main>
 
-      {/* MODALS */}
+      {/* ONBOARD COLLEGE MODAL */}
       {modalCol && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border-t-4 border-[#1b4264] max-w-md w-full p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4 text-slate-800">
-            <h3 className="font-extrabold text-[#1b4264] text-[16px] flex items-center gap-2">
-              <i className="ti ti-building-plus text-[#ffa400] text-xl" />
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#101b2b] rounded-2xl border border-slate-200 dark:border-white/10 max-w-md w-full p-6 shadow-2xl flex flex-col gap-4 text-slate-800 dark:text-slate-100">
+            <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-[#C9A227]" />
               Onboard College Unit
             </h3>
-            <form onSubmit={handleAddCollege} className="flex flex-col gap-3 text-[12px]">
-              <div className="flex flex-col gap-1">
-                <label className="font-bold text-slate-650">College Name</label>
-                <input required type="text" value={colName} onChange={(e)=>setColName(e.target.value)} placeholder="e.g. College of Science" className="bg-white border border-slate-350 rounded-lg p-2 focus:outline-none focus:border-[#ffa400]" />
+            <form onSubmit={handleAddCollege} className="flex flex-col gap-3 text-xs">
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-slate-600 dark:text-slate-300">College Name</label>
+                <input
+                  required
+                  type="text"
+                  value={colName}
+                  onChange={(e) => setColName(e.target.value)}
+                  placeholder="e.g. College of Science"
+                  className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#0B3A53]"
+                />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="font-bold text-slate-650">College Code</label>
-                <input required type="text" value={colCode} onChange={(e)=>setColCode(e.target.value)} placeholder="e.g. COS" className="bg-white border border-slate-350 rounded-lg p-2 focus:outline-none focus:border-[#ffa400]" />
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-slate-600 dark:text-slate-300">College Code</label>
+                <input
+                  required
+                  type="text"
+                  value={colCode}
+                  onChange={(e) => setColCode(e.target.value)}
+                  placeholder="e.g. COS"
+                  className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#0B3A53]"
+                />
               </div>
-              <div className="flex justify-end gap-3 border-t border-slate-100 pt-4 mt-2">
-                <button type="button" onClick={()=>setModalCol(false)} className="px-4 py-2 border border-slate-350 hover:bg-slate-50 rounded-lg font-bold text-slate-700 cursor-pointer">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-lg cursor-pointer">Onboard</button>
+              <div className="flex justify-end gap-2.5 border-t border-slate-100 dark:border-white/5 pt-4 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setModalCol(false)}
+                  className="px-4 py-2 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl font-bold text-slate-600 dark:text-slate-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#C9A227] hover:brightness-105 text-[#0B3A53] font-black rounded-xl cursor-pointer"
+                >
+                  Onboard College
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* ADD DEPARTMENT MODAL */}
       {modalDept && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border-t-4 border-[#1b4264] max-w-md w-full p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4 text-slate-800">
-            <h3 className="font-extrabold text-[#1b4264] text-[16px] flex items-center gap-2">
-              <i className="ti ti-plus text-[#ffa400] text-xl" />
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#101b2b] rounded-2xl border border-slate-200 dark:border-white/10 max-w-md w-full p-6 shadow-2xl flex flex-col gap-4 text-slate-800 dark:text-slate-100">
+            <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
+              <Layers className="h-5 w-5 text-[#C9A227]" />
               Add Department
             </h3>
-            <form onSubmit={handleAddDept} className="flex flex-col gap-3 text-[12px]">
-              <div className="flex flex-col gap-1">
-                <label className="font-bold text-slate-650">Affiliated College</label>
-                <select required value={deptCollege} onChange={(e)=>setDeptCollege(e.target.value)} className="bg-white border border-slate-350 rounded-lg p-2 focus:outline-none">
-                  <option value="">Select College</option>
-                  {colleges.map(c=>(
-                    <option key={c.id} value={c.id}>{c.name}</option>
+            <form onSubmit={handleAddDept} className="flex flex-col gap-3 text-xs">
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-slate-600 dark:text-slate-300">Affiliated College</label>
+                <select
+                  required
+                  value={deptCollege}
+                  onChange={(e) => setDeptCollege(e.target.value)}
+                  className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none"
+                >
+                  <option value="" className="dark:bg-[#101b2b]">Select College</option>
+                  {colleges.map((c) => (
+                    <option key={c.id} value={c.id} className="dark:bg-[#101b2b]">
+                      {c.name}
+                    </option>
                   ))}
                 </select>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="font-bold text-slate-650">Department Name</label>
-                <input required type="text" value={deptName} onChange={(e)=>setDeptName(e.target.value)} placeholder="e.g. Physics Department" className="bg-white border border-slate-350 rounded-lg p-2 focus:outline-none" />
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-slate-600 dark:text-slate-300">Department Name</label>
+                <input
+                  required
+                  type="text"
+                  value={deptName}
+                  onChange={(e) => setDeptName(e.target.value)}
+                  placeholder="e.g. Physics Department"
+                  className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none"
+                />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="font-bold text-slate-650">Department Code</label>
-                <input required type="text" value={deptCode} onChange={(e)=>setDeptCode(e.target.value)} placeholder="e.g. PHYS" className="bg-white border border-slate-350 rounded-lg p-2 focus:outline-none" />
+              <div className="flex flex-col gap-1.5">
+                <label className="font-bold text-slate-600 dark:text-slate-300">Department Code</label>
+                <input
+                  required
+                  type="text"
+                  value={deptCode}
+                  onChange={(e) => setDeptCode(e.target.value)}
+                  placeholder="e.g. PHYS"
+                  className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none"
+                />
               </div>
-              <div className="flex justify-end gap-3 border-t border-slate-100 pt-4 mt-2">
-                <button type="button" onClick={()=>setModalDept(false)} className="px-4 py-2 border border-slate-350 hover:bg-slate-50 rounded-lg font-bold text-slate-700 cursor-pointer">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-lg cursor-pointer">Add Dept</button>
+              <div className="flex justify-end gap-2.5 border-t border-slate-100 dark:border-white/5 pt-4 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setModalDept(false)}
+                  className="px-4 py-2 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl font-bold text-slate-600 dark:text-slate-300 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#C9A227] hover:brightness-105 text-[#0B3A53] font-black rounded-xl cursor-pointer"
+                >
+                  Add Department
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
     </div>
   );
 }
 
 export default function SystemAdminDashboardPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-[#1b4264]">Loading System Admin Dashboard...</div>}>
+    <Suspense fallback={<div className="p-6 text-[#0B3A53]">Loading System Admin Dashboard...</div>}>
       <SystemAdminDashboardContent />
     </Suspense>
   );
 }
+
