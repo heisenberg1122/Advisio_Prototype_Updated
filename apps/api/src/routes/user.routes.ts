@@ -1,10 +1,19 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { prisma, InstitutionalRole, AuditAction } from "../lib/prisma.js";
 import { Permissions } from "@research-management/auth";
 import { requireAuth } from "../middleware/auth";
 import { requirePermission } from "../middleware/rbac";
+import { ACTIVE_ADVISEE_STATUSES, capacitySummary, countActiveAdviseeGroups } from "../lib/adviser-capacity.js";
 
 const router = Router();
+const CAPACITY_MANAGER_ROLES = new Set(["RPO", "VPAA", "SYSTEM_ADMIN"]);
+
+function requireCapacityManager(req: Request, res: Response, next: NextFunction) {
+  if (!req.user || (!req.user.permissions.includes(Permissions.USER_MANAGE) && !req.user.roles.some((role) => CAPACITY_MANAGER_ROLES.has(role)))) {
+    return void res.status(403).json({ error: "Dean or system administrator access is required" });
+  }
+  next();
+}
 
 // GET /api/users
 router.get(
@@ -43,6 +52,8 @@ router.get(
           middleName: true,
           lastName: true,
           status: true,
+          maxAdviseeGroups: true,
+          isAcceptingAdvisees: true,
           college: true,
           program: true,
           roles: {
@@ -52,16 +63,108 @@ router.get(
           },
           createdAt: true,
           lastLoginAt: true,
+          _count: {
+            select: {
+              memberships: {
+                where: {
+                  projectRole: "ADVISER",
+                  leftAt: null,
+                  research: { status: { in: ACTIVE_ADVISEE_STATUSES } },
+                },
+              },
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
       });
 
-      res.json({ users });
+      res.json({
+        users: users.map(({ _count, ...user }) => ({
+          ...user,
+          ...capacitySummary(user, _count.memberships),
+        })),
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message || "Failed to fetch users" });
     }
   }
 );
+
+// GET /api/users/me/adviser-capacity
+router.get("/me/adviser-capacity", requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return void res.status(401).json({ error: "Unauthorized" });
+    if (!req.user.roles.includes("ADVISER")) return void res.status(403).json({ error: "Adviser access is required" });
+    const adviser = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { maxAdviseeGroups: true, isAcceptingAdvisees: true, adviserCapacityNote: true, adviserCapacitySetAt: true },
+    });
+    if (!adviser) return void res.status(404).json({ error: "Adviser not found" });
+    const activeGroups = await countActiveAdviseeGroups(prisma, req.user.id);
+    res.json({ capacity: { ...capacitySummary(adviser, activeGroups), note: adviser.adviserCapacityNote, updatedAt: adviser.adviserCapacitySetAt } });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to load adviser capacity" });
+  }
+});
+
+// PATCH /api/users/:id/adviser-capacity — dean/system administration only.
+router.patch("/:id/adviser-capacity", requireAuth, requireCapacityManager, async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return void res.status(401).json({ error: "Unauthorized" });
+    const maxAdviseeGroups = Number(req.body.maxAdviseeGroups);
+    const isAcceptingAdvisees = req.body.isAcceptingAdvisees;
+    const note = String(req.body.note || "").trim();
+    if (!Number.isInteger(maxAdviseeGroups) || maxAdviseeGroups < 0 || maxAdviseeGroups > 50) {
+      return void res.status(400).json({ error: "Maximum advisee groups must be a whole number from 0 to 50" });
+    }
+    if (typeof isAcceptingAdvisees !== "boolean") {
+      return void res.status(400).json({ error: "Accepting requests must be true or false" });
+    }
+    if (note.length < 10) return void res.status(400).json({ error: "Add a reason of at least 10 characters" });
+
+    const result = await prisma.$transaction(async (tx) => {
+      const existing = await tx.user.findUnique({
+        where: { id: req.params.id as string },
+        include: { roles: { include: { role: true } } },
+      });
+      if (!existing?.roles.some((item) => item.role.name === "ADVISER")) throw new Error("ADVISER_NOT_FOUND");
+      if (!req.user!.roles.includes("SYSTEM_ADMIN") && existing.collegeId !== req.user!.collegeId) throw new Error("ADVISER_NOT_FOUND");
+      const activeGroups = await countActiveAdviseeGroups(tx, existing.id);
+      const adviser = await tx.user.update({
+        where: { id: existing.id },
+        data: { maxAdviseeGroups, isAcceptingAdvisees, adviserCapacityNote: note, adviserCapacitySetBy: req.user!.id, adviserCapacitySetAt: new Date() },
+        select: { id: true, firstName: true, lastName: true, email: true, maxAdviseeGroups: true, isAcceptingAdvisees: true, adviserCapacitySetAt: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: req.user!.id,
+          action: AuditAction.UPDATE,
+          entityType: "ADVISER_CAPACITY",
+          entityId: existing.id,
+          oldValues: { maxAdviseeGroups: existing.maxAdviseeGroups, isAcceptingAdvisees: existing.isAcceptingAdvisees },
+          newValues: { maxAdviseeGroups, isAcceptingAdvisees, note },
+          ipAddress: req.ip,
+          userAgent: req.get("user-agent") || null,
+        },
+      });
+      await tx.notification.create({
+        data: {
+          recipientId: existing.id,
+          type: "WORKFLOW_CHANGED",
+          title: "Adviser capacity updated",
+          message: `Your advising capacity is now ${activeGroups}/${maxAdviseeGroups} active groups. ${isAcceptingAdvisees ? "New requests are enabled." : "New requests are paused."}`,
+          entityType: "ADVISER_CAPACITY",
+          entityId: existing.id,
+        },
+      });
+      return { ...adviser, ...capacitySummary(adviser, activeGroups) };
+    });
+    res.json({ adviser: result });
+  } catch (error: any) {
+    if (error.message === "ADVISER_NOT_FOUND") return void res.status(404).json({ error: "Adviser not found" });
+    res.status(500).json({ error: error.message || "Failed to update adviser capacity" });
+  }
+});
 
 // GET /api/users/meta/roles
 router.get("/meta/roles", requireAuth, requirePermission(Permissions.ROLE_MANAGE), async (_req: Request, res: Response) => {

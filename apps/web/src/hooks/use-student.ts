@@ -141,7 +141,11 @@ export function useAdvisers() {
           name: adviser.name || `${adviser.firstName || ""} ${adviser.lastName || ""}`.trim() || adviser.email,
           initials: adviser.initials || `${adviser.firstName?.[0] || "F"}${adviser.lastName?.[0] || "A"}`.toUpperCase(),
           college: adviser.college?.name || adviser.college || "Faculty",
-          adviseeCount: adviser.adviseeCount || 0,
+          adviseeCount: adviser.adviseeCount ?? 0,
+          maxAdviseeGroups: adviser.maxAdviseeGroups ?? 5,
+          availableSlots: adviser.availableSlots ?? 0,
+          isAcceptingAdvisees: adviser.isAcceptingAdvisees ?? true,
+          isFull: adviser.isFull ?? false,
           avgResponseDays: adviser.avgResponseDays || "—",
           requestStatus: requests.requests.find((r: any) => r.adviserId === adviser.id && r.researchId === project?.id)?.status,
         });

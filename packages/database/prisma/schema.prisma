@@ -306,6 +306,11 @@ model User {
   collegeId    String?    @map("college_id") @db.Uuid
   programId    String?    @map("program_id") @db.Uuid
   status       UserStatus @default(PENDING)
+  maxAdviseeGroups       Int       @default(5) @map("max_advisee_groups")
+  isAcceptingAdvisees    Boolean   @default(true) @map("is_accepting_advisees")
+  adviserCapacityNote    String?   @map("adviser_capacity_note") @db.Text
+  adviserCapacitySetBy   String?   @map("adviser_capacity_set_by") @db.Uuid
+  adviserCapacitySetAt   DateTime? @map("adviser_capacity_set_at")
   lastLoginAt  DateTime?  @map("last_login_at")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
@@ -424,6 +429,8 @@ model ResearchProject {
   collegeId          String         @map("college_id") @db.Uuid
   academicYearId     String         @map("academic_year_id") @db.Uuid
   title              String         @db.Text
+  groupName          String?        @map("group_name") @db.VarChar(120)
+  inviteCode         String?        @unique @map("invite_code") @db.VarChar(32)
   abstract           String?        @db.Text
   status             ResearchStatus @default(DRAFT)
   workflowInstanceId String?        @unique @map("workflow_instance_id") @db.Uuid

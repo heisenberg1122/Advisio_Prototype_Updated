@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { countActiveAdviseeGroups } from "../lib/adviser-capacity.js";
 
 const router = Router();
 
@@ -62,6 +63,9 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
       where: { id: adviserId, roles: { some: { role: { name: "ADVISER" } } }, status: "ACTIVE" },
     });
     if (!adviser) return void res.status(404).json({ error: "Adviser is unavailable" });
+    const activeGroups = await countActiveAdviseeGroups(prisma, adviser.id);
+    if (!adviser.isAcceptingAdvisees) return void res.status(409).json({ error: "This adviser is not accepting new requests" });
+    if (activeGroups >= adviser.maxAdviseeGroups) return void res.status(409).json({ error: "This adviser has reached their maximum number of active groups" });
 
     if (requestFormDocumentId) {
       const requestForm = await prisma.document.findFirst({
@@ -110,6 +114,19 @@ router.patch("/:id/respond", requireAuth, async (req: Request, res: Response) =>
     const accepted = decision === "accept";
     const request = await prisma.$transaction(async (tx) => {
       if (accepted) {
+        const assignedAdviser = await tx.researchMember.findFirst({
+          where: { researchId: existing.researchId, projectRole: "ADVISER", leftAt: null, userId: { not: req.user!.id } },
+        });
+        if (assignedAdviser) throw new Error("GROUP_ALREADY_ASSIGNED");
+        const adviser = await tx.user.findUnique({ where: { id: req.user!.id }, select: { maxAdviseeGroups: true, isAcceptingAdvisees: true } });
+        if (!adviser?.isAcceptingAdvisees) throw new Error("ADVISER_NOT_ACCEPTING");
+        const existingMembership = await tx.researchMember.findUnique({
+          where: { researchId_userId_projectRole: { researchId: existing.researchId, userId: req.user!.id, projectRole: "ADVISER" } },
+        });
+        const activeGroups = await countActiveAdviseeGroups(tx, req.user!.id);
+        if (!existingMembership || existingMembership.leftAt) {
+          if (activeGroups >= adviser.maxAdviseeGroups) throw new Error("ADVISER_CAPACITY_REACHED");
+        }
         await tx.researchMember.upsert({
           where: { researchId_userId_projectRole: { researchId: existing.researchId, userId: req.user!.id, projectRole: "ADVISER" } },
           update: { leftAt: null },
@@ -136,9 +153,12 @@ router.patch("/:id/respond", requireAuth, async (req: Request, res: Response) =>
         },
       });
       return updated;
-    });
+    }, { isolationLevel: "Serializable" });
     res.json({ request });
   } catch (error: any) {
+    if (error.message === "ADVISER_NOT_ACCEPTING") return void res.status(409).json({ error: "You are not accepting new adviser requests" });
+    if (error.message === "ADVISER_CAPACITY_REACHED" || error.code === "P2034") return void res.status(409).json({ error: "Your adviser capacity was just reached. Refresh before accepting another group." });
+    if (error.message === "GROUP_ALREADY_ASSIGNED") return void res.status(409).json({ error: "This group already has an adviser" });
     res.status(500).json({ error: error.message || "Failed to respond to adviser request" });
   }
 });

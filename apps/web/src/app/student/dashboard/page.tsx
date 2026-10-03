@@ -66,7 +66,6 @@ function StudentDashboardContent() {
   const [createTitle, setCreateTitle] = useState("");
   const [createAbstract, setCreateAbstract] = useState("");
   const [isCreatingProject, setIsCreatingProject] = useState(false);
-  const [isDeletingProject, setIsDeletingProject] = useState(false);
 
   // Synchronized Floating Google Meet Conference Session State
   const initialSession = getStoredMeetingSession();
@@ -250,15 +249,20 @@ function StudentDashboardContent() {
   const projectStatusLabel = activeProject?.status
     ? activeProject.status.toLowerCase().replace(/_/g, " ").replace(/^\w/, (letter: string) => letter.toUpperCase())
     : "Not registered";
+  const activeStudentMembers = (activeProject?.members || []).filter((member: any) => !member.leftAt && ["LEADER", "MEMBER"].includes(member.projectRole));
+  const currentMembership = activeStudentMembers.find((member: any) => member.userId === user?.id || member.user?.id === user?.id);
+  const isGroupLeader = currentMembership?.projectRole === "LEADER";
 
   // State Data strictly from live API
   const [group, setGroup] = useState<any>(null);
 
   useEffect(() => {
     if (activeProject) {
+      setGroupNameInput(activeProject.groupName || "");
+      setInviteCode(activeProject.inviteCode || "");
       setGroup({
         id: activeProject.id,
-        name: activeProject.title?.length > 25 ? activeProject.title.substring(0, 25) + "..." : activeProject.title,
+        name: activeProject.groupName || (activeProject.title?.length > 25 ? activeProject.title.substring(0, 25) + "..." : activeProject.title),
         projectTitle: activeProject.title || "Untitled Research",
         members: activeProject.members?.map((m: any) => `${m.user.firstName} ${m.user.lastName}`) || [],
         status: activeProject.status?.toLowerCase() || "draft",
@@ -362,6 +366,10 @@ function StudentDashboardContent() {
   // Modals state
   const [modalCert, setModalCert] = useState(false);
   const [modalJoinConferencing, setModalJoinConferencing] = useState(false);
+  const [groupNameInput, setGroupNameInput] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [groupAction, setGroupAction] = useState<{ type: "transfer" | "leave" | "disband" | "remove" | "delete"; member?: any } | null>(null);
+  const [groupActionPending, setGroupActionPending] = useState(false);
 
   const [toast, setToast] = useState<string | null>(null);
   const triggerToast = (msg: string) => {
@@ -497,19 +505,49 @@ function StudentDashboardContent() {
     }
   };
 
-  const handleDeleteRejectedProject = async () => {
-    if (!activeProject || activeProject.status !== "REJECTED") return;
-    if (!window.confirm(`Delete the rejected project “${activeProject.title}”? This cannot be undone.`)) return;
+  const refreshGroup = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["student-research"] });
+  };
 
-    setIsDeletingProject(true);
+  const handleSaveGroupName = async () => {
+    if (!activeProject?.id) return;
     try {
-      await apiClient.delete(`/api/research/${activeProject.id}`);
-      await queryClient.invalidateQueries({ queryKey: ["student-research"] });
-      triggerToast("Rejected project deleted. You can now register a replacement project.");
-    } catch (err: any) {
-      triggerToast(err.message || "Failed to delete the rejected project.");
+      await apiClient.patch(`/api/research/${activeProject.id}/group-name`, { groupName: groupNameInput.trim() });
+      await refreshGroup();
+      triggerToast(groupNameInput.trim() ? "Group name updated." : "Optional group name removed.");
+    } catch (error: any) {
+      triggerToast(error?.message || "Group name could not be updated.");
+    }
+  };
+
+  const handleCreateInvite = async () => {
+    if (!activeProject?.id) return;
+    try {
+      const response = await apiClient.post<{ inviteCode: string }>(`/api/research/${activeProject.id}/invite-code`);
+      setInviteCode(response.inviteCode);
+      await refreshGroup();
+      triggerToast("A new group invitation is ready.");
+    } catch (error: any) {
+      triggerToast(error?.message || "Invitation could not be created.");
+    }
+  };
+
+  const executeGroupAction = async () => {
+    if (!groupAction || !activeProject?.id) return;
+    setGroupActionPending(true);
+    try {
+      if (groupAction.type === "transfer") await apiClient.post(`/api/research/${activeProject.id}/transfer-leadership`, { userId: groupAction.member.userId });
+      if (groupAction.type === "leave") await apiClient.post(`/api/research/${activeProject.id}/leave`);
+      if (groupAction.type === "disband") await apiClient.post(`/api/research/${activeProject.id}/disband`);
+      if (groupAction.type === "remove") await apiClient.delete(`/api/research/${activeProject.id}/members/${groupAction.member.id}`);
+      if (groupAction.type === "delete") await apiClient.delete(`/api/research/${activeProject.id}`);
+      setGroupAction(null);
+      await refreshGroup();
+      triggerToast(groupAction.type === "transfer" ? "Leadership transferred." : groupAction.type === "leave" ? "You left the research group." : groupAction.type === "disband" ? "The group was disbanded and archived." : groupAction.type === "delete" ? "Rejected project deleted. You can now create a replacement." : "Member removed from the active group.");
+    } catch (error: any) {
+      triggerToast(error?.message || "The group action could not be completed.");
     } finally {
-      setIsDeletingProject(false);
+      setGroupActionPending(false);
     }
   };
 
@@ -1066,6 +1104,8 @@ function StudentDashboardContent() {
         </div>
       )}
 
+      {groupAction && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="group-action-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !groupActionPending) setGroupAction(null); }}><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-start gap-3"><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${groupAction.type === "transfer" ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-600"}`}><i className={`ti ${groupAction.type === "transfer" ? "ti-user-star" : "ti-alert-triangle"} text-xl`} /></span><div><h2 id="group-action-title" className="text-lg font-extrabold text-[#102f49]">{groupAction.type === "transfer" ? "Transfer group leadership?" : groupAction.type === "leave" ? "Leave this research group?" : groupAction.type === "disband" ? "Disband and archive this group?" : groupAction.type === "delete" ? "Permanently delete rejected project?" : "Remove this member?"}</h2><p className="mt-2 text-sm leading-6 text-slate-600">{groupAction.type === "transfer" ? `${groupAction.member?.user?.firstName} ${groupAction.member?.user?.lastName} will become the group leader. You will remain as a member.` : groupAction.type === "leave" ? "You will lose access to the group, but your previous submissions and activity attribution will remain." : groupAction.type === "disband" ? "All active memberships will end and the project will be archived. Academic records and submissions will be preserved." : groupAction.type === "delete" ? `The rejected project “${activeProject?.title}” will be permanently deleted. You can register a replacement afterward.` : `${groupAction.member?.user?.firstName} ${groupAction.member?.user?.lastName} will lose group access. Their previous contributions will remain attributed to them.`}</p></div></div><div className="mt-6 flex justify-end gap-2"><button onClick={() => setGroupAction(null)} disabled={groupActionPending} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button><button onClick={executeGroupAction} disabled={groupActionPending} className={`rounded-xl px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50 ${groupAction.type === "transfer" ? "bg-[#173f63]" : "bg-rose-600"}`}>{groupActionPending ? "Processing…" : groupAction.type === "transfer" ? "Confirm transfer" : groupAction.type === "leave" ? "Confirm leave" : groupAction.type === "disband" ? "Confirm disband" : groupAction.type === "delete" ? "Delete project" : "Confirm removal"}</button></div></div></div>}
+
       <ProductTour
         tourKey="student_onboarding_v1"
         steps={STUDENT_TOUR_STEPS}
@@ -1121,8 +1161,8 @@ function StudentDashboardContent() {
                       </button>
                     ) : activeProject.status === "REJECTED" ? (
                       <div className="mt-5 flex flex-wrap items-center gap-3">
-                        <button onClick={handleDeleteRejectedProject} disabled={isDeletingProject} className="inline-flex h-12 items-center gap-3 rounded-xl bg-rose-600 px-6 text-[14px] font-extrabold text-white shadow-sm transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60">
-                          <i className="ti ti-trash text-lg" /> {isDeletingProject ? "Deleting…" : "Delete Rejected Project"}
+                        <button onClick={() => setGroupAction({ type: "delete" })} className="inline-flex h-12 items-center gap-3 rounded-xl bg-rose-600 px-6 text-[14px] font-extrabold text-white shadow-sm transition hover:bg-rose-700">
+                          <i className="ti ti-trash text-lg" /> Delete Rejected Project
                         </button>
                         <span className="max-w-sm text-xs font-medium text-rose-600">Delete this rejected record before registering a replacement.</span>
                       </div>
@@ -1490,16 +1530,12 @@ function StudentDashboardContent() {
               </div>
             ),
             group: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Research Group Management</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Organize peer study divisions, invitation codes, and collaborative assignments.</p>
-                {group ? (
-                  <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl text-[12.5px] mt-2 flex flex-col gap-2 shadow-sm">
-                    <div className="font-bold text-[#1b4264]">Group Identifier: {group.name}</div>
-                    <div><strong>Active Title:</strong> {group.projectTitle}</div>
-                    <div><strong>Group Members:</strong> {group.members?.join(", ") || `${user?.firstName} ${user?.lastName}`}</div>
-                  </div>
-                ) : (
+              <div className="flex flex-col gap-5">
+                <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex flex-col gap-1"><h3 className="text-[16px] font-extrabold text-[#1b4264]">Research Group Management</h3><p className="text-[11px] font-bold text-slate-400">Work solo or invite researchers while preserving the official project record.</p></div>
+                {group && activeProject ? <div className="mt-5 space-y-5"><div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-bold text-slate-500">Official research title</p><p className="mt-1 font-extrabold text-[#102f49]">{activeProject.title}</p></div><div><label className="text-xs font-extrabold text-slate-600">Optional group name</label><div className="mt-1.5 flex gap-2"><input value={groupNameInput} onChange={(event) => setGroupNameInput(event.target.value)} disabled={!isGroupLeader} maxLength={120} placeholder="e.g. Team Innovators" className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm disabled:bg-slate-100" />{isGroupLeader && <button onClick={handleSaveGroupName} className="rounded-xl bg-[#173f63] px-4 text-sm font-extrabold text-white">Save</button>}</div><p className="mt-1 text-[10px] text-slate-400">This label does not change the official research title.</p></div>
+                  <div><div className="flex items-center justify-between"><h4 className="font-extrabold text-[#102f49]">Active members</h4><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div><div className="mt-3 space-y-2">{activeStudentMembers.map((member: any) => <div key={member.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{(member.userId === user?.id || member.user?.id === user?.id) ? " (You)" : ""}</p><p className="text-xs text-slate-500">{member.user.email} · {member.projectRole === "LEADER" ? "Group Leader" : "Member"}</p></div>{isGroupLeader && member.projectRole === "MEMBER" && <div className="flex gap-2"><button onClick={() => setGroupAction({ type: "transfer", member })} className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-700">Transfer leadership</button><button onClick={() => setGroupAction({ type: "remove", member })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-600">Remove</button></div>}</div>)}</div></div>
+                  {isGroupLeader && <div className="rounded-xl border border-blue-100 bg-blue-50 p-4"><h4 className="font-extrabold text-[#102f49]">Invite researchers</h4><p className="mt-1 text-xs text-slate-600">Your project can remain solo. Generate an invitation only when you want members to join.</p>{inviteCode ? <div className="mt-3 space-y-2"><div className="rounded-lg bg-white p-3 font-mono text-sm font-bold text-[#173f63]">Code: {inviteCode}</div><div className="flex flex-wrap gap-2"><button onClick={() => navigator.clipboard.writeText(inviteCode).then(() => triggerToast("Invite code copied."))} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-700"><i className="ti ti-copy mr-1" />Copy code</button><button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join-group?code=${inviteCode}`).then(() => triggerToast("Shareable link copied."))} className="rounded-lg bg-[#173f63] px-3 py-2 text-xs font-extrabold text-white"><i className="ti ti-link mr-1" />Copy shareable link</button><button onClick={handleCreateInvite} className="rounded-lg px-3 py-2 text-xs font-bold text-slate-600">Rotate code</button></div></div> : <button onClick={handleCreateInvite} className="mt-3 rounded-xl bg-[#173f63] px-4 py-2.5 text-xs font-extrabold text-white"><i className="ti ti-user-plus mr-1" />Create invitation</button>}</div>}
+                </div> : (
                   <div className="bg-slate-50 p-6 border border-slate-200 rounded-xl text-center flex flex-col items-center gap-3">
                     <p className="text-slate-500 text-xs">You do not have a research group registered yet.</p>
                     <button
@@ -1509,7 +1545,8 @@ function StudentDashboardContent() {
                       Register Research Study
                     </button>
                   </div>
-                )}
+                )}</section>
+                {activeProject && <section className="rounded-xl border border-rose-200 bg-white p-6 shadow-sm"><h3 className="font-extrabold text-rose-700">Project management</h3><p className="mt-1 text-xs text-slate-500">These actions require a final confirmation and preserve historical submissions.</p><div className="mt-4 flex flex-wrap gap-2">{!isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-xs font-bold text-amber-700">Leave group</button>}{isGroupLeader && <button onClick={() => setGroupAction({ type: "disband" })} className="rounded-xl border border-rose-300 px-4 py-2 text-xs font-bold text-rose-700">Disband group</button>}{activeProject.status === "REJECTED" && isGroupLeader && <button onClick={() => setGroupAction({ type: "delete" })} className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-extrabold text-white">Delete rejected project</button>}</div>{activeProject.status === "REJECTED" && <p className="mt-3 text-xs text-rose-600">Deleting this rejected project allows you to register a replacement.</p>}</section>}
               </div>
             ),
             "adviser-credentials": (

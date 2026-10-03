@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { ACTIVE_ADVISEE_STATUSES, capacitySummary } from "../lib/adviser-capacity.js";
 
 const router = Router();
 const DEAN_ROLES = new Set(["RPO", "SYSTEM_ADMIN", "VPAA"]);
@@ -36,7 +37,7 @@ router.get("/dean/dashboard", requireAuth, requireDean, async (req: Request, res
       ? req.query.academicYearId
       : undefined;
 
-    const [college, programs, academicYears, users, projects] = await Promise.all([
+    const [college, programs, academicYears, users, projects, adviserUsers] = await Promise.all([
       prisma.college.findUnique({ where: { id: collegeId }, select: { id: true, code: true, name: true } }),
       prisma.program.findMany({ where: { collegeId, isActive: true }, orderBy: { name: "asc" } }),
       prisma.academicYear.findMany({ where: { isActive: true }, orderBy: { startDate: "desc" } }),
@@ -59,6 +60,20 @@ router.get("/dean/dashboard", requireAuth, requireDean, async (req: Request, res
           workflowInstance: { include: { currentStage: true, workflow: { include: { stages: { orderBy: { sequence: "asc" } } } } } },
         },
         orderBy: { updatedAt: "desc" },
+      }),
+      prisma.user.findMany({
+        where: { collegeId, status: "ACTIVE", roles: { some: { role: { name: "ADVISER" } } } },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          maxAdviseeGroups: true,
+          isAcceptingAdvisees: true,
+          adviserCapacityNote: true,
+          _count: { select: { memberships: { where: { projectRole: "ADVISER", leftAt: null, research: { status: { in: ACTIVE_ADVISEE_STATUSES } } } } } },
+        },
+        orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       }),
     ]);
 
@@ -114,15 +129,18 @@ router.get("/dean/dashboard", requireAuth, requireDean, async (req: Request, res
       };
     });
 
-    const adviserMap = new Map<string, { id: string; name: string; email: string; groups: number; attention: number }>();
-    for (const project of projects) {
-      for (const member of project.members.filter((item) => item.projectRole === "ADVISER")) {
-        const current = adviserMap.get(member.user.id) || { id: member.user.id, name: `${member.user.firstName} ${member.user.lastName}`, email: member.user.email, groups: 0, attention: 0 };
-        current.groups += 1;
-        if (projectRows.find((item) => item.id === project.id)?.risk !== "low") current.attention += 1;
-        adviserMap.set(member.user.id, current);
-      }
-    }
+    const advisers = adviserUsers.map(({ _count, ...adviser }) => {
+      const attention = projects.filter((project) => project.members.some((member) => member.projectRole === "ADVISER" && member.user.id === adviser.id) && projectRows.find((item) => item.id === project.id)?.risk !== "low").length;
+      return {
+        id: adviser.id,
+        name: `${adviser.firstName} ${adviser.lastName}`,
+        email: adviser.email,
+        groups: _count.memberships,
+        attention,
+        capacityNote: adviser.adviserCapacityNote,
+        ...capacitySummary(adviser, _count.memberships),
+      };
+    });
 
     const stageCounts = new Map<string, number>();
     for (const project of projectRows) stageCounts.set(project.stage, (stageCounts.get(project.stage) || 0) + 1);
@@ -155,7 +173,7 @@ router.get("/dean/dashboard", requireAuth, requireDean, async (req: Request, res
       attention: projectRows.filter((project) => project.risk !== "low").slice(0, 8),
       students: studentRows,
       projects: projectRows,
-      advisers: Array.from(adviserMap.values()).sort((a, b) => b.groups - a.groups),
+      advisers: advisers.sort((a, b) => b.groups - a.groups),
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to load dean dashboard" });
