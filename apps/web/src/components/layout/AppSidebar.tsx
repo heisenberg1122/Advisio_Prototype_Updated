@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, LogOut, Menu, Settings, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut, Settings, X } from "lucide-react";
 import { NavItem, NavItemProps } from "./NavItem";
 import { useAuth } from "@/hooks/use-auth";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
@@ -114,10 +114,14 @@ export function AppSidebar({
               type="button"
               onClick={onToggleCollapse}
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-600 transition-colors hover:bg-slate-200/70 hover:text-[#0B3A53] lg:flex dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-200/70 hover:text-[#0B3A53] lg:flex dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
-              <Menu className="h-5 w-5" />
+              {collapsed ? (
+                <ChevronRight className="h-5 w-5 stroke-[2.25]" />
+              ) : (
+                <ChevronLeft className="h-5 w-5 stroke-[2.25]" />
+              )}
             </button>
           )}
 
@@ -148,13 +152,16 @@ export function AppSidebar({
         {/* Navigation Body */}
         <nav
           className={cn(
-            "flex-1 overflow-y-auto overflow-x-hidden space-y-4",
+            "flex w-full flex-1 flex-col overflow-y-auto overflow-x-hidden space-y-4",
             isWorkspace ? "px-2 py-2.5" : "px-1 py-3"
           )}
           aria-label="Sidebar Navigation"
         >
           {sections.map((section, sIndex) => (
-            <div key={section.title || sIndex} className="space-y-1.5">
+            <div
+              key={section.title || sIndex}
+              className={cn("space-y-1.5", isVisuallyCollapsed && "flex w-full flex-col items-center")}
+            >
               {section.title && !isVisuallyCollapsed && (
                 <div className="px-5 pb-1 pt-2 text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
                   {section.title}
@@ -175,7 +182,8 @@ export function AppSidebar({
 
         {/* Bottom Utility Footer */}
         <div className={cn(
-          "shrink-0 space-y-1.5 p-3",
+          "w-full shrink-0 space-y-1.5 p-3",
+          isVisuallyCollapsed && "flex flex-col items-center",
           isWorkspace ? "border-0" : "border-t border-slate-200 dark:border-white/10"
         )}>
           {/* Settings Link */}
@@ -185,7 +193,7 @@ export function AppSidebar({
             title={isVisuallyCollapsed ? "Settings" : undefined}
             className={cn(
               "flex h-11 items-center rounded-xl text-slate-600 transition-all select-none outline-none hover:bg-slate-100 hover:text-[#0B3A53] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white",
-              isVisuallyCollapsed ? "justify-center px-0 w-11 h-11 mx-auto" : "gap-3.5 px-3.5 mx-1 text-[15px] font-medium"
+              isVisuallyCollapsed ? "h-11 w-11 shrink-0 justify-center p-0" : "gap-3.5 px-3.5 mx-1 text-[15px] font-medium"
             )}
           >
             <Settings className="h-5 w-5 shrink-0" />
@@ -201,7 +209,7 @@ export function AppSidebar({
             title={isVisuallyCollapsed ? "Sign Out" : undefined}
             className={cn(
               "flex h-11 w-full cursor-pointer items-center rounded-xl text-rose-600 transition-all select-none outline-none hover:bg-rose-50 hover:text-rose-700 dark:text-rose-300 dark:hover:bg-rose-500/10 dark:hover:text-rose-200",
-              isVisuallyCollapsed ? "justify-center px-0 w-11 h-11 mx-auto" : "gap-3.5 px-3.5 mx-1 text-[15px] font-medium"
+              isVisuallyCollapsed ? "h-11 w-11 shrink-0 justify-center p-0" : "gap-3.5 px-3.5 mx-1 text-[15px] font-medium"
             )}
             aria-label="Sign Out"
           >

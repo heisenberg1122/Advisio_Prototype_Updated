@@ -7,6 +7,7 @@ import { Tag } from "@/components/ui/Tag";
 import { calculateWorkflowProgress } from "@/lib/workflow-progress";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import { useAuth } from "@/providers/auth-provider";
+import { SubmissionDocumentPreview } from "@/components/professor/SubmissionDocumentPreview";
 
 function ProfessorDashboardContent() {
   const searchParams = useSearchParams();
@@ -347,11 +348,19 @@ function ProfessorDashboardContent() {
 
   const handleDeleteTask = async (id: string) => {
     try {
-      await apiClient.delete(`/api/workflows/stages/${id}`);
+      const result = await apiClient.delete<{
+        archived?: boolean;
+        preservedSubmissions?: number;
+        reassignedGroups?: number;
+      }>(`/api/workflows/stages/${id}`);
       await refetchWorkflows();
       setMilestonePendingDelete(null);
       setEditingMilestone(null);
-      triggerToast("Milestone deleted.");
+      triggerToast(
+        result.archived
+          ? `Milestone removed from the active workflow. ${result.preservedSubmissions || 0} submission record(s) were safely preserved.`
+          : "Milestone deleted.",
+      );
     } catch (error: any) {
       triggerToast(error?.message || "Milestone could not be deleted.");
     }
@@ -976,9 +985,10 @@ function ProfessorDashboardContent() {
               id="delete-milestone-description"
               className="mt-2 text-sm leading-6 text-slate-600"
             >
-              This permanently removes the milestone and its submission
-              requirements. Milestones with existing student submissions cannot
-              be deleted.
+              If this milestone is unused, it will be permanently deleted. If
+              groups or submission history already depend on it, the milestone
+              will be removed from the active workflow and its academic records
+              will be safely preserved.
             </p>
             <div className="mt-6 flex justify-end gap-2">
               <button
@@ -994,7 +1004,7 @@ function ProfessorDashboardContent() {
                 className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white"
               >
                 <i className="ti ti-trash mr-1.5" />
-                Yes, delete permanently
+                Remove milestone
               </button>
             </div>
           </div>
@@ -1402,7 +1412,8 @@ function ProfessorDashboardContent() {
                         onClick={() => handleTabChange("monitoring")}
                         className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur-xs transition hover:bg-white/20"
                       >
-                        <i className="ti ti-folders text-base" /> Monitor Groups ({projects.length})
+                        <i className="ti ti-folders text-base" /> Monitor Groups
+                        ({projects.length})
                       </button>
                       <button
                         onClick={() => handleTabChange("submissions")}
@@ -1509,7 +1520,9 @@ function ProfessorDashboardContent() {
                       onClick={() => handleTabChange(item.tab)}
                       className="group flex min-h-[96px] items-center gap-4 rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-4 sm:p-5 text-left shadow-xs transition hover:shadow-md hover:border-[#0B3A53]/40 hover:-translate-y-0.5 outline-none"
                     >
-                      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl ${item.tone}`}>
+                      <span
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl ${item.tone}`}
+                      >
                         <i className={`ti ${item.icon}`} />
                       </span>
                       <span className="min-w-0 flex-1">
@@ -1517,7 +1530,10 @@ function ProfessorDashboardContent() {
                           {item.label}
                         </span>
                         <span className="mt-0.5 block text-2xl font-black text-[#0B3A53] dark:text-white truncate">
-                          {item.value} <small className="text-xs font-semibold text-slate-400">· {item.suffix}</small>
+                          {item.value}{" "}
+                          <small className="text-xs font-semibold text-slate-400">
+                            · {item.suffix}
+                          </small>
                         </span>
                       </span>
                     </button>
@@ -1533,7 +1549,8 @@ function ProfessorDashboardContent() {
                           Research Monitoring Overview
                         </h3>
                         <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                          Live monitoring stream of active student research groups.
+                          Live monitoring stream of active student research
+                          groups.
                         </p>
                       </div>
                       <button
@@ -2646,49 +2663,14 @@ function ProfessorDashboardContent() {
                       </span>
                     </div>
                     <div className="p-6">
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex min-w-0 gap-3">
-                            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-[#173f63] shadow-sm">
-                              <i className="ti ti-file-text text-2xl" />
-                            </span>
-                            <div className="min-w-0">
-                              <p className="truncate font-extrabold text-[#102f49]">
-                                {selectedSubmission.document?.versions?.[0]
-                                  ?.fileName ||
-                                  selectedSubmission.document?.title}
-                              </p>
-                              <p className="mt-1 text-xs text-slate-500">
-                                Version{" "}
-                                {selectedSubmission.document?.versions?.[0]
-                                  ?.versionNumber ||
-                                  selectedSubmission.document?.currentVersion ||
-                                  1}
-                                {selectedSubmission.document?.versions?.[0]
-                                  ?.mimeType
-                                  ? ` · ${selectedSubmission.document.versions[0].mimeType}`
-                                  : ""}
-                              </p>
-                            </div>
-                          </div>
-                          {selectedSubmission.document?.versions?.[0]
-                            ?.googleDriveFileId ? (
-                            <a
-                              href={`/api/documents/files/${selectedSubmission.document.versions[0].googleDriveFileId}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="shrink-0 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"
-                            >
-                              <i className="ti ti-external-link mr-1.5" />
-                              Open document
-                            </a>
-                          ) : (
-                            <span className="shrink-0 rounded-xl bg-slate-200 px-3 py-2 text-xs font-bold text-slate-500">
-                              Preview unavailable
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                      <SubmissionDocumentPreview
+                        versions={selectedSubmission.document?.versions || []}
+                        title={
+                          selectedSubmission.document?.title ||
+                          selectedSubmission.task?.title ||
+                          "Submitted document"
+                        }
+                      />
                       <div className="mt-5 grid gap-4 sm:grid-cols-2">
                         <div className="rounded-xl border border-slate-200 p-4">
                           <p className="text-xs font-bold uppercase tracking-wide text-slate-400">

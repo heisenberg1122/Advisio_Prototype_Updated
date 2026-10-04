@@ -11,6 +11,7 @@ import {
   Users,
   Building2,
   Shield,
+  CloudCog,
 } from "lucide-react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
@@ -18,14 +19,60 @@ import { AppWorkspaceFrame } from "@/components/layout/AppWorkspaceFrame";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 
 const NAV_ITEMS = [
-  { label: "Overview", href: "/system-admin/dashboard", tabName: "overview", icon: LayoutDashboard },
-  { label: "Announcements", href: "/system-admin/dashboard?tab=announcements", tabName: "announcements", icon: Megaphone },
-  { label: "Users", href: "/system-admin/dashboard?tab=users", tabName: "users", icon: Users },
-  { label: "College & Programs", href: "/system-admin/dashboard?tab=onboarding", tabName: "onboarding", icon: Building2 },
-  { label: "Role Permissions", href: "/system-admin/dashboard?tab=roles", tabName: "roles", icon: Shield },
-  { label: "System Configuration", href: "/system-admin/dashboard?tab=config", tabName: "config", icon: Wrench },
-  { label: "Audit Logs", href: "/system-admin/dashboard?tab=logs", tabName: "logs", icon: FileText },
-  { label: "Database Backups", href: "/system-admin/dashboard?tab=backups", tabName: "backups", icon: Database },
+  {
+    label: "Overview",
+    href: "/system-admin/dashboard",
+    tabName: "overview",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "Announcements",
+    href: "/system-admin/dashboard?tab=announcements",
+    tabName: "announcements",
+    icon: Megaphone,
+  },
+  {
+    label: "Users",
+    href: "/system-admin/dashboard?tab=users",
+    tabName: "users",
+    icon: Users,
+  },
+  {
+    label: "College & Programs",
+    href: "/system-admin/dashboard?tab=onboarding",
+    tabName: "onboarding",
+    icon: Building2,
+  },
+  {
+    label: "Role Permissions",
+    href: "/system-admin/dashboard?tab=roles",
+    tabName: "roles",
+    icon: Shield,
+  },
+  {
+    label: "System Configuration",
+    href: "/system-admin/dashboard?tab=config",
+    tabName: "config",
+    icon: Wrench,
+  },
+  {
+    label: "Integrations",
+    href: "/system-admin/dashboard?tab=integrations",
+    tabName: "integrations",
+    icon: CloudCog,
+  },
+  {
+    label: "Audit Logs",
+    href: "/system-admin/dashboard?tab=logs",
+    tabName: "logs",
+    icon: FileText,
+  },
+  {
+    label: "Database Backups",
+    href: "/system-admin/dashboard?tab=backups",
+    tabName: "backups",
+    icon: Database,
+  },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -35,6 +82,7 @@ const PAGE_TITLES: Record<string, string> = {
   onboarding: "College & Department Onboarding",
   roles: "Global Role Permission Matrix",
   config: "System Parameter Configuration",
+  integrations: "Platform Integrations",
   logs: "System Audit Logs",
   backups: "Backup & Restore Management",
   settings: "Portal Settings",
@@ -86,9 +134,15 @@ function SystemAdminLayoutInner({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function SystemAdminLayout({ children }: { children: React.ReactNode }) {
+export default function SystemAdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F4F6F8] dark:bg-[#080E18]" />}>
+    <Suspense
+      fallback={<div className="min-h-screen bg-[#F4F6F8] dark:bg-[#080E18]" />}
+    >
       <SystemAdminLayoutInner>{children}</SystemAdminLayoutInner>
     </Suspense>
   );

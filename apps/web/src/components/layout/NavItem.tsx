@@ -66,7 +66,7 @@ export function NavItem({
       className={cn(
         "group relative flex items-center transition-all duration-150 select-none outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0",
         appearance === "workspace" ? "h-12 rounded-xl text-[15px]" : "h-11 rounded-xl text-[15px]",
-        collapsed ? "justify-center px-0 w-11 h-11 mx-auto" : "gap-3.5 px-3.5 mx-2 font-medium",
+        collapsed ? "h-11 w-11 shrink-0 justify-center p-0" : "gap-3.5 px-3.5 mx-2 font-medium",
         isItemActive
           ? appearance === "workspace"
             ? "bg-[#DDEBF1] text-[#0B3A53] font-bold shadow-none dark:bg-[#38bdf8]/15 dark:text-[#38bdf8]"

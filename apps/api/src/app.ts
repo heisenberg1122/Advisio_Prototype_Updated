@@ -21,6 +21,7 @@ import adviserRequestRoutes from "./routes/adviser-request.routes";
 import chatRoutes from "./routes/chat.routes";
 import realtimeRoutes from "./routes/realtime.routes";
 import liveDefenseRoutes from "./routes/live-defense.routes";
+import integrationRoutes from "./routes/integration.routes";
 import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
@@ -52,7 +53,7 @@ app.use(
       return callback(null, true);
     },
     credentials: true,
-  })
+  }),
 );
 app.use(morgan("dev"));
 app.use(express.json());
@@ -75,6 +76,7 @@ app.use("/api/adviser-requests", adviserRequestRoutes);
 app.use("/api/chats", chatRoutes);
 app.use("/api/realtime", realtimeRoutes);
 app.use("/api", liveDefenseRoutes);
+app.use("/api", integrationRoutes);
 
 // Root fallback
 app.get("/", (_req, res) => {

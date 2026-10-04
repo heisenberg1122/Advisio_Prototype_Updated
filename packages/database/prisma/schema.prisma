@@ -247,6 +247,15 @@ enum TaskSubmissionStatus {
   REJECTED
 }
 
+enum IntegrationStatus {
+  DISCONNECTED
+  HEALTHY
+  DEGRADED
+  ACTION_REQUIRED
+  FOLDER_INACCESSIBLE
+  MISCONFIGURED
+}
+
 // ─────────────────────────────────────────────────────────────
 // ORGANIZATION MODEL
 // ─────────────────────────────────────────────────────────────
@@ -1063,6 +1072,53 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// Institution-level connections to external storage providers. Secrets are
+// encrypted by the API before they are persisted.
+model StorageIntegration {
+  id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider              String            @unique @db.VarChar(40)
+  authenticationType    String            @default("OAUTH") @map("authentication_type") @db.VarChar(30)
+  status                IntegrationStatus @default(DISCONNECTED)
+  accountEmail          String?           @map("account_email") @db.VarChar(255)
+  accountDisplayName    String?           @map("account_display_name") @db.VarChar(255)
+  accountPhotoUrl       String?           @map("account_photo_url") @db.Text
+  encryptedRefreshToken String?           @map("encrypted_refresh_token") @db.Text
+  rootFolderId          String?           @map("root_folder_id") @db.VarChar(255)
+  rootFolderName        String?           @map("root_folder_name") @db.VarChar(255)
+  sharedDriveId         String?           @map("shared_drive_id") @db.VarChar(255)
+  connectedBy           String?           @map("connected_by") @db.Uuid
+  connectedAt           DateTime?         @map("connected_at")
+  lastCheckedAt         DateTime?         @map("last_checked_at")
+  lastHealthyAt         DateTime?         @map("last_healthy_at")
+  lastErrorCode         String?           @map("last_error_code") @db.VarChar(80)
+  lastErrorMessage      String?           @map("last_error_message") @db.Text
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("storage_integrations")
+}
+
+// Stable mapping between Advisio's academic structure and provider folders.
+// The application uses folder IDs for routing; names remain human-readable only.
+model StorageFolder {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider         String   @db.VarChar(40)
+  pathKey          String   @map("path_key") @db.VarChar(1000)
+  externalFolderId String   @map("external_folder_id") @db.VarChar(255)
+  parentFolderId   String?  @map("parent_folder_id") @db.VarChar(255)
+  name             String   @db.VarChar(255)
+  entityType       String?  @map("entity_type") @db.VarChar(50)
+  entityId         String?  @map("entity_id") @db.VarChar(255)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([provider, pathKey])
+  @@unique([provider, externalFolderId])
+  @@index([entityType, entityId])
+  @@map("storage_folders")
 }
 
 // ─────────────────────────────────────────────────────────────

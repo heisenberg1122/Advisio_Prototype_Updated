@@ -1,6 +1,8 @@
 import { prisma } from "../lib/prisma.js";
 import { googleDriveService } from "./google-drive.service.js";
 import { supabaseStorageService } from "./supabase-storage.service.js";
+import { storageHierarchyService } from "./storage-hierarchy.service.js";
+import crypto from "node:crypto";
 
 export interface CreateDocumentPayload {
   researchId: string;
@@ -22,14 +24,16 @@ export interface CreateVersionPayload {
 
 class DocumentService {
   /**
-   * Uploads file to Supabase Storage (or Google Drive fallback) and persists Document + DocumentVersion (v1)
+   * Uploads a file to the explicitly configured storage provider and persists Document + DocumentVersion (v1).
    */
   public async createDocumentWithVersion(payload: CreateDocumentPayload) {
-    // 1. Try Supabase Cloud Storage first
+    // Google Drive is the institution-level default. Supabase remains an explicit legacy option.
     let storageResult: any = null;
-    let provider = "SUPABASE";
+    let provider = (
+      process.env.STORAGE_PROVIDER || "GOOGLE_DRIVE"
+    ).toUpperCase();
 
-    if (supabaseStorageService.isConfigured()) {
+    if (provider === "SUPABASE" && supabaseStorageService.isConfigured()) {
       storageResult = await supabaseStorageService.uploadFile({
         fileName: payload.fileName,
         mimeType: payload.mimeType,
@@ -38,16 +42,39 @@ class DocumentService {
       });
     }
 
-    // Fallback to Google Drive or local storage
-    if (!storageResult) {
+    if (provider === "GOOGLE_DRIVE") {
       provider = "GOOGLE_DRIVE";
+      const taskId = payload.documentType.startsWith("TASK_")
+        ? payload.documentType.slice(5)
+        : null;
+      const destinationFolderId = await storageHierarchyService.resolveFolder({
+        researchId: payload.researchId,
+        bucket: taskId ? "SUBMISSIONS" : "WORKING",
+        taskId,
+      });
       storageResult = await googleDriveService.uploadFile({
         fileName: payload.fileName,
         mimeType: payload.mimeType,
         buffer: payload.fileBuffer,
-        description: `Manuscript for ${payload.title}`,
+        folderId: destinationFolderId,
+        description: `Advisio working document: ${payload.title}`,
+        appProperties: {
+          advisioManaged: "true",
+          advisioResearchId: payload.researchId,
+          advisioUploaderId: payload.uploadedBy,
+          advisioLifecycle: taskId ? "SUBMITTED" : "WORKING",
+          ...(taskId ? { advisioTaskId: taskId } : {}),
+          advisioChecksum: crypto
+            .createHash("sha256")
+            .update(payload.fileBuffer)
+            .digest("hex"),
+        },
       });
     }
+    if (!storageResult)
+      throw new Error(
+        `The configured storage provider (${provider}) is unavailable.`,
+      );
 
     // 2. Transactionally save Document and DocumentVersion in Prisma PostgreSQL
     return await prisma.$transaction(async (tx) => {
@@ -71,7 +98,8 @@ class DocumentService {
           mimeType: storageResult.mimeType,
           fileSize: BigInt(storageResult.sizeBytes),
           storagePath: storageResult.webViewLink || storageResult.storagePath,
-          googleDriveFileId: provider === "GOOGLE_DRIVE" ? storageResult.fileId : null,
+          googleDriveFileId:
+            provider === "GOOGLE_DRIVE" ? storageResult.fileId : null,
           uploadedBy: payload.uploadedBy,
           status: "ACTIVE",
         },
@@ -90,7 +118,7 @@ class DocumentService {
   }
 
   /**
-   * Uploads a new version of an existing document to Supabase (or Google Drive) and persists v2+ in PostgreSQL
+   * Uploads a new version to the configured provider and persists v2+ in PostgreSQL.
    */
   public async addDocumentVersion(payload: CreateVersionPayload) {
     // 1. Fetch current latest version number
@@ -110,11 +138,13 @@ class DocumentService {
 
     const nextVersionNumber = (existingDoc.versions[0]?.versionNumber || 0) + 1;
 
-    // 2. Try Supabase Storage first
+    // 2. Use the explicitly configured provider.
     let storageResult: any = null;
-    let provider = "SUPABASE";
+    let provider = (
+      process.env.STORAGE_PROVIDER || "GOOGLE_DRIVE"
+    ).toUpperCase();
 
-    if (supabaseStorageService.isConfigured()) {
+    if (provider === "SUPABASE" && supabaseStorageService.isConfigured()) {
       storageResult = await supabaseStorageService.uploadFile({
         fileName: payload.fileName,
         mimeType: payload.mimeType,
@@ -123,16 +153,50 @@ class DocumentService {
       });
     }
 
-    // Fallback to Google Drive or local storage
-    if (!storageResult) {
+    if (provider === "GOOGLE_DRIVE") {
       provider = "GOOGLE_DRIVE";
+      const taskSubmission = await prisma.taskSubmission.findFirst({
+        where: { documentId: existingDoc.id },
+        orderBy: { updatedAt: "desc" },
+        select: { taskId: true, status: true },
+      });
+      const destinationFolderId = await storageHierarchyService.resolveFolder({
+        researchId: existingDoc.researchId,
+        bucket: taskSubmission ? "SUBMISSIONS" : "WORKING",
+        taskId: taskSubmission?.taskId,
+      });
       storageResult = await googleDriveService.uploadFile({
         fileName: payload.fileName,
         mimeType: payload.mimeType,
         buffer: payload.fileBuffer,
-        description: `Version ${nextVersionNumber} for ${existingDoc.title}`,
+        folderId: destinationFolderId,
+        description: `Advisio version ${nextVersionNumber}: ${existingDoc.title}`,
+        appProperties: {
+          advisioManaged: "true",
+          advisioResearchId: existingDoc.researchId,
+          advisioDocumentId: existingDoc.id,
+          advisioUploaderId: payload.uploadedBy,
+          advisioVersion: String(nextVersionNumber),
+          advisioLifecycle:
+            taskSubmission?.status === "REVISION_REQUIRED"
+              ? "RESUBMITTED"
+              : taskSubmission
+                ? "SUBMITTED"
+                : "WORKING",
+          ...(taskSubmission?.taskId
+            ? { advisioTaskId: taskSubmission.taskId }
+            : {}),
+          advisioChecksum: crypto
+            .createHash("sha256")
+            .update(payload.fileBuffer)
+            .digest("hex"),
+        },
       });
     }
+    if (!storageResult)
+      throw new Error(
+        `The configured storage provider (${provider}) is unavailable.`,
+      );
 
     // 3. Mark previous versions as SUPERSEDED and create new version in PostgreSQL
     return await prisma.$transaction(async (tx) => {
@@ -154,7 +218,8 @@ class DocumentService {
           mimeType: storageResult.mimeType,
           fileSize: BigInt(storageResult.sizeBytes),
           storagePath: storageResult.webViewLink || storageResult.storagePath,
-          googleDriveFileId: provider === "GOOGLE_DRIVE" ? storageResult.fileId : null,
+          googleDriveFileId:
+            provider === "GOOGLE_DRIVE" ? storageResult.fileId : null,
           uploadedBy: payload.uploadedBy,
           status: "ACTIVE",
         },
@@ -192,7 +257,12 @@ class DocumentService {
             reviews: {
               include: {
                 reviewer: {
-                  select: { id: true, firstName: true, lastName: true, email: true },
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                  },
                 },
                 comments: true,
               },
@@ -212,12 +282,11 @@ class DocumentService {
         webViewLink: v.storagePath.startsWith("http")
           ? v.storagePath
           : v.googleDriveFileId
-          ? `https://drive.google.com/file/d/${v.googleDriveFileId}/view`
-          : undefined,
+            ? `/api/documents/files/${v.googleDriveFileId}`
+            : undefined,
       })),
     };
   }
 }
 
 export const documentService = new DocumentService();
-
