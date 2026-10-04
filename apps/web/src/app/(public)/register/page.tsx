@@ -3,674 +3,97 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowRight, BookOpenCheck, Check, CheckCircle2, Eye, EyeOff, FileCheck2, GraduationCap, IdCard, LockKeyhole, Mail, ShieldCheck, UserRound, Users } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { AuthHero as SharedAuthHero } from "@/components/auth/AuthHero";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+
+type AccountType = "RESEARCHER" | "ADVISER";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { register } = useAuth();
-
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [universityId, setUniversityId] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("RESEARCHER");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [form, setForm] = useState({ firstName: "", lastName: "", universityId: "", email: "", password: "", confirmPassword: "" });
+  const [role, setRole] = useState<AccountType>("RESEARCHER");
+  const [collegeId, setCollegeId] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
-
-  // TOA Modal State
-  const [showToaModal, setShowToaModal] = useState(false);
-
+  const [showPolicies, setShowPolicies] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [registeredUser, setRegisteredUser] = useState<{
-    name: string;
-    email: string;
-    universityId: string;
-    role: string;
-  } | null>(null);
+  const [created, setCreated] = useState<{ name: string; email: string; id: string; role: string } | null>(null);
+  const [onboardingReady, setOnboardingReady] = useState(false);
+  const collegesQuery = useQuery({
+    queryKey: ["registration-institutional-units"],
+    queryFn: () => apiClient.get<{ colleges: { id: string; name: string }[] }>("/api/colleges"),
+  });
+  const set = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!firstName.trim() || !lastName.trim()) {
-      setError("Please provide your full first and last name.");
-      return;
-    }
-
-    if (!universityId.trim()) {
-      setError("University / Student ID is required.");
-      return;
-    }
-
-    if (!email.trim() || !email.includes("@")) {
-      setError("Please enter a valid institutional email address.");
-      return;
-    }
-
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters long.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    if (!agreed) {
-      setError("You must review and agree to the Terms of Agreement (TOA) to proceed.");
-      return;
-    }
-
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault(); setError(null);
+    if (!form.firstName.trim() || !form.lastName.trim()) return setError("Please provide your first and last name.");
+    if (!form.universityId.trim()) return setError("University ID is required.");
+    if (!form.email.includes("@")) return setError("Enter a valid institutional email address.");
+    if (form.password.length < 8) return setError("Password must be at least 8 characters long.");
+    if (form.password !== form.confirmPassword) return setError("Passwords do not match.");
+    if (!agreed) return setError("Please accept the Terms, Privacy Notice, and Research Integrity Policy.");
     setLoading(true);
-
     try {
-      const res = await register({
-        universityId: universityId.trim(),
-        email: email.trim(),
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        password,
-        role,
-      });
-
-      if (!res.success) {
-        setError(res.error || "Failed to register account.");
-        setLoading(false);
-        return;
+      if (!collegeId) return setError("Please select your college or school.");
+      const result = await register({ universityId: form.universityId.trim(), email: form.email.trim(), firstName: form.firstName.trim(), lastName: form.lastName.trim(), password: form.password, role, collegeId });
+      if (!result.success) return setError(result.error || "Failed to create account.");
+      const identity = { name: `${form.firstName.trim()} ${form.lastName.trim()}`, email: form.email.trim(), universityId: form.universityId.trim() };
+      setCreated({ name: identity.name, email: identity.email, id: identity.universityId, role: role === "ADVISER" ? "Faculty Member" : "Researcher" });
+      if (role === "RESEARCHER" && result.onboardingToken) {
+        sessionStorage.setItem("advisio_researcher_onboarding_token", result.onboardingToken);
+        sessionStorage.setItem("advisio_researcher_onboarding_identity", JSON.stringify({ ...identity, collegeId }));
+        sessionStorage.setItem("advisio_researcher_onboarding_draft", JSON.stringify({ collegeId }));
+        setOnboardingReady(true);
       }
-
-      setRegisteredUser({
-        name: `${firstName.trim()} ${lastName.trim()}`,
-        email: email.trim(),
-        universityId: universityId.trim(),
-        role: role === "ADVISER" ? "Faculty / Research Adviser" : "Student / Researcher",
-      });
-      setLoading(false);
-    } catch (err: any) {
-      setError(err.message || "An unexpected error occurred during registration.");
-      setLoading(false);
-    }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : "Registration failed."); }
+    finally { setLoading(false); }
   };
 
-  return (
-    <div className="min-h-screen bg-[#f4f7fa] flex flex-col md:flex-row text-slate-800 font-sans">
-      
-      {/* ─── LEFT COLUMN: ADVISIO HERO (40% width) ─── */}
-      <div 
-        className="w-full md:w-[42%] bg-[#1b4264] text-white p-8 md:p-12 flex flex-col justify-between border-r border-[#15344f] select-none relative overflow-hidden shrink-0"
-      >
-        {/* Background subtle amber grid */}
-        <div className="absolute inset-0 opacity-5 bg-[linear-gradient(to_right,#ffa400_1px,transparent_1px),linear-gradient(to_bottom,#ffa400_1px,transparent_1px)] bg-[size:30px_30px]" />
-        
-        {/* Branding */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center border border-white/20 shadow-lg backdrop-blur-sm">
-            <i className="ti ti-school text-2xl text-[#ffa400]" />
+  return <main className="relative min-h-screen overflow-hidden bg-[#f4f7fb] font-sans text-slate-900 lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(500px,.92fr)]">
+    <SharedAuthHero />
+    <section className="relative flex min-h-screen items-center justify-center overflow-y-auto px-5 py-10 sm:px-10 lg:px-[clamp(3rem,6vw,6.5rem)]">
+      <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-[#ffb21c]/10 blur-3xl" />
+      <div className="w-full max-w-[500px] animate-fade-in-up">
+        <MobileBrand />
+        {created ? <Success user={created} onboardingReady={onboardingReady} onContinue={() => router.push("/researcher-onboarding")} /> : <>
+          <div className="mb-7">
+            <div className="mb-5 hidden items-center gap-3 lg:flex"><LogoPair /></div>
+            <div className="flex items-end justify-between gap-4"><div><h2 className="text-[32px] font-bold tracking-[-.035em] text-[#102f49]">Create your account</h2><p className="mt-2 text-[14px] text-slate-500">Start your research journey with Advisio.</p></div><span className="mb-1 shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-[#234863] shadow-sm">Account setup</span></div>
           </div>
-          <div>
-            <span className="font-extrabold text-[22px] tracking-tight block leading-none text-white">ADVISIO</span>
-            <span className="text-[10px] uppercase tracking-widest text-[#ffa400] font-semibold">Research Portal</span>
-          </div>
-        </div>
-
-        {/* Center Institutional Security Content */}
-        <div className="relative z-10 my-10 md:my-auto flex flex-col gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 bg-[#ffa400]/15 text-[#ffa400] px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border border-[#ffa400]/30 mb-3">
-              <i className="ti ti-shield-lock" />
-              <span>Institutional Gatekeeper</span>
-            </div>
-            <h2 className="text-[28px] md:text-[32px] font-bold leading-tight tracking-tight text-white">
-              Create Your Research Account
-            </h2>
-            <div className="h-1.5 w-16 bg-[#ffa400] rounded-full mt-3" />
-            <p className="text-slate-200 text-[13.5px] mt-3.5 leading-relaxed font-light">
-              Advisio is the official university platform for managing capstone research, thesis manuscripts, consultations, and panel defenses.
-            </p>
-          </div>
-
-          {/* Verification Protocol Box */}
-          <div className="bg-white/5 rounded-2xl p-5 border border-white/10 backdrop-blur-md shadow-inner flex flex-col gap-3.5">
-            <div className="text-[11px] uppercase tracking-wider text-[#ffa400] font-bold flex items-center justify-between">
-              <span>Security & Verification Protocol</span>
-              <span className="w-2 h-2 rounded-full bg-[#ffa400] animate-pulse" />
-            </div>
-            
-            <div className="flex gap-3 text-[12.5px] text-slate-200">
-              <div className="w-6 h-6 rounded-full bg-[#ffa400]/20 text-[#ffa400] flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
-                1
-              </div>
-              <div>
-                <h4 className="font-bold text-white">Registration Submission</h4>
-                <p className="text-[11px] text-slate-300 font-light mt-0.5">
-                  Submit credentials with your university ID and institutional email.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-3 text-[12.5px] text-slate-200">
-              <div className="w-6 h-6 rounded-full bg-[#ffa400]/20 text-[#ffa400] flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
-                2
-              </div>
-              <div>
-                <h4 className="font-bold text-white">Administrator Verification</h4>
-                <p className="text-[11px] text-slate-300 font-light mt-0.5">
-                  Your identity is cross-checked and approved by <strong className="text-[#ffa400] font-mono">admin01@university.edu.ph</strong>.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-3 text-[12.5px] text-slate-200">
-              <div className="w-6 h-6 rounded-full bg-[#ffa400]/20 text-[#ffa400] flex items-center justify-center shrink-0 mt-0.5 font-bold text-xs">
-                3
-              </div>
-              <div>
-                <h4 className="font-bold text-white">Active Research Access</h4>
-                <p className="text-[11px] text-slate-300 font-light mt-0.5">
-                  Sign in to collaborate on documents, book advising Google Meets, and schedule committee defenses.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick policy tags */}
-          <div className="flex flex-wrap gap-2 text-[11px] text-slate-300">
-            <span className="bg-white/10 px-2.5 py-1 rounded-md border border-white/10 flex items-center gap-1.5">
-              <i className="ti ti-check text-[#ffa400]" /> Student & Faculty Roster
-            </span>
-            <span className="bg-white/10 px-2.5 py-1 rounded-md border border-white/10 flex items-center gap-1.5">
-              <i className="ti ti-check text-[#ffa400]" /> Anti-Plagiarism Safeguards
-            </span>
-            <span className="bg-white/10 px-2.5 py-1 rounded-md border border-white/10 flex items-center gap-1.5">
-              <i className="ti ti-check text-[#ffa400]" /> End-to-End Audit Logs
-            </span>
-          </div>
-        </div>
-
-        {/* Footer info */}
-        <div className="relative z-10 border-t border-white/10 pt-4 text-[11px] text-slate-300 flex justify-between">
-          <span>Advisio Portal v1.0</span>
-          <span>Administrator: admin01@university.edu.ph</span>
-        </div>
-
+          {error && <div role="alert" className="mb-5 flex gap-3 rounded-xl border border-red-200 bg-red-50 p-3.5 text-[12px] text-red-700"><ShieldCheck size={17} className="shrink-0" />{error}</div>}
+          <form onSubmit={submit} className="space-y-4">
+            <div><Label>How will you use Advisio?</Label><div className="grid grid-cols-2 gap-2.5"><Role active={role === "RESEARCHER"} icon={<GraduationCap size={18} />} title="Researcher" subtitle="Undergraduate or graduate" onClick={() => setRole("RESEARCHER")} /><Role active={role === "ADVISER"} icon={<BookOpenCheck size={18} />} title="Faculty" subtitle="Institutional member" onClick={() => setRole("ADVISER")} /></div></div>
+            <div><Label>College / School</Label><select value={collegeId} onChange={(event) => setCollegeId(event.target.value)} required className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-[13px] text-slate-700 shadow-sm outline-none focus:border-[#e69800] focus:ring-4 focus:ring-[#ffb21c]/10"><option value="">Select your college or school</option>{collegesQuery.data?.colleges.map((college) => <option key={college.id} value={college.id}>{college.name}</option>)}</select></div>
+            <div className="grid gap-4 sm:grid-cols-2"><Input id="first-name" label="First name" icon={<UserRound size={16} />} value={form.firstName} setValue={(v) => set("firstName", v)} placeholder="Maria" /><Input id="last-name" label="Last name" icon={<UserRound size={16} />} value={form.lastName} setValue={(v) => set("lastName", v)} placeholder="Santos" /></div>
+            <div className="grid gap-4 sm:grid-cols-2"><Input id="university-id" label={role === "ADVISER" ? "Employee number" : "Researcher ID"} icon={<IdCard size={17} />} value={form.universityId} setValue={(v) => set("universityId", v)} placeholder={role === "ADVISER" ? "FAC-2026-001" : "2026-10025"} /><Input id="reg-email" label="University email" type="email" icon={<Mail size={17} />} value={form.email} setValue={(v) => set("email", v)} placeholder="name@university.edu.ph" /></div>
+            <div className="grid gap-4 sm:grid-cols-2"><Password id="reg-password" label="Password" value={form.password} setValue={(v) => set("password", v)} show={showPassword} toggle={() => setShowPassword(!showPassword)} /><Password id="confirm-password" label="Confirm password" value={form.confirmPassword} setValue={(v) => set("confirmPassword", v)} show={showPassword} /></div>
+            <p className="-mt-1 text-[10px] text-slate-400">Use at least 8 characters. Avoid reusing your university portal password.</p>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white p-3.5 text-[11.5px] leading-5 text-slate-600 shadow-sm"><input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#0c3b5d]" /><span>I agree to the <button type="button" onClick={(e) => { e.preventDefault(); setShowPolicies(true); }} className="font-extrabold text-[#164866] underline hover:text-[#d98600]">Terms, Privacy Notice, and Research Integrity Policy</button>.</span></label>
+            <button type="submit" disabled={loading} className="group flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-[#ffad14] text-[13px] font-extrabold text-[#102f49] shadow-[0_10px_25px_rgba(255,173,20,.25)] transition hover:-translate-y-0.5 hover:bg-[#ffb82e] disabled:opacity-60">{loading ? "Creating account…" : <>Create Advisio account <ArrowRight size={17} /></>}</button>
+          </form>
+          <p className="mt-7 text-center text-[12px] text-slate-500">Already have an account? <Link href="/login" className="font-extrabold text-[#164866] hover:text-[#d98600]">Sign in</Link></p>
+          <div className="mt-6 flex items-center justify-center gap-2 text-[10px] text-slate-400"><ShieldCheck size={13} /> New accounts require institutional verification</div>
+        </>}
       </div>
-
-      {/* ─── RIGHT COLUMN: ELEVATED CARD CONTAINER (58% width) ─── */}
-      <div className="w-full md:w-[58%] p-6 md:p-12 flex flex-col justify-center items-center overflow-y-auto">
-        <div className="w-full max-w-[500px] flex flex-col gap-6 my-auto animate-fade-in-up">
-          
-          {registeredUser ? (
-            /* ─── SUCCESS / PENDING VERIFICATION CARD ─── */
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-8 shadow-xl relative overflow-hidden text-center flex flex-col items-center">
-              <div className="w-16 h-16 rounded-2xl bg-[#ffa400]/15 border border-[#ffa400]/30 text-[#1b4264] flex items-center justify-center text-3xl mb-4 shadow-sm">
-                <i className="ti ti-clock-check text-[#ffa400]" />
-              </div>
-
-              <div className="inline-flex items-center gap-1.5 bg-[#ffa400]/15 text-[#1b4264] text-[11px] font-extrabold uppercase tracking-wider rounded-full px-3 py-1 border border-[#ffa400]/30 mb-2">
-                <span className="w-2 h-2 rounded-full bg-[#ffa400] animate-pulse" />
-                <span>Pending Admin Verification</span>
-              </div>
-
-              <h2 className="text-[24px] font-extrabold text-[#1b4264] tracking-tight">
-                Registration Submitted!
-              </h2>
-
-              <p className="text-[13px] text-slate-600 mt-2 leading-relaxed max-w-md">
-                Account created for <strong className="text-slate-900 font-bold">{registeredUser.name}</strong>. Your profile has been queued for verification.
-              </p>
-
-              {/* Summary Table */}
-              <div className="w-full bg-slate-50 rounded-xl border border-slate-200 p-4 mt-5 text-left text-[12.5px] flex flex-col gap-2.5">
-                <div className="flex justify-between border-b border-slate-200 pb-2">
-                  <span className="text-slate-400 font-bold uppercase text-[10px]">Applicant Name</span>
-                  <span className="font-bold text-[#1b4264]">{registeredUser.name}</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-200 pb-2">
-                  <span className="text-slate-400 font-bold uppercase text-[10px]">Email Address</span>
-                  <span className="font-bold text-[#1b4264]">{registeredUser.email}</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-200 pb-2">
-                  <span className="text-slate-400 font-bold uppercase text-[10px]">University ID</span>
-                  <span className="font-bold text-slate-700">{registeredUser.universityId}</span>
-                </div>
-                <div className="flex justify-between border-b border-slate-200 pb-2">
-                  <span className="text-slate-400 font-bold uppercase text-[10px]">Selected Role</span>
-                  <span className="font-bold text-slate-700">{registeredUser.role}</span>
-                </div>
-                <div className="flex justify-between items-center pt-0.5">
-                  <span className="text-slate-400 font-bold uppercase text-[10px]">Assigned Verifier</span>
-                  <span className="text-[11px] font-extrabold text-[#1b4264] bg-[#ffa400]/15 px-2 py-0.5 rounded border border-[#ffa400]/30">
-                    admin01@university.edu.ph
-                  </span>
-                </div>
-              </div>
-
-              {/* Instructions banner */}
-              <div className="w-full bg-amber-50 border border-amber-200 rounded-xl p-3.5 mt-4 text-[12px] text-amber-900 text-left flex items-start gap-2.5">
-                <i className="ti ti-info-circle text-amber-600 text-base shrink-0 mt-0.5" />
-                <div className="leading-relaxed">
-                  <strong className="block font-bold">What happens next?</strong>
-                  The system administrator (<strong className="font-semibold">admin01@university.edu.ph</strong>) will review and approve your registration. Once approved, you can immediately sign in with your password.
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="w-full flex flex-col gap-2 mt-6">
-                <Link
-                  href="/login"
-                  className="w-full bg-[#1b4264] hover:bg-[#15344f] text-white py-3 rounded-xl text-[13px] font-bold shadow-md text-center transition cursor-pointer"
-                >
-                  Return to Sign In
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRegisteredUser(null);
-                    setFirstName("");
-                    setLastName("");
-                    setEmail("");
-                    setUniversityId("");
-                    setPassword("");
-                    setConfirmPassword("");
-                    setAgreed(false);
-                  }}
-                  className="text-[12px] text-slate-500 hover:text-[#1b4264] transition py-1 cursor-pointer"
-                >
-                  Register another account
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* ─── REGISTRATION CARD (ELEVATED) ─── */
-            <div className="bg-white rounded-2xl border border-slate-200/80 p-8 md:p-10 shadow-xl relative overflow-hidden">
-              
-              {/* Header */}
-              <div className="mb-6">
-                <div className="flex justify-between items-center mb-2">
-                  <div className="w-10 h-10 rounded-xl bg-[#1b4264] flex items-center justify-center shadow-md">
-                    <i className="ti ti-user-plus text-[#ffa400] text-xl" />
-                  </div>
-                  <span className="text-[11px] font-bold text-[#1b4264] uppercase tracking-wider bg-[#1b4264]/5 px-2.5 py-1 rounded-full border border-[#1b4264]/10">
-                    Step 1 of 2
-                  </span>
-                </div>
-                <h2 className="text-[24px] font-extrabold tracking-tight text-[#1b4264]">Create Account</h2>
-                <p className="text-[13px] text-slate-500 mt-1">
-                  New profiles are verified by <span className="text-[#1b4264] font-semibold">admin01@university.edu.ph</span> before access is activated.
-                </p>
-              </div>
-
-              {/* Error Alert Display */}
-              {error && (
-                <div className={`mb-5 p-3.5 rounded-xl border text-[12px] flex items-start gap-2.5 animate-pulse-soft ${
-                  error.toLowerCase().includes("already exists")
-                    ? "bg-amber-50 border-amber-300 text-amber-950"
-                    : "bg-red-50 border-red-200 text-red-700"
-                }`}>
-                  <i className={`text-base flex-shrink-0 mt-0.5 ${
-                    error.toLowerCase().includes("already exists")
-                      ? "ti ti-user-exclamation text-amber-600"
-                      : "ti ti-alert-circle text-red-500"
-                  }`} />
-                  <div className="leading-relaxed flex-1">
-                    {error.toLowerCase().includes("already exists") && (
-                      <strong className="block text-amber-950 font-bold mb-0.5">Account Already Exists</strong>
-                    )}
-                    <span>{error}</span>
-                    {error.toLowerCase().includes("already exists") && (
-                      <div className="mt-2 pt-2 border-t border-amber-200 flex items-center justify-between">
-                        <span className="text-[11px] text-amber-800">Did you already register this account?</span>
-                        <Link
-                          href="/login"
-                          className="font-extrabold text-[#1b4264] hover:text-[#ffa400] underline text-[11.5px] transition"
-                        >
-                          Sign In Here →
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Registration Form */}
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                
-                {/* Role Selector Tabs */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[11px] font-bold text-[#1b4264] uppercase tracking-wider">
-                    Institutional Role
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setRole("RESEARCHER")}
-                      className={`p-2.5 rounded-xl border text-[12px] font-bold text-left flex items-center gap-2.5 transition cursor-pointer ${
-                        role === "RESEARCHER"
-                          ? "bg-[#1b4264]/5 border-[#1b4264] text-[#1b4264] shadow-xs"
-                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${role === "RESEARCHER" ? "bg-[#1b4264] text-[#ffa400]" : "bg-slate-100 text-slate-500"}`}>
-                        <i className="ti ti-user-graduation text-sm" />
-                      </div>
-                      <div>
-                        <div className="leading-tight">Student</div>
-                        <div className="text-[10px] text-slate-400 font-normal">Researcher</div>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setRole("ADVISER")}
-                      className={`p-2.5 rounded-xl border text-[12px] font-bold text-left flex items-center gap-2.5 transition cursor-pointer ${
-                        role === "ADVISER"
-                          ? "bg-[#1b4264]/5 border-[#1b4264] text-[#1b4264] shadow-xs"
-                          : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${role === "ADVISER" ? "bg-[#1b4264] text-[#ffa400]" : "bg-slate-100 text-slate-500"}`}>
-                        <i className="ti ti-user-check text-sm" />
-                      </div>
-                      <div>
-                        <div className="leading-tight">Faculty</div>
-                        <div className="text-[10px] text-slate-400 font-normal">Adviser</div>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                {/* First Name & Last Name */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="first-name" className="text-[11px] font-bold text-[#1b4264] uppercase tracking-wider">
-                      First Name
-                    </label>
-                    <input 
-                      id="first-name"
-                      type="text" 
-                      required
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="e.g. Maria"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13.5px] text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors placeholder:text-slate-400"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="last-name" className="text-[11px] font-bold text-[#1b4264] uppercase tracking-wider">
-                      Last Name
-                    </label>
-                    <input 
-                      id="last-name"
-                      type="text" 
-                      required
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      placeholder="e.g. Santos"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13.5px] text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors placeholder:text-slate-400"
-                    />
-                  </div>
-                </div>
-
-                {/* University ID & Email */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="university-id" className="text-[11px] font-bold text-[#1b4264] uppercase tracking-wider">
-                      University ID / ID No.
-                    </label>
-                    <input 
-                      id="university-id"
-                      type="text" 
-                      required
-                      value={universityId}
-                      onChange={(e) => setUniversityId(e.target.value)}
-                      placeholder="e.g. 2026-10025"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13.5px] text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors placeholder:text-slate-400"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="reg-email" className="text-[11px] font-bold text-[#1b4264] uppercase tracking-wider">
-                      Institutional Email
-                    </label>
-                    <input 
-                      id="reg-email"
-                      type="email" 
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@university.edu.ph"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13.5px] text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors placeholder:text-slate-400"
-                    />
-                  </div>
-                </div>
-
-                {/* Password & Confirm */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="reg-password" className="text-[11px] font-bold text-[#1b4264] uppercase tracking-wider">
-                      Password (min 8 chars)
-                    </label>
-                    <div className="relative">
-                      <input 
-                        id="reg-password"
-                        type={showPassword ? "text" : "password"} 
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••••••"
-                        className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13.5px] text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors pr-9 placeholder:text-slate-400"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer text-sm"
-                      >
-                        <i className={`ti ${showPassword ? "ti-eye-off" : "ti-eye"}`} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="confirm-pw" className="text-[11px] font-bold text-[#1b4264] uppercase tracking-wider">
-                      Confirm Password
-                    </label>
-                    <input 
-                      id="confirm-pw"
-                      type={showPassword ? "text" : "password"} 
-                      required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••••••••"
-                      className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13.5px] text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors placeholder:text-slate-400"
-                    />
-                  </div>
-                </div>
-
-                {/* Terms of Agreement (TOA) Checkbox & Modal Trigger */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col gap-2">
-                  <div className="flex items-start gap-2.5 select-none">
-                    <input 
-                      id="terms-checkbox"
-                      type="checkbox" 
-                      checked={agreed}
-                      onChange={(e) => setAgreed(e.target.checked)}
-                      className="w-4 h-4 mt-0.5 text-[#1b4264] border-slate-300 rounded focus:ring-[#ffa400] focus:ring-0 focus:ring-offset-0 cursor-pointer shrink-0"
-                    />
-                    <label htmlFor="terms-checkbox" className="text-[12px] text-slate-700 leading-snug cursor-pointer">
-                      I have read and agree to the university's{" "}
-                      <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); setShowToaModal(true); }}
-                        className="font-bold text-[#1b4264] underline hover:text-[#ffa400] transition cursor-pointer"
-                      >
-                        Terms of Agreement (TOA) & Research Integrity Policy
-                      </button>
-                      .
-                    </label>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10.5px] text-slate-400 pl-6">
-                    <i className="ti ti-shield-check text-emerald-600" />
-                    <span>Includes admin verification policy & plagiarism compliance</span>
-                  </div>
-                </div>
-
-                {/* Submit Button */}
-                <button 
-                  type="submit" 
-                  disabled={loading}
-                  className="w-full mt-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] py-3 rounded-xl text-[14px] font-extrabold shadow-md active:scale-[0.98] transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {loading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-[#1b4264] border-t-transparent rounded-full animate-spin" />
-                      <span>Submitting Registration...</span>
-                    </>
-                  ) : (
-                    <>
-                      <i className="ti ti-user-check text-base" />
-                      <span>Submit for Verification</span>
-                    </>
-                  )}
-                </button>
-
-              </form>
-
-              {/* Bottom Sign In Link */}
-              <div className="border-t border-slate-100 pt-4 mt-6 text-center text-[12.5px] text-slate-500">
-                Already registered or approved?{" "}
-                <Link 
-                  href="/login" 
-                  className="font-extrabold text-[#1b4264] hover:text-[#ffa400] transition-colors"
-                >
-                  Sign In to Portal
-                </Link>
-              </div>
-
-            </div>
-          )}
-
-        </div>
-      </div>
-
-      {/* ─── TOA (TERMS OF AGREEMENT) MODAL DIALOG ─── */}
-      {showToaModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden animate-scale-up">
-            
-            {/* Modal Header */}
-            <div className="bg-[#1b4264] text-white p-5 flex items-center justify-between border-b border-[#15344f]">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center border border-white/20">
-                  <i className="ti ti-file-certificate text-xl text-[#ffa400]" />
-                </div>
-                <div>
-                  <h3 className="text-[16px] font-extrabold leading-tight">Terms of Agreement & Academic Integrity (TOA)</h3>
-                  <span className="text-[11px] text-[#ffa400] font-semibold">Institutional Policy v2026.1 • Campus Research Office</span>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowToaModal(false)}
-                className="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center text-slate-300 hover:text-white transition cursor-pointer"
-              >
-                <i className="ti ti-x text-lg" />
-              </button>
-            </div>
-
-            {/* Modal Body / Scrollable Content */}
-            <div className="p-6 overflow-y-auto text-[13px] text-slate-700 leading-relaxed flex flex-col gap-4">
-              
-              <div className="bg-[#1b4264]/5 border border-[#1b4264]/15 rounded-xl p-3.5 text-[#1b4264]">
-                <strong className="block font-bold mb-0.5">Important Notice to Applicants:</strong>
-                By creating an account on the Advisio Research Management System, you confirm that you are an officially registered student or faculty member of this institution and agree to adhere to all terms stipulated below.
-              </div>
-
-              {/* Section 1 */}
-              <div>
-                <h4 className="font-extrabold text-[#1b4264] text-[13.5px] uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <i className="ti ti-id text-[#ffa400]" /> 1. Identity & System Admin Verification
-                </h4>
-                <p className="text-slate-600">
-                  All newly registered accounts are subject to verification by the designated System Administrator (<span className="font-mono text-[#1b4264] font-semibold">admin01@university.edu.ph</span>). Accounts will remain in a pending state until university enrollment or faculty credentials are authenticated against institutional databases. Providing inaccurate or fraudulent IDs will result in immediate suspension and reporting to the student disciplinary committee.
-                </p>
-              </div>
-
-              {/* Section 2 */}
-              <div>
-                <h4 className="font-extrabold text-[#1b4264] text-[13.5px] uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <i className="ti ti-copyright text-[#ffa400]" /> 2. Intellectual Property & Research Ownership
-                </h4>
-                <p className="text-slate-600">
-                  All manuscripts, methodology plans, and dataset uploads remain the intellectual property of the respective research group and university advisory committee under university research guidelines. Advisio stores all documents securely with role-based access control to prevent unauthorized disclosure before defense.
-                </p>
-              </div>
-
-              {/* Section 3 */}
-              <div>
-                <h4 className="font-extrabold text-[#1b4264] text-[13.5px] uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <i className="ti ti-scan text-[#ffa400]" /> 3. Plagiarism & Generative AI Restrictions
-                </h4>
-                <p className="text-slate-600">
-                  Drafts uploaded to Advisio are scanned for similarity metrics and original scholarship compliance. Any unauthorized reproduction, fabrications of data, ghostwriting, or uncredited AI generation constitutes a violation of institutional academic integrity rules, leading to rejection of the study.
-                </p>
-              </div>
-
-              {/* Section 4 */}
-              <div>
-                <h4 className="font-extrabold text-[#1b4264] text-[13.5px] uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <i className="ti ti-lock-check text-[#ffa400]" /> 4. Consultation Privacy & Defense Confidentiality
-                </h4>
-                <p className="text-slate-600">
-                  Transcripts, audio/video conferencing links (such as Google Meet), panelist evaluations, and score sheets are confidential academic records. Users agree not to record or distribute advising sessions or evaluation rubrics without unanimous panel approval.
-                </p>
-              </div>
-
-              {/* Section 5 */}
-              <div>
-                <h4 className="font-extrabold text-[#1b4264] text-[13.5px] uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <i className="ti ti-gavel text-[#ffa400]" /> 5. Accountability & Policy Violations
-                </h4>
-                <p className="text-slate-600">
-                  The institution reserves the right to revoke or suspend access for any user found violating university policies, harassing group members, or tampering with digital audit trails.
-                </p>
-              </div>
-
-            </div>
-
-            {/* Modal Footer */}
-            <div className="bg-slate-50 p-4 border-t border-slate-200 flex items-center justify-between gap-3">
-              <span className="text-[11.5px] text-slate-500">
-                Official Campus Research Policy Compliance
-              </span>
-              <div className="flex gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setShowToaModal(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-[12.5px] font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
-                >
-                  Close
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAgreed(true);
-                    setShowToaModal(false);
-                  }}
-                  className="px-5 py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] rounded-lg text-[12.5px] font-extrabold shadow transition cursor-pointer"
-                >
-                  I Understand & Accept Terms
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-    </div>
-  );
+    </section>
+    {showPolicies && <Policies close={() => setShowPolicies(false)} accept={() => { setAgreed(true); setShowPolicies(false); }} />}
+  </main>;
 }
+
+function AuthHero() { return <section className="relative hidden min-h-screen overflow-hidden bg-[#092f4f] px-[clamp(2.5rem,5vw,5.5rem)] py-10 text-white lg:flex lg:flex-col"><div className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.045)_1px,transparent_1px)] [background-size:48px_48px]" /><div className="pointer-events-none absolute -left-28 top-[38%] h-80 w-80 rounded-full bg-[#ffab19]/20 blur-[100px]" /><header className="relative z-10 flex items-center justify-between"><Brand light /><div className="flex items-center gap-2.5 rounded-2xl border border-white/15 bg-white/10 px-3.5 py-2"><img src="/school-logo.png" alt="University of the Assumption" className="h-9 w-9 object-contain" /><div><p className="text-[11px] font-bold">University of the Assumption</p><p className="text-[9px] text-slate-300">Academic Research</p></div></div></header><div className="relative z-10 my-auto grid items-center gap-10 xl:grid-cols-[1fr_300px]"><div><h1 className="text-[clamp(2.6rem,4.5vw,4.75rem)] font-bold leading-[1.02] tracking-[-.045em]">Research moves<br />better <span className="text-[#ffb21c]">together.</span></h1><p className="mt-6 max-w-[510px] text-[15px] leading-7 text-slate-300">From first proposal to final defense, keep your team, feedback, and deadlines in one clear place.</p><div className="mt-9 flex gap-2 text-[12px] font-semibold">{["Plan", "Review", "Defend"].map((x, i) => <span key={x} className="rounded-full border border-white/10 bg-white/[.06] px-3 py-2"><b className="mr-2 text-[#ffb21c]">{i + 1}</b>{x}</span>)}</div></div><div className="rounded-[26px] border border-white/15 bg-white/[.09] p-4 shadow-2xl backdrop-blur-xl"><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#ffb21c]">Research workspace</p><p className="mt-1 font-bold">Capstone progress</p><div className="mt-4 rounded-2xl bg-white p-4 text-[#173e5e]"><div className="flex justify-between text-[11px] font-bold"><span>Chapter 3 review</span><span className="text-[#d98600]">72%</span></div><div className="mt-3 h-2 rounded-full bg-slate-100"><div className="h-full w-[72%] rounded-full bg-[#ffad14]" /></div><HeroRow icon={<FileCheck2 size={15} />} text="Proposal approved" /><HeroRow icon={<Users size={15} />} text="Adviser review" /></div><div className="mt-4 flex items-center gap-3 rounded-2xl bg-black/10 p-3"><ShieldCheck size={20} className="text-[#ffb21c]" /><div><p className="text-[11px] font-bold">Secure academic workspace</p><p className="text-[9px] text-slate-300">Role-based access for every team</p></div></div></div></div><footer className="relative z-10 flex justify-between border-t border-white/10 pt-5 text-[10px] text-slate-400"><span>University of the Assumption • Research Management System</span><span>ADVISIO • 2026</span></footer></section>; }
+function HeroRow({ icon, text }: { icon: React.ReactNode; text: string }) { return <div className="mt-4 flex items-center gap-3 text-[11px] font-semibold"><span className="grid h-8 w-8 place-items-center rounded-xl bg-emerald-50 text-emerald-600">{icon}</span><span className="flex-1">{text}</span><Check size={14} className="text-emerald-600" /></div>; }
+function Brand({ light = false }: { light?: boolean }) { return <div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm"><img src="/ao-logo.png" alt="Advisio" className="h-full w-full object-contain" /></div><div><div className={`text-[21px] font-extrabold tracking-[.05em] ${light ? "text-white" : "text-[#092f4f]"}`}>ADVISIO</div><div className="text-[9px] font-bold uppercase tracking-[.28em] text-[#d98600]">Research portal</div></div></div>; }
+function MobileBrand() { return <div className="mb-8 flex items-center justify-between border-b border-slate-200 pb-4 lg:hidden"><Brand /><img src="/school-logo.png" alt="University of the Assumption" className="h-9 w-9" /></div>; }
+function LogoPair() { return <><div className="h-12 w-12 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm"><img src="/ao-logo.png" alt="Advisio" className="h-full w-full object-contain" /></div><div className="h-7 w-px bg-slate-200" /><div className="h-12 w-12 rounded-2xl border border-slate-200 bg-white p-1"><img src="/school-logo.png" alt="University" className="h-full w-full object-contain" /></div></>; }
+function Label({ children }: { children: React.ReactNode }) { return <span className="mb-2 block text-[11px] font-extrabold uppercase tracking-[.11em] text-[#234863]">{children}</span>; }
+function Role({ active, icon, title, subtitle, onClick }: { active: boolean; icon: React.ReactNode; title: string; subtitle: string; onClick: () => void }) { return <button type="button" onClick={onClick} className={`flex items-center gap-3 rounded-xl border p-3 text-left ${active ? "border-[#164866] bg-[#eef5f8]" : "border-slate-200 bg-white hover:border-[#ffb21c]"}`}><span className={`grid h-9 w-9 place-items-center rounded-xl ${active ? "bg-[#164866] text-[#ffb21c]" : "bg-slate-100 text-slate-500"}`}>{icon}</span><span><b className="block text-[12px] text-[#153d5c]">{title}</b><small className="text-[9px] text-slate-500">{subtitle}</small></span></button>; }
+function Input({ id, label, icon, value, setValue, placeholder, type = "text" }: { id: string; label: string; icon: React.ReactNode; value: string; setValue: (v: string) => void; placeholder: string; type?: string }) { return <div><label htmlFor={id} className="mb-2 block text-[11px] font-extrabold uppercase tracking-[.11em] text-[#234863]">{label}</label><div className="relative"><span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">{icon}</span><input id={id} type={type} required value={value} onChange={(e) => setValue(e.target.value)} placeholder={placeholder} className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-[13px] shadow-sm outline-none focus:border-[#e69800] focus:ring-4 focus:ring-[#ffb21c]/10" /></div></div>; }
+function Password({ id, label, value, setValue, show, toggle }: { id: string; label: string; value: string; setValue: (v: string) => void; show: boolean; toggle?: () => void }) { return <div><label htmlFor={id} className="mb-2 block text-[11px] font-extrabold uppercase tracking-[.11em] text-[#234863]">{label}</label><div className="relative"><LockKeyhole size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" /><input id={id} type={show ? "text" : "password"} required value={value} onChange={(e) => setValue(e.target.value)} placeholder="Enter password" className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-11 text-[13px] shadow-sm outline-none focus:border-[#e69800] focus:ring-4 focus:ring-[#ffb21c]/10" />{toggle && <button type="button" onClick={toggle} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">{show ? <EyeOff size={17} /> : <Eye size={17} />}</button>}</div></div>; }
+function Success({ user, onboardingReady, onContinue }: { user: { name: string; email: string; id: string; role: string }; onboardingReady: boolean; onContinue: () => void }) { return <div className="text-center"><div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><CheckCircle2 size={32} /></div><h2 className="mt-5 text-[28px] font-bold text-[#102f49]">Account created</h2><p className="mt-2 text-[13px] text-slate-500">Welcome, {user.name}. Your {user.role.toLowerCase()} account is pending verification.</p><div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm"><p className="text-xs text-slate-500">{user.email}</p><p className="mt-1 text-xs font-bold text-[#153d5c]">{user.id}</p></div>{onboardingReady ? <button onClick={onContinue} className="mt-6 flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-[#ffad14] text-[13px] font-extrabold text-[#102f49]">Continue researcher onboarding <ArrowRight size={17} /></button> : <Link href="/login" className="mt-6 flex h-13 w-full items-center justify-center rounded-xl bg-[#092f4f] text-[13px] font-bold text-white">Return to sign in</Link>}</div>; }
+function Policies({ close, accept }: { close: () => void; accept: () => void }) { return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/60 p-4 backdrop-blur-sm"><div className="w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl"><div className="bg-[#092f4f] p-6 text-white"><h3 className="text-lg font-extrabold">Terms and research policies</h3><p className="mt-1 text-xs text-slate-300">Institutional account agreement</p></div><div className="max-h-[55vh] space-y-4 overflow-y-auto p-6 text-xs leading-6 text-slate-600"><p><b className="text-[#153d5c]">Identity.</b> Account information must match official institutional records.</p><p><b className="text-[#153d5c]">Privacy.</b> Research documents and academic records are protected through role-based access.</p><p><b className="text-[#153d5c]">Research integrity.</b> Users must follow institutional rules for originality, attribution, ethics, and responsible AI use.</p><p><b className="text-[#153d5c]">Confidentiality.</b> Unpublished manuscripts, reviews, and defense records must not be shared without authorization.</p></div><div className="flex justify-end gap-3 border-t bg-slate-50 p-4"><button onClick={close} className="rounded-xl border px-4 py-2.5 text-xs font-bold">Cancel</button><button onClick={accept} className="rounded-xl bg-[#ffad14] px-5 py-2.5 text-xs font-extrabold text-[#102f49]">Accept policies</button></div></div></div>; }

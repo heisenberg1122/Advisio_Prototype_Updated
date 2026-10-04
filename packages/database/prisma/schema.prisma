@@ -23,6 +23,19 @@ enum UserStatus {
   PENDING
 }
 
+enum ResearcherDegreeLevel {
+  UNDERGRADUATE
+  MASTERS
+  DOCTORATE
+  OTHER
+}
+
+enum ResearcherOnboardingStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+}
+
 enum InstitutionalRole {
   RESEARCHER
   ADVISER
@@ -287,6 +300,7 @@ model AcademicYear {
   isActive  Boolean  @default(true) @map("is_active")
 
   researchProjects ResearchProject[]
+  researcherProfiles ResearcherProfile[]
 
   @@map("academic_years")
 }
@@ -296,24 +310,26 @@ model AcademicYear {
 // ─────────────────────────────────────────────────────────────
 
 model User {
-  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  universityId String     @unique @map("university_id") @db.VarChar(50)
-  email        String     @unique @db.Citext
-  firstName    String     @map("first_name") @db.VarChar(100)
-  middleName   String?    @map("middle_name") @db.VarChar(100)
-  lastName     String     @map("last_name") @db.VarChar(100)
-  passwordHash String?    @map("password_hash") @db.VarChar(255)
-  collegeId    String?    @map("college_id") @db.Uuid
-  programId    String?    @map("program_id") @db.Uuid
-  status       UserStatus @default(PENDING)
-  maxAdviseeGroups       Int       @default(5) @map("max_advisee_groups")
-  isAcceptingAdvisees    Boolean   @default(true) @map("is_accepting_advisees")
-  adviserCapacityNote    String?   @map("adviser_capacity_note") @db.Text
-  adviserCapacitySetBy   String?   @map("adviser_capacity_set_by") @db.Uuid
-  adviserCapacitySetAt   DateTime? @map("adviser_capacity_set_at")
-  lastLoginAt  DateTime?  @map("last_login_at")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
+  id                   String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  universityId         String     @unique @map("university_id") @db.VarChar(50)
+  email                String     @unique @db.Citext
+  firstName            String     @map("first_name") @db.VarChar(100)
+  middleName           String?    @map("middle_name") @db.VarChar(100)
+  lastName             String     @map("last_name") @db.VarChar(100)
+  passwordHash         String?    @map("password_hash") @db.VarChar(255)
+  collegeId            String?    @map("college_id") @db.Uuid
+  programId            String?    @map("program_id") @db.Uuid
+  status               UserStatus @default(PENDING)
+  maxAdviseeGroups     Int        @default(5) @map("max_advisee_groups")
+  isAcceptingAdvisees  Boolean    @default(true) @map("is_accepting_advisees")
+  adviserCapacityNote  String?    @map("adviser_capacity_note") @db.Text
+  adviserCapacitySetBy String?    @map("adviser_capacity_set_by") @db.Uuid
+  adviserCapacitySetAt DateTime?  @map("adviser_capacity_set_at")
+  lastLoginAt          DateTime?  @map("last_login_at")
+  createdAt            DateTime   @default(now()) @map("created_at")
+  updatedAt            DateTime   @updatedAt @map("updated_at")
+  onboardingTokenHash  String?    @map("onboarding_token_hash") @db.VarChar(64)
+  onboardingTokenExpiresAt DateTime? @map("onboarding_token_expires_at")
 
   college                  College?                  @relation(fields: [collegeId], references: [id], onDelete: SetNull)
   program                  Program?                  @relation(fields: [programId], references: [id], onDelete: SetNull)
@@ -335,11 +351,40 @@ model User {
   workflowsCreated         Workflow[]                @relation("WorkflowCreator")
   defenseSessionsCreated   DefenseSession[]          @relation("DefenseSessionCreator")
   defenseInvitations       DefenseInvitation[]
+  researcherProfile        ResearcherProfile?
 
   @@index([collegeId])
   @@index([programId])
   @@index([status])
   @@map("users")
+}
+
+model ResearcherProfile {
+  id               String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String                     @unique @map("user_id") @db.Uuid
+  academicYearId   String                     @map("academic_year_id") @db.Uuid
+  degreeLevel      ResearcherDegreeLevel       @map("degree_level")
+  otherDegreeLevel String?                    @map("other_degree_level") @db.VarChar(100)
+  yearLevel        String?                    @map("year_level") @db.VarChar(50)
+  academicStage    String?                    @map("academic_stage") @db.VarChar(50)
+  academicTerm     String                     @map("academic_term") @db.VarChar(50)
+  researchStatus   String?                    @map("research_status") @db.VarChar(50)
+  groupSetup       String?                    @map("group_setup") @db.VarChar(50)
+  invitationCode   String?                    @map("invitation_code") @db.VarChar(100)
+  tentativeTitle   String?                    @map("tentative_title") @db.VarChar(300)
+  researchType     String?                    @map("research_type") @db.VarChar(30)
+  interests        String[]                   @default([])
+  status           ResearcherOnboardingStatus @default(NOT_STARTED)
+  submittedAt      DateTime?                  @map("submitted_at")
+  createdAt        DateTime                   @default(now()) @map("created_at")
+  updatedAt        DateTime                   @updatedAt @map("updated_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+
+  @@index([academicYearId])
+  @@index([status])
+  @@map("researcher_profiles")
 }
 
 model Role {

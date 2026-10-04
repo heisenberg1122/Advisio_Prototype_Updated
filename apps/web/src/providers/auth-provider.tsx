@@ -20,7 +20,7 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password?: string) => Promise<{ success: boolean; role?: string; error?: string }>;
-  register: (payload: any) => Promise<{ success: boolean; isPending?: boolean; message?: string; user?: any; error?: string }>;
+  register: (payload: any) => Promise<{ success: boolean; isPending?: boolean; message?: string; user?: any; onboardingToken?: string | null; error?: string }>;
   logout: () => void;
 }
 
@@ -88,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token?: string;
         status?: string;
         user: any;
+        onboardingToken?: string | null;
       }>("/api/auth/register", payload);
 
       if (data.token) {
@@ -105,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isPending: data.status === "PENDING" || !data.token,
         message: data.message,
         user: data.user,
+        onboardingToken: data.onboardingToken,
       };
     } catch (error: any) {
       return { success: false, error: error.message || "Failed to register" };

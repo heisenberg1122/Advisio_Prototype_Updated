@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { loginSchema, registerSchema, forgotPasswordSchema } from "./auth.js";
+import { loginSchema, registerSchema, forgotPasswordSchema, researcherOnboardingSchema } from "./auth.js";
 import { createResearchSchema, assignMemberSchema } from "./research.js";
 
 describe("Auth Validation Schemas", () => {
@@ -42,6 +42,33 @@ describe("Auth Validation Schemas", () => {
       password: "short",
     };
     const result = registerSchema.safeParse(invalid);
+    expect(result.success).toBe(false);
+  });
+
+  it("should validate a complete graduate researcher onboarding profile", () => {
+    const result = researcherOnboardingSchema.safeParse({
+      onboardingToken: "a".repeat(64),
+      collegeId: "11111111-1111-1111-1111-111111111111",
+      programId: "22222222-2222-2222-2222-222222222222",
+      academicYearId: "33333333-3333-3333-3333-333333333333",
+      degreeLevel: "MASTERS",
+      academicStage: "PROPOSAL",
+      academicTerm: "FIRST_SEMESTER",
+      groupSetup: "SET_UP_LATER",
+      interests: ["Information Systems"],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("should require year level for undergraduate researchers", () => {
+    const result = researcherOnboardingSchema.safeParse({
+      onboardingToken: "a".repeat(64),
+      collegeId: "11111111-1111-1111-1111-111111111111",
+      programId: "22222222-2222-2222-2222-222222222222",
+      academicYearId: "33333333-3333-3333-3333-333333333333",
+      degreeLevel: "UNDERGRADUATE",
+      academicTerm: "FIRST_SEMESTER",
+    });
     expect(result.success).toBe(false);
   });
 });

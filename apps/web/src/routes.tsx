@@ -66,6 +66,7 @@ const AdminDashboardPage = lazy(() => import("./app/admin/dashboard/page"));
 // Public Auth Pages
 import LoginPage from "./app/(public)/login/page";
 import RegisterPage from "./app/(public)/register/page";
+import ResearcherOnboardingPage from "./app/(public)/researcher-onboarding/page";
 import ForgotPasswordPage from "./app/(public)/forgot-password/page";
 import FirstTimeSetupPage from "./app/(public)/first-login-setup/page";
 
@@ -98,6 +99,7 @@ export function AppRoutes() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/researcher-onboarding" element={<ResearcherOnboardingPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/first-login-setup" element={<FirstTimeSetupPage />} />
 

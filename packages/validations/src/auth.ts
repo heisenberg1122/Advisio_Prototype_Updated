@@ -17,6 +17,37 @@ export const registerSchema = z.object({
   role: z.string().optional(),
 });
 
+export const researcherOnboardingSchema = z.object({
+  onboardingToken: z.string().min(32, "Invalid onboarding link"),
+  collegeId: z.string().uuid("Select a valid college or graduate school"),
+  programId: z.string().uuid("Select a valid program"),
+  academicYearId: z.string().uuid("Select a valid academic year"),
+  degreeLevel: z.enum(["UNDERGRADUATE", "MASTERS", "DOCTORATE", "OTHER"]),
+  otherDegreeLevel: z.string().trim().max(100).optional(),
+  yearLevel: z.string().trim().max(50).optional(),
+  academicStage: z.string().trim().max(50).optional(),
+  academicTerm: z.string().trim().min(1, "Academic term is required").max(50),
+  researchStatus: z.string().trim().max(50).optional(),
+  groupSetup: z.string().trim().max(50).optional(),
+  invitationCode: z.string().trim().max(100).optional(),
+  tentativeTitle: z.string().trim().max(300).optional(),
+  researchType: z.enum(["INDIVIDUAL", "GROUP"]).optional(),
+  interests: z.array(z.string().trim().min(1).max(80)).max(10).default([]),
+}).superRefine((data, ctx) => {
+  if (data.degreeLevel === "UNDERGRADUATE" && !data.yearLevel) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["yearLevel"], message: "Year level is required for undergraduate researchers" });
+  }
+  if (["MASTERS", "DOCTORATE"].includes(data.degreeLevel) && !data.academicStage) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["academicStage"], message: "Academic stage is required for graduate researchers" });
+  }
+  if (data.degreeLevel === "OTHER" && !data.otherDegreeLevel) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["otherDegreeLevel"], message: "Please specify the degree level" });
+  }
+  if (data.groupSetup === "JOIN_GROUP" && !data.invitationCode) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["invitationCode"], message: "Enter the group invitation code" });
+  }
+});
+
 export const forgotPasswordSchema = z.object({
   email: z.string().email("Invalid email address"),
 });
@@ -37,6 +68,7 @@ export const userProfileSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type ResearcherOnboardingInput = z.infer<typeof researcherOnboardingSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type UserProfileInput = z.infer<typeof userProfileSchema>;

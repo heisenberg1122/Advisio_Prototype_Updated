@@ -1,7 +1,8 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import { createHash, randomBytes } from "node:crypto";
 import { prisma, type InstitutionalRole } from "../lib/prisma.js";
-import { loginSchema, registerSchema } from "@research-management/validations";
+import { loginSchema, registerSchema, researcherOnboardingSchema } from "@research-management/validations";
 import { validateBody } from "../middleware/validate";
 import { requireAuth, generateToken } from "../middleware/auth";
 
@@ -35,6 +36,12 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
 
     const isAdmin = normalizedEmail === "admin01@university.edu.ph" || normalizedEmail.includes("admin");
     const initialStatus = isAdmin ? "ACTIVE" : "PENDING";
+    const requestedRole = String(role || "RESEARCHER").toUpperCase();
+    const isResearcher = requestedRole === "RESEARCHER";
+    const onboardingToken = isResearcher ? randomBytes(32).toString("hex") : null;
+    const onboardingTokenHash = onboardingToken
+      ? createHash("sha256").update(onboardingToken).digest("hex")
+      : null;
 
     const user = await prisma.user.create({
       data: {
@@ -47,6 +54,8 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
         collegeId: collegeId || null,
         programId: programId || null,
         status: initialStatus,
+        onboardingTokenHash,
+        onboardingTokenExpiresAt: onboardingToken ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null,
       },
     });
 
@@ -85,6 +94,7 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
           lastName: user.lastName,
           status: "PENDING",
         },
+        onboardingToken,
       });
       return;
     }
@@ -107,6 +117,83 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
     res.status(500).json({ error: error.message || "Failed to register user" });
   }
 });
+
+// POST /api/auth/researcher-onboarding
+// Completes a pending researcher's academic profile using the short-lived token
+// issued during registration. This does not activate the account.
+router.post(
+  "/researcher-onboarding",
+  validateBody(researcherOnboardingSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const { onboardingToken, collegeId, programId, academicYearId, ...profile } = req.body;
+      const tokenHash = createHash("sha256").update(onboardingToken).digest("hex");
+
+      const user = await prisma.user.findFirst({
+        where: {
+          onboardingTokenHash: tokenHash,
+          onboardingTokenExpiresAt: { gt: new Date() },
+          status: "PENDING",
+          roles: { some: { role: { name: "RESEARCHER" } } },
+        },
+      });
+
+      if (!user) {
+        res.status(401).json({ error: "This onboarding link is invalid or has expired. Please register again or contact the administrator." });
+        return;
+      }
+
+      const [program, academicYear] = await Promise.all([
+        prisma.program.findFirst({ where: { id: programId, collegeId, isActive: true } }),
+        prisma.academicYear.findFirst({ where: { id: academicYearId, isActive: true } }),
+      ]);
+
+      if (!program) {
+        res.status(400).json({ error: "The selected program does not belong to the selected college." });
+        return;
+      }
+      if (!academicYear) {
+        res.status(400).json({ error: "The selected academic year is unavailable." });
+        return;
+      }
+
+      await prisma.$transaction([
+        prisma.user.update({
+          where: { id: user.id },
+          data: {
+            collegeId,
+            programId,
+            onboardingTokenHash: null,
+            onboardingTokenExpiresAt: null,
+          },
+        }),
+        prisma.researcherProfile.upsert({
+          where: { userId: user.id },
+          create: {
+            userId: user.id,
+            academicYearId,
+            ...profile,
+            status: "SUBMITTED",
+            submittedAt: new Date(),
+          },
+          update: {
+            academicYearId,
+            ...profile,
+            status: "SUBMITTED",
+            submittedAt: new Date(),
+          },
+        }),
+      ]);
+
+      res.json({
+        message: "Researcher profile submitted for verification.",
+        status: "SUBMITTED",
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to submit researcher onboarding" });
+    }
+  },
+);
 
 // POST /api/auth/login
 router.post("/login", validateBody(loginSchema), async (req: Request, res: Response) => {
