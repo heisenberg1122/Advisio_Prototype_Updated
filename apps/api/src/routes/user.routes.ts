@@ -305,6 +305,7 @@ router.put(
         )
       );
       const verificationNote = String(req.body.verificationNote || "").trim();
+      const collegeId = req.body.collegeId ? String(req.body.collegeId) : null;
       const validRoles = Object.values(InstitutionalRole);
 
       if (!req.body.verificationConfirmed || verificationNote.length < 10) {
@@ -314,6 +315,13 @@ router.put(
       if (roleNames.length === 0 || roleNames.some((role) => !validRoles.includes(role as InstitutionalRole))) {
         res.status(400).json({ error: "At least one valid institutional role is required" });
         return;
+      }
+      if (collegeId) {
+        const college = await prisma.college.findFirst({ where: { id: collegeId, isActive: true }, select: { id: true } });
+        if (!college) {
+          res.status(400).json({ error: "Select a valid active college or school" });
+          return;
+        }
       }
 
       const result = await prisma.$transaction(async (tx) => {
@@ -329,6 +337,7 @@ router.put(
         }
 
         const roles = await tx.role.findMany({ where: { name: { in: roleNames as InstitutionalRole[] } } });
+        await tx.user.update({ where: { id }, data: { collegeId, ...(target.collegeId !== collegeId ? { programId: null } : {}) } });
         await tx.userRole.deleteMany({ where: { userId: id } });
         await tx.userRole.createMany({
           data: roles.map((role) => ({ userId: id, roleId: role.id, grantedBy: req.user!.id })),
@@ -340,7 +349,7 @@ router.put(
             entityType: "USER",
             entityId: id,
             oldValues: { roles: oldRoleNames },
-            newValues: { roles: roleNames, verificationNote },
+            newValues: { roles: roleNames, collegeId, verificationNote },
             ipAddress: req.ip,
             userAgent: req.get("user-agent") || null,
           },

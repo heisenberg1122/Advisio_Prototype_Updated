@@ -86,8 +86,27 @@ async function main() {
     });
   }
 
-  // 3. Organization Seed: CIT & BSIT
-  console.log("Seeding sample Organization (CIT / BSIT)...");
+  // 3. Organization Seed: institutional colleges and schools
+  console.log("Seeding institutional colleges and schools...");
+  const institutionalUnits = [
+    ["COA", "College of Accountancy"],
+    ["CEA", "College of Engineering and Architecture"],
+    ["CHTM", "College of Hospitality and Tourism Management"],
+    ["CNP", "College of Nursing and Pharmacy"],
+    ["SAS", "School of Arts and Sciences"],
+    ["SBPA", "School of Business and Public Administration"],
+    ["SOE", "School of Education"],
+    ["SHS", "Senior High School"],
+  ] as const;
+
+  for (const [code, name] of institutionalUnits) {
+    await prisma.college.upsert({
+      where: { code },
+      update: { name, isActive: true },
+      create: { code, name, description: `${name} academic unit` },
+    });
+  }
+
   const cit = await prisma.college.upsert({
     where: { code: "CIT" },
     update: { name: "College of Information Technology" },

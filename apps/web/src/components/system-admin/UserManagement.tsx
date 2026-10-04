@@ -12,7 +12,7 @@ type User = {
   middleName?: string | null;
   lastName: string;
   status: "ACTIVE" | "PENDING" | "SUSPENDED" | "INACTIVE";
-  college?: { code: string; name: string } | null;
+  college?: { id: string; code: string; name: string } | null;
   program?: { code: string; name: string } | null;
   roles: { role: Role }[];
   createdAt: string;
@@ -46,6 +46,7 @@ export function UserManagement() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [dialog, setDialog] = useState<Dialog>(null);
   const [selectedRoles, setSelectedRoles] = useState<RoleName[]>([]);
+  const [selectedCollegeId, setSelectedCollegeId] = useState("");
   const [verificationConfirmed, setVerificationConfirmed] = useState(false);
   const [verificationNote, setVerificationNote] = useState("");
   const [deletePhrase, setDeletePhrase] = useState("");
@@ -59,6 +60,10 @@ export function UserManagement() {
   const rolesQuery = useQuery({
     queryKey: ["institutional-roles"],
     queryFn: () => apiClient.get<{ roles: Role[] }>("/api/users/meta/roles"),
+  });
+  const collegesQuery = useQuery({
+    queryKey: ["institutional-units"],
+    queryFn: () => apiClient.get<{ colleges: { id: string; code: string; name: string }[] }>("/api/colleges"),
   });
 
   const filteredUsers = useMemo(() => {
@@ -75,6 +80,7 @@ export function UserManagement() {
   const openDialog = (type: NonNullable<Dialog>["type"], user: User) => {
     setDialog({ type, user });
     setSelectedRoles(user.roles.map((item) => item.role.name));
+    setSelectedCollegeId(user.college?.id || "");
     setVerificationConfirmed(false);
     setVerificationNote("");
     setDeletePhrase("");
@@ -108,7 +114,7 @@ export function UserManagement() {
     if (!dialog) return;
     setWorking(true);
     try {
-      await apiClient.put(`/api/users/${dialog.user.id}/roles`, { roleNames: selectedRoles, verificationConfirmed, verificationNote });
+      await apiClient.put(`/api/users/${dialog.user.id}/roles`, { roleNames: selectedRoles, collegeId: selectedCollegeId || null, verificationConfirmed, verificationNote });
       await refresh();
       setDialog(null);
       setFeedback({ tone: "success", message: `Verified roles were updated for ${dialog.user.universityId}.` });
@@ -205,7 +211,7 @@ export function UserManagement() {
 
             {feedback?.tone === "error" && <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/40 p-3 text-xs font-semibold text-rose-700 dark:text-rose-300">{feedback.message}</div>}
 
-            {dialog.type === "roles" && <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">{rolesQuery.data?.roles.map((role) => <label key={role.id} className="flex cursor-pointer items-start gap-2 rounded-xl border border-slate-200 dark:border-white/10 p-3"><input type="checkbox" checked={selectedRoles.includes(role.name)} onChange={() => toggleRole(role.name)} className="mt-0.5 accent-[#C9A227]" /><span><strong className="block text-xs text-slate-900 dark:text-white">{roleLabels[role.name]}</strong><span className="text-[10px] text-slate-400">{role.description || role.name}</span></span></label>)}</div>}
+            {dialog.type === "roles" && <div className="mt-5 space-y-4"><div><label htmlFor="verified-college" className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">College / School assignment</label><select id="verified-college" value={selectedCollegeId} onChange={(event) => setSelectedCollegeId(event.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] px-3 py-2.5 text-xs text-slate-900 dark:text-white"><option value="">No college or school assigned</option>{collegesQuery.data?.colleges.map((college) => <option key={college.id} value={college.id}>{college.name}</option>)}</select><p className="mt-1.5 text-[10px] text-slate-400">This is an organizational assignment, separate from access roles.</p></div><div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{rolesQuery.data?.roles.map((role) => <label key={role.id} className="flex cursor-pointer items-start gap-2 rounded-xl border border-slate-200 dark:border-white/10 p-3"><input type="checkbox" checked={selectedRoles.includes(role.name)} onChange={() => toggleRole(role.name)} className="mt-0.5 accent-[#C9A227]" /><span><strong className="block text-xs text-slate-900 dark:text-white">{roleLabels[role.name]}</strong><span className="text-[10px] text-slate-400">{role.description || role.name}</span></span></label>)}</div></div>}
 
             {(dialog.type === "approve" || dialog.type === "roles") && <div className="mt-5 space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/30 p-4"><label className="flex items-start gap-2 text-xs font-semibold text-amber-900 dark:text-amber-200"><input type="checkbox" checked={verificationConfirmed} onChange={(event) => setVerificationConfirmed(event.target.checked)} className="mt-0.5 accent-[#C9A227]" /><span>I verified this person’s identity and eligibility for the requested roles using institutional records.</span></label><div><label htmlFor="verification-note" className="mb-1 block text-[10px] font-bold text-slate-700 dark:text-slate-300">Verification note</label><textarea id="verification-note" value={verificationNote} onChange={(event) => setVerificationNote(event.target.value)} rows={3} placeholder="Describe the record or authority used for verification." className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] px-3 py-2 text-xs" /></div></div>}
 
