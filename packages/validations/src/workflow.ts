@@ -8,13 +8,14 @@ export const workflowStageSchema = z.object({
   requiresApproval: z.boolean().default(false),
   deadlineDays: z.number().int().positive().optional(),
   isFinal: z.boolean().default(false),
+  submissionMode: z.enum(["INDIVIDUAL", "GROUP", "EITHER"]).default("EITHER"),
 });
 
 export const createWorkflowSchema = z.object({
   researchTypeId: z.string().uuid("Invalid research type ID"),
-  name: z.string().min(3).max(150),
+  name: z.string().trim().min(3).max(150),
   description: z.string().optional(),
-  stages: z.array(workflowStageSchema).min(1, "Workflow must contain at least one stage"),
+  stages: z.array(workflowStageSchema).default([]),
 });
 
 export const workflowTransitionSchema = z.object({

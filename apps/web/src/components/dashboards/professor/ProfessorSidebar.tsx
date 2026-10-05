@@ -17,7 +17,7 @@ import {
 const NAV_ITEMS = [
   { label: "Overview", href: "/professor/dashboard", tabName: "overview", icon: LayoutDashboard },
   { label: "Announcements", href: "/professor/dashboard?tab=announcements", tabName: "announcements", icon: Megaphone },
-  { label: "Research Groups", href: "/professor/dashboard?tab=monitoring", tabName: "monitoring", icon: Users },
+  { label: "Researchers & Projects", href: "/professor/dashboard?tab=monitoring", tabName: "monitoring", icon: Users },
   { label: "Submissions", href: "/professor/dashboard?tab=submissions", tabName: "submissions", icon: Inbox },
   { label: "Defense", href: "/professor/dashboard?tab=defense", tabName: "defense", icon: Presentation },
   { label: "Workflow", href: "/professor/dashboard?tab=builder", tabName: "builder", icon: Sliders },

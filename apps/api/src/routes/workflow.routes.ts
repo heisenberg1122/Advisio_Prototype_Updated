@@ -9,6 +9,8 @@ import { Permissions } from "@research-management/auth";
 import { validateBody } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth";
 import { requirePermission } from "../middleware/rbac";
+import { getCollegeScope } from "../lib/college-scope.js";
+import { randomBytes } from "node:crypto";
 
 const router = Router();
 
@@ -43,10 +45,29 @@ async function normalizeWorkflowStageSequences(tx: any, workflowId: string) {
 router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const { researchTypeId } = req.query;
+    const scope = getCollegeScope(req.user!);
+    if (scope.kind === "unassigned") {
+      res.status(403).json({ error: "Your account has not been assigned to a college or school. Contact the System Administrator." });
+      return;
+    }
+    const scopedResearchTypeIds = scope.kind === "college"
+      ? (await prisma.researchType.findMany({
+          where: {
+            program: {
+              collegeId: scope.collegeId,
+              ...(req.user!.programId && { id: req.user!.programId }),
+            },
+          },
+          select: { id: true },
+        })).map((item) => item.id)
+      : null;
 
     const workflows = await prisma.workflow.findMany({
       where: {
-        ...(researchTypeId && { researchTypeId: String(researchTypeId) }),
+        AND: [
+          ...(researchTypeId ? [{ researchTypeId: String(researchTypeId) }] : []),
+          ...(scopedResearchTypeIds ? [{ researchTypeId: { in: scopedResearchTypeIds } }] : []),
+        ],
       },
       include: {
         stages: {
@@ -78,15 +99,59 @@ router.post(
         return;
       }
 
-      const { researchTypeId, name, description, stages } = req.body;
+      const { researchTypeId, name, description, stages = [] } = req.body;
+      const scope = getCollegeScope(req.user);
+      if (scope.kind === "unassigned") {
+        res.status(403).json({ error: "Your account has not been assigned to a college or school. Contact the System Administrator." });
+        return;
+      }
+
+      const researchType = await prisma.researchType.findFirst({
+        where: {
+          id: researchTypeId,
+          isActive: true,
+          ...(scope.kind === "college" && {
+            program: {
+              collegeId: scope.collegeId,
+              ...(req.user.programId && { id: req.user.programId }),
+            },
+          }),
+        },
+        include: { program: { include: { college: true } } },
+      });
+      if (!researchType) {
+        res.status(403).json({ error: "The selected research type is outside your assigned department or program." });
+        return;
+      }
+
+      const departmentResearchTypeIds = (await prisma.researchType.findMany({
+        where: { programId: researchType.programId },
+        select: { id: true },
+      })).map((item) => item.id);
+      const duplicate = await prisma.workflow.findFirst({
+        where: {
+          name: { equals: name.trim(), mode: "insensitive" },
+          researchTypeId: { in: departmentResearchTypeIds },
+        },
+        select: { id: true },
+      });
+      if (duplicate) {
+        res.status(409).json({ error: "A workflow with this name already exists in your department or program." });
+        return;
+      }
+
+      const latestVersion = await prisma.workflow.aggregate({
+        where: { researchTypeId },
+        _max: { version: true },
+      });
 
       const workflow = await prisma.workflow.create({
         data: {
           researchTypeId,
-          name,
-          description: description || null,
-          version: 1,
-          status: "PUBLISHED",
+          name: name.trim(),
+          description: typeof description === "string" && description.trim() ? description.trim() : null,
+          version: (latestVersion._max.version || 0) + 1,
+          status: "DRAFT",
           createdBy: req.user.id,
           stages: {
             create: stages.map((s: any) => ({
@@ -117,6 +182,133 @@ router.post(
   },
 );
 
+// POST /api/workflows/:id/invitation — generate or rotate a researcher invitation.
+router.post("/:id/invitation", requireAuth, requirePermission(Permissions.WORKFLOW_EDIT), async (req: Request, res: Response) => {
+  try {
+    const workflow = await prisma.workflow.findUnique({ where: { id: req.params.id as string } });
+    if (!workflow) return void res.status(404).json({ error: "Workflow not found." });
+    const researchType = await prisma.researchType.findUnique({ where: { id: workflow.researchTypeId }, include: { program: true } });
+    if (!researchType) return void res.status(404).json({ error: "Workflow research type was not found." });
+    const scope = getCollegeScope(req.user!);
+    if (scope.kind !== "institution" && (scope.kind !== "college" || scope.collegeId !== researchType.program.collegeId || (req.user!.programId && req.user!.programId !== researchType.programId))) {
+      return void res.status(404).json({ error: "Workflow not found in your department scope." });
+    }
+    const inviteCode = randomBytes(5).toString("hex").toUpperCase();
+    const inviteExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const updated = await prisma.workflow.update({ where: { id: workflow.id }, data: { inviteCode, inviteExpiresAt }, select: { id: true, inviteCode: true, inviteExpiresAt: true } });
+    res.json({ invitation: updated });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to generate workflow invitation." });
+  }
+});
+
+// POST /api/workflows/join/:code — researcher joins a workflow before formal project creation.
+router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!req.user!.roles.includes("RESEARCHER")) return void res.status(403).json({ error: "Researcher access is required." });
+    const code = String(req.params.code || "").trim().toUpperCase();
+    const workflow = await prisma.workflow.findUnique({ where: { inviteCode: code }, include: { stages: { where: { category: { not: "Archived" } }, orderBy: { sequence: "asc" }, include: { tasks: true } } } });
+    if (!workflow || !workflow.inviteExpiresAt || workflow.inviteExpiresAt <= new Date()) return void res.status(404).json({ error: "This workflow invitation is invalid or expired." });
+    const researchType = await prisma.researchType.findUnique({ where: { id: workflow.researchTypeId }, include: { program: true } });
+    if (!researchType || req.user!.collegeId !== researchType.program.collegeId || req.user!.programId !== researchType.programId) return void res.status(403).json({ error: "This workflow belongs to a different department or program." });
+    const enrollment = await prisma.workflowEnrollment.upsert({
+      where: { workflowId_userId: { workflowId: workflow.id, userId: req.user!.id } },
+      update: { status: "ACTIVE", joinedAt: new Date() },
+      create: { workflowId: workflow.id, userId: req.user!.id },
+    });
+    await prisma.notification.createMany({ data: [
+      { recipientId: req.user!.id, type: "WORKFLOW_CHANGED", title: "Workflow joined", message: `You joined ${workflow.name}. Its milestones are now available on your dashboard.`, entityType: "WORKFLOW_ENROLLMENT", entityId: enrollment.id },
+      { recipientId: workflow.createdBy, type: "WORKFLOW_CHANGED", title: "Researcher joined workflow", message: `${req.user!.firstName || req.user!.email} joined ${workflow.name}.`, entityType: "WORKFLOW_ENROLLMENT", entityId: enrollment.id },
+    ] });
+    res.status(201).json({ enrollment, workflow });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to join workflow." });
+  }
+});
+
+router.get("/enrollments/me", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const enrollments = await prisma.workflowEnrollment.findMany({
+      where: { userId: req.user!.id, status: "ACTIVE" },
+      include: {
+        workflow: {
+          include: {
+            stages: {
+              where: { category: { not: "Archived" } },
+              orderBy: { sequence: "asc" },
+              include: { tasks: { orderBy: { sequence: "asc" } } },
+            },
+          },
+        },
+      },
+      orderBy: { joinedAt: "desc" },
+    });
+    res.json({ enrollments });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to load workflow enrollments." });
+  }
+});
+
+// GET /api/workflows/enrollments — accepted researchers in the professor's scope.
+router.get(
+  "/enrollments",
+  requireAuth,
+  requirePermission(Permissions.WORKFLOW_EDIT),
+  async (req: Request, res: Response) => {
+    try {
+      const scope = getCollegeScope(req.user!);
+      if (scope.kind === "unassigned") {
+        return void res.status(403).json({
+          error: "Your account has not been assigned to a college or school.",
+        });
+      }
+
+      const scopedResearchTypeIds =
+        scope.kind === "college"
+          ? (
+              await prisma.researchType.findMany({
+                where: {
+                  program: {
+                    collegeId: scope.collegeId,
+                    ...(req.user!.programId && { id: req.user!.programId }),
+                  },
+                },
+                select: { id: true },
+              })
+            ).map((item) => item.id)
+          : null;
+
+      const enrollments = await prisma.workflowEnrollment.findMany({
+        where: {
+          status: "ACTIVE",
+          ...(scopedResearchTypeIds && {
+            workflow: { researchTypeId: { in: scopedResearchTypeIds } },
+          }),
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              universityId: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+          workflow: { select: { id: true, name: true } },
+        },
+        orderBy: { joinedAt: "desc" },
+      });
+
+      res.json({ enrollments });
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message || "Failed to load accepted researchers.",
+      });
+    }
+  },
+);
+
 // POST /api/workflows/:id/stages
 router.post(
   "/:id/stages",
@@ -132,8 +324,12 @@ router.post(
         deadlineDays,
         requiresApproval = false,
         requiresDocument = true,
+        submissionMode = "EITHER",
         isFinal = false,
       } = req.body;
+      if (!["INDIVIDUAL", "GROUP", "EITHER"].includes(submissionMode)) {
+        return void res.status(400).json({ error: "Choose a valid milestone submission mode." });
+      }
 
       if (!name || typeof name !== "string" || name.trim().length < 3) {
         res.status(400).json({
@@ -196,6 +392,7 @@ router.post(
             requiresDocument: Boolean(requiresDocument),
             deadlineDays: deadline,
             isFinal: Boolean(isFinal),
+            submissionMode,
           },
         });
         if (createdStage.requiresDocument) {
@@ -445,6 +642,7 @@ router.patch(
         requiresApproval,
         requiresDocument,
         isFinal,
+        submissionMode,
       } = req.body;
 
       const stage = await prisma.workflowStage.update({
@@ -463,6 +661,7 @@ router.patch(
             requiresDocument: Boolean(requiresDocument),
           }),
           ...(isFinal !== undefined && { isFinal: Boolean(isFinal) }),
+          ...(submissionMode !== undefined && ["INDIVIDUAL", "GROUP", "EITHER"].includes(submissionMode) && { submissionMode }),
         },
       });
 

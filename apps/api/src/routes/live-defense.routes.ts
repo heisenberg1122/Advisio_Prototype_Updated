@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { Router, Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { canAccessCollege, getCollegeScope } from "../lib/college-scope.js";
 
 const router = Router();
 const FACILITATOR_ROLES = new Set(["RESEARCH_COORDINATOR", "RPO", "SYSTEM_ADMIN"]);
@@ -54,10 +55,12 @@ async function notifyResearchGroup(tx: any, researchId: string, type: any, title
   if (members.length) await tx.notification.createMany({ data: members.map(({ userId }: any) => ({ recipientId: userId, type, title, message, entityType: "DefenseSession", entityId: sessionId })) });
 }
 
-router.get("/defense-management/candidates", requireAuth, requireFacilitator, async (_req: Request, res: Response) => {
+router.get("/defense-management/candidates", requireAuth, requireFacilitator, async (req: Request, res: Response) => {
   try {
+    const scope = getCollegeScope(req.user!);
+    if (scope.kind === "unassigned") return void res.status(403).json({ error: "Your account has not been assigned to a college or school." });
     const users = await prisma.user.findMany({
-      where: { status: "ACTIVE", roles: { some: { role: { name: { in: ["PANELIST", "ADVISER"] } } } } },
+      where: { status: "ACTIVE", ...(scope.kind === "college" && { collegeId: scope.collegeId }), roles: { some: { role: { name: { in: ["PANELIST", "ADVISER"] } } } } },
       select: { ...participantSelect, roles: { select: { role: { select: { name: true } } } } },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });
@@ -72,11 +75,13 @@ router.get("/defense-management", requireAuth, async (req: Request, res: Respons
     const facilitator = req.user!.roles.some((role) => FACILITATOR_ROLES.has(role));
     const panelist = req.user!.roles.includes("PANELIST") || req.user!.roles.includes("ADVISER");
     const researcher = req.user!.roles.includes("RESEARCHER");
+    const scope = getCollegeScope(req.user!);
+    if (scope.kind === "unassigned") return void res.status(403).json({ error: "Your account has not been assigned to a college or school." });
     const sessions = await prisma.defenseSession.findMany({
-      where: facilitator ? {} : {
+      where: facilitator ? (scope.kind === "college" ? { research: { collegeId: scope.collegeId } } : {}) : {
         OR: [
-          ...(panelist ? [{ invitations: { some: { inviteeId: req.user!.id, status: { not: "REMOVED" as const } } } }] : []),
-          ...(researcher ? [{ research: { members: { some: { userId: req.user!.id, projectRole: { in: ["LEADER" as const, "MEMBER" as const] }, leftAt: null } } } }] : []),
+          ...(panelist ? [{ invitations: { some: { inviteeId: req.user!.id, status: { not: "REMOVED" as const } } }, ...(scope.kind === "college" && { research: { collegeId: scope.collegeId } }) }] : []),
+          ...(researcher ? [{ research: { ...(scope.kind === "college" && { collegeId: scope.collegeId }), members: { some: { userId: req.user!.id, projectRole: { in: ["LEADER" as const, "MEMBER" as const] }, leftAt: null } } } }] : []),
         ],
       },
       include: sessionInclude,
@@ -91,10 +96,13 @@ router.get("/defense-management", requireAuth, async (req: Request, res: Respons
   }
 });
 
-router.get("/defense-management/eligible-groups", requireAuth, requireFacilitator, async (_req: Request, res: Response) => {
+router.get("/defense-management/eligible-groups", requireAuth, requireFacilitator, async (req: Request, res: Response) => {
   try {
+    const scope = getCollegeScope(req.user!);
+    if (scope.kind === "unassigned") return void res.status(403).json({ error: "Your account has not been assigned to a college or school." });
     const projects = await prisma.researchProject.findMany({
       where: {
+        ...(scope.kind === "college" && { collegeId: scope.collegeId }),
         workflowInstance: { completedAt: { not: null } },
         defenseSessions: { none: { status: { in: ["PENDING_ACKNOWLEDGEMENT", "NEEDS_RESCHEDULING", "SCHEDULED", "LIVE", "DELIBERATION"] } } },
       },
@@ -123,10 +131,11 @@ router.post("/defense-management", requireAuth, requireFacilitator, async (req: 
     const uniqueInvitees = Array.from(new Map(invitees.map((item: any) => [String(item.userId), item])).values()) as any[];
     const research = await prisma.researchProject.findUnique({ where: { id: researchId }, include: { workflowInstance: true } });
     if (!research) return void res.status(404).json({ error: "Research group was not found." });
+    if (!canAccessCollege(req.user!, research.collegeId)) return void res.status(404).json({ error: "Research group was not found in your college scope." });
     if (!research.workflowInstance?.completedAt) return void res.status(409).json({ error: "This group has not completed all workflow requirements." });
     const existing = await prisma.defenseSession.findFirst({ where: { researchId, status: { in: ["PENDING_ACKNOWLEDGEMENT", "NEEDS_RESCHEDULING", "SCHEDULED", "LIVE", "DELIBERATION"] } } });
     if (existing) return void res.status(409).json({ error: "This group already has an active defense request." });
-    const validUsers = await prisma.user.findMany({ where: { id: { in: uniqueInvitees.map((item) => item.userId) }, status: "ACTIVE" }, select: { id: true } });
+    const validUsers = await prisma.user.findMany({ where: { id: { in: uniqueInvitees.map((item) => item.userId) }, status: "ACTIVE", collegeId: research.collegeId }, select: { id: true } });
     if (validUsers.length !== uniqueInvitees.length) return void res.status(400).json({ error: "One or more selected participants are unavailable." });
 
     const session = await prisma.$transaction(async (tx) => {
@@ -189,6 +198,7 @@ router.patch("/defense-management/:sessionId/reschedule", requireAuth, requireFa
     if (!Number.isFinite(scheduledStart.getTime()) || !Number.isFinite(scheduledEnd.getTime()) || scheduledEnd <= scheduledStart || scheduledStart <= new Date()) return void res.status(400).json({ error: "Choose a valid future start and end time." });
     const existing = await prisma.defenseSession.findUnique({ where: { id: req.params.sessionId as string }, include: { research: true, invitations: true } });
     if (!existing) return void res.status(404).json({ error: "Defense request was not found." });
+    if (!canAccessCollege(req.user!, existing.research.collegeId)) return void res.status(404).json({ error: "Defense request was not found in your college scope." });
     const session = await prisma.$transaction(async (tx) => {
       await tx.defenseInvitation.updateMany({ where: { defenseSessionId: existing.id, status: { not: "REMOVED" } }, data: { status: "RECONFIRMATION_REQUIRED", respondedAt: null } });
       const updated = await tx.defenseSession.update({ where: { id: existing.id }, data: { status: "PENDING_ACKNOWLEDGEMENT", scheduledStart, scheduledEnd, venue: String(req.body.venue || "").trim() || null, meetingUrl: String(req.body.meetingUrl || "").trim() || null, notes: String(req.body.notes || "").trim() || null }, include: sessionInclude });
@@ -211,8 +221,9 @@ router.patch("/defense-management/:sessionId/invitations/:invitationId/replace",
       include: { defenseSession: { include: { research: true } } },
     });
     if (!existing) return void res.status(404).json({ error: "Defense invitation was not found." });
+    if (!canAccessCollege(req.user!, existing.defenseSession.research.collegeId)) return void res.status(404).json({ error: "Defense invitation was not found in your college scope." });
     if (existing.status !== "DECLINED") return void res.status(409).json({ error: "Only a declined participant can be replaced." });
-    const replacement = await prisma.user.findFirst({ where: { id: replacementUserId, status: "ACTIVE" }, select: participantSelect });
+    const replacement = await prisma.user.findFirst({ where: { id: replacementUserId, status: "ACTIVE", collegeId: existing.defenseSession.research.collegeId }, select: participantSelect });
     if (!replacement) return void res.status(400).json({ error: "The replacement participant is unavailable." });
     const duplicate = await prisma.defenseInvitation.findUnique({ where: { defenseSessionId_inviteeId: { defenseSessionId: existing.defenseSessionId, inviteeId: replacementUserId } } });
     if (duplicate && duplicate.status !== "REMOVED") return void res.status(409).json({ error: "That person is already invited to this defense." });
@@ -235,11 +246,19 @@ router.get("/defense-sessions/active", requireAuth, async (req: Request, res: Re
   try {
     const isPanelist = req.user!.roles.includes("PANELIST");
     const isResearcher = req.user!.roles.includes("RESEARCHER");
+    const scope = getCollegeScope(req.user!);
+    if (scope.kind === "unassigned") return void res.status(403).json({ error: "Your account has not been assigned to a college or school." });
+    const activeMemberRoles = [
+      ...(isPanelist ? ["PANELIST" as const] : []),
+      ...(isResearcher ? ["LEADER" as const, "MEMBER" as const] : []),
+    ];
     const session = await prisma.defenseSession.findFirst({
       where: {
         status: { in: ["LIVE", "DELIBERATION"] },
-        ...(isPanelist && { research: { members: { some: { userId: req.user!.id, projectRole: "PANELIST", leftAt: null } } } }),
-        ...(isResearcher && { research: { members: { some: { userId: req.user!.id, projectRole: { in: ["LEADER", "MEMBER"] }, leftAt: null } } } }),
+        research: {
+          ...(scope.kind === "college" && { collegeId: scope.collegeId }),
+          ...(activeMemberRoles.length && { members: { some: { userId: req.user!.id, projectRole: { in: activeMemberRoles }, leftAt: null } } }),
+        },
       },
       include: sessionInclude,
       orderBy: { startedAt: "desc" },
@@ -259,9 +278,10 @@ router.post("/defense-sessions/start", requireAuth, requireFacilitator, async (r
     if (!sessionId) return void res.status(400).json({ error: "A confirmed defense schedule is required." });
     const scheduled = await prisma.defenseSession.findUnique({
       where: { id: sessionId },
-      include: { invitations: { where: { status: "ACCEPTED", role: { in: ["PANEL_CHAIR", "PANELIST"] } } } },
+      include: { research: { select: { collegeId: true } }, invitations: { where: { status: "ACCEPTED", role: { in: ["PANEL_CHAIR", "PANELIST"] } } } },
     });
     if (!scheduled) return void res.status(404).json({ error: "Defense schedule was not found." });
+    if (!canAccessCollege(req.user!, scheduled.research.collegeId)) return void res.status(404).json({ error: "Defense schedule was not found in your college scope." });
     if (scheduled.status !== "SCHEDULED") return void res.status(409).json({ error: "All required participants must accept before the defense can start." });
     if (!scheduled.invitations.length) return void res.status(409).json({ error: "The confirmed defense has no accepted panelists." });
     const existing = await prisma.defenseSession.findFirst({ where: { status: { in: ["LIVE", "DELIBERATION"] } } });
@@ -299,6 +319,10 @@ router.put("/defense-sessions/:id/evaluation", requireAuth, async (req: Request,
     });
     if (!session || session.status !== "LIVE") {
       res.status(409).json({ error: "This defense session is not live." });
+      return;
+    }
+    if (!canAccessCollege(req.user!, session.research.collegeId)) {
+      res.status(404).json({ error: "Defense session was not found in your college scope." });
       return;
     }
     if (!session.research.members.some((member) => member.userId === req.user!.id)) {
@@ -389,6 +413,10 @@ router.post("/defense-sessions/:id/release", requireAuth, requireFacilitator, as
       res.status(409).json({ error: "This session cannot be released." });
       return;
     }
+    if (!canAccessCollege(req.user!, session.research.collegeId)) {
+      res.status(404).json({ error: "Defense session was not found in your college scope." });
+      return;
+    }
     const lockedEvaluatorIds = new Set(session.evaluations.filter((item) => item.status === "LOCKED").map((item) => item.evaluatorId));
     const missing = session.research.members.filter((member) => !lockedEvaluatorIds.has(member.userId));
     if (missing.length) {
@@ -418,6 +446,18 @@ router.get("/defense-sessions/:id", requireAuth, async (req: Request, res: Respo
       res.status(404).json({ error: "Defense session was not found." });
       return;
     }
+    if (!canAccessCollege(req.user!, session.research.collegeId)) {
+      res.status(404).json({ error: "Defense session was not found in your college scope." });
+      return;
+    }
+    const isInstitutionWide = getCollegeScope(req.user!).kind === "institution";
+    const isFacilitator = req.user!.roles.includes("RESEARCH_COORDINATOR");
+    const isMember = session.research.members.some((member) => member.userId === req.user!.id);
+    const isInvited = session.invitations.some((invitation) => invitation.inviteeId === req.user!.id && invitation.status !== "REMOVED");
+    if (!isInstitutionWide && !isFacilitator && !isMember && !isInvited) {
+      res.status(404).json({ error: "Defense session was not found." });
+      return;
+    }
     res.json({ session });
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to load the defense session." });
@@ -427,6 +467,11 @@ router.get("/defense-sessions/:id", requireAuth, async (req: Request, res: Respo
 router.get("/research/:researchId/defense-result", requireAuth, async (req: Request, res: Response) => {
   try {
     const researchId = req.params.researchId as string;
+    const research = await prisma.researchProject.findUnique({ where: { id: researchId }, select: { collegeId: true } });
+    if (!research || !canAccessCollege(req.user!, research.collegeId)) {
+      res.status(404).json({ error: "Defense result was not found in your college scope." });
+      return;
+    }
     const isResearcher = req.user!.roles.includes("RESEARCHER");
     if (isResearcher) {
       const membership = await prisma.researchMember.findFirst({ where: { researchId, userId: req.user!.id, projectRole: { in: ["LEADER", "MEMBER"] }, leftAt: null } });

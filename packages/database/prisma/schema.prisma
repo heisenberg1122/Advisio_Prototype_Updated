@@ -327,7 +327,7 @@ model AcademicYear {
   isCurrent Boolean  @default(false) @map("is_current")
   isActive  Boolean  @default(true) @map("is_active")
 
-  researchProjects ResearchProject[]
+  researchProjects   ResearchProject[]
   researcherProfiles ResearcherProfile[]
 
   @@map("academic_years")
@@ -338,46 +338,47 @@ model AcademicYear {
 // ─────────────────────────────────────────────────────────────
 
 model User {
-  id                   String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  universityId         String     @unique @map("university_id") @db.VarChar(50)
-  email                String     @unique @db.Citext
-  firstName            String     @map("first_name") @db.VarChar(100)
-  middleName           String?    @map("middle_name") @db.VarChar(100)
-  lastName             String     @map("last_name") @db.VarChar(100)
-  passwordHash         String?    @map("password_hash") @db.VarChar(255)
-  collegeId            String?    @map("college_id") @db.Uuid
-  programId            String?    @map("program_id") @db.Uuid
-  status               UserStatus @default(PENDING)
-  maxAdviseeGroups     Int        @default(5) @map("max_advisee_groups")
-  isAcceptingAdvisees  Boolean    @default(true) @map("is_accepting_advisees")
-  adviserCapacityNote  String?    @map("adviser_capacity_note") @db.Text
-  adviserCapacitySetBy String?    @map("adviser_capacity_set_by") @db.Uuid
-  adviserCapacitySetAt DateTime?  @map("adviser_capacity_set_at")
-  lastLoginAt          DateTime?  @map("last_login_at")
-  createdAt            DateTime   @default(now()) @map("created_at")
-  updatedAt            DateTime   @updatedAt @map("updated_at")
-  onboardingTokenHash  String?    @map("onboarding_token_hash") @db.VarChar(64)
-  onboardingTokenExpiresAt DateTime? @map("onboarding_token_expires_at")
+  id                       String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  universityId             String     @unique @map("university_id") @db.VarChar(50)
+  email                    String     @unique @db.Citext
+  firstName                String     @map("first_name") @db.VarChar(100)
+  middleName               String?    @map("middle_name") @db.VarChar(100)
+  lastName                 String     @map("last_name") @db.VarChar(100)
+  passwordHash             String?    @map("password_hash") @db.VarChar(255)
+  collegeId                String?    @map("college_id") @db.Uuid
+  programId                String?    @map("program_id") @db.Uuid
+  status                   UserStatus @default(PENDING)
+  maxAdviseeGroups         Int        @default(5) @map("max_advisee_groups")
+  isAcceptingAdvisees      Boolean    @default(true) @map("is_accepting_advisees")
+  adviserCapacityNote      String?    @map("adviser_capacity_note") @db.Text
+  adviserCapacitySetBy     String?    @map("adviser_capacity_set_by") @db.Uuid
+  adviserCapacitySetAt     DateTime?  @map("adviser_capacity_set_at")
+  lastLoginAt              DateTime?  @map("last_login_at")
+  createdAt                DateTime   @default(now()) @map("created_at")
+  updatedAt                DateTime   @updatedAt @map("updated_at")
+  onboardingTokenHash      String?    @map("onboarding_token_hash") @db.VarChar(64)
+  onboardingTokenExpiresAt DateTime?  @map("onboarding_token_expires_at")
 
-  college                  College?                  @relation(fields: [collegeId], references: [id], onDelete: SetNull)
-  program                  Program?                  @relation(fields: [programId], references: [id], onDelete: SetNull)
+  college                  College?                   @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+  program                  Program?                   @relation(fields: [programId], references: [id], onDelete: SetNull)
   roles                    UserRole[]
   memberships              ResearchMember[]
-  ownedResearch            ResearchProject[]         @relation("ProjectCreator")
+  ownedResearch            ResearchProject[]          @relation("ProjectCreator")
   reviews                  Review[]
   comments                 ReviewComment[]
   evaluations              Evaluation[]
   notifications            Notification[]
   auditLogs                AuditLog[]
-  certificatesIssued       Certificate[]             @relation("CertificateIssuer")
+  certificatesIssued       Certificate[]              @relation("CertificateIssuer")
   workflowTransitions      WorkflowTransition[]
   consultationParticipants ConsultationParticipant[]
-  adviserRequestsReceived  AdviserRequest[]          @relation("RequestedAdviser")
-  adviserRequestsCreated   AdviserRequest[]          @relation("AdviserRequestCreator")
-  taskSubmissions          TaskSubmission[]          @relation("TaskSubmissionSubmitter")
-  announcementsCreated     SystemAnnouncement[]      @relation("AnnouncementCreator")
-  workflowsCreated         Workflow[]                @relation("WorkflowCreator")
-  defenseSessionsCreated   DefenseSession[]          @relation("DefenseSessionCreator")
+  adviserRequestsReceived  AdviserRequest[]           @relation("RequestedAdviser")
+  adviserRequestsCreated   AdviserRequest[]           @relation("AdviserRequestCreator")
+  taskSubmissions          TaskSubmission[]           @relation("TaskSubmissionSubmitter")
+  announcementsCreated     SystemAnnouncement[]       @relation("AnnouncementCreator")
+  workflowsCreated         Workflow[]                 @relation("WorkflowCreator")
+  workflowEnrollments      WorkflowEnrollment[]
+  defenseSessionsCreated   DefenseSession[]           @relation("DefenseSessionCreator")
   defenseInvitations       DefenseInvitation[]
   researcherProfile        ResearcherProfile?
   calendarEventsCreated    CalendarEvent[]            @relation("CalendarEventCreator")
@@ -393,7 +394,7 @@ model ResearcherProfile {
   id               String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId           String                     @unique @map("user_id") @db.Uuid
   academicYearId   String                     @map("academic_year_id") @db.Uuid
-  degreeLevel      ResearcherDegreeLevel       @map("degree_level")
+  degreeLevel      ResearcherDegreeLevel      @map("degree_level")
   otherDegreeLevel String?                    @map("other_degree_level") @db.VarChar(100)
   yearLevel        String?                    @map("year_level") @db.VarChar(50)
   academicStage    String?                    @map("academic_stage") @db.VarChar(50)
@@ -584,21 +585,24 @@ model ResearchMember {
 // ─────────────────────────────────────────────────────────────
 
 model Workflow {
-  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  researchTypeId String         @map("research_type_id") @db.Uuid
-  name           String         @db.VarChar(150)
-  description    String?        @db.Text
-  version        Int            @default(1)
-  status         WorkflowStatus @default(DRAFT)
-  createdBy      String         @map("created_by") @db.Uuid
-  publishedAt    DateTime?      @map("published_at")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchTypeId  String         @map("research_type_id") @db.Uuid
+  name            String         @db.VarChar(150)
+  description     String?        @db.Text
+  version         Int            @default(1)
+  status          WorkflowStatus @default(DRAFT)
+  createdBy       String         @map("created_by") @db.Uuid
+  publishedAt     DateTime?      @map("published_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  inviteCode      String?        @unique @map("invite_code") @db.VarChar(32)
+  inviteExpiresAt DateTime?      @map("invite_expires_at")
 
   researchTypes ResearchType[]
   stages        WorkflowStage[]
   instances     WorkflowInstance[]
-  creator       User               @relation("WorkflowCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  creator       User                 @relation("WorkflowCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  enrollments   WorkflowEnrollment[]
 
   @@unique([researchTypeId, version])
   @@index([status])
@@ -617,6 +621,7 @@ model WorkflowStage {
   requiresDocument  Boolean @default(true) @map("requires_document")
   deadlineDays      Int?    @map("deadline_days")
   isFinal           Boolean @default(false) @map("is_final")
+  submissionMode    String  @default("EITHER") @map("submission_mode") @db.VarChar(20)
 
   workflow         Workflow             @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   responsible      Role                 @relation(fields: [responsibleRoleId], references: [id], onDelete: Restrict)
@@ -627,6 +632,21 @@ model WorkflowStage {
 
   @@unique([workflowId, sequence])
   @@map("workflow_stages")
+}
+
+model WorkflowEnrollment {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowId String   @map("workflow_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  status     String   @default("ACTIVE") @db.VarChar(20)
+  joinedAt   DateTime @default(now()) @map("joined_at")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, userId])
+  @@index([userId, status])
+  @@map("workflow_enrollments")
 }
 
 model WorkflowTask {

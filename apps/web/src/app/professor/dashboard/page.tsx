@@ -91,6 +91,21 @@ function ProfessorDashboardContent() {
     queryFn: () => apiClient.get<{ workflows: any[] }>("/api/workflows"),
     staleTime: 60000,
   });
+  const { data: programData } = useQuery({
+    queryKey: ["professor-workflow-program", user?.college?.id],
+    queryFn: () =>
+      apiClient.get<{ programs: any[] }>("/api/programs", {
+        params: { collegeId: user?.college?.id },
+      }),
+    enabled: Boolean(user?.college?.id),
+    staleTime: 60000,
+  });
+  const assignedProgram =
+    programData?.programs?.find((program: any) => program.id === user?.program?.id) ||
+    null;
+  const availableResearchTypes = assignedProgram?.researchTypes?.filter(
+    (researchType: any) => researchType.isActive !== false,
+  ) || [];
 
   const {
     data: researchData,
@@ -103,6 +118,25 @@ function ProfessorDashboardContent() {
     staleTime: 60000,
   });
 
+  const {
+    data: enrollmentData,
+    isLoading: enrollmentsLoading,
+    error: enrollmentsError,
+  } = useQuery({
+    queryKey: ["professor-workflow-enrollments"],
+    queryFn: () =>
+      apiClient.get<{ enrollments: any[] }>("/api/workflows/enrollments"),
+    staleTime: 60000,
+  });
+  const acceptedResearchers = Array.from(
+    new Map(
+      (enrollmentData?.enrollments || []).map((enrollment: any) => [
+        enrollment.user.id,
+        enrollment,
+      ]),
+    ).values(),
+  ) as any[];
+
   // Live State Data with live fallbacks
   const [studentsCount, setStudentsCount] = useState(0);
   const [projects, setProjects] = useState<any[]>([]);
@@ -112,8 +146,20 @@ function ProfessorDashboardContent() {
       const mappedProjects = researchData.projects.map((p: any) => ({
         id: p.id,
         title: p.title,
-        group: p.title || "Untitled research group",
+        group: p.title || "Untitled research project",
+        abstract: p.abstract || "",
+        researchType: p.researchType || null,
+        program: p.program || null,
+        college: p.college || null,
+        academicYear: p.academicYear || null,
         members: p.members || [],
+        researchers: (p.members || []).filter((member: any) =>
+          ["LEADER", "MEMBER"].includes(member.projectRole),
+        ),
+        adviser:
+          (p.members || []).find(
+            (member: any) => member.projectRole === "ADVISER",
+          )?.user || null,
         currentStage: p.workflowInstance?.currentStage || null,
         workflowStages: p.workflowInstance?.workflow?.stages || [],
         taskSubmissions: p.taskSubmissions || [],
@@ -141,6 +187,8 @@ function ProfessorDashboardContent() {
       const topList = workflowData.workflows.map((w: any) => ({
         id: w.id,
         name: w.name,
+        inviteCode: w.inviteCode,
+        inviteExpiresAt: w.inviteExpiresAt,
       }));
       setTopics(topList);
       if (
@@ -148,6 +196,8 @@ function ProfessorDashboardContent() {
         !topList.some((topic: any) => topic.id === selectedTopicId)
       ) {
         setSelectedTopicId(topList[0].id);
+      } else if (topList.length === 0 && selectedTopicId) {
+        setSelectedTopicId("");
       }
       const msList: any[] = [];
       workflowData.workflows.forEach((w: any) => {
@@ -172,6 +222,7 @@ function ProfessorDashboardContent() {
             prerequisiteTaskId: "",
             deadlineDays: s.deadlineDays,
             requiresDocument: s.requiresDocument !== false,
+            submissionMode: s.submissionMode || "EITHER",
             tasks: s.tasks || [],
           });
         });
@@ -182,11 +233,16 @@ function ProfessorDashboardContent() {
 
   // Form input controllers
   const [newMilestoneTitle, setNewMilestoneTitle] = useState("");
+  const [creatingWorkflow, setCreatingWorkflow] = useState(false);
+  const [newWorkflowName, setNewWorkflowName] = useState("");
+  const [newWorkflowDescription, setNewWorkflowDescription] = useState("");
+  const [newWorkflowResearchTypeId, setNewWorkflowResearchTypeId] = useState("");
   const [newMilestoneScope, setNewMilestoneScope] = useState("Milestone");
-  const [selectedTopicId, setSelectedTopicId] = useState("top-1");
+  const [selectedTopicId, setSelectedTopicId] = useState("");
   const [deadlineDays, setDeadlineDays] = useState("");
   const [newMilestoneRequiresDocument, setNewMilestoneRequiresDocument] =
     useState(true);
+  const [newMilestoneSubmissionMode, setNewMilestoneSubmissionMode] = useState("EITHER");
   const [selectedMilestoneId, setSelectedMilestoneId] = useState("");
   const [newRequirementTitle, setNewRequirementTitle] = useState("");
   const [newRequirementInstructions, setNewRequirementInstructions] =
@@ -195,6 +251,10 @@ function ProfessorDashboardContent() {
   const [newRequirementFileTypes, setNewRequirementFileTypes] =
     useState("PDF,DOCX");
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
+  const [monitoringView, setMonitoringView] = useState<
+    "researchers" | "projects"
+  >("researchers");
+  const [monitoringSearch, setMonitoringSearch] = useState("");
   const [selectedSubmission, setSelectedSubmission] = useState<any | null>(
     null,
   );
@@ -213,6 +273,8 @@ function ProfessorDashboardContent() {
   const [milestoneEditDeadline, setMilestoneEditDeadline] = useState("");
   const [milestoneEditRequiresDocument, setMilestoneEditRequiresDocument] =
     useState(true);
+  const [milestoneEditSubmissionMode, setMilestoneEditSubmissionMode] = useState("EITHER");
+  const [workflowInvitation, setWorkflowInvitation] = useState<{ code: string; link: string } | null>(null);
   const [milestoneSaveStatus, setMilestoneSaveStatus] = useState<
     "idle" | "saving" | "saved"
   >("idle");
@@ -224,6 +286,39 @@ function ProfessorDashboardContent() {
   const triggerToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  };
+
+  useEffect(() => {
+    if (
+      availableResearchTypes.length &&
+      !availableResearchTypes.some((item: any) => item.id === newWorkflowResearchTypeId)
+    ) {
+      setNewWorkflowResearchTypeId(availableResearchTypes[0].id);
+    }
+  }, [availableResearchTypes, newWorkflowResearchTypeId]);
+
+  const handleCreateWorkflow = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!newWorkflowName.trim() || !newWorkflowResearchTypeId) return;
+    setSaving(true);
+    try {
+      const result = await apiClient.post<{ workflow: any }>("/api/workflows", {
+        researchTypeId: newWorkflowResearchTypeId,
+        name: newWorkflowName.trim(),
+        description: newWorkflowDescription.trim() || undefined,
+        stages: [],
+      });
+      setSelectedTopicId(result.workflow.id);
+      await refetchWorkflows();
+      setCreatingWorkflow(false);
+      setNewWorkflowName("");
+      setNewWorkflowDescription("");
+      triggerToast(`Workflow "${result.workflow.name}" created as a draft.`);
+    } catch (error: any) {
+      triggerToast(error?.message || "Workflow could not be created.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCreateMilestone = async (e: React.FormEvent) => {
@@ -238,6 +333,7 @@ function ProfessorDashboardContent() {
         deadlineDays: deadlineDays ? Number(deadlineDays) : null,
         requiresApproval: false,
         requiresDocument: newMilestoneRequiresDocument,
+        submissionMode: newMilestoneSubmissionMode,
       });
       await refetchWorkflows();
       setNewMilestoneTitle("");
@@ -409,6 +505,7 @@ function ProfessorDashboardContent() {
       milestone.deadlineDays == null ? "" : String(milestone.deadlineDays),
     );
     setMilestoneEditRequiresDocument(milestone.requiresDocument !== false);
+    setMilestoneEditSubmissionMode(milestone.submissionMode || "EITHER");
     setMilestoneSaveStatus("idle");
     setSelectedMilestoneId(milestone.id);
   };
@@ -426,6 +523,7 @@ function ProfessorDashboardContent() {
           deadlineDays:
             milestoneEditDeadline === "" ? null : Number(milestoneEditDeadline),
           requiresDocument: milestoneEditRequiresDocument,
+          submissionMode: milestoneEditSubmissionMode,
         }),
         minimumDelay,
       ]);
@@ -435,6 +533,22 @@ function ProfessorDashboardContent() {
       await minimumDelay;
       setMilestoneSaveStatus("idle");
       triggerToast(error?.message || "Milestone details could not be saved.");
+    }
+  };
+
+  const handleGenerateWorkflowInvitation = async () => {
+    if (!selectedTopicId) return;
+    setSaving(true);
+    try {
+      const result = await apiClient.post<{ invitation: { inviteCode: string } }>(`/api/workflows/${selectedTopicId}/invitation`, {});
+      const code = result.invitation.inviteCode;
+      setWorkflowInvitation({ code, link: `${window.location.origin}/student/workflows/join/${code}` });
+      await refetchWorkflows();
+      triggerToast("Workflow invitation link generated.");
+    } catch (error: any) {
+      triggerToast(error?.message || "Invitation link could not be generated.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -751,6 +865,21 @@ function ProfessorDashboardContent() {
                     </span>
                   </div>
                 </div>
+                <div>
+                  <label className="text-sm font-bold text-slate-700">Who completes this milestone?</label>
+                  <select
+                    value={milestoneEditSubmissionMode}
+                    onChange={(event) => {
+                      setMilestoneEditSubmissionMode(event.target.value);
+                      setMilestoneSaveStatus("idle");
+                    }}
+                    className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm"
+                  >
+                    <option value="INDIVIDUAL">Individual researcher</option>
+                    <option value="GROUP">Research group</option>
+                    <option value="EITHER">Individual or group</option>
+                  </select>
+                </div>
               </section>
               <section className="border-t border-slate-200 pt-5">
                 <label className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -1011,6 +1140,137 @@ function ProfessorDashboardContent() {
         </div>
       )}
 
+      {creatingWorkflow && (
+        <div
+          className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-950/45 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-workflow-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !saving)
+              setCreatingWorkflow(false);
+          }}
+        >
+          <form
+            onSubmit={handleCreateWorkflow}
+            className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-[#d98d00]">
+                  New workflow
+                </p>
+                <h2 id="create-workflow-title" className="mt-1 text-xl font-extrabold text-[#102f49]">
+                  Create your workflow
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Start with an empty draft for your assigned department.
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Close create workflow dialog"
+                onClick={() => setCreatingWorkflow(false)}
+                disabled={saving}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
+              >
+                <i className="ti ti-x" />
+              </button>
+            </div>
+
+            <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/70 p-3 text-sm text-blue-900">
+              <strong>{user?.college?.name || "College not assigned"}</strong>
+              <span className="mx-1.5 text-blue-300">·</span>
+              <span>{user?.program?.name || "Department not assigned"}</span>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <div>
+                <label htmlFor="workflow-name" className="mb-1.5 block text-sm font-bold text-slate-700">
+                  Workflow name
+                </label>
+                <input
+                  id="workflow-name"
+                  value={newWorkflowName}
+                  onChange={(event) => setNewWorkflowName(event.target.value)}
+                  maxLength={150}
+                  placeholder="e.g. BSIT Capstone Workflow 2026"
+                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
+                  autoFocus
+                  required
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  The name must be unique within your department or program.
+                </p>
+              </div>
+
+              {availableResearchTypes.length > 1 && (
+                <div>
+                  <label htmlFor="workflow-research-type" className="mb-1.5 block text-sm font-bold text-slate-700">
+                    Research type
+                  </label>
+                  <select
+                    id="workflow-research-type"
+                    value={newWorkflowResearchTypeId}
+                    onChange={(event) => setNewWorkflowResearchTypeId(event.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm"
+                  >
+                    {availableResearchTypes.map((researchType: any) => (
+                      <option key={researchType.id} value={researchType.id}>
+                        {researchType.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="workflow-description" className="mb-1.5 block text-sm font-bold text-slate-700">
+                  Description <span className="font-normal text-slate-400">(optional)</span>
+                </label>
+                <textarea
+                  id="workflow-description"
+                  value={newWorkflowDescription}
+                  onChange={(event) => setNewWorkflowDescription(event.target.value)}
+                  rows={3}
+                  placeholder="Briefly describe when this workflow should be used."
+                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
+                />
+              </div>
+            </div>
+
+            {!user?.program?.id && (
+              <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                Your account must be assigned to a department or program before creating a workflow.
+              </p>
+            )}
+            {user?.program?.id && availableResearchTypes.length === 0 && (
+              <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                No active research type is configured for your department. Ask the System Administrator to configure one first.
+              </p>
+            )}
+
+            <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={() => setCreatingWorkflow(false)}
+                disabled={saving}
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving || newWorkflowName.trim().length < 3 || !newWorkflowResearchTypeId}
+                className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving ? "Creating…" : "Create workflow"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {creatingMilestone && (
         <div
           className="fixed inset-0 z-[70] bg-slate-950/35"
@@ -1157,6 +1417,18 @@ function ProfessorDashboardContent() {
                       </span>
                     </div>
                   </div>
+                  <div>
+                    <label className="text-sm font-bold text-slate-700">Who completes this milestone?</label>
+                    <select
+                      value={newMilestoneSubmissionMode}
+                      onChange={(event) => setNewMilestoneSubmissionMode(event.target.value)}
+                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+                    >
+                      <option value="INDIVIDUAL">Individual researcher</option>
+                      <option value="GROUP">Research group</option>
+                      <option value="EITHER">Individual or group</option>
+                    </select>
+                  </div>
                   <label className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <span>
                       <span className="block text-sm font-bold text-[#102f49]">
@@ -1250,7 +1522,7 @@ function ProfessorDashboardContent() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-[#d98d00]">
-                  Research group
+                  Research project
                 </p>
                 <h2
                   id="project-detail-title"
@@ -1262,7 +1534,7 @@ function ProfessorDashboardContent() {
               <button
                 type="button"
                 onClick={() => setSelectedProject(null)}
-                aria-label="Close group details"
+                aria-label="Close project details"
                 className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-[#173f63]"
               >
                 <i className="ti ti-x text-xl" />
@@ -1288,12 +1560,55 @@ function ProfessorDashboardContent() {
                 </p>
               </div>
             </div>
+            <div className="mt-5 rounded-xl border border-slate-200 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Project description
+              </p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                {selectedProject.abstract || "No project description has been added yet."}
+              </p>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs text-slate-500">Research type</p>
+                <p className="mt-1 font-bold text-[#102f49]">
+                  {selectedProject.researchType?.name || "Not specified"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs text-slate-500">Program</p>
+                <p className="mt-1 font-bold text-[#102f49]">
+                  {selectedProject.program?.code || selectedProject.program?.name || "Not specified"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <p className="text-xs text-slate-500">Academic year</p>
+                <p className="mt-1 font-bold text-[#102f49]">
+                  {selectedProject.academicYear?.name || "Not specified"}
+                </p>
+              </div>
+            </div>
+            <h3 className="mt-6 font-extrabold text-[#102f49]">Adviser</h3>
+            <div className="mt-3 rounded-xl border border-slate-200 p-4">
+              {selectedProject.adviser ? (
+                <div>
+                  <p className="font-bold text-[#102f49]">
+                    {selectedProject.adviser.firstName} {selectedProject.adviser.lastName}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {selectedProject.adviser.email}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No adviser has been assigned yet.</p>
+              )}
+            </div>
             <h3 className="mt-6 font-extrabold text-[#102f49]">
-              Members ({selectedProject.members.length})
+              Researchers ({selectedProject.researchers.length})
             </h3>
             <div className="mt-3 space-y-2">
-              {selectedProject.members.length ? (
-                selectedProject.members.map((member: any) => (
+              {selectedProject.researchers.length ? (
+                selectedProject.researchers.map((member: any) => (
                   <div
                     key={member.id}
                     className="flex items-center justify-between rounded-xl border border-slate-200 p-3"
@@ -1317,7 +1632,7 @@ function ProfessorDashboardContent() {
                 ))
               ) : (
                 <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
-                  No members have been assigned.
+                  No researchers have been assigned.
                 </p>
               )}
             </div>
@@ -2860,14 +3175,60 @@ function ProfessorDashboardContent() {
             ),
             monitoring: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">
-                  Student & Project Monitoring
-                </h3>
-                <p className="text-[11px] text-slate-400 font-bold">
-                  Monitor progression matrices, project status indices, and
-                  group rosters.
-                </p>
-                {(projectsError || workflowsError) && (
+                <div>
+                  <h3 className="font-extrabold text-[#1b4264] text-[16px]">
+                    Researchers & Projects
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    View researchers who joined your workflows and the research projects in your scope.
+                  </p>
+                </div>
+                <div className="flex w-fit rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Researchers and projects">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={monitoringView === "researchers"}
+                    onClick={() => setMonitoringView("researchers")}
+                    className={`rounded-lg px-4 py-2 text-sm font-extrabold transition ${monitoringView === "researchers" ? "bg-white text-[#173f63] shadow-sm" : "text-slate-500"}`}
+                  >
+                    Researchers <span className="ml-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs">{acceptedResearchers.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={monitoringView === "projects"}
+                    onClick={() => setMonitoringView("projects")}
+                    className={`rounded-lg px-4 py-2 text-sm font-extrabold transition ${monitoringView === "projects" ? "bg-white text-[#173f63] shadow-sm" : "text-slate-500"}`}
+                  >
+                    Projects <span className="ml-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs">{projects.length}</span>
+                  </button>
+                </div>
+                <div className="relative max-w-xl">
+                  <i className="ti ti-search pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="search"
+                    value={monitoringSearch}
+                    onChange={(event) => setMonitoringSearch(event.target.value)}
+                    placeholder={
+                      monitoringView === "researchers"
+                        ? "Search researcher, ID, email, or workflow…"
+                        : "Search project, adviser, research type, or program…"
+                    }
+                    aria-label={`Search ${monitoringView}`}
+                    className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#173f63] focus:ring-2 focus:ring-[#173f63]/10"
+                  />
+                  {monitoringSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setMonitoringSearch("")}
+                      aria-label="Clear search"
+                      className="absolute right-2.5 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                    >
+                      <i className="ti ti-x" />
+                    </button>
+                  )}
+                </div>
+                {(projectsError || workflowsError || enrollmentsError) && (
                   <div
                     role="alert"
                     className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
@@ -2876,13 +3237,94 @@ function ProfessorDashboardContent() {
                     and try again.
                   </div>
                 )}
-                {projectsLoading || workflowsLoading ? (
+                {monitoringView === "researchers" ? (
+                  enrollmentsLoading ? (
+                    <div className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                      Loading researchers…
+                    </div>
+                  ) : (
+                    <div className="overflow-hidden rounded-xl border border-slate-200">
+                      {acceptedResearchers
+                        .filter((enrollment: any) => {
+                          const query = monitoringSearch.trim().toLowerCase();
+                          if (!query) return true;
+                          return [
+                            enrollment.user.firstName,
+                            enrollment.user.lastName,
+                            enrollment.user.universityId,
+                            enrollment.user.email,
+                            enrollment.workflow.name,
+                          ]
+                            .filter(Boolean)
+                            .some((value) => String(value).toLowerCase().includes(query));
+                        })
+                        .map((enrollment: any) => {
+                        const linkedProject = projects.find((project: any) =>
+                          project.researchers.some((member: any) => member.user?.id === enrollment.user.id),
+                        );
+                        return (
+                          <div key={enrollment.id} className="grid gap-3 border-b border-slate-100 p-4 last:border-b-0 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
+                            <div>
+                              <p className="font-bold text-[#173f63]">
+                                {enrollment.user.firstName} {enrollment.user.lastName}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {enrollment.user.universityId || enrollment.user.email}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Workflow</p>
+                              <p className="mt-1 text-sm font-semibold text-slate-700">{enrollment.workflow.name}</p>
+                            </div>
+                            <Tag variant={linkedProject ? "success" : "info"}>
+                              {linkedProject ? "Project created" : "No project yet"}
+                            </Tag>
+                          </div>
+                        );
+                      })}
+                      {!acceptedResearchers.length && !enrollmentsError && (
+                        <div className="p-8 text-center">
+                          <p className="font-bold text-[#173f63]">No accepted researchers yet</p>
+                          <p className="mt-1 text-sm text-slate-500">Researchers appear here after they accept a workflow invitation.</p>
+                        </div>
+                      )}
+                      {acceptedResearchers.length > 0 &&
+                        !acceptedResearchers.some((enrollment: any) => {
+                          const query = monitoringSearch.trim().toLowerCase();
+                          if (!query) return true;
+                          return [enrollment.user.firstName, enrollment.user.lastName, enrollment.user.universityId, enrollment.user.email, enrollment.workflow.name]
+                            .filter(Boolean)
+                            .some((value) => String(value).toLowerCase().includes(query));
+                        }) && (
+                          <div className="p-8 text-center text-sm text-slate-500">
+                            No researchers match “{monitoringSearch}”.
+                          </div>
+                        )}
+                    </div>
+                  )
+                ) : projectsLoading || workflowsLoading ? (
                   <div className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                    Loading research groups…
+                    Loading research projects…
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3.5 mt-2">
-                    {projects.map((p) => (
+                    {projects
+                      .filter((project: any) => {
+                        const query = monitoringSearch.trim().toLowerCase();
+                        if (!query) return true;
+                        return [
+                          project.title,
+                          project.adviser?.firstName,
+                          project.adviser?.lastName,
+                          project.adviser?.email,
+                          project.researchType?.name,
+                          project.program?.code,
+                          project.program?.name,
+                        ]
+                          .filter(Boolean)
+                          .some((value) => String(value).toLowerCase().includes(query));
+                      })
+                      .map((p) => (
                       <button
                         type="button"
                         onClick={() => setSelectedProject(p)}
@@ -2894,7 +3336,7 @@ function ProfessorDashboardContent() {
                             {p.group}
                           </span>
                           <span className="text-[11px] text-slate-500">
-                            {p.members.length} members ·{" "}
+                            {p.researchers.length === 1 ? "Individual" : `${p.researchers.length} researchers`} ·{" "}
                             {p.currentStage?.name || "Not started"} ·{" "}
                             {p.progress}% complete
                           </span>
@@ -2904,9 +3346,21 @@ function ProfessorDashboardContent() {
                     ))}
                     {!projects.length && !projectsError && (
                       <div className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                        No research groups are available.
+                        No research projects are available.
                       </div>
                     )}
+                    {projects.length > 0 &&
+                      !projects.some((project: any) => {
+                        const query = monitoringSearch.trim().toLowerCase();
+                        if (!query) return true;
+                        return [project.title, project.adviser?.firstName, project.adviser?.lastName, project.adviser?.email, project.researchType?.name, project.program?.code, project.program?.name]
+                          .filter(Boolean)
+                          .some((value) => String(value).toLowerCase().includes(query));
+                      }) && (
+                        <div className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                          No projects match “{monitoringSearch}”.
+                        </div>
+                      )}
                   </div>
                 )}
               </div>
@@ -2939,21 +3393,17 @@ function ProfessorDashboardContent() {
                         <i className="ti ti-eye mr-1.5" />
                         Preview coming soon
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNewMilestoneTitle("");
-                          setNewMilestoneScope("Milestone");
-                          setDeadlineDays("");
-                          setShowAdvancedMilestoneOptions(false);
-                          setCreatingMilestone(true);
-                        }}
-                        disabled={!topics.length}
-                        className="rounded-xl bg-[#f6a800] px-4 py-2.5 text-sm font-extrabold text-[#102f49] disabled:opacity-50"
-                      >
-                        <i className="ti ti-plus mr-1.5" />
-                        Add milestone
-                      </button>
+                      {selectedTopicId && (
+                        <button
+                          type="button"
+                          onClick={() => void handleGenerateWorkflowInvitation()}
+                          disabled={saving}
+                          className="rounded-xl border border-[#173f63] bg-white px-4 py-2.5 text-sm font-extrabold text-[#173f63] disabled:opacity-50"
+                        >
+                          <i className="ti ti-link mr-1.5" />
+                          Invitation link
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="mt-5 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center">
@@ -2962,21 +3412,41 @@ function ProfessorDashboardContent() {
                     </label>
                     <select
                       value={selectedTopicId}
-                      onChange={(event) =>
-                        setSelectedTopicId(event.target.value)
-                      }
+                      onChange={(event) => {
+                        setSelectedTopicId(event.target.value);
+                        setWorkflowInvitation(null);
+                      }}
                       className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-[#102f49] sm:max-w-md"
                     >
+                      {!topics.length && <option value="">No workflow created yet</option>}
                       {topics.map((topic) => (
                         <option key={topic.id} value={topic.id}>
                           {topic.name}
                         </option>
                       ))}
                     </select>
+                    <button
+                      type="button"
+                      onClick={() => setCreatingWorkflow(true)}
+                      className="rounded-xl border border-[#173f63] bg-white px-4 py-2.5 text-sm font-extrabold text-[#173f63] transition hover:bg-[#173f63] hover:text-white"
+                    >
+                      <i className="ti ti-plus mr-1.5" />
+                      Create workflow
+                    </button>
                     <span className="text-xs text-slate-400">
                       Changes are saved directly to this workflow.
                     </span>
                   </div>
+                  {workflowInvitation && (
+                    <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/70 p-3">
+                      <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Researcher invitation</p>
+                      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                        <input readOnly value={workflowInvitation.link} className="min-w-0 flex-1 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs text-slate-700" />
+                        <button type="button" onClick={() => void navigator.clipboard.writeText(workflowInvitation.link)} className="rounded-lg bg-[#173f63] px-3 py-2 text-xs font-bold text-white">Copy link</button>
+                      </div>
+                      <p className="mt-2 text-xs text-blue-800">Code: <strong className="font-mono">{workflowInvitation.code}</strong> · Expires in 30 days</p>
+                    </div>
+                  )}
                 </section>
                 {(workflowsError || workflowsLoading) && (
                   <section
@@ -3072,6 +3542,13 @@ function ProfessorDashboardContent() {
                                       ? "Approval required"
                                       : "Open access"}
                                   </span>
+                                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                                    {task.submissionMode === "INDIVIDUAL"
+                                      ? "Individual"
+                                      : task.submissionMode === "GROUP"
+                                        ? "Group"
+                                        : "Individual or group"}
+                                  </span>
                                 </span>
                               </button>
                               {index === selectedItems.length - 1 && (
@@ -3087,17 +3564,19 @@ function ProfessorDashboardContent() {
                               <i className="ti ti-route text-2xl" />
                             </span>
                             <h4 className="mt-3 font-extrabold text-[#102f49]">
-                              Start your research process
+                              {topics.length ? "Start your research process" : "Create your first workflow"}
                             </h4>
                             <p className="mt-1 text-sm text-slate-500">
-                              Add the first milestone students need to complete.
+                              {topics.length
+                                ? "Add the first milestone students need to complete."
+                                : "Create an empty department workflow before adding milestones."}
                             </p>
                             <button
                               type="button"
-                              onClick={() => setCreatingMilestone(true)}
+                              onClick={() => topics.length ? setCreatingMilestone(true) : setCreatingWorkflow(true)}
                               className="mt-4 rounded-xl bg-[#f6a800] px-4 py-2.5 text-sm font-extrabold text-[#102f49]"
                             >
-                              Add first milestone
+                              {topics.length ? "Add first milestone" : "Create workflow"}
                             </button>
                           </div>
                         )}
@@ -3150,14 +3629,16 @@ function ProfessorDashboardContent() {
                             </strong>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setCreatingMilestone(true)}
-                          className="mt-5 w-full rounded-xl bg-[#173f63] py-2.5 text-sm font-extrabold text-white"
-                        >
-                          <i className="ti ti-plus mr-1.5" />
-                          Add milestone
-                        </button>
+                        {selectedTopicId && (
+                          <button
+                            type="button"
+                            onClick={() => setCreatingMilestone(true)}
+                            className="mt-5 w-full rounded-xl bg-[#173f63] py-2.5 text-sm font-extrabold text-white"
+                          >
+                            <i className="ti ti-plus mr-1.5" />
+                            Add milestone
+                          </button>
+                        )}
                       </section>
                       <section className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5">
                         <div className="flex gap-3">

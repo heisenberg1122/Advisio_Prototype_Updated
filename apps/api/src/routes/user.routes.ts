@@ -4,6 +4,7 @@ import { Permissions } from "@research-management/auth";
 import { requireAuth } from "../middleware/auth";
 import { requirePermission } from "../middleware/rbac";
 import { ACTIVE_ADVISEE_STATUSES, capacitySummary, countActiveAdviseeGroups } from "../lib/adviser-capacity.js";
+import { getCollegeScope } from "../lib/college-scope.js";
 
 const router = Router();
 const CAPACITY_MANAGER_ROLES = new Set(["RPO", "VPAA", "SYSTEM_ADMIN"]);
@@ -29,10 +30,20 @@ router.get(
         return;
       }
 
+      const scope = req.user ? getCollegeScope(req.user) : { kind: "unassigned" as const, collegeId: null };
+      if (scope.kind === "unassigned") {
+        res.status(403).json({ error: "Your account has not been assigned to a college or school. Contact the System Administrator." });
+        return;
+      }
+
       const users = await prisma.user.findMany({
         where: {
+          ...(scope.kind === "college"
+            ? { collegeId: scope.collegeId }
+            : collegeId
+              ? { collegeId: String(collegeId) }
+              : {}),
           ...(status && { status: String(status) as any }),
-          ...(collegeId && { collegeId: String(collegeId) }),
           ...(programId && { programId: String(programId) }),
           ...(role && {
             roles: {
@@ -305,7 +316,6 @@ router.put(
         )
       );
       const verificationNote = String(req.body.verificationNote || "").trim();
-      const collegeId = req.body.collegeId ? String(req.body.collegeId) : null;
       const validRoles = Object.values(InstitutionalRole);
 
       if (!req.body.verificationConfirmed || verificationNote.length < 10) {
@@ -316,14 +326,6 @@ router.put(
         res.status(400).json({ error: "At least one valid institutional role is required" });
         return;
       }
-      if (collegeId) {
-        const college = await prisma.college.findFirst({ where: { id: collegeId, isActive: true }, select: { id: true } });
-        if (!college) {
-          res.status(400).json({ error: "Select a valid active college or school" });
-          return;
-        }
-      }
-
       const result = await prisma.$transaction(async (tx) => {
         const target = await tx.user.findUnique({ where: { id }, include: { roles: { include: { role: true } } } });
         if (!target) throw new Error("User not found");
@@ -337,7 +339,6 @@ router.put(
         }
 
         const roles = await tx.role.findMany({ where: { name: { in: roleNames as InstitutionalRole[] } } });
-        await tx.user.update({ where: { id }, data: { collegeId, ...(target.collegeId !== collegeId ? { programId: null } : {}) } });
         await tx.userRole.deleteMany({ where: { userId: id } });
         await tx.userRole.createMany({
           data: roles.map((role) => ({ userId: id, roleId: role.id, grantedBy: req.user!.id })),
@@ -349,7 +350,7 @@ router.put(
             entityType: "USER",
             entityId: id,
             oldValues: { roles: oldRoleNames },
-            newValues: { roles: roleNames, collegeId, verificationNote },
+            newValues: { roles: roleNames, verificationNote },
             ipAddress: req.ip,
             userAgent: req.get("user-agent") || null,
           },
@@ -366,6 +367,84 @@ router.put(
       res.status(message.includes("last active") ? 409 : message === "User not found" ? 404 : 500).json({ error: message });
     }
   }
+);
+
+// PATCH /api/users/:id/college — institution-wide administrators only.
+router.patch(
+  "/:id/college",
+  requireAuth,
+  requirePermission(Permissions.ROLE_MANAGE),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.user || getCollegeScope(req.user).kind !== "institution") {
+        res.status(403).json({ error: "Institution-wide administrator access is required to transfer a user between colleges." });
+        return;
+      }
+
+      const id = req.params.id as string;
+      const collegeId = req.body.collegeId ? String(req.body.collegeId) : null;
+      const reason = String(req.body.reason || "").trim();
+      if (reason.length < 10) {
+        res.status(400).json({ error: "Provide a transfer reason of at least 10 characters." });
+        return;
+      }
+      if (collegeId) {
+        const college = await prisma.college.findFirst({ where: { id: collegeId, isActive: true }, select: { id: true } });
+        if (!college) {
+          res.status(400).json({ error: "Select a valid active college or school." });
+          return;
+        }
+      }
+
+      const target = await prisma.user.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          universityId: true,
+          collegeId: true,
+          memberships: { where: { leftAt: null }, select: { research: { select: { collegeId: true, title: true } } } },
+        },
+      });
+      if (!target) {
+        res.status(404).json({ error: "User not found." });
+        return;
+      }
+
+      const conflictingProjects = target.memberships.filter((membership) => membership.research.collegeId !== collegeId);
+      if (conflictingProjects.length) {
+        res.status(409).json({
+          error: "This user still has active research assignments in another college. Resolve those assignments before transferring the account.",
+          conflicts: conflictingProjects.map((membership) => membership.research.title),
+        });
+        return;
+      }
+
+      const updated = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.update({
+          where: { id },
+          data: { collegeId, ...(target.collegeId !== collegeId ? { programId: null } : {}) },
+          select: { id: true, universityId: true, college: { select: { id: true, code: true, name: true } } },
+        });
+        await tx.auditLog.create({
+          data: {
+            userId: req.user!.id,
+            action: AuditAction.UPDATE,
+            entityType: "USER_COLLEGE_ASSIGNMENT",
+            entityId: id,
+            oldValues: { collegeId: target.collegeId },
+            newValues: { collegeId, reason },
+            ipAddress: req.ip,
+            userAgent: req.get("user-agent") || null,
+          },
+        });
+        return user;
+      });
+
+      res.json({ message: "College or school assignment updated successfully", user: updated });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to update college assignment" });
+    }
+  },
 );
 
 // DELETE /api/users/:id — destructive action guarded by an exact confirmation phrase

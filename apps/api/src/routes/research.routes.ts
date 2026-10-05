@@ -7,34 +7,56 @@ import {
 } from "@research-management/validations";
 import { Permissions } from "@research-management/auth";
 import { validateBody } from "../middleware/validate";
-import { requireAuth, optionalAuth } from "../middleware/auth";
+import { requireAuth, type AuthenticatedUser } from "../middleware/auth";
 import { requirePermission } from "../middleware/rbac";
 import { randomBytes } from "node:crypto";
+import { getCollegeScope } from "../lib/college-scope.js";
 
 const router = Router();
 
+function researchScopeWhere(user: AuthenticatedUser) {
+  const scope = getCollegeScope(user);
+  const collegeWhere = scope.kind === "college" ? { collegeId: scope.collegeId } : {};
+  if (scope.kind === "institution" || user.roles.includes("RESEARCH_COORDINATOR")) return collegeWhere;
+
+  const access: any[] = [];
+  if (user.roles.includes("RESEARCHER")) {
+    access.push({ OR: [{ createdBy: user.id }, { members: { some: { userId: user.id, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } } } }] });
+  }
+  if (user.roles.includes("ADVISER")) {
+    access.push({ members: { some: { userId: user.id, leftAt: null, projectRole: "ADVISER" } } });
+  }
+  if (user.roles.includes("PANELIST")) {
+    access.push({
+      OR: [
+        { members: { some: { userId: user.id, leftAt: null, projectRole: "PANELIST" } } },
+        { defenseSessions: { some: { invitations: { some: { inviteeId: user.id, status: { not: "REMOVED" } } } } } },
+      ],
+    });
+  }
+  return { ...collegeWhere, ...(access.length ? { OR: access } : { createdBy: user.id }) };
+}
+
 // GET /api/research
-router.get("/", optionalAuth, async (req: Request, res: Response) => {
+router.get("/", requireAuth, async (req: Request, res: Response) => {
   try {
     const { status, programId, academicYearId } = req.query;
-    const isResearcher = req.user?.roles.includes("RESEARCHER");
+    const scope = getCollegeScope(req.user!);
+    if (scope.kind === "unassigned") {
+      res.status(403).json({ error: "Your account has not been assigned to a college or school. Contact the System Administrator." });
+      return;
+    }
 
     const projects = await prisma.researchProject.findMany({
       where: {
+        ...researchScopeWhere(req.user!),
         ...(status
           ? { status: String(status) as any }
-          : isResearcher
+          : req.user!.roles.includes("RESEARCHER")
             ? { status: { not: "ARCHIVED" as const } }
             : {}),
         ...(programId && { programId: String(programId) }),
         ...(academicYearId && { academicYearId: String(academicYearId) }),
-        ...(isResearcher &&
-          req.user && {
-            OR: [
-              { createdBy: req.user.id },
-              { members: { some: { userId: req.user.id, leftAt: null } } },
-            ],
-          }),
       },
       include: {
         researchType: true,
@@ -127,6 +149,19 @@ router.post(
       const { title, abstract } = req.body;
       let { researchTypeId, programId, collegeId, academicYearId } = req.body;
 
+      const scope = getCollegeScope(req.user);
+      if (scope.kind === "unassigned") {
+        res.status(403).json({ error: "Your account has not been assigned to a college or school. Contact the System Administrator." });
+        return;
+      }
+      if (scope.kind === "college") {
+        if (collegeId && collegeId !== scope.collegeId) {
+          res.status(403).json({ error: "You cannot create research outside your assigned college or school." });
+          return;
+        }
+        collegeId = scope.collegeId;
+      }
+
       if (!title || typeof title !== "string" || title.trim().length < 3) {
         res.status(400).json({
           error: "Research title must be at least 3 characters long.",
@@ -140,13 +175,10 @@ router.post(
           where: { id: req.user.id },
           select: { collegeId: true, programId: true },
         });
-        if (!collegeId) {
-          collegeId =
-            userDb?.collegeId || (await prisma.college.findFirst())?.id;
-        }
+        if (!collegeId) collegeId = userDb?.collegeId;
         if (!programId) {
           programId =
-            userDb?.programId || (await prisma.program.findFirst())?.id;
+            userDb?.programId || (await prisma.program.findFirst({ where: collegeId ? { collegeId, isActive: true } : { isActive: true } }))?.id;
         }
       }
 
@@ -156,6 +188,14 @@ router.post(
             where: { isCurrent: true },
           })) || (await prisma.academicYear.findFirst());
         academicYearId = defaultAY?.id;
+      }
+
+      if (programId && collegeId) {
+        const program = await prisma.program.findFirst({ where: { id: programId, collegeId, isActive: true }, select: { id: true } });
+        if (!program) {
+          res.status(400).json({ error: "The selected program does not belong to your assigned college or school." });
+          return;
+        }
       }
 
       const existingProject = academicYearId
@@ -321,8 +361,14 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
 
-    const project = await prisma.researchProject.findUnique({
-      where: { id },
+    const scope = getCollegeScope(req.user!);
+    if (scope.kind === "unassigned") {
+      res.status(403).json({ error: "Your account has not been assigned to a college or school. Contact the System Administrator." });
+      return;
+    }
+
+    const project = await prisma.researchProject.findFirst({
+      where: { id, ...researchScopeWhere(req.user!) },
       include: {
         researchType: true,
         program: true,
@@ -426,6 +472,16 @@ router.patch(
   async (req: Request, res: Response) => {
     try {
       const id = req.params.id as string;
+      const scope = getCollegeScope(req.user!);
+      if (scope.kind === "unassigned") {
+        res.status(403).json({ error: "Your account has not been assigned to a college or school. Contact the System Administrator." });
+        return;
+      }
+      const accessible = await prisma.researchProject.findFirst({ where: { id, ...researchScopeWhere(req.user!) }, select: { id: true } });
+      if (!accessible) {
+        res.status(404).json({ error: "Research project not found in your college scope." });
+        return;
+      }
       const updatedProject = await prisma.researchProject.update({
         where: { id },
         data: req.body,

@@ -6,7 +6,7 @@ import { AppTopbar } from "@/components/layout/AppTopbar";
 const TITLES: Record<string, string> = {
   overview: "Professor Dashboard",
   announcements: "Announcements",
-  monitoring: "Research Groups",
+  monitoring: "Researchers & Projects",
   submissions: "Student Submissions",
   defense: "Defense Management",
   builder: "Workflow Builder",
@@ -45,7 +45,7 @@ export function ProfessorTopbar() {
       subtitle="Faculty Coordinator Workspace"
       notificationsHref="/professor/notifications"
       profileHref="/professor/profile"
-      searchPlaceholder="Search classes, research groups, submissions..."
+      searchPlaceholder="Search researchers, projects, submissions..."
       variant="workspace"
     />
   );
