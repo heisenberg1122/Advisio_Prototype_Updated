@@ -12,6 +12,7 @@ import {
   Building2,
   Shield,
   CloudCog,
+  CalendarDays,
 } from "lucide-react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
@@ -68,6 +69,11 @@ const NAV_ITEMS = [
     icon: FileText,
   },
   {
+    label: "Calendar",
+    href: "/system-admin/calendar",
+    icon: CalendarDays,
+  },
+  {
     label: "Database Backups",
     href: "/system-admin/dashboard?tab=backups",
     tabName: "backups",
@@ -99,7 +105,9 @@ function SystemAdminLayoutInner({ children }: { children: React.ReactNode }) {
         ? "Edit Profile"
         : pathname === "/system-admin/notifications"
           ? "Notifications"
-          : PAGE_TITLES[activeTab] || "System Administration";
+          : pathname === "/system-admin/calendar"
+            ? "Universal Calendar"
+            : PAGE_TITLES[activeTab] || "System Administration";
 
   return (
     <AppWorkspaceFrame

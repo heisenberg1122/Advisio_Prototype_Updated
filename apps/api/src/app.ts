@@ -22,6 +22,7 @@ import chatRoutes from "./routes/chat.routes";
 import realtimeRoutes from "./routes/realtime.routes";
 import liveDefenseRoutes from "./routes/live-defense.routes";
 import integrationRoutes from "./routes/integration.routes";
+import calendarRoutes from "./routes/calendar.routes";
 import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
@@ -77,6 +78,7 @@ app.use("/api/chats", chatRoutes);
 app.use("/api/realtime", realtimeRoutes);
 app.use("/api", liveDefenseRoutes);
 app.use("/api", integrationRoutes);
+app.use("/api", calendarRoutes);
 
 // Root fallback
 app.get("/", (_req, res) => {

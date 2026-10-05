@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { label: "My Advisees", href: "/adviser/dashboard?tab=advisees", tabName: "advisees", icon: Users },
   { label: "Reviews", href: "/adviser/dashboard?tab=reviews", tabName: "reviews", icon: FileSearch },
   { label: "Consultations", href: "/adviser/dashboard?tab=consultations", tabName: "consultations", icon: Calendar },
+  { label: "Calendar", href: "/adviser/calendar", icon: Calendar },
   { label: "Messages", href: "/adviser/dashboard?tab=group-chats", tabName: "group-chats", icon: MessageSquare },
 ];
 

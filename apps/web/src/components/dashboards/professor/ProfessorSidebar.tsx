@@ -11,6 +11,7 @@ import {
   Sliders,
   LineChart,
   CalendarClock,
+  CalendarDays,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { label: "Workflow", href: "/professor/dashboard?tab=builder", tabName: "builder", icon: Sliders },
   { label: "Progress", href: "/professor/dashboard?tab=tracking", tabName: "tracking", icon: LineChart },
   { label: "Deadlines", href: "/professor/dashboard?tab=deadlines", tabName: "deadlines", icon: CalendarClock },
+  { label: "Calendar", href: "/professor/calendar", icon: CalendarDays },
 ];
 
 export function ProfessorSidebar() {

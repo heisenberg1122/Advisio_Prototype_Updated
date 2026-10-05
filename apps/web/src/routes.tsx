@@ -62,6 +62,7 @@ const SystemAdminProfileEditPage = lazy(
 
 const AdminLayout = lazy(() => import("./app/admin/layout"));
 const AdminDashboardPage = lazy(() => import("./app/admin/dashboard/page"));
+const CalendarPage = lazy(() => import("./app/calendar/page"));
 
 // Public Auth Pages
 import LoginPage from "./app/(public)/login/page";
@@ -228,6 +229,7 @@ export function AppRoutes() {
             </StudentPortal>
           }
         />
+        <Route path="/student/calendar" element={<StudentPortal><CalendarPage /></StudentPortal>} />
         <Route
           path="/student/*"
           element={<Navigate to="/student/dashboard" replace />}
@@ -248,6 +250,7 @@ export function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/adviser/calendar" element={<ProtectedRoute allowedRoles={["ADVISER", "SYSTEM_ADMIN"]}><AdviserLayout><CalendarPage /></AdviserLayout></ProtectedRoute>} />
 
         {/* Panelist Portal */}
         <Route
@@ -264,6 +267,7 @@ export function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/panelist/calendar" element={<ProtectedRoute allowedRoles={["PANELIST", "SYSTEM_ADMIN"]}><PanelistLayout><CalendarPage /></PanelistLayout></ProtectedRoute>} />
 
         {/* Professor / Coordinator Portal */}
         <Route
@@ -318,6 +322,7 @@ export function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/professor/calendar" element={<ProtectedRoute allowedRoles={["PROFESSOR", "RESEARCH_COORDINATOR", "SYSTEM_ADMIN"]}><ProfessorLayout><CalendarPage /></ProfessorLayout></ProtectedRoute>} />
 
         {/* System Admin Portal */}
         <Route
@@ -368,6 +373,7 @@ export function AppRoutes() {
           path="/system-admin/*"
           element={<Navigate to="/system-admin/dashboard" replace />}
         />
+        <Route path="/system-admin/calendar" element={<ProtectedRoute allowedRoles={["SYSTEM_ADMIN"]}><SystemAdminLayout><CalendarPage /></SystemAdminLayout></ProtectedRoute>} />
 
         {/* Institutional Admin Portal */}
         <Route
@@ -386,6 +392,7 @@ export function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route path="/admin/calendar" element={<ProtectedRoute allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}><AdminLayout><CalendarPage /></AdminLayout></ProtectedRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />

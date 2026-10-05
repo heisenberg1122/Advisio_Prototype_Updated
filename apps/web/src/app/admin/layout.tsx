@@ -24,7 +24,7 @@ const NAV_ITEMS = [
   { label: "Progress & Risk", href: "/admin/dashboard?tab=progress", tabName: "progress", icon: ChartNoAxesCombined },
   { label: "Advisers", href: "/admin/dashboard?tab=advisers", tabName: "advisers", icon: UsersRound },
   { label: "Defenses", href: "/admin/dashboard?tab=defenses", tabName: "defenses", icon: ClipboardList },
-  { label: "Calendar", href: "/admin/dashboard?tab=calendar", tabName: "calendar", icon: CalendarDays },
+  { label: "Calendar", href: "/admin/calendar", icon: CalendarDays },
   { label: "Reports", href: "/admin/dashboard?tab=reports", tabName: "reports", icon: FileBarChart },
 ];
 
@@ -51,7 +51,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         ? "Edit Profile"
         : pathname === "/admin/notifications"
           ? "Notifications"
-          : PAGE_TITLES[activeTab] || "Dean Dashboard";
+          : pathname === "/admin/calendar"
+            ? "Universal Calendar"
+            : PAGE_TITLES[activeTab] || "Dean Dashboard";
 
   return (
     <AppWorkspaceFrame

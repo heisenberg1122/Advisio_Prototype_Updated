@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { label: "Timeline", href: "/student/dashboard?tab=milestones", tabName: "milestones", icon: Clock },
   { label: "Documents", href: "/student/documents", icon: FileText },
   { label: "Consultations", href: "/student/dashboard?tab=consultations", tabName: "consultations", icon: Calendar },
+  { label: "Calendar", href: "/student/calendar", icon: Calendar },
   { label: "Messages", href: "/student/dashboard?tab=group-chats", tabName: "group-chats", icon: MessageSquare },
 ];
 
