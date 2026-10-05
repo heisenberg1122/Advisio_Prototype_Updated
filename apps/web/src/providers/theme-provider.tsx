@@ -11,55 +11,67 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('advisio_theme') as Theme;
-      if (stored === 'dark' || stored === 'light' || stored === 'system') return stored;
-    }
-    return 'light'; // Always default to clean institutional white & UA navy
-  });
+interface ThemeProviderProps {
+  children: React.ReactNode;
+  userId?: string | null;
+}
+
+const getThemeStorageKey = (userId: string) => `advisio_theme:${userId}`;
+
+function isTheme(value: string | null): value is Theme {
+  return value === 'dark' || value === 'light' || value === 'system';
+}
+
+export function ThemeProvider({ children, userId = null }: ThemeProviderProps) {
+  const [theme, setThemeState] = useState<Theme>('light');
+  const [systemIsDark, setSystemIsDark] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const root = document.documentElement;
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => setSystemIsDark(mediaQuery.matches);
 
-    const applyTheme = () => {
-      const shouldBeDark =
-        theme === 'dark' || (theme === 'system' && mediaQuery.matches);
+    handleChange();
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
 
-      if (shouldBeDark) {
-        root.classList.add('dark');
-      } else {
-        root.classList.remove('dark');
-      }
-    };
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
 
-    applyTheme();
-    localStorage.setItem('advisio_theme', theme);
-
-    if (theme === 'system') {
-      const handleChange = () => applyTheme();
-      mediaQuery.addEventListener('change', handleChange);
-      return () => mediaQuery.removeEventListener('change', handleChange);
+    if (!userId) {
+      setThemeState('light');
+      return;
     }
-  }, [theme]);
+
+    const stored = localStorage.getItem(getThemeStorageKey(userId));
+    setThemeState(isTheme(stored) ? stored : 'light');
+  }, [userId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    // Remove the legacy global class so public authentication pages stay light.
+    document.documentElement.classList.remove('dark');
+  }, []);
+
+  const saveTheme = (newTheme: Theme) => {
+    setThemeState(newTheme);
+    if (typeof window !== 'undefined' && userId) {
+      localStorage.setItem(getThemeStorageKey(userId), newTheme);
+    }
+  };
 
   const toggleTheme = () => {
-    setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    saveTheme(isDark ? 'light' : 'dark');
   };
 
   const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
+    saveTheme(newTheme);
   };
 
-  const isDark =
-    theme === 'dark' ||
-    (theme === 'system' &&
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const isDark = theme === 'dark' || (theme === 'system' && systemIsDark);
 
   return (
     <ThemeContext.Provider

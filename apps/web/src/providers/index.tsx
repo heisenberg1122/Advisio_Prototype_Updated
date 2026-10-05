@@ -3,19 +3,25 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { getQueryClient } from "@/lib/query/query-client";
 import { ThemeProvider } from "./theme-provider";
-import { AuthProvider } from "./auth-provider";
+import { AuthProvider, useAuth } from "./auth-provider";
+
+function UserThemeProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+
+  return <ThemeProvider userId={user?.id}>{children}</ThemeProvider>;
+}
 
 export function Providers({ children }: { children: ReactNode }) {
   const queryClient = getQueryClient();
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <UserThemeProvider>
           {children}
-        </AuthProvider>
-        <ReactQueryDevtools initialIsOpen={false} />
-      </ThemeProvider>
+          <ReactQueryDevtools initialIsOpen={false} />
+        </UserThemeProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

@@ -3,6 +3,7 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useTheme } from "@/providers/theme-provider";
 
 interface AppWorkspaceFrameProps {
   children: React.ReactNode;
@@ -22,11 +23,17 @@ export function AppWorkspaceFrame({
   padSecondaryPages = false,
 }: AppWorkspaceFrameProps) {
   const pathname = usePathname() || "";
+  const { isDark } = useTheme();
   const shouldPadContent =
     padSecondaryPages && Boolean(dashboardPath) && pathname !== dashboardPath;
 
   return (
-    <div className="min-h-screen bg-[#F4F6F8] text-[#17212B] dark:bg-[#080E18] dark:text-[#F1F5F9]">
+    <div
+      className={cn(
+        "min-h-screen bg-[#F4F6F8] text-[#17212B] dark:bg-[#080E18] dark:text-[#F1F5F9]",
+        isDark && "dark"
+      )}
+    >
       {sidebar}
 
       <div
