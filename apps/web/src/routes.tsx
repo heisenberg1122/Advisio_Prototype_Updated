@@ -11,6 +11,7 @@ const StudentAdviserPoolPage = lazy(
 );
 const StudentTasksPage = lazy(() => import("./app/student/tasks/page"));
 const StudentDocumentsPage = lazy(() => import("./app/student/documents/page"));
+const StudentGroupFilesPage = lazy(() => import("./app/student/group-files/page"));
 const JoinResearchGroupPage = lazy(() => import("./app/student/join-group/page"));
 const JoinWorkflowPage = lazy(() => import("./app/student/workflows/join/page"));
 const StudentSubmissionsPage = lazy(
@@ -64,6 +65,7 @@ const SystemAdminProfileEditPage = lazy(
 const AdminLayout = lazy(() => import("./app/admin/layout"));
 const AdminDashboardPage = lazy(() => import("./app/admin/dashboard/page"));
 const CalendarPage = lazy(() => import("./app/calendar/page"));
+const SignatureCenterPage = lazy(() => import("./app/signatures/page"));
 
 // Public Auth Pages
 import LoginPage from "./app/(public)/login/page";
@@ -155,6 +157,14 @@ export function AppRoutes() {
           element={
             <StudentPortal>
               <StudentDocumentsPage />
+            </StudentPortal>
+          }
+        />
+        <Route
+          path="/student/group-files"
+          element={
+            <StudentPortal>
+              <StudentGroupFilesPage />
             </StudentPortal>
           }
         />
@@ -332,6 +342,7 @@ export function AppRoutes() {
           }
         />
         <Route path="/professor/calendar" element={<ProtectedRoute allowedRoles={["PROFESSOR", "RESEARCH_COORDINATOR", "SYSTEM_ADMIN"]}><ProfessorLayout><CalendarPage /></ProfessorLayout></ProtectedRoute>} />
+        <Route path="/professor/signatures" element={<ProtectedRoute allowedRoles={["PROFESSOR", "RESEARCH_COORDINATOR"]}><ProfessorLayout><SignatureCenterPage /></ProfessorLayout></ProtectedRoute>} />
 
         {/* System Admin Portal */}
         <Route
@@ -402,6 +413,7 @@ export function AppRoutes() {
           }
         />
         <Route path="/admin/calendar" element={<ProtectedRoute allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}><AdminLayout><CalendarPage /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/signatures" element={<ProtectedRoute allowedRoles={["RPO", "VPAA"]}><AdminLayout><SignatureCenterPage /></AdminLayout></ProtectedRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />

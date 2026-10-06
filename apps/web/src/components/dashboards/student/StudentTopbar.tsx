@@ -17,6 +17,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/student/settings": "Settings",
   "/student/tasks": "Tasks & Requirements",
   "/student/documents": "Document Workspace",
+  "/student/group-files": "Group Files",
 };
 
 const TAB_TITLES: Record<string, string> = {

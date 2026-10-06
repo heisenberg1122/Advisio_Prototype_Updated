@@ -85,21 +85,26 @@ router.post(
 
       const { templateId, researchId, totalScore, recommendation } = req.body;
 
-      const evaluation = await prisma.evaluation.upsert({
-        where: {
-          templateId_researchId_evaluatorId: {
-            templateId,
-            researchId,
-            evaluatorId: req.user.id,
-          },
-        },
-        update: {
+      const existing = await prisma.evaluation.findFirst({
+        where: { templateId, researchId, evaluatorId: req.user.id, defenseSessionId: null },
+        select: { id: true },
+      });
+      const evaluation = existing
+        ? await prisma.evaluation.update({
+        where: { id: existing.id },
+        data: {
           totalScore,
           recommendation: recommendation as ReviewRecommendation,
           status: EvaluationStatus.SUBMITTED,
           submittedAt: new Date(),
         },
-        create: {
+        include: {
+          template: true,
+          evaluator: { select: { firstName: true, lastName: true } },
+        },
+      })
+        : await prisma.evaluation.create({
+        data: {
           templateId,
           researchId,
           evaluatorId: req.user.id,
@@ -110,9 +115,7 @@ router.post(
         },
         include: {
           template: true,
-          evaluator: {
-            select: { firstName: true, lastName: true },
-          },
+          evaluator: { select: { firstName: true, lastName: true } },
         },
       });
 

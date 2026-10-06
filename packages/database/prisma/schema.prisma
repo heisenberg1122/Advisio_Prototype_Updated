@@ -211,6 +211,7 @@ enum AuditAction {
   LOGOUT
   ROLE_CHANGE
   PERMISSION_CHANGE
+  SIGN
 }
 
 enum NotificationType {
@@ -383,6 +384,10 @@ model User {
   researcherProfile        ResearcherProfile?
   calendarEventsCreated    CalendarEvent[]            @relation("CalendarEventCreator")
   calendarEventInvitations CalendarEventParticipant[]
+  groupFoldersCreated      GroupFolder[]              @relation("GroupFolderCreator")
+  groupFilesUploaded       GroupFile[]                @relation("GroupFileUploader")
+  signatureProfile         UserSignature?
+  documentSignatures       DocumentSignature[]        @relation("DocumentSigner")
 
   @@index([collegeId])
   @@index([programId])
@@ -532,6 +537,8 @@ model ResearchProject {
   taskSubmissions TaskSubmission[]
   defenseSessions DefenseSession[]
   calendarEvents  CalendarEventResearch[]
+  groupFolders    GroupFolder[]
+  groupFiles      GroupFile[]
 
   @@index([status])
   @@index([collegeId, academicYearId])
@@ -768,12 +775,101 @@ model DocumentVersion {
   uploadedAt        DateTime       @default(now()) @map("uploaded_at")
   status            DocumentStatus @default(ACTIVE)
 
-  document Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  reviews  Review[]
-  comments ReviewComment[]
+  document        Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  reviews         Review[]
+  comments        ReviewComment[]
+  sourceSignature DocumentSignature? @relation("SignatureSourceVersion")
+  signedSignature DocumentSignature? @relation("SignatureOutputVersion")
 
   @@unique([documentId, versionNumber])
   @@map("document_versions")
+}
+
+model UserSignature {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @map("adviser_id") @db.Uuid
+  mimeType  String   @map("mime_type") @db.VarChar(50)
+  imageData Bytes    @map("image_data")
+  fileHash  String   @map("file_hash") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("adviser_signatures")
+}
+
+model DocumentSignature {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceVersionId      String    @unique @map("source_version_id") @db.Uuid
+  signedVersionId      String    @unique @map("signed_version_id") @db.Uuid
+  signedById           String    @map("signed_by_id") @db.Uuid
+  originalFileHash     String    @map("original_file_hash") @db.VarChar(64)
+  signedFileHash       String    @map("signed_file_hash") @db.VarChar(64)
+  placements           Json
+  authenticationMethod String    @default("PASSWORD") @map("authentication_method") @db.VarChar(30)
+  verificationCode     String    @unique @map("verification_code") @db.VarChar(32)
+  signedAt             DateTime  @default(now()) @map("signed_at")
+  revokedAt            DateTime? @map("revoked_at")
+  revocationReason     String?   @map("revocation_reason") @db.Text
+
+  sourceVersion DocumentVersion @relation("SignatureSourceVersion", fields: [sourceVersionId], references: [id], onDelete: Restrict)
+  signedVersion DocumentVersion @relation("SignatureOutputVersion", fields: [signedVersionId], references: [id], onDelete: Restrict)
+  signedBy      User            @relation("DocumentSigner", fields: [signedById], references: [id], onDelete: Restrict)
+
+  @@index([signedById, signedAt])
+  @@map("document_signatures")
+}
+
+// Collaborative files are intentionally separate from formal Documents.
+// A group file only enters the review/submission lifecycle when promoted.
+model GroupFolder {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId String    @map("research_id") @db.Uuid
+  parentId   String?   @map("parent_id") @db.Uuid
+  name       String    @db.VarChar(120)
+  createdBy  String    @map("created_by") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  research ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  creator  User            @relation("GroupFolderCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  parent   GroupFolder?    @relation("GroupFolderTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children GroupFolder[]   @relation("GroupFolderTree")
+  files    GroupFile[]
+
+  @@index([researchId, parentId, name])
+  @@index([researchId, parentId, deletedAt])
+  @@map("group_folders")
+}
+
+model GroupFile {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId         String    @map("research_id") @db.Uuid
+  folderId           String?   @map("folder_id") @db.Uuid
+  name               String    @db.VarChar(255)
+  originalName       String    @map("original_name") @db.VarChar(255)
+  mimeType           String    @map("mime_type") @db.VarChar(150)
+  fileSize           BigInt    @map("file_size")
+  storageProvider    String    @default("GOOGLE_DRIVE") @map("storage_provider") @db.VarChar(50)
+  externalFileId     String    @map("external_file_id") @db.VarChar(255)
+  storagePath        String    @map("storage_path") @db.VarChar(500)
+  description        String?   @db.Text
+  milestoneId        String?   @map("milestone_id") @db.Uuid
+  promotedDocumentId String?   @map("promoted_document_id") @db.Uuid
+  uploadedBy         String    @map("uploaded_by") @db.Uuid
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  deletedAt          DateTime? @map("deleted_at")
+
+  research ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  folder   GroupFolder?    @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  uploader User            @relation("GroupFileUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@index([researchId, folderId, deletedAt])
+  @@index([uploadedBy])
+  @@map("group_files")
 }
 
 model Review {

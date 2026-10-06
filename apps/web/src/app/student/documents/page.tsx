@@ -15,6 +15,9 @@ import {
   X,
   ArrowLeft,
   Loader2,
+  Download,
+  Eye,
+  ShieldCheck,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Tag } from "@/components/ui/Tag";
@@ -31,6 +34,31 @@ export interface LinkedDocItem {
   taskId?: string;
   milestoneId?: string;
 }
+
+type FormalDocumentVersion = {
+  id: string;
+  versionNumber: number;
+  fileName: string;
+  mimeType: string;
+  webViewLink?: string;
+  uploadedAt: string;
+  sourceSignature?: { signedVersionId: string; signedAt: string; revokedAt?: string | null } | null;
+  signedSignature?: {
+    signedAt: string;
+    sourceVersionId: string;
+    verificationCode: string;
+    revokedAt?: string | null;
+    signedBy: { firstName: string; middleName?: string | null; lastName: string };
+  } | null;
+};
+
+type FormalDocument = {
+  id: string;
+  title: string;
+  documentType: string;
+  currentVersion: number;
+  versions: FormalDocumentVersion[];
+};
 
 const STORAGE_KEY = "advisio_student_linked_google_docs";
 
@@ -100,6 +128,8 @@ export default function DocumentWorkspacePage() {
   const [urlError, setUrlError] = useState<string | null>(null);
   const [submittingToSystem, setSubmittingToSystem] = useState(false);
   const [paramHandled, setParamHandled] = useState(false);
+  const [formalDocuments, setFormalDocuments] = useState<FormalDocument[]>([]);
+  const [formalDocumentsLoading, setFormalDocumentsLoading] = useState(false);
 
   // Active milestone context if arrived from tasks with query params
   const activeMilestoneContext = useMemo(() => {
@@ -158,6 +188,25 @@ export default function DocumentWorkspacePage() {
 
     loadProjectMilestones();
   }, []);
+
+  useEffect(() => {
+    if (!activeProjectId) return;
+    let active = true;
+    const loadFormalDocuments = async () => {
+      setFormalDocumentsLoading(true);
+      try {
+        const result = await apiClient.get<{ documents: FormalDocument[] }>(`/api/research/${activeProjectId}/documents`);
+        if (active) setFormalDocuments(result.documents || []);
+      } catch (error: any) {
+        if (active) setUrlError(error.message || "Unable to load official documents.");
+      } finally {
+        if (active) setFormalDocumentsLoading(false);
+      }
+    };
+    loadFormalDocuments();
+    const interval = window.setInterval(loadFormalDocuments, 15_000);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [activeProjectId]);
 
   // Load user-linked documents from localStorage
   useEffect(() => {
@@ -226,6 +275,43 @@ export default function DocumentWorkspacePage() {
   };
 
   const selectedDoc = docs.find((d) => d.id === selectedDocId) || null;
+
+  const officialCopies = useMemo(() => formalDocuments.flatMap((document) =>
+    document.versions
+      .filter((version) => Boolean(version.signedSignature))
+      .map((version) => {
+        const source = document.versions.find((item) => item.id === version.signedSignature?.sourceVersionId);
+        return { document, version, source };
+      })
+  ), [formalDocuments]);
+
+  const awaitingSignatureCount = useMemo(() => formalDocuments.filter((document) => {
+    const current = document.versions.find((version) => version.versionNumber === document.currentVersion);
+    return current?.mimeType === "application/pdf" && !current.signedSignature && !current.sourceSignature;
+  }).length, [formalDocuments]);
+
+  const openFormalFile = async (version: FormalDocumentVersion, download = false) => {
+    if (!version.webViewLink) return showToast("This stored file is currently unavailable.");
+    try {
+      const token = localStorage.getItem("advisio_token");
+      const response = await fetch(`${(import.meta.env.VITE_API_URL || "").replace(/\/$/, "")}${version.webViewLink}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || "Unable to open the file.");
+      const objectUrl = URL.createObjectURL(await response.blob());
+      if (download) {
+        const link = window.document.createElement("a");
+        link.href = objectUrl;
+        link.download = version.fileName;
+        link.click();
+      } else {
+        window.open(objectUrl, "_blank", "noopener,noreferrer");
+      }
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (error: any) {
+      showToast(error.message || "Unable to open the file.");
+    }
+  };
 
   const openLinkDialog = (milestone?: string) => {
     setUrlError(null);
@@ -414,6 +500,30 @@ export default function DocumentWorkspacePage() {
 
       <div className="flex flex-col gap-6">
         <div className="flex w-full flex-col gap-4">
+          <section className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-sm dark:border-emerald-900/60 dark:bg-[#101b2b]">
+            <div className="flex flex-col gap-3 border-b border-emerald-100 bg-emerald-50/60 px-5 py-4 dark:border-emerald-900/40 dark:bg-emerald-950/20 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"><ShieldCheck className="h-5 w-5" /></span>
+                <div><p className="text-xs font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-300">Official copies</p><h2 className="mt-0.5 text-lg font-extrabold text-[#0B3A53] dark:text-white">Adviser-signed documents</h2><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Signed PDFs are locked to the exact version reviewed by your adviser.</p></div>
+              </div>
+              <div className="flex gap-2 text-xs font-bold"><span className="rounded-full bg-emerald-100 px-3 py-1.5 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{officialCopies.length} signed</span>{awaitingSignatureCount > 0 && <span className="rounded-full bg-amber-100 px-3 py-1.5 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">{awaitingSignatureCount} awaiting signature</span>}</div>
+            </div>
+            <div className="p-4 sm:p-5">
+              {formalDocumentsLoading && formalDocuments.length === 0 ? <div className="flex min-h-28 items-center justify-center text-sm font-bold text-slate-400"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading official documents…</div> : officialCopies.length === 0 ? <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center dark:border-white/10"><ShieldCheck className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-2 text-sm font-bold text-slate-600 dark:text-slate-300">No signed documents yet</p><p className="mt-1 text-xs text-slate-400">A signed copy will appear here after your adviser reviews and signs a PDF.</p></div> : <div className="grid gap-3 lg:grid-cols-2">
+                {officialCopies.map(({ document, version, source }) => {
+                  const signature = version.signedSignature!;
+                  const signer = [signature.signedBy.firstName, signature.signedBy.middleName, signature.signedBy.lastName].filter(Boolean).join(" ");
+                  const revoked = Boolean(signature.revokedAt);
+                  return <article key={version.id} className="rounded-xl border border-slate-200 p-4 dark:border-white/10">
+                    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="truncate text-sm font-extrabold text-[#0B3A53] dark:text-white">{document.title}</h3><p className="mt-1 truncate text-xs text-slate-500">{version.fileName}</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-extrabold ${revoked ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"}`}>{revoked ? "Revoked" : "Valid signature"}</span></div>
+                    <dl className="mt-4 grid gap-2 text-xs sm:grid-cols-2"><div><dt className="text-slate-400">Signed by</dt><dd className="mt-0.5 font-bold text-slate-700 dark:text-slate-200">{signer}</dd></div><div><dt className="text-slate-400">Signed on</dt><dd className="mt-0.5 font-bold text-slate-700 dark:text-slate-200">{new Date(signature.signedAt).toLocaleString()}</dd></div><div className="sm:col-span-2"><dt className="text-slate-400">Verification code</dt><dd className="mt-0.5 font-mono font-bold tracking-wide text-[#0B3A53] dark:text-[#C9A227]">{signature.verificationCode}</dd></div></dl>
+                    <div className="mt-4 flex flex-wrap gap-2"><button onClick={() => openFormalFile(version)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B3A53] px-3 py-2 text-xs font-bold text-white"><Eye className="h-3.5 w-3.5" />View signed PDF</button><button onClick={() => openFormalFile(version, true)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-xs font-bold text-slate-700 dark:border-white/15 dark:text-slate-200"><Download className="h-3.5 w-3.5" />Download</button>{source?.webViewLink && <button onClick={() => openFormalFile(source)} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5">View original</button>}</div>
+                  </article>;
+                })}
+              </div>}
+            </div>
+          </section>
+
           <section className="overflow-hidden rounded-2xl bg-slate-100/80 dark:bg-white/[0.04]">
             <div className="flex items-center justify-between gap-4 px-4 pb-3 pt-5 sm:px-6">
               <div>

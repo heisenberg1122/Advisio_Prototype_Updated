@@ -53,9 +53,19 @@ describe("Advisio Express API Integration Suite", () => {
     expect(resChats.status).toBe(200);
     const chatsData = await resChats.json() as any;
     expect(Array.isArray(chatsData.chats)).toBe(true);
+    let chatId = chatsData.chats[0]?.id;
+    if (!chatId) {
+      const createChat = await fetch(`${baseUrl}/api/chats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "API integration test", adviserName: "Automated Tester" }),
+      });
+      expect(createChat.status).toBe(201);
+      chatId = ((await createChat.json()) as any).chat.id;
+    }
 
     // 2. Try sending empty message - should be rejected with 400
-    const resEmpty = await fetch(`${baseUrl}/api/chats/chat-1/messages`, {
+    const resEmpty = await fetch(`${baseUrl}/api/chats/${chatId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: "   " }),
@@ -63,7 +73,7 @@ describe("Advisio Express API Integration Suite", () => {
     expect(resEmpty.status).toBe(400);
 
     // 3. Send valid message
-    const resMsg = await fetch(`${baseUrl}/api/chats/chat-1/messages`, {
+    const resMsg = await fetch(`${baseUrl}/api/chats/${chatId}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

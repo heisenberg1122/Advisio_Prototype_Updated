@@ -13,6 +13,7 @@ import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consu
 import { getStoredConsultations, addStoredConsultation, saveStoredConsultations, updateStoredConsultationStatus, updateStoredConsultationNotes, ConsultationItem } from "@/lib/consultation-store";
 import { useAuth } from "@/providers/auth-provider";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
+import { AdviserDocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 
 const resolveApiFileUrl = (value: string) => value.startsWith("/")
   ? `${(import.meta.env.VITE_API_URL || "").replace(/\/$/, "")}${value}`
@@ -299,6 +300,8 @@ function AdviserDashboardContent() {
             groupName: project.title,
             milestone: project.workflowInstance?.currentStage?.name || "Research document",
             fileUrl: latestVersion.webViewLink,
+            mimeType: latestVersion.mimeType,
+            signed: Boolean(latestVersion.sourceSignature || latestVersion.signedSignature),
             submittedAt: latestVersion.createdAt,
           }];
         });
@@ -472,6 +475,7 @@ function AdviserDashboardContent() {
   ];
 
   const [commentInput, setCommentInput] = useState("");
+  const [signingDocument, setSigningDocument] = useState<any | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const triggerToast = (msg: string) => {
@@ -526,6 +530,18 @@ function AdviserDashboardContent() {
           <i className="ti ti-circle-check text-[#ffa400] text-lg" />
           <span className="text-[12px] font-bold">{toast}</span>
         </div>
+      )}
+
+      {signingDocument && (
+        <AdviserDocumentSigningModal
+          document={signingDocument}
+          onClose={() => setSigningDocument(null)}
+          onSigned={async (message) => {
+            setSigningDocument(null);
+            triggerToast(message);
+            await refetchReviewQueue();
+          }}
+        />
       )}
 
       {requestDecision && (
@@ -1029,9 +1045,11 @@ function AdviserDashboardContent() {
                           <span className="font-bold text-[#1b4264] block">{rev.docName}</span>
                           <span className="text-[10px] text-slate-400">{rev.groupName} · {rev.milestone} · {getWaitingLabel(rev.submittedAt)}</span>
                         </div>
-                        <button onClick={() => rev.fileUrl ? window.open(rev.fileUrl, "_blank", "noopener,noreferrer") : triggerToast("No document preview is available.")} className="text-[#ffa400] font-bold hover:underline cursor-pointer">
-                          Open document
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => rev.fileUrl ? openAuthenticatedFile(rev.fileUrl).catch((error) => triggerToast(error.message)) : triggerToast("No document preview is available.")} className="text-[#ffa400] font-bold hover:underline cursor-pointer">Open document</button>
+                          {rev.mimeType === "application/pdf" && !rev.signed && <button onClick={() => setSigningDocument(rev)} className="rounded-lg bg-[#173f63] px-3 py-2 text-[11px] font-extrabold text-white"><i className="ti ti-signature mr-1" />Add signature</button>}
+                          {rev.signed && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-extrabold text-emerald-700">Signed</span>}
+                        </div>
                       </div>
                       <div className="flex flex-col gap-1.5 mt-1">
                         <label className="font-bold text-slate-600 text-[11px]">Submit Review Comments</label>

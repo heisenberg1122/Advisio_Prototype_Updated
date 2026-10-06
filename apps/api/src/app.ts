@@ -1,9 +1,9 @@
+import "./config/env.js";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
-import dotenv from "dotenv";
 
 import healthRoutes from "./routes/health.routes";
 import authRoutes from "./routes/auth.routes";
@@ -23,9 +23,8 @@ import realtimeRoutes from "./routes/realtime.routes";
 import liveDefenseRoutes from "./routes/live-defense.routes";
 import integrationRoutes from "./routes/integration.routes";
 import calendarRoutes from "./routes/calendar.routes";
+import groupFileRoutes from "./routes/group-file.routes";
 import { errorHandler } from "./middleware/errorHandler";
-
-dotenv.config();
 
 const app = express();
 
@@ -79,6 +78,7 @@ app.use("/api/realtime", realtimeRoutes);
 app.use("/api", liveDefenseRoutes);
 app.use("/api", integrationRoutes);
 app.use("/api", calendarRoutes);
+app.use("/api", groupFileRoutes);
 
 // Root fallback
 app.get("/", (_req, res) => {

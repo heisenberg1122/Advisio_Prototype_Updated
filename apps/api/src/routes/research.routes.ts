@@ -108,6 +108,15 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
                     mimeType: true,
                     googleDriveFileId: true,
                     uploadedAt: true,
+                    sourceSignature: { select: { signedVersionId: true, signedAt: true } },
+                    signedSignature: {
+                      select: {
+                        signedAt: true,
+                        verificationCode: true,
+                        revokedAt: true,
+                        signedBy: { select: { firstName: true, lastName: true } },
+                      },
+                    },
                   },
                 },
               },
@@ -441,6 +450,15 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
                     fileName: true,
                     mimeType: true,
                     storagePath: true,
+                    sourceSignature: { select: { signedVersionId: true, signedAt: true } },
+                    signedSignature: {
+                      select: {
+                        signedAt: true,
+                        verificationCode: true,
+                        revokedAt: true,
+                        signedBy: { select: { firstName: true, lastName: true } },
+                      },
+                    },
                   },
                 },
               },

@@ -15,6 +15,8 @@ const possibleEnvPaths = [
   path.resolve(process.cwd(), "../../.env"),
   path.resolve(__dirname, "../../.env"),
   path.resolve(__dirname, "../../../.env"),
+  // apps/api/src/lib -> repository root
+  path.resolve(__dirname, "../../../../.env"),
 ];
 
 for (const envPath of possibleEnvPaths) {

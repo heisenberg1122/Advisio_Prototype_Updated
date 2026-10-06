@@ -6,6 +6,7 @@ import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import { useAuth } from "@/providers/auth-provider";
+import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 
 function PanelistDashboardContent() {
   const searchParams = useSearchParams();
@@ -55,6 +56,7 @@ function PanelistDashboardContent() {
   const [evaluationError, setEvaluationError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [respondingInvitation, setRespondingInvitation] = useState<any | null>(null);
+  const [signingDocument, setSigningDocument] = useState<any | null>(null);
   const [declineReason, setDeclineReason] = useState("");
   const [suggestedAvailability, setSuggestedAvailability] = useState("");
   const [invitationSaving, setInvitationSaving] = useState(false);
@@ -154,6 +156,9 @@ function PanelistDashboardContent() {
   ];
 
   return (
+    <>
+      {signingDocument && <DocumentSigningModal document={signingDocument} onClose={() => setSigningDocument(null)} onSigned={(message) => { setSigningDocument(null); triggerToast(message); queryClient.invalidateQueries({ queryKey: ["active-defense-session"] }); }} />}
+
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
       
       {toast && (
@@ -566,15 +571,19 @@ function PanelistDashboardContent() {
                 <p className="text-[11px] text-slate-400 font-bold">Review draft submissions, download version histories, and checklist files.</p>
                 <div className="flex flex-col gap-3 mt-2">
                   {documents.length > 0 ? (
-                    documents.map(d => (
-                      <div key={d.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
+                    documents.map(d => {
+                      const version = d.versions?.[0];
+                      const evaluationLocked = liveSession?.evaluations?.[0]?.status === "LOCKED";
+                      const canSign = evaluationLocked && version?.mimeType === "application/pdf" && !version?.sourceSignature;
+                      return (
+                      <div key={d.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center gap-3 text-[12.5px] shadow-sm">
                         <div>
                           <span className="font-bold text-[#1b4264] block">{d.title}</span>
                           <span className="text-[11px] text-slate-500">{d.group}</span>
                         </div>
-                        <span className="text-[11px] font-bold text-[#ffa400]">{d.status}</span>
+                        <div className="flex items-center gap-2"><span className="text-[11px] font-bold text-[#ffa400]">{d.status}</span>{canSign && <button type="button" onClick={() => setSigningDocument({ versionId: version.id, docName: d.title, groupName: d.group, fileUrl: `/api/documents/files/${version.googleDriveFileId}` })} className="rounded-lg bg-[#173f63] px-3 py-2 text-[11px] font-extrabold text-white"><i className="ti ti-signature mr-1" />Sign final evaluation copy</button>}</div>
                       </div>
-                    ))
+                    )})
                   ) : (
                     <div className="text-xs text-slate-400 py-6 text-center">
                       No submitted research documents assigned for panel review.
@@ -673,6 +682,7 @@ function PanelistDashboardContent() {
       </div>
 
     </div>
+    </>
   );
 }
 

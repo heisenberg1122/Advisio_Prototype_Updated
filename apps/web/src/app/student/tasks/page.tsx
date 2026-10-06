@@ -189,6 +189,23 @@ export default function ResearchTasksPage() {
     }
   };
 
+  const openSubmissionVersion = async (version: any) => {
+    if (!version?.googleDriveFileId) return void setMessage("The stored signed PDF is unavailable.");
+    try {
+      const token = localStorage.getItem("advisio_token");
+      const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+      const response = await fetch(`${apiBase}/api/documents/files/${version.googleDriveFileId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (!response.ok) throw new Error("Unable to open the signed PDF.");
+      const url = URL.createObjectURL(await response.blob());
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error: any) {
+      setMessage(error.message || "Unable to open the signed PDF.");
+    }
+  };
+
   if (isPending)
     return (
       <div className="p-6 text-sm font-semibold text-slate-500">
@@ -363,6 +380,7 @@ export default function ResearchTasksPage() {
           }}
           onStart={startMilestoneTask}
           onSubmit={submitRequirement}
+          onOpenSigned={openSubmissionVersion}
         />
       )}
     </div>
@@ -384,6 +402,7 @@ function TaskDetails({
   onClose,
   onStart,
   onSubmit,
+  onOpenSigned,
 }: any) {
   const [submissionMode, setSubmissionMode] = useState<"choose" | "upload">(
     "choose",
@@ -517,6 +536,12 @@ function TaskDetails({
               {new Date(task.submission.submittedAt).toLocaleString()} ·{" "}
               {task.submission.document?.title || "Submitted document"}
             </p>
+            {(() => {
+              const latestVersion = task.submission.document?.versions?.[0];
+              const signature = latestVersion?.signedSignature;
+              if (!signature) return null;
+              return <div className="mt-3 flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/30 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-extrabold text-emerald-800 dark:text-emerald-200"><i className="ti ti-signature mr-1" />Adviser-signed copy available</p><p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300">Verification: {signature.verificationCode}</p></div><button onClick={() => onOpenSigned(latestVersion)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white">View signed PDF</button></div>;
+            })()}
             {task.submission.note && (
               <p className="mt-3 whitespace-pre-wrap rounded-xl bg-white dark:bg-white/5 p-3 text-xs text-slate-600 dark:text-slate-300">
                 {task.submission.note}

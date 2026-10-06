@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   UserRound,
   UsersRound,
+  Signature,
 } from "lucide-react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { label: "Defenses", href: "/admin/dashboard?tab=defenses", tabName: "defenses", icon: ClipboardList },
   { label: "Calendar", href: "/admin/calendar", icon: CalendarDays },
   { label: "Reports", href: "/admin/dashboard?tab=reports", tabName: "reports", icon: FileBarChart },
+  { label: "Signatures", href: "/admin/signatures", icon: Signature },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
