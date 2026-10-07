@@ -15,13 +15,14 @@
 
 1. [System Architecture & Monorepo Structure](#-system-architecture--monorepo-structure)
 2. [Key Features](#-key-features)
-3. [Internal Inbox & Dean Approval Workflow](#-internal-inbox--dean-approval-workflow)
-4. [Secure Document Signatures](#-secure-document-signatures)
-5. [Quickstart & Development Setup](#-quickstart--development-setup)
-6. [Demo Accounts & Test Credentials](#-demo-accounts--test-credentials)
-7. [Database Management & Prisma](#-database-management--prisma)
-8. [Environment Variables Guide](#-environment-variables-guide)
-9. [Troubleshooting & FAQ](#-troubleshooting--faq)
+3. [Researcher Workflow Invitations & Monitoring](#-researcher-workflow-invitations--monitoring)
+4. [Internal Inbox & Dean Approval Workflow](#-internal-inbox--dean-approval-workflow)
+5. [Secure Document Signatures](#-secure-document-signatures)
+6. [Quickstart & Development Setup](#-quickstart--development-setup)
+7. [Demo Accounts & Test Credentials](#-demo-accounts--test-credentials)
+8. [Database Management & Prisma](#-database-management--prisma)
+9. [Environment Variables Guide](#-environment-variables-guide)
+10. [Troubleshooting & FAQ](#-troubleshooting--faq)
 
 ---
 
@@ -80,6 +81,23 @@ Advisio_Prototype_Updated/
 - 📨 **Dean Defense Approval Requests**: Professors can send a defense-approval PDF directly to the correct dean, with the recipient's name shown before submission and each dean seeing only requests addressed to them.
 - ☁️ **Pluggable Document Storage**: Google Drive integration, optional Supabase storage, and a configurable local fallback.
 - 🏛️ **College & Department Customization**: Manage colleges (CIT, etc.), academic programs (BSIT, BSCS, etc.), dynamic forms, and institutional workflow stages.
+
+---
+
+## 🔗 Researcher Workflow Invitations & Monitoring
+
+Professors can generate a workflow invitation code and share its direct link with researchers. Invitation links are authentication-protected: a signed-out visitor is sent to the login page, and a successful researcher login returns the user to the original invitation. The invitation preview identifies the workflow and professor before the researcher chooses **Accept** or **Reject**.
+
+After acceptance, the researcher is sent directly to **Tasks & Requirements**, where the accepted workflow is shown as the active workflow. Researchers can also enter a professor-provided invitation code from that page and review the same confirmation screen before joining. Joined workflows remain visible before project registration, while task submission becomes available after a research project is registered and linked.
+
+The Professor Dashboard provides separate controls for workflow enrollments and workflow-linked projects:
+
+- Removing a **researcher** revokes only that researcher's enrollment in the selected workflow. Existing project membership and submitted academic records are preserved.
+- Removing a **project** detaches only its workflow assignment and removes it from active professor workflow monitoring. It does not archive or delete the research project.
+- The researcher retains access to the project, members, documents, submissions, and other academic records from the Researcher Dashboard.
+- Every removal requires a written reason. The API validates and records that reason in the audit log, and a removed researcher receives the reason in their notification.
+
+This separation prevents workflow administration from accidentally deleting or hiding a researcher's underlying project data.
 
 ---
 
