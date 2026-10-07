@@ -21,6 +21,8 @@ const PAGES: Record<string, string> = {
   "/panelist/profile": "My Profile",
   "/panelist/profile/edit": "Edit Profile",
   "/panelist/notifications": "Notifications",
+  "/panelist/settings": "Account Settings",
+  "/panelist/inbox": "Inbox",
 };
 
 export function PanelistTopbar() {
@@ -37,6 +39,7 @@ export function PanelistTopbar() {
       subtitle="Oral Defense Center"
       notificationsHref="/panelist/notifications"
       profileHref="/panelist/profile"
+      settingsHref="/panelist/settings"
       searchPlaceholder="Search manuscripts, candidates, defenses..."
       variant="workspace"
     />

@@ -211,6 +211,10 @@ router.post(
         ? await prisma.researchProject.findFirst({
             where: {
               academicYearId,
+              // A disbanded group is retained as an archived academic record,
+              // but must not prevent its former leader from registering a
+              // replacement project in the same academic year.
+              status: { not: "ARCHIVED" },
               OR: [
                 { createdBy: req.user.id },
                 { members: { some: { userId: req.user.id, leftAt: null } } },
@@ -510,6 +514,81 @@ router.patch(
       res
         .status(500)
         .json({ error: error.message || "Failed to update research project" });
+    }
+  },
+);
+
+// POST /api/research/:id/remove-from-workflow — detach a project from the
+// professor's active workflow without changing or deleting the project itself.
+router.post(
+  "/:id/remove-from-workflow",
+  requireAuth,
+  requirePermission(Permissions.WORKFLOW_EDIT),
+  async (req: Request, res: Response) => {
+    try {
+      const id = req.params.id as string;
+      const reason =
+        typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+      if (reason.length < 5 || reason.length > 500) {
+        return void res.status(400).json({
+          error: "Provide a removal reason between 5 and 500 characters.",
+        });
+      }
+      const scope = getCollegeScope(req.user!);
+      if (scope.kind === "unassigned") {
+        return void res.status(403).json({
+          error: "Your account has not been assigned to a college or school.",
+        });
+      }
+
+      const project = await prisma.researchProject.findFirst({
+        where: { id, ...researchScopeWhere(req.user!) },
+        select: { id: true, status: true, workflowInstanceId: true },
+      });
+      if (!project) {
+        return void res.status(404).json({
+          error: "Research project was not found in your academic scope.",
+        });
+      }
+
+      if (!project.workflowInstanceId) {
+        return void res.status(409).json({
+          error: "This project is not currently assigned to a workflow.",
+        });
+      }
+
+      const detachedProject = await prisma.$transaction(async (tx) => {
+        const detached = await tx.researchProject.update({
+          where: { id: project.id },
+          data: { workflowInstanceId: null },
+        });
+        await tx.auditLog.create({
+          data: {
+            userId: req.user!.id,
+            action: "UPDATE",
+            entityType: "ResearchProject",
+            entityId: project.id,
+            oldValues: {
+              status: project.status,
+              workflowInstanceId: project.workflowInstanceId,
+            },
+            newValues: {
+              status: project.status,
+              workflowInstanceId: null,
+              removalReason: reason,
+            },
+            ipAddress: req.ip,
+            userAgent: req.get("user-agent") || null,
+          },
+        });
+        return detached;
+      });
+
+      res.json({ project: detachedProject });
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message || "Failed to remove the project from the workflow.",
+      });
     }
   },
 );

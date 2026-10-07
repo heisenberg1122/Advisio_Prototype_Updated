@@ -18,6 +18,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/student/tasks": "Tasks & Requirements",
   "/student/documents": "Document Workspace",
   "/student/group-files": "Group Files",
+  "/student/inbox": "Inbox",
 };
 
 const TAB_TITLES: Record<string, string> = {
@@ -56,6 +57,7 @@ export function StudentTopbar() {
       subtitle="University Research Workspace"
       notificationsHref="/student/notifications"
       profileHref="/student/profile"
+      settingsHref="/student/settings"
       searchPlaceholder="Search anything..."
       variant="workspace"
     />

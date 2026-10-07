@@ -12,6 +12,7 @@ export interface CreateDocumentPayload {
   fileName: string;
   mimeType: string;
   uploadedBy: string;
+  deanRecipient?: { id: string; name: string };
 }
 
 export interface CreateVersionPayload {
@@ -47,11 +48,13 @@ class DocumentService {
       const taskId = payload.documentType.startsWith("TASK_")
         ? payload.documentType.slice(5)
         : null;
-      const destinationFolderId = await storageHierarchyService.resolveFolder({
-        researchId: payload.researchId,
-        bucket: taskId ? "SUBMISSIONS" : "WORKING",
-        taskId,
-      });
+      const destinationFolderId = payload.documentType === "DEAN_DEFENSE_APPROVAL"
+        ? await storageHierarchyService.resolveDeanApprovalsFolder(payload.researchId, payload.deanRecipient)
+        : await storageHierarchyService.resolveFolder({
+            researchId: payload.researchId,
+            bucket: taskId ? "SUBMISSIONS" : "WORKING",
+            taskId,
+          });
       storageResult = await googleDriveService.uploadFile({
         fileName: payload.fileName,
         mimeType: payload.mimeType,
@@ -62,7 +65,7 @@ class DocumentService {
           advisioManaged: "true",
           advisioResearchId: payload.researchId,
           advisioUploaderId: payload.uploadedBy,
-          advisioLifecycle: taskId ? "SUBMITTED" : "WORKING",
+          advisioLifecycle: payload.documentType === "DEAN_DEFENSE_APPROVAL" ? "DEAN_APPROVAL_REQUEST" : taskId ? "SUBMITTED" : "WORKING",
           ...(taskId ? { advisioTaskId: taskId } : {}),
           advisioChecksum: crypto
             .createHash("sha256")

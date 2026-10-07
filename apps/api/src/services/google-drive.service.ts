@@ -10,6 +10,7 @@ const PROVIDER = "GOOGLE_DRIVE";
 const ROOT_FOLDER_NAME = "ADVISIO_TEST_STORAGE";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const SERVICE_ACCOUNT_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
+const DRIVE_REQUEST_TIMEOUT_MS = 20_000;
 
 export interface DriveUploadOptions {
   fileName: string;
@@ -544,7 +545,7 @@ class GoogleDriveService {
         pageSize: 2,
         supportsAllDrives: true,
         includeItemsFromAllDrives: true,
-      });
+      }, { timeout: DRIVE_REQUEST_TIMEOUT_MS });
       const folder =
         found.data.files?.[0] ||
         (
@@ -566,7 +567,7 @@ class GoogleDriveService {
             },
             fields: "id,name",
             supportsAllDrives: true,
-          })
+          }, { timeout: DRIVE_REQUEST_TIMEOUT_MS })
         ).data;
       if (!folder.id)
         throw new Error(
@@ -636,7 +637,7 @@ class GoogleDriveService {
         },
         fields: "id,name,mimeType,size",
         supportsAllDrives: true,
-      });
+      }, { timeout: DRIVE_REQUEST_TIMEOUT_MS });
       const file = response.data;
       if (!file.id)
         throw new Error("Google Drive did not return a file identifier");

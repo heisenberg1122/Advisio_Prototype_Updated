@@ -33,10 +33,18 @@ const StudentSettingsPage = lazy(() => import("./app/student/settings/page"));
 
 const AdviserLayout = lazy(() => import("./app/adviser/layout"));
 const AdviserDashboardPage = lazy(() => import("./app/adviser/dashboard/page"));
+const AdviserProfilePage = lazy(() => import("./app/adviser/profile/page"));
+const AdviserProfileEditPage = lazy(
+  () => import("./app/adviser/profile/edit/page"),
+);
 
 const PanelistLayout = lazy(() => import("./app/panelist/layout"));
 const PanelistDashboardPage = lazy(
   () => import("./app/panelist/dashboard/page"),
+);
+const PanelistProfilePage = lazy(() => import("./app/panelist/profile/page"));
+const PanelistProfileEditPage = lazy(
+  () => import("./app/panelist/profile/edit/page"),
 );
 
 const ProfessorLayout = lazy(() => import("./app/professor/layout"));
@@ -64,8 +72,13 @@ const SystemAdminProfileEditPage = lazy(
 
 const AdminLayout = lazy(() => import("./app/admin/layout"));
 const AdminDashboardPage = lazy(() => import("./app/admin/dashboard/page"));
+const AdminProfilePage = lazy(() => import("./app/admin/profile/page"));
+const AdminProfileEditPage = lazy(
+  () => import("./app/admin/profile/edit/page"),
+);
 const CalendarPage = lazy(() => import("./app/calendar/page"));
 const SignatureCenterPage = lazy(() => import("./app/signatures/page"));
+const MailInboxPage = lazy(() => import("./app/mail/page"));
 
 // Public Auth Pages
 import LoginPage from "./app/(public)/login/page";
@@ -249,6 +262,7 @@ export function AppRoutes() {
           }
         />
         <Route path="/student/calendar" element={<StudentPortal><CalendarPage /></StudentPortal>} />
+        <Route path="/student/inbox" element={<StudentPortal><MailInboxPage /></StudentPortal>} />
         <Route
           path="/student/*"
           element={<Navigate to="/student/dashboard" replace />}
@@ -258,6 +272,36 @@ export function AppRoutes() {
         <Route
           path="/adviser"
           element={<Navigate to="/adviser/dashboard" replace />}
+        />
+        <Route
+          path="/adviser/profile"
+          element={
+            <ProtectedRoute allowedRoles={["ADVISER", "SYSTEM_ADMIN"]}>
+              <AdviserLayout>
+                <AdviserProfilePage />
+              </AdviserLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/adviser/profile/edit"
+          element={
+            <ProtectedRoute allowedRoles={["ADVISER", "SYSTEM_ADMIN"]}>
+              <AdviserLayout>
+                <AdviserProfileEditPage />
+              </AdviserLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/adviser/settings"
+          element={
+            <ProtectedRoute allowedRoles={["ADVISER"]}>
+              <AdviserLayout>
+                <StudentSettingsPage />
+              </AdviserLayout>
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/adviser/*"
@@ -270,11 +314,42 @@ export function AppRoutes() {
           }
         />
         <Route path="/adviser/calendar" element={<ProtectedRoute allowedRoles={["ADVISER", "SYSTEM_ADMIN"]}><AdviserLayout><CalendarPage /></AdviserLayout></ProtectedRoute>} />
+        <Route path="/adviser/inbox" element={<ProtectedRoute allowedRoles={["ADVISER", "SYSTEM_ADMIN"]}><AdviserLayout><MailInboxPage /></AdviserLayout></ProtectedRoute>} />
 
         {/* Panelist Portal */}
         <Route
           path="/panelist"
           element={<Navigate to="/panelist/dashboard" replace />}
+        />
+        <Route
+          path="/panelist/profile"
+          element={
+            <ProtectedRoute allowedRoles={["PANELIST", "SYSTEM_ADMIN"]}>
+              <PanelistLayout>
+                <PanelistProfilePage />
+              </PanelistLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/panelist/profile/edit"
+          element={
+            <ProtectedRoute allowedRoles={["PANELIST", "SYSTEM_ADMIN"]}>
+              <PanelistLayout>
+                <PanelistProfileEditPage />
+              </PanelistLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/panelist/settings"
+          element={
+            <ProtectedRoute allowedRoles={["PANELIST"]}>
+              <PanelistLayout>
+                <StudentSettingsPage />
+              </PanelistLayout>
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/panelist/*"
@@ -287,6 +362,7 @@ export function AppRoutes() {
           }
         />
         <Route path="/panelist/calendar" element={<ProtectedRoute allowedRoles={["PANELIST", "SYSTEM_ADMIN"]}><PanelistLayout><CalendarPage /></PanelistLayout></ProtectedRoute>} />
+        <Route path="/panelist/inbox" element={<ProtectedRoute allowedRoles={["PANELIST", "SYSTEM_ADMIN"]}><PanelistLayout><MailInboxPage /></PanelistLayout></ProtectedRoute>} />
 
         {/* Professor / Coordinator Portal */}
         <Route
@@ -326,6 +402,18 @@ export function AppRoutes() {
           }
         />
         <Route
+          path="/professor/settings"
+          element={
+            <ProtectedRoute
+              allowedRoles={["PROFESSOR", "RESEARCH_COORDINATOR"]}
+            >
+              <ProfessorLayout>
+                <StudentSettingsPage />
+              </ProfessorLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/professor/*"
           element={
             <ProtectedRoute
@@ -342,6 +430,7 @@ export function AppRoutes() {
           }
         />
         <Route path="/professor/calendar" element={<ProtectedRoute allowedRoles={["PROFESSOR", "RESEARCH_COORDINATOR", "SYSTEM_ADMIN"]}><ProfessorLayout><CalendarPage /></ProfessorLayout></ProtectedRoute>} />
+        <Route path="/professor/inbox" element={<ProtectedRoute allowedRoles={["PROFESSOR", "RESEARCH_COORDINATOR", "SYSTEM_ADMIN"]}><ProfessorLayout><MailInboxPage /></ProfessorLayout></ProtectedRoute>} />
         <Route path="/professor/signatures" element={<ProtectedRoute allowedRoles={["PROFESSOR", "RESEARCH_COORDINATOR"]}><ProfessorLayout><SignatureCenterPage /></ProfessorLayout></ProtectedRoute>} />
 
         {/* System Admin Portal */}
@@ -394,11 +483,46 @@ export function AppRoutes() {
           element={<Navigate to="/system-admin/dashboard" replace />}
         />
         <Route path="/system-admin/calendar" element={<ProtectedRoute allowedRoles={["SYSTEM_ADMIN"]}><SystemAdminLayout><CalendarPage /></SystemAdminLayout></ProtectedRoute>} />
+        <Route path="/system-admin/inbox" element={<ProtectedRoute allowedRoles={["SYSTEM_ADMIN"]}><SystemAdminLayout><MailInboxPage /></SystemAdminLayout></ProtectedRoute>} />
 
         {/* Institutional Admin Portal */}
         <Route
           path="/admin"
           element={<Navigate to="/admin/dashboard" replace />}
+        />
+        <Route
+          path="/admin/profile"
+          element={
+            <ProtectedRoute
+              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}
+            >
+              <AdminLayout>
+                <AdminProfilePage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/profile/edit"
+          element={
+            <ProtectedRoute
+              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}
+            >
+              <AdminLayout>
+                <AdminProfileEditPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/settings"
+          element={
+            <ProtectedRoute allowedRoles={["ADMIN", "RPO", "REB", "VPAA"]}>
+              <AdminLayout>
+                <StudentSettingsPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
         />
         <Route
           path="/admin/*"
@@ -414,6 +538,7 @@ export function AppRoutes() {
         />
         <Route path="/admin/calendar" element={<ProtectedRoute allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}><AdminLayout><CalendarPage /></AdminLayout></ProtectedRoute>} />
         <Route path="/admin/signatures" element={<ProtectedRoute allowedRoles={["RPO", "VPAA"]}><AdminLayout><SignatureCenterPage /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/inbox" element={<ProtectedRoute allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}><AdminLayout><MailInboxPage /></AdminLayout></ProtectedRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/login" replace />} />

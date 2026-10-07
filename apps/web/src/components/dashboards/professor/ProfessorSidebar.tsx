@@ -13,6 +13,7 @@ import {
   CalendarClock,
   CalendarDays,
   Signature,
+  Mail,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { label: "Deadlines", href: "/professor/dashboard?tab=deadlines", tabName: "deadlines", icon: CalendarClock },
   { label: "Signatures", href: "/professor/signatures", icon: Signature },
   { label: "Calendar", href: "/professor/calendar", icon: CalendarDays },
+  { label: "Inbox", href: "/professor/inbox", icon: Mail },
 ];
 
 export function ProfessorSidebar() {
@@ -38,7 +40,7 @@ export function ProfessorSidebar() {
       navItems={NAV_ITEMS}
       collapsed={collapsed}
       onToggleCollapse={toggle}
-      settingsHref="/professor/dashboard?tab=settings"
+      settingsHref="/professor/settings"
       profileHref="/professor/profile"
       variant="workspace"
     />

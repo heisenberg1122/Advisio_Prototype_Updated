@@ -9,6 +9,7 @@ import {
   FileSearch,
   Calendar,
   MessageSquare,
+  Mail,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
   { label: "Consultations", href: "/adviser/dashboard?tab=consultations", tabName: "consultations", icon: Calendar },
   { label: "Calendar", href: "/adviser/calendar", icon: Calendar },
   { label: "Messages", href: "/adviser/dashboard?tab=group-chats", tabName: "group-chats", icon: MessageSquare },
+  { label: "Inbox", href: "/adviser/inbox", icon: Mail },
 ];
 
 export function AdviserSidebar() {
@@ -30,7 +32,7 @@ export function AdviserSidebar() {
       navItems={NAV_ITEMS}
       collapsed={collapsed}
       onToggleCollapse={toggle}
-      settingsHref="/adviser/dashboard?tab=settings"
+      settingsHref="/adviser/settings"
       profileHref="/adviser/profile"
       variant="workspace"
     />

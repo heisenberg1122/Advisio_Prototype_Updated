@@ -18,6 +18,11 @@ type SignatureProfile = {
   updatedAt: string;
 };
 
+export type DocumentSigningResult = {
+  signature: { verificationCode: string };
+  version: { id: string; fileName: string; googleDriveFileId?: string | null };
+};
+
 const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 const absoluteApiUrl = (value: string) => value.startsWith("/") ? `${apiBase}${value}` : value;
 const authHeaders = () => {
@@ -32,13 +37,17 @@ export function DocumentSigningModal({
 }: {
   document: SigningDocument;
   onClose: () => void;
-  onSigned: (message: string) => void;
+  onSigned: (message: string, result: DocumentSigningResult) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const dragOffset = useRef({ x: 0, y: 0 });
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
+  const [zoom, setZoom] = useState(1);
+  const [fitMode, setFitMode] = useState<"custom" | "width" | "page">("width");
+  const [previewSize, setPreviewSize] = useState({ width: 0, height: 0 });
   const [profile, setProfile] = useState<SignatureProfile | null>(null);
   const [signatureUrl, setSignatureUrl] = useState("");
   const [position, setPosition] = useState({ x: 0.62, y: 0.72, width: 0.25, height: 0.09 });
@@ -89,11 +98,28 @@ export function DocumentSigningModal({
   }, [document.versionId]);
 
   useEffect(() => {
+    if (!previewRef.current) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setPreviewSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+    });
+    observer.observe(previewRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     if (!pdf || !canvasRef.current) return;
     let cancelled = false;
     pdf.getPage(pageNumber).then((page) => {
       if (cancelled || !canvasRef.current) return;
-      const viewport = page.getViewport({ scale: 1.25 });
+      const natural = page.getViewport({ scale: 1 });
+      const availableWidth = Math.max(240, previewSize.width - 40);
+      const availableHeight = Math.max(240, previewSize.height - 92);
+      const scale = fitMode === "width"
+        ? availableWidth / natural.width
+        : fitMode === "page"
+          ? Math.min(availableWidth / natural.width, availableHeight / natural.height)
+          : 1.25 * zoom;
+      const viewport = page.getViewport({ scale: Math.max(0.35, Math.min(3, scale)) });
       const canvas = canvasRef.current;
       const context = canvas.getContext("2d");
       if (!context) return;
@@ -104,7 +130,12 @@ export function DocumentSigningModal({
       page.render({ canvas, canvasContext: context, viewport }).promise.catch(() => undefined);
     });
     return () => { cancelled = true; };
-  }, [pdf, pageNumber]);
+  }, [pdf, pageNumber, zoom, fitMode, previewSize]);
+
+  const changeZoom = (next: number) => {
+    setFitMode("custom");
+    setZoom(Math.max(0.4, Math.min(2.4, next)));
+  };
 
   const uploadSignature = async (file?: File) => {
     if (!file) return;
@@ -150,7 +181,7 @@ export function DocumentSigningModal({
     setSaving(true);
     setError("");
     try {
-      const result = await apiClient.post<{ signature: { verificationCode: string } }>(
+      const result = await apiClient.post<DocumentSigningResult>(
         `/api/documents/versions/${document.versionId}/sign`,
         {
           password,
@@ -158,7 +189,7 @@ export function DocumentSigningModal({
           placements: [{ pageNumber, ...position, includeName, includeDate }],
         },
       );
-      onSigned(`Document signed successfully. Verification: ${result.signature.verificationCode}`);
+      onSigned(`Document signed successfully. Verification: ${result.signature.verificationCode}`, result);
     } catch (reason: any) {
       setError(reason.message || "Unable to sign the document.");
     } finally {
@@ -174,7 +205,15 @@ export function DocumentSigningModal({
           <button onClick={onClose} aria-label="Close signing screen" className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-xl text-slate-600"><i className="ti ti-x" /></button>
         </header>
         <div className="grid min-h-0 flex-1 lg:grid-cols-[1fr_340px]">
-          <div className="min-h-0 overflow-auto bg-slate-200 p-5">
+          <div ref={previewRef} className="relative min-h-0 overflow-auto bg-slate-200 p-5 pt-16">
+            <div className="sticky top-0 z-20 -mt-11 mb-3 flex w-fit items-center gap-1 rounded-xl border border-slate-300 bg-white/95 p-1.5 shadow-lg backdrop-blur">
+              <button type="button" onClick={() => changeZoom(zoom - 0.1)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Zoom out" title="Zoom out"><i className="ti ti-zoom-out" /></button>
+              <button type="button" onClick={() => changeZoom(1)} className={`min-w-14 rounded-lg px-2 py-1.5 text-xs font-extrabold ${fitMode === "custom" && zoom === 1 ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`} title="Reset zoom">{fitMode === "custom" ? `${Math.round(zoom * 100)}%` : "100%"}</button>
+              <button type="button" onClick={() => changeZoom(zoom + 0.1)} className="grid h-8 w-8 place-items-center rounded-lg text-slate-600 hover:bg-slate-100" aria-label="Zoom in" title="Zoom in"><i className="ti ti-zoom-in" /></button>
+              <span className="mx-1 h-5 w-px bg-slate-200" />
+              <button type="button" onClick={() => setFitMode("width")} className={`rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold ${fitMode === "width" ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`}>Fit width</button>
+              <button type="button" onClick={() => setFitMode("page")} className={`rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold ${fitMode === "page" ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`}>Fit page</button>
+            </div>
             {busy && <div className="grid h-full place-items-center font-bold text-slate-500"><span><i className="ti ti-loader-2 mr-2 animate-spin" />Preparing secure PDF preview…</span></div>}
             {!busy && pdf && <div ref={pageRef} className="relative mx-auto w-fit bg-white shadow-xl">
               <canvas ref={canvasRef} className="block max-w-none" />

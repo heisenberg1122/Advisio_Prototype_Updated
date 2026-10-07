@@ -203,6 +203,50 @@ router.post("/:id/invitation", requireAuth, requirePermission(Permissions.WORKFL
 });
 
 // POST /api/workflows/join/:code — researcher joins a workflow before formal project creation.
+router.get("/invitation/:code", requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!req.user!.roles.includes("RESEARCHER")) {
+      return void res.status(403).json({ error: "Researcher access is required to view this invitation." });
+    }
+    const code = String(req.params.code || "").trim().toUpperCase();
+    const workflow = await prisma.workflow.findUnique({
+      where: { inviteCode: code },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        inviteExpiresAt: true,
+        creator: { select: { firstName: true, lastName: true, email: true } },
+        stages: {
+          where: { category: { not: "Archived" } },
+          orderBy: { sequence: "asc" },
+          select: { id: true, name: true, submissionMode: true },
+        },
+        enrollments: {
+          where: { userId: req.user!.id, status: "ACTIVE" },
+          select: { id: true },
+        },
+      },
+    });
+    if (!workflow || !workflow.inviteExpiresAt || workflow.inviteExpiresAt <= new Date()) {
+      return void res.status(404).json({ error: "This workflow invitation is invalid or expired." });
+    }
+    res.json({
+      invitation: {
+        id: workflow.id,
+        name: workflow.name,
+        description: workflow.description,
+        expiresAt: workflow.inviteExpiresAt,
+        professor: workflow.creator,
+        stages: workflow.stages,
+        alreadyJoined: workflow.enrollments.length > 0,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to load the workflow invitation." });
+  }
+});
+
 router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
   try {
     if (!req.user!.roles.includes("RESEARCHER")) return void res.status(403).json({ error: "Researcher access is required." });
@@ -233,6 +277,9 @@ router.get("/enrollments/me", requireAuth, async (req: Request, res: Response) =
       include: {
         workflow: {
           include: {
+            creator: {
+              select: { firstName: true, lastName: true, email: true },
+            },
             stages: {
               where: { category: { not: "Archived" } },
               orderBy: { sequence: "asc" },
@@ -304,6 +351,100 @@ router.get(
     } catch (error: any) {
       res.status(500).json({
         error: error.message || "Failed to load accepted researchers.",
+      });
+    }
+  },
+);
+
+// DELETE /api/workflows/enrollments/:id — revoke a researcher's workflow enrollment.
+router.delete(
+  "/enrollments/:id",
+  requireAuth,
+  requirePermission(Permissions.WORKFLOW_EDIT),
+  async (req: Request, res: Response) => {
+    try {
+      const reason =
+        typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+      if (reason.length < 5 || reason.length > 500) {
+        return void res.status(400).json({
+          error: "Provide a removal reason between 5 and 500 characters.",
+        });
+      }
+      const scope = getCollegeScope(req.user!);
+      if (scope.kind === "unassigned") {
+        return void res.status(403).json({
+          error: "Your account has not been assigned to a college or school.",
+        });
+      }
+
+      const scopedResearchTypeIds =
+        scope.kind === "college"
+          ? (
+              await prisma.researchType.findMany({
+                where: {
+                  program: {
+                    collegeId: scope.collegeId,
+                    ...(req.user!.programId && { id: req.user!.programId }),
+                  },
+                },
+                select: { id: true },
+              })
+            ).map((item) => item.id)
+          : null;
+
+      const enrollment = await prisma.workflowEnrollment.findFirst({
+        where: {
+          id: req.params.id as string,
+          ...(scopedResearchTypeIds && {
+            workflow: { researchTypeId: { in: scopedResearchTypeIds } },
+          }),
+        },
+        include: {
+          workflow: { select: { name: true } },
+          user: { select: { id: true } },
+        },
+      });
+
+      if (!enrollment) {
+        return void res.status(404).json({
+          error: "Workflow enrollment was not found in your academic scope.",
+        });
+      }
+
+      await prisma.$transaction([
+        prisma.workflowEnrollment.delete({ where: { id: enrollment.id } }),
+        prisma.notification.create({
+          data: {
+            recipientId: enrollment.user.id,
+            type: "WORKFLOW_CHANGED",
+            title: "Workflow access removed",
+            message: `Your enrollment in ${enrollment.workflow.name} was removed by the research coordinator. Reason: ${reason}`,
+            entityType: "WORKFLOW_ENROLLMENT",
+            entityId: enrollment.id,
+          },
+        }),
+        prisma.auditLog.create({
+          data: {
+            userId: req.user!.id,
+            action: "DELETE",
+            entityType: "WorkflowEnrollment",
+            entityId: enrollment.id,
+            oldValues: {
+              workflowId: enrollment.workflowId,
+              researcherId: enrollment.userId,
+              status: enrollment.status,
+            },
+            newValues: { removalReason: reason },
+            ipAddress: req.ip,
+            userAgent: req.get("user-agent") || null,
+          },
+        }),
+      ]);
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message || "Failed to remove the workflow enrollment.",
       });
     }
   },

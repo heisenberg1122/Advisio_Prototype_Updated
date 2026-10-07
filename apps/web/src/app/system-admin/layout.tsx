@@ -13,6 +13,7 @@ import {
   Shield,
   CloudCog,
   CalendarDays,
+  Mail,
 } from "lucide-react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
@@ -79,6 +80,7 @@ const NAV_ITEMS = [
     tabName: "backups",
     icon: Database,
   },
+  { label: "Inbox", href: "/system-admin/inbox", icon: Mail },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -107,6 +109,8 @@ function SystemAdminLayoutInner({ children }: { children: React.ReactNode }) {
           ? "Notifications"
           : pathname === "/system-admin/calendar"
             ? "Universal Calendar"
+          : pathname === "/system-admin/inbox"
+            ? "Inbox"
             : PAGE_TITLES[activeTab] || "System Administration";
 
   return (
@@ -132,6 +136,7 @@ function SystemAdminLayoutInner({ children }: { children: React.ReactNode }) {
           subtitle="Platform Control Center"
           notificationsHref="/system-admin/notifications"
           profileHref="/system-admin/profile"
+          settingsHref="/system-admin/dashboard?tab=settings"
           searchPlaceholder="Search audit logs, users, system settings..."
           variant="workspace"
         />

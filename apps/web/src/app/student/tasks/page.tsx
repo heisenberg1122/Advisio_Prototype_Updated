@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { StatCard } from "@/components/ui/StatCard";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 const memberName = (member: any) =>
   `${member?.user?.firstName || ""} ${member?.user?.lastName || ""}`.trim();
@@ -13,19 +14,26 @@ const userName = (user: any) =>
 
 export default function ResearchTasksPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [starting, setStarting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [workflowCode, setWorkflowCode] = useState("");
 
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: ["student", "workflow-tasks"],
     queryFn: async () => {
-      const list = await apiClient.get<{ projects: any[] }>("/api/research");
+      const [list, enrollmentList] = await Promise.all([
+        apiClient.get<{ projects: any[] }>("/api/research"),
+        apiClient.get<{ enrollments: any[] }>("/api/workflows/enrollments/me"),
+      ]);
       const project = list.projects?.[0];
-      if (!project) return { project: null, tasks: [] };
+      const enrollments = enrollmentList.enrollments || [];
+      if (!project) return { project: null, tasks: [], enrollments };
       const stages = project.workflowInstance?.workflow?.stages || [];
       const currentSequence =
         project.workflowInstance?.currentStage?.sequence || 0;
@@ -83,7 +91,7 @@ export default function ResearchTasksPage() {
           },
         ];
       });
-      return { project, tasks };
+      return { project, tasks, enrollments };
     },
     refetchOnWindowFocus: true,
   });
@@ -225,6 +233,14 @@ export default function ResearchTasksPage() {
 
   const tasks = data?.tasks || [];
   const project = data?.project;
+  const enrollments = data?.enrollments || [];
+  const activeEnrollment =
+    enrollments.find(
+      (enrollment: any) =>
+        enrollment.workflowId === project?.workflowInstance?.workflowId,
+    ) || enrollments[0];
+  const acceptedWorkflowName = searchParams.get("workflowAccepted");
+  const invitationDeclined = searchParams.get("invitation") === "declined";
   const currentSequence =
     project?.workflowInstance?.currentStage?.sequence || 0;
   const completed = tasks.filter(
@@ -245,6 +261,20 @@ export default function ResearchTasksPage() {
       {message && (
         <div className="rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/30 p-3.5 text-sm font-semibold text-blue-900 dark:text-blue-200">
           {message}
+        </div>
+      )}
+
+      {acceptedWorkflowName && (
+        <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
+          <i className="ti ti-circle-check mt-0.5 text-lg" />
+          <div><strong className="block">Workflow invitation accepted</strong><span>You joined {acceptedWorkflowName}. Its milestones are now available in Tasks & Requirements.</span></div>
+        </div>
+      )}
+
+      {invitationDeclined && (
+        <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+          <i className="ti ti-info-circle mt-0.5 text-lg" />
+          <span>The workflow invitation was not accepted. You can use the invitation link again while it remains valid.</span>
         </div>
       )}
 
@@ -272,8 +302,56 @@ export default function ResearchTasksPage() {
         />
       </section>
 
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)]">
+        <div className="rounded-2xl border border-[#DDE3E8] bg-white p-5 shadow-xs dark:border-white/10 dark:bg-[#101b2b] sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#C9A227]">Active workflow</p>
+              {activeEnrollment ? (
+                <>
+                  <h2 className="mt-1 text-xl font-black text-[#17212B] dark:text-white">{activeEnrollment.workflow.name}</h2>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    {activeEnrollment.workflow.creator
+                      ? `Professor: ${`${activeEnrollment.workflow.creator.firstName || ""} ${activeEnrollment.workflow.creator.lastName || ""}`.trim() || activeEnrollment.workflow.creator.email}`
+                      : "Professor-created research workflow"}
+                  </p>
+                </>
+              ) : (
+                <><h2 className="mt-1 text-xl font-black text-[#17212B] dark:text-white">No workflow joined yet</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Use the code or invitation link provided by your professor.</p></>
+              )}
+            </div>
+            <Tag variant={activeEnrollment ? "success" : "info"}>{activeEnrollment ? "Active" : "Not joined"}</Tag>
+          </div>
+          {activeEnrollment && (
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <Info icon="ti-list-check" label="Milestones" value={`${activeEnrollment.workflow.stages?.length || 0} stages`} />
+              <Info icon="ti-calendar-check" label="Joined" value={new Date(activeEnrollment.joinedAt).toLocaleDateString()} />
+              <Info icon="ti-progress" label="Current status" value={project?.workflowInstance?.currentStage?.name || "Awaiting project registration"} />
+            </div>
+          )}
+          {enrollments.length > 1 && <p className="mt-4 text-xs font-semibold text-slate-500">You have joined {enrollments.length} workflows. The workflow linked to your current project is shown first.</p>}
+        </div>
+
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            const code = workflowCode.trim().toUpperCase();
+            if (code) navigate(`/student/workflows/join/${encodeURIComponent(code)}`);
+          }}
+          className="rounded-2xl border border-[#DDE3E8] bg-white p-5 shadow-xs dark:border-white/10 dark:bg-[#101b2b] sm:p-6"
+        >
+          <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#C9A227]">Join a workflow</p>
+          <h2 className="mt-1 text-base font-black text-[#17212B] dark:text-white">Enter professor invitation code</h2>
+          <p className="mt-1 text-xs leading-5 text-slate-500">You will review the invitation before deciding to accept or reject it.</p>
+          <div className="mt-4 flex gap-2">
+            <input value={workflowCode} onChange={(event) => setWorkflowCode(event.target.value.toUpperCase())} maxLength={32} placeholder="Invitation code" className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 font-mono text-sm font-bold uppercase text-[#17212B] outline-none focus:border-[#0B3A53] dark:border-white/20 dark:bg-[#0B1726] dark:text-white" />
+            <button type="submit" disabled={!workflowCode.trim()} className="rounded-xl bg-[#0B3A53] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">Review</button>
+          </div>
+        </form>
+      </section>
+
       {!project ? (
-        <Empty text="Register a project to receive professor-created requirements." />
+        <Empty text={activeEnrollment ? "Workflow accepted. Register a project to begin submitting its professor-created requirements." : "Join a professor workflow, then register a project to receive its requirements."} />
       ) : !tasks.length ? (
         <Empty text="Milestones will appear here when your professor adds them to the project workflow." />
       ) : (

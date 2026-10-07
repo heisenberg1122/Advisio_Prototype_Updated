@@ -177,10 +177,12 @@ export class DocumentSigningService {
     const nextVersionNumber = source.document.currentVersion + 1;
     const baseName = source.fileName.replace(/\.pdf$/i, "");
     const fileName = `${baseName}-signed-v${nextVersionNumber}.pdf`;
-    const destinationFolderId = await storageHierarchyService.resolveFolder({
-      researchId: source.document.researchId,
-      bucket: "SUBMISSIONS",
-    });
+    const destinationFolderId = source.document.documentType === "DEAN_DEFENSE_APPROVAL"
+      ? await storageHierarchyService.resolveDeanApprovalsFolder(source.document.researchId, { id: options.signerId, name: signerName })
+      : await storageHierarchyService.resolveFolder({
+          researchId: source.document.researchId,
+          bucket: "SUBMISSIONS",
+        });
     const stored = await googleDriveService.uploadFile({
       fileName,
       mimeType: "application/pdf",
@@ -233,6 +235,17 @@ export class DocumentSigningService {
           signedAt,
         },
       });
+      if (isDean) {
+        await tx.deanInboxMessage.create({
+          data: {
+            documentId: source.documentId,
+            authorId: options.signerId,
+            recipientId: options.signerId,
+            message: `Signed copy attached. Verification code: ${verificationCode}`,
+            attachmentVersionId: signedVersion.id,
+          },
+        });
+      }
       await tx.auditLog.create({
         data: {
           userId: options.signerId,

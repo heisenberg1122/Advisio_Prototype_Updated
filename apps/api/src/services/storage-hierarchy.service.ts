@@ -194,6 +194,18 @@ class StorageHierarchyService {
     ]);
   }
 
+  /** Dean signature requests are institutional correspondence, not working
+   * drafts tied to the project's current milestone. Keep them in a stable,
+   * project-level folder so sending does not depend on workflow-stage routing. */
+  public async resolveDeanApprovalsFolder(researchId: string, dean?: { id: string; name: string }) {
+    const project = await this.projectContext(researchId);
+    return googleDriveService.ensureFolderPath([
+      ...this.baseSegments(project),
+      { name: "04-Dean-Approvals", key: "bucket:dean-approvals" },
+      ...(dean ? [{ name: `DEAN-${dean.id.replace(/-/g, "").slice(0, 8).toUpperCase()}_${safeName(dean.name, "Dean")}`, key: `dean:${dean.id}`, entityType: "DEAN", entityId: dean.id }] : []),
+    ]);
+  }
+
   public async moveDocumentCurrentVersion(options: {
     documentId: string;
     bucket: WorkspaceBucket;

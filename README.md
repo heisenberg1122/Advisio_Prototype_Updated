@@ -15,12 +15,13 @@
 
 1. [System Architecture & Monorepo Structure](#-system-architecture--monorepo-structure)
 2. [Key Features](#-key-features)
-3. [Secure Document Signatures](#-secure-document-signatures)
-4. [Quickstart & Development Setup](#-quickstart--development-setup)
-5. [Demo Accounts & Test Credentials](#-demo-accounts--test-credentials)
-6. [Database Management & Prisma](#-database-management--prisma)
-7. [Environment Variables Guide](#-environment-variables-guide)
-8. [Troubleshooting & FAQ](#-troubleshooting--faq)
+3. [Internal Inbox & Dean Approval Workflow](#-internal-inbox--dean-approval-workflow)
+4. [Secure Document Signatures](#-secure-document-signatures)
+5. [Quickstart & Development Setup](#-quickstart--development-setup)
+6. [Demo Accounts & Test Credentials](#-demo-accounts--test-credentials)
+7. [Database Management & Prisma](#-database-management--prisma)
+8. [Environment Variables Guide](#-environment-variables-guide)
+9. [Troubleshooting & FAQ](#-troubleshooting--faq)
 
 ---
 
@@ -75,8 +76,33 @@ Advisio_Prototype_Updated/
 - 🔔 **Real-Time Notification Popover & Alerts**: Instant updates on adviser acceptance, submission reviews, task deadlines, and defense schedules.
 - 📅 **Role-Scoped Universal Calendar**: Shared academic scheduling with visibility and actions tailored to each role.
 - 💬 **Consultations & Group Chat**: Consultation booking, meeting history, embedded sessions, and research-group conversations.
+- 📬 **Role-Scoped Internal Inbox**: Researchers, advisers, panelists, professors, deans, and system administrators can exchange threaded messages, save drafts, reply, and securely send or download attachments.
+- 📨 **Dean Defense Approval Requests**: Professors can send a defense-approval PDF directly to the correct dean, with the recipient's name shown before submission and each dean seeing only requests addressed to them.
 - ☁️ **Pluggable Document Storage**: Google Drive integration, optional Supabase storage, and a configurable local fallback.
 - 🏛️ **College & Department Customization**: Manage colleges (CIT, etc.), academic programs (BSIT, BSCS, etc.), dynamic forms, and institutional workflow stages.
+
+---
+
+## 📬 Internal Inbox & Dean Approval Workflow
+
+Every role portal includes an internal Inbox with **Inbox**, **Sent**, and **Drafts** folders. Users can compose messages, select an active recipient by name and role, continue a threaded conversation, and attach up to five files with a maximum size of 10 MB per file. Mail threads and attachment downloads are authorization-scoped to their participants.
+
+The Researcher Inbox intentionally contains only the standard messaging experience; it does not expose electronic-signature controls. Research group chat remains a separate feature for group collaboration.
+
+The Dean portal separates regular communication from formal approval work:
+
+- **Inbox** contains ordinary internal messages.
+- **Signature Requests** contains defense-approval documents submitted by professors.
+- A professor chooses the eligible research group and addressed dean, writes a message, and uploads the PDF requiring approval.
+- The dean reviews the exact PDF, adjusts its zoom and signature placement, signs it, and sends a reply. Signing creates a new immutable file version and preserves the original.
+
+Inbox data is stored in `MailThread`, `MailParticipant`, `MailMessage`, and `MailAttachment`. Dean requests are recipient-specific, so requests are segregated between different dean accounts rather than being shown in a shared global queue.
+
+The related schema changes are included in these migrations:
+
+- `packages/database/prisma/migrations/20261007020000_dean_inbox`
+- `packages/database/prisma/migrations/20261007030000_dean_inbox_recipient`
+- `packages/database/prisma/migrations/20261007040000_internal_mail`
 
 ---
 
@@ -280,6 +306,13 @@ See [`.env.example`](.env.example) for the local starter template. Deployment-sp
 - Confirm that the current file is a PDF and belongs to a research project within the signed-in user's scope.
 - Panelists must submit and lock their final evaluation before signing.
 - Apply the document-signature migration and regenerate the Prisma client after pulling schema changes.
+
+### 5. Inbox Is Empty After Sending a Message or Dean Request
+
+- Confirm that the sender selected the intended recipient account; inboxes and signature queues are recipient-specific.
+- Use **Inbox** for ordinary messages and **Signature Requests** for formal Dean approval documents.
+- Apply the latest Prisma migrations and regenerate the Prisma client after pulling schema changes.
+- Restart both development servers so the new API routes and generated database client are loaded.
 
 ---
 

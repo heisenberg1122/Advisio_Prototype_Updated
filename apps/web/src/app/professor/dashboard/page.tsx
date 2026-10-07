@@ -8,6 +8,7 @@ import { calculateWorkflowProgress } from "@/lib/workflow-progress";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import { useAuth } from "@/providers/auth-provider";
 import { SubmissionDocumentPreview } from "@/components/professor/SubmissionDocumentPreview";
+import { ProfessorDeanRequestModal } from "@/components/professor/ProfessorDeanRequestModal";
 
 function ProfessorDashboardContent() {
   const searchParams = useSearchParams();
@@ -48,6 +49,7 @@ function ProfessorDashboardContent() {
   const eligibleDefenseGroups = eligibleDefenseData?.projects || [];
   const defenseCandidates = defenseCandidateData?.users || [];
   const [showDefenseForm, setShowDefenseForm] = useState(false);
+  const [showDeanRequestForm, setShowDeanRequestForm] = useState(false);
   const [defenseProjectId, setDefenseProjectId] = useState("");
   const [defenseDate, setDefenseDate] = useState("");
   const [defenseStartTime, setDefenseStartTime] = useState("");
@@ -115,27 +117,30 @@ function ProfessorDashboardContent() {
   } = useQuery({
     queryKey: ["professor-research"],
     queryFn: () => apiClient.get<{ projects: any[] }>("/api/research"),
-    staleTime: 60000,
+    staleTime: 15000,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
   });
 
   const {
     data: enrollmentData,
     isLoading: enrollmentsLoading,
     error: enrollmentsError,
+    refetch: refetchEnrollments,
   } = useQuery({
     queryKey: ["professor-workflow-enrollments"],
     queryFn: () =>
       apiClient.get<{ enrollments: any[] }>("/api/workflows/enrollments"),
-    staleTime: 60000,
+    staleTime: 15000,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
   });
-  const acceptedResearchers = Array.from(
-    new Map(
-      (enrollmentData?.enrollments || []).map((enrollment: any) => [
-        enrollment.user.id,
-        enrollment,
-      ]),
-    ).values(),
-  ) as any[];
+  // An enrollment represents a researcher joining a specific workflow. Do not
+  // collapse these by user ID: the same researcher can legitimately join more
+  // than one workflow and must remain visible under each one.
+  const acceptedResearchers = (enrollmentData?.enrollments || []).filter(
+    (enrollment: any) => enrollment.user && enrollment.workflow,
+  );
 
   // Live State Data with live fallbacks
   const [studentsCount, setStudentsCount] = useState(0);
@@ -143,7 +148,9 @@ function ProfessorDashboardContent() {
 
   useEffect(() => {
     if (researchData?.projects) {
-      const mappedProjects = researchData.projects.map((p: any) => ({
+      const mappedProjects = researchData.projects
+        .filter((p: any) => p.status !== "ARCHIVED" && p.workflowInstance)
+        .map((p: any) => ({
         id: p.id,
         title: p.title,
         group: p.title || "Untitled research project",
@@ -255,6 +262,14 @@ function ProfessorDashboardContent() {
     "researchers" | "projects"
   >("researchers");
   const [monitoringSearch, setMonitoringSearch] = useState("");
+  const [monitoringPendingRemoval, setMonitoringPendingRemoval] = useState<{
+    kind: "researcher" | "project";
+    id: string;
+    name: string;
+    workflowName?: string;
+  } | null>(null);
+  const [monitoringRemovalSaving, setMonitoringRemovalSaving] = useState(false);
+  const [monitoringRemovalReason, setMonitoringRemovalReason] = useState("");
   const [selectedSubmission, setSelectedSubmission] = useState<any | null>(
     null,
   );
@@ -286,6 +301,40 @@ function ProfessorDashboardContent() {
   const triggerToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleMonitoringRemoval = async () => {
+    if (!monitoringPendingRemoval) return;
+    const reason = monitoringRemovalReason.trim();
+    if (reason.length < 5) {
+      triggerToast("Please provide a clear reason for removal.");
+      return;
+    }
+    setMonitoringRemovalSaving(true);
+    try {
+      if (monitoringPendingRemoval.kind === "researcher") {
+        await apiClient.delete(
+          `/api/workflows/enrollments/${monitoringPendingRemoval.id}`,
+          { body: JSON.stringify({ reason }) },
+        );
+        await refetchEnrollments();
+        triggerToast("Researcher removed from the workflow.");
+      } else {
+        await apiClient.post(
+          `/api/research/${monitoringPendingRemoval.id}/remove-from-workflow`,
+          { reason },
+        );
+        setSelectedProject(null);
+        await refetchResearch();
+        triggerToast("Project removed from the workflow. The research project remains available to its researchers.");
+      }
+      setMonitoringPendingRemoval(null);
+      setMonitoringRemovalReason("");
+    } catch (error: any) {
+      triggerToast(error?.message || "The item could not be removed.");
+    } finally {
+      setMonitoringRemovalSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -756,6 +805,16 @@ function ProfessorDashboardContent() {
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
+      {showDeanRequestForm && (
+        <ProfessorDeanRequestModal
+          projects={eligibleDefenseGroups.length ? eligibleDefenseGroups : projects}
+          onClose={() => setShowDeanRequestForm(false)}
+          onSent={(message) => {
+            setShowDeanRequestForm(false);
+            triggerToast(message);
+          }}
+        />
+      )}
       {toast && (
         <div
           role="status"
@@ -764,6 +823,78 @@ function ProfessorDashboardContent() {
         >
           <i className="ti ti-circle-check text-[#ffa400] text-lg" />
           <span className="text-[12px] font-bold">{toast}</span>
+        </div>
+      )}
+
+      {monitoringPendingRemoval && (
+        <div
+          className="fixed inset-0 z-[95] grid place-items-center bg-slate-950/50 p-4"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="remove-monitoring-item-title"
+          aria-describedby="remove-monitoring-item-description"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !monitoringRemovalSaving) {
+              setMonitoringPendingRemoval(null);
+              setMonitoringRemovalReason("");
+            }
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <span className="grid h-12 w-12 place-items-center rounded-full bg-rose-100 text-rose-700">
+              <i className="ti ti-alert-triangle text-2xl" />
+            </span>
+            <h2 id="remove-monitoring-item-title" className="mt-4 text-xl font-extrabold text-[#102f49]">
+              Remove “{monitoringPendingRemoval.name}”?
+            </h2>
+            <p id="remove-monitoring-item-description" className="mt-2 text-sm leading-6 text-slate-600">
+              {monitoringPendingRemoval.kind === "researcher"
+                ? `This will revoke the researcher's access to ${monitoringPendingRemoval.workflowName || "this workflow"}. Their project membership and submitted academic records will not be deleted.`
+                : "This project will be detached from the professor workflow and removed from active monitoring. The research project, members, documents, and academic records will remain available on the Researcher Dashboard."}
+            </p>
+            <label htmlFor="monitoring-removal-reason" className="mt-5 block text-sm font-bold text-slate-700">
+              Reason for removal <span className="text-rose-600">*</span>
+            </label>
+            <textarea
+              id="monitoring-removal-reason"
+              value={monitoringRemovalReason}
+              onChange={(event) => setMonitoringRemovalReason(event.target.value)}
+              maxLength={500}
+              rows={4}
+              autoFocus
+              placeholder="Explain why this item is being removed…"
+              className="mt-2 w-full resize-none rounded-xl border border-slate-300 px-3.5 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#173f63] focus:ring-2 focus:ring-[#173f63]/10"
+            />
+            <div className="mt-1 flex justify-between text-xs text-slate-400">
+              <span>Minimum 5 characters</span>
+              <span>{monitoringRemovalReason.length}/500</span>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={monitoringRemovalSaving}
+                onClick={() => {
+                  setMonitoringPendingRemoval(null);
+                  setMonitoringRemovalReason("");
+                }}
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={
+                  monitoringRemovalSaving ||
+                  monitoringRemovalReason.trim().length < 5
+                }
+                onClick={handleMonitoringRemoval}
+                className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-60"
+              >
+                <i className="ti ti-trash mr-1.5" />
+                {monitoringRemovalSaving ? "Removing…" : "Confirm remove"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -2350,18 +2481,29 @@ function ProfessorDashboardContent() {
                         eligible groups.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        resetDefenseForm();
-                        setShowDefenseForm(true);
-                      }}
-                      disabled={!eligibleDefenseGroups.length}
-                      className="rounded-xl bg-[#f6a800] px-5 py-3 text-sm font-extrabold text-[#102f49] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <i className="ti ti-calendar-plus mr-2" />
-                      Schedule defense
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowDeanRequestForm(true)}
+                        disabled={!projects.length}
+                        className="rounded-xl border border-[#173f63] bg-white px-5 py-3 text-sm font-extrabold text-[#173f63] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <i className="ti ti-mail-forward mr-2" />
+                        Request Dean signature
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          resetDefenseForm();
+                          setShowDefenseForm(true);
+                        }}
+                        disabled={!eligibleDefenseGroups.length}
+                        className="rounded-xl bg-[#f6a800] px-5 py-3 text-sm font-extrabold text-[#102f49] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <i className="ti ti-calendar-plus mr-2" />
+                        Schedule defense
+                      </button>
+                    </div>
                   </div>
                   {!eligibleDefenseGroups.length && (
                     <p className="mt-4 rounded-xl bg-blue-50 p-3 text-xs text-blue-800">
@@ -3263,7 +3405,7 @@ function ProfessorDashboardContent() {
                           project.researchers.some((member: any) => member.user?.id === enrollment.user.id),
                         );
                         return (
-                          <div key={enrollment.id} className="grid gap-3 border-b border-slate-100 p-4 last:border-b-0 sm:grid-cols-[1fr_1fr_auto] sm:items-center">
+                          <div key={enrollment.id} className="grid gap-3 border-b border-slate-100 p-4 last:border-b-0 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-center">
                             <div>
                               <p className="font-bold text-[#173f63]">
                                 {enrollment.user.firstName} {enrollment.user.lastName}
@@ -3279,6 +3421,21 @@ function ProfessorDashboardContent() {
                             <Tag variant={linkedProject ? "success" : "info"}>
                               {linkedProject ? "Project created" : "No project yet"}
                             </Tag>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setMonitoringPendingRemoval({
+                                  kind: "researcher",
+                                  id: enrollment.id,
+                                  name: `${enrollment.user.firstName || ""} ${enrollment.user.lastName || ""}`.trim() || enrollment.user.email,
+                                  workflowName: enrollment.workflow.name,
+                                })
+                              }
+                              className="inline-flex items-center justify-center rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-50"
+                            >
+                              <i className="ti ti-trash mr-1.5" />
+                              Remove
+                            </button>
                           </div>
                         );
                       })}
@@ -3325,13 +3482,15 @@ function ProfessorDashboardContent() {
                           .some((value) => String(value).toLowerCase().includes(query));
                       })
                       .map((p) => (
-                      <button
-                        type="button"
-                        onClick={() => setSelectedProject(p)}
+                      <div
                         key={p.id}
                         className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-left text-[12.5px] shadow-sm transition hover:border-[#f6a800]"
                       >
-                        <div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedProject(p)}
+                          className="min-w-0 flex-1 text-left"
+                        >
                           <span className="font-bold text-[#1b4264] block">
                             {p.group}
                           </span>
@@ -3340,9 +3499,25 @@ function ProfessorDashboardContent() {
                             {p.currentStage?.name || "Not started"} ·{" "}
                             {p.progress}% complete
                           </span>
+                        </button>
+                        <div className="ml-4 flex shrink-0 items-center gap-2">
+                          <Tag variant="success">{p.status}</Tag>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setMonitoringPendingRemoval({
+                                kind: "project",
+                                id: p.id,
+                                name: p.title,
+                              })
+                            }
+                            className="inline-flex items-center rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-50"
+                          >
+                            <i className="ti ti-trash mr-1.5" />
+                            Remove
+                          </button>
                         </div>
-                        <Tag variant="success">{p.status}</Tag>
-                      </button>
+                      </div>
                     ))}
                     {!projects.length && !projectsError && (
                       <div className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">

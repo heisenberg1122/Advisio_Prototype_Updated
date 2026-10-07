@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronUp, Eye, EyeOff, FileCheck2, LockKeyhole, Mail, ShieldCheck, Users } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { loginAction } from "@/actions/auth";
@@ -97,6 +98,8 @@ const generalDemoAccounts: DemoAccount[] = [
 
 export default function LoginPage() {
   const router = useRouter();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -108,6 +111,17 @@ export default function LoginPage() {
 
   const goToDashboard = (role = "") => {
     const value = role.toLowerCase();
+    const requestedLocation = (location.state as any)?.from;
+    if (
+      requestedLocation?.pathname?.startsWith("/student/workflows/join/") &&
+      (value.includes("researcher") || value.includes("student"))
+    ) {
+      navigate(
+        `${requestedLocation.pathname}${requestedLocation.search || ""}${requestedLocation.hash || ""}`,
+        { replace: true },
+      );
+      return;
+    }
     if (value.includes("researcher") || value.includes("student")) router.push("/student/dashboard");
     else if (value.includes("adviser")) router.push("/adviser/dashboard");
     else if (value.includes("professor") || value.includes("coordinator")) router.push("/professor/dashboard");

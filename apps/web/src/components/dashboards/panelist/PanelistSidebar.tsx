@@ -10,6 +10,7 @@ import {
   FileText,
   ClipboardCheck,
   Award,
+  Mail,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
   { label: "Documents", href: "/panelist/dashboard?tab=documents", tabName: "documents", icon: FileText },
   { label: "Evaluations", href: "/panelist/dashboard?tab=evaluation", tabName: "evaluation", icon: ClipboardCheck },
   { label: "Results", href: "/panelist/dashboard?tab=grades", tabName: "grades", icon: Award },
+  { label: "Inbox", href: "/panelist/inbox", icon: Mail },
 ];
 
 export function PanelistSidebar() {
@@ -31,7 +33,7 @@ export function PanelistSidebar() {
       navItems={NAV_ITEMS}
       collapsed={collapsed}
       onToggleCollapse={toggle}
-      settingsHref="/panelist/dashboard?tab=settings"
+      settingsHref="/panelist/settings"
       profileHref="/panelist/profile"
       variant="workspace"
     />

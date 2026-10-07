@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   UserRound,
   UsersRound,
+  Mail,
   Signature,
 } from "lucide-react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
@@ -27,7 +28,8 @@ const NAV_ITEMS = [
   { label: "Defenses", href: "/admin/dashboard?tab=defenses", tabName: "defenses", icon: ClipboardList },
   { label: "Calendar", href: "/admin/calendar", icon: CalendarDays },
   { label: "Reports", href: "/admin/dashboard?tab=reports", tabName: "reports", icon: FileBarChart },
-  { label: "Signatures", href: "/admin/signatures", icon: Signature },
+  { label: "Signature Requests", href: "/admin/signatures", icon: Signature },
+  { label: "Inbox", href: "/admin/inbox", icon: Mail },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -39,6 +41,7 @@ const PAGE_TITLES: Record<string, string> = {
   defenses: "Defense Management",
   calendar: "Academic Calendar",
   reports: "Research Reports",
+  inbox: "Inbox",
   settings: "Settings",
 };
 
@@ -51,8 +54,14 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       ? "My Profile"
       : pathname === "/admin/profile/edit"
         ? "Edit Profile"
+        : pathname === "/admin/settings"
+          ? "Account Settings"
         : pathname === "/admin/notifications"
           ? "Notifications"
+          : pathname === "/admin/inbox"
+            ? "Inbox"
+          : pathname === "/admin/signatures"
+            ? "Signature Requests"
           : pathname === "/admin/calendar"
             ? "Universal Calendar"
             : PAGE_TITLES[activeTab] || "Dean Dashboard";
@@ -69,7 +78,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           navItems={NAV_ITEMS}
           collapsed={collapsed}
           onToggleCollapse={toggle}
-          settingsHref="/admin/dashboard?tab=settings"
+          settingsHref="/admin/settings"
           profileHref="/admin/profile"
           variant="workspace"
         />
@@ -80,6 +89,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           subtitle="Research Management Center"
           notificationsHref="/admin/notifications"
           profileHref="/admin/profile"
+          settingsHref="/admin/settings"
           searchPlaceholder="Search research groups, faculty, defenses..."
           variant="workspace"
         />

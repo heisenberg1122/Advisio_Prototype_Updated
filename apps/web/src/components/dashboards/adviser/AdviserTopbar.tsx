@@ -13,6 +13,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/adviser/profile": "My Profile",
   "/adviser/profile/edit": "Edit Profile",
   "/adviser/notifications": "Notifications",
+  "/adviser/settings": "Account Settings",
+  "/adviser/inbox": "Inbox",
 };
 
 const TAB_TITLES: Record<string, string> = {
@@ -45,6 +47,7 @@ export function AdviserTopbar() {
       subtitle="Faculty Advising Center"
       notificationsHref="/adviser/notifications"
       profileHref="/adviser/profile"
+      settingsHref="/adviser/settings"
       searchPlaceholder="Search advisees, manuscripts, requests..."
       variant="workspace"
     />

@@ -24,6 +24,7 @@ import liveDefenseRoutes from "./routes/live-defense.routes";
 import integrationRoutes from "./routes/integration.routes";
 import calendarRoutes from "./routes/calendar.routes";
 import groupFileRoutes from "./routes/group-file.routes";
+import mailRoutes from "./routes/mail.routes";
 import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
@@ -79,6 +80,7 @@ app.use("/api", liveDefenseRoutes);
 app.use("/api", integrationRoutes);
 app.use("/api", calendarRoutes);
 app.use("/api", groupFileRoutes);
+app.use("/api/mail", mailRoutes);
 
 // Root fallback
 app.get("/", (_req, res) => {

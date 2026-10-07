@@ -388,6 +388,11 @@ model User {
   groupFilesUploaded       GroupFile[]                @relation("GroupFileUploader")
   signatureProfile         UserSignature?
   documentSignatures       DocumentSignature[]        @relation("DocumentSigner")
+  deanInboxMessages        DeanInboxMessage[]         @relation("DeanInboxAuthor")
+  deanInboxReceived        DeanInboxMessage[]         @relation("DeanInboxRecipient")
+  mailThreadsCreated       MailThread[]               @relation("MailThreadCreator")
+  mailParticipants         MailParticipant[]
+  mailMessages             MailMessage[]
 
   @@index([collegeId])
   @@index([programId])
@@ -757,6 +762,7 @@ model Document {
   reviews         Review[]
   adviserRequests AdviserRequest[]
   taskSubmissions TaskSubmission[]
+  deanInboxMessages DeanInboxMessage[]
 
   @@index([researchId])
   @@map("documents")
@@ -780,6 +786,7 @@ model DocumentVersion {
   comments        ReviewComment[]
   sourceSignature DocumentSignature? @relation("SignatureSourceVersion")
   signedSignature DocumentSignature? @relation("SignatureOutputVersion")
+  deanInboxAttachments DeanInboxMessage[] @relation("DeanInboxAttachment")
 
   @@unique([documentId, versionNumber])
   @@map("document_versions")
@@ -819,6 +826,88 @@ model DocumentSignature {
 
   @@index([signedById, signedAt])
   @@map("document_signatures")
+}
+
+model DeanInboxMessage {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId          String   @map("document_id") @db.Uuid
+  authorId            String   @map("author_id") @db.Uuid
+  recipientId         String?  @map("recipient_id") @db.Uuid
+  message             String   @db.Text
+  attachmentVersionId String?  @map("attachment_version_id") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  document          Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  author            User             @relation("DeanInboxAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  recipient         User?            @relation("DeanInboxRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+  attachmentVersion DocumentVersion? @relation("DeanInboxAttachment", fields: [attachmentVersionId], references: [id], onDelete: SetNull)
+
+  @@index([documentId, createdAt])
+  @@index([authorId])
+  @@index([recipientId, createdAt])
+  @@map("dean_inbox_messages")
+}
+
+model MailThread {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subject     String   @db.VarChar(255)
+  createdById String   @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  createdBy    User              @relation("MailThreadCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  participants MailParticipant[]
+  messages     MailMessage[]
+
+  @@index([updatedAt])
+  @@map("mail_threads")
+}
+
+model MailParticipant {
+  threadId String    @map("thread_id") @db.Uuid
+  userId   String    @map("user_id") @db.Uuid
+  readAt   DateTime? @map("read_at")
+  joinedAt DateTime  @default(now()) @map("joined_at")
+
+  thread MailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([threadId, userId])
+  @@index([userId, readAt])
+  @@map("mail_participants")
+}
+
+model MailMessage {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  threadId  String    @map("thread_id") @db.Uuid
+  senderId  String    @map("sender_id") @db.Uuid
+  body      String    @db.Text
+  isDraft   Boolean   @default(false) @map("is_draft")
+  createdAt DateTime  @default(now()) @map("created_at")
+  sentAt    DateTime? @map("sent_at")
+
+  thread     MailThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender     User             @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  attachments MailAttachment[]
+
+  @@index([threadId, createdAt])
+  @@index([senderId, isDraft])
+  @@map("mail_messages")
+}
+
+model MailAttachment {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId String   @map("message_id") @db.Uuid
+  fileName  String   @map("file_name") @db.VarChar(255)
+  mimeType  String   @map("mime_type") @db.VarChar(120)
+  fileSize  Int      @map("file_size")
+  fileData  Bytes    @map("file_data")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message MailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("mail_attachments")
 }
 
 // Collaborative files are intentionally separate from formal Documents.

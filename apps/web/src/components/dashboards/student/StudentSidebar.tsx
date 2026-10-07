@@ -13,6 +13,7 @@ import {
   FolderOpen,
   Calendar,
   MessageSquare,
+  Mail,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { label: "Consultations", href: "/student/dashboard?tab=consultations", tabName: "consultations", icon: Calendar },
   { label: "Calendar", href: "/student/calendar", icon: Calendar },
   { label: "Messages", href: "/student/dashboard?tab=group-chats", tabName: "group-chats", icon: MessageSquare },
+  { label: "Inbox", href: "/student/inbox", icon: Mail },
 ];
 
 export function StudentSidebar() {

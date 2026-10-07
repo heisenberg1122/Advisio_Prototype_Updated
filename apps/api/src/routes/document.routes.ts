@@ -35,6 +35,14 @@ const documentSignerRoles = new Set(["ADVISER", "PANELIST", "RESEARCH_COORDINATO
 const canManageSignature = (user: NonNullable<Request["user"]>) =>
   user.roles.some((role) => documentSignerRoles.has(role));
 
+const canUseDeanInbox = (user: NonNullable<Request["user"]>) =>
+  user.roles.some((role) => ["RPO", "VPAA"].includes(role));
+
+const deanInboxScope = (user: NonNullable<Request["user"]>) =>
+  user.roles.includes("VPAA") || !user.collegeId
+    ? {}
+    : { document: { research: { collegeId: user.collegeId } } };
+
 async function canAccessResearch(user: NonNullable<Request["user"]>, researchId: string) {
   if (user.roles.some((role) => elevatedDocumentRoles.includes(role))) return true;
   const research = await prisma.researchProject.findUnique({
@@ -103,6 +111,139 @@ router.delete(["/users/me/signature", "/users/me/adviser-signature"], requireAut
     ]);
   }
   res.status(204).send();
+});
+
+router.get("/dean-inbox/messages", requireAuth, async (req, res) => {
+  if (!req.user || !canUseDeanInbox(req.user)) return void res.status(403).json({ error: "Only the Dean's Office can access this inbox." });
+  const messages = await prisma.deanInboxMessage.findMany({
+    where: {
+      ...deanInboxScope(req.user),
+      document: {
+        ...(req.user.roles.includes("VPAA") || !req.user.collegeId ? {} : { research: { collegeId: req.user.collegeId } }),
+        deanInboxMessages: { some: { OR: [{ recipientId: req.user.id }, { recipientId: null }] } },
+      },
+    },
+    include: {
+      author: { select: { id: true, firstName: true, middleName: true, lastName: true } },
+      attachmentVersion: { select: { id: true, fileName: true, googleDriveFileId: true, versionNumber: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  res.json({ messages });
+});
+
+router.get("/dean-inbox/threads", requireAuth, async (req, res) => {
+  if (!req.user || !canUseDeanInbox(req.user)) return void res.status(403).json({ error: "Only the Dean's Office can access this inbox." });
+  const threads = await prisma.document.findMany({
+    where: {
+      deanInboxMessages: { some: {} },
+      AND: { deanInboxMessages: { some: { OR: [{ recipientId: req.user.id }, { recipientId: null }] } } },
+      ...(req.user.roles.includes("VPAA") || !req.user.collegeId ? {} : { research: { collegeId: req.user.collegeId } }),
+    },
+    include: {
+      research: { select: { id: true, title: true, groupName: true } },
+      versions: {
+        orderBy: { versionNumber: "desc" },
+        select: { id: true, versionNumber: true, fileName: true, mimeType: true, googleDriveFileId: true, uploadedAt: true, sourceSignature: { select: { signedVersionId: true } }, signedSignature: { select: { verificationCode: true, signedAt: true } } },
+      },
+      deanInboxMessages: {
+        orderBy: { createdAt: "asc" },
+        take: 1,
+        include: { author: { select: { id: true, firstName: true, middleName: true, lastName: true } } },
+      },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+  res.json({ threads });
+});
+
+router.get("/dean-inbox/recipients", requireAuth, async (req, res) => {
+  if (!req.user || !req.user.roles.includes("RESEARCH_COORDINATOR")) return void res.status(403).json({ error: "Only a research professor or coordinator can select a Dean recipient." });
+  const researchId = String(req.query.researchId || "");
+  const research = await prisma.researchProject.findFirst({
+    where: { id: researchId, ...(req.user.collegeId ? { collegeId: req.user.collegeId } : {}) },
+    select: { id: true, collegeId: true },
+  });
+  if (!research || !(await canAccessResearch(req.user, research.id))) return void res.status(404).json({ error: "Research group not found in your assigned scope." });
+  const recipients = await prisma.user.findMany({
+    where: {
+      status: "ACTIVE",
+      OR: [
+        { collegeId: research.collegeId, roles: { some: { role: { name: "RPO" } } } },
+        { roles: { some: { role: { name: "VPAA" } } } },
+      ],
+    },
+    select: { id: true, firstName: true, middleName: true, lastName: true, email: true, college: { select: { name: true } }, roles: { select: { role: { select: { name: true } } } } },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+  });
+  res.json({ recipients: recipients.map((recipient) => ({ ...recipient, roles: recipient.roles.map((item) => item.role.name) })) });
+});
+
+router.post("/dean-inbox/requests", requireAuth, upload.single("file"), async (req, res) => {
+  if (!req.user || !req.user.roles.includes("RESEARCH_COORDINATOR")) return void res.status(403).json({ error: "Only a research professor or coordinator can send a Dean signature request." });
+  const researchId = typeof req.body?.researchId === "string" ? req.body.researchId : "";
+  const subject = typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
+  const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+  const recipientId = typeof req.body?.recipientId === "string" ? req.body.recipientId : "";
+  if (!researchId || !recipientId || !subject || !message || !req.file) return void res.status(400).json({ error: "Research group, Dean recipient, subject, message, and PDF request letter are required." });
+  if (subject.length > 255 || message.length > 5000) return void res.status(400).json({ error: "The subject or message is too long." });
+  if (req.file.mimetype !== "application/pdf" || req.file.buffer.subarray(0, 5).toString("ascii") !== "%PDF-") return void res.status(400).json({ error: "Attach a valid PDF request letter." });
+  if (!(await canAccessResearch(req.user, researchId))) return void res.status(403).json({ error: "You cannot send a request for this research group." });
+
+  const research = await prisma.researchProject.findUnique({ where: { id: researchId }, select: { title: true, collegeId: true } });
+  const recipient = await prisma.user.findFirst({
+    where: {
+      id: recipientId,
+      status: "ACTIVE",
+      OR: [
+        { collegeId: research?.collegeId, roles: { some: { role: { name: "RPO" } } } },
+        { roles: { some: { role: { name: "VPAA" } } } },
+      ],
+    },
+    select: { id: true, firstName: true, middleName: true, lastName: true },
+  });
+  if (!recipient) return void res.status(400).json({ error: "The selected Dean is unavailable for this research group." });
+  const recipientName = [recipient.firstName, recipient.middleName, recipient.lastName].filter(Boolean).join(" ");
+
+  const result = await documentService.createDocumentWithVersion({
+    researchId,
+    title: subject,
+    documentType: "DEAN_DEFENSE_APPROVAL",
+    fileBuffer: req.file.buffer,
+    fileName: req.file.originalname,
+    mimeType: "application/pdf",
+    uploadedBy: req.user.id,
+    deanRecipient: { id: recipient.id, name: recipientName },
+  });
+  const inboxMessage = await prisma.deanInboxMessage.create({
+    data: { documentId: result.document.id, authorId: req.user.id, recipientId: recipient.id, message, attachmentVersionId: result.version.id },
+  });
+  await prisma.notification.create({ data: { recipientId: recipient.id, type: "DOCUMENT_UPLOADED", title: "New Dean signature request", message: `${req.user.firstName || "A professor"} ${req.user.lastName || ""} requested a signature for ${research?.title || subject}.`, entityType: "DeanInboxMessage", entityId: inboxMessage.id } });
+  res.status(201).json({ request: inboxMessage, document: result.document, version: result.version, recipient: { id: recipient.id, name: recipientName } });
+});
+
+router.post("/dean-inbox/documents/:documentId/messages", requireAuth, async (req, res) => {
+  if (!req.user || !canUseDeanInbox(req.user)) return void res.status(403).json({ error: "Only the Dean's Office can reply from this inbox." });
+  const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
+  if (!message) return void res.status(400).json({ error: "Write a message before sending." });
+  if (message.length > 5000) return void res.status(400).json({ error: "Messages cannot exceed 5,000 characters." });
+  const document = await prisma.document.findFirst({
+    where: {
+      id: req.params.documentId as string,
+      ...(req.user.roles.includes("VPAA") || !req.user.collegeId ? {} : { research: { collegeId: req.user.collegeId } }),
+      deanInboxMessages: { some: { OR: [{ recipientId: req.user.id }, { recipientId: null }] } },
+    },
+    select: { id: true },
+  });
+  if (!document) return void res.status(404).json({ error: "Inbox document not found in your assigned scope." });
+  const created = await prisma.deanInboxMessage.create({
+    data: { documentId: document.id, authorId: req.user.id, recipientId: req.user.id, message },
+    include: {
+      author: { select: { id: true, firstName: true, middleName: true, lastName: true } },
+      attachmentVersion: { select: { id: true, fileName: true, googleDriveFileId: true, versionNumber: true } },
+    },
+  });
+  res.status(201).json({ message: created });
 });
 
 // GET /api/documents/files/:fileId — authenticated preview/download for Drive or local fallback files.

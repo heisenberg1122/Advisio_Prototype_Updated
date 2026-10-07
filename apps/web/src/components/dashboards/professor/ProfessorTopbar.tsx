@@ -28,6 +28,9 @@ const PAGES: Record<string, string> = {
   "/professor/profile": "My Profile",
   "/professor/profile/edit": "Edit Profile",
   "/professor/notifications": "Notifications",
+  "/professor/settings": "Account Settings",
+  "/professor/inbox": "Inbox",
+  "/professor/signatures": "Signature Requests",
 };
 
 export function ProfessorTopbar() {
@@ -45,6 +48,7 @@ export function ProfessorTopbar() {
       subtitle="Faculty Coordinator Workspace"
       notificationsHref="/professor/notifications"
       profileHref="/professor/profile"
+      settingsHref="/professor/settings"
       searchPlaceholder="Search researchers, projects, submissions..."
       variant="workspace"
     />
