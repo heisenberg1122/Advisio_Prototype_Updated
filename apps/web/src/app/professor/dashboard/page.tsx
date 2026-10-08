@@ -9,6 +9,7 @@ import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import { useAuth } from "@/providers/auth-provider";
 import { SubmissionDocumentPreview } from "@/components/professor/SubmissionDocumentPreview";
 import { ProfessorDeanRequestModal } from "@/components/professor/ProfessorDeanRequestModal";
+import { DefensePacketConfigurator } from "@/components/professor/DefensePacketConfigurator";
 
 function ProfessorDashboardContent() {
   const searchParams = useSearchParams();
@@ -50,6 +51,7 @@ function ProfessorDashboardContent() {
   const defenseCandidates = defenseCandidateData?.users || [];
   const [showDefenseForm, setShowDefenseForm] = useState(false);
   const [showDeanRequestForm, setShowDeanRequestForm] = useState(false);
+  const [packetSession, setPacketSession] = useState<any | null>(null);
   const [defenseProjectId, setDefenseProjectId] = useState("");
   const [defenseDate, setDefenseDate] = useState("");
   const [defenseStartTime, setDefenseStartTime] = useState("");
@@ -815,6 +817,7 @@ function ProfessorDashboardContent() {
           }}
         />
       )}
+      {packetSession && <DefensePacketConfigurator session={packetSession} onClose={() => setPacketSession(null)} onSaved={(message) => { setPacketSession(null); triggerToast(message); refetchDefenseManagement(); }} />}
       {toast && (
         <div
           role="status"
@@ -2660,6 +2663,7 @@ function ProfessorDashboardContent() {
                             </p>
                           </div>
                           <div className="flex flex-wrap gap-2">
+                            <button type="button" onClick={() => setPacketSession(session)} className="rounded-xl border border-[#f6a800] bg-amber-50 px-4 py-2 text-sm font-extrabold text-[#7a5200]"><i className="ti ti-files mr-1.5" />Review packet</button>
                             {[
                               "PENDING_ACKNOWLEDGEMENT",
                               "NEEDS_RESCHEDULING",
