@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { apiClient } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
+import { CardsPageSkeleton } from "@/components/ui/Skeleton";
 
 type RequestMethod = "details" | "pdf";
 
@@ -78,7 +79,7 @@ export default function AdviserPoolPage() {
     onError: (error: any) => setMessage(error?.message || "Unable to send adviser request."),
   });
 
-  if (isPending) return <PageSkeleton />;
+  if (isPending) return <CardsPageSkeleton cards={4} />;
   if (isError || !data) {
     return (
       <div className="mx-auto w-full max-w-screen-2xl p-4 sm:p-6 lg:p-8">
@@ -352,7 +353,6 @@ export default function AdviserPoolPage() {
     </div>
   );
 }
-
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   return (
     <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -363,17 +363,5 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
         className="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#0B1726] p-3 text-xs sm:text-sm text-slate-800 dark:text-slate-100 outline-none focus:border-[#0B3A53] dark:focus:border-[#C9A227]"
       />
     </label>
-  );
-}
-
-function PageSkeleton() {
-  return (
-    <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <div className="h-36 animate-pulse rounded-2xl bg-slate-200 dark:bg-white/5" />
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="h-44 animate-pulse rounded-2xl bg-slate-200 dark:bg-white/5" />
-        <div className="h-44 animate-pulse rounded-2xl bg-slate-200 dark:bg-white/5" />
-      </div>
-    </div>
   );
 }

@@ -5,6 +5,7 @@ import { AppTopbar } from "@/components/layout/AppTopbar";
 
 const TITLES: Record<string, string> = {
   overview: "Professor Dashboard",
+  messages: "Messages",
   announcements: "Announcements",
   monitoring: "Researchers & Projects",
   submissions: "Student Submissions",
@@ -45,6 +46,7 @@ export function ProfessorTopbar() {
   return (
     <AppTopbar
       title={title}
+      hideTitle={pathname === "/professor/dashboard" && tab === "overview"}
       subtitle="Faculty Coordinator Workspace"
       notificationsHref="/professor/notifications"
       profileHref="/professor/profile"

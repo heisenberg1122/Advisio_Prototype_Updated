@@ -5,9 +5,11 @@ import { useTheme } from "@/providers/theme-provider";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
+import { CardsPageSkeleton, DashboardSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 import { PanelistReviewPackets } from "@/components/panelist/PanelistReviewPackets";
+import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
 
 function PanelistDashboardContent() {
   const searchParams = useSearchParams();
@@ -16,7 +18,7 @@ function PanelistDashboardContent() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: researchData } = useQuery({
+  const { data: researchData, isLoading: researchLoading } = useQuery({
     queryKey: ["panelist-research"],
     queryFn: () => apiClient.get<{ projects: any[] }>("/api/research").catch(() => ({ projects: [] })),
     staleTime: 60000,
@@ -152,12 +154,20 @@ function PanelistDashboardContent() {
 
   const tabsList = [
     { id: "overview", label: "Overview", icon: "ti-layout-dashboard" },
+    { id: "messages", label: "Messages", icon: "ti-messages" },
     { id: "schedule", label: "Defense Schedules", icon: "ti-calendar-event", badge: schedules.length },
     { id: "documents", label: "Manuscript Reviews", icon: "ti-file-text", badge: documents.length },
     { id: "evaluation", label: "Evaluations & Scoring", icon: "ti-certificate", badge: evaluations.length },
     { id: "grades", label: "Grades & Recommendations", icon: "ti-clipboard-check", badge: gradesSubmitted.length },
     { id: "history", label: "Defense Archives", icon: "ti-history" },
   ];
+
+  if ((researchLoading || liveLoading) && activeTab !== "messages") {
+    if (activeTab === "overview") return <DashboardSkeleton />;
+    if (activeTab === "schedule") return <CardsPageSkeleton />;
+    if (activeTab === "history") return <ListPageSkeleton />;
+    return <TablePageSkeleton />;
+  }
 
   return (
     <>
@@ -175,10 +185,11 @@ function PanelistDashboardContent() {
       {respondingInvitation && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="decline-defense-title"><div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-start justify-between"><div><p className="text-xs font-extrabold uppercase tracking-wider text-rose-600">Availability response</p><h2 id="decline-defense-title" className="mt-1 text-xl font-extrabold text-[#102f49]">Cannot attend this schedule?</h2><p className="mt-1 text-sm text-slate-500">Your reason is shared with the professor, not the research group.</p></div><button type="button" onClick={() => setRespondingInvitation(null)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100"><i className="ti ti-x" /></button></div><label className="mt-5 block text-sm font-bold text-slate-700">Reason<textarea required value={declineReason} onChange={(event) => setDeclineReason(event.target.value)} rows={4} placeholder="Explain why you are unavailable…" className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm font-normal" /></label><label className="mt-4 block text-sm font-bold text-slate-700">Suggested alternative <span className="font-normal text-slate-400">(optional)</span><input type="datetime-local" value={suggestedAvailability} onChange={(event) => setSuggestedAvailability(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal" /></label><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setRespondingInvitation(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Keep invitation</button><button type="button" onClick={() => respondToInvitation(respondingInvitation, "DECLINED")} disabled={invitationSaving || !declineReason.trim()} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">Decline and notify professor</button></div></div></div>}
 
       {/* MAIN CONTAINER */}
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className={`flex w-full flex-1 flex-col space-y-6 ${activeTab === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-screen-2xl p-4 sm:p-6 lg:p-8"}`}>
         
         {(() => {
           const tabContent: Record<string, React.ReactNode> = {
+            messages: <FacultyGroupChats triggerToast={triggerToast} />,
             overview: (
               <div className="flex w-full flex-col gap-6">
                 <DashboardWelcome
@@ -668,7 +679,7 @@ function PanelistDashboardContent() {
 
 export default function PanelistDashboardPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-[#1b4264]">Loading Panelist Dashboard...</div>}>
+    <Suspense fallback={<DashboardSkeleton />}>
       <PanelistDashboardContent />
     </Suspense>
   );

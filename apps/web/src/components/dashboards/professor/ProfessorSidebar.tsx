@@ -14,11 +14,13 @@ import {
   CalendarDays,
   Signature,
   Mail,
+  MessageSquare,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Overview", href: "/professor/dashboard", tabName: "overview", icon: LayoutDashboard },
   { label: "Announcements", href: "/professor/dashboard?tab=announcements", tabName: "announcements", icon: Megaphone },
+  { label: "Messages", href: "/professor/dashboard?tab=messages", tabName: "messages", icon: MessageSquare },
   { label: "Researchers & Projects", href: "/professor/dashboard?tab=monitoring", tabName: "monitoring", icon: Users },
   { label: "Submissions", href: "/professor/dashboard?tab=submissions", tabName: "submissions", icon: Inbox },
   { label: "Defense", href: "/professor/dashboard?tab=defense", tabName: "defense", icon: Presentation },

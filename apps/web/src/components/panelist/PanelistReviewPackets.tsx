@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
+import { DocumentPreviewSkeleton, ListPageSkeleton } from "@/components/ui/Skeleton";
 
 const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 const fileUrl = (fileId?: string | null, download = false) =>
@@ -75,7 +76,6 @@ export function PanelistReviewPackets() {
     setRecommendationPreviewUrl("");
     setLayoutReport(null);
     // Preview files are scoped to the selected immutable defense packet.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.id]);
 
   useEffect(() => {
@@ -275,11 +275,7 @@ export function PanelistReviewPackets() {
   };
 
   if (isLoading)
-    return (
-      <div className="rounded-2xl border bg-white p-10 text-center text-sm text-slate-500">
-        Loading published defense packets…
-      </div>
-    );
+    return <ListPageSkeleton rows={4} className="p-0 sm:p-0 lg:p-0" />;
   if (error)
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm font-bold text-rose-700">
@@ -421,9 +417,7 @@ export function PanelistReviewPackets() {
           </header>
 
           {detailLoading ? (
-            <div className="p-10 text-center text-sm text-slate-400">
-              Preparing packet…
-            </div>
+            <DocumentPreviewSkeleton className="min-h-[590px]" />
           ) : tab === "manuscript" ? (
             <div className="grid gap-4 p-4 lg:grid-cols-[1fr_250px]">
               <section className="min-h-[590px] overflow-hidden rounded-xl border bg-slate-800">
@@ -434,9 +428,7 @@ export function PanelistReviewPackets() {
                     className="h-[650px] w-full bg-white"
                   />
                 ) : (
-                  <div className="grid h-[590px] place-items-center text-sm text-white">
-                    Loading PDF…
-                  </div>
+                  <DocumentPreviewSkeleton className="h-[590px] min-h-0" />
                 )}
               </section>
               <aside className="space-y-4">

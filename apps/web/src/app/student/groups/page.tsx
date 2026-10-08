@@ -4,11 +4,12 @@ import { useStudentGroup } from "@/hooks/use-student";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
+import { ListPageSkeleton } from "@/components/ui/Skeleton";
 
 export default function GroupsPage() {
   const { data: group, isPending } = useStudentGroup();
 
-  if (isPending) return <PageSkeleton />;
+  if (isPending) return <ListPageSkeleton rows={5} />;
   if (!group) return null;
 
   return (
@@ -70,14 +71,6 @@ export default function GroupsPage() {
           </button>
         </div>
       </Card>
-    </div>
-  );
-}
-
-function PageSkeleton() {
-  return (
-    <div className="mx-auto flex w-full max-w-screen-2xl animate-pulse flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <div className="h-64 bg-slate-200 dark:bg-white/5 rounded-2xl" />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { ProfileCard } from "@/components/profile/ProfileCard";
+import { ProfileSkeleton } from "@/components/ui/Skeleton";
 
 function SystemAdminProfilePageContent() {
   const searchParams = useSearchParams();
@@ -32,7 +33,7 @@ function SystemAdminProfilePageContent() {
 
 export default function SystemAdminProfilePage() {
   return (
-    <Suspense fallback={<div className="p-6 text-[#1b4264]">Loading Profile...</div>}>
+    <Suspense fallback={<ProfileSkeleton />}>
       <SystemAdminProfilePageContent />
     </Suspense>
   );

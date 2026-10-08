@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiError } from "@/lib/api-client";
+import { TableSkeleton } from "@/components/ui/Skeleton";
 
 type RoleName = "RESEARCHER" | "ADVISER" | "PANELIST" | "RESEARCH_COORDINATOR" | "RPO" | "REB" | "VPAA" | "SYSTEM_ADMIN";
 type Role = { id: string; name: RoleName; description?: string | null };
@@ -190,7 +191,7 @@ export function UserManagement() {
         {feedback && <div role="status" className={`m-5 rounded-xl border px-4 py-3 text-xs font-semibold ${feedback.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-950/40 dark:text-emerald-300" : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/40 dark:bg-rose-950/40 dark:text-rose-300"}`}>{feedback.message}</div>}
 
         {usersQuery.isLoading ? (
-          <div className="space-y-3 p-5">{[1, 2, 3, 4].map((item) => <div key={item} className="h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />)}</div>
+          <div className="p-5"><TableSkeleton rows={5} columns={7} /></div>
         ) : usersQuery.isError ? (
           <div className="m-5 rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/40 p-5 text-center text-xs text-rose-700 dark:text-rose-300"><p>{usersQuery.error instanceof Error ? usersQuery.error.message : "Users could not be loaded."}</p><button onClick={() => void usersQuery.refetch()} className="mt-2 font-bold underline">Try again</button></div>
         ) : (

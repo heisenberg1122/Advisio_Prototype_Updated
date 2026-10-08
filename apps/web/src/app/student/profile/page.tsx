@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { ProfileCard } from "@/components/profile/ProfileCard";
+import { ProfileSkeleton } from "@/components/ui/Skeleton";
 
 function StudentProfilePageContent() {
   const searchParams = useSearchParams();
@@ -32,7 +33,7 @@ function StudentProfilePageContent() {
 
 export default function StudentProfilePage() {
   return (
-    <Suspense fallback={<div className="p-6 text-[#1b4264]">Loading Profile...</div>}>
+    <Suspense fallback={<div className="mx-auto w-full max-w-screen-2xl p-4 sm:p-6 lg:p-8"><ProfileSkeleton /></div>}>
       <StudentProfilePageContent />
     </Suspense>
   );

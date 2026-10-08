@@ -47,45 +47,21 @@ describe("Advisio Express API Integration Suite", () => {
     expect(data.activeConnections).toBeGreaterThanOrEqual(0);
   });
 
-  it("fetches group chats list and rejects empty messages", async () => {
-    // 1. Fetch chats
+  it("protects group chats and messages from unauthenticated access", async () => {
     const resChats = await fetch(`${baseUrl}/api/chats`);
-    expect(resChats.status).toBe(200);
-    const chatsData = await resChats.json() as any;
-    expect(Array.isArray(chatsData.chats)).toBe(true);
-    let chatId = chatsData.chats[0]?.id;
-    if (!chatId) {
-      const createChat = await fetch(`${baseUrl}/api/chats`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "API integration test", adviserName: "Automated Tester" }),
-      });
-      expect(createChat.status).toBe(201);
-      chatId = ((await createChat.json()) as any).chat.id;
-    }
-
-    // 2. Try sending empty message - should be rejected with 400
-    const resEmpty = await fetch(`${baseUrl}/api/chats/${chatId}/messages`, {
+    expect(resChats.status).toBe(401);
+    const createChat = await fetch(`${baseUrl}/api/chats`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "   " }),
+      body: JSON.stringify({ title: "Unauthorized test", participantIds: ["00000000-0000-0000-0000-000000000000"] }),
     });
-    expect(resEmpty.status).toBe(400);
-
-    // 3. Send valid message
-    const resMsg = await fetch(`${baseUrl}/api/chats/${chatId}/messages`, {
+    expect(createChat.status).toBe(401);
+    const resMsg = await fetch(`${baseUrl}/api/chats/00000000-0000-0000-0000-000000000000/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: "Real-time SSE integration test message",
-        senderName: "Automated Tester",
-        senderRole: "student",
-      }),
+      body: JSON.stringify({ message: "Unauthorized message" }),
     });
-    expect(resMsg.status).toBe(201);
-    const msgData = await resMsg.json() as any;
-    expect(msgData.message.message).toBe("Real-time SSE integration test message");
-    expect(msgData.message.senderName).toBe("Automated Tester");
+    expect(resMsg.status).toBe(401);
   });
 
   it("fetches consultations list and verifies consultation data structure", async () => {

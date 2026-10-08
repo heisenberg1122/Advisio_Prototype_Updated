@@ -33,6 +33,7 @@ import { cn } from "@/lib/utils";
 
 export interface AppTopbarProps {
   title?: string;
+  hideTitle?: boolean;
   subtitle?: string;
   breadcrumbs?: { label: string; href?: string }[];
   notificationsHref?: string;
@@ -56,8 +57,6 @@ interface SearchItem {
 }
 
 export function AppTopbar({
-  title = "Dashboard",
-  subtitle,
   breadcrumbs,
   notificationsHref = "/student/notifications",
   settingsHref = "/student/settings",
@@ -270,22 +269,15 @@ export function AppTopbar({
                 </React.Fragment>
               ))}
             </div>
-          ) : subtitle ? (
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-400 leading-tight">
-              {subtitle}
-            </p>
           ) : null}
 
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white truncate">
-            {title}
-          </h1>
         </div>
       </div>
 
-      {/* Right: Search, Notifications, Actions, User Menu */}
+      {/* Right: Notifications, Actions, User Menu */}
       <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
-        {/* Interactive Search Bar */}
-        <div ref={searchRef} className="relative hidden md:block">
+        {/* Centered Interactive Search Bar */}
+        <div ref={searchRef} className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 md:block">
           <label className={cn(
             "flex h-10 items-center gap-2.5 rounded-xl px-3.5 text-slate-400 transition-all focus-within:border-[#0B3A53] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#0B3A53]/10 cursor-text dark:focus-within:bg-[#101b2b]",
             isWorkspace

@@ -11,10 +11,12 @@ import {
   ClipboardCheck,
   Award,
   Mail,
+  MessageSquare,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Overview", href: "/panelist/dashboard", tabName: "overview", icon: LayoutDashboard },
+  { label: "Messages", href: "/panelist/dashboard?tab=messages", tabName: "messages", icon: MessageSquare },
   { label: "Defense Schedule", href: "/panelist/dashboard?tab=schedule", tabName: "schedule", icon: CalendarCheck },
   { label: "Calendar", href: "/panelist/calendar", icon: CalendarDays },
   { label: "Documents", href: "/panelist/dashboard?tab=documents", tabName: "documents", icon: FileText },

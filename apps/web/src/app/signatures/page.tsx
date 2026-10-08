@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, FileCheck2, FileText, Inbox, Mail, PenLine, Search, Send } from "lucide-react";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 import { apiClient } from "@/lib/api-client";
+import { FilesPageSkeleton, MailPageSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
 
 const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
@@ -84,6 +85,10 @@ export default function SignatureCenterPage() {
     mutationFn: () => apiClient.post(`/api/dean-inbox/documents/${selected.document.id}/messages`, { message: reply }),
     onSuccess: () => { setReply(""); queryClient.invalidateQueries({ queryKey: ["dean-inbox-messages"] }); },
   });
+
+  if ((isDean && threadsLoading) || (!isDean && isLoading)) {
+    return isDean ? <MailPageSkeleton /> : <FilesPageSkeleton />;
+  }
 
   if (!isDean) {
     const role = user?.roles?.find((item: string) => guidance[item]) || "ADVISER";

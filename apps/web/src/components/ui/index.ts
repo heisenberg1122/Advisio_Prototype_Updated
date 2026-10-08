@@ -10,6 +10,7 @@ export * from "./SectionHeader";
 export * from "./Input";
 export * from "./EmptyState";
 export * from "./LoadingState";
+export * from "./Skeleton";
 export * from "./Modal";
 export * from "./DataTable";
 export * from "./Tabs";

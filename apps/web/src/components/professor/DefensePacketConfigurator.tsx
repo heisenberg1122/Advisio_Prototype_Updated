@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 type Mapping = {
   key: string;
@@ -82,14 +83,14 @@ export function DefensePacketConfigurator({
   onSaved: (message: string) => void;
 }) {
   const [uploadedVersions, setUploadedVersions] = useState<any[]>([]);
-  const { data } = useQuery({
+  const { data, isLoading: packetLoading } = useQuery({
     queryKey: ["defense-packet-config", session.id],
     queryFn: () =>
       apiClient
         .get<any>(`/api/defense-sessions/${session.id}/review-packet`)
         .catch(() => ({ packet: null })),
   });
-  const { data: templateData } = useQuery({
+  const { data: templateData, isLoading: templatesLoading } = useQuery({
     queryKey: ["evaluation-templates", session.research?.researchTypeId],
     queryFn: () =>
       apiClient.get<any>("/api/evaluation-templates", {
@@ -414,6 +415,20 @@ export function DefensePacketConfigurator({
       </div>
     </section>
   );
+
+  if (packetLoading || templatesLoading) {
+    return (
+      <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/55 p-4">
+        <div role="status" aria-busy="true" className="max-h-[94vh] w-full max-w-6xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <span className="sr-only">Loading defense packet configuration</span>
+          <div className="flex items-center justify-between border-b p-5"><div className="space-y-2"><Skeleton className="h-3 w-32" /><Skeleton className="h-6 w-72 max-w-[65vw]" /><Skeleton className="h-3 w-52" /></div><Skeleton className="h-9 w-9 rounded-lg" /></div>
+          <div className="grid gap-5 p-5 lg:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, index) => <div key={index} className="space-y-4 rounded-xl border border-slate-200 p-5"><Skeleton className="h-5 w-40" /><Skeleton className="h-11 w-full rounded-lg" /><Skeleton className="h-11 w-full rounded-lg" /><Skeleton className="h-24 w-full rounded-lg" /></div>)}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/55 p-4">

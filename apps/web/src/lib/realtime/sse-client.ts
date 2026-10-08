@@ -43,6 +43,7 @@ class RealtimeClient {
         "chat:created",
         "chat:invitation",
         "chat:invitation_update",
+        "chat:updated",
         "consultation:update",
         "notification:new",
       ];

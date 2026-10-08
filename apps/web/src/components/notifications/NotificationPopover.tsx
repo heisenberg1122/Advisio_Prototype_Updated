@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { NotificationListSkeleton } from "@/components/ui/Skeleton";
 import { AppNotification, useNotifications } from "@/hooks/use-notifications";
 
 const notificationStyles = {
@@ -92,9 +93,7 @@ export function NotificationPopover({ viewAllHref, compact = false }: Notificati
 
           <div className="max-h-[330px] overflow-y-auto">
             {loading ? (
-              <div className="space-y-3 p-4" aria-label="Loading notifications">
-                {[1, 2, 3].map((item) => <div key={item} className="h-14 animate-pulse rounded-xl bg-slate-100" />)}
-              </div>
+              <NotificationListSkeleton rows={3} className="p-4" />
             ) : previewNotifications.length > 0 ? (
               previewNotifications.map((notification) => {
                 const styles = notificationStyles[notification.type] || notificationStyles.info;

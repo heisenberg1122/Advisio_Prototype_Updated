@@ -10,6 +10,7 @@ import { SystemAnnouncements } from "@/components/system-admin/SystemAnnouncemen
 import { UserManagement } from "@/components/system-admin/UserManagement";
 import { GoogleDriveIntegration } from "@/components/system-admin/GoogleDriveIntegration";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
+import { DashboardSkeleton, Skeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
 import {
   Building2,
@@ -60,7 +61,7 @@ function SystemAdminDashboardContent() {
     staleTime: 60000,
   });
 
-  const { data: usersData } = useQuery({
+  const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ["system-admin-users-overview"],
     queryFn: () =>
       apiClient
@@ -69,7 +70,7 @@ function SystemAdminDashboardContent() {
     staleTime: 60000,
   });
 
-  const { data: academicYearsData } = useQuery({
+  const { data: academicYearsData, isLoading: academicYearsLoading } = useQuery({
     queryKey: ["system-admin-academic-years-overview"],
     queryFn: () =>
       apiClient
@@ -78,7 +79,7 @@ function SystemAdminDashboardContent() {
     staleTime: 60000,
   });
 
-  const { data: researchData } = useQuery({
+  const { data: researchData, isLoading: researchLoading } = useQuery({
     queryKey: ["system-admin-research-overview"],
     queryFn: () =>
       apiClient
@@ -191,6 +192,11 @@ function SystemAdminDashboardContent() {
     router.push(`/system-admin/dashboard?tab=${tab}`);
   };
 
+  if (activeTab === "overview" && (collegesLoading || programsLoading || usersLoading || academicYearsLoading || researchLoading)) {
+    return <DashboardSkeleton />;
+  }
+  if (activeTab === "onboarding" && (collegesLoading || programsLoading)) return <TablePageSkeleton />;
+
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent text-slate-800 transition-colors dark:text-slate-100">
       {toast && (
@@ -243,7 +249,7 @@ function SystemAdminDashboardContent() {
                       Colleges ({colleges.length})
                     </h4>
                     {collegesLoading ? (
-                      <div className="h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />
+                      <div className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-2/3" /></div>
                     ) : collegesError ? (
                       <button
                         onClick={() => void refetchColleges()}
@@ -273,7 +279,7 @@ function SystemAdminDashboardContent() {
                       Departments ({departments.length})
                     </h4>
                     {programsLoading ? (
-                      <div className="h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />
+                      <div className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-2/3" /></div>
                     ) : programsError ? (
                       <button
                         onClick={() => void refetchPrograms()}
@@ -679,7 +685,7 @@ function SystemAdminDashboardContent() {
                   </div>
                   <div className="flex flex-col gap-3">
                     {collegesLoading && (
-                      <div className="h-16 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />
+                      <div className="space-y-2"><Skeleton className="h-14 w-full rounded-xl" /><Skeleton className="h-14 w-full rounded-xl" /></div>
                     )}
                     {collegesError && (
                       <button
@@ -1000,11 +1006,7 @@ function SystemAdminDashboardContent() {
 export default function SystemAdminDashboardPage() {
   return (
     <Suspense
-      fallback={
-        <div className="p-6 text-[#0B3A53]">
-          Loading System Admin Dashboard...
-        </div>
-      }
+      fallback={<DashboardSkeleton />}
     >
       <SystemAdminDashboardContent />
     </Suspense>

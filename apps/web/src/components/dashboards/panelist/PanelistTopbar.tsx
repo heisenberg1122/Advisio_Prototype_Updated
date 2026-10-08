@@ -5,6 +5,7 @@ import { AppTopbar } from "@/components/layout/AppTopbar";
 
 const TITLES: Record<string, string> = {
   overview: "Panelist Dashboard",
+  messages: "Messages",
   schedule: "Defense Schedule",
   documents: "Research Documents",
   evaluation: "Evaluations & Scoring",
@@ -36,6 +37,7 @@ export function PanelistTopbar() {
   return (
     <AppTopbar
       title={title}
+      hideTitle={pathname === "/panelist/dashboard" && tab === "overview"}
       subtitle="Oral Defense Center"
       notificationsHref="/panelist/notifications"
       profileHref="/panelist/profile"

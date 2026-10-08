@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { AppShellSkeleton } from "@/components/ui/Skeleton";
 
 // Lazy-loaded Portal Layouts & Pages for route-based code splitting
 const StudentLayout = lazy(() => import("./app/student/layout"));
@@ -88,16 +89,7 @@ import ForgotPasswordPage from "./app/(public)/forgot-password/page";
 import FirstTimeSetupPage from "./app/(public)/first-login-setup/page";
 
 function RouteLoader() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[#080e18]">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 border-4 border-[#1b4264] dark:border-[#ffa400] border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-          Loading portal...
-        </p>
-      </div>
-    </div>
-  );
+  return <AppShellSkeleton />;
 }
 
 function StudentPortal({ children }: { children: React.ReactNode }) {

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiError } from "@/lib/api-client";
+import { NotificationListSkeleton } from "@/components/ui/Skeleton";
 
 type Announcement = {
   id: string;
@@ -122,7 +123,7 @@ export function SystemAnnouncements() {
         <h2 className="font-black text-slate-900 dark:text-white text-base">Recent announcements</h2>
         <p className="mt-1 mb-4 text-xs text-slate-500 dark:text-slate-400">The latest notices published by System Administrators.</p>
         {isLoading ? (
-          <div className="space-y-3">{[1, 2, 3].map((item) => <div key={item} className="h-24 animate-pulse rounded-xl bg-slate-100 dark:bg-white/5" />)}</div>
+          <NotificationListSkeleton rows={3} />
         ) : isError ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/40 p-4 text-xs text-rose-700 dark:text-rose-300">
             <p>{error instanceof Error ? error.message : "Announcements could not be loaded."}</p>

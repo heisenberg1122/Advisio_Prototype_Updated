@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
+import { CardsPageSkeleton, DashboardSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import { CourseCard } from "@/components/ui/CourseCard";
 import { AdviserGroupChats } from "@/components/dashboards/adviser/AdviserGroupChats";
 import { getChatStore } from "@/lib/chat-store";
@@ -201,7 +202,7 @@ function AdviserDashboardContent() {
   };
 
   // Live query for assigned advisee research projects
-  const { data: researchData, refetch: refetchResearch } = useQuery({
+  const { data: researchData, isLoading: researchLoading, refetch: refetchResearch } = useQuery({
     queryKey: ["adviser-research"],
     queryFn: () => apiClient.get<{ projects: any[] }>("/api/research").catch(() => ({ projects: [] })),
     staleTime: 60000,
@@ -522,6 +523,13 @@ function AdviserDashboardContent() {
     { id: "chat", label: "Adviser Chats", icon: "ti-messages" },
   ];
 
+  if (researchLoading) {
+    if (activeTab === "overview") return <DashboardSkeleton />;
+    if (["consultations", "history"].includes(activeTab)) return <CardsPageSkeleton />;
+    if (activeTab === "chat") return <ListPageSkeleton />;
+    return <TablePageSkeleton />;
+  }
+
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
       
@@ -592,7 +600,7 @@ function AdviserDashboardContent() {
       )}
 
       {/* MAIN CONTAINER */}
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className={`flex w-full flex-1 flex-col space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-screen-2xl p-4 sm:p-6 lg:p-8"}`}>
         
         {(() => {
           const tabContent: Record<string, React.ReactNode> = {
@@ -1625,7 +1633,7 @@ function AdviserDashboardContent() {
 
 export default function AdviserDashboardPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-[#1b4264]">Loading Adviser Dashboard...</div>}>
+    <Suspense fallback={<DashboardSkeleton />}>
       <AdviserDashboardContent />
     </Suspense>
   );

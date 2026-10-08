@@ -133,6 +133,7 @@ function SystemAdminLayoutInner({ children }: { children: React.ReactNode }) {
       topbar={
         <AppTopbar
           title={pageTitle}
+          hideTitle={pathname === "/system-admin/dashboard" && activeTab === "overview"}
           subtitle="Platform Control Center"
           notificationsHref="/system-admin/notifications"
           profileHref="/system-admin/profile"

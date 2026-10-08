@@ -86,6 +86,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       topbar={
         <AppTopbar
           title={pageTitle}
+          hideTitle={pathname === "/admin/dashboard" && activeTab === "overview"}
           subtitle="Research Management Center"
           notificationsHref="/admin/notifications"
           profileHref="/admin/profile"

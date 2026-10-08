@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useNotifications, AppNotification } from "@/hooks/use-notifications";
 import { Tag } from "@/components/ui/Tag";
 import { useRouter } from "next/navigation";
+import { NotificationListSkeleton } from "@/components/ui/Skeleton";
 
 const iconMap = {
   success: { icon: "ti-circle-check", bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-100" },
@@ -36,13 +37,7 @@ export function NotificationList() {
   const [activeTab, setActiveTab] = useState<"all" | "unread" | "read">("all");
 
   if (loading) {
-    return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-xl border border-slate-200" />
-        ))}
-      </div>
-    );
+    return <NotificationListSkeleton rows={5} />;
   }
 
   const filtered = notifications.filter((n) => {

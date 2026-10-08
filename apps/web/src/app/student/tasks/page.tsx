@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { StatCard } from "@/components/ui/StatCard";
+import { TablePageSkeleton } from "@/components/ui/Skeleton";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 const memberName = (member: any) =>
@@ -215,12 +216,7 @@ export default function ResearchTasksPage() {
   };
 
   if (isPending)
-    return (
-      <div className="p-6 text-sm font-semibold text-slate-500">
-        <i className="ti ti-loader-2 mr-2 animate-spin" />
-        Loading project requirements…
-      </div>
-    );
+    return <TablePageSkeleton />;
   if (isError)
     return (
       <div className="m-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">

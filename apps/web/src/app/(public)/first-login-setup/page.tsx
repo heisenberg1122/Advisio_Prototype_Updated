@@ -3,6 +3,7 @@
 import React, { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { FormPageSkeleton } from "@/components/ui/Skeleton";
 
 function SetupFormContent() {
   const router = useRouter();
@@ -343,9 +344,7 @@ export default function FirstTimeSetupPage() {
       <div className="absolute inset-0 opacity-40 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
       
       <Suspense fallback={
-        <div className="flex items-center justify-center">
-          <div className="w-8 h-8 border-3 border-t-transparent rounded-full animate-spin border-[#ffa400]" />
-        </div>
+        <FormPageSkeleton className="relative z-10" />
       }>
         <div className="relative z-10 w-full flex justify-center">
           <SetupFormContent />

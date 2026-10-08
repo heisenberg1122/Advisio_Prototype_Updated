@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Tag } from "@/components/ui/Tag";
+import { ListRowsSkeleton } from "@/components/ui/Skeleton";
 import { apiClient } from "@/lib/api-client";
 
 export interface LinkedDocItem {
@@ -509,7 +510,7 @@ export default function DocumentWorkspacePage() {
               <div className="flex gap-2 text-xs font-bold"><span className="rounded-full bg-emerald-100 px-3 py-1.5 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300">{officialCopies.length} signed</span>{awaitingSignatureCount > 0 && <span className="rounded-full bg-amber-100 px-3 py-1.5 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">{awaitingSignatureCount} awaiting signature</span>}</div>
             </div>
             <div className="p-4 sm:p-5">
-              {formalDocumentsLoading && formalDocuments.length === 0 ? <div className="flex min-h-28 items-center justify-center text-sm font-bold text-slate-400"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading official documents…</div> : officialCopies.length === 0 ? <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center dark:border-white/10"><ShieldCheck className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-2 text-sm font-bold text-slate-600 dark:text-slate-300">No signed documents yet</p><p className="mt-1 text-xs text-slate-400">A signed copy will appear here after your adviser reviews and signs a PDF.</p></div> : <div className="grid gap-3 lg:grid-cols-2">
+              {formalDocumentsLoading && formalDocuments.length === 0 ? <ListRowsSkeleton rows={2} avatars={false} /> : officialCopies.length === 0 ? <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center dark:border-white/10"><ShieldCheck className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-2 text-sm font-bold text-slate-600 dark:text-slate-300">No signed documents yet</p><p className="mt-1 text-xs text-slate-400">A signed copy will appear here after your adviser reviews and signs a PDF.</p></div> : <div className="grid gap-3 lg:grid-cols-2">
                 {officialCopies.map(({ document, version, source }) => {
                   const signature = version.signedSignature!;
                   const signer = [signature.signedBy.firstName, signature.signedBy.middleName, signature.signedBy.lastName].filter(Boolean).join(" ");

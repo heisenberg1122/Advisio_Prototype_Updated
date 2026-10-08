@@ -8,6 +8,7 @@ import { Tag } from "@/components/ui/Tag";
 import { CourseCard } from "@/components/ui/CourseCard";
 import { StatCard } from "@/components/ui/StatCard";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
+import { CardsPageSkeleton, DashboardSkeleton, FilesPageSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import { StudentGroupChats } from "@/components/dashboards/student/StudentGroupChats";
 import { getChatStore } from "@/lib/chat-store";
 import { getStoredMeetingSession, saveMeetingSession, DEFAULT_SHARED_MEET_URL } from "@/lib/meeting-store";
@@ -1138,6 +1139,14 @@ function StudentDashboardContent() {
     { id: "group-chats", label: "Group Chat", icon: "ti-messages", matches: ["group-chats", "chat"] },
   ];
 
+  if (isResearchLoading) {
+    if (activeTab === "overview") return <DashboardSkeleton />;
+    if (["workspace", "submissions"].includes(activeTab)) return <FilesPageSkeleton />;
+    if (["consultations", "history"].includes(activeTab)) return <CardsPageSkeleton />;
+    if (activeTab === "milestones") return <TablePageSkeleton />;
+    return <ListPageSkeleton />;
+  }
+
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
       
@@ -1159,7 +1168,7 @@ function StudentDashboardContent() {
       />
 
       {/* MAIN CONTAINER */}
-      <div className="mx-auto w-full max-w-screen-2xl flex-1 space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className={`w-full flex-1 space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-screen-2xl p-4 sm:p-6 lg:p-8"}`}>
         
         {(() => {
           const tabTitles: Record<string, string> = {
@@ -2239,10 +2248,7 @@ function StudentDashboardContent() {
               <StudentGroupChats triggerToast={triggerToast} />
             ),
             workspace: (
-              <div className="min-h-[50vh] flex flex-col items-center justify-center p-8 text-center bg-white dark:bg-[#101b2b] rounded-2xl border border-slate-200 dark:border-white/10 m-4">
-                <div className="w-10 h-10 border-4 border-[#0B3A53] border-t-transparent rounded-full animate-spin mb-4" />
-                <p className="text-sm font-bold text-[#0B3A53] dark:text-white">Opening Document Workspace...</p>
-              </div>
+              <FilesPageSkeleton className="p-4 sm:p-4 lg:p-4" />
             ),
           };
 
@@ -2359,7 +2365,7 @@ function StudentDashboardContent() {
 
 export default function StudentDashboardPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-[#1b4264]">Loading Student Portal...</div>}>
+    <Suspense fallback={<DashboardSkeleton />}>
       <StudentDashboardContent />
     </Suspense>
   );

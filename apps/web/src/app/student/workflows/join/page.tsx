@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiClient } from "@/lib/api-client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 export default function JoinWorkflowPage() {
   const { code = "" } = useParams();
@@ -34,7 +35,7 @@ export default function JoinWorkflowPage() {
     <main className="mx-auto w-full max-w-3xl p-4 sm:p-6 lg:p-8">
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         {isPending ? (
-          <div className="py-10 text-center text-sm font-semibold text-slate-500"><i className="ti ti-loader-2 mr-2 animate-spin" />Checking invitation…</div>
+          <div role="status" aria-label="Checking workflow invitation" className="space-y-4 py-4"><Skeleton className="h-12 w-12 rounded-xl" /><Skeleton className="h-3 w-32" /><Skeleton className="h-7 w-4/5" /><Skeleton className="h-4 w-full" /><Skeleton className="h-28 w-full rounded-xl" /><Skeleton className="h-11 w-36 rounded-xl" /></div>
         ) : isError || !invitation ? (
           <div className="py-8 text-center"><span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-rose-100 text-rose-700"><i className="ti ti-link-off text-xl" /></span><h1 className="mt-4 text-xl font-black text-[#102f49]">Invitation unavailable</h1><p className="mt-2 text-sm text-slate-600">This workflow link is invalid, expired, or unavailable to your account.</p><button type="button" onClick={() => navigate("/student/tasks", { replace: true })} className="mt-6 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white">Go to Tasks & Requirements</button></div>
         ) : (

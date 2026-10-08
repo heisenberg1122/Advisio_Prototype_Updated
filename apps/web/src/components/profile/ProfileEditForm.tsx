@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useProfile } from "@/hooks/use-profile";
 import { Card } from "@/components/ui/Card";
+import { ProfileSkeleton } from "@/components/ui/Skeleton";
 import { useRouter, usePathname } from "next/navigation";
 
 export function ProfileEditForm() {
@@ -126,26 +127,7 @@ export function ProfileEditForm() {
   };
 
   if (loading) {
-    return (
-      <div className="flex flex-col gap-6 w-full">
-        <Card>
-          <div className="animate-pulse space-y-3">
-            <div className="h-4 bg-slate-200 rounded w-1/4" />
-          </div>
-        </Card>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <Card key={i}>
-              <div className="animate-pulse space-y-3">
-                <div className="h-4 bg-slate-200 rounded w-1/2 mb-4" />
-                <div className="h-10 bg-slate-200 rounded w-full" />
-                <div className="h-10 bg-slate-200 rounded w-full" />
-              </div>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
+    return <ProfileSkeleton editing />;
   }
 
   return (

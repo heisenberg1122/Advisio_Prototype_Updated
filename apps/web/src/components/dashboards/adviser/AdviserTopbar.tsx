@@ -44,6 +44,7 @@ export function AdviserTopbar() {
   return (
     <AppTopbar
       title={title}
+      hideTitle={pathname === "/adviser/dashboard" && currentTab === "overview"}
       subtitle="Faculty Advising Center"
       notificationsHref="/adviser/notifications"
       profileHref="/adviser/profile"

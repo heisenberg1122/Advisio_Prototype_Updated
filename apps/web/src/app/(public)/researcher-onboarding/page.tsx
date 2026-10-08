@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { apiClient } from "@/lib/api-client";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 type College = { id: string; code: string; name: string; programs: Program[] };
 type Program = { id: string; collegeId: string; code: string; name: string };
@@ -274,7 +275,7 @@ function Choice({ selected, title, description, onClick }: { selected: boolean; 
 function SkipNote({ children }: { children: React.ReactNode }) { return <div className="mt-5 flex gap-2 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500"><i className="ti ti-info-circle mt-0.5 text-[#1b4264]" /><span>{children}</span></div>; }
 function SummaryRow({ label, value }: { label: string; value: string }) { return <div className="flex items-start justify-between gap-4 border-b border-slate-200 py-2.5 last:border-0"><span className="text-xs text-slate-500">{label}</span><strong className="max-w-[65%] text-right text-xs text-slate-800">{value}</strong></div>; }
 function ReviewSection({ title, onEdit, locked, children }: { title: string; onEdit: () => void; locked?: boolean; children: React.ReactNode }) { return <section className="rounded-2xl border border-slate-200 p-4"><div className="mb-1 flex items-center justify-between"><h3 className="text-sm font-extrabold text-[#1b4264]">{title}</h3>{!locked && <button type="button" onClick={onEdit} className="text-xs font-bold text-[#1b4264] underline hover:text-[#e09000]">Edit</button>}</div>{children}</section>; }
-function Loading() { return <div className="flex min-h-[300px] flex-col items-center justify-center gap-3 text-sm text-slate-500"><span className="h-9 w-9 animate-spin rounded-full border-4 border-[#1b4264] border-t-transparent" />Loading academic options…</div>; }
+function Loading() { return <div role="status" aria-label="Loading academic options" className="min-h-[300px] space-y-5"><div className="grid gap-4 sm:grid-cols-2">{[1, 2, 3, 4].map((item) => <div key={item} className="space-y-2"><Skeleton className="h-3 w-24" /><Skeleton className="h-11 w-full rounded-xl" /></div>)}</div><Skeleton className="h-28 w-full rounded-2xl" /><Skeleton className="h-11 w-32 rounded-xl" /></div>; }
 function pretty(value: string) { return value ? value.toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) : ""; }
 function ordinal(value: number) { return `${value}${value === 1 ? "st" : value === 2 ? "nd" : value === 3 ? "rd" : "th"}`; }
 function stepDescription(step: number) { return ["Connect your account to the correct college, degree, program, and academic cycle.", "Tell us where you are in the research process. You can update this later.", "Choose how you plan to work. Group setup can be completed after approval.", "Optional interests help Advisio make more relevant recommendations.", "Confirm your details before sending your profile for verification."][step]; }

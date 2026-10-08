@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DocumentPreviewSkeleton } from "@/components/ui/Skeleton";
 
 type DocumentVersion = {
   id: string;
@@ -132,10 +133,7 @@ export function SubmissionDocumentPreview({
 
       <div className="relative grid min-h-[640px] place-items-center bg-slate-100">
         {loading && (
-          <div className="text-center text-sm font-bold text-slate-500">
-            <i className="ti ti-loader-2 mr-2 animate-spin" /> Loading secure
-            preview…
-          </div>
+          <DocumentPreviewSkeleton className="absolute inset-0 min-h-[640px] w-full" />
         )}
         {!loading && error && (
           <div className="max-w-md p-8 text-center">

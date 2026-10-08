@@ -239,6 +239,13 @@ enum NotificationType {
   SYSTEM_ANNOUNCEMENT
 }
 
+enum ChatParticipantStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REMOVED
+}
+
 enum AdviserRequestStatus {
   PENDING
   ACCEPTED
@@ -402,6 +409,10 @@ model User {
   defensePacketsPublished  DefensePacket[]             @relation("DefensePacketPublisher")
   manuscriptReviews        PanelistManuscriptReview[]
   panelRecommendations     PanelistRecommendation[]
+  chatGroupsCreated        ChatGroup[]                @relation("ChatGroupCreator")
+  chatParticipations       ChatParticipant[]          @relation("ChatParticipantUser")
+  chatInvitationsSent      ChatParticipant[]          @relation("ChatParticipantInviter")
+  chatMessagesSent         ChatMessage[]              @relation("ChatMessageSender")
 
   @@index([collegeId])
   @@index([programId])
@@ -1578,11 +1589,17 @@ model ChatGroup {
   createdByAdviserId     String   @map("created_by_adviser_id") @db.VarChar(255)
   adviserName            String   @map("adviser_name") @db.VarChar(150)
   relatedResearchGroupId String?  @map("related_research_group_id") @db.VarChar(100)
+  createdByUserId        String?  @map("created_by_user_id") @db.Uuid
+  isFacultyOnly          Boolean  @default(false) @map("is_faculty_only")
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
 
   messages    ChatMessage[]
   invitations ChatInvitation[]
+  creator      User?             @relation("ChatGroupCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  participants ChatParticipant[]
+
+  @@index([createdByUserId])
 
   @@map("chat_groups")
 }
@@ -1608,13 +1625,38 @@ model ChatMessage {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   chatGroupId String   @map("chat_group_id") @db.Uuid
   senderId    String   @map("sender_id") @db.VarChar(255)
+  senderUserId String? @map("sender_user_id") @db.Uuid
   senderName  String   @map("sender_name") @db.VarChar(150)
   senderRole  String   @map("sender_role") @db.VarChar(50)
   message     String   @db.Text
   createdAt   DateTime @default(now()) @map("created_at")
 
   chatGroup ChatGroup @relation(fields: [chatGroupId], references: [id], onDelete: Cascade)
+  senderUser User?    @relation("ChatMessageSender", fields: [senderUserId], references: [id], onDelete: SetNull)
 
   @@index([chatGroupId])
+  @@index([senderUserId])
   @@map("chat_messages")
+}
+
+model ChatParticipant {
+  id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chatGroupId     String                @map("chat_group_id") @db.Uuid
+  userId          String                @map("user_id") @db.Uuid
+  roleSnapshot    String                @map("role_snapshot") @db.VarChar(50)
+  status          ChatParticipantStatus @default(PENDING)
+  isAdmin         Boolean               @default(false) @map("is_admin")
+  invitedByUserId String?               @map("invited_by_user_id") @db.Uuid
+  invitedAt       DateTime              @default(now()) @map("invited_at")
+  respondedAt     DateTime?             @map("responded_at")
+  lastReadAt      DateTime?             @map("last_read_at")
+
+  chatGroup ChatGroup @relation(fields: [chatGroupId], references: [id], onDelete: Cascade)
+  user      User      @relation("ChatParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+  invitedBy User?     @relation("ChatParticipantInviter", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([chatGroupId, userId])
+  @@index([userId, status])
+  @@index([invitedByUserId])
+  @@map("chat_participants")
 }

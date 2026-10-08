@@ -14,6 +14,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { useProfile } from "@/hooks/use-profile";
+import { ProfileSkeleton } from "@/components/ui/Skeleton";
 import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
@@ -37,16 +38,7 @@ export function ProfileCard() {
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-col gap-6 w-full animate-pulse">
-        <div className="h-36 bg-white dark:bg-[#101b2b] rounded-2xl border border-[#DDE3E8] p-6" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-48 bg-white dark:bg-[#101b2b] rounded-2xl border border-[#DDE3E8] p-6" />
-          ))}
-        </div>
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
   const roleLabels: Record<string, string> = {

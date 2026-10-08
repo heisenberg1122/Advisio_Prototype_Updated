@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { GlobalWorkerOptions, getDocument, type PDFDocumentProxy } from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { apiClient } from "@/lib/api-client";
+import { DocumentPreviewSkeleton } from "@/components/ui/Skeleton";
 
 GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -94,7 +95,6 @@ export function DocumentSigningModal({
       if (signatureUrl) URL.revokeObjectURL(signatureUrl);
     };
     // The selected version is immutable while this modal is open.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [document.versionId]);
 
   useEffect(() => {
@@ -214,7 +214,7 @@ export function DocumentSigningModal({
               <button type="button" onClick={() => setFitMode("width")} className={`rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold ${fitMode === "width" ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`}>Fit width</button>
               <button type="button" onClick={() => setFitMode("page")} className={`rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold ${fitMode === "page" ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`}>Fit page</button>
             </div>
-            {busy && <div className="grid h-full place-items-center font-bold text-slate-500"><span><i className="ti ti-loader-2 mr-2 animate-spin" />Preparing secure PDF preview…</span></div>}
+            {busy && <DocumentPreviewSkeleton className="h-full min-h-[560px]" />}
             {!busy && pdf && <div ref={pageRef} className="relative mx-auto w-fit bg-white shadow-xl">
               <canvas ref={canvasRef} className="block max-w-none" />
               {signatureUrl && <div

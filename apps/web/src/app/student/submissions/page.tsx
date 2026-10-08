@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Tag } from "@/components/ui/Tag";
 import { cn } from "@/lib/utils";
 import type { SubmissionStatus } from "@/types/student";
+import { ListRowsSkeleton } from "@/components/ui/Skeleton";
 
 type TabFilter = "all" | SubmissionStatus;
 
@@ -64,11 +65,7 @@ export default function SubmissionsPage() {
 
       {isPending ? (
         <Card>
-          <div className="animate-pulse space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 bg-[var(--color-background-secondary)] rounded" />
-            ))}
-          </div>
+          <ListRowsSkeleton rows={5} />
         </Card>
       ) : (
         <Card>

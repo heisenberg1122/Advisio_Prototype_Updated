@@ -54,6 +54,7 @@ export function StudentTopbar() {
   return (
     <AppTopbar
       title={title}
+      hideTitle={(pathname === "/student/dashboard" || pathname === "/dashboard") && currentTab === "overview"}
       subtitle="University Research Workspace"
       notificationsHref="/student/notifications"
       profileHref="/student/profile"

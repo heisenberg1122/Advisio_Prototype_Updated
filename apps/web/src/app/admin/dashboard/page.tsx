@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
+import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
 
 type Program = { id: string; code: string; name: string };
@@ -193,14 +194,7 @@ function DeanDashboardContent() {
   );
 
   if (dashboard.isLoading)
-    return (
-      <div className="grid min-h-[70vh] place-items-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-9 w-9 animate-spin text-[#0B3A53]" />
-          <p className="mt-3 text-sm font-semibold text-slate-500 dark:text-slate-400">Loading dean dashboard…</p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
 
   if (dashboard.isError || !data)
     return (
@@ -933,11 +927,7 @@ function RegistryView({
 export default function AdminDashboardPage() {
   return (
     <Suspense
-      fallback={
-        <div className="grid min-h-screen place-items-center">
-          <Loader2 className="h-8 w-8 animate-spin text-[#0B3A53]" />
-        </div>
-      }
+      fallback={<DashboardSkeleton />}
     >
       <DeanDashboardContent />
     </Suspense>

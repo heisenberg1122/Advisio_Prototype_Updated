@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin, Plus, Users } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/providers/auth-provider";
+import { CalendarSkeleton } from "@/components/ui/Skeleton";
 
 type CalendarEvent = {
   id: string;
@@ -75,6 +76,8 @@ export default function UniversalCalendar() {
   });
   const upcoming = (calendar.data?.events || []).filter((event) => new Date(event.endsAt) >= new Date()).slice(0, 6);
   const isPanelist = user?.roles.includes("PANELIST") && calendar.data?.scope.panelistRestricted;
+
+  if (calendar.isLoading) return <CalendarSkeleton />;
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 sm:p-6 lg:p-8">

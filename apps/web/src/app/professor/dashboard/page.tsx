@@ -6,10 +6,12 @@ import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { calculateWorkflowProgress } from "@/lib/workflow-progress";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
+import { DashboardSkeleton, ListRowsSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
 import { SubmissionDocumentPreview } from "@/components/professor/SubmissionDocumentPreview";
 import { ProfessorDeanRequestModal } from "@/components/professor/ProfessorDeanRequestModal";
 import { DefensePacketConfigurator } from "@/components/professor/DefensePacketConfigurator";
+import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
 
 function ProfessorDashboardContent() {
   const searchParams = useSearchParams();
@@ -783,6 +785,7 @@ function ProfessorDashboardContent() {
 
   const tabsList = [
     { id: "overview", label: "Overview", icon: "ti-layout-dashboard" },
+    { id: "messages", label: "Messages", icon: "ti-messages" },
     {
       id: "monitoring",
       label: "Cohort Monitoring",
@@ -804,6 +807,10 @@ function ProfessorDashboardContent() {
     { id: "tracking", label: "Progress Tracking", icon: "ti-chart-line" },
     { id: "completion", label: "Completion Status", icon: "ti-certificate" },
   ];
+
+  if ((projectsLoading || workflowsLoading) && activeTab !== "messages") {
+    return activeTab === "overview" ? <DashboardSkeleton /> : <TablePageSkeleton />;
+  }
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
@@ -1840,9 +1847,10 @@ function ProfessorDashboardContent() {
       )}
 
       {/* MAIN CONTAINER */}
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className={`flex w-full flex-1 flex-col space-y-6 ${activeTab === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-screen-2xl p-4 sm:p-6 lg:p-8"}`}>
         {(() => {
           const tabContent: Record<string, React.ReactNode> = {
+            messages: <FacultyGroupChats triggerToast={triggerToast} />,
             overview: (
               <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4">
                 <DashboardWelcome
@@ -3385,9 +3393,7 @@ function ProfessorDashboardContent() {
                 )}
                 {monitoringView === "researchers" ? (
                   enrollmentsLoading ? (
-                    <div className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                      Loading researchers…
-                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white p-4"><ListRowsSkeleton rows={5} /></div>
                   ) : (
                     <div className="overflow-hidden rounded-xl border border-slate-200">
                       {acceptedResearchers
@@ -3464,9 +3470,7 @@ function ProfessorDashboardContent() {
                     </div>
                   )
                 ) : projectsLoading || workflowsLoading ? (
-                  <div className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                    Loading research projects…
-                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-white p-4"><ListRowsSkeleton rows={5} avatars={false} /></div>
                 ) : (
                   <div className="flex flex-col gap-3.5 mt-2">
                     {projects
@@ -4092,9 +4096,7 @@ function ProfessorDashboardContent() {
 export default function ProfessorDashboardPage() {
   return (
     <Suspense
-      fallback={
-        <div className="p-6 text-[#1b4264]">Loading Professor Dashboard...</div>
-      }
+      fallback={<DashboardSkeleton />}
     >
       <ProfessorDashboardContent />
     </Suspense>
