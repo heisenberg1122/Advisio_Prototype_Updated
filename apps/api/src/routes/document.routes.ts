@@ -256,10 +256,15 @@ router.get(
       const version = await prisma.documentVersion.findFirst({
         where: { googleDriveFileId: fileId },
         select: {
+          id: true,
           storagePath: true,
           fileName: true,
           mimeType: true,
           uploadedBy: true,
+          packetManuscripts: { select: { defenseSession: { select: { invitations: { where: { inviteeId: req.user!.id, status: "ACCEPTED" }, select: { id: true } } } } } },
+          packetSimilarityReports: { select: { defenseSession: { select: { invitations: { where: { inviteeId: req.user!.id, status: "ACCEPTED" }, select: { id: true } } } } } },
+          packetRecommendationTemplates: { select: { defenseSession: { select: { invitations: { where: { inviteeId: req.user!.id, status: "ACCEPTED" }, select: { id: true } } } } } },
+          packetEvaluationTemplates: { select: { defenseSession: { select: { invitations: { where: { inviteeId: req.user!.id, status: "ACCEPTED" }, select: { id: true } } } } } },
           document: {
             select: {
               createdBy: true,
@@ -308,16 +313,23 @@ router.get(
         (submission) =>
           submission.task.stage.workflow.createdBy === req.user!.id,
       );
+      const isPacketPanelist = [version.packetManuscripts, version.packetSimilarityReports, version.packetRecommendationTemplates, version.packetEvaluationTemplates]
+        .some((packets) => packets.some((packet) => packet.defenseSession.invitations.length > 0));
       if (
         !isElevated &&
         !isCollegeCoordinator &&
         !isParticipant &&
         !isOwner &&
-        !isWorkflowProfessor
+        !isWorkflowProfessor &&
+        !isPacketPanelist
       ) {
         return void res
           .status(403)
           .json({ error: "You do not have access to this document" });
+      }
+
+      if (req.query.download === "1") {
+        await prisma.auditLog.create({ data: { userId: req.user!.id, action: "DOWNLOAD", entityType: "DocumentVersion", entityId: version.id, ipAddress: req.ip, userAgent: req.get("user-agent") } });
       }
 
       if (!fileId.startsWith("gdrive-")) {

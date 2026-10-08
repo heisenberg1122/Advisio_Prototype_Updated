@@ -27,7 +27,7 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-async function loadVersionFile(version: {
+export async function loadVersionFile(version: {
   googleDriveFileId: string | null;
   storagePath: string;
 }): Promise<Buffer> {

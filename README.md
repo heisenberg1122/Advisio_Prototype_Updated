@@ -124,6 +124,18 @@ The related schema changes are included in these migrations:
 
 ---
 
+## 📑 Panelist Defense Review Packets
+
+Research coordinators can publish a defense packet after a group is eligible and scheduled for defense. A packet identifies the approved manuscript version, an optional similarity report, a review deadline, and optional recommendation and evaluation PDF templates. Only accepted panelists can open a published packet.
+
+The panelist workspace provides an authenticated PDF reader, manuscript version history, page-specific comments, private notes, a required-revision checklist, tracked downloads, recommendation drafting, and live rubric scoring. Private review material remains scoped to its author.
+
+Professors map web-form values to PDF templates using page numbers and normalized coordinates. Final recommendation and evaluation submissions generate immutable PDFs; the panelist can then apply their private signature through the standard document-signing workflow. The migration is located at `packages/database/prisma/migrations/20261008010000_defense_review_packets`.
+
+Mappings define a complete bounding box, preferred and minimum font sizes, alignment, and an overflow policy. The generation engine never silently truncates a response: content either fits, shrinks within the configured readable limit, moves to an appended continuation page, or blocks generation. Recommendation drafts must produce a current private preview before the panelist can confirm and lock the official PDF; any edit invalidates the earlier preview. Generation reports preserve field-level fit, shrink, wrap, and appendix decisions.
+
+---
+
 ## ✍️ Secure Document Signatures
 
 Advisio treats a signature as a final academic or institutional decision—not as a routine document comment. Every signing action requires the signer to review the exact PDF version, position a private PNG signature, confirm the action, and re-enter their password.

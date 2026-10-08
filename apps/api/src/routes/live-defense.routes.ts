@@ -3,6 +3,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { canAccessCollege, getCollegeScope } from "../lib/college-scope.js";
+import { defensePacketService } from "../services/defense-packet.service.js";
 
 const router = Router();
 const FACILITATOR_ROLES = new Set(["RESEARCH_COORDINATOR", "RPO", "SYSTEM_ADMIN"]);
@@ -389,10 +390,11 @@ router.put("/defense-sessions/:id/evaluation", requireAuth, async (req: Request,
       lockedAt,
       integrityHash,
     };
+    const generatedVersion = final ? await defensePacketService.generateEvaluation(session.id, req.user!.id, data) : null;
     const evaluation = existing
       ? await prisma.evaluation.update({ where: { id: existing.id }, data })
       : await prisma.evaluation.create({ data });
-    res.json({ evaluation, locked: final, calculatedTotal: totalScore });
+    res.json({ evaluation, generatedVersion, locked: final, calculatedTotal: totalScore });
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to save the live evaluation." });
   }
