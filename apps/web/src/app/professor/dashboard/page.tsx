@@ -12,10 +12,15 @@ import { SubmissionDocumentPreview } from "@/components/professor/SubmissionDocu
 import { ProfessorDeanRequestModal } from "@/components/professor/ProfessorDeanRequestModal";
 import { DefensePacketConfigurator } from "@/components/professor/DefensePacketConfigurator";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
+import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
 
 function ProfessorDashboardContent() {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
+  const requestedWorkflowView = searchParams.get("workflowView");
+  const workflowView = ["overview", "milestones", "resources"].includes(requestedWorkflowView || "")
+    ? requestedWorkflowView as "overview" | "milestones" | "resources"
+    : "overview";
   const { isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
 
@@ -198,6 +203,9 @@ function ProfessorDashboardContent() {
       const topList = workflowData.workflows.map((w: any) => ({
         id: w.id,
         name: w.name,
+        description: w.description,
+        status: w.status,
+        version: w.version,
         inviteCode: w.inviteCode,
         inviteExpiresAt: w.inviteExpiresAt,
       }));
@@ -250,6 +258,12 @@ function ProfessorDashboardContent() {
   const [newWorkflowResearchTypeId, setNewWorkflowResearchTypeId] = useState("");
   const [newMilestoneScope, setNewMilestoneScope] = useState("Milestone");
   const [selectedTopicId, setSelectedTopicId] = useState("");
+  const { data: workflowResourceSummary } = useQuery({
+    queryKey: ["workflow-resources", selectedTopicId],
+    queryFn: () => apiClient.get<{ resources: any[] }>(`/api/workflows/${selectedTopicId}/resources`),
+    enabled: Boolean(selectedTopicId),
+    staleTime: 30_000,
+  });
   const [deadlineDays, setDeadlineDays] = useState("");
   const [newMilestoneRequiresDocument, setNewMilestoneRequiresDocument] =
     useState(true);
@@ -606,6 +620,9 @@ function ProfessorDashboardContent() {
   };
 
   const router = useRouter();
+  const setWorkflowView = (view: "overview" | "milestones" | "resources") => {
+    router.push(`/professor/dashboard?tab=builder&workflowView=${view}`);
+  };
   const handleTabChange = (tab: string) => {
     if (tab !== "submissions") {
       setSelectedSubmission(null);
@@ -628,6 +645,11 @@ function ProfessorDashboardContent() {
       (a, b) =>
         new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
     );
+  const selectedWorkflow = topics.find((topic: any) => topic.id === selectedTopicId) || null;
+  const selectedWorkflowMilestones = milestones.filter((item) => item.topicId === selectedTopicId);
+  const workflowRequirementCount = selectedWorkflowMilestones.reduce((sum, item) => sum + (item.tasks?.length || 0), 0);
+  const workflowApprovalCount = selectedWorkflowMilestones.filter((item) => item.locked).length;
+  const workflowEnrollmentCount = acceptedResearchers.filter((item: any) => item.workflowId === selectedTopicId || item.workflow?.id === selectedTopicId).length;
   const needsReviewCount = submissions.filter((submission) =>
     ["SUBMITTED", "UNDER_REVIEW"].includes(submission.status),
   ).length;
@@ -3558,12 +3580,14 @@ function ProfessorDashboardContent() {
                           Research workflow
                         </h2>
                         <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
-                          Draft
+                          {selectedWorkflow?.status
+                            ? selectedWorkflow.status.toLowerCase().replace(/^\w/, (letter: string) => letter.toUpperCase())
+                            : "No workflow selected"}
                         </span>
                       </div>
                       <p className="mt-1 text-sm text-slate-500">
-                        Arrange the milestones students complete from proposal
-                        to final submission.
+                        Organize the workflow structure, milestones, and shared
+                        academic resources.
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -3631,6 +3655,66 @@ function ProfessorDashboardContent() {
                     </div>
                   )}
                 </section>
+                <div className="overflow-x-auto border-b border-slate-200 bg-white px-2 shadow-sm" role="tablist" aria-label="Workflow sections">
+                  <div className="flex min-w-max gap-1">
+                    {([
+                      { id: "overview", label: "Overview", icon: "ti-layout-dashboard" },
+                      { id: "milestones", label: "Milestones", icon: "ti-route" },
+                      { id: "resources", label: "Guides & Templates", icon: "ti-books" },
+                    ] as const).map((item, index, items) => (
+                      <button
+                        key={item.id}
+                        id={`workflow-tab-${item.id}`}
+                        type="button"
+                        role="tab"
+                        aria-selected={workflowView === item.id}
+                        aria-controls={`workflow-panel-${item.id}`}
+                        tabIndex={workflowView === item.id ? 0 : -1}
+                        onClick={() => setWorkflowView(item.id)}
+                        onKeyDown={(event) => {
+                          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+                          event.preventDefault();
+                          const direction = event.key === "ArrowRight" ? 1 : -1;
+                          const next = items[(index + direction + items.length) % items.length];
+                          setWorkflowView(next.id);
+                          window.setTimeout(() => document.getElementById(`workflow-tab-${next.id}`)?.focus(), 0);
+                        }}
+                        className={`relative flex items-center gap-2 whitespace-nowrap px-5 py-4 text-sm font-extrabold transition ${workflowView === item.id ? "text-[#173f63]" : "text-slate-500 hover:text-[#173f63]"}`}
+                      >
+                        <i className={`ti ${item.icon}`} />
+                        {item.label}
+                        {workflowView === item.id && <span className="absolute inset-x-3 bottom-0 h-1 rounded-t-full bg-[#f6a800]" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {workflowView === "overview" && (
+                  <section id="workflow-panel-overview" role="tabpanel" aria-labelledby="workflow-tab-overview" className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#C58A18]">Selected workflow</p>
+                      <h3 className="mt-2 text-xl font-black text-[#102f49]">{selectedWorkflow?.name || "Create your first workflow"}</h3>
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">{selectedWorkflow?.description || "Build a reusable research process, share official guides, and invite researchers when it is ready."}</p>
+                      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        {[
+                          ["Milestones", selectedWorkflowMilestones.length, "ti-route"],
+                          ["Requirements", workflowRequirementCount, "ti-upload"],
+                          ["Guides & templates", workflowResourceSummary?.resources?.length || 0, "ti-books"],
+                          ["Researchers", workflowEnrollmentCount, "ti-users"],
+                        ].map(([label, value, icon]) => <div key={String(label)} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><i className={`ti ${icon} text-lg text-[#C58A18]`} /><strong className="mt-3 block text-2xl font-black text-[#102f49]">{value}</strong><span className="text-xs font-bold text-slate-500">{label}</span></div>)}
+                      </div>
+                      <div className="mt-6 flex flex-wrap gap-2">
+                        <button type="button" onClick={() => { setWorkflowView("milestones"); setCreatingMilestone(true); }} disabled={!selectedTopicId} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-40"><i className="ti ti-plus mr-1.5" />Add milestone</button>
+                        <button type="button" onClick={() => setWorkflowView("resources")} disabled={!selectedTopicId} className="rounded-xl border border-[#173f63] px-4 py-2.5 text-sm font-extrabold text-[#173f63] disabled:opacity-40"><i className="ti ti-upload mr-1.5" />Manage resources</button>
+                      </div>
+                    </div>
+                    <aside className="space-y-4">
+                      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><h3 className="font-extrabold text-[#102f49]">Workflow readiness</h3><div className="mt-4 space-y-3 text-sm"><div className="flex justify-between"><span className="text-slate-500">Version</span><strong>v{selectedWorkflow?.version || 1}</strong></div><div className="flex justify-between"><span className="text-slate-500">Approval gates</span><strong>{workflowApprovalCount}</strong></div><div className="flex justify-between"><span className="text-slate-500">Invitation</span><strong className={selectedWorkflow?.inviteCode ? "text-emerald-700" : "text-amber-700"}>{selectedWorkflow?.inviteCode ? "Ready" : "Not generated"}</strong></div></div></section>
+                      <section className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5"><h3 className="font-extrabold text-[#102f49]">Whole-workflow resources</h3><p className="mt-1 text-xs leading-5 text-slate-600">Guides and templates are shared with every enrolled researcher and are not tied to individual milestones.</p></section>
+                    </aside>
+                  </section>
+                )}
+                {workflowView === "resources" && <div id="workflow-panel-resources" role="tabpanel" aria-labelledby="workflow-tab-resources"><WorkflowResourcesCard workflowId={selectedTopicId} canManage /></div>}
+                {workflowView === "milestones" && <div id="workflow-panel-milestones" role="tabpanel" aria-labelledby="workflow-tab-milestones" className="flex flex-col gap-5">
                 {(workflowsError || workflowsLoading) && (
                   <section
                     className={`rounded-2xl border p-5 text-sm ${workflowsError ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-white text-slate-500"}`}
@@ -3841,6 +3925,7 @@ function ProfessorDashboardContent() {
                     </aside>
                   </div>
                 )}
+                </div>}
               </div>
             ),
             deployment: (

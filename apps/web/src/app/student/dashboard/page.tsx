@@ -1,5 +1,6 @@
 import React, { useState, Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
@@ -2011,6 +2012,7 @@ function StudentDashboardContent() {
             "version-control": renderSubmissionsHub(),
             milestones: (
               <div className="flex flex-col gap-5">
+                <WorkflowResourcesCard workflowId={activeProject?.workflowInstance?.workflow?.id || activeProject?.workflowInstance?.workflowId} />
                 <StudentGanttChart project={activeProject} />
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                   <h3 className="font-extrabold text-[#1b4264] text-[16px]">Milestone Details</h3>

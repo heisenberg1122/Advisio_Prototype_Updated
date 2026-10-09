@@ -34,9 +34,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   }
 
   const token = typeof window !== "undefined" ? localStorage.getItem("advisio_token") : null;
+  const isFormData = typeof FormData !== "undefined" && rest.body instanceof FormData;
 
   const requestHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
+    ...(!isFormData ? { "Content-Type": "application/json" } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(headers as Record<string, string>),
   };
@@ -69,4 +70,17 @@ export const apiClient = {
     request<T>(url, { method: "PUT", body: JSON.stringify(body), ...options }),
   delete: <T>(url: string, options?: RequestOptions) =>
     request<T>(url, { method: "DELETE", ...options }),
+  upload: <T>(url: string, body: FormData, options?: RequestOptions) =>
+    request<T>(url, { method: "POST", body, ...options }),
+  file: async (url: string) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("advisio_token") : null;
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new ApiError(data.error || "The file could not be opened.", response.status, data.details);
+    }
+    return response.blob();
+  },
 };
