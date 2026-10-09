@@ -10,7 +10,6 @@ import {
   Presentation,
   Sliders,
   LineChart,
-  CalendarClock,
   CalendarDays,
   Mail,
   MessageSquare,
@@ -25,7 +24,6 @@ const NAV_ITEMS = [
   { label: "Defense", href: "/professor/dashboard?tab=defense", tabName: "defense", icon: Presentation },
   { label: "Workflow", href: "/professor/dashboard?tab=builder", tabName: "builder", icon: Sliders },
   { label: "Progress", href: "/professor/dashboard?tab=tracking", tabName: "tracking", icon: LineChart },
-  { label: "Deadlines", href: "/professor/dashboard?tab=deadlines", tabName: "deadlines", icon: CalendarClock },
   { label: "Calendar", href: "/professor/calendar", icon: CalendarDays },
   { label: "Inbox", href: "/professor/inbox", icon: Mail },
 ];

@@ -109,6 +109,18 @@ This separation prevents workflow administration from accidentally deleting or h
 
 ---
 
+## 📥 Submission Review & Deadline Tracking
+
+The Professor Dashboard combines submission review and deadline monitoring under a single **Submissions** navigation item. Professors can filter the workspace by a specific workflow or use **All workflows**, search requirements and research groups, and switch between **Review Queue** and **Deadline Tracker** without losing the selected workflow context.
+
+The Review Queue retains the complete document-review flow with status filters for work needing review, revision requests, approvals, and all submissions. Results can be sorted by oldest awaiting review, newest submission, research group, or milestone order.
+
+The Deadline Tracker includes requirements even when a group has not submitted a document. Active deadlines are calculated from the workflow instance start or the transition into a milestone plus the requirement's relative due-day setting. Dates for milestones that have not activated yet are shown as **Projected** and are never classified as overdue. Professors can filter upcoming, overdue, no-deadline, or all requirements and send targeted reminders only for selected unsubmitted, overdue, or revision-required work.
+
+The former standalone **Deadlines** navigation item redirects to **Submissions → Deadline Tracker** so existing links remain useful while the professor interface presents one consolidated deliverable workspace.
+
+---
+
 ## 📬 Internal Inbox & Dean Approval Workflow
 
 Every role portal includes an internal Inbox with **Inbox**, **Sent**, and **Drafts** folders. Users can compose messages, select an active recipient by name and role, continue a threaded conversation, and attach up to five files with a maximum size of 10 MB per file. Mail threads and attachment downloads are authorization-scoped to their participants.

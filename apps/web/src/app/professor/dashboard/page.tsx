@@ -15,19 +15,23 @@ import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
 import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
 import { MilestoneComposer } from "@/components/workflow/MilestoneComposer";
 import { WorkflowParticipantsCard } from "@/components/workflow/WorkflowParticipantsCard";
+import { WorkflowDeadlineTracker, type WorkflowDeadlineRow } from "@/components/workflow/WorkflowDeadlineTracker";
 
 function ProfessorDashboardContent() {
   // Kept temporarily while the new composer and workflow workspace replace the
   // legacy drawer markup in a follow-up cleanup pass.
   const legacyWorkflowUiEnabled = false;
   const searchParams = useSearchParams();
-  const activeTab = searchParams.get("tab") || "overview";
+  const requestedTab = searchParams.get("tab") || "overview";
+  const activeTab = requestedTab === "deadlines" ? "submissions" : requestedTab;
   const requestedWorkflowView = searchParams.get("workflowView");
   const workflowView = requestedWorkflowView === "resources"
     ? "resources"
     : requestedWorkflowView === "participants"
       ? "participants"
       : "milestones";
+  const submissionView = requestedTab === "deadlines" || searchParams.get("submissionView") === "deadlines" ? "deadlines" : "review";
+  const submissionWorkflowId = searchParams.get("workflowId") || "ALL";
   const { isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
 
@@ -184,6 +188,10 @@ function ProfessorDashboardContent() {
             (member: any) => member.projectRole === "ADVISER",
           )?.user || null,
         currentStage: p.workflowInstance?.currentStage || null,
+        workflowId: p.workflowInstance?.workflowId || null,
+        workflowName: p.workflowInstance?.workflow?.name || "Research workflow",
+        workflowStartedAt: p.workflowInstance?.startedAt || null,
+        workflowTransitions: p.workflowInstance?.transitions || [],
         workflowStages: p.workflowInstance?.workflow?.stages || [],
         taskSubmissions: p.taskSubmissions || [],
         progress: calculateWorkflowProgress(p),
@@ -203,7 +211,6 @@ function ProfessorDashboardContent() {
   const [topics, setTopics] = useState<any[]>([]);
   const [milestones, setMilestones] = useState<any[]>([]);
   const [workflowStatus, setWorkflowStatus] = useState("Active Track");
-  const [deadlineAlerts, setDeadlineAlerts] = useState(0);
 
   useEffect(() => {
     if (workflowData?.workflows) {
@@ -299,6 +306,12 @@ function ProfessorDashboardContent() {
     null,
   );
   const [submissionFilter, setSubmissionFilter] = useState("NEEDS_REVIEW");
+  const [submissionSearch, setSubmissionSearch] = useState("");
+  const [submissionSort, setSubmissionSort] = useState("OLDEST_REVIEW");
+  const [deadlineFilter, setDeadlineFilter] = useState<"UPCOMING" | "OVERDUE" | "NO_DEADLINE" | "ALL">("UPCOMING");
+  const [deadlineSort, setDeadlineSort] = useState<"DUE_SOON" | "MOST_OVERDUE" | "GROUP" | "MILESTONE">("DUE_SOON");
+  const [selectedDeadlineKeys, setSelectedDeadlineKeys] = useState<string[]>([]);
+  const [deadlineReminderSaving, setDeadlineReminderSaving] = useState(false);
   const [reviewFeedback, setReviewFeedback] = useState("");
   const [reviewSaving, setReviewSaving] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -660,6 +673,26 @@ function ProfessorDashboardContent() {
   };
 
   const router = useRouter();
+  const updateSubmissionQuery = (updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", "submissions");
+    Object.entries(updates).forEach(([key, value]) => {
+      if (!value || value === "ALL") params.delete(key);
+      else params.set(key, value);
+    });
+    router.push(`/professor/dashboard?${params.toString()}`);
+  };
+
+  useEffect(() => {
+    setSelectedDeadlineKeys([]);
+  }, [submissionWorkflowId]);
+
+  useEffect(() => {
+    if (requestedTab === "deadlines") {
+      router.replace("/professor/dashboard?tab=submissions&submissionView=deadlines");
+    }
+  }, [requestedTab, router]);
+
   const setWorkflowView = (view: "milestones" | "resources" | "participants") => {
     router.push(`/professor/dashboard?tab=builder&workflowView=${view}`);
   };
@@ -677,6 +710,8 @@ function ProfessorDashboardContent() {
         ...submission,
         projectId: project.id,
         projectTitle: project.title,
+        workflowId: project.workflowId,
+        workflowName: project.workflowName,
         currentStage: project.currentStage,
         members: project.members,
       })),
@@ -699,15 +734,97 @@ function ProfessorDashboardContent() {
   const selectedWorkflowParticipants = acceptedResearchers.filter(
     (item: any) => item.workflowId === selectedTopicId || item.workflow?.id === selectedTopicId,
   );
-  const needsReviewCount = submissions.filter((submission) =>
+  const scopedSubmissions = submissions.filter((submission) =>
+    submissionWorkflowId === "ALL" || submission.workflowId === submissionWorkflowId,
+  );
+  const needsReviewCount = scopedSubmissions.filter((submission) =>
     ["SUBMITTED", "UNDER_REVIEW"].includes(submission.status),
   ).length;
-  const filteredSubmissions = submissions.filter((submission) => {
-    if (submissionFilter === "ALL") return true;
-    if (submissionFilter === "NEEDS_REVIEW")
-      return ["SUBMITTED", "UNDER_REVIEW"].includes(submission.status);
-    return submission.status === submissionFilter;
+  const filteredSubmissions = scopedSubmissions
+    .filter((submission) => {
+      const statusMatches = submissionFilter === "ALL"
+        || (submissionFilter === "NEEDS_REVIEW" && ["SUBMITTED", "UNDER_REVIEW"].includes(submission.status))
+        || submission.status === submissionFilter;
+      const query = submissionSearch.trim().toLowerCase();
+      const searchMatches = !query || [submission.task?.title, submission.document?.title, submission.projectTitle, submission.submittedByUser?.firstName, submission.submittedByUser?.lastName]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+      return statusMatches && searchMatches;
+    })
+    .sort((a, b) => {
+      if (submissionSort === "GROUP") return a.projectTitle.localeCompare(b.projectTitle);
+      if (submissionSort === "MILESTONE") return (a.task?.sequence || 0) - (b.task?.sequence || 0);
+      const delta = new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime();
+      return submissionSort === "NEWEST" ? -delta : delta;
+    });
+
+  const deadlineRows: WorkflowDeadlineRow[] = projects.flatMap((project: any) => {
+    if (submissionWorkflowId !== "ALL" && project.workflowId !== submissionWorkflowId) return [];
+    const stages = [...(project.workflowStages || [])].sort((a: any, b: any) => a.sequence - b.sequence);
+    const startedAt = project.workflowStartedAt ? new Date(project.workflowStartedAt) : null;
+    return stages.flatMap((stage: any, stageIndex: number) => {
+      const transition = (project.workflowTransitions || []).find((item: any) => item.toStageId === stage.id);
+      const actualActivation = transition?.createdAt
+        ? new Date(transition.createdAt)
+        : stageIndex === 0 && startedAt
+          ? startedAt
+          : null;
+      const projectedOffset = stages
+        .slice(0, stageIndex)
+        .reduce((days: number, previousStage: any) => days + Number(previousStage.deadlineDays || 0), 0);
+      return (stage.tasks || []).map((task: any) => {
+        const dueDays = task.dueDays ?? stage.deadlineDays;
+        const projected = !actualActivation && Boolean(startedAt);
+        const activation = actualActivation || (startedAt
+          ? new Date(startedAt.getTime() + projectedOffset * 86_400_000)
+          : null);
+        const dueAt = activation && dueDays != null
+          ? new Date(activation.getTime() + Number(dueDays) * 86_400_000)
+          : null;
+        const submission = (project.taskSubmissions || []).find((item: any) => item.taskId === task.id);
+        let status: WorkflowDeadlineRow["status"] = dueAt ? "NOT_SUBMITTED" : "NO_DEADLINE";
+        if (submission?.status === "APPROVED") status = "APPROVED";
+        else if (submission?.status === "REVISION_REQUIRED") status = dueAt && !projected && dueAt.getTime() < Date.now() ? "REVISION_OVERDUE" : "REVISION_REQUIRED";
+        else if (submission) status = dueAt && new Date(submission.submittedAt).getTime() > dueAt.getTime() ? "SUBMITTED_LATE" : "SUBMITTED";
+        else if (dueAt && !projected && dueAt.getTime() < Date.now()) status = "OVERDUE";
+        return {
+          key: `${project.id}:${task.id}`,
+          researchId: project.id,
+          taskId: task.id,
+          workflowId: project.workflowId,
+          workflowName: project.workflowName,
+          projectTitle: project.title,
+          milestoneName: stage.name,
+          milestoneSequence: stage.sequence,
+          requirementTitle: task.title,
+          dueAt: dueAt?.toISOString() || null,
+          projected,
+          status,
+        };
+      });
+    });
+  }).filter((row) => {
+    const query = submissionSearch.trim().toLowerCase();
+    return !query || [row.requirementTitle, row.projectTitle, row.milestoneName, row.workflowName]
+      .some((value) => String(value).toLowerCase().includes(query));
   });
+
+  const handleSendDeadlineReminders = async () => {
+    const items = deadlineRows
+      .filter((row) => selectedDeadlineKeys.includes(row.key))
+      .map((row) => ({ researchId: row.researchId, taskId: row.taskId }));
+    if (!items.length) return;
+    setDeadlineReminderSaving(true);
+    try {
+      const result = await apiClient.post<{ recipientCount: number }>("/api/workflows/deadlines/reminders", { items });
+      setSelectedDeadlineKeys([]);
+      triggerToast(`Deadline reminder sent to ${result.recipientCount} researcher${result.recipientCount === 1 ? "" : "s"}.`);
+    } catch (error: any) {
+      triggerToast(error?.message || "Deadline reminders could not be sent.");
+    } finally {
+      setDeadlineReminderSaving(false);
+    }
+  };
 
   const openSubmissionReview = (submission: any) => {
     setSelectedSubmission(submission);
@@ -3385,6 +3502,48 @@ function ProfessorDashboardContent() {
             ) : (
               <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">Professor workspace</p>
+                      <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">Student submissions</h2>
+                      <p className="mt-1 text-sm text-slate-500">Review submitted work and monitor requirement deadlines from one place.</p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:w-[620px]">
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                        Workflow
+                        <select value={submissionWorkflowId} onChange={(event) => updateSubmissionQuery({ workflowId: event.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold normal-case tracking-normal text-[#102f49]">
+                          <option value="ALL">All workflows</option>
+                          {topics.map((workflow) => <option key={workflow.id} value={workflow.id}>{workflow.name}</option>)}
+                        </select>
+                      </label>
+                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                        Search
+                        <span className="relative mt-1.5 block">
+                          <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input value={submissionSearch} onChange={(event) => setSubmissionSearch(event.target.value)} placeholder="Requirement or research group" className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-3 text-sm font-normal normal-case tracking-normal outline-none focus:border-[#173f63]" />
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="mt-5 flex w-fit rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Submission workspace views">
+                    <button type="button" role="tab" aria-selected={submissionView === "review"} onClick={() => updateSubmissionQuery({ submissionView: null })} className={`rounded-lg px-4 py-2 text-sm font-extrabold transition ${submissionView === "review" ? "bg-white text-[#173f63] shadow-sm" : "text-slate-500"}`}>Review Queue</button>
+                    <button type="button" role="tab" aria-selected={submissionView === "deadlines"} onClick={() => updateSubmissionQuery({ submissionView: "deadlines" })} className={`rounded-lg px-4 py-2 text-sm font-extrabold transition ${submissionView === "deadlines" ? "bg-white text-[#173f63] shadow-sm" : "text-slate-500"}`}>Deadline Tracker</button>
+                  </div>
+                </section>
+                {submissionView === "deadlines" ? (
+                  <WorkflowDeadlineTracker
+                    rows={deadlineRows}
+                    filter={deadlineFilter}
+                    sort={deadlineSort}
+                    selectedKeys={selectedDeadlineKeys}
+                    reminderSaving={deadlineReminderSaving}
+                    onFilterChange={(value) => { setDeadlineFilter(value); setSelectedDeadlineKeys([]); }}
+                    onSortChange={setDeadlineSort}
+                    onSelectionChange={setSelectedDeadlineKeys}
+                    onSendReminders={() => void handleSendDeadlineReminders()}
+                  />
+                ) : (<>
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div>
                       <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
@@ -3421,6 +3580,15 @@ function ProfessorDashboardContent() {
                         </button>
                       ))}
                     </div>
+                    <label className="text-xs font-bold text-slate-500">
+                      Sort by
+                      <select value={submissionSort} onChange={(event) => setSubmissionSort(event.target.value)} className="ml-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+                        <option value="OLDEST_REVIEW">Oldest awaiting review</option>
+                        <option value="NEWEST">Newest submitted</option>
+                        <option value="GROUP">Research group A–Z</option>
+                        <option value="MILESTONE">Milestone order</option>
+                      </select>
+                    </label>
                   </div>
                 </section>
                 <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -3479,6 +3647,7 @@ function ProfessorDashboardContent() {
                     )}
                   </div>
                 </section>
+                </>)}
               </div>
             ),
             monitoring: (
@@ -4182,34 +4351,6 @@ function ProfessorDashboardContent() {
                   <div className="text-[11px] text-slate-500 font-medium">
                     2. Secure Decentralized Grading — Sarah Jenkins (Released)
                   </div>
-                </div>
-              </div>
-            ),
-            deadlines: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">
-                  Deadline Enforcement & Monitoring
-                </h3>
-                <p className="text-[11px] text-slate-400 font-bold">
-                  Set academic date thresholds, enforce compliance, and
-                  broadcast alerts.
-                </p>
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-[12.5px] mt-2 shadow-sm text-slate-650 flex flex-col gap-2">
-                  <div>
-                    <strong>Upcoming Submission Date:</strong> July 15, 2026
-                  </div>
-                  <div>
-                    <strong>Alerts State:</strong> {deadlineAlerts} Active
-                    Warnings
-                  </div>
-                  <button
-                    onClick={() =>
-                      triggerToast("Reminders broadcast to all groups.")
-                    }
-                    className="px-4 py-2 bg-[#ffa400] text-[#1b4264] font-extrabold rounded-lg border border-[#ffa400] self-start mt-2"
-                  >
-                    Broadcast Reminders
-                  </button>
                 </div>
               </div>
             ),

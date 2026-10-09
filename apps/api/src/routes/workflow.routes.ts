@@ -665,6 +665,72 @@ router.delete(
   },
 );
 
+// POST /api/workflows/deadlines/reminders — notify researchers selected from the professor deadline tracker.
+router.post(
+  "/deadlines/reminders",
+  requireAuth,
+  requirePermission(Permissions.WORKFLOW_EDIT),
+  async (req: Request, res: Response) => {
+    try {
+      const items = Array.isArray(req.body?.items) ? req.body.items.slice(0, 100) : [];
+      if (!items.length) {
+        return void res.status(400).json({ error: "Select at least one deadline before sending reminders." });
+      }
+      const researchIds: string[] = Array.from(new Set<string>(items.map((item: any) => String(item.researchId || "")).filter((value: string) => Boolean(value))));
+      const taskIds: string[] = Array.from(new Set<string>(items.map((item: any) => String(item.taskId || "")).filter((value: string) => Boolean(value))));
+      const [projects, tasks] = await Promise.all([
+        prisma.researchProject.findMany({
+          where: { id: { in: researchIds }, status: { not: "ARCHIVED" }, workflowInstance: { isNot: null } },
+          select: {
+            id: true,
+            title: true,
+            workflowInstance: { select: { workflowId: true } },
+            members: {
+              where: { leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } },
+              select: { userId: true },
+            },
+          },
+        }),
+        prisma.workflowTask.findMany({
+          where: { id: { in: taskIds } },
+          select: { id: true, title: true, stage: { select: { workflowId: true } } },
+        }),
+      ]);
+      const projectById = new Map(projects.map((project) => [project.id, project]));
+      const taskById = new Map(tasks.map((task) => [task.id, task]));
+      const workflowIds = Array.from(new Set(projects.map((project) => project.workflowInstance?.workflowId).filter(Boolean))) as string[];
+      const accessResults = await Promise.all(workflowIds.map((workflowId) => workflowAccess(workflowId, req.user!)));
+      const manageableWorkflowIds = new Set(accessResults.filter((result) => result?.manages).map((result) => result!.workflow.id));
+      const notifications = new Map<string, any>();
+
+      for (const item of items) {
+        const project = projectById.get(String(item.researchId || ""));
+        const task = taskById.get(String(item.taskId || ""));
+        const workflowId = project?.workflowInstance?.workflowId;
+        if (!project || !task || !workflowId || task.stage.workflowId !== workflowId || !manageableWorkflowIds.has(workflowId)) continue;
+        for (const member of project.members) {
+          notifications.set(`${member.userId}:${task.id}`, {
+            recipientId: member.userId,
+            type: "DEADLINE_APPROACHING" as const,
+            title: `Reminder: ${task.title}`,
+            message: `${project.title}: ${task.title} still needs your attention. Please check the workflow deadline tracker for the current schedule.`,
+            entityType: "WorkflowTask",
+            entityId: task.id,
+          });
+        }
+      }
+
+      if (!notifications.size) {
+        return void res.status(400).json({ error: "No eligible researchers were found for the selected deadlines." });
+      }
+      const result = await prisma.notification.createMany({ data: Array.from(notifications.values()) });
+      res.json({ success: true, recipientCount: result.count });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to send deadline reminders." });
+    }
+  },
+);
+
 // POST /api/workflows/:id/stages
 router.post(
   "/:id/stages",

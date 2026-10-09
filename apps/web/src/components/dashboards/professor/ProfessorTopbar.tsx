@@ -16,7 +16,6 @@ const TITLES: Record<string, string> = {
   workflow: "Research Workflow",
   tracking: "Group Progress",
   completion: "Completion Status",
-  deadlines: "Deadlines",
   settings: "Settings",
 };
 
