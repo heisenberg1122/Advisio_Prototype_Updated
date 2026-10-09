@@ -11,8 +11,72 @@ import { requireAuth } from "../middleware/auth";
 import { requirePermission } from "../middleware/rbac";
 import { getCollegeScope } from "../lib/college-scope.js";
 import { randomBytes } from "node:crypto";
+import multer from "multer";
+import fs from "node:fs";
+import { googleDriveService } from "../services/google-drive.service.js";
 
 const router = Router();
+const resourceUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    const allowed = new Set([
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ]);
+    if (!allowed.has(file.mimetype)) {
+      callback(new Error("Only PDF, DOC, and DOCX files are allowed."));
+      return;
+    }
+    callback(null, true);
+  },
+});
+
+const resourceSelect = {
+  id: true,
+  workflowId: true,
+  title: true,
+  description: true,
+  fileName: true,
+  mimeType: true,
+  fileSize: true,
+  version: true,
+  uploadedBy: true,
+  createdAt: true,
+  updatedAt: true,
+  uploader: { select: { firstName: true, lastName: true } },
+} as const;
+
+function serializeResource(resource: any) {
+  return { ...resource, fileSize: Number(resource.fileSize) };
+}
+
+async function workflowAccess(workflowId: string, user: NonNullable<Request["user"]>) {
+  const workflow = await prisma.workflow.findUnique({ where: { id: workflowId } });
+  if (!workflow) return null;
+  const researchType = await prisma.researchType.findUnique({
+    where: { id: workflow.researchTypeId },
+    select: { program: { select: { id: true, collegeId: true } } },
+  });
+  const program = researchType?.program;
+  const scope = getCollegeScope(user);
+  const manages = user.roles.some((role) => ["RESEARCH_COORDINATOR", "RPO", "SYSTEM_ADMIN"].includes(role)) &&
+    (scope.kind === "institution" || Boolean(scope.kind === "college" && program && scope.collegeId === program.collegeId && (!user.programId || user.programId === program.id)));
+  if (manages) return { workflow, manages: true };
+  const [enrollment, membership] = await Promise.all([
+    prisma.workflowEnrollment.findFirst({ where: { workflowId, userId: user.id, status: "ACTIVE" }, select: { id: true } }),
+    prisma.researchMember.findFirst({ where: { userId: user.id, leftAt: null, research: { workflowInstance: { is: { workflowId } } } }, select: { id: true } }),
+  ]);
+  return enrollment || membership ? { workflow, manages: false } : null;
+}
+
+async function workflowResourceFolder(workflow: { id: string; name: string }) {
+  return googleDriveService.ensureFolderPath([
+    { name: "02_WORKFLOW_RESOURCES", key: "workflow-resources" },
+    { name: workflow.name, key: `workflow:${workflow.id}`, entityType: "WORKFLOW", entityId: workflow.id },
+  ]);
+}
 
 async function normalizeWorkflowStageSequences(tx: any, workflowId: string) {
   const stages = await tx.workflowStage.findMany({
@@ -40,6 +104,144 @@ async function normalizeWorkflowStageSequences(tx: any, workflowId: string) {
     });
   }
 }
+
+// Workflow-wide reference files shared with every researcher in the workflow.
+router.get("/:id/resources", requireAuth, async (req, res) => {
+  try {
+    const access = await workflowAccess(req.params.id as string, req.user!);
+    if (!access) return void res.status(404).json({ error: "Workflow resources were not found." });
+    const resources = await prisma.workflowResource.findMany({
+      where: { workflowId: access.workflow.id },
+      orderBy: [{ updatedAt: "desc" }, { title: "asc" }],
+      select: resourceSelect,
+    });
+    res.json({ resources: resources.map(serializeResource), canManage: access.manages });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to load workflow resources." });
+  }
+});
+
+router.post("/:id/resources", requireAuth, requirePermission(Permissions.WORKFLOW_EDIT), resourceUpload.single("file"), async (req, res) => {
+  try {
+    const access = await workflowAccess(req.params.id as string, req.user!);
+    if (!access?.manages) return void res.status(404).json({ error: "Workflow not found in your academic scope." });
+    if (!req.file) return void res.status(400).json({ error: "Select a PDF, DOC, or DOCX file." });
+    const title = String(req.body.title || "").trim();
+    if (!title || title.length > 180) return void res.status(400).json({ error: "Enter a resource title of up to 180 characters." });
+    const description = String(req.body.description || "").trim().slice(0, 2000) || null;
+    const folderId = await workflowResourceFolder(access.workflow);
+    const stored = await googleDriveService.uploadFile({
+      folderId,
+      fileName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      buffer: req.file.buffer,
+      description: `${title} — ${access.workflow.name}`,
+      appProperties: { entityType: "WORKFLOW_RESOURCE", workflowId: access.workflow.id },
+    });
+    const resource = await prisma.$transaction(async (tx) => {
+      const created = await tx.workflowResource.create({
+        data: {
+          workflowId: access.workflow.id,
+          title,
+          description,
+          fileName: stored.fileName,
+          mimeType: stored.mimeType,
+          fileSize: BigInt(stored.sizeBytes),
+          storagePath: stored.storagePath,
+          googleDriveFileId: stored.fileId,
+          uploadedBy: req.user!.id,
+        },
+        select: resourceSelect,
+      });
+      await tx.auditLog.create({ data: { userId: req.user!.id, action: "CREATE", entityType: "WorkflowResource", entityId: created.id, newValues: { workflowId: access.workflow.id, title, fileName: stored.fileName, version: 1 }, ipAddress: req.ip, userAgent: req.get("user-agent") || null } });
+      const recipients = await tx.workflowEnrollment.findMany({ where: { workflowId: access.workflow.id, status: "ACTIVE" }, select: { userId: true }, distinct: ["userId"] });
+      if (recipients.length) await tx.notification.createMany({ data: recipients.map(({ userId }) => ({ recipientId: userId, type: "WORKFLOW_CHANGED" as const, title: "New workflow resource", message: `${title} was added to ${access.workflow.name}.`, entityType: "WORKFLOW_RESOURCE", entityId: created.id })) });
+      return created;
+    });
+    res.status(201).json({ resource: serializeResource(resource) });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to upload workflow resource." });
+  }
+});
+
+router.patch("/resources/:resourceId", requireAuth, requirePermission(Permissions.WORKFLOW_EDIT), async (req, res) => {
+  try {
+    const existing = await prisma.workflowResource.findUnique({ where: { id: req.params.resourceId as string } });
+    if (!existing) return void res.status(404).json({ error: "Workflow resource not found." });
+    const access = await workflowAccess(existing.workflowId, req.user!);
+    if (!access?.manages) return void res.status(404).json({ error: "Workflow resource not found." });
+    const title = String(req.body.title || "").trim();
+    if (!title || title.length > 180) return void res.status(400).json({ error: "Enter a resource title of up to 180 characters." });
+    const description = String(req.body.description || "").trim().slice(0, 2000) || null;
+    const resource = await prisma.$transaction(async (tx) => {
+      const updated = await tx.workflowResource.update({ where: { id: existing.id }, data: { title, description }, select: resourceSelect });
+      await tx.auditLog.create({ data: { userId: req.user!.id, action: "UPDATE", entityType: "WorkflowResource", entityId: existing.id, oldValues: { title: existing.title, description: existing.description }, newValues: { title, description }, ipAddress: req.ip, userAgent: req.get("user-agent") || null } });
+      return updated;
+    });
+    res.json({ resource: serializeResource(resource) });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to update workflow resource." });
+  }
+});
+
+router.post("/resources/:resourceId/replace", requireAuth, requirePermission(Permissions.WORKFLOW_EDIT), resourceUpload.single("file"), async (req, res) => {
+  try {
+    const existing = await prisma.workflowResource.findUnique({ where: { id: req.params.resourceId as string }, include: { workflow: true } });
+    if (!existing) return void res.status(404).json({ error: "Workflow resource not found." });
+    const access = await workflowAccess(existing.workflowId, req.user!);
+    if (!access?.manages) return void res.status(404).json({ error: "Workflow resource not found." });
+    if (!req.file) return void res.status(400).json({ error: "Select a replacement PDF, DOC, or DOCX file." });
+    const folderId = await workflowResourceFolder(existing.workflow);
+    const stored = await googleDriveService.uploadFile({ folderId, fileName: req.file.originalname, mimeType: req.file.mimetype, buffer: req.file.buffer, description: `${existing.title} — ${existing.workflow.name}`, appProperties: { entityType: "WORKFLOW_RESOURCE", workflowId: existing.workflowId } });
+    const nextVersion = existing.version + 1;
+    const resource = await prisma.$transaction(async (tx) => {
+      const updated = await tx.workflowResource.update({ where: { id: existing.id }, data: { fileName: stored.fileName, mimeType: stored.mimeType, fileSize: BigInt(stored.sizeBytes), storagePath: stored.storagePath, googleDriveFileId: stored.fileId, uploadedBy: req.user!.id, version: nextVersion }, select: resourceSelect });
+      await tx.auditLog.create({ data: { userId: req.user!.id, action: "UPDATE", entityType: "WorkflowResource", entityId: existing.id, oldValues: { fileName: existing.fileName, version: existing.version }, newValues: { fileName: stored.fileName, version: nextVersion }, ipAddress: req.ip, userAgent: req.get("user-agent") || null } });
+      const recipients = await tx.workflowEnrollment.findMany({ where: { workflowId: existing.workflowId, status: "ACTIVE" }, select: { userId: true }, distinct: ["userId"] });
+      if (recipients.length) await tx.notification.createMany({ data: recipients.map(({ userId }) => ({ recipientId: userId, type: "WORKFLOW_CHANGED" as const, title: "Workflow resource updated", message: `${existing.title} was updated to Version ${nextVersion}.`, entityType: "WORKFLOW_RESOURCE", entityId: existing.id })) });
+      return updated;
+    });
+    if (existing.googleDriveFileId) googleDriveService.deleteFile(existing.googleDriveFileId).catch(() => undefined);
+    res.json({ resource: serializeResource(resource) });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to replace workflow resource." });
+  }
+});
+
+router.get("/resources/:resourceId/file", requireAuth, async (req, res) => {
+  try {
+    const resource = await prisma.workflowResource.findUnique({ where: { id: req.params.resourceId as string } });
+    if (!resource || !(await workflowAccess(resource.workflowId, req.user!))) return void res.status(404).json({ error: "Workflow resource not found." });
+    await prisma.auditLog.create({ data: { userId: req.user!.id, action: "DOWNLOAD", entityType: "WorkflowResource", entityId: resource.id, ipAddress: req.ip, userAgent: req.get("user-agent") || null } });
+    const disposition = req.query.download === "1" ? "attachment" : "inline";
+    res.setHeader("Content-Type", resource.mimeType);
+    res.setHeader("Content-Disposition", `${disposition}; filename*=UTF-8''${encodeURIComponent(resource.fileName)}`);
+    if (fs.existsSync(resource.storagePath)) return void res.sendFile(resource.storagePath);
+    if (!resource.googleDriveFileId) return void res.status(404).json({ error: "The stored file is unavailable." });
+    const response = await googleDriveService.getFileStream(resource.googleDriveFileId);
+    response.data.pipe(res);
+  } catch (error: any) {
+    if (!res.headersSent) res.status(500).json({ error: error.message || "Failed to open workflow resource." });
+  }
+});
+
+router.delete("/resources/:resourceId", requireAuth, requirePermission(Permissions.WORKFLOW_EDIT), async (req, res) => {
+  try {
+    const existing = await prisma.workflowResource.findUnique({ where: { id: req.params.resourceId as string } });
+    if (!existing) return void res.status(404).json({ error: "Workflow resource not found." });
+    const access = await workflowAccess(existing.workflowId, req.user!);
+    if (!access?.manages) return void res.status(404).json({ error: "Workflow resource not found." });
+    await prisma.$transaction([
+      prisma.workflowResource.delete({ where: { id: existing.id } }),
+      prisma.auditLog.create({ data: { userId: req.user!.id, action: "DELETE", entityType: "WorkflowResource", entityId: existing.id, oldValues: { workflowId: existing.workflowId, title: existing.title, fileName: existing.fileName, version: existing.version }, ipAddress: req.ip, userAgent: req.get("user-agent") || null } }),
+    ]);
+    if (existing.googleDriveFileId) googleDriveService.deleteFile(existing.googleDriveFileId).catch(() => undefined);
+    else if (fs.existsSync(existing.storagePath)) fs.unlink(existing.storagePath, () => undefined);
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to remove workflow resource." });
+  }
+});
 
 // GET /api/workflows
 router.get("/", requireAuth, async (req: Request, res: Response) => {

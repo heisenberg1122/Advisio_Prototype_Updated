@@ -392,6 +392,7 @@ model User {
   announcementsCreated     SystemAnnouncement[]       @relation("AnnouncementCreator")
   workflowsCreated         Workflow[]                 @relation("WorkflowCreator")
   workflowEnrollments      WorkflowEnrollment[]
+  workflowResources        WorkflowResource[]
   defenseSessionsCreated   DefenseSession[]           @relation("DefenseSessionCreator")
   defenseInvitations       DefenseInvitation[]
   researcherProfile        ResearcherProfile?
@@ -406,6 +407,7 @@ model User {
   mailThreadsCreated       MailThread[]               @relation("MailThreadCreator")
   mailParticipants         MailParticipant[]
   mailMessages             MailMessage[]
+  signedMailAttachments    MailAttachment[]           @relation("MailAttachmentSigner")
   defensePacketsPublished  DefensePacket[]             @relation("DefensePacketPublisher")
   manuscriptReviews        PanelistManuscriptReview[]
   panelRecommendations     PanelistRecommendation[]
@@ -635,10 +637,34 @@ model Workflow {
   instances     WorkflowInstance[]
   creator       User                 @relation("WorkflowCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   enrollments   WorkflowEnrollment[]
+  resources     WorkflowResource[]
 
   @@unique([researchTypeId, version])
   @@index([status])
   @@map("workflows")
+}
+
+model WorkflowResource {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowId        String   @map("workflow_id") @db.Uuid
+  title             String   @db.VarChar(180)
+  description       String?  @db.Text
+  fileName          String   @map("file_name") @db.VarChar(255)
+  mimeType          String   @map("mime_type") @db.VarChar(100)
+  fileSize          BigInt   @map("file_size")
+  storagePath       String   @map("storage_path") @db.Text
+  googleDriveFileId String?  @map("google_drive_file_id") @db.VarChar(255)
+  version           Int      @default(1)
+  uploadedBy        String   @map("uploaded_by") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  uploader User     @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@index([workflowId, updatedAt])
+  @@index([uploadedBy])
+  @@map("workflow_resources")
 }
 
 model WorkflowStage {
@@ -921,17 +947,30 @@ model MailMessage {
 }
 
 model MailAttachment {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  messageId String   @map("message_id") @db.Uuid
-  fileName  String   @map("file_name") @db.VarChar(255)
-  mimeType  String   @map("mime_type") @db.VarChar(120)
-  fileSize  Int      @map("file_size")
-  fileData  Bytes    @map("file_data")
-  createdAt DateTime @default(now()) @map("created_at")
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId          String   @map("message_id") @db.Uuid
+  fileName           String   @map("file_name") @db.VarChar(255)
+  mimeType           String   @map("mime_type") @db.VarChar(120)
+  fileSize           Int      @map("file_size")
+  fileData           Bytes    @map("file_data")
+  sourceAttachmentId String?  @map("source_attachment_id") @db.Uuid
+  signedById         String?  @map("signed_by_id") @db.Uuid
+  signedAt           DateTime? @map("signed_at")
+  verificationCode   String?  @unique @map("verification_code") @db.VarChar(40)
+  originalFileHash   String?  @map("original_file_hash") @db.VarChar(64)
+  signedFileHash     String?  @map("signed_file_hash") @db.VarChar(64)
+  signaturePlacements Json?   @map("signature_placements")
+  createdAt          DateTime @default(now()) @map("created_at")
 
-  message MailMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message          MailMessage      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  sourceAttachment MailAttachment?  @relation("SignedMailAttachment", fields: [sourceAttachmentId], references: [id], onDelete: SetNull)
+  signedCopies     MailAttachment[] @relation("SignedMailAttachment")
+  signedBy         User?            @relation("MailAttachmentSigner", fields: [signedById], references: [id], onDelete: SetNull)
 
   @@index([messageId])
+  @@index([sourceAttachmentId])
+  @@index([signedById, signedAt])
+  @@unique([sourceAttachmentId, signedById])
   @@map("mail_attachments")
 }
 
