@@ -1209,8 +1209,8 @@ model DefensePacket {
   similarityReportVersionId       String?             @map("similarity_report_version_id") @db.Uuid
   recommendationTemplateVersionId String?             @map("recommendation_template_version_id") @db.Uuid
   evaluationTemplateVersionId     String?             @map("evaluation_template_version_id") @db.Uuid
-  recommendationFieldMappings     Json                @map("recommendation_field_mappings")
-  evaluationFieldMappings         Json                @map("evaluation_field_mappings")
+  recommendationFieldMappings     Json                @default("[]") @map("recommendation_field_mappings")
+  evaluationFieldMappings         Json                @default("[]") @map("evaluation_field_mappings")
   mappingVersion                  Int                 @default(1) @map("mapping_version")
   engineVersion                   String              @default("2.0") @map("engine_version") @db.VarChar(20)
   preflightReport                 Json?               @map("preflight_report")
@@ -1237,8 +1237,8 @@ model PanelistManuscriptReview {
   defenseSessionId  String    @map("defense_session_id") @db.Uuid
   panelistId        String    @map("panelist_id") @db.Uuid
   privateNotes      String?   @map("private_notes") @db.Text
-  annotations       Json
-  revisionChecklist Json      @map("revision_checklist")
+  annotations       Json      @default("[]")
+  revisionChecklist Json      @default("[]") @map("revision_checklist")
   reviewedAt        DateTime? @map("reviewed_at")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
@@ -1255,7 +1255,7 @@ model PanelistRecommendation {
   id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   defenseSessionId    String           @map("defense_session_id") @db.Uuid
   panelistId          String           @map("panelist_id") @db.Uuid
-  responses           Json
+  responses           Json             @default("{}")
   status              EvaluationStatus @default(DRAFT)
   generatedVersionId  String?          @unique @map("generated_version_id") @db.Uuid
   integrityHash       String?          @map("integrity_hash") @db.VarChar(64)
