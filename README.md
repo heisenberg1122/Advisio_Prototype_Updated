@@ -84,18 +84,26 @@ Advisio_Prototype_Updated/
 
 ---
 
-## 🔗 Researcher Workflow Invitations & Monitoring
+## 🔗 Research Workflow Authoring, Participants & Monitoring
+
+The Professor Dashboard uses a simplified, Google Classroom-inspired workflow workspace. Selecting a research workflow opens three contextual tabs: **Workflow**, **Guides & Templates**, and **Participants**. The Workflow tab shows the milestone sequence immediately, while a single **Create** menu provides submission milestones, approval checkpoints, academic events, and workflow-wide guides or templates.
+
+Milestones are created and edited through the same focused composer. The primary area contains the milestone title, student instructions, and submission requirements; completion mode, relative target duration, approval gating, and advanced milestone type settings remain in a secondary panel. New workflows continue to use relative durations so the same workflow can be reused without hardcoded calendar dates.
 
 Professors can generate a workflow invitation code and share its direct link with researchers. Invitation links are authentication-protected: a signed-out visitor is sent to the login page, and a successful researcher login returns the user to the original invitation. The invitation preview identifies the workflow and professor before the researcher chooses **Accept** or **Reject**.
 
 After acceptance, the researcher is sent directly to **Tasks & Requirements**, where the accepted workflow is shown as the active workflow. Researchers can also enter a professor-provided invitation code from that page and review the same confirmation screen before joining. Joined workflows remain visible before project registration, while task submission becomes available after a research project is registered and linked.
 
-The Professor Dashboard provides separate controls for workflow enrollments and workflow-linked projects:
+Each workflow maintains its own participant roster. For example, **BSIT 4A CAPSTONE** and **BSIT 4B CAPSTONE** display separate participant counts and lists even when both are managed by the same professor. The Participants tab shows only **Name**, **Student number**, **Email**, and **Joined**, with search and invitation controls above the table. Selecting a participant opens enrollment details and the removal action.
 
-- Removing a **researcher** revokes only that researcher's enrollment in the selected workflow. Existing project membership and submitted academic records are preserved.
+The Professor Dashboard separates workflow enrollment from project monitoring:
+
+- **Workflow → Participants** manages invitations, the workflow-specific researcher roster, and enrollment removal.
+- **Research Projects** provides the professor's combined project view across workflows; the former duplicate researcher roster has been removed from this section.
+- Removing a **participant** revokes only that researcher's enrollment in the selected workflow. Existing project membership and submitted academic records are preserved.
 - Removing a **project** detaches only its workflow assignment and removes it from active professor workflow monitoring. It does not archive or delete the research project.
 - The researcher retains access to the project, members, documents, submissions, and other academic records from the Researcher Dashboard.
-- Every removal requires a written reason. The API validates and records that reason in the audit log, and a removed researcher receives the reason in their notification.
+- Every participant removal requires a written reason between 5 and 500 characters. The API records the reason together with the workflow name, researcher identity, student number, email, enrollment status, and original joining date in the audit log. The removed researcher also receives the reason in their notification.
 
 This separation prevents workflow administration from accidentally deleting or hiding a researcher's underlying project data.
 

@@ -7,7 +7,7 @@ const TITLES: Record<string, string> = {
   overview: "Professor Dashboard",
   messages: "Messages",
   announcements: "Announcements",
-  monitoring: "Researchers & Projects",
+  monitoring: "Research Projects",
   submissions: "Student Submissions",
   defense: "Defense Management",
   builder: "Workflow Builder",

@@ -602,8 +602,16 @@ router.delete(
           }),
         },
         include: {
-          workflow: { select: { name: true } },
-          user: { select: { id: true } },
+          workflow: { select: { id: true, name: true } },
+          user: {
+            select: {
+              id: true,
+              universityId: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
         },
       });
 
@@ -633,8 +641,13 @@ router.delete(
             entityId: enrollment.id,
             oldValues: {
               workflowId: enrollment.workflowId,
+              workflowName: enrollment.workflow.name,
               researcherId: enrollment.userId,
+              researcherName: `${enrollment.user.firstName || ""} ${enrollment.user.lastName || ""}`.trim(),
+              studentNumber: enrollment.user.universityId,
+              researcherEmail: enrollment.user.email,
               status: enrollment.status,
+              joinedAt: enrollment.joinedAt.toISOString(),
             },
             newValues: { removalReason: reason },
             ipAddress: req.ip,

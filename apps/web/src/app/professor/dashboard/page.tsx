@@ -13,14 +13,21 @@ import { ProfessorDeanRequestModal } from "@/components/professor/ProfessorDeanR
 import { DefensePacketConfigurator } from "@/components/professor/DefensePacketConfigurator";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
 import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
+import { MilestoneComposer } from "@/components/workflow/MilestoneComposer";
+import { WorkflowParticipantsCard } from "@/components/workflow/WorkflowParticipantsCard";
 
 function ProfessorDashboardContent() {
+  // Kept temporarily while the new composer and workflow workspace replace the
+  // legacy drawer markup in a follow-up cleanup pass.
+  const legacyWorkflowUiEnabled = false;
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
   const requestedWorkflowView = searchParams.get("workflowView");
-  const workflowView = ["overview", "milestones", "resources"].includes(requestedWorkflowView || "")
-    ? requestedWorkflowView as "overview" | "milestones" | "resources"
-    : "overview";
+  const workflowView = requestedWorkflowView === "resources"
+    ? "resources"
+    : requestedWorkflowView === "participants"
+      ? "participants"
+      : "milestones";
   const { isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
 
@@ -252,6 +259,7 @@ function ProfessorDashboardContent() {
 
   // Form input controllers
   const [newMilestoneTitle, setNewMilestoneTitle] = useState("");
+  const [newMilestoneDescription, setNewMilestoneDescription] = useState("");
   const [creatingWorkflow, setCreatingWorkflow] = useState(false);
   const [newWorkflowName, setNewWorkflowName] = useState("");
   const [newWorkflowDescription, setNewWorkflowDescription] = useState("");
@@ -267,7 +275,9 @@ function ProfessorDashboardContent() {
   const [deadlineDays, setDeadlineDays] = useState("");
   const [newMilestoneRequiresDocument, setNewMilestoneRequiresDocument] =
     useState(true);
-  const [newMilestoneSubmissionMode, setNewMilestoneSubmissionMode] = useState("EITHER");
+  const [newMilestoneRequiresApproval, setNewMilestoneRequiresApproval] =
+    useState(false);
+  const [newMilestoneSubmissionMode, setNewMilestoneSubmissionMode] = useState("GROUP");
   const [selectedMilestoneId, setSelectedMilestoneId] = useState("");
   const [newRequirementTitle, setNewRequirementTitle] = useState("");
   const [newRequirementInstructions, setNewRequirementInstructions] =
@@ -276,9 +286,6 @@ function ProfessorDashboardContent() {
   const [newRequirementFileTypes, setNewRequirementFileTypes] =
     useState("PDF,DOCX");
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
-  const [monitoringView, setMonitoringView] = useState<
-    "researchers" | "projects"
-  >("researchers");
   const [monitoringSearch, setMonitoringSearch] = useState("");
   const [monitoringPendingRemoval, setMonitoringPendingRemoval] = useState<{
     kind: "researcher" | "project";
@@ -296,6 +303,7 @@ function ProfessorDashboardContent() {
   const [reviewSaving, setReviewSaving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [creatingMilestone, setCreatingMilestone] = useState(false);
+  const [showWorkflowCreateMenu, setShowWorkflowCreateMenu] = useState(false);
   const [showAdvancedMilestoneOptions, setShowAdvancedMilestoneOptions] =
     useState(false);
   const [editingMilestone, setEditingMilestone] = useState<any | null>(null);
@@ -306,6 +314,8 @@ function ProfessorDashboardContent() {
   const [milestoneEditDeadline, setMilestoneEditDeadline] = useState("");
   const [milestoneEditRequiresDocument, setMilestoneEditRequiresDocument] =
     useState(true);
+  const [milestoneEditRequiresApproval, setMilestoneEditRequiresApproval] =
+    useState(false);
   const [milestoneEditSubmissionMode, setMilestoneEditSubmissionMode] = useState("EITHER");
   const [workflowInvitation, setWorkflowInvitation] = useState<{ code: string; link: string } | null>(null);
   const [milestoneSaveStatus, setMilestoneSaveStatus] = useState<
@@ -336,7 +346,7 @@ function ProfessorDashboardContent() {
           { body: JSON.stringify({ reason }) },
         );
         await refetchEnrollments();
-        triggerToast("Researcher removed from the workflow.");
+        triggerToast("Participant removed. The reason was saved to audit history.");
       } else {
         await apiClient.post(
           `/api/research/${monitoringPendingRemoval.id}/remove-from-workflow`,
@@ -388,6 +398,21 @@ function ProfessorDashboardContent() {
     }
   };
 
+  const openNewMilestone = (
+    kind: "submission" | "approval" | "event" = "submission",
+  ) => {
+    setNewMilestoneTitle("");
+    setNewMilestoneDescription("");
+    setDeadlineDays("");
+    setNewMilestoneSubmissionMode("GROUP");
+    setNewMilestoneRequiresDocument(kind === "submission");
+    setNewMilestoneRequiresApproval(kind === "approval");
+    setNewMilestoneScope(kind === "approval" ? "Pre-requisite" : "Milestone");
+    setShowAdvancedMilestoneOptions(false);
+    setShowWorkflowCreateMenu(false);
+    setCreatingMilestone(true);
+  };
+
   const handleCreateMilestone = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMilestoneTitle.trim() || !selectedTopicId) return;
@@ -395,16 +420,21 @@ function ProfessorDashboardContent() {
     try {
       await apiClient.post(`/api/workflows/${selectedTopicId}/stages`, {
         name: newMilestoneTitle.trim(),
-        description: null,
+        description: newMilestoneDescription.trim() || null,
         category: newMilestoneScope,
         deadlineDays: deadlineDays ? Number(deadlineDays) : null,
-        requiresApproval: false,
+        requiresApproval: newMilestoneRequiresApproval,
         requiresDocument: newMilestoneRequiresDocument,
         submissionMode: newMilestoneSubmissionMode,
       });
       await refetchWorkflows();
       setNewMilestoneTitle("");
+      setNewMilestoneDescription("");
       setDeadlineDays("");
+      setNewMilestoneRequiresApproval(false);
+      setNewMilestoneRequiresDocument(true);
+      setNewMilestoneSubmissionMode("GROUP");
+      setNewMilestoneScope("Milestone");
       setCreatingMilestone(false);
       setShowAdvancedMilestoneOptions(false);
       triggerToast(`Milestone "${newMilestoneTitle.trim()}" saved.`);
@@ -415,12 +445,12 @@ function ProfessorDashboardContent() {
     }
   };
 
-  const handleCreateRequirement = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateRequirement = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!selectedMilestoneId || !newRequirementTitle.trim()) return;
     setSaving(true);
     try {
-      await apiClient.post(
+      const result = await apiClient.post<{ task: any }>(
         `/api/workflows/stages/${selectedMilestoneId}/tasks`,
         {
           title: newRequirementTitle.trim(),
@@ -428,6 +458,10 @@ function ProfessorDashboardContent() {
           dueDays: newRequirementDueDays ? Number(newRequirementDueDays) : null,
           allowedFileTypes: newRequirementFileTypes,
         },
+      );
+      setEditingMilestone((current: any) => current
+        ? { ...current, tasks: [...(current.tasks || []), result.task] }
+        : current,
       );
       await refetchWorkflows();
       setNewRequirementTitle("");
@@ -445,6 +479,10 @@ function ProfessorDashboardContent() {
     if (!window.confirm("Delete this submission requirement?")) return;
     try {
       await apiClient.delete(`/api/workflows/tasks/${taskId}`);
+      setEditingMilestone((current: any) => current
+        ? { ...current, tasks: (current.tasks || []).filter((task: any) => task.id !== taskId) }
+        : current,
+      );
       await refetchWorkflows();
       triggerToast("Requirement deleted.");
     } catch (error: any) {
@@ -572,6 +610,7 @@ function ProfessorDashboardContent() {
       milestone.deadlineDays == null ? "" : String(milestone.deadlineDays),
     );
     setMilestoneEditRequiresDocument(milestone.requiresDocument !== false);
+    setMilestoneEditRequiresApproval(Boolean(milestone.locked));
     setMilestoneEditSubmissionMode(milestone.submissionMode || "EITHER");
     setMilestoneSaveStatus("idle");
     setSelectedMilestoneId(milestone.id);
@@ -590,6 +629,7 @@ function ProfessorDashboardContent() {
           deadlineDays:
             milestoneEditDeadline === "" ? null : Number(milestoneEditDeadline),
           requiresDocument: milestoneEditRequiresDocument,
+          requiresApproval: milestoneEditRequiresApproval,
           submissionMode: milestoneEditSubmissionMode,
         }),
         minimumDelay,
@@ -620,7 +660,7 @@ function ProfessorDashboardContent() {
   };
 
   const router = useRouter();
-  const setWorkflowView = (view: "overview" | "milestones" | "resources") => {
+  const setWorkflowView = (view: "milestones" | "resources" | "participants") => {
     router.push(`/professor/dashboard?tab=builder&workflowView=${view}`);
   };
   const handleTabChange = (tab: string) => {
@@ -646,10 +686,19 @@ function ProfessorDashboardContent() {
         new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
     );
   const selectedWorkflow = topics.find((topic: any) => topic.id === selectedTopicId) || null;
+  const selectedWorkflowInvitation = workflowInvitation || (selectedWorkflow?.inviteCode
+    ? {
+        code: selectedWorkflow.inviteCode,
+        link: `${typeof window !== "undefined" ? window.location.origin : ""}/student/workflows/join/${selectedWorkflow.inviteCode}`,
+      }
+    : null);
   const selectedWorkflowMilestones = milestones.filter((item) => item.topicId === selectedTopicId);
   const workflowRequirementCount = selectedWorkflowMilestones.reduce((sum, item) => sum + (item.tasks?.length || 0), 0);
   const workflowApprovalCount = selectedWorkflowMilestones.filter((item) => item.locked).length;
   const workflowEnrollmentCount = acceptedResearchers.filter((item: any) => item.workflowId === selectedTopicId || item.workflow?.id === selectedTopicId).length;
+  const selectedWorkflowParticipants = acceptedResearchers.filter(
+    (item: any) => item.workflowId === selectedTopicId || item.workflow?.id === selectedTopicId,
+  );
   const needsReviewCount = submissions.filter((submission) =>
     ["SUBMITTED", "UNDER_REVIEW"].includes(submission.status),
   ).length;
@@ -810,7 +859,7 @@ function ProfessorDashboardContent() {
     { id: "messages", label: "Messages", icon: "ti-messages" },
     {
       id: "monitoring",
-      label: "Cohort Monitoring",
+      label: "Research Projects",
       icon: "ti-users",
       badge: projects.length,
     },
@@ -881,7 +930,7 @@ function ProfessorDashboardContent() {
             </h2>
             <p id="remove-monitoring-item-description" className="mt-2 text-sm leading-6 text-slate-600">
               {monitoringPendingRemoval.kind === "researcher"
-                ? `This will revoke the researcher's access to ${monitoringPendingRemoval.workflowName || "this workflow"}. Their project membership and submitted academic records will not be deleted.`
+                ? `This will revoke the researcher's access to ${monitoringPendingRemoval.workflowName || "this workflow"}. Their project membership and submitted academic records will not be deleted. The reason and enrollment details will be saved in audit history.`
                 : "This project will be detached from the professor workflow and removed from active monitoring. The research project, members, documents, and academic records will remain available on the Researcher Dashboard."}
             </p>
             <label htmlFor="monitoring-removal-reason" className="mt-5 block text-sm font-bold text-slate-700">
@@ -931,6 +980,63 @@ function ProfessorDashboardContent() {
       )}
 
       {editingMilestone && (
+        <MilestoneComposer
+          mode="edit"
+          workflowName={selectedWorkflow?.name || "Research workflow"}
+          title={milestoneEditTitle}
+          instructions={milestoneEditDescription}
+          deadlineDays={milestoneEditDeadline}
+          submissionMode={milestoneEditSubmissionMode}
+          requiresDocument={milestoneEditRequiresDocument}
+          requiresApproval={milestoneEditRequiresApproval}
+          category={milestoneEditCategory}
+          saving={milestoneSaveStatus === "saving"}
+          saveStatus={milestoneSaveStatus}
+          advancedOpen={showAdvancedMilestoneOptions}
+          onTitleChange={(value) => { setMilestoneEditTitle(value); setMilestoneSaveStatus("idle"); }}
+          onInstructionsChange={(value) => { setMilestoneEditDescription(value); setMilestoneSaveStatus("idle"); }}
+          onDeadlineDaysChange={(value) => { setMilestoneEditDeadline(value); setMilestoneSaveStatus("idle"); }}
+          onSubmissionModeChange={(value) => { setMilestoneEditSubmissionMode(value); setMilestoneSaveStatus("idle"); }}
+          onRequiresDocumentChange={(value) => { setMilestoneEditRequiresDocument(value); setMilestoneSaveStatus("idle"); }}
+          onRequiresApprovalChange={(value) => { setMilestoneEditRequiresApproval(value); setMilestoneSaveStatus("idle"); }}
+          onCategoryChange={(value) => { setMilestoneEditCategory(value); setMilestoneSaveStatus("idle"); }}
+          onAdvancedOpenChange={setShowAdvancedMilestoneOptions}
+          onClose={() => setEditingMilestone(null)}
+          onSubmit={(event) => { event.preventDefault(); void handleSaveMilestoneDetails(); }}
+          onDelete={() => setMilestonePendingDelete(editingMilestone)}
+          requirementsContent={(
+            <div className="mt-4 space-y-3">
+              {(editingMilestone.tasks || []).map((requirement: any) => (
+                <div key={requirement.id} className="flex items-start justify-between rounded-xl border border-slate-200 p-3">
+                  <div>
+                    <p className="text-sm font-bold text-[#102f49]">{requirement.title}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {requirement.allowedFileTypes || "PDF,DOCX"} · {requirement.dueDays != null ? `${requirement.dueDays} days` : "Uses milestone target"}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => handleDeleteRequirement(requirement.id)} aria-label={`Delete ${requirement.title}`} className="grid h-8 w-8 place-items-center rounded-lg text-rose-500 hover:bg-rose-50">
+                    <i className="ti ti-trash" />
+                  </button>
+                </div>
+              ))}
+              <div className="space-y-3 rounded-xl bg-slate-50 p-4">
+                <p className="text-sm font-extrabold text-[#102f49]">Add another requirement</p>
+                <input required value={newRequirementTitle} onChange={(event) => setNewRequirementTitle(event.target.value)} placeholder="e.g. Chapter 1 PDF" className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-sm" />
+                <textarea value={newRequirementInstructions} onChange={(event) => setNewRequirementInstructions(event.target.value)} rows={2} placeholder="Short instructions (optional)" className="w-full resize-none rounded-xl border border-slate-300 bg-white p-2.5 text-sm" />
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input type="number" min="0" max="3650" value={newRequirementDueDays} onChange={(event) => setNewRequirementDueDays(event.target.value)} placeholder="Target days" className="rounded-xl border border-slate-300 bg-white p-2.5 text-sm" />
+                  <input value={newRequirementFileTypes} onChange={(event) => setNewRequirementFileTypes(event.target.value)} placeholder="PDF,DOCX" className="rounded-xl border border-slate-300 bg-white p-2.5 text-sm" />
+                </div>
+                <button type="button" onClick={() => void handleCreateRequirement()} disabled={saving || !newRequirementTitle.trim()} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">
+                  {saving ? "Adding…" : "Add requirement"}
+                </button>
+              </div>
+            </div>
+          )}
+        />
+      )}
+
+      {legacyWorkflowUiEnabled && editingMilestone && (
         <div
           className="fixed inset-0 z-[70] bg-slate-950/35"
           role="dialog"
@@ -1435,6 +1541,32 @@ function ProfessorDashboardContent() {
       )}
 
       {creatingMilestone && (
+        <MilestoneComposer
+          mode="create"
+          workflowName={selectedWorkflow?.name || "Research workflow"}
+          title={newMilestoneTitle}
+          instructions={newMilestoneDescription}
+          deadlineDays={deadlineDays}
+          submissionMode={newMilestoneSubmissionMode}
+          requiresDocument={newMilestoneRequiresDocument}
+          requiresApproval={newMilestoneRequiresApproval}
+          category={newMilestoneScope}
+          saving={saving}
+          advancedOpen={showAdvancedMilestoneOptions}
+          onTitleChange={setNewMilestoneTitle}
+          onInstructionsChange={setNewMilestoneDescription}
+          onDeadlineDaysChange={setDeadlineDays}
+          onSubmissionModeChange={setNewMilestoneSubmissionMode}
+          onRequiresDocumentChange={setNewMilestoneRequiresDocument}
+          onRequiresApprovalChange={setNewMilestoneRequiresApproval}
+          onCategoryChange={setNewMilestoneScope}
+          onAdvancedOpenChange={setShowAdvancedMilestoneOptions}
+          onClose={() => setCreatingMilestone(false)}
+          onSubmit={handleCreateMilestone}
+        />
+      )}
+
+      {legacyWorkflowUiEnabled && creatingMilestone && (
         <div
           className="fixed inset-0 z-[70] bg-slate-950/35"
           role="dialog"
@@ -3353,31 +3485,11 @@ function ProfessorDashboardContent() {
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <div>
                   <h3 className="font-extrabold text-[#1b4264] text-[16px]">
-                    Researchers & Projects
+                    Research Projects
                   </h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    View researchers who joined your workflows and the research projects in your scope.
+                    View and manage the registered research projects across your workflows.
                   </p>
-                </div>
-                <div className="flex w-fit rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Researchers and projects">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={monitoringView === "researchers"}
-                    onClick={() => setMonitoringView("researchers")}
-                    className={`rounded-lg px-4 py-2 text-sm font-extrabold transition ${monitoringView === "researchers" ? "bg-white text-[#173f63] shadow-sm" : "text-slate-500"}`}
-                  >
-                    Researchers <span className="ml-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs">{acceptedResearchers.length}</span>
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={monitoringView === "projects"}
-                    onClick={() => setMonitoringView("projects")}
-                    className={`rounded-lg px-4 py-2 text-sm font-extrabold transition ${monitoringView === "projects" ? "bg-white text-[#173f63] shadow-sm" : "text-slate-500"}`}
-                  >
-                    Projects <span className="ml-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs">{projects.length}</span>
-                  </button>
                 </div>
                 <div className="relative max-w-xl">
                   <i className="ti ti-search pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -3385,12 +3497,8 @@ function ProfessorDashboardContent() {
                     type="search"
                     value={monitoringSearch}
                     onChange={(event) => setMonitoringSearch(event.target.value)}
-                    placeholder={
-                      monitoringView === "researchers"
-                        ? "Search researcher, ID, email, or workflow…"
-                        : "Search project, adviser, research type, or program…"
-                    }
-                    aria-label={`Search ${monitoringView}`}
+                    placeholder="Search project, adviser, research type, or program…"
+                    aria-label="Search research projects"
                     className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#173f63] focus:ring-2 focus:ring-[#173f63]/10"
                   />
                   {monitoringSearch && (
@@ -3413,7 +3521,7 @@ function ProfessorDashboardContent() {
                     and try again.
                   </div>
                 )}
-                {monitoringView === "researchers" ? (
+                {legacyWorkflowUiEnabled ? (
                   enrollmentsLoading ? (
                     <div className="rounded-xl border border-slate-200 bg-white p-4"><ListRowsSkeleton rows={5} /></div>
                   ) : (
@@ -3591,26 +3699,37 @@ function ProfessorDashboardContent() {
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        disabled
-                        title="Student preview is not connected yet"
-                        className="cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-bold text-slate-400"
-                      >
-                        <i className="ti ti-eye mr-1.5" />
-                        Preview coming soon
-                      </button>
-                      {selectedTopicId && (
+                      <div className="relative">
                         <button
                           type="button"
-                          onClick={() => void handleGenerateWorkflowInvitation()}
-                          disabled={saving}
-                          className="rounded-xl border border-[#173f63] bg-white px-4 py-2.5 text-sm font-extrabold text-[#173f63] disabled:opacity-50"
+                          onClick={() => setShowWorkflowCreateMenu((value) => !value)}
+                          disabled={!selectedTopicId}
+                          aria-haspopup="menu"
+                          aria-expanded={showWorkflowCreateMenu}
+                          className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                         >
-                          <i className="ti ti-link mr-1.5" />
-                          Invitation link
+                          <i className="ti ti-plus mr-1.5" />Create <i className="ti ti-chevron-down ml-1" />
                         </button>
-                      )}
+                        {showWorkflowCreateMenu && (
+                          <div role="menu" className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
+                            {[
+                              ["submission", "ti-file-upload", "Submission milestone", "Collect a document or deliverable"],
+                              ["approval", "ti-circle-check", "Approval checkpoint", "Review before researchers continue"],
+                              ["event", "ti-presentation", "Academic event", "Presentation, defense, or consultation"],
+                            ].map(([kind, icon, label, description]) => (
+                              <button key={kind} type="button" role="menuitem" onClick={() => openNewMilestone(kind as "submission" | "approval" | "event")} className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50">
+                                <i className={`ti ${icon} mt-0.5 text-lg text-[#173f63]`} />
+                                <span><strong className="block text-sm text-[#102f49]">{label}</strong><span className="mt-0.5 block text-xs text-slate-500">{description}</span></span>
+                              </button>
+                            ))}
+                            <div className="my-1 border-t border-slate-100" />
+                            <button type="button" role="menuitem" onClick={() => { setShowWorkflowCreateMenu(false); setWorkflowView("resources"); }} className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50">
+                              <i className="ti ti-books mt-0.5 text-lg text-[#173f63]" />
+                              <span><strong className="block text-sm text-[#102f49]">Guide or template</strong><span className="mt-0.5 block text-xs text-slate-500">Share a reusable workflow resource</span></span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="mt-5 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center">
@@ -3644,23 +3763,13 @@ function ProfessorDashboardContent() {
                       Changes are saved directly to this workflow.
                     </span>
                   </div>
-                  {workflowInvitation && (
-                    <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/70 p-3">
-                      <p className="text-xs font-bold uppercase tracking-wider text-blue-700">Researcher invitation</p>
-                      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                        <input readOnly value={workflowInvitation.link} className="min-w-0 flex-1 rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs text-slate-700" />
-                        <button type="button" onClick={() => void navigator.clipboard.writeText(workflowInvitation.link)} className="rounded-lg bg-[#173f63] px-3 py-2 text-xs font-bold text-white">Copy link</button>
-                      </div>
-                      <p className="mt-2 text-xs text-blue-800">Code: <strong className="font-mono">{workflowInvitation.code}</strong> · Expires in 30 days</p>
-                    </div>
-                  )}
                 </section>
                 <div className="overflow-x-auto border-b border-slate-200 bg-white px-2 shadow-sm" role="tablist" aria-label="Workflow sections">
                   <div className="flex min-w-max gap-1">
                     {([
-                      { id: "overview", label: "Overview", icon: "ti-layout-dashboard" },
-                      { id: "milestones", label: "Milestones", icon: "ti-route" },
+                      { id: "milestones", label: "Workflow", icon: "ti-route" },
                       { id: "resources", label: "Guides & Templates", icon: "ti-books" },
+                      { id: "participants", label: `Participants (${workflowEnrollmentCount})`, icon: "ti-users" },
                     ] as const).map((item, index, items) => (
                       <button
                         key={item.id}
@@ -3688,7 +3797,7 @@ function ProfessorDashboardContent() {
                     ))}
                   </div>
                 </div>
-                {workflowView === "overview" && (
+                {legacyWorkflowUiEnabled && (
                   <section id="workflow-panel-overview" role="tabpanel" aria-labelledby="workflow-tab-overview" className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
                     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                       <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#C58A18]">Selected workflow</p>
@@ -3714,6 +3823,26 @@ function ProfessorDashboardContent() {
                   </section>
                 )}
                 {workflowView === "resources" && <div id="workflow-panel-resources" role="tabpanel" aria-labelledby="workflow-tab-resources"><WorkflowResourcesCard workflowId={selectedTopicId} canManage /></div>}
+                {workflowView === "participants" && (
+                  <div id="workflow-panel-participants" role="tabpanel" aria-labelledby="workflow-tab-participants">
+                    <WorkflowParticipantsCard
+                      workflowId={selectedTopicId}
+                      workflowName={selectedWorkflow?.name}
+                      participants={selectedWorkflowParticipants}
+                      isLoading={enrollmentsLoading}
+                      error={enrollmentsError}
+                      invitation={selectedWorkflowInvitation}
+                      invitationLoading={saving}
+                      onInvite={() => void handleGenerateWorkflowInvitation()}
+                      onRemove={(participant) => setMonitoringPendingRemoval({
+                        kind: "researcher",
+                        id: participant.id,
+                        name: `${participant.user.firstName || ""} ${participant.user.lastName || ""}`.trim() || participant.user.email,
+                        workflowName: selectedWorkflow?.name,
+                      })}
+                    />
+                  </div>
+                )}
                 {workflowView === "milestones" && <div id="workflow-panel-milestones" role="tabpanel" aria-labelledby="workflow-tab-milestones" className="flex flex-col gap-5">
                 {(workflowsError || workflowsLoading) && (
                   <section
@@ -3778,44 +3907,13 @@ function ProfessorDashboardContent() {
                                   </span>
                                   <i className="ti ti-chevron-right mt-1 text-slate-400" />
                                 </span>
-                                <span className="mt-3 flex flex-wrap gap-2">
-                                  <Tag
-                                    variant={
-                                      task.scope === "Milestone"
-                                        ? "success"
-                                        : task.scope === "Compliance"
-                                          ? "info"
-                                          : "warn"
-                                    }
-                                  >
-                                    {task.scope === "Pre-requisite"
-                                      ? "Approval gate"
-                                      : task.scope}
-                                  </Tag>
-                                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                                    <i className="ti ti-calendar mr-1" />
-                                    {task.deadlineDays != null
-                                      ? `${task.deadlineDays} days`
-                                      : "No target"}
-                                  </span>
-                                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                                    <i className="ti ti-upload mr-1" />
-                                    {task.tasks?.length || 0} submissions
-                                  </span>
-                                  <span
-                                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${task.locked ? "bg-amber-100 text-amber-800" : "bg-emerald-50 text-emerald-700"}`}
-                                  >
-                                    {task.locked
-                                      ? "Approval required"
-                                      : "Open access"}
-                                  </span>
-                                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                                    {task.submissionMode === "INDIVIDUAL"
-                                      ? "Individual"
-                                      : task.submissionMode === "GROUP"
-                                        ? "Group"
-                                        : "Individual or group"}
-                                  </span>
+                                <span className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-slate-500">
+                                  <span>{task.submissionMode === "INDIVIDUAL" ? "Individual researcher" : task.submissionMode === "GROUP" ? "Research group" : "Individual or group"}</span>
+                                  <span aria-hidden="true">·</span>
+                                  <span>{task.deadlineDays != null ? `${task.deadlineDays} day target` : "No target"}</span>
+                                  <span aria-hidden="true">·</span>
+                                  <span>{task.requiresDocument === false ? "No upload" : `${task.tasks?.length || 1} submission requirement${(task.tasks?.length || 1) === 1 ? "" : "s"}`}</span>
+                                  {task.locked && <><span aria-hidden="true">·</span><span className="text-amber-700"><i className="ti ti-lock mr-1" />Approval required</span></>}
                                 </span>
                               </button>
                               {index === selectedItems.length - 1 && (
@@ -3840,7 +3938,7 @@ function ProfessorDashboardContent() {
                             </p>
                             <button
                               type="button"
-                              onClick={() => topics.length ? setCreatingMilestone(true) : setCreatingWorkflow(true)}
+                              onClick={() => topics.length ? openNewMilestone("submission") : setCreatingWorkflow(true)}
                               className="mt-4 rounded-xl bg-[#f6a800] px-4 py-2.5 text-sm font-extrabold text-[#102f49]"
                             >
                               {topics.length ? "Add first milestone" : "Create workflow"}
@@ -3896,16 +3994,6 @@ function ProfessorDashboardContent() {
                             </strong>
                           </div>
                         </div>
-                        {selectedTopicId && (
-                          <button
-                            type="button"
-                            onClick={() => setCreatingMilestone(true)}
-                            className="mt-5 w-full rounded-xl bg-[#173f63] py-2.5 text-sm font-extrabold text-white"
-                          >
-                            <i className="ti ti-plus mr-1.5" />
-                            Add milestone
-                          </button>
-                        )}
                       </section>
                       <section className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5">
                         <div className="flex gap-3">
