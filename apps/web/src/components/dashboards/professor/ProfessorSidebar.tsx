@@ -12,7 +12,6 @@ import {
   LineChart,
   CalendarClock,
   CalendarDays,
-  Signature,
   Mail,
   MessageSquare,
 } from "lucide-react";
@@ -27,7 +26,6 @@ const NAV_ITEMS = [
   { label: "Workflow", href: "/professor/dashboard?tab=builder", tabName: "builder", icon: Sliders },
   { label: "Progress", href: "/professor/dashboard?tab=tracking", tabName: "tracking", icon: LineChart },
   { label: "Deadlines", href: "/professor/dashboard?tab=deadlines", tabName: "deadlines", icon: CalendarClock },
-  { label: "Signatures", href: "/professor/signatures", icon: Signature },
   { label: "Calendar", href: "/professor/calendar", icon: CalendarDays },
   { label: "Inbox", href: "/professor/inbox", icon: Mail },
 ];

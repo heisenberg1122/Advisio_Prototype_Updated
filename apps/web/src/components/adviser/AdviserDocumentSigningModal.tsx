@@ -11,6 +11,7 @@ type SigningDocument = {
   docName: string;
   groupName: string;
   fileUrl: string;
+  signUrl?: string;
 };
 
 type SignatureProfile = {
@@ -182,7 +183,7 @@ export function DocumentSigningModal({
     setError("");
     try {
       const result = await apiClient.post<DocumentSigningResult>(
-        `/api/documents/versions/${document.versionId}/sign`,
+        document.signUrl || `/api/documents/versions/${document.versionId}/sign`,
         {
           password,
           confirmation: confirmed,
