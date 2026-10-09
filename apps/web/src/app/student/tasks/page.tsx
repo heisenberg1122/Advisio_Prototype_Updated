@@ -6,6 +6,7 @@ import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { StatCard } from "@/components/ui/StatCard";
 import { TablePageSkeleton } from "@/components/ui/Skeleton";
+import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 const memberName = (member: any) =>
@@ -24,6 +25,7 @@ export default function ResearchTasksPage() {
   const [starting, setStarting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [workflowCode, setWorkflowCode] = useState("");
+  const [activeSection, setActiveSection] = useState<"requirements" | "resources">("requirements");
 
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: ["student", "workflow-tasks"],
@@ -95,6 +97,16 @@ export default function ResearchTasksPage() {
       return { project, tasks, enrollments };
     },
     refetchOnWindowFocus: true,
+  });
+
+  const workflowId = data?.project?.workflowInstance?.workflow?.id
+    || data?.project?.workflowInstance?.workflowId
+    || data?.enrollments?.[0]?.workflowId;
+  const { data: workflowResources } = useQuery({
+    queryKey: ["workflow-resources", workflowId],
+    queryFn: () => apiClient.get<{ resources: any[]; canManage: boolean }>(`/api/workflows/${workflowId}/resources`),
+    enabled: Boolean(workflowId),
+    staleTime: 30_000,
   });
 
   const openTask = (task: any) => {
@@ -274,30 +286,6 @@ export default function ResearchTasksPage() {
         </div>
       )}
 
-      <section className="grid gap-4 sm:grid-cols-3">
-        <StatCard
-          label="Total requirements"
-          value={tasks.length}
-          icon="ti-checklist"
-          iconBg="bg-sky-50 dark:bg-sky-950/40"
-          iconColor="text-sky-700 dark:text-sky-300"
-        />
-        <StatCard
-          label="Approved"
-          value={completed}
-          icon="ti-circle-check"
-          iconBg="bg-emerald-50 dark:bg-emerald-950/40"
-          iconColor="text-emerald-700 dark:text-emerald-300"
-        />
-        <StatCard
-          label="Remaining"
-          value={Math.max(0, tasks.length - completed)}
-          icon="ti-clock"
-          iconBg="bg-amber-50 dark:bg-amber-950/40"
-          iconColor="text-amber-700 dark:text-amber-300"
-        />
-      </section>
-
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)]">
         <div className="rounded-2xl border border-[#DDE3E8] bg-white p-5 shadow-xs dark:border-white/10 dark:bg-[#101b2b] sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -346,10 +334,28 @@ export default function ResearchTasksPage() {
         </form>
       </section>
 
+      <nav role="tablist" aria-label="Tasks and workflow resources" className="flex w-full gap-1 rounded-2xl border border-slate-200 bg-slate-100 p-1.5 dark:border-white/10 dark:bg-white/5 sm:w-fit">
+        <button type="button" role="tab" aria-selected={activeSection === "requirements"} onClick={() => setActiveSection("requirements")} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-extrabold transition sm:flex-none ${activeSection === "requirements" ? "bg-white text-[#0B3A53] shadow-sm dark:bg-[#101b2b] dark:text-white" : "text-slate-500 hover:text-[#0B3A53] dark:text-slate-400 dark:hover:text-white"}`}>
+          <i className="ti ti-checklist" /> Requirements
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] dark:bg-white/10">{tasks.length}</span>
+        </button>
+        <button type="button" role="tab" aria-selected={activeSection === "resources"} onClick={() => setActiveSection("resources")} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-extrabold transition sm:flex-none ${activeSection === "resources" ? "bg-white text-[#0B3A53] shadow-sm dark:bg-[#101b2b] dark:text-white" : "text-slate-500 hover:text-[#0B3A53] dark:text-slate-400 dark:hover:text-white"}`}>
+          <i className="ti ti-books" /> Guides &amp; Templates
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] dark:bg-white/10">{workflowResources?.resources?.length || 0}</span>
+        </button>
+      </nav>
+
+      {activeSection === "requirements" ? <>
+        <section className="grid gap-4 sm:grid-cols-3">
+          <StatCard label="Total requirements" value={tasks.length} icon="ti-checklist" iconBg="bg-sky-50 dark:bg-sky-950/40" iconColor="text-sky-700 dark:text-sky-300" />
+          <StatCard label="Approved" value={completed} icon="ti-circle-check" iconBg="bg-emerald-50 dark:bg-emerald-950/40" iconColor="text-emerald-700 dark:text-emerald-300" />
+          <StatCard label="Remaining" value={Math.max(0, tasks.length - completed)} icon="ti-clock" iconBg="bg-amber-50 dark:bg-amber-950/40" iconColor="text-amber-700 dark:text-amber-300" />
+        </section>
+
       {!project ? (
         <Empty text={activeEnrollment ? "Workflow accepted. Register a project to begin submitting its professor-created requirements." : "Join a professor workflow, then register a project to receive its requirements."} />
       ) : !tasks.length ? (
-        <Empty text="Milestones will appear here when your professor adds them to the project workflow." />
+        <Empty text="Requirements will appear here when your professor adds them to the project workflow." />
       ) : (
         <section className="space-y-3.5">
           {tasks.map((task: any) => {
@@ -434,6 +440,7 @@ export default function ResearchTasksPage() {
           })}
         </section>
       )}
+      </> : <WorkflowResourcesCard workflowId={workflowId} />}
       {selectedTask && (
         <TaskDetails
           task={selectedTask}
