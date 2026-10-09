@@ -25,6 +25,12 @@ export const Permissions = {
   EVALUATION_CREATE: "evaluation.create",
   EVALUATION_SUBMIT: "evaluation.submit",
 
+  CALENDAR_VIEW: "calendar.view",
+  CALENDAR_CREATE: "calendar.create",
+  CALENDAR_EDIT_OWN: "calendar.edit_own",
+  CALENDAR_MANAGE: "calendar.manage",
+  CALENDAR_AVAILABILITY_MANAGE: "calendar.availability.manage",
+
   REB_REVIEW: "reb.review",
   REB_APPROVE: "reb.approve",
   REB_REJECT: "reb.reject",

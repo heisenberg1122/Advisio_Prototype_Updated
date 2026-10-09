@@ -55,7 +55,7 @@ export async function requireAuth(
         firstName: "Student",
         lastName: "Researcher",
         roles: ["RESEARCHER"],
-        permissions: ["research.view", "research.create", "consultation.view", "consultation.request"],
+        permissions: ["research.view", "research.create", "consultation.view", "consultation.request", "calendar.view"],
       };
       next();
       return;
@@ -138,7 +138,7 @@ export async function optionalAuth(
           firstName: "Student",
           lastName: "Researcher",
           roles: ["RESEARCHER"],
-          permissions: ["research.view", "research.create", "consultation.view", "consultation.request"],
+          permissions: ["research.view", "research.create", "consultation.view", "consultation.request", "calendar.view"],
         };
         next();
         return;

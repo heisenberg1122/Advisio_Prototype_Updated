@@ -57,6 +57,12 @@ async function main() {
     // Evaluation
     { key: "evaluation.create", module: "Evaluation", description: "Create evaluation template" },
     { key: "evaluation.submit", module: "Evaluation", description: "Submit panelist evaluation" },
+    // Calendar
+    { key: "calendar.view", module: "Calendar", description: "View calendar events in scope" },
+    { key: "calendar.create", module: "Calendar", description: "Create calendar events" },
+    { key: "calendar.edit_own", module: "Calendar", description: "Edit personally created calendar events" },
+    { key: "calendar.manage", module: "Calendar", description: "Manage calendar events in scope" },
+    { key: "calendar.availability.manage", module: "Calendar", description: "Manage personal availability blocks" },
     // REB
     { key: "reb.review", module: "REB", description: "Review REB applications" },
     { key: "reb.approve", module: "REB", description: "Approve REB application" },

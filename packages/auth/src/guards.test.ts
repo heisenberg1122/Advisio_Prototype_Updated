@@ -62,4 +62,19 @@ describe("Auth RBAC Guards", () => {
     const uniqueLength = new Set(combinedPerms).size;
     expect(combinedPerms.length).toBe(uniqueLength);
   });
+
+  it("should keep calendar creation and availability role-scoped", () => {
+    const researcher = getPermissionsForRole("RESEARCHER");
+    const adviser = getPermissionsForRole("ADVISER");
+    const panelist = getPermissionsForRole("PANELIST");
+    const rpo = getPermissionsForRole("RPO");
+
+    expect(researcher).toContain(Permissions.CALENDAR_VIEW);
+    expect(researcher).not.toContain(Permissions.CALENDAR_CREATE);
+    expect(adviser).toContain(Permissions.CALENDAR_CREATE);
+    expect(adviser).toContain(Permissions.CALENDAR_AVAILABILITY_MANAGE);
+    expect(panelist).not.toContain(Permissions.CALENDAR_CREATE);
+    expect(panelist).toContain(Permissions.CALENDAR_AVAILABILITY_MANAGE);
+    expect(rpo).toContain(Permissions.CALENDAR_MANAGE);
+  });
 });

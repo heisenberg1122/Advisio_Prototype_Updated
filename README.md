@@ -123,6 +123,16 @@ The former standalone **Deadlines** navigation item redirects to **Submissions �
 
 ---
 
+## 📅 Universal Calendar & Availability
+
+The shared calendar uses a day-first interaction. Selecting any day opens a complete day overview; selecting an event opens its full description and permitted meeting, location, group, and participant information. Users with calendar creation rights schedule from the selected day, so the date is already filled in, while researchers retain a clear read-only experience.
+
+Authorized faculty and administrators can add **Availability** entries for unavailable, on-leave, out-of-office, or limited-availability periods. Public messages are separated from private administrative notes, and availability can be shared with the user's program, college, institution, or kept personal. Availability blocks may warn schedulers when a selected person or research group member conflicts with a proposed event; authorized schedulers can review and explicitly acknowledge the warning when they must continue.
+
+Events spanning several days, including leave periods, appear on every affected day. Calendar permissions distinguish viewing, event creation, editing personally created entries, scope-wide management, and personal availability management. Custom calendar entries can be edited or cancelled by their creator or an authorized calendar manager; consultations and defenses continue to be managed by their source workflows.
+
+---
+
 ## 📬 Internal Inbox & Dean Approval Workflow
 
 Every role portal includes an internal Inbox with **Inbox**, **Sent**, and **Drafts** folders. Users can compose messages, select an active recipient by name and role, continue a threaded conversation, and attach up to five files with a maximum size of 10 MB per file. Mail threads and attachment downloads are authorization-scoped to their participants.

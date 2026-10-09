@@ -277,7 +277,15 @@ enum CalendarEventType {
   DEADLINE
   MILESTONE
   ANNOUNCEMENT
+  AVAILABILITY
   OTHER
+}
+
+enum CalendarAvailabilityStatus {
+  UNAVAILABLE
+  ON_LEAVE
+  OUT_OF_OFFICE
+  LIMITED_AVAILABILITY
 }
 
 enum CalendarVisibility {
@@ -408,7 +416,7 @@ model User {
   mailParticipants         MailParticipant[]
   mailMessages             MailMessage[]
   signedMailAttachments    MailAttachment[]           @relation("MailAttachmentSigner")
-  defensePacketsPublished  DefensePacket[]             @relation("DefensePacketPublisher")
+  defensePacketsPublished  DefensePacket[]            @relation("DefensePacketPublisher")
   manuscriptReviews        PanelistManuscriptReview[]
   panelRecommendations     PanelistRecommendation[]
   chatGroupsCreated        ChatGroup[]                @relation("ChatGroupCreator")
@@ -803,11 +811,11 @@ model Document {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  research        ResearchProject   @relation(fields: [researchId], references: [id], onDelete: Cascade)
-  versions        DocumentVersion[]
-  reviews         Review[]
-  adviserRequests AdviserRequest[]
-  taskSubmissions TaskSubmission[]
+  research          ResearchProject    @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  versions          DocumentVersion[]
+  reviews           Review[]
+  adviserRequests   AdviserRequest[]
+  taskSubmissions   TaskSubmission[]
   deanInboxMessages DeanInboxMessage[]
 
   @@index([researchId])
@@ -827,17 +835,17 @@ model DocumentVersion {
   uploadedAt        DateTime       @default(now()) @map("uploaded_at")
   status            DocumentStatus @default(ACTIVE)
 
-  document        Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  reviews         Review[]
-  comments        ReviewComment[]
-  sourceSignature DocumentSignature? @relation("SignatureSourceVersion")
-  signedSignature DocumentSignature? @relation("SignatureOutputVersion")
-  deanInboxAttachments DeanInboxMessage[] @relation("DeanInboxAttachment")
-  packetManuscripts DefensePacket[] @relation("DefensePacketManuscript")
-  packetSimilarityReports DefensePacket[] @relation("DefensePacketSimilarity")
-  packetRecommendationTemplates DefensePacket[] @relation("DefensePacketRecommendationTemplate")
-  packetEvaluationTemplates DefensePacket[] @relation("DefensePacketEvaluationTemplate")
-  generatedRecommendations PanelistRecommendation[] @relation("GeneratedRecommendationVersion")
+  document                      Document                 @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  reviews                       Review[]
+  comments                      ReviewComment[]
+  sourceSignature               DocumentSignature?       @relation("SignatureSourceVersion")
+  signedSignature               DocumentSignature?       @relation("SignatureOutputVersion")
+  deanInboxAttachments          DeanInboxMessage[]       @relation("DeanInboxAttachment")
+  packetManuscripts             DefensePacket[]          @relation("DefensePacketManuscript")
+  packetSimilarityReports       DefensePacket[]          @relation("DefensePacketSimilarity")
+  packetRecommendationTemplates DefensePacket[]          @relation("DefensePacketRecommendationTemplate")
+  packetEvaluationTemplates     DefensePacket[]          @relation("DefensePacketEvaluationTemplate")
+  generatedRecommendations      PanelistRecommendation[] @relation("GeneratedRecommendationVersion")
 
   @@unique([documentId, versionNumber])
   @@map("document_versions")
@@ -937,8 +945,8 @@ model MailMessage {
   createdAt DateTime  @default(now()) @map("created_at")
   sentAt    DateTime? @map("sent_at")
 
-  thread     MailThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  sender     User             @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  thread      MailThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender      User             @relation(fields: [senderId], references: [id], onDelete: Restrict)
   attachments MailAttachment[]
 
   @@index([threadId, createdAt])
@@ -947,30 +955,30 @@ model MailMessage {
 }
 
 model MailAttachment {
-  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  messageId          String   @map("message_id") @db.Uuid
-  fileName           String   @map("file_name") @db.VarChar(255)
-  mimeType           String   @map("mime_type") @db.VarChar(120)
-  fileSize           Int      @map("file_size")
-  fileData           Bytes    @map("file_data")
-  sourceAttachmentId String?  @map("source_attachment_id") @db.Uuid
-  signedById         String?  @map("signed_by_id") @db.Uuid
-  signedAt           DateTime? @map("signed_at")
-  verificationCode   String?  @unique @map("verification_code") @db.VarChar(40)
-  originalFileHash   String?  @map("original_file_hash") @db.VarChar(64)
-  signedFileHash     String?  @map("signed_file_hash") @db.VarChar(64)
-  signaturePlacements Json?   @map("signature_placements")
-  createdAt          DateTime @default(now()) @map("created_at")
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId           String    @map("message_id") @db.Uuid
+  fileName            String    @map("file_name") @db.VarChar(255)
+  mimeType            String    @map("mime_type") @db.VarChar(120)
+  fileSize            Int       @map("file_size")
+  fileData            Bytes     @map("file_data")
+  sourceAttachmentId  String?   @map("source_attachment_id") @db.Uuid
+  signedById          String?   @map("signed_by_id") @db.Uuid
+  signedAt            DateTime? @map("signed_at")
+  verificationCode    String?   @unique @map("verification_code") @db.VarChar(40)
+  originalFileHash    String?   @map("original_file_hash") @db.VarChar(64)
+  signedFileHash      String?   @map("signed_file_hash") @db.VarChar(64)
+  signaturePlacements Json?     @map("signature_placements")
+  createdAt           DateTime  @default(now()) @map("created_at")
 
   message          MailMessage      @relation(fields: [messageId], references: [id], onDelete: Cascade)
   sourceAttachment MailAttachment?  @relation("SignedMailAttachment", fields: [sourceAttachmentId], references: [id], onDelete: SetNull)
   signedCopies     MailAttachment[] @relation("SignedMailAttachment")
   signedBy         User?            @relation("MailAttachmentSigner", fields: [signedById], references: [id], onDelete: SetNull)
 
+  @@unique([sourceAttachmentId, signedById])
   @@index([messageId])
   @@index([sourceAttachmentId])
   @@index([signedById, signedAt])
-  @@unique([sourceAttachmentId, signedById])
   @@map("mail_attachments")
 }
 
@@ -1213,8 +1221,8 @@ model DefensePacket {
   createdAt                       DateTime            @default(now()) @map("created_at")
   updatedAt                       DateTime            @updatedAt @map("updated_at")
 
-  defenseSession         DefenseSession  @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
-  manuscriptVersion      DocumentVersion @relation("DefensePacketManuscript", fields: [manuscriptVersionId], references: [id], onDelete: Restrict)
+  defenseSession         DefenseSession   @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
+  manuscriptVersion      DocumentVersion  @relation("DefensePacketManuscript", fields: [manuscriptVersionId], references: [id], onDelete: Restrict)
   similarityReport       DocumentVersion? @relation("DefensePacketSimilarity", fields: [similarityReportVersionId], references: [id], onDelete: SetNull)
   recommendationTemplate DocumentVersion? @relation("DefensePacketRecommendationTemplate", fields: [recommendationTemplateVersionId], references: [id], onDelete: SetNull)
   evaluationTemplate     DocumentVersion? @relation("DefensePacketEvaluationTemplate", fields: [evaluationTemplateVersionId], references: [id], onDelete: SetNull)
@@ -1225,15 +1233,15 @@ model DefensePacket {
 }
 
 model PanelistManuscriptReview {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  defenseSessionId String   @map("defense_session_id") @db.Uuid
-  panelistId       String   @map("panelist_id") @db.Uuid
-  privateNotes     String?  @map("private_notes") @db.Text
-  annotations      Json
-  revisionChecklist Json    @map("revision_checklist")
-  reviewedAt       DateTime? @map("reviewed_at")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  defenseSessionId  String    @map("defense_session_id") @db.Uuid
+  panelistId        String    @map("panelist_id") @db.Uuid
+  privateNotes      String?   @map("private_notes") @db.Text
+  annotations       Json
+  revisionChecklist Json      @map("revision_checklist")
+  reviewedAt        DateTime? @map("reviewed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   defenseSession DefenseSession @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
   panelist       User           @relation(fields: [panelistId], references: [id], onDelete: Cascade)
@@ -1244,24 +1252,24 @@ model PanelistManuscriptReview {
 }
 
 model PanelistRecommendation {
-  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  defenseSessionId   String           @map("defense_session_id") @db.Uuid
-  panelistId         String           @map("panelist_id") @db.Uuid
-  responses          Json
-  status             EvaluationStatus @default(DRAFT)
-  generatedVersionId String?          @unique @map("generated_version_id") @db.Uuid
-  integrityHash      String?          @map("integrity_hash") @db.VarChar(64)
-  previewData        Bytes?           @map("preview_data")
-  previewSourceHash  String?          @map("preview_source_hash") @db.VarChar(64)
-  previewLayoutReport Json?           @map("preview_layout_report")
-  previewGeneratedAt DateTime?        @map("preview_generated_at")
-  generationMetadata Json?            @map("generation_metadata")
-  submittedAt        DateTime?        @map("submitted_at")
-  createdAt          DateTime         @default(now()) @map("created_at")
-  updatedAt          DateTime         @updatedAt @map("updated_at")
+  id                  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  defenseSessionId    String           @map("defense_session_id") @db.Uuid
+  panelistId          String           @map("panelist_id") @db.Uuid
+  responses           Json
+  status              EvaluationStatus @default(DRAFT)
+  generatedVersionId  String?          @unique @map("generated_version_id") @db.Uuid
+  integrityHash       String?          @map("integrity_hash") @db.VarChar(64)
+  previewData         Bytes?           @map("preview_data")
+  previewSourceHash   String?          @map("preview_source_hash") @db.VarChar(64)
+  previewLayoutReport Json?            @map("preview_layout_report")
+  previewGeneratedAt  DateTime?        @map("preview_generated_at")
+  generationMetadata  Json?            @map("generation_metadata")
+  submittedAt         DateTime?        @map("submitted_at")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
 
-  defenseSession   DefenseSession  @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
-  panelist         User            @relation(fields: [panelistId], references: [id], onDelete: Cascade)
+  defenseSession   DefenseSession   @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
+  panelist         User             @relation(fields: [panelistId], references: [id], onDelete: Cascade)
   generatedVersion DocumentVersion? @relation("GeneratedRecommendationVersion", fields: [generatedVersionId], references: [id], onDelete: SetNull)
 
   @@unique([defenseSessionId, panelistId])
@@ -1288,13 +1296,13 @@ model DefenseSession {
   createdAt      DateTime             @default(now()) @map("created_at")
   updatedAt      DateTime             @updatedAt @map("updated_at")
 
-  research    ResearchProject     @relation(fields: [researchId], references: [id], onDelete: Cascade)
-  creator     User?               @relation("DefenseSessionCreator", fields: [createdBy], references: [id], onDelete: SetNull)
-  invitations DefenseInvitation[]
-  evaluations Evaluation[]
-  packet      DefensePacket?
+  research          ResearchProject            @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  creator           User?                      @relation("DefenseSessionCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  invitations       DefenseInvitation[]
+  evaluations       Evaluation[]
+  packet            DefensePacket?
   manuscriptReviews PanelistManuscriptReview[]
-  recommendations PanelistRecommendation[]
+  recommendations   PanelistRecommendation[]
 
   @@index([researchId, status])
   @@index([status, startedAt])
@@ -1381,22 +1389,25 @@ model ConsultationNote {
 // ─────────────────────────────────────────────────────────────
 
 model CalendarEvent {
-  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title       String             @db.VarChar(200)
-  description String?            @db.Text
-  type        CalendarEventType
-  visibility  CalendarVisibility @default(PARTICIPANTS)
-  startsAt    DateTime           @map("starts_at")
-  endsAt      DateTime           @map("ends_at")
-  allDay      Boolean            @default(false) @map("all_day")
-  location    String?            @db.VarChar(200)
-  meetingUrl  String?            @map("meeting_url") @db.VarChar(500)
-  collegeId   String?            @map("college_id") @db.Uuid
-  programId   String?            @map("program_id") @db.Uuid
-  createdBy   String             @map("created_by") @db.Uuid
-  cancelledAt DateTime?          @map("cancelled_at")
-  createdAt   DateTime           @default(now()) @map("created_at")
-  updatedAt   DateTime           @updatedAt @map("updated_at")
+  id                 String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title              String                      @db.VarChar(200)
+  description        String?                     @db.Text
+  type               CalendarEventType
+  visibility         CalendarVisibility          @default(PARTICIPANTS)
+  startsAt           DateTime                    @map("starts_at")
+  endsAt             DateTime                    @map("ends_at")
+  allDay             Boolean                     @default(false) @map("all_day")
+  location           String?                     @db.VarChar(200)
+  meetingUrl         String?                     @map("meeting_url") @db.VarChar(500)
+  availabilityStatus CalendarAvailabilityStatus? @map("availability_status")
+  blocksScheduling   Boolean                     @default(false) @map("blocks_scheduling")
+  privateNotes       String?                     @map("private_notes") @db.Text
+  collegeId          String?                     @map("college_id") @db.Uuid
+  programId          String?                     @map("program_id") @db.Uuid
+  createdBy          String                      @map("created_by") @db.Uuid
+  cancelledAt        DateTime?                   @map("cancelled_at")
+  createdAt          DateTime                    @default(now()) @map("created_at")
+  updatedAt          DateTime                    @updatedAt @map("updated_at")
 
   college      College?                   @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   program      Program?                   @relation(fields: [programId], references: [id], onDelete: Cascade)
@@ -1406,6 +1417,7 @@ model CalendarEvent {
 
   @@index([startsAt, endsAt])
   @@index([collegeId, programId])
+  @@index([type, blocksScheduling, startsAt, endsAt], map: "calendar_events_availability_conflict_idx")
   @@map("calendar_events")
 }
 
@@ -1633,13 +1645,12 @@ model ChatGroup {
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
 
-  messages    ChatMessage[]
-  invitations ChatInvitation[]
+  messages     ChatMessage[]
+  invitations  ChatInvitation[]
   creator      User?             @relation("ChatGroupCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
   participants ChatParticipant[]
 
   @@index([createdByUserId])
-
   @@map("chat_groups")
 }
 
@@ -1661,17 +1672,17 @@ model ChatInvitation {
 }
 
 model ChatMessage {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  chatGroupId String   @map("chat_group_id") @db.Uuid
-  senderId    String   @map("sender_id") @db.VarChar(255)
-  senderUserId String? @map("sender_user_id") @db.Uuid
-  senderName  String   @map("sender_name") @db.VarChar(150)
-  senderRole  String   @map("sender_role") @db.VarChar(50)
-  message     String   @db.Text
-  createdAt   DateTime @default(now()) @map("created_at")
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chatGroupId  String   @map("chat_group_id") @db.Uuid
+  senderId     String   @map("sender_id") @db.VarChar(255)
+  senderUserId String?  @map("sender_user_id") @db.Uuid
+  senderName   String   @map("sender_name") @db.VarChar(150)
+  senderRole   String   @map("sender_role") @db.VarChar(50)
+  message      String   @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
 
-  chatGroup ChatGroup @relation(fields: [chatGroupId], references: [id], onDelete: Cascade)
-  senderUser User?    @relation("ChatMessageSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  chatGroup  ChatGroup @relation(fields: [chatGroupId], references: [id], onDelete: Cascade)
+  senderUser User?     @relation("ChatMessageSender", fields: [senderUserId], references: [id], onDelete: SetNull)
 
   @@index([chatGroupId])
   @@index([senderUserId])
