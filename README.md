@@ -107,6 +107,8 @@ The Professor Dashboard separates workflow enrollment from project monitoring:
 
 This separation prevents workflow administration from accidentally deleting or hiding a researcher's underlying project data.
 
+When **Research Projects** is empty, the professor sees a contextual three-step setup guide instead of a generic blank state: **Create workflow → Add participants → Register projects**. The guide detects the missing step, supports selecting the intended workflow, and links directly to that workflow's Participants tab. Project registration remains a researcher action; the professor is told that an enrolled research leader registers from the Researcher Dashboard and that the project will appear automatically.
+
 ---
 
 ## 📥 Submission Review & Deadline Tracking

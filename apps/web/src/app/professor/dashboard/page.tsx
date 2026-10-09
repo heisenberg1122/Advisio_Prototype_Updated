@@ -16,6 +16,7 @@ import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCa
 import { MilestoneComposer } from "@/components/workflow/MilestoneComposer";
 import { WorkflowParticipantsCard } from "@/components/workflow/WorkflowParticipantsCard";
 import { WorkflowDeadlineTracker, type WorkflowDeadlineRow } from "@/components/workflow/WorkflowDeadlineTracker";
+import { ResearchProjectsOnboarding } from "@/components/workflow/ResearchProjectsOnboarding";
 
 function ProfessorDashboardContent() {
   // Kept temporarily while the new composer and workflow workspace replace the
@@ -32,6 +33,7 @@ function ProfessorDashboardContent() {
       : "milestones";
   const submissionView = requestedTab === "deadlines" || searchParams.get("submissionView") === "deadlines" ? "deadlines" : "review";
   const submissionWorkflowId = searchParams.get("workflowId") || "ALL";
+  const requestedWorkflowId = searchParams.get("workflowId") || "";
   const { isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
 
@@ -165,6 +167,7 @@ function ProfessorDashboardContent() {
   // Live State Data with live fallbacks
   const [studentsCount, setStudentsCount] = useState(0);
   const [projects, setProjects] = useState<any[]>([]);
+  const [selectedTopicId, setSelectedTopicId] = useState("");
 
   useEffect(() => {
     if (researchData?.projects) {
@@ -224,7 +227,9 @@ function ProfessorDashboardContent() {
         inviteExpiresAt: w.inviteExpiresAt,
       }));
       setTopics(topList);
-      if (
+      if (requestedWorkflowId && topList.some((topic: any) => topic.id === requestedWorkflowId)) {
+        setSelectedTopicId(requestedWorkflowId);
+      } else if (
         topList.length > 0 &&
         !topList.some((topic: any) => topic.id === selectedTopicId)
       ) {
@@ -262,7 +267,7 @@ function ProfessorDashboardContent() {
       });
       setMilestones(msList);
     }
-  }, [workflowData]);
+  }, [workflowData, requestedWorkflowId, selectedTopicId]);
 
   // Form input controllers
   const [newMilestoneTitle, setNewMilestoneTitle] = useState("");
@@ -272,7 +277,6 @@ function ProfessorDashboardContent() {
   const [newWorkflowDescription, setNewWorkflowDescription] = useState("");
   const [newWorkflowResearchTypeId, setNewWorkflowResearchTypeId] = useState("");
   const [newMilestoneScope, setNewMilestoneScope] = useState("Milestone");
-  const [selectedTopicId, setSelectedTopicId] = useState("");
   const { data: workflowResourceSummary } = useQuery({
     queryKey: ["workflow-resources", selectedTopicId],
     queryFn: () => apiClient.get<{ resources: any[] }>(`/api/workflows/${selectedTopicId}/resources`),
@@ -694,7 +698,19 @@ function ProfessorDashboardContent() {
   }, [requestedTab, router]);
 
   const setWorkflowView = (view: "milestones" | "resources" | "participants") => {
-    router.push(`/professor/dashboard?tab=builder&workflowView=${view}`);
+    const workflowQuery = selectedTopicId ? `&workflowId=${encodeURIComponent(selectedTopicId)}` : "";
+    router.push(`/professor/dashboard?tab=builder&workflowView=${view}${workflowQuery}`);
+  };
+
+  const openWorkflowParticipants = (workflowId: string) => {
+    if (!workflowId) return;
+    setSelectedTopicId(workflowId);
+    router.push(`/professor/dashboard?tab=builder&workflowView=participants&workflowId=${encodeURIComponent(workflowId)}`);
+  };
+
+  const selectMonitoringWorkflow = (workflowId: string) => {
+    setSelectedTopicId(workflowId);
+    router.replace(`/professor/dashboard?tab=monitoring&workflowId=${encodeURIComponent(workflowId)}`);
   };
   const handleTabChange = (tab: string) => {
     if (tab !== "submissions") {
@@ -3660,7 +3676,7 @@ function ProfessorDashboardContent() {
                     View and manage the registered research projects across your workflows.
                   </p>
                 </div>
-                <div className="relative max-w-xl">
+                {projects.length > 0 && <div className="relative max-w-xl">
                   <i className="ti ti-search pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="search"
@@ -3680,7 +3696,7 @@ function ProfessorDashboardContent() {
                       <i className="ti ti-x" />
                     </button>
                   )}
-                </div>
+                </div>}
                 {(projectsError || workflowsError || enrollmentsError) && (
                   <div
                     role="alert"
@@ -3768,7 +3784,7 @@ function ProfessorDashboardContent() {
                         )}
                     </div>
                   )
-                ) : projectsLoading || workflowsLoading ? (
+                ) : projectsLoading || workflowsLoading || enrollmentsLoading ? (
                   <div className="rounded-xl border border-slate-200 bg-white p-4"><ListRowsSkeleton rows={5} avatars={false} /></div>
                 ) : (
                   <div className="flex flex-col gap-3.5 mt-2">
@@ -3826,10 +3842,18 @@ function ProfessorDashboardContent() {
                         </div>
                       </div>
                     ))}
-                    {!projects.length && !projectsError && (
-                      <div className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                        No research projects are available.
-                      </div>
+                    {!projects.length && !projectsError && !workflowsError && !enrollmentsError && (
+                      <ResearchProjectsOnboarding
+                        workflows={topics.map((topic) => ({ id: topic.id, name: topic.name }))}
+                        selectedWorkflowId={selectedTopicId}
+                        participantCount={selectedWorkflowParticipants.length}
+                        onSelectWorkflow={selectMonitoringWorkflow}
+                        onCreateWorkflow={() => {
+                          setCreatingWorkflow(true);
+                          router.push("/professor/dashboard?tab=builder");
+                        }}
+                        onOpenParticipants={() => openWorkflowParticipants(selectedTopicId)}
+                      />
                     )}
                     {projects.length > 0 &&
                       !projects.some((project: any) => {
