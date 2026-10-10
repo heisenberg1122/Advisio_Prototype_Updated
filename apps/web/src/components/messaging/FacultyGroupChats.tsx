@@ -264,8 +264,8 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
   if (loading) return <MessagingSkeleton />;
 
   return (
-    <section className="grid min-h-[700px] w-full animate-fade-in overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-800 shadow-sm dark:border-white/10 dark:bg-[#101B2B] dark:text-slate-100 lg:h-[calc(100vh-112px)] lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[390px_minmax(0,1fr)]">
-      <aside className="relative flex min-h-0 flex-col border-b border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-[#101B2B] sm:p-6 lg:rounded-l-[22px] lg:border-b-0 lg:border-r">
+    <section className="grid min-h-[700px] w-full animate-fade-in bg-white text-slate-800 dark:bg-[#101B2B] dark:text-slate-100 lg:h-[calc(100vh-112px)] lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[390px_minmax(0,1fr)]">
+      <aside className="relative flex min-h-0 flex-col bg-white p-4 dark:bg-[#101B2B] sm:p-6">
         <div className="mb-5 flex items-center justify-between gap-4">
           <div><p className="text-xs font-bold uppercase tracking-widest text-slate-400">Messages</p><h2 className="mt-1 text-xl font-bold tracking-tight text-[#0B3A53] dark:text-white">Conversations</h2></div>
           <div className="grid h-11 w-11 place-items-center rounded-xl bg-[#EAF3F7] text-[#0B3A53] dark:bg-white/10 dark:text-sky-400"><MessageSquareText className="h-5 w-5" /></div>
@@ -309,7 +309,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
         </div>
       </aside>
 
-      <main className="flex min-h-[620px] min-w-0 flex-col bg-slate-50/70 dark:bg-black/10 lg:min-h-0 lg:rounded-r-[22px]">
+      <main className="flex min-h-[620px] min-w-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/70 shadow-sm dark:border-white/10 dark:bg-black/10 lg:min-h-0 lg:rounded-l-none lg:rounded-r-[22px]">
         {!activeChat ? <div className="grid flex-1 place-items-center p-8 text-center"><div><div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#EAF3F7] text-[#0B3A53] dark:bg-sky-400/10 dark:text-sky-400"><MessageSquareText className="h-7 w-7" /></div><h3 className="mt-5 text-lg font-black text-[#0B3A53] dark:text-white">Select a conversation</h3><p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">Choose a conversation from the left panel to view and send messages.</p></div></div> : <>
           <header className="border-b border-slate-200 bg-white px-5 py-4 dark:border-white/10 dark:bg-[#101B2B] sm:px-7">
             <div className="flex items-start justify-between gap-4"><div className="min-w-0"><div className="flex items-center gap-2"><h3 className="truncate text-lg font-black text-[#0B3A53] dark:text-white">{activeChat.title}</h3>{activeChat.isFacultyOnly && <span title="Faculty only"><ShieldCheck className="h-4 w-4 text-emerald-600" /></span>}</div><p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{activeChat.description || "Group conversation"}</p></div><span className="shrink-0 text-[11px] font-semibold text-slate-400">{activeChat.participants.filter((item) => item.status === "accepted").length} members</span></div>

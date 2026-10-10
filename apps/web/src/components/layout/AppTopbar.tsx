@@ -25,6 +25,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { NotificationPopover } from "@/components/notifications/NotificationPopover";
+import { Avatar } from "@/components/ui/Avatar";
 import { useProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/hooks/use-auth";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
@@ -375,9 +376,7 @@ export function AppTopbar({
             aria-haspopup="true"
             className="flex items-center gap-2 rounded-full p-1 sm:pr-2.5 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0 select-none cursor-pointer"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0B3A53] text-xs font-black text-white shadow-xs border border-white/20">
-              {initials}
-            </span>
+            <Avatar initials={initials} name={displayName} src={profile?.photoUrl} size="sm" className="h-8 w-8 border-white/20 bg-[#0B3A53] text-xs font-black text-white shadow-xs" />
             <span className="hidden sm:block text-left">
               <span className="block text-xs font-bold text-[#17212B] dark:text-white truncate max-w-[120px]">
                 {displayName}
@@ -401,9 +400,7 @@ export function AppTopbar({
             <div className="absolute right-0 top-12 z-50 w-72 rounded-2xl border border-[#E2E8F0] dark:border-white/15 bg-white dark:bg-[#111A2E] p-4 shadow-xl animate-fade-in-up">
               {/* User Identity Header */}
               <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-white/10">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0B3A53] text-sm font-black text-[#FDF8E8] shadow-sm border-2 border-[#C9A227]">
-                  {initials}
-                </div>
+                <Avatar initials={initials} name={displayName} src={profile?.photoUrl} size="lg" className="h-12 w-12 border-2 border-[#C9A227] bg-[#0B3A53] text-sm font-black text-[#FDF8E8] shadow-sm" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-[#17212B] dark:text-white">
                     {displayName}

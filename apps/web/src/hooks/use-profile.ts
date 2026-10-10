@@ -6,6 +6,7 @@ export interface ProfileData {
   id: string;
   name: string;
   initials: string;
+  photoUrl?: string;
   role: string;
   email: string;
   contactNumber: string;
@@ -212,7 +213,11 @@ export function useProfile() {
     const key = user?.id
       ? `advisio_profile_${role}_${user.id}`
       : `advisio_profile_${role}`;
-    localStorage.setItem(key, JSON.stringify(updated));
+    try {
+      localStorage.setItem(key, JSON.stringify(updated));
+    } catch {
+      return false;
+    }
     setProfile(updated);
 
     // Dispatch storage event to notify other components (like sidebar/header UserChip)

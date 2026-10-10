@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowRight, CalendarDays, Check, ChevronDown, ChevronUp, Eye, EyeOff, FileCheck2, LockKeyhole, Mail, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronUp, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { loginAction } from "@/actions/auth";
 
@@ -152,61 +152,47 @@ export default function LoginPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#f4f7fb] font-sans text-slate-900 lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(500px,.92fr)]">
-      <section className="relative hidden min-h-screen overflow-hidden bg-[#092f4f] px-[clamp(2.5rem,5vw,5.5rem)] py-10 text-white lg:flex lg:flex-col">
-        <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,.045)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.045)_1px,transparent_1px)] [background-size:48px_48px]" />
-        <div className="pointer-events-none absolute -left-28 top-[38%] h-80 w-80 rounded-full bg-[#ffab19]/20 blur-[100px]" />
-        <div className="pointer-events-none absolute -right-20 -top-16 h-96 w-96 rounded-full bg-[#2d7ba8]/30 blur-[110px]" />
+      <section className="relative hidden min-h-screen overflow-hidden border-r border-[#214b69] bg-[#0b3553] px-[clamp(2.5rem,5vw,5.5rem)] py-10 text-white lg:flex lg:flex-col">
+        <div className="pointer-events-none absolute -bottom-28 -right-24 h-[30rem] w-[30rem] select-none opacity-[0.035]">
+          <img src="/school-logo.png" alt="" className="h-full w-full object-contain" />
+        </div>
 
-        <header className="relative z-10 flex items-center justify-between">
+        <header className="relative z-10 flex items-center justify-between pb-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white p-1.5 shadow-lg backdrop-blur">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white p-1.5">
               <img src="/ao-logo.png" alt="Advisio" className="h-full w-full object-contain" />
             </div>
             <div>
-              <div className="text-[21px] font-extrabold tracking-[.05em]">ADVISIO</div>
-              <div className="text-[9px] font-bold uppercase tracking-[.28em] text-[#ffb21c]">Research portal</div>
+              <div className="text-[18px] font-extrabold tracking-[.06em]">ADVISIO</div>
+              <div className="text-[9px] font-bold uppercase tracking-[.22em] text-[#f3b327]">Research portal</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 rounded-2xl border border-white/15 bg-white/10 px-3.5 py-2 backdrop-blur shadow-sm">
-            <img src="/school-logo.png" alt="University of the Assumption" className="h-9 w-9 object-contain" />
-            <div className="text-left">
-              <p className="text-[11px] font-bold leading-tight text-white">University of the Assumption</p>
-              <p className="text-[9px] font-medium text-slate-300">Academic Research</p>
+          <div className="flex items-center gap-2.5 text-right">
+            <div>
+              <p className="text-[11px] font-semibold leading-tight text-white">University of the Assumption</p>
+              <p className="mt-0.5 text-[9px] font-medium text-slate-300">City of San Fernando, Pampanga</p>
             </div>
+            <img src="/school-logo.png" alt="University of the Assumption" className="h-10 w-10 object-contain" />
           </div>
         </header>
 
-        <div className="relative z-10 my-auto grid items-center gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(270px,.78fr)] xl:gap-12">
-          <div className="max-w-[590px]">
-            <h1 className="text-[clamp(2.6rem,4.5vw,4.75rem)] font-bold leading-[1.02] tracking-[-.045em]">Research moves<br />better <span className="text-[#ffb21c]">together.</span></h1>
-            <p className="mt-6 max-w-[510px] text-[15px] leading-7 text-slate-300">From first proposal to final defense, keep your team, feedback, and deadlines in one clear place.</p>
-            <div className="mt-9 flex items-center gap-2.5 text-[12px] font-semibold text-slate-200">
-              {["Plan", "Review", "Defend"].map((step, index) => <React.Fragment key={step}><div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[.06] py-1.5 pl-1.5 pr-3"><span className="grid h-6 w-6 place-items-center rounded-full bg-[#ffb21c] text-[10px] font-black text-[#092f4f]">{index + 1}</span>{step}</div>{index < 2 && <span className="h-px w-4 bg-white/20" />}</React.Fragment>)}
+        <div className="relative z-10 my-auto max-w-[680px] py-12">
+          <div className="max-w-[640px]">
+            <p className="text-[11px] font-bold uppercase tracking-[.22em] text-[#f3b327]">University Research Management System</p>
+            <h1 className="mt-5 text-[clamp(2.6rem,4.4vw,4.3rem)] font-semibold leading-[1.08] tracking-[-.035em]">A clearer way to manage academic research.</h1>
+            <p className="mt-6 max-w-[570px] text-[15px] leading-7 text-slate-300">Advisio brings researchers, advisers, panelists, and administrators into one organized workspace from proposal to final defense.</p>
+            <div className="mt-12 border-y border-white/15">
+              {[
+                ["01", "Research projects", "Documents, milestones, and team responsibilities."],
+                ["02", "Faculty review", "Adviser feedback, consultations, and approvals."],
+                ["03", "Defense readiness", "Schedules, panel coordination, and final requirements."],
+              ].map(([number, title, description]) => <div key={number} className="grid grid-cols-[42px_minmax(0,1fr)] gap-4 border-b border-white/10 py-4 last:border-b-0 sm:grid-cols-[42px_150px_minmax(0,1fr)] sm:items-center"><span className="font-mono text-[11px] font-bold text-[#f3b327]">{number}</span><p className="text-[13px] font-bold text-white">{title}</p><p className="col-start-2 text-[12px] leading-5 text-slate-300 sm:col-start-auto">{description}</p></div>)}
             </div>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[335px]">
-            <div className="absolute -inset-5 rounded-[36px] border border-white/[.06]" />
-            <div className="relative rounded-[26px] border border-white/15 bg-white/[.09] p-4 shadow-2xl shadow-black/25 backdrop-blur-xl">
-              <div className="mb-4 flex items-center justify-between"><div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#ffb21c]">Research workspace</p><p className="mt-1 text-[16px] font-bold">Capstone progress</p></div><div className="flex -space-x-2">{["AM", "JL", "+2"].map((member, index) => <span key={member} className={`grid h-8 w-8 place-items-center rounded-full border-2 border-[#244b69] text-[9px] font-bold ${index === 2 ? "bg-[#ffb21c] text-[#092f4f]" : "bg-[#426784]"}`}>{member}</span>)}</div></div>
-              <div className="rounded-2xl bg-white p-4 text-[#173e5e] shadow-xl shadow-black/15">
-                <div className="flex items-center justify-between text-[11px] font-bold"><span>Chapter 3 review</span><span className="text-[#d98600]">72%</span></div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full w-[72%] rounded-full bg-[#ffad14]" /></div>
-                <div className="mt-5 space-y-3">
-                  <div className="flex items-center gap-3 text-[11px] font-semibold"><span className="grid h-8 w-8 place-items-center rounded-xl bg-emerald-50 text-emerald-600"><FileCheck2 size={15} /></span><span className="flex-1">Proposal approved</span><Check size={14} className="text-emerald-600" /></div>
-                  <div className="flex items-center gap-3 text-[11px] font-semibold"><span className="grid h-8 w-8 place-items-center rounded-xl bg-emerald-50 text-emerald-600"><Users size={15} /></span><span className="flex-1">Adviser review</span><Check size={14} className="text-emerald-600" /></div>
-                  <div className="flex items-center gap-3 text-[11px] font-semibold"><span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-50 text-amber-600"><CalendarDays size={15} /></span><span className="flex-1">Defense schedule</span></div>
-                </div>
-              </div>
-              <div className="mt-4 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/10 p-3"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#ffb21c] text-[#092f4f]"><ShieldCheck size={18} /></span><div><p className="text-[11px] font-bold">Secure academic workspace</p><p className="mt-0.5 text-[9px] text-slate-300">Role-based access for every team</p></div></div>
-            </div>
-          </div>
         </div>
-        <div className="pointer-events-none absolute -bottom-12 -right-12 h-80 w-80 opacity-[0.04] select-none">
-          <img src="/school-logo.png" alt="" className="h-full w-full object-contain" />
-        </div>
-        <footer className="relative z-10 flex items-center justify-between border-t border-white/10 pt-5 text-[10px] text-slate-400"><span>University of the Assumption • Research Management System</span><span>ADVISIO • 2026</span></footer>
+        <footer className="relative z-10 flex items-center justify-between border-t border-white/15 pt-5 text-[10px] text-slate-400"><span>For authorized university users</span><span>ADVISIO · 2026</span></footer>
       </section>
 
       <section className="relative flex min-h-screen items-center justify-center px-5 py-10 sm:px-10 lg:px-[clamp(3rem,7vw,7.5rem)]">

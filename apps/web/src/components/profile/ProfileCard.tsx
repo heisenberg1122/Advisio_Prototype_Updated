@@ -60,6 +60,8 @@ export function ProfileCard() {
         <div className="flex flex-col sm:flex-row items-center gap-5 z-10 text-center sm:text-left">
           <Avatar
             initials={profile.initials}
+            name={profile.name}
+            src={profile.photoUrl}
             colorVariant="accent"
             size="xl"
             className="w-16 h-16 sm:w-20 sm:h-20 text-xl font-black shadow-md border-4 border-white dark:border-[#101b2b]"
