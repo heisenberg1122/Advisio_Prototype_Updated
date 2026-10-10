@@ -64,7 +64,7 @@ export function StudentGanttChart({ project }: StudentGanttChartProps) {
                 <div key={stage.id} className="flex h-16 border-b border-slate-100 last:border-b-0">
                   <div className="sticky left-0 z-20 flex items-center gap-2 border-r border-slate-200 bg-white px-4" style={{ width: LABEL_WIDTH }}>
                     <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${colors}`} />
-                    <div className="min-w-0"><p className="truncate text-xs font-bold text-[#102f49]">{stage.sequence}. {stage.name}</p><p className="mt-0.5 text-[10px] text-slate-500">{stage.durationDays} days{stage.requiresApproval ? " · Approval gate" : ""}</p></div>
+                    <div className="min-w-0"><p className="truncate text-[9px] font-extrabold uppercase tracking-wide text-slate-400">{stage.topic?.title || "Ungrouped"}</p><p className="truncate text-xs font-bold text-[#102f49]">{stage.sequence}. {stage.name}</p><p className="mt-0.5 text-[10px] text-slate-500">{stage.durationDays} days{stage.requiresApproval ? " · Approval gate" : ""}</p></div>
                   </div>
                   <div className="relative bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px)] bg-[size:84px_100%]" style={{ width: chartWidth }}>
                     <div className={`absolute top-5 flex h-7 items-center rounded-md px-2 text-[10px] font-extrabold ${colors} ${stage.status === "active" ? "text-[#102f49]" : "text-white"}`} style={{ left, width }} title={`${formatDate(stage.startDate)} – ${formatDate(stage.endDate)}`}>
@@ -79,7 +79,7 @@ export function StudentGanttChart({ project }: StudentGanttChartProps) {
       </div>
 
       <div className="divide-y divide-slate-100 md:hidden">
-        {stages.map((stage) => <div key={stage.id} className="flex items-start gap-3 p-4"><span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${stage.status === "completed" ? "bg-emerald-500" : stage.status === "active" ? "bg-[#f6a800]" : "bg-slate-300"}`} /><div><p className="text-sm font-bold text-[#102f49]">{stage.sequence}. {stage.name}</p><p className="mt-1 text-xs text-slate-500">{formatDate(stage.startDate)} – {formatDate(stage.endDate)} · {stage.durationDays} days</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">{stage.status}{stage.requiresApproval ? " · Adviser approval required" : ""}</p></div></div>)}
+        {stages.map((stage) => <div key={stage.id} className="flex items-start gap-3 p-4"><span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${stage.status === "completed" ? "bg-emerald-500" : stage.status === "active" ? "bg-[#f6a800]" : "bg-slate-300"}`} /><div><p className="text-[10px] font-extrabold uppercase tracking-wide text-slate-400">{stage.topic?.title || "Ungrouped milestones"}</p><p className="text-sm font-bold text-[#102f49]">{stage.sequence}. {stage.name}</p><p className="mt-1 text-xs text-slate-500">{formatDate(stage.startDate)} – {formatDate(stage.endDate)} · {stage.durationDays} days</p><p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">{stage.status}{stage.requiresApproval ? " · Adviser approval required" : ""}</p></div></div>)}
       </div>
     </section>
   );

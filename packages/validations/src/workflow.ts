@@ -18,6 +18,20 @@ export const createWorkflowSchema = z.object({
   stages: z.array(workflowStageSchema).default([]),
 });
 
+export const createWorkflowTopicSchema = z.object({
+  title: z.string().trim().min(2).max(150),
+  description: z.string().trim().max(2000).optional().nullable(),
+});
+
+export const updateWorkflowTopicSchema = createWorkflowTopicSchema.partial().refine(
+  (value) => value.title !== undefined || value.description !== undefined,
+  "Provide a topic title or description to update.",
+);
+
+export const reorderWorkflowTopicsSchema = z.object({
+  topicIds: z.array(z.string().uuid("Invalid topic ID")).min(1),
+});
+
 export const workflowTransitionSchema = z.object({
   workflowInstanceId: z.string().uuid("Invalid workflow instance ID"),
   toStageId: z.string().uuid("Invalid stage ID"),
@@ -26,4 +40,6 @@ export const workflowTransitionSchema = z.object({
 
 export type WorkflowStageInput = z.infer<typeof workflowStageSchema>;
 export type CreateWorkflowInput = z.infer<typeof createWorkflowSchema>;
+export type CreateWorkflowTopicInput = z.infer<typeof createWorkflowTopicSchema>;
+export type UpdateWorkflowTopicInput = z.infer<typeof updateWorkflowTopicSchema>;
 export type WorkflowTransitionInput = z.infer<typeof workflowTransitionSchema>;

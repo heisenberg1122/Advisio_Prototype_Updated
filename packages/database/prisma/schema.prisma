@@ -642,6 +642,7 @@ model Workflow {
 
   researchTypes ResearchType[]
   stages        WorkflowStage[]
+  topics        WorkflowTopic[]
   instances     WorkflowInstance[]
   creator       User                 @relation("WorkflowCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   enrollments   WorkflowEnrollment[]
@@ -675,9 +676,27 @@ model WorkflowResource {
   @@map("workflow_resources")
 }
 
+model WorkflowTopic {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowId  String   @map("workflow_id") @db.Uuid
+  title       String   @db.VarChar(150)
+  description String?  @db.Text
+  sequence    Int
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workflow Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  stages   WorkflowStage[]
+
+  @@unique([workflowId, sequence])
+  @@index([workflowId])
+  @@map("workflow_topics")
+}
+
 model WorkflowStage {
   id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workflowId        String  @map("workflow_id") @db.Uuid
+  topicId           String? @map("topic_id") @db.Uuid
   name              String  @db.VarChar(150)
   description       String? @db.Text
   category          String  @default("Milestone") @db.VarChar(50)
@@ -690,6 +709,7 @@ model WorkflowStage {
   submissionMode    String  @default("EITHER") @map("submission_mode") @db.VarChar(20)
 
   workflow         Workflow             @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  topic            WorkflowTopic?       @relation(fields: [topicId], references: [id], onDelete: SetNull)
   responsible      Role                 @relation(fields: [responsibleRoleId], references: [id], onDelete: Restrict)
   fromTransitions  WorkflowTransition[] @relation("FromStage")
   toTransitions    WorkflowTransition[] @relation("ToStage")
@@ -697,6 +717,7 @@ model WorkflowStage {
   tasks            WorkflowTask[]
 
   @@unique([workflowId, sequence])
+  @@index([topicId])
   @@map("workflow_stages")
 }
 

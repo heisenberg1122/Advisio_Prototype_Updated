@@ -2,7 +2,10 @@ import { Router, Request, Response } from "express";
 import { storageHierarchyService } from "../services/storage-hierarchy.service.js";
 import { prisma } from "../lib/prisma.js";
 import {
+  createWorkflowTopicSchema,
   createWorkflowSchema,
+  reorderWorkflowTopicsSchema,
+  updateWorkflowTopicSchema,
   workflowTransitionSchema,
 } from "@research-management/validations";
 import { Permissions } from "@research-management/auth";
@@ -101,6 +104,70 @@ async function normalizeWorkflowStageSequences(tx: any, workflowId: string) {
       data: {
         sequence: archived ? archivedSequence-- : activeSequence++,
       },
+    });
+  }
+}
+
+async function normalizeWorkflowTopicSequences(tx: any, workflowId: string) {
+  const topics = await tx.workflowTopic.findMany({
+    where: { workflowId },
+    orderBy: [{ sequence: "asc" }, { id: "asc" }],
+    select: { id: true },
+  });
+  for (let index = 0; index < topics.length; index += 1) {
+    await tx.workflowTopic.update({
+      where: { id: topics[index].id },
+      data: { sequence: 1_000_000 + index },
+    });
+  }
+  for (let index = 0; index < topics.length; index += 1) {
+    await tx.workflowTopic.update({
+      where: { id: topics[index].id },
+      data: { sequence: index + 1 },
+    });
+  }
+}
+
+async function resequenceWorkflowStagesByTopics(tx: any, workflowId: string) {
+  const [topics, stages] = await Promise.all([
+    tx.workflowTopic.findMany({
+      where: { workflowId },
+      orderBy: [{ sequence: "asc" }, { id: "asc" }],
+      select: { id: true },
+    }),
+    tx.workflowStage.findMany({
+      where: { workflowId },
+      orderBy: [{ sequence: "asc" }, { id: "asc" }],
+      select: { id: true, topicId: true, category: true },
+    }),
+  ]);
+  const active = stages.filter((stage: any) => stage.category !== "Archived");
+  const archived = stages.filter((stage: any) => stage.category === "Archived");
+  // Keep legacy ungrouped milestones first so adding the first topic does not
+  // unexpectedly move an existing research process behind newly added work.
+  const orderedActive = [
+    ...active.filter((stage: any) => !stage.topicId),
+    ...topics.flatMap((topic: any) =>
+      active.filter((stage: any) => stage.topicId === topic.id),
+    ),
+  ];
+  const ordered = [...orderedActive, ...archived];
+  for (let index = 0; index < ordered.length; index += 1) {
+    await tx.workflowStage.update({
+      where: { id: ordered[index].id },
+      data: { sequence: 2_000_000 + index },
+    });
+  }
+  for (let index = 0; index < orderedActive.length; index += 1) {
+    await tx.workflowStage.update({
+      where: { id: orderedActive[index].id },
+      data: { sequence: index + 1 },
+    });
+  }
+  for (let index = 0; index < archived.length; index += 1) {
+    await tx.workflowStage.update({
+      where: { id: archived[index].id },
+      data: { sequence: -(index + 1) },
     });
   }
 }
@@ -272,10 +339,11 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
         ],
       },
       include: {
+        topics: { orderBy: { sequence: "asc" } },
         stages: {
           where: { category: { not: "Archived" } },
           orderBy: { sequence: "asc" },
-          include: { tasks: { orderBy: { sequence: "asc" } } },
+          include: { topic: true, tasks: { orderBy: { sequence: "asc" } } },
         },
       },
     });
@@ -287,6 +355,160 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
       .json({ error: error.message || "Failed to fetch workflows" });
   }
 });
+
+// POST /api/workflows/:id/topics — create a grouping section for milestones.
+router.post(
+  "/:id/topics",
+  requireAuth,
+  requirePermission(Permissions.WORKFLOW_EDIT),
+  validateBody(createWorkflowTopicSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const workflowId = req.params.id as string;
+      const access = await workflowAccess(workflowId, req.user!);
+      if (!access?.manages) {
+        return void res.status(404).json({ error: "Workflow not found in your academic scope." });
+      }
+      const duplicate = await prisma.workflowTopic.findFirst({
+        where: { workflowId, title: { equals: req.body.title, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (duplicate) {
+        return void res.status(409).json({ error: "A topic with this title already exists in the workflow." });
+      }
+      const topic = await prisma.$transaction(async (tx) => {
+        await normalizeWorkflowTopicSequences(tx, workflowId);
+        const lastTopic = await tx.workflowTopic.findFirst({
+          where: { workflowId },
+          orderBy: { sequence: "desc" },
+          select: { sequence: true },
+        });
+        return tx.workflowTopic.create({
+          data: {
+            workflowId,
+            title: req.body.title,
+            description: req.body.description || null,
+            sequence: (lastTopic?.sequence || 0) + 1,
+          },
+        });
+      });
+      res.status(201).json({ topic });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to create workflow topic." });
+    }
+  },
+);
+
+router.patch(
+  "/topics/:topicId",
+  requireAuth,
+  requirePermission(Permissions.WORKFLOW_EDIT),
+  validateBody(updateWorkflowTopicSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const existing = await prisma.workflowTopic.findUnique({ where: { id: req.params.topicId as string } });
+      if (!existing || !(await workflowAccess(existing.workflowId, req.user!))?.manages) {
+        return void res.status(404).json({ error: "Workflow topic not found." });
+      }
+      if (req.body.title) {
+        const duplicate = await prisma.workflowTopic.findFirst({
+          where: {
+            workflowId: existing.workflowId,
+            id: { not: existing.id },
+            title: { equals: req.body.title, mode: "insensitive" },
+          },
+          select: { id: true },
+        });
+        if (duplicate) {
+          return void res.status(409).json({ error: "A topic with this title already exists in the workflow." });
+        }
+      }
+      const topic = await prisma.workflowTopic.update({
+        where: { id: existing.id },
+        data: {
+          ...(req.body.title !== undefined && { title: req.body.title }),
+          ...(req.body.description !== undefined && { description: req.body.description || null }),
+        },
+      });
+      res.json({ topic });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to update workflow topic." });
+    }
+  },
+);
+
+router.patch(
+  "/:id/topics/reorder",
+  requireAuth,
+  requirePermission(Permissions.WORKFLOW_EDIT),
+  validateBody(reorderWorkflowTopicsSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const workflowId = req.params.id as string;
+      const access = await workflowAccess(workflowId, req.user!);
+      if (!access?.manages) {
+        return void res.status(404).json({ error: "Workflow not found in your academic scope." });
+      }
+      const topics = await prisma.workflowTopic.findMany({
+        where: { workflowId },
+        select: { id: true },
+      });
+      const existingIds = new Set(topics.map((topic) => topic.id));
+      const requestedIds = req.body.topicIds as string[];
+      if (
+        requestedIds.length !== existingIds.size ||
+        new Set(requestedIds).size !== requestedIds.length ||
+        requestedIds.some((id) => !existingIds.has(id))
+      ) {
+        return void res.status(400).json({ error: "Topic order must contain every workflow topic exactly once." });
+      }
+      await prisma.$transaction(async (tx) => {
+        for (let index = 0; index < requestedIds.length; index += 1) {
+          await tx.workflowTopic.update({ where: { id: requestedIds[index] }, data: { sequence: 1_000_000 + index } });
+        }
+        for (let index = 0; index < requestedIds.length; index += 1) {
+          await tx.workflowTopic.update({ where: { id: requestedIds[index] }, data: { sequence: index + 1 } });
+        }
+        await resequenceWorkflowStagesByTopics(tx, workflowId);
+      });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to reorder workflow topics." });
+    }
+  },
+);
+
+router.delete(
+  "/topics/:topicId",
+  requireAuth,
+  requirePermission(Permissions.WORKFLOW_EDIT),
+  async (req: Request, res: Response) => {
+    try {
+      const topic = await prisma.workflowTopic.findUnique({
+        where: { id: req.params.topicId as string },
+        include: {
+          stages: {
+            where: { category: { not: "Archived" } },
+            select: { id: true },
+          },
+        },
+      });
+      if (!topic || !(await workflowAccess(topic.workflowId, req.user!))?.manages) {
+        return void res.status(404).json({ error: "Workflow topic not found." });
+      }
+      if (topic.stages.length > 0) {
+        return void res.status(409).json({ error: "Move the topic's milestones before deleting it." });
+      }
+      await prisma.$transaction(async (tx) => {
+        await tx.workflowTopic.delete({ where: { id: topic.id } });
+        await normalizeWorkflowTopicSequences(tx, topic.workflowId);
+      });
+      res.status(204).send();
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to delete workflow topic." });
+    }
+  },
+);
 
 // POST /api/workflows
 router.post(
@@ -422,7 +644,7 @@ router.get("/invitation/:code", requireAuth, async (req: Request, res: Response)
         stages: {
           where: { category: { not: "Archived" } },
           orderBy: { sequence: "asc" },
-          select: { id: true, name: true, submissionMode: true },
+          select: { id: true, name: true, submissionMode: true, topic: { select: { id: true, title: true } } },
         },
         enrollments: {
           where: { userId: req.user!.id, status: "ACTIVE" },
@@ -453,7 +675,7 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
   try {
     if (!req.user!.roles.includes("RESEARCHER")) return void res.status(403).json({ error: "Researcher access is required." });
     const code = String(req.params.code || "").trim().toUpperCase();
-    const workflow = await prisma.workflow.findUnique({ where: { inviteCode: code }, include: { stages: { where: { category: { not: "Archived" } }, orderBy: { sequence: "asc" }, include: { tasks: true } } } });
+    const workflow = await prisma.workflow.findUnique({ where: { inviteCode: code }, include: { stages: { where: { category: { not: "Archived" } }, orderBy: { sequence: "asc" }, include: { topic: true, tasks: true } } } });
     if (!workflow || !workflow.inviteExpiresAt || workflow.inviteExpiresAt <= new Date()) return void res.status(404).json({ error: "This workflow invitation is invalid or expired." });
     const researchType = await prisma.researchType.findUnique({ where: { id: workflow.researchTypeId }, include: { program: true } });
     if (!researchType || req.user!.collegeId !== researchType.program.collegeId || req.user!.programId !== researchType.programId) return void res.status(403).json({ error: "This workflow belongs to a different department or program." });
@@ -485,7 +707,7 @@ router.get("/enrollments/me", requireAuth, async (req: Request, res: Response) =
             stages: {
               where: { category: { not: "Archived" } },
               orderBy: { sequence: "asc" },
-              include: { tasks: { orderBy: { sequence: "asc" } } },
+              include: { topic: true, tasks: { orderBy: { sequence: "asc" } } },
             },
           },
         },
@@ -739,9 +961,14 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const workflowId = req.params.id as string;
+      const access = await workflowAccess(workflowId, req.user!);
+      if (!access?.manages) {
+        return void res.status(404).json({ error: "Workflow not found in your academic scope." });
+      }
       const {
         name,
         description,
+        topicId,
         category = "Milestone",
         deadlineDays,
         requiresApproval = false,
@@ -776,16 +1003,18 @@ router.post(
         return;
       }
 
-      const [workflow, researcherRole] = await Promise.all([
-        prisma.workflow.findUnique({ where: { id: workflowId } }),
+      const [researcherRole, topic] = await Promise.all([
         prisma.role.findUnique({ where: { name: "RESEARCHER" } }),
+        topicId
+          ? prisma.workflowTopic.findFirst({ where: { id: topicId, workflowId } })
+          : Promise.resolve(null),
       ]);
-      if (!workflow) {
-        res.status(404).json({ error: "Workflow not found." });
-        return;
-      }
       if (!researcherRole) {
         res.status(500).json({ error: "Researcher role is not configured." });
+        return;
+      }
+      if (!topicId || !topic) {
+        res.status(400).json({ error: "Choose a valid topic for this milestone." });
         return;
       }
 
@@ -798,6 +1027,7 @@ router.post(
         const createdStage = await tx.workflowStage.create({
           data: {
             workflowId,
+            topicId: topic.id,
             name: name.trim(),
             description:
               typeof description === "string" && description.trim()
@@ -830,7 +1060,8 @@ router.post(
             },
           });
         }
-        return createdStage;
+        await resequenceWorkflowStagesByTopics(tx, workflowId);
+        return tx.workflowStage.findUniqueOrThrow({ where: { id: createdStage.id } });
       });
 
       const assignedProjects = await prisma.researchProject.findMany({
@@ -1059,6 +1290,7 @@ router.patch(
       const {
         name,
         description,
+        topicId,
         category,
         deadlineDays,
         requiresApproval,
@@ -1067,11 +1299,26 @@ router.patch(
         submissionMode,
       } = req.body;
 
-      const stage = await prisma.workflowStage.update({
-        where: { id: stageId },
-        data: {
+      const existing = await prisma.workflowStage.findUnique({ where: { id: stageId } });
+      if (!existing || !(await workflowAccess(existing.workflowId, req.user!))?.manages) {
+        return void res.status(404).json({ error: "Workflow milestone not found." });
+      }
+      if (topicId !== undefined) {
+        const topic = topicId
+          ? await prisma.workflowTopic.findFirst({ where: { id: topicId, workflowId: existing.workflowId } })
+          : null;
+        if (!topic) {
+          return void res.status(400).json({ error: "Choose a valid topic for this milestone." });
+        }
+      }
+
+      const stage = await prisma.$transaction(async (tx) => {
+        await tx.workflowStage.update({
+          where: { id: stageId },
+          data: {
           ...(name !== undefined && { name }),
           ...(description !== undefined && { description }),
+          ...(topicId !== undefined && { topicId }),
           ...(category !== undefined && { category }),
           ...(deadlineDays !== undefined && {
             deadlineDays: deadlineDays ? Number(deadlineDays) : null,
@@ -1084,7 +1331,12 @@ router.patch(
           }),
           ...(isFinal !== undefined && { isFinal: Boolean(isFinal) }),
           ...(submissionMode !== undefined && ["INDIVIDUAL", "GROUP", "EITHER"].includes(submissionMode) && { submissionMode }),
-        },
+          },
+        });
+        if (topicId !== undefined && topicId !== existing.topicId) {
+          await resequenceWorkflowStagesByTopics(tx, existing.workflowId);
+        }
+        return tx.workflowStage.findUniqueOrThrow({ where: { id: stageId } });
       });
 
       res.json({ stage });

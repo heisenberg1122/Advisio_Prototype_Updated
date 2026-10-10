@@ -381,7 +381,7 @@ export default function ResearchTasksPage() {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                      {task.stage.sequence}. Professor milestone
+                      {task.stage.topic?.title || "Ungrouped milestones"} · {task.stage.sequence}. Professor milestone
                     </p>
                     <h2 className="mt-1 text-base font-extrabold text-[#17212B] dark:text-white">
                       {task.title}

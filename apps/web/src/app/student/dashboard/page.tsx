@@ -296,6 +296,8 @@ function StudentDashboardContent() {
         deadlineDays: stage.deadlineDays,
         requiresApproval: stage.requiresApproval,
         sequence: stage.sequence,
+        topicId: stage.topic?.id || null,
+        topicTitle: stage.topic?.title || "Ungrouped milestones",
         description: stage.description || "",
         category: stage.category || "Milestone",
       })));
@@ -1734,8 +1736,8 @@ function StudentDashboardContent() {
                       <div className="flex flex-col gap-2">
                         {milestones.length > 0 ? (
                           milestones.slice(0, 2).map(m => (
-                            <div key={m.id} className="flex justify-between items-center text-[12px] p-2 bg-slate-50 border border-slate-200 rounded-lg">
-                              <span className="font-bold text-[#1b4264] truncate max-w-[140px]">{m.title}</span>
+                            <div key={m.id} className="flex justify-between items-center gap-2 text-[12px] p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                              <span className="min-w-0"><span className="block truncate text-[9px] font-extrabold uppercase tracking-wide text-slate-400">{m.topicTitle}</span><span className="block truncate font-bold text-[#1b4264]">{m.title}</span></span>
                               <Tag variant={m.status === "completed" ? "success" : m.status === "in-progress" ? "warn" : "info"}>{m.status}</Tag>
                             </div>
                           ))
@@ -2017,8 +2019,10 @@ function StudentDashboardContent() {
                   <p className="text-[11px] text-slate-400 font-bold">Review the professor-defined sequence, duration, approval gates, and current status.</p>
                   <div className="flex flex-col gap-2.5 mt-2">
                   {milestones.length > 0 ? (
-                    milestones.map(m => (
-                      <div key={m.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-start gap-4 text-[12.5px] shadow-sm">
+                    milestones.map((m, index) => (
+                      <React.Fragment key={m.id}>
+                      {(index === 0 || milestones[index - 1]?.topicId !== m.topicId) && <div className="mt-3 flex items-center gap-2 first:mt-0"><span className="grid h-7 w-7 place-items-center rounded-lg bg-[#1b4264] text-white"><i className="ti ti-folders text-xs" /></span><span className="text-xs font-extrabold uppercase tracking-wide text-[#1b4264]">{m.topicTitle}</span></div>}
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-start gap-4 text-[12.5px] shadow-sm">
                         <div className="min-w-0 flex-1">
                           <span className="font-bold text-[#1b4264] block">{m.sequence}. {m.title}</span>
                           <span className="mt-0.5 block text-[10px] text-slate-500">{m.category} · {m.deadlineDays ? `${m.deadlineDays} days` : "No target duration"}{m.requiresApproval ? " · Adviser approval required" : ""}</span>
@@ -2026,6 +2030,7 @@ function StudentDashboardContent() {
                         </div>
                         <Tag variant={m.status === 'completed' ? 'success' : m.status === 'in-progress' ? 'warn' : 'info'}>{m.status}</Tag>
                       </div>
+                      </React.Fragment>
                     ))
                   ) : (
                     <div className="text-xs text-slate-400 py-6 text-center">

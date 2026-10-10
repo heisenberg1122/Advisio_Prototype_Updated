@@ -7,6 +7,7 @@ export interface WorkflowStageLike {
   deadlineDays?: number | null;
   requiresApproval?: boolean;
   isFinal?: boolean;
+  topic?: { id: string; title: string } | null;
 }
 
 export interface WorkflowProjectLike {

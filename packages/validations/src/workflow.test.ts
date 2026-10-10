@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createWorkflowSchema } from "./workflow.js";
+import {
+  createWorkflowSchema,
+  createWorkflowTopicSchema,
+  updateWorkflowTopicSchema,
+} from "./workflow.js";
 
 describe("createWorkflowSchema", () => {
   it("allows an empty draft workflow", () => {
@@ -16,5 +20,18 @@ describe("createWorkflowSchema", () => {
       name: "  Department Research Workflow  ",
     });
     expect(result.name).toBe("Department Research Workflow");
+  });
+});
+
+describe("workflow topic schemas", () => {
+  it("trims a topic title and accepts an optional description", () => {
+    expect(createWorkflowTopicSchema.parse({
+      title: "  Title Defense  ",
+      description: "  Proposal chapters  ",
+    })).toEqual({ title: "Title Defense", description: "Proposal chapters" });
+  });
+
+  it("requires an update to contain a changed field", () => {
+    expect(() => updateWorkflowTopicSchema.parse({})).toThrow();
   });
 });

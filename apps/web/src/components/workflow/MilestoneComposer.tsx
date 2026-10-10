@@ -3,6 +3,8 @@ import React, { useEffect, useRef } from "react";
 type MilestoneComposerProps = {
   mode: "create" | "edit";
   workflowName: string;
+  topics: Array<{ id: string; title: string }>;
+  topicId: string;
   title: string;
   instructions: string;
   deadlineDays: string;
@@ -14,6 +16,7 @@ type MilestoneComposerProps = {
   advancedOpen: boolean;
   requirementsContent?: React.ReactNode;
   onTitleChange: (value: string) => void;
+  onTopicIdChange: (value: string) => void;
   onInstructionsChange: (value: string) => void;
   onDeadlineDaysChange: (value: string) => void;
   onSubmissionModeChange: (value: string) => void;
@@ -30,6 +33,8 @@ type MilestoneComposerProps = {
 export function MilestoneComposer({
   mode,
   workflowName,
+  topics,
+  topicId,
   title,
   instructions,
   deadlineDays,
@@ -41,6 +46,7 @@ export function MilestoneComposer({
   advancedOpen,
   requirementsContent,
   onTitleChange,
+  onTopicIdChange,
   onInstructionsChange,
   onDeadlineDaysChange,
   onSubmissionModeChange,
@@ -55,6 +61,7 @@ export function MilestoneComposer({
 }: MilestoneComposerProps) {
   const currentSignature = JSON.stringify({
     title,
+    topicId,
     instructions,
     deadlineDays,
     submissionMode,
@@ -114,7 +121,7 @@ export function MilestoneComposer({
             )}
             <button
               type="submit"
-              disabled={saving || title.trim().length < 3}
+              disabled={saving || title.trim().length < 3 || !topicId}
               className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#102f49] disabled:cursor-not-allowed disabled:opacity-50 sm:px-5"
             >
               {saving ? "Saving…" : isCreate ? "Add milestone" : "Save changes"}
@@ -207,6 +214,20 @@ export function MilestoneComposer({
                     <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">Workflow</span>
                     <p className="mt-1.5 text-sm font-bold text-[#102f49]">{workflowName || "Not selected"}</p>
                   </div>
+                  <label className="block text-sm font-bold text-slate-700">
+                    Topic <span className="text-rose-600">*</span>
+                    <select
+                      value={topicId}
+                      onChange={(event) => onTopicIdChange(event.target.value)}
+                      required
+                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal"
+                    >
+                      <option value="">Choose a topic</option>
+                      {topics.map((topic) => (
+                        <option key={topic.id} value={topic.id}>{topic.title}</option>
+                      ))}
+                    </select>
+                  </label>
                   <label className="block text-sm font-bold text-slate-700">
                     Completed by
                     <select

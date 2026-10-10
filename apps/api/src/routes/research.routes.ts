@@ -84,7 +84,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
                 stages: {
                   where: { category: { not: "Archived" } },
                   orderBy: { sequence: "asc" },
-                  include: { tasks: { orderBy: { sequence: "asc" } } },
+                  include: { topic: true, tasks: { orderBy: { sequence: "asc" } } },
                 },
               },
             },
@@ -245,7 +245,7 @@ router.post(
                 stages: {
                   where: { category: { not: "Archived" } },
                   orderBy: { sequence: "asc" },
-                  include: { tasks: { orderBy: { sequence: "asc" } } },
+                  include: { topic: true, tasks: { orderBy: { sequence: "asc" } } },
                 },
               },
             },
@@ -260,6 +260,7 @@ router.post(
                   where: { category: { not: "Archived" } },
                   orderBy: { sequence: "asc" },
                   include: {
+                    topic: true,
                     tasks: { orderBy: { sequence: "asc" } },
                   },
                 },
@@ -408,6 +409,7 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
                   where: { category: { not: "Archived" } },
                   orderBy: { sequence: "asc" },
                   include: {
+                    topic: true,
                     tasks: { orderBy: { sequence: "asc" } },
                   },
                 },
