@@ -264,8 +264,10 @@ router.post("/", async (req: Request, res: Response) => {
 
     const title = String(req.body.title || "").trim();
     const description = String(req.body.description || "").trim();
-    const participantIds = [...new Set((Array.isArray(req.body.participantIds) ? req.body.participantIds : []).map(String))]
-      .filter((id) => id !== current.id);
+    const rawParticipantIds: unknown[] = Array.isArray(req.body.participantIds) ? req.body.participantIds : [];
+    const participantIds = [...new Set(rawParticipantIds.map((value) => String(value)))].filter(
+      (id) => id !== current.id,
+    );
     if (!title || participantIds.length === 0) {
       res.status(400).json({ error: "A title and at least one recipient are required" });
       return;
