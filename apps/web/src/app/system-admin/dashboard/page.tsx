@@ -9,8 +9,13 @@ import { Tag } from "@/components/ui/Tag";
 import { SystemAnnouncements } from "@/components/system-admin/SystemAnnouncements";
 import { UserManagement } from "@/components/system-admin/UserManagement";
 import { GoogleDriveIntegration } from "@/components/system-admin/GoogleDriveIntegration";
+import { AcademicStructureManagement } from "@/components/system-admin/AcademicStructureManagement";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
-import { DashboardSkeleton, Skeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
+import {
+  DashboardSkeleton,
+  Skeleton,
+  TablePageSkeleton,
+} from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
 import {
   Building2,
@@ -21,7 +26,6 @@ import {
   FileText,
   Database,
   Users,
-  CheckCircle2,
   Plus,
   ArrowRight,
   Lock,
@@ -50,12 +54,7 @@ function SystemAdminDashboardContent() {
     staleTime: 60000,
   });
 
-  const {
-    data: programsData,
-    isLoading: programsLoading,
-    isError: programsError,
-    refetch: refetchPrograms,
-  } = useQuery({
+  const { data: programsData, isLoading: programsLoading } = useQuery({
     queryKey: ["admin-programs"],
     queryFn: () => apiClient.get<{ programs: any[] }>("/api/programs"),
     staleTime: 60000,
@@ -70,14 +69,16 @@ function SystemAdminDashboardContent() {
     staleTime: 60000,
   });
 
-  const { data: academicYearsData, isLoading: academicYearsLoading } = useQuery({
-    queryKey: ["system-admin-academic-years-overview"],
-    queryFn: () =>
-      apiClient
-        .get<{ academicYears: any[] }>("/api/academic-years")
-        .catch(() => ({ academicYears: [] })),
-    staleTime: 60000,
-  });
+  const { data: academicYearsData, isLoading: academicYearsLoading } = useQuery(
+    {
+      queryKey: ["system-admin-academic-years-overview"],
+      queryFn: () =>
+        apiClient
+          .get<{ academicYears: any[] }>("/api/academic-years")
+          .catch(() => ({ academicYears: [] })),
+      staleTime: 60000,
+    },
+  );
 
   const { data: researchData, isLoading: researchLoading } = useQuery({
     queryKey: ["system-admin-research-overview"],
@@ -89,7 +90,7 @@ function SystemAdminDashboardContent() {
   });
 
   const [colleges, setColleges] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
+  const [programs, setPrograms] = useState<any[]>([]);
 
   useEffect(() => {
     if (collegesData?.colleges) {
@@ -99,7 +100,7 @@ function SystemAdminDashboardContent() {
           name: c.name,
           code: c.code,
           status: "active",
-          deptsCount: c.programs?.length || 0,
+          programsCount: c.programs?.length || 0,
           adminName: "Dean Officer",
         })),
       );
@@ -108,7 +109,7 @@ function SystemAdminDashboardContent() {
 
   useEffect(() => {
     if (programsData?.programs) {
-      setDepartments(
+      setPrograms(
         programsData.programs.map((p: any) => ({
           id: p.id,
           collegeId: p.collegeId,
@@ -122,90 +123,26 @@ function SystemAdminDashboardContent() {
 
   const [maintenanceMode] = useState(false);
   const [configStatus] = useState("Operational");
-  // Modals state
-  const [modalCol, setModalCol] = useState(false);
-  const [modalDept, setModalDept] = useState(false);
-
-  // Form states
-  const [colName, setColName] = useState("");
-  const [colCode, setColCode] = useState("");
-  const [deptCollege, setDeptCollege] = useState("");
-  const [deptName, setDeptName] = useState("");
-  const [deptCode, setDeptCode] = useState("");
-
-  const [toast, setToast] = useState<string | null>(null);
-  const triggerToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const handleAddCollege = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await apiClient.post("/api/colleges", {
-        name: colName.trim(),
-        code: colCode.trim().toUpperCase(),
-        isActive: true,
-      });
-      await refetchColleges();
-      setModalCol(false);
-      setColName("");
-      setColCode("");
-      triggerToast(
-        `Successfully onboarded college ${colCode.trim().toUpperCase()}`,
-      );
-    } catch (error) {
-      triggerToast(
-        error instanceof Error
-          ? `Could not onboard college: ${error.message}`
-          : "Could not onboard college.",
-      );
-    }
-  };
-
-  const handleAddDept = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await apiClient.post("/api/programs", {
-        collegeId: deptCollege,
-        name: deptName.trim(),
-        code: deptCode.trim().toUpperCase(),
-        isActive: true,
-      });
-      await Promise.all([refetchPrograms(), refetchColleges()]);
-      setModalDept(false);
-      setDeptCollege("");
-      setDeptName("");
-      setDeptCode("");
-      triggerToast(`Added department ${deptCode.trim().toUpperCase()}`);
-    } catch (error) {
-      triggerToast(
-        error instanceof Error
-          ? `Could not add department: ${error.message}`
-          : "Could not add department.",
-      );
-    }
-  };
-
   const router = useRouter();
   const handleTabChange = (tab: string) => {
     router.push(`/system-admin/dashboard?tab=${tab}`);
   };
 
-  if (activeTab === "overview" && (collegesLoading || programsLoading || usersLoading || academicYearsLoading || researchLoading)) {
+  if (
+    activeTab === "overview" &&
+    (collegesLoading ||
+      programsLoading ||
+      usersLoading ||
+      academicYearsLoading ||
+      researchLoading)
+  ) {
     return <DashboardSkeleton />;
   }
-  if (activeTab === "onboarding" && (collegesLoading || programsLoading)) return <TablePageSkeleton />;
+  if (activeTab === "onboarding" && (collegesLoading || programsLoading))
+    return <TablePageSkeleton />;
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent text-slate-800 transition-colors dark:text-slate-100">
-      {toast && (
-        <div className="fixed top-5 right-5 z-50 bg-[#0B3A53] border border-[#C9A227]/30 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3">
-          <CheckCircle2 className="h-5 w-5 text-[#C9A227]" />
-          <span className="text-xs font-bold">{toast}</span>
-        </div>
-      )}
-
       {/* MAIN CONTAINER */}
       <main className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col gap-6 overflow-y-auto p-4 sm:p-6 lg:p-8">
         {/* TAB CONTENTS */}
@@ -215,97 +152,7 @@ function SystemAdminDashboardContent() {
           if (activeTab === "integrations") return <GoogleDriveIntegration />;
 
           if (activeTab === "onboarding") {
-            return (
-              <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b] flex flex-col gap-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
-                  <div>
-                    <h3 className="font-black text-slate-900 dark:text-white text-base">
-                      College & Department Onboarding
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                      Manage academic divisions, departments, and map university
-                      profiles.
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setModalCol(true)}
-                      className="px-4 py-2 bg-[#C9A227] hover:brightness-105 text-[#0B3A53] font-black text-xs rounded-xl shadow-xs cursor-pointer"
-                    >
-                      Onboard College
-                    </button>
-                    <button
-                      onClick={() => setModalDept(true)}
-                      className="px-4 py-2 bg-slate-50 dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl border border-slate-200 dark:border-white/10 cursor-pointer"
-                    >
-                      Add Department
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="border border-slate-200/80 dark:border-white/10 rounded-2xl p-5 flex flex-col gap-3 bg-white dark:bg-[#101b2b]">
-                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-2.5">
-                      Colleges ({colleges.length})
-                    </h4>
-                    {collegesLoading ? (
-                      <div className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-2/3" /></div>
-                    ) : collegesError ? (
-                      <button
-                        onClick={() => void refetchColleges()}
-                        className="text-left text-xs font-semibold text-rose-600"
-                      >
-                        Unable to load colleges. Retry
-                      </button>
-                    ) : (
-                      colleges.map((c) => (
-                        <div
-                          key={c.id}
-                          className="p-3 bg-slate-50/70 dark:bg-white/[0.02] rounded-xl border border-slate-100 dark:border-white/5 flex justify-between items-center text-xs"
-                        >
-                          <span className="font-bold text-slate-900 dark:text-white">
-                            {c.name}
-                          </span>
-                          <span className="font-mono text-[10px] bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227] px-2 py-0.5 rounded font-black">
-                            {c.code}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="border border-slate-200/80 dark:border-white/10 rounded-2xl p-5 flex flex-col gap-3 bg-white dark:bg-[#101b2b]">
-                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white border-b border-slate-100 dark:border-white/5 pb-2.5">
-                      Departments ({departments.length})
-                    </h4>
-                    {programsLoading ? (
-                      <div className="space-y-2"><Skeleton className="h-4 w-1/2" /><Skeleton className="h-4 w-3/4" /><Skeleton className="h-4 w-2/3" /></div>
-                    ) : programsError ? (
-                      <button
-                        onClick={() => void refetchPrograms()}
-                        className="text-left text-xs font-semibold text-rose-600"
-                      >
-                        Unable to load departments. Retry
-                      </button>
-                    ) : (
-                      departments.map((d) => (
-                        <div
-                          key={d.id}
-                          className="p-3 bg-slate-50/70 dark:bg-white/[0.02] rounded-xl border border-slate-100 dark:border-white/5 flex justify-between items-center text-xs"
-                        >
-                          <span className="font-bold text-slate-900 dark:text-white">
-                            {d.name}
-                          </span>
-                          <span className="text-[10px] uppercase font-mono font-black text-[#C9A227]">
-                            {d.code}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
+            return <AcademicStructureManagement />;
           }
 
           if (activeTab === "logs") {
@@ -578,16 +425,16 @@ function SystemAdminDashboardContent() {
                 actions={
                   <>
                     <button
-                      onClick={() => setModalCol(true)}
+                      onClick={() => handleTabChange("onboarding")}
                       className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#C9A227] px-4 text-xs font-black text-[#0B3A53] shadow-xs transition hover:brightness-105 sm:flex-none"
                     >
                       <Plus className="h-4 w-4" /> Onboard College
                     </button>
                     <button
-                      onClick={() => setModalDept(true)}
+                      onClick={() => handleTabChange("onboarding")}
                       className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-xs font-bold text-white backdrop-blur-xs transition hover:bg-white/20 sm:flex-none"
                     >
-                      <Plus className="h-4 w-4" /> Add Department
+                      <Plus className="h-4 w-4" /> Add Program
                     </button>
                   </>
                 }
@@ -604,7 +451,7 @@ function SystemAdminDashboardContent() {
                   },
                   {
                     label: "Active Programs",
-                    value: departments.length,
+                    value: programs.length,
                     suffix: "programs",
                     icon: Layers,
                     tone: "text-[#8A6A0B] dark:text-[#C9A227] bg-[#C9A227]/15",
@@ -677,7 +524,7 @@ function SystemAdminDashboardContent() {
                       </p>
                     </div>
                     <button
-                      onClick={() => setModalCol(true)}
+                      onClick={() => handleTabChange("onboarding")}
                       className="text-xs font-extrabold text-[#0B3A53] dark:text-[#C9A227] hover:underline"
                     >
                       + Onboard
@@ -685,7 +532,10 @@ function SystemAdminDashboardContent() {
                   </div>
                   <div className="flex flex-col gap-3">
                     {collegesLoading && (
-                      <div className="space-y-2"><Skeleton className="h-14 w-full rounded-xl" /><Skeleton className="h-14 w-full rounded-xl" /></div>
+                      <div className="space-y-2">
+                        <Skeleton className="h-14 w-full rounded-xl" />
+                        <Skeleton className="h-14 w-full rounded-xl" />
+                      </div>
                     )}
                     {collegesError && (
                       <button
@@ -712,7 +562,7 @@ function SystemAdminDashboardContent() {
                             {c.name} ({c.code})
                           </span>
                           <span className="text-[11px] text-slate-400">
-                            Dean Officer · {c.deptsCount} Departments
+                            Dean Officer · {c.programsCount} Programs
                           </span>
                         </div>
                         <Tag
@@ -817,7 +667,7 @@ function SystemAdminDashboardContent() {
                     },
                     {
                       label: "Academic registry",
-                      detail: `${departments.length} programs · ${academicYearsData?.academicYears?.length || 0} years`,
+                      detail: `${programs.length} programs · ${academicYearsData?.academicYears?.length || 0} years`,
                       icon: Building2,
                       tone: "bg-blue-50 text-blue-600",
                     },
@@ -859,155 +709,13 @@ function SystemAdminDashboardContent() {
           );
         })()}
       </main>
-
-      {/* ONBOARD COLLEGE MODAL */}
-      {modalCol && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#101b2b] rounded-2xl border border-slate-200 dark:border-white/10 max-w-md w-full p-6 shadow-2xl flex flex-col gap-4 text-slate-800 dark:text-slate-100">
-            <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-[#C9A227]" />
-              Onboard College Unit
-            </h3>
-            <form
-              onSubmit={handleAddCollege}
-              className="flex flex-col gap-3 text-xs"
-            >
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-600 dark:text-slate-300">
-                  College Name
-                </label>
-                <input
-                  required
-                  type="text"
-                  value={colName}
-                  onChange={(e) => setColName(e.target.value)}
-                  placeholder="e.g. College of Science"
-                  className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#0B3A53]"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-600 dark:text-slate-300">
-                  College Code
-                </label>
-                <input
-                  required
-                  type="text"
-                  value={colCode}
-                  onChange={(e) => setColCode(e.target.value)}
-                  placeholder="e.g. COS"
-                  className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#0B3A53]"
-                />
-              </div>
-              <div className="flex justify-end gap-2.5 border-t border-slate-100 dark:border-white/5 pt-4 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setModalCol(false)}
-                  className="px-4 py-2 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl font-bold text-slate-600 dark:text-slate-300 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#C9A227] hover:brightness-105 text-[#0B3A53] font-black rounded-xl cursor-pointer"
-                >
-                  Onboard College
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ADD DEPARTMENT MODAL */}
-      {modalDept && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#101b2b] rounded-2xl border border-slate-200 dark:border-white/10 max-w-md w-full p-6 shadow-2xl flex flex-col gap-4 text-slate-800 dark:text-slate-100">
-            <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
-              <Layers className="h-5 w-5 text-[#C9A227]" />
-              Add Department
-            </h3>
-            <form
-              onSubmit={handleAddDept}
-              className="flex flex-col gap-3 text-xs"
-            >
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-600 dark:text-slate-300">
-                  Affiliated College
-                </label>
-                <select
-                  required
-                  value={deptCollege}
-                  onChange={(e) => setDeptCollege(e.target.value)}
-                  className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none"
-                >
-                  <option value="" className="dark:bg-[#101b2b]">
-                    Select College
-                  </option>
-                  {colleges.map((c) => (
-                    <option
-                      key={c.id}
-                      value={c.id}
-                      className="dark:bg-[#101b2b]"
-                    >
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-600 dark:text-slate-300">
-                  Department Name
-                </label>
-                <input
-                  required
-                  type="text"
-                  value={deptName}
-                  onChange={(e) => setDeptName(e.target.value)}
-                  placeholder="e.g. Physics Department"
-                  className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-600 dark:text-slate-300">
-                  Department Code
-                </label>
-                <input
-                  required
-                  type="text"
-                  value={deptCode}
-                  onChange={(e) => setDeptCode(e.target.value)}
-                  placeholder="e.g. PHYS"
-                  className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none"
-                />
-              </div>
-              <div className="flex justify-end gap-2.5 border-t border-slate-100 dark:border-white/5 pt-4 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setModalDept(false)}
-                  className="px-4 py-2 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 rounded-xl font-bold text-slate-600 dark:text-slate-300 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#C9A227] hover:brightness-105 text-[#0B3A53] font-black rounded-xl cursor-pointer"
-                >
-                  Add Department
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 export default function SystemAdminDashboardPage() {
   return (
-    <Suspense
-      fallback={<DashboardSkeleton />}
-    >
+    <Suspense fallback={<DashboardSkeleton />}>
       <SystemAdminDashboardContent />
     </Suspense>
   );

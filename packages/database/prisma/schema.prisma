@@ -371,11 +371,13 @@ model Program {
   code        String   @db.VarChar(20)
   name        String   @db.VarChar(150)
   description String?  @db.Text
+  hasMajors   Boolean  @default(false) @map("has_majors")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   college          College           @relation(fields: [collegeId], references: [id], onDelete: Restrict)
+  majors           ProgramMajor[]
   users            User[]
   researchTypes    ResearchType[]
   researchProjects ResearchProject[]
@@ -384,6 +386,24 @@ model Program {
   @@unique([collegeId, code])
   @@index([isActive])
   @@map("programs")
+}
+
+model ProgramMajor {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  programId   String   @map("program_id") @db.Uuid
+  code        String?  @db.VarChar(20)
+  name        String   @db.VarChar(150)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Restrict)
+
+  @@unique([programId, name])
+  @@unique([programId, code])
+  @@index([programId, isActive])
+  @@map("program_majors")
 }
 
 model AcademicYear {
