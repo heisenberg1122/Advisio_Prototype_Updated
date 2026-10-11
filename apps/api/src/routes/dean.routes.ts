@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { prisma } from "../lib/prisma.js";
+import { AuditAction, prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import {
   ACTIVE_ADVISEE_STATUSES,
@@ -52,7 +52,7 @@ router.get(
           ? req.query.academicYearId
           : undefined;
 
-      const [college, programs, academicYears, users, projects, adviserUsers] =
+      const [college, programs, academicYears, users, projects, adviserUsers, adviserCandidates] =
         await Promise.all([
           prisma.college.findUnique({
             where: { id: collegeId },
@@ -113,6 +113,7 @@ router.get(
             where: {
               collegeId,
               status: "ACTIVE",
+              ...(programId && { programId }),
               roles: { some: { role: { name: "ADVISER" } } },
             },
             select: {
@@ -120,6 +121,7 @@ router.get(
               firstName: true,
               lastName: true,
               email: true,
+              program: { select: { id: true, code: true, name: true } },
               maxAdviseeGroups: true,
               isAcceptingAdvisees: true,
               adviserCapacityNote: true,
@@ -134,6 +136,26 @@ router.get(
                   },
                 },
               },
+            },
+            orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+          }),
+          prisma.user.findMany({
+            where: {
+              collegeId,
+              status: "ACTIVE",
+              id: { not: req.user!.id },
+              roles: {
+                none: { role: { name: "ADVISER" } },
+                some: { role: { name: { in: ["PANELIST", "RESEARCH_COORDINATOR", "RPO", "REB", "VPAA"] } } },
+              },
+            },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              program: { select: { id: true, code: true, name: true } },
+              roles: { select: { role: { select: { name: true } } } },
             },
             orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
           }),
@@ -299,11 +321,149 @@ router.get(
         students: studentRows,
         projects: projectRows,
         advisers: advisers.sort((a, b) => b.groups - a.groups),
+        adviserCandidates: adviserCandidates.map((candidate) => ({
+          id: candidate.id,
+          name: `${candidate.firstName} ${candidate.lastName}`,
+          email: candidate.email,
+          program: candidate.program,
+          roles: candidate.roles.map((entry) => entry.role.name),
+        })),
       });
     } catch (error: any) {
       res
         .status(500)
         .json({ error: error.message || "Failed to load dean dashboard" });
+    }
+  },
+);
+
+function validCapacity(value: unknown) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 50 ? parsed : null;
+}
+
+async function deanProgram(programId: string, collegeId: string) {
+  return prisma.program.findFirst({
+    where: { id: programId, collegeId, isActive: true },
+    select: { id: true, code: true, name: true },
+  });
+}
+
+router.post(
+  "/dean/advisers",
+  requireAuth,
+  requireDean,
+  async (req: Request, res: Response) => {
+    try {
+      const collegeId = req.user!.collegeId;
+      if (!collegeId) return void res.status(400).json({ error: "This dean account is not assigned to a college." });
+      const userId = String(req.body.userId || "");
+      const programId = String(req.body.programId || "");
+      const maxAdviseeGroups = validCapacity(req.body.maxAdviseeGroups);
+      const isAcceptingAdvisees = req.body.isAcceptingAdvisees;
+      if (maxAdviseeGroups == null) return void res.status(400).json({ error: "Maximum groups must be a whole number from 0 to 50." });
+      if (typeof isAcceptingAdvisees !== "boolean") return void res.status(400).json({ error: "Choose whether this adviser accepts new requests." });
+
+      const [target, program, adviserRole] = await Promise.all([
+        prisma.user.findFirst({ where: { id: userId, collegeId, status: "ACTIVE" }, include: { roles: { include: { role: true } } } }),
+        deanProgram(programId, collegeId),
+        prisma.role.findUnique({ where: { name: "ADVISER" } }),
+      ]);
+      if (!target) return void res.status(404).json({ error: "Choose an active faculty account from your college." });
+      if (!program) return void res.status(400).json({ error: "Choose an active program from your college." });
+      if (!adviserRole) return void res.status(500).json({ error: "The Adviser role is not configured." });
+      if (target.roles.some((entry) => entry.role.name === "ADVISER")) return void res.status(409).json({ error: "This faculty member is already an adviser." });
+
+      const adviser = await prisma.$transaction(async (tx) => {
+        await tx.userRole.create({ data: { userId: target.id, roleId: adviserRole.id, grantedBy: req.user!.id } });
+        const updated = await tx.user.update({
+          where: { id: target.id },
+          data: { programId: program.id, maxAdviseeGroups, isAcceptingAdvisees, adviserCapacitySetBy: req.user!.id, adviserCapacitySetAt: new Date() },
+          select: { id: true, firstName: true, lastName: true, email: true },
+        });
+        await tx.auditLog.create({
+          data: { userId: req.user!.id, action: AuditAction.ROLE_CHANGE, entityType: "ADVISER", entityId: target.id, oldValues: { roles: target.roles.map((entry) => entry.role.name) }, newValues: { addedRole: "ADVISER", programId: program.id, maxAdviseeGroups, isAcceptingAdvisees }, ipAddress: req.ip, userAgent: req.get("user-agent") || null },
+        });
+        await tx.notification.create({ data: { recipientId: target.id, type: "WORKFLOW_CHANGED", title: "Adviser access added", message: `You are now an adviser for ${program.code}.`, entityType: "ADVISER", entityId: target.id } });
+        return updated;
+      });
+      res.status(201).json({ adviser });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to add adviser." });
+    }
+  },
+);
+
+router.patch(
+  "/dean/advisers/:id",
+  requireAuth,
+  requireDean,
+  async (req: Request, res: Response) => {
+    try {
+      const collegeId = req.user!.collegeId;
+      if (!collegeId) return void res.status(400).json({ error: "This dean account is not assigned to a college." });
+      const programId = String(req.body.programId || "");
+      const maxAdviseeGroups = validCapacity(req.body.maxAdviseeGroups);
+      const isAcceptingAdvisees = req.body.isAcceptingAdvisees;
+      const note = String(req.body.note || "").trim();
+      if (maxAdviseeGroups == null) return void res.status(400).json({ error: "Maximum groups must be a whole number from 0 to 50." });
+      if (typeof isAcceptingAdvisees !== "boolean") return void res.status(400).json({ error: "Choose whether this adviser accepts new requests." });
+      if (note.length < 10) return void res.status(400).json({ error: "Add a reason of at least 10 characters for the audit record." });
+      const [target, program] = await Promise.all([
+        prisma.user.findFirst({ where: { id: req.params.id as string, collegeId, roles: { some: { role: { name: "ADVISER" } } } } }),
+        deanProgram(programId, collegeId),
+      ]);
+      if (!target) return void res.status(404).json({ error: "Adviser not found in your college." });
+      if (!program) return void res.status(400).json({ error: "Choose an active program from your college." });
+
+      const adviser = await prisma.$transaction(async (tx) => {
+        const updated = await tx.user.update({
+          where: { id: target.id },
+          data: { programId: program.id, maxAdviseeGroups, isAcceptingAdvisees, adviserCapacityNote: note, adviserCapacitySetBy: req.user!.id, adviserCapacitySetAt: new Date() },
+          select: { id: true, firstName: true, lastName: true, email: true },
+        });
+        await tx.auditLog.create({
+          data: { userId: req.user!.id, action: AuditAction.UPDATE, entityType: "ADVISER", entityId: target.id, oldValues: { programId: target.programId, maxAdviseeGroups: target.maxAdviseeGroups, isAcceptingAdvisees: target.isAcceptingAdvisees }, newValues: { programId: program.id, maxAdviseeGroups, isAcceptingAdvisees, note }, ipAddress: req.ip, userAgent: req.get("user-agent") || null },
+        });
+        await tx.notification.create({ data: { recipientId: target.id, type: "WORKFLOW_CHANGED", title: "Adviser assignment updated", message: `Your adviser settings were updated for ${program.code}.`, entityType: "ADVISER", entityId: target.id } });
+        return updated;
+      });
+      res.json({ adviser });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to update adviser." });
+    }
+  },
+);
+
+router.delete(
+  "/dean/advisers/:id",
+  requireAuth,
+  requireDean,
+  async (req: Request, res: Response) => {
+    try {
+      const collegeId = req.user!.collegeId;
+      if (!collegeId) return void res.status(400).json({ error: "This dean account is not assigned to a college." });
+      const target = await prisma.user.findFirst({
+        where: { id: req.params.id as string, collegeId, roles: { some: { role: { name: "ADVISER" } } } },
+        include: { roles: { include: { role: true } } },
+      });
+      if (!target) return void res.status(404).json({ error: "Adviser not found in your college." });
+      const activeGroups = await prisma.researchMember.count({
+        where: { userId: target.id, projectRole: "ADVISER", leftAt: null, research: { status: { in: ACTIVE_ADVISEE_STATUSES } } },
+      });
+      if (activeGroups > 0) return void res.status(409).json({ error: `Reassign ${activeGroups} active ${activeGroups === 1 ? "group" : "groups"} before removing this adviser.` });
+      const adviserRole = target.roles.find((entry) => entry.role.name === "ADVISER");
+      if (!adviserRole) return void res.status(404).json({ error: "Adviser role not found." });
+
+      await prisma.$transaction(async (tx) => {
+        await tx.userRole.delete({ where: { userId_roleId: { userId: target.id, roleId: adviserRole.roleId } } });
+        await tx.adviserRequest.updateMany({ where: { adviserId: target.id, status: "PENDING" }, data: { status: "REJECTED", responseNote: "Adviser access was removed by the Dean.", respondedAt: new Date() } });
+        await tx.auditLog.create({ data: { userId: req.user!.id, action: AuditAction.ROLE_CHANGE, entityType: "ADVISER", entityId: target.id, oldValues: { roles: target.roles.map((entry) => entry.role.name), programId: target.programId }, newValues: { removedRole: "ADVISER" }, ipAddress: req.ip, userAgent: req.get("user-agent") || null } });
+        await tx.notification.create({ data: { recipientId: target.id, type: "WORKFLOW_CHANGED", title: "Adviser access removed", message: "The Dean removed your adviser assignment. Your other account access is unchanged.", entityType: "ADVISER", entityId: target.id } });
+      });
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to remove adviser." });
     }
   },
 );

@@ -12,17 +12,21 @@ import {
   Filter,
   GraduationCap,
   Loader2,
+  Pencil,
+  Plus,
   Search,
   ShieldAlert,
   TrendingUp,
   UserCheck,
   UserRound,
   UsersRound,
+  Trash2,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
+import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
 
 type Program = { id: string; code: string; name: string };
 type AcademicYear = { id: string; name: string; isCurrent: boolean };
@@ -68,6 +72,15 @@ type Adviser = {
   isAcceptingAdvisees: boolean;
   isFull: boolean;
   capacityNote?: string | null;
+  program: Program | null;
+};
+
+type AdviserCandidate = {
+  id: string;
+  name: string;
+  email: string;
+  program: Program | null;
+  roles: string[];
 };
 
 type DashboardData = {
@@ -95,6 +108,7 @@ type DashboardData = {
   students: Student[];
   projects: Project[];
   advisers: Adviser[];
+  adviserCandidates: AdviserCandidate[];
 };
 
 const riskTone = {
@@ -161,12 +175,25 @@ function DeanDashboardContent() {
     },
   });
 
-  const updateCapacity = useMutation({
-    mutationFn: ({ id, ...payload }: { id: string; maxAdviseeGroups: number; isAcceptingAdvisees: boolean; note: string }) =>
-      apiClient.patch(`/api/users/${id}/adviser-capacity`, payload),
+  const saveAdviser = useMutation({
+    mutationFn: (payload: { mode: "add" | "edit"; id?: string; userId?: string; programId: string; maxAdviseeGroups: number; isAcceptingAdvisees: boolean; note?: string }) => {
+      const { mode, id, ...body } = payload;
+      return mode === "add"
+        ? apiClient.post("/api/dean/advisers", body)
+        : apiClient.patch(`/api/dean/advisers/${id}`, body);
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dean-dashboard"] });
-      setNotice("Adviser capacity updated and the adviser was notified.");
+      setNotice("Adviser directory updated and the faculty member was notified.");
+      window.setTimeout(() => setNotice(null), 3000);
+    },
+  });
+
+  const removeAdviser = useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/api/dean/advisers/${id}`),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dean-dashboard"] });
+      setNotice("Adviser role removed. The faculty account and history were preserved.");
       window.setTimeout(() => setNotice(null), 3000);
     },
   });
@@ -510,12 +537,17 @@ function DeanDashboardContent() {
         {activeView === "advisers" && (
           <AdviserWorkloadView
             advisers={data.advisers}
-            saving={updateCapacity.isPending}
-            onSave={(payload) => updateCapacity.mutateAsync(payload)}
+            candidates={data.adviserCandidates || []}
+            programs={data.scope.programs}
+            saving={saveAdviser.isPending || removeAdviser.isPending}
+            onSave={(payload) => saveAdviser.mutateAsync(payload)}
+            onRemove={(id) => removeAdviser.mutateAsync(id)}
           />
         )}
 
-        {!["overview", "students", "research", "progress", "advisers"].includes(activeView) && (
+        {activeView === "messages" && <FacultyGroupChats triggerToast={setNotice} />}
+
+        {!["overview", "students", "research", "progress", "advisers", "messages"].includes(activeView) && (
           <EmptyState
             title="Module coming in the next operational phase"
             detail="Defense scheduling, institutional calendar, and report exports will be connected after the dean monitoring foundation."
@@ -528,21 +560,45 @@ function DeanDashboardContent() {
 
 function AdviserWorkloadView({
   advisers,
+  candidates,
+  programs,
   saving,
   onSave,
+  onRemove,
 }: {
   advisers: Adviser[];
+  candidates: AdviserCandidate[];
+  programs: Program[];
   saving: boolean;
-  onSave: (payload: { id: string; maxAdviseeGroups: number; isAcceptingAdvisees: boolean; note: string }) => Promise<unknown>;
+  onSave: (payload: { mode: "add" | "edit"; id?: string; userId?: string; programId: string; maxAdviseeGroups: number; isAcceptingAdvisees: boolean; note?: string }) => Promise<unknown>;
+  onRemove: (id: string) => Promise<unknown>;
 }) {
+  const [mode, setMode] = useState<"add" | "edit" | null>(null);
   const [selected, setSelected] = useState<Adviser | null>(null);
+  const [candidateId, setCandidateId] = useState("");
+  const [selectedProgramId, setSelectedProgramId] = useState("");
   const [maximum, setMaximum] = useState(5);
   const [accepting, setAccepting] = useState(true);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const open = (adviser: Adviser) => {
+  const openAdd = () => {
+    const firstCandidate = candidates[0];
+    setMode("add");
+    setSelected(null);
+    setCandidateId(firstCandidate?.id || "");
+    setSelectedProgramId(firstCandidate?.program?.id || programs[0]?.id || "");
+    setMaximum(5);
+    setAccepting(true);
+    setNote("");
+    setError(null);
+  };
+
+  const openEdit = (adviser: Adviser) => {
+    setMode("edit");
     setSelected(adviser);
+    setCandidateId("");
+    setSelectedProgramId(adviser.program?.id || programs[0]?.id || "");
     setMaximum(adviser.maxAdviseeGroups);
     setAccepting(adviser.isAcceptingAdvisees);
     setNote("");
@@ -550,15 +606,25 @@ function AdviserWorkloadView({
   };
 
   const submit = async () => {
-    if (!selected) return;
+    if (!mode || (mode === "edit" && !selected)) return;
+    if (mode === "add" && !candidateId) return setError("Choose a faculty account.");
+    if (!selectedProgramId) return setError("Choose the program this adviser will serve.");
     if (!Number.isInteger(maximum) || maximum < 0 || maximum > 50) return setError("Enter a whole number from 0 to 50.");
-    if (note.trim().length < 10) return setError("Add a reason of at least 10 characters for the audit record.");
+    if (mode === "edit" && note.trim().length < 10) return setError("Add a reason of at least 10 characters for the audit record.");
     try {
-      await onSave({ id: selected.id, maxAdviseeGroups: maximum, isAcceptingAdvisees: accepting, note: note.trim() });
+      await onSave({ mode, id: selected?.id, userId: mode === "add" ? candidateId : undefined, programId: selectedProgramId, maxAdviseeGroups: maximum, isAcceptingAdvisees: accepting, note: mode === "edit" ? note.trim() : undefined });
+      setMode(null);
       setSelected(null);
     } catch (caught: any) {
-      setError(caught?.message || "Unable to update capacity.");
+      setError(caught?.message || "Unable to update adviser.");
     }
+  };
+
+  const remove = async (adviser: Adviser) => {
+    if (!window.confirm("Remove " + adviser.name + " as an adviser? Their faculty account and academic history will be preserved.")) return;
+    setError(null);
+    try { await onRemove(adviser.id); }
+    catch (caught: any) { setError(caught?.message || "Unable to remove adviser."); }
   };
 
   return (
@@ -566,13 +632,26 @@ function AdviserWorkloadView({
       <div className="space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Adviser Capacity & Workload</h2>
+            <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Adviser Directory & Workload</h2>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Active groups count toward the limit. Pending requests do not reserve a slot.
+              Assign advisers to a program, manage capacity, and control availability.
             </p>
           </div>
-          <Pill tone="blue">Dean controlled</Pill>
+          <button
+            type="button"
+            onClick={openAdd}
+            disabled={!candidates.length}
+            title={candidates.length ? "Add an adviser" : "No eligible faculty accounts are available"}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 py-2.5 text-sm font-extrabold text-white shadow-xs transition hover:bg-[#0E4968] disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <Plus className="h-4 w-4" />
+            Add adviser
+          </button>
         </div>
+
+        {error && !mode && (
+          <p className="rounded-xl bg-rose-50 p-3 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>
+        )}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {advisers.map((adviser) => {
@@ -595,6 +674,9 @@ function AdviserWorkloadView({
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate font-extrabold text-slate-900 dark:text-white">{adviser.name}</h3>
                     <p className="truncate text-xs text-slate-400 dark:text-slate-500">{adviser.email}</p>
+                    <p className="mt-1 truncate text-[11px] font-bold text-[#0B3A53] dark:text-sky-300">
+                      {adviser.program ? adviser.program.code + " · " + adviser.program.name : "No program assigned"}
+                    </p>
                   </div>
                   <Pill tone={!adviser.isAcceptingAdvisees ? "slate" : adviser.isFull ? "red" : "green"}>
                     {!adviser.isAcceptingAdvisees ? "Paused" : adviser.isFull ? "Full" : "Open"}
@@ -625,16 +707,18 @@ function AdviserWorkloadView({
                   />
                 </div>
 
-                <div className="mt-4 flex items-center justify-between">
+                <div className="mt-4 flex items-center justify-between gap-2">
                   <span className="text-xs text-slate-500 dark:text-slate-400">
                     {adviser.availableSlots} {adviser.availableSlots === 1 ? "slot" : "slots"} available
                   </span>
-                  <button
-                    onClick={() => open(adviser)}
-                    className="rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-extrabold text-[#0B3A53] hover:border-[#C9A227] hover:bg-slate-50 dark:border-white/15 dark:text-[#38bdf8] dark:hover:bg-white/5 transition"
-                  >
-                    Set capacity
-                  </button>
+                  <div className="flex gap-1.5">
+                    <button type="button" onClick={() => openEdit(adviser)} className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-[#0B3A53] transition hover:border-[#C9A227] hover:bg-slate-50 dark:border-white/15 dark:text-sky-300 dark:hover:bg-white/5" aria-label={`Edit ${adviser.name}`}>
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button type="button" disabled={saving} onClick={() => void remove(adviser)} className="grid h-9 w-9 place-items-center rounded-xl border border-rose-200 text-rose-600 transition hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900/50 dark:text-rose-400 dark:hover:bg-rose-950/30" aria-label={`Remove ${adviser.name}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </article>
             );
@@ -647,32 +731,69 @@ function AdviserWorkloadView({
         </div>
       </div>
 
-      {selected && (
+      {mode && (
         <div
           className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="capacity-title"
+          aria-labelledby="adviser-editor-title"
         >
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:border dark:border-white/10 dark:bg-[#101b2b]">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-extrabold uppercase tracking-wider text-[#C9A227]">Adviser workload</p>
-                <h2 id="capacity-title" className="mt-1 text-xl font-black text-slate-900 dark:text-white">
-                  Set {selected.name}’s capacity
+                <p className="text-xs font-extrabold uppercase tracking-wider text-[#C9A227]">Adviser management</p>
+                <h2 id="adviser-editor-title" className="mt-1 text-xl font-black text-slate-900 dark:text-white">
+                  {mode === "add" ? "Add adviser" : "Edit " + selected?.name}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Currently advising {selected.groups} active groups.
+                  {mode === "add" ? "Assign an eligible faculty account to a program." : "Currently advising " + (selected?.groups || 0) + " active groups."}
                 </p>
               </div>
               <button
-                onClick={() => setSelected(null)}
+                onClick={() => { setMode(null); setSelected(null); }}
                 className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-300"
                 aria-label="Close"
               >
                 <span aria-hidden>×</span>
               </button>
             </div>
+
+            {mode === "add" && (
+              <label className="mt-5 block text-sm font-bold text-slate-700 dark:text-slate-200">
+                Faculty account
+                <select
+                  value={candidateId}
+                  onChange={(event) => {
+                    setCandidateId(event.target.value);
+                    const candidate = candidates.find((item) => item.id === event.target.value);
+                    if (candidate?.program?.id) setSelectedProgramId(candidate.program.id);
+                  }}
+                  className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#C9A227] dark:border-white/15 dark:bg-[#101b2b] dark:text-white"
+                >
+                  <option value="">Choose faculty</option>
+                  {candidates.map((candidate) => (
+                    <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.email}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            <label className={`${mode === "add" ? "mt-4" : "mt-5"} block text-sm font-bold text-slate-700 dark:text-slate-200`}>
+              Assigned program
+              <select
+                value={selectedProgramId}
+                onChange={(event) => setSelectedProgramId(event.target.value)}
+                className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#C9A227] dark:border-white/15 dark:bg-[#101b2b] dark:text-white"
+              >
+                <option value="">Choose program</option>
+                {programs.map((program) => (
+                  <option key={program.id} value={program.id}>{program.code} · {program.name}</option>
+                ))}
+              </select>
+              <span className="mt-1.5 block text-xs font-normal text-slate-400">
+                Only researchers from this program will see this adviser as eligible.
+              </span>
+            </label>
 
             <label className="mt-5 block text-sm font-bold text-slate-700 dark:text-slate-200">
               Maximum active groups
@@ -686,7 +807,7 @@ function AdviserWorkloadView({
                 className="mt-2 h-11 w-full rounded-xl border border-slate-300 px-3 outline-none focus:border-[#C9A227] dark:border-white/15 dark:bg-white/5 dark:text-white"
               />
             </label>
-            {maximum < selected.groups && (
+            {mode === "edit" && selected && maximum < selected.groups && (
               <p className="mt-2 rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
                 This is below the current workload. Existing assignments stay in place, but no new group can be accepted until the count falls below the limit.
               </p>
@@ -707,17 +828,19 @@ function AdviserWorkloadView({
               />
             </label>
 
-            <label className="mt-4 block text-sm font-bold text-slate-700 dark:text-slate-200">
-              Reason for change
-              <textarea
-                rows={4}
-                maxLength={500}
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder="Required for the audit record (minimum 10 characters)"
-                className="mt-2 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-[#C9A227] dark:border-white/15 dark:bg-white/5 dark:text-white"
-              />
-            </label>
+            {mode === "edit" && (
+              <label className="mt-4 block text-sm font-bold text-slate-700 dark:text-slate-200">
+                Reason for change
+                <textarea
+                  rows={4}
+                  maxLength={500}
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                  placeholder="Required for the audit record (minimum 10 characters)"
+                  className="mt-2 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-[#C9A227] dark:border-white/15 dark:bg-white/5 dark:text-white"
+                />
+              </label>
+            )}
             {error && (
               <p className="mt-3 rounded-xl bg-rose-50 p-3 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
                 {error}
@@ -726,7 +849,7 @@ function AdviserWorkloadView({
 
             <div className="mt-5 flex justify-end gap-2">
               <button
-                onClick={() => setSelected(null)}
+                onClick={() => { setMode(null); setSelected(null); }}
                 className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"
               >
                 Cancel
@@ -736,7 +859,7 @@ function AdviserWorkloadView({
                 disabled={saving}
                 className="rounded-xl bg-[#C9A227] hover:bg-[#B38E1B] px-5 py-2.5 text-sm font-extrabold text-[#0B3A53] shadow-xs disabled:opacity-50 transition"
               >
-                {saving ? "Saving…" : "Save capacity"}
+                {saving ? "Saving…" : mode === "add" ? "Add adviser" : "Save changes"}
               </button>
             </div>
           </div>

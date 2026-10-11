@@ -12,7 +12,7 @@ import {
   UserRound,
   UsersRound,
   Mail,
-  Signature,
+  MessageSquare,
 } from "lucide-react";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
@@ -28,7 +28,7 @@ const NAV_ITEMS = [
   { label: "Defenses", href: "/admin/dashboard?tab=defenses", tabName: "defenses", icon: ClipboardList },
   { label: "Calendar", href: "/admin/calendar", icon: CalendarDays },
   { label: "Reports", href: "/admin/dashboard?tab=reports", tabName: "reports", icon: FileBarChart },
-  { label: "Signature Requests", href: "/admin/signatures", icon: Signature },
+  { label: "Messages", href: "/admin/dashboard?tab=messages", tabName: "messages", icon: MessageSquare },
   { label: "Inbox", href: "/admin/inbox", icon: Mail },
 ];
 
@@ -41,6 +41,7 @@ const PAGE_TITLES: Record<string, string> = {
   defenses: "Defense Management",
   calendar: "Academic Calendar",
   reports: "Research Reports",
+  messages: "Messages",
   inbox: "Inbox",
   settings: "Settings",
 };
@@ -60,8 +61,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           ? "Notifications"
           : pathname === "/admin/inbox"
             ? "Inbox"
-          : pathname === "/admin/signatures"
-            ? "Signature Requests"
           : pathname === "/admin/calendar"
             ? "Universal Calendar"
             : PAGE_TITLES[activeTab] || "Dean Dashboard";

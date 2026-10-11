@@ -63,6 +63,9 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
       where: { id: adviserId, roles: { some: { role: { name: "ADVISER" } } }, status: "ACTIVE" },
     });
     if (!adviser) return void res.status(404).json({ error: "Adviser is unavailable" });
+    if (!adviser.programId || adviser.programId !== project.programId) {
+      return void res.status(409).json({ error: "This adviser is not assigned to your program" });
+    }
     const activeGroups = await countActiveAdviseeGroups(prisma, adviser.id);
     if (!adviser.isAcceptingAdvisees) return void res.status(409).json({ error: "This adviser is not accepting new requests" });
     if (activeGroups >= adviser.maxAdviseeGroups) return void res.status(409).json({ error: "This adviser has reached their maximum number of active groups" });

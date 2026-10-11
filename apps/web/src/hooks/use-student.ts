@@ -131,9 +131,11 @@ export function useAdvisers() {
     queryKey: studentKeys.advisers(),
     queryFn: async () => {
       try {
-        const res = await apiClient.get<{ users: any[] }>("/api/users?role=ADVISER&status=ACTIVE");
         const research = await apiClient.get<{ projects: any[] }>("/api/research");
         const project = research.projects?.[0];
+        const adviserParams = new URLSearchParams({ role: "ADVISER", status: "ACTIVE" });
+        if (project?.programId) adviserParams.set("programId", project.programId);
+        const res = await apiClient.get<{ users: any[] }>(`/api/users?${adviserParams.toString()}`);
         const assignedMember = project?.members?.find((m: any) => m.projectRole === "ADVISER" && !m.leftAt);
         const requests = await apiClient.get<{ requests: any[] }>("/api/adviser-requests").catch(() => ({ requests: [] }));
         const requestsList = Array.isArray(requests?.requests) ? requests.requests : [];
