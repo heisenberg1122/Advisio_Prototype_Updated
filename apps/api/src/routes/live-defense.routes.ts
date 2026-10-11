@@ -46,6 +46,14 @@ const sessionInclude = {
   },
 };
 
+const eventInclude = {
+  creator: { select: { id: true, firstName: true, lastName: true } },
+  sessions: {
+    include: sessionInclude,
+    orderBy: [{ queuePosition: "asc" as const }, { scheduledStart: "asc" as const }],
+  },
+};
+
 const participantSelect = { id: true, firstName: true, lastName: true, email: true, universityId: true } as const;
 
 async function notifyResearchGroup(tx: any, researchId: string, type: any, title: string, message: string, sessionId: string) {
@@ -55,6 +63,181 @@ async function notifyResearchGroup(tx: any, researchId: string, type: any, title
   });
   if (members.length) await tx.notification.createMany({ data: members.map(({ userId }: any) => ({ recipientId: userId, type, title, message, entityType: "DefenseSession", entityId: sessionId })) });
 }
+
+async function nextDefenseEventCode() {
+  const year = new Date().getFullYear();
+  const prefix = `DEF-${year}-`;
+  const latest = await prisma.defenseEvent.findFirst({
+    where: { code: { startsWith: prefix } },
+    orderBy: { code: "desc" },
+    select: { code: true },
+  });
+  const sequence = Number(latest?.code.slice(prefix.length)) || 0;
+  return `${prefix}${String(sequence + 1).padStart(3, "0")}`;
+}
+
+async function syncDefenseEventStatus(tx: any, eventId: string | null) {
+  if (!eventId) return;
+  const event = await tx.defenseEvent.findUnique({
+    where: { id: eventId },
+    select: { status: true, sessions: { select: { status: true, queueStatus: true } } },
+  });
+  if (!event || ["ONGOING", "COMPLETED", "CANCELLED"].includes(event.status)) return;
+  const ready = event.sessions.length > 0 && event.sessions.every((session: any) => session.status === "SCHEDULED");
+  await tx.defenseEvent.update({ where: { id: eventId }, data: { status: ready ? "READY" : "DRAFT" } });
+}
+
+router.get("/defense-events", requireAuth, requireFacilitator, async (req: Request, res: Response) => {
+  try {
+    const scope = getCollegeScope(req.user!);
+    if (scope.kind === "unassigned") return void res.status(403).json({ error: "Your account has not been assigned to a college or school." });
+    const events = await prisma.defenseEvent.findMany({
+      where: scope.kind === "college" ? { collegeId: scope.collegeId } : {},
+      include: eventInclude,
+      orderBy: [{ scheduledStart: "desc" }, { createdAt: "desc" }],
+    });
+    res.json({ events });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to load defense events." });
+  }
+});
+
+router.post("/defense-events", requireAuth, requireFacilitator, async (req: Request, res: Response) => {
+  try {
+    const researchIds: string[] = Array.from(
+      new Set<string>(
+        (Array.isArray(req.body.researchIds) ? req.body.researchIds : [])
+          .map((value: unknown) => String(value))
+          .filter(Boolean),
+      ),
+    );
+    const scheduledStart = new Date(req.body.scheduledStart);
+    const scheduledEnd = new Date(req.body.scheduledEnd);
+    const invitees = Array.isArray(req.body.invitees) ? req.body.invitees : [];
+    if (!researchIds.length || !Number.isFinite(scheduledStart.getTime()) || !Number.isFinite(scheduledEnd.getTime()) || scheduledEnd <= scheduledStart) {
+      return void res.status(400).json({ error: "Choose at least one group and a valid event start and end time." });
+    }
+    if (scheduledStart <= new Date()) return void res.status(400).json({ error: "Defense events must be scheduled in the future." });
+    const slotDuration = Math.floor((scheduledEnd.getTime() - scheduledStart.getTime()) / researchIds.length);
+    if (slotDuration < 15 * 60 * 1000) return void res.status(400).json({ error: "Allow at least 15 minutes for every research group." });
+    if (!invitees.some((item: any) => item.role === "PANEL_CHAIR") || !invitees.some((item: any) => item.role === "PANELIST")) {
+      return void res.status(400).json({ error: "Assign one panel chair and at least one panelist." });
+    }
+    const uniqueInvitees = Array.from(new Map(invitees.map((item: any) => [String(item.userId), item])).values()) as any[];
+    const projects = await prisma.researchProject.findMany({
+      where: { id: { in: researchIds } },
+      include: { workflowInstance: true },
+    });
+    if (projects.length !== researchIds.length) return void res.status(404).json({ error: "One or more research groups were not found." });
+    if (projects.some((project) => !canAccessCollege(req.user!, project.collegeId))) return void res.status(404).json({ error: "One or more research groups are outside your college scope." });
+    const collegeIds = new Set(projects.map((project) => project.collegeId));
+    if (collegeIds.size !== 1) return void res.status(400).json({ error: "A defense event can only contain groups from the same college." });
+    if (projects.some((project) => !project.workflowInstance?.completedAt)) return void res.status(409).json({ error: "Every selected group must complete its workflow requirements first." });
+    const activeSession = await prisma.defenseSession.findFirst({
+      where: { researchId: { in: researchIds }, status: { in: ["PENDING_ACKNOWLEDGEMENT", "NEEDS_RESCHEDULING", "SCHEDULED", "LIVE", "DELIBERATION"] } },
+      select: { researchId: true },
+    });
+    if (activeSession) return void res.status(409).json({ error: "One of the selected groups already has an active defense request." });
+    const validUsers = await prisma.user.findMany({ where: { id: { in: uniqueInvitees.map((item) => item.userId) }, status: "ACTIVE", collegeId: projects[0].collegeId }, select: { id: true } });
+    if (validUsers.length !== uniqueInvitees.length) return void res.status(400).json({ error: "One or more selected participants are unavailable." });
+
+    const code = await nextDefenseEventCode();
+    const projectById = new Map(projects.map((project) => [project.id, project]));
+    const event = await prisma.$transaction(async (tx) => {
+      const createdEvent = await tx.defenseEvent.create({
+        data: {
+          code,
+          collegeId: projects[0].collegeId,
+          defenseType: String(req.body.defenseType || "RESEARCH_DEFENSE").trim().slice(0, 80) || "RESEARCH_DEFENSE",
+          scheduledStart,
+          scheduledEnd,
+          venue: String(req.body.venue || "").trim() || null,
+          meetingUrl: String(req.body.meetingUrl || "").trim() || null,
+          notes: String(req.body.notes || "").trim() || null,
+          createdBy: req.user!.id,
+        },
+      });
+      for (const [index, researchId] of researchIds.entries()) {
+        const groupStart = new Date(scheduledStart.getTime() + slotDuration * index);
+        const groupEnd = index === researchIds.length - 1 ? scheduledEnd : new Date(groupStart.getTime() + slotDuration);
+        const session = await tx.defenseSession.create({
+          data: {
+            researchId,
+            defenseEventId: createdEvent.id,
+            queuePosition: index + 1,
+            status: "PENDING_ACKNOWLEDGEMENT",
+            venue: createdEvent.venue,
+            meetingUrl: createdEvent.meetingUrl,
+            notes: createdEvent.notes,
+            scheduledStart: groupStart,
+            scheduledEnd: groupEnd,
+            createdBy: req.user!.id,
+            invitations: { create: uniqueInvitees.map((item) => ({ inviteeId: item.userId, role: item.role, isRequired: item.isRequired !== false })) },
+          },
+        });
+        const project = projectById.get(researchId)!;
+        await notifyResearchGroup(tx, researchId, "DEFENSE_INVITATION", `${code} defense schedule proposed`, `Your group is queue ${index + 1} in ${code}. Panel confirmation is pending.`, session.id);
+      }
+      await tx.notification.createMany({
+        data: uniqueInvitees.map((item) => ({
+          recipientId: item.userId,
+          type: "DEFENSE_INVITATION" as const,
+          title: `${code} panel invitation`,
+          message: `You are invited to a defense event with ${researchIds.length} research ${researchIds.length === 1 ? "group" : "groups"} on ${scheduledStart.toLocaleString()}. One response confirms the full event.`,
+          entityType: "DefenseEvent",
+          entityId: createdEvent.id,
+        })),
+      });
+      return tx.defenseEvent.findUniqueOrThrow({ where: { id: createdEvent.id }, include: eventInclude });
+    });
+    res.status(201).json({ event });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to create the defense event." });
+  }
+});
+
+router.patch("/defense-events/:eventId/queue/:sessionId", requireAuth, requireFacilitator, async (req: Request, res: Response) => {
+  try {
+    const action = String(req.body.action || "").toUpperCase();
+    if (!["PREPARE", "CALL", "DELAY", "SKIP"].includes(action)) return void res.status(400).json({ error: "Choose a valid queue action." });
+    const session = await prisma.defenseSession.findFirst({
+      where: { id: req.params.sessionId as string, defenseEventId: req.params.eventId as string },
+      include: { research: true, invitations: { where: { status: "ACCEPTED", role: { in: ["PANEL_CHAIR", "PANELIST"] } } } },
+    });
+    if (!session) return void res.status(404).json({ error: "The queued defense was not found." });
+    if (!canAccessCollege(req.user!, session.research.collegeId)) return void res.status(404).json({ error: "The queued defense was not found in your college scope." });
+
+    const event = await prisma.$transaction(async (tx) => {
+      if (action === "PREPARE") {
+        if (!["SCHEDULED", "PENDING_ACKNOWLEDGEMENT"].includes(session.status)) throw new Error("This group cannot be prepared in its current state.");
+        await tx.defenseSession.update({ where: { id: session.id }, data: { queueStatus: "PREPARE_NEXT", preparedAt: new Date() } });
+        await notifyResearchGroup(tx, session.researchId, "DEFENSE_CONFIRMED", "Prepare for your defense", `Your group is next for ${session.research.title}. Please proceed to the assigned venue when called.`, session.id);
+      }
+      if (action === "CALL") {
+        if (session.status !== "SCHEDULED") throw new Error("All required panelists must confirm before this group can be called.");
+        const active = await tx.defenseSession.findFirst({ where: { id: { not: session.id }, status: { in: ["LIVE", "DELIBERATION"] } }, select: { id: true } });
+        if (active) throw new Error("Complete or release the current live defense before calling another group.");
+        for (const invitation of session.invitations) {
+          await tx.researchMember.upsert({
+            where: { researchId_userId_projectRole: { researchId: session.researchId, userId: invitation.inviteeId, projectRole: "PANELIST" } },
+            update: { leftAt: null },
+            create: { researchId: session.researchId, userId: invitation.inviteeId, projectRole: "PANELIST" },
+          });
+        }
+        await tx.defenseSession.update({ where: { id: session.id }, data: { status: "LIVE", queueStatus: "IN_PROGRESS", calledAt: new Date(), startedAt: new Date(), startedBy: req.user!.id } });
+        await tx.defenseEvent.update({ where: { id: session.defenseEventId! }, data: { status: "ONGOING", startedAt: new Date() } });
+        await notifyResearchGroup(tx, session.researchId, "DEFENSE_CONFIRMED", "Your defense is starting", "Your group has been called. Please proceed to the assigned defense venue now.", session.id);
+      }
+      if (action === "DELAY") await tx.defenseSession.update({ where: { id: session.id }, data: { queueStatus: "DELAYED" } });
+      if (action === "SKIP") await tx.defenseSession.update({ where: { id: session.id }, data: { queueStatus: "SKIPPED" } });
+      return tx.defenseEvent.findUniqueOrThrow({ where: { id: session.defenseEventId! }, include: eventInclude });
+    });
+    res.json({ event });
+  } catch (error: any) {
+    const status = /cannot|must|before/.test(error.message || "") ? 409 : 500;
+    res.status(status).json({ error: error.message || "Failed to update the defense queue." });
+  }
+});
 
 router.get("/defense-management/candidates", requireAuth, requireFacilitator, async (req: Request, res: Response) => {
   try {
@@ -176,14 +359,27 @@ router.patch("/defense-management/invitations/:invitationId/respond", requireAut
     if (!["PENDING", "RECONFIRMATION_REQUIRED"].includes(existing.status)) return void res.status(409).json({ error: "This invitation has already been answered." });
 
     const result = await prisma.$transaction(async (tx) => {
-      const invitation = await tx.defenseInvitation.update({ where: { id: existing.id }, data: { status: response as any, responseNote: responseNote || null, suggestedAvailability, respondedAt: new Date() } });
-      const invitations = await tx.defenseInvitation.findMany({ where: { defenseSessionId: existing.defenseSessionId, status: { not: "REMOVED" } } });
-      const required = invitations.filter((item) => item.isRequired);
-      const nextStatus = required.some((item) => item.status === "DECLINED") ? "NEEDS_RESCHEDULING" : required.every((item) => item.status === "ACCEPTED") ? "SCHEDULED" : "PENDING_ACKNOWLEDGEMENT";
-      const session = await tx.defenseSession.update({ where: { id: existing.defenseSessionId }, data: { status: nextStatus }, include: sessionInclude });
+      const sessionIds = existing.defenseSession.defenseEventId
+        ? (await tx.defenseSession.findMany({ where: { defenseEventId: existing.defenseSession.defenseEventId }, select: { id: true } })).map((item) => item.id)
+        : [existing.defenseSessionId];
+      await tx.defenseInvitation.updateMany({
+        where: { defenseSessionId: { in: sessionIds }, inviteeId: existing.inviteeId, status: { in: ["PENDING", "RECONFIRMATION_REQUIRED"] } },
+        data: { status: response as any, responseNote: responseNote || null, suggestedAvailability, respondedAt: new Date() },
+      });
+      let session: any = null;
+      let nextStatus = "PENDING_ACKNOWLEDGEMENT";
+      for (const sessionId of sessionIds) {
+        const invitations = await tx.defenseInvitation.findMany({ where: { defenseSessionId: sessionId, status: { not: "REMOVED" } } });
+        const required = invitations.filter((item) => item.isRequired);
+        nextStatus = required.some((item) => item.status === "DECLINED") ? "NEEDS_RESCHEDULING" : required.every((item) => item.status === "ACCEPTED") ? "SCHEDULED" : "PENDING_ACKNOWLEDGEMENT";
+        const updated = await tx.defenseSession.update({ where: { id: sessionId }, data: { status: nextStatus as any }, include: sessionInclude });
+        if (sessionId === existing.defenseSessionId) session = updated;
+        if (nextStatus === "SCHEDULED") await notifyResearchGroup(tx, updated.researchId, "DEFENSE_CONFIRMED", "Defense schedule confirmed", "All required participants confirmed the defense event.", updated.id);
+        else if (nextStatus === "NEEDS_RESCHEDULING") await notifyResearchGroup(tx, updated.researchId, "DEFENSE_RESCHEDULED", "Defense schedule being adjusted", "One required participant is unavailable. The professor is arranging an updated schedule or replacement.", updated.id);
+      }
+      await syncDefenseEventStatus(tx, existing.defenseSession.defenseEventId);
+      const invitation = await tx.defenseInvitation.findUniqueOrThrow({ where: { id: existing.id } });
       if (existing.defenseSession.createdBy) await tx.notification.create({ data: { recipientId: existing.defenseSession.createdBy, type: "DEFENSE_RESPONSE", title: response === "ACCEPTED" ? "Defense invitation accepted" : "Defense invitation declined", message: `${req.user!.email} ${response === "ACCEPTED" ? "accepted" : "declined"} the defense invitation for ${existing.defenseSession.research.title}.`, entityType: "DefenseSession", entityId: session.id } });
-      if (nextStatus === "SCHEDULED") await notifyResearchGroup(tx, session.researchId, "DEFENSE_CONFIRMED", "Defense schedule confirmed", `All required participants confirmed the defense schedule for ${existing.defenseSession.research.title}.`, session.id);
-      else if (nextStatus === "NEEDS_RESCHEDULING") await notifyResearchGroup(tx, session.researchId, "DEFENSE_RESCHEDULED", "Defense schedule being adjusted", "One required participant is unavailable. The professor is arranging an updated schedule or replacement.", session.id);
       return { invitation, session };
     });
     res.json(result);
@@ -203,6 +399,7 @@ router.patch("/defense-management/:sessionId/reschedule", requireAuth, requireFa
     const session = await prisma.$transaction(async (tx) => {
       await tx.defenseInvitation.updateMany({ where: { defenseSessionId: existing.id, status: { not: "REMOVED" } }, data: { status: "RECONFIRMATION_REQUIRED", respondedAt: null } });
       const updated = await tx.defenseSession.update({ where: { id: existing.id }, data: { status: "PENDING_ACKNOWLEDGEMENT", scheduledStart, scheduledEnd, venue: String(req.body.venue || "").trim() || null, meetingUrl: String(req.body.meetingUrl || "").trim() || null, notes: String(req.body.notes || "").trim() || null }, include: sessionInclude });
+      await syncDefenseEventStatus(tx, updated.defenseEventId);
       await tx.notification.createMany({ data: existing.invitations.filter((item) => item.status !== "REMOVED").map((item) => ({ recipientId: item.inviteeId, type: "DEFENSE_RESCHEDULED" as const, title: "Defense schedule changed", message: `Please confirm the updated defense schedule for ${existing.research.title}.`, entityType: "DefenseSession", entityId: existing.id })) });
       await notifyResearchGroup(tx, existing.researchId, "DEFENSE_RESCHEDULED", "Defense schedule updated", `An updated defense schedule was proposed for ${existing.research.title}. Panel confirmation is pending.`, existing.id);
       return updated;
@@ -298,7 +495,9 @@ router.post("/defense-sessions/start", requireAuth, requireFacilitator, async (r
           create: { researchId: scheduled.researchId, userId: invitation.inviteeId, projectRole: "PANELIST" },
         });
       }
-      return tx.defenseSession.update({ where: { id: scheduled.id }, data: { status: "LIVE", startedAt: new Date(), startedBy: req.user!.id }, include: sessionInclude });
+      const updated = await tx.defenseSession.update({ where: { id: scheduled.id }, data: { status: "LIVE", queueStatus: scheduled.defenseEventId ? "IN_PROGRESS" : undefined, calledAt: scheduled.defenseEventId ? new Date() : undefined, startedAt: new Date(), startedBy: req.user!.id }, include: sessionInclude });
+      if (scheduled.defenseEventId) await tx.defenseEvent.update({ where: { id: scheduled.defenseEventId }, data: { status: "ONGOING", startedAt: new Date() } });
+      return updated;
     });
     res.json({ session });
   } catch (error: any) {
@@ -429,10 +628,14 @@ router.post("/defense-sessions/:id/release", requireAuth, requireFacilitator, as
     const result = await prisma.$transaction(async (tx) => {
       const completed = await tx.defenseSession.update({
         where: { id: session.id },
-        data: { status: "COMPLETED", decision: decision as any, endedAt: new Date(), releasedAt: new Date(), releasedBy: req.user!.id },
+        data: { status: "COMPLETED", queueStatus: session.defenseEventId ? "COMPLETED" : undefined, decision: decision as any, endedAt: new Date(), releasedAt: new Date(), releasedBy: req.user!.id },
         include: sessionInclude,
       });
       await tx.researchProject.update({ where: { id: session.researchId }, data: { status: researchStatus } });
+      if (session.defenseEventId) {
+        const remaining = await tx.defenseSession.count({ where: { defenseEventId: session.defenseEventId, queueStatus: { notIn: ["COMPLETED", "SKIPPED"] } } });
+        if (!remaining) await tx.defenseEvent.update({ where: { id: session.defenseEventId }, data: { status: "COMPLETED", completedAt: new Date() } });
+      }
       return completed;
     });
     res.json({ session: result });

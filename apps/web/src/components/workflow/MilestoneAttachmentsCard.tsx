@@ -20,6 +20,15 @@ type MilestoneAttachment = {
   workflowResource?: GuideResource | null;
 };
 
+export type PendingMilestoneAttachment = {
+  id: string;
+  type: "GUIDE" | "LINK" | "PDF" | "FILE";
+  title: string;
+  url?: string;
+  file?: File;
+  workflowResource?: GuideResource;
+};
+
 const formatBytes = (bytes?: number | null) => {
   if (!bytes) return "";
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -29,9 +38,13 @@ const formatBytes = (bytes?: number | null) => {
 export function MilestoneAttachmentsCard({
   stageId,
   workflowId,
+  pendingAttachments = [],
+  onPendingAttachmentsChange,
 }: {
-  stageId: string;
+  stageId?: string;
   workflowId?: string | null;
+  pendingAttachments?: PendingMilestoneAttachment[];
+  onPendingAttachmentsChange?: (attachments: PendingMilestoneAttachment[]) => void;
 }) {
   const [picker, setPicker] = useState<"guide" | "link" | null>(null);
   const [linkTitle, setLinkTitle] = useState("");
@@ -58,9 +71,30 @@ export function MilestoneAttachmentsCard({
     enabled: Boolean(workflowId),
   });
   const attachments = data?.attachments || [];
+  const visibleAttachments: MilestoneAttachment[] = stageId
+    ? attachments
+    : pendingAttachments.map((attachment) => ({
+        ...attachment,
+        fileName: attachment.file?.name,
+        mimeType: attachment.file?.type,
+        fileSize: attachment.file?.size,
+      }));
   const guides = guideData?.resources || [];
 
   const attachGuide = async (resource: GuideResource) => {
+    if (!stageId) {
+      onPendingAttachmentsChange?.([
+        ...pendingAttachments,
+        {
+          id: `guide-${resource.id}`,
+          type: "GUIDE",
+          title: resource.title,
+          workflowResource: resource,
+        },
+      ]);
+      setPicker(null);
+      return;
+    }
     setBusy(true);
     setNotice("");
     try {
@@ -79,6 +113,28 @@ export function MilestoneAttachmentsCard({
 
   const attachLink = async () => {
     if (!linkUrl.trim()) return;
+    if (!stageId) {
+      try {
+        const parsed = new URL(linkUrl.trim());
+        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
+        onPendingAttachmentsChange?.([
+          ...pendingAttachments,
+          {
+            id: `link-${crypto.randomUUID()}`,
+            type: "LINK",
+            title: linkTitle.trim() || parsed.hostname,
+            url: parsed.toString(),
+          },
+        ]);
+        setLinkTitle("");
+        setLinkUrl("");
+        setPicker(null);
+        setNotice("");
+      } catch {
+        setNotice("Enter a valid HTTP or HTTPS web link.");
+      }
+      return;
+    }
     setBusy(true);
     setNotice("");
     try {
@@ -100,6 +156,25 @@ export function MilestoneAttachmentsCard({
 
   const uploadFile = async (file: File | undefined, type: "PDF" | "FILE") => {
     if (!file) return;
+    if (!stageId) {
+      if (file.size > 10 * 1024 * 1024) {
+        setNotice("Files must be 10 MB or smaller.");
+        return;
+      }
+      onPendingAttachmentsChange?.([
+        ...pendingAttachments,
+        {
+          id: `file-${crypto.randomUUID()}`,
+          type,
+          title: file.name,
+          file,
+        },
+      ]);
+      setNotice("");
+      if (pdfInput.current) pdfInput.current.value = "";
+      if (fileInput.current) fileInput.current.value = "";
+      return;
+    }
     setBusy(true);
     setNotice("");
     try {
@@ -122,6 +197,12 @@ export function MilestoneAttachmentsCard({
   };
 
   const remove = async (attachment: MilestoneAttachment) => {
+    if (!stageId) {
+      onPendingAttachmentsChange?.(
+        pendingAttachments.filter((item) => item.id !== attachment.id),
+      );
+      return;
+    }
     setBusy(true);
     setNotice("");
     try {
@@ -140,6 +221,15 @@ export function MilestoneAttachmentsCard({
     if (attachment.type === "LINK" && attachment.url) {
       window.open(attachment.url, "_blank", "noopener,noreferrer");
       return;
+    }
+    if (!stageId) {
+      const pending = pendingAttachments.find((item) => item.id === attachment.id);
+      if (pending?.file) {
+        const url = URL.createObjectURL(pending.file);
+        window.open(url, "_blank", "noopener,noreferrer");
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        return;
+      }
     }
     try {
       const endpoint =
@@ -191,16 +281,16 @@ export function MilestoneAttachmentsCard({
             Share references researchers may need to complete this milestone.
           </p>
         </div>
-        {attachments.length > 0 && (
+        {visibleAttachments.length > 0 && (
           <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">
-            {attachments.length}
+            {visibleAttachments.length}
           </span>
         )}
       </div>
 
-      {attachments.length > 0 && (
+      {visibleAttachments.length > 0 && (
         <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
-          {attachments.map((attachment) => {
+          {visibleAttachments.map((attachment) => {
             const displayFile =
               attachment.workflowResource?.fileName || attachment.fileName;
             const icon =
@@ -300,7 +390,7 @@ export function MilestoneAttachmentsCard({
                   type="button"
                   disabled={
                     busy ||
-                    attachments.some(
+                    visibleAttachments.some(
                       (item) => item.workflowResource?.id === guide.id,
                     )
                   }
@@ -352,7 +442,7 @@ export function MilestoneAttachmentsCard({
         </div>
       )}
 
-      {isLoading && (
+      {stageId && isLoading && (
         <p className="mt-3 text-xs text-slate-400">
           Loading attached materials…
         </p>

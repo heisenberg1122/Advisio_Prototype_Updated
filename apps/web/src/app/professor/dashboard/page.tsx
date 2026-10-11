@@ -17,7 +17,10 @@ import { ProfessorDeanRequestModal } from "@/components/professor/ProfessorDeanR
 import { DefensePacketConfigurator } from "@/components/professor/DefensePacketConfigurator";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
 import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
-import { MilestoneAttachmentsCard } from "@/components/workflow/MilestoneAttachmentsCard";
+import {
+  MilestoneAttachmentsCard,
+  type PendingMilestoneAttachment,
+} from "@/components/workflow/MilestoneAttachmentsCard";
 import { MilestoneComposer } from "@/components/workflow/MilestoneComposer";
 import { WorkflowParticipantsCard } from "@/components/workflow/WorkflowParticipantsCard";
 import {
@@ -66,6 +69,11 @@ function ProfessorDashboardContent() {
         apiClient.get<{ sessions: any[] }>("/api/defense-management"),
       refetchInterval: 15000,
     });
+  const { data: defenseEventData, refetch: refetchDefenseEvents } = useQuery({
+    queryKey: ["professor-defense-events"],
+    queryFn: () => apiClient.get<{ events: any[] }>("/api/defense-events"),
+    refetchInterval: 15000,
+  });
   const { data: eligibleDefenseData, refetch: refetchEligibleDefenseGroups } =
     useQuery({
       queryKey: ["defense-eligible-groups"],
@@ -80,12 +88,18 @@ function ProfessorDashboardContent() {
       apiClient.get<{ users: any[] }>("/api/defense-management/candidates"),
   });
   const defenseSessions = defenseManagementData?.sessions || [];
+  const defenseEvents = defenseEventData?.events || [];
+  const legacyDefenseSessions = defenseSessions.filter(
+    (session: any) => !session.defenseEventId,
+  );
   const eligibleDefenseGroups = eligibleDefenseData?.projects || [];
   const defenseCandidates = defenseCandidateData?.users || [];
   const [showDefenseForm, setShowDefenseForm] = useState(false);
   const [showDeanRequestForm, setShowDeanRequestForm] = useState(false);
   const [packetSession, setPacketSession] = useState<any | null>(null);
   const [defenseProjectId, setDefenseProjectId] = useState("");
+  const [defenseProjectIds, setDefenseProjectIds] = useState<string[]>([]);
+  const [defenseType, setDefenseType] = useState("PRE_ORAL_DEFENSE");
   const [defenseDate, setDefenseDate] = useState("");
   const [defenseStartTime, setDefenseStartTime] = useState("");
   const [defenseEndTime, setDefenseEndTime] = useState("");
@@ -317,6 +331,9 @@ function ProfessorDashboardContent() {
   const [newMilestoneSubmissionMode, setNewMilestoneSubmissionMode] =
     useState("GROUP");
   const [newMilestoneTopicId, setNewMilestoneTopicId] = useState("");
+  const [newMilestoneAttachments, setNewMilestoneAttachments] = useState<
+    PendingMilestoneAttachment[]
+  >([]);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState("");
   const [newRequirementTitle, setNewRequirementTitle] = useState("");
   const [newRequirementInstructions, setNewRequirementInstructions] =
@@ -486,6 +503,7 @@ function ProfessorDashboardContent() {
     setNewMilestoneRequiresApproval(kind === "approval");
     setNewMilestoneScope(kind === "approval" ? "Pre-requisite" : "Milestone");
     setNewMilestoneTopicId(preferredTopicId || selectedWorkflowTopics[0].id);
+    setNewMilestoneAttachments([]);
     setShowAdvancedMilestoneOptions(false);
     setShowWorkflowCreateMenu(false);
     setCreatingMilestone(true);
@@ -501,7 +519,9 @@ function ProfessorDashboardContent() {
       return;
     setSaving(true);
     try {
-      await apiClient.post(`/api/workflows/${selectedWorkflowId}/stages`, {
+      const result = await apiClient.post<{ stage: { id: string } }>(
+        `/api/workflows/${selectedWorkflowId}/stages`,
+        {
         name: newMilestoneTitle.trim(),
         description: newMilestoneDescription.trim() || null,
         topicId: newMilestoneTopicId,
@@ -510,7 +530,42 @@ function ProfessorDashboardContent() {
         requiresApproval: newMilestoneRequiresApproval,
         requiresDocument: newMilestoneRequiresDocument,
         submissionMode: newMilestoneSubmissionMode,
-      });
+        },
+      );
+      const attachmentResults = await Promise.allSettled(
+        newMilestoneAttachments.map((attachment) => {
+          if (attachment.type === "GUIDE") {
+            return apiClient.post(
+              `/api/workflows/stages/${result.stage.id}/attachments`,
+              {
+                type: "GUIDE",
+                workflowResourceId: attachment.workflowResource?.id,
+              },
+            );
+          }
+          if (attachment.type === "LINK") {
+            return apiClient.post(
+              `/api/workflows/stages/${result.stage.id}/attachments`,
+              {
+                type: "LINK",
+                title: attachment.title,
+                url: attachment.url,
+              },
+            );
+          }
+          const form = new FormData();
+          form.append("type", attachment.type);
+          form.append("title", attachment.title);
+          if (attachment.file) form.append("file", attachment.file);
+          return apiClient.upload(
+            `/api/workflows/stages/${result.stage.id}/attachments`,
+            form,
+          );
+        }),
+      );
+      const failedAttachments = attachmentResults.filter(
+        (item) => item.status === "rejected",
+      ).length;
       await refetchWorkflows();
       setNewMilestoneTitle("");
       setNewMilestoneDescription("");
@@ -519,10 +574,15 @@ function ProfessorDashboardContent() {
       setNewMilestoneRequiresDocument(true);
       setNewMilestoneSubmissionMode("GROUP");
       setNewMilestoneTopicId("");
+      setNewMilestoneAttachments([]);
       setNewMilestoneScope("Milestone");
       setCreatingMilestone(false);
       setShowAdvancedMilestoneOptions(false);
-      triggerToast(`Milestone "${newMilestoneTitle.trim()}" saved.`);
+      triggerToast(
+        failedAttachments
+          ? `Milestone saved, but ${failedAttachments} attachment${failedAttachments === 1 ? "" : "s"} could not be added.`
+          : `Milestone "${newMilestoneTitle.trim()}" saved with ${newMilestoneAttachments.length} attachment${newMilestoneAttachments.length === 1 ? "" : "s"}.`,
+      );
     } catch (error: any) {
       triggerToast(error?.message || "Milestone could not be saved.");
     } finally {
@@ -1172,7 +1232,7 @@ function ProfessorDashboardContent() {
     setDefenseActionPending(true);
     try {
       await apiClient.post("/api/defense-sessions/start", { sessionId });
-      await Promise.all([refetchDefense(), refetchDefenseManagement()]);
+      await Promise.all([refetchDefense(), refetchDefenseManagement(), refetchDefenseEvents()]);
       triggerToast(
         "Live defense started. Assigned panelists are now synchronized to this group.",
       );
@@ -1187,6 +1247,8 @@ function ProfessorDashboardContent() {
     setShowDefenseForm(false);
     setReschedulingSession(null);
     setDefenseProjectId("");
+    setDefenseProjectIds([]);
+    setDefenseType("PRE_ORAL_DEFENSE");
     setDefenseDate("");
     setDefenseStartTime("");
     setDefenseEndTime("");
@@ -1235,8 +1297,9 @@ function ProfessorDashboardContent() {
         );
         triggerToast("Updated schedule sent for reconfirmation.");
       } else {
-        await apiClient.post("/api/defense-management", {
-          researchId: defenseProjectId,
+        await apiClient.post("/api/defense-events", {
+          researchIds: defenseProjectIds,
+          defenseType,
           scheduledStart,
           scheduledEnd,
           venue: defenseVenue,
@@ -1254,16 +1317,36 @@ function ProfessorDashboardContent() {
           ],
         });
         triggerToast(
-          "Defense invitations sent to the panel and research group.",
+          "Defense event created and invitations sent to every group and panelist.",
         );
       }
       await Promise.all([
         refetchDefenseManagement(),
+        refetchDefenseEvents(),
         refetchEligibleDefenseGroups(),
       ]);
       resetDefenseForm();
     } catch (error: any) {
       triggerToast(error?.message || "The defense request could not be saved.");
+    } finally {
+      setDefenseActionPending(false);
+    }
+  };
+
+  const updateDefenseQueue = async (eventId: string, sessionId: string, action: string) => {
+    setDefenseActionPending(true);
+    try {
+      await apiClient.patch(`/api/defense-events/${eventId}/queue/${sessionId}`, { action });
+      await Promise.all([refetchDefenseEvents(), refetchDefenseManagement(), refetchDefense()]);
+      triggerToast(
+        action === "PREPARE"
+          ? "The next group has been notified to prepare."
+          : action === "CALL"
+            ? "The group has been called and its live defense has started."
+            : "The defense queue has been updated.",
+      );
+    } catch (error: any) {
+      triggerToast(error?.message || "The defense queue could not be updated.");
     } finally {
       setDefenseActionPending(false);
     }
@@ -1297,7 +1380,7 @@ function ProfessorDashboardContent() {
       await apiClient.post(`/api/defense-sessions/${liveDefense.id}/release`, {
         decision: officialDecision,
       });
-      await Promise.all([refetchDefense(), refetchResearch()]);
+      await Promise.all([refetchDefense(), refetchResearch(), refetchDefenseManagement(), refetchDefenseEvents()]);
       triggerToast(
         "Official defense result released to the researcher dashboard.",
       );
@@ -2261,6 +2344,13 @@ function ProfessorDashboardContent() {
           onAdvancedOpenChange={setShowAdvancedMilestoneOptions}
           onClose={() => setCreatingMilestone(false)}
           onSubmit={handleCreateMilestone}
+          attachmentsContent={
+            <MilestoneAttachmentsCard
+              workflowId={selectedWorkflowId}
+              pendingAttachments={newMilestoneAttachments}
+              onPendingAttachmentsChange={setNewMilestoneAttachments}
+            />
+          }
         />
       )}
 
@@ -3355,8 +3445,8 @@ function ProfessorDashboardContent() {
                         Defense Management
                       </h2>
                       <p className="mt-1 text-sm text-slate-500">
-                        Invite the panel, track acknowledgements, and confirm
-                        eligible groups.
+                        Build multi-group defense events, confirm the panel, and
+                        control the live queue.
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -3379,7 +3469,7 @@ function ProfessorDashboardContent() {
                         className="rounded-xl bg-[#f6a800] px-5 py-3 text-sm font-extrabold text-[#102f49] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <i className="ti ti-calendar-plus mr-2" />
-                        Schedule defense
+                        Create defense event
                       </button>
                     </div>
                   </div>
@@ -3494,8 +3584,91 @@ function ProfessorDashboardContent() {
                     </div>
                   ))}
                 </section>
+                {defenseEvents.map((defenseEvent: any) => (
+                  <section
+                    key={defenseEvent.id}
+                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6"
+                  >
+                    <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-lg font-extrabold text-[#102f49]">
+                            {defenseEvent.code}
+                          </h3>
+                          <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-extrabold text-blue-700">
+                            {defenseEvent.defenseType.replace(/_/g, " ")}
+                          </span>
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-extrabold text-slate-700">
+                            {defenseEvent.status.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm text-slate-600">
+                          <i className="ti ti-calendar-event mr-1.5" />
+                          {new Date(defenseEvent.scheduledStart).toLocaleString()} – {new Date(defenseEvent.scheduledEnd).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {defenseEvent.venue ? ` · ${defenseEvent.venue}` : ""}
+                        </p>
+                      </div>
+                      <div className="text-sm text-slate-500">
+                        {defenseEvent.sessions.length} research {defenseEvent.sessions.length === 1 ? "group" : "groups"}
+                      </div>
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      {defenseEvent.sessions.map((session: any) => {
+                        const accepted = (session.invitations || []).filter((item: any) => item.status === "ACCEPTED").length;
+                        const required = (session.invitations || []).filter((item: any) => item.status !== "REMOVED").length;
+                        return (
+                          <div
+                            key={session.id}
+                            className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:flex-row lg:items-center lg:justify-between"
+                          >
+                            <div className="flex min-w-0 items-start gap-3">
+                              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#173f63] text-sm font-extrabold text-white">
+                                {session.queuePosition}
+                              </span>
+                              <div className="min-w-0">
+                                <p className="truncate font-extrabold text-[#102f49]">{session.research.title}</p>
+                                <p className="mt-0.5 text-xs text-slate-500">
+                                  {new Date(session.scheduledStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {accepted}/{required} confirmed · {session.queueStatus.replace(/_/g, " ")}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setPacketSession(session)}
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-extrabold text-[#173f63]"
+                              >
+                                Review packet
+                              </button>
+                              {session.status === "SCHEDULED" && !["IN_PROGRESS", "COMPLETED"].includes(session.queueStatus) && (
+                                <button
+                                  type="button"
+                                  disabled={defenseActionPending}
+                                  onClick={() => updateDefenseQueue(defenseEvent.id, session.id, "PREPARE")}
+                                  className="rounded-lg border border-[#f6a800] bg-amber-50 px-3 py-2 text-xs font-extrabold text-[#7a5200] disabled:opacity-50"
+                                >
+                                  Prepare next
+                                </button>
+                              )}
+                              {session.status === "SCHEDULED" && (
+                                <button
+                                  type="button"
+                                  disabled={defenseActionPending}
+                                  onClick={() => updateDefenseQueue(defenseEvent.id, session.id, "CALL")}
+                                  className="rounded-lg bg-[#173f63] px-3 py-2 text-xs font-extrabold text-white disabled:opacity-50"
+                                >
+                                  Call group
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
                 <section className="space-y-4">
-                  {defenseSessions.map((session) => {
+                  {legacyDefenseSessions.map((session) => {
                     const activeInvitations = (
                       session.invitations || []
                     ).filter((item: any) => item.status !== "REMOVED");
@@ -3632,7 +3805,7 @@ function ProfessorDashboardContent() {
                       </article>
                     );
                   })}
-                  {!defenseSessions.length && (
+                  {!defenseEvents.length && !legacyDefenseSessions.length && (
                     <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
                       <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-blue-50 text-[#173f63]">
                         <i className="ti ti-presentation text-2xl" />
@@ -3666,7 +3839,7 @@ function ProfessorDashboardContent() {
                           <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
                             {reschedulingSession
                               ? "Updated invitation"
-                              : "New defense request"}
+                              : "New defense event"}
                           </p>
                           <h2
                             id="defense-form-title"
@@ -3674,12 +3847,12 @@ function ProfessorDashboardContent() {
                           >
                             {reschedulingSession
                               ? "Reschedule defense"
-                              : "Schedule a defense"}
+                              : "Create defense event"}
                           </h2>
                           <p className="mt-1 text-sm text-slate-500">
                             {reschedulingSession
                               ? "Changing the schedule asks every participant to confirm again."
-                              : "Only completed groups are available."}
+                              : "Choose one or more ready groups. Their time slots are divided evenly across the event."}
                           </p>
                         </div>
                         <button
@@ -3696,28 +3869,44 @@ function ProfessorDashboardContent() {
                       >
                         <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
                           {!reschedulingSession && (
+                            <fieldset>
+                              <legend className="text-sm font-bold text-slate-700">Defense-ready research groups</legend>
+                              <div className="mt-2 max-h-56 space-y-2 overflow-y-auto rounded-xl border border-slate-200 p-2">
+                                {eligibleDefenseGroups.map((project) => (
+                                  <label key={project.id} className="flex cursor-pointer items-start gap-3 rounded-lg p-2 hover:bg-slate-50">
+                                    <input
+                                      type="checkbox"
+                                      checked={defenseProjectIds.includes(project.id)}
+                                      onChange={(event) => setDefenseProjectIds((current) => event.target.checked ? [...current, project.id] : current.filter((id) => id !== project.id))}
+                                      className="mt-0.5 h-4 w-4 accent-[#f6a800]"
+                                    />
+                                    <span>
+                                      <span className="block text-sm font-bold text-[#102f49]">{project.title}</span>
+                                      <span className="text-xs text-slate-500">{project.program?.code || "Program"} · {project.members?.length || 0} members</span>
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                              <p className="mt-1.5 text-xs text-slate-500">{defenseProjectIds.length} selected</p>
+                            </fieldset>
+                          )}
+                          {!reschedulingSession && (
                             <label className="block text-sm font-bold text-slate-700">
-                              Eligible research group
+                              Defense type
                               <select
-                                required
-                                value={defenseProjectId}
-                                onChange={(event) =>
-                                  setDefenseProjectId(event.target.value)
-                                }
+                                value={defenseType}
+                                onChange={(event) => setDefenseType(event.target.value)}
                                 className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm"
                               >
-                                <option value="">Select completed group</option>
-                                {eligibleDefenseGroups.map((project) => (
-                                  <option key={project.id} value={project.id}>
-                                    {project.title}
-                                  </option>
-                                ))}
+                                <option value="PROPOSAL_DEFENSE">Proposal defense</option>
+                                <option value="PRE_ORAL_DEFENSE">Pre-oral defense</option>
+                                <option value="FINAL_ORAL_DEFENSE">Final oral defense</option>
                               </select>
                             </label>
                           )}
                           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                             <label className="text-sm font-bold text-slate-700">
-                              Date
+                              Event date
                               <input
                                 required
                                 type="date"
@@ -3729,7 +3918,7 @@ function ProfessorDashboardContent() {
                               />
                             </label>
                             <label className="text-sm font-bold text-slate-700">
-                              Starts
+                              Event starts
                               <input
                                 required
                                 type="time"
@@ -3741,7 +3930,7 @@ function ProfessorDashboardContent() {
                               />
                             </label>
                             <label className="text-sm font-bold text-slate-700">
-                              Ends
+                              Event ends
                               <input
                                 required
                                 type="time"
@@ -3880,7 +4069,7 @@ function ProfessorDashboardContent() {
                               !defenseStartTime ||
                               !defenseEndTime ||
                               (!reschedulingSession &&
-                                (!defenseProjectId ||
+                                (!defenseProjectIds.length ||
                                   !defenseChairId ||
                                   !defensePanelistIds.length))
                             }
@@ -3890,7 +4079,7 @@ function ProfessorDashboardContent() {
                               ? "Sending…"
                               : reschedulingSession
                                 ? "Send updated schedule"
-                                : "Send invitations"}
+                                : "Create event & invite"}
                           </button>
                         </div>
                       </form>

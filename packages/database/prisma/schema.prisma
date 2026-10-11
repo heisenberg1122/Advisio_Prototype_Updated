@@ -148,6 +148,24 @@ enum DefenseSessionStatus {
   CANCELLED
 }
 
+enum DefenseEventStatus {
+  DRAFT
+  READY
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum DefenseQueueStatus {
+  WAITING
+  PREPARE_NEXT
+  CALLED
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+  SKIPPED
+}
+
 enum DefenseInvitationStatus {
   PENDING
   ACCEPTED
@@ -315,6 +333,7 @@ model College {
   dashboardConfigs DashboardConfig[]
   announcements    SystemAnnouncement[]
   calendarEvents   CalendarEvent[]
+  defenseEvents    DefenseEvent[]
 
   @@index([isActive])
   @@map("colleges")
@@ -402,6 +421,7 @@ model User {
   workflowEnrollments      WorkflowEnrollment[]
   workflowResources        WorkflowResource[]
   defenseSessionsCreated   DefenseSession[]           @relation("DefenseSessionCreator")
+  defenseEventsCreated     DefenseEvent[]             @relation("DefenseEventCreator")
   defenseInvitations       DefenseInvitation[]
   researcherProfile        ResearcherProfile?
   calendarEventsCreated    CalendarEvent[]            @relation("CalendarEventCreator")
@@ -1327,6 +1347,9 @@ model PanelistRecommendation {
 model DefenseSession {
   id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   researchId     String               @map("research_id") @db.Uuid
+  defenseEventId String?              @map("defense_event_id") @db.Uuid
+  queuePosition  Int?                 @map("queue_position")
+  queueStatus    DefenseQueueStatus   @default(WAITING) @map("queue_status")
   status         DefenseSessionStatus @default(SCHEDULED)
   decision       DefenseDecision?
   venue          String?              @db.VarChar(200)
@@ -1342,8 +1365,11 @@ model DefenseSession {
   releasedBy     String?              @map("released_by") @db.Uuid
   createdAt      DateTime             @default(now()) @map("created_at")
   updatedAt      DateTime             @updatedAt @map("updated_at")
+  preparedAt     DateTime?            @map("prepared_at")
+  calledAt       DateTime?            @map("called_at")
 
   research          ResearchProject            @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  defenseEvent      DefenseEvent?               @relation(fields: [defenseEventId], references: [id], onDelete: SetNull)
   creator           User?                      @relation("DefenseSessionCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   invitations       DefenseInvitation[]
   evaluations       Evaluation[]
@@ -1354,7 +1380,34 @@ model DefenseSession {
   @@index([researchId, status])
   @@index([status, startedAt])
   @@index([createdBy])
+  @@index([defenseEventId, queuePosition])
   @@map("defense_sessions")
+}
+
+model DefenseEvent {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String             @unique @db.VarChar(30)
+  collegeId      String             @map("college_id") @db.Uuid
+  defenseType    String             @default("RESEARCH_DEFENSE") @map("defense_type") @db.VarChar(80)
+  status         DefenseEventStatus @default(DRAFT)
+  scheduledStart DateTime           @map("scheduled_start")
+  scheduledEnd   DateTime           @map("scheduled_end")
+  venue          String?            @db.VarChar(200)
+  meetingUrl     String?            @map("meeting_url") @db.VarChar(500)
+  notes          String?            @db.Text
+  createdBy      String?            @map("created_by") @db.Uuid
+  startedAt      DateTime?          @map("started_at")
+  completedAt    DateTime?          @map("completed_at")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+
+  college  College          @relation(fields: [collegeId], references: [id], onDelete: Restrict)
+  creator  User?            @relation("DefenseEventCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  sessions DefenseSession[]
+
+  @@index([collegeId, scheduledStart])
+  @@index([status, scheduledStart])
+  @@map("defense_events")
 }
 
 model DefenseInvitation {
