@@ -158,10 +158,21 @@ export function useAdvisers() {
           project: project || null,
           assigned: assignedMember ? mapAdviser(assignedMember.user) : null,
           available: usersList.map(mapAdviser),
+          requests: requestsList,
+          pendingRequest:
+            requestsList.find((request: any) => request.status === "PENDING") ||
+            null,
         };
       } catch (err) {
         console.error("Failed to load advisers:", err);
-        return { projectId: null, project: null, assigned: null, available: [] };
+        return {
+          projectId: null,
+          project: null,
+          assigned: null,
+          available: [],
+          requests: [],
+          pendingRequest: null,
+        };
       }
     },
   });
@@ -169,14 +180,94 @@ export function useAdvisers() {
 
 // ── Defense ───────────────────────────────────────────────────
 export function useDefense() {
-  return useQuery<{ requirements: DefenseRequirement[]; eligibility: DefenseEligibility }>({
+  return useQuery<{
+    requirements: DefenseRequirement[];
+    eligibility: DefenseEligibility;
+    project: any | null;
+    sessions: any[];
+    documents: any[];
+  }>({
     queryKey: studentKeys.defense(),
     queryFn: async () => {
+      const research = await apiClient.get<{ projects: any[] }>("/api/research");
+      const project = research.projects?.[0] || null;
+      if (!project) {
+        return {
+          requirements: [],
+          eligibility: "not_eligible" as DefenseEligibility,
+          project: null,
+          sessions: [],
+          documents: [],
+        };
+      }
+
+      const [management, documentData] = await Promise.all([
+        apiClient.get<{ sessions: any[] }>("/api/defense-management"),
+        apiClient.get<{ documents: any[] }>(
+          `/api/research/${project.id}/documents`,
+        ),
+      ]);
+      const sessions = (management.sessions || []).filter(
+        (session: any) => session.researchId === project.id,
+      );
+      const documents = documentData.documents || [];
+      const hasAdviser = (project.members || []).some(
+        (member: any) => member.projectRole === "ADVISER" && !member.leftAt,
+      );
+      const hasSignedDeanApproval = documents.some(
+        (document: any) =>
+          document.documentType === "DEAN_DEFENSE_APPROVAL" &&
+          (document.versions || []).some(
+            (version: any) =>
+              version.status === "ACTIVE" &&
+              version.signedSignature &&
+              !version.signedSignature.revokedAt,
+          ),
+      );
+      const approvedSubmissions = (project.taskSubmissions || []).filter(
+        (submission: any) => submission.status === "APPROVED",
+      );
+      const hasFinalManuscript =
+        approvedSubmissions.length > 0 ||
+        documents.some(
+          (document: any) =>
+            document.documentType === "RESEARCH_MANUSCRIPT" &&
+            (document.versions || []).some(
+              (version: any) => version.status === "ACTIVE",
+            ),
+        );
+      const requirements: DefenseRequirement[] = [
+        {
+          id: "workflow",
+          label: "Required workflow milestones completed",
+          status: project.workflowInstance?.completedAt ? "done" : "in_progress",
+        },
+        {
+          id: "adviser",
+          label: "Faculty adviser assigned",
+          status: hasAdviser ? "done" : "pending",
+        },
+        {
+          id: "manuscript",
+          label: "Final manuscript or required submission approved",
+          status: hasFinalManuscript ? "done" : "pending",
+        },
+        {
+          id: "dean-approval",
+          label: "Dean-signed defense approval received",
+          status: hasSignedDeanApproval ? "done" : "pending",
+        },
+      ];
+      const ready = requirements.every((requirement) => requirement.status === "done");
       return {
-        requirements: [],
-        eligibility: "not_eligible" as DefenseEligibility,
+        requirements,
+        eligibility: ready ? "eligible" : "not_eligible",
+        project,
+        sessions,
+        documents,
       };
     },
+    refetchInterval: 10000,
   });
 }
 

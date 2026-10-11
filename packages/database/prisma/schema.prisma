@@ -67,6 +67,32 @@ enum ResearchStatus {
   REJECTED
 }
 
+enum ResearchParticipationMode {
+  SOLO
+  GROUP
+}
+
+enum ResearchAccessMode {
+  INVITE_ONLY
+  PUBLIC_APPROVAL
+  PUBLIC_OPEN
+}
+
+enum ResearchJoinRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+enum ResearchTitleRevisionStatus {
+  APPLIED
+  PENDING
+  ACCEPTED
+  REJECTED
+  SUPERSEDED
+}
+
 enum WorkflowStatus {
   DRAFT
   PUBLISHED
@@ -559,21 +585,25 @@ model ResearchType {
 }
 
 model ResearchProject {
-  id                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  researchTypeId     String         @map("research_type_id") @db.Uuid
-  programId          String         @map("program_id") @db.Uuid
-  collegeId          String         @map("college_id") @db.Uuid
-  academicYearId     String         @map("academic_year_id") @db.Uuid
-  title              String         @db.Text
-  groupName          String?        @map("group_name") @db.VarChar(120)
-  inviteCode         String?        @unique @map("invite_code") @db.VarChar(32)
-  abstract           String?        @db.Text
-  status             ResearchStatus @default(DRAFT)
-  workflowInstanceId String?        @unique @map("workflow_instance_id") @db.Uuid
-  createdBy          String         @map("created_by") @db.Uuid
-  createdAt          DateTime       @default(now()) @map("created_at")
-  updatedAt          DateTime       @updatedAt @map("updated_at")
-  completedAt        DateTime?      @map("completed_at")
+  id                  String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchTypeId      String                    @map("research_type_id") @db.Uuid
+  programId           String                    @map("program_id") @db.Uuid
+  collegeId           String                    @map("college_id") @db.Uuid
+  academicYearId      String                    @map("academic_year_id") @db.Uuid
+  title               String                    @db.Text
+  groupName           String?                   @map("group_name") @db.VarChar(120)
+  inviteCode          String?                   @unique @map("invite_code") @db.VarChar(32)
+  participationMode   ResearchParticipationMode @default(SOLO) @map("participation_mode")
+  accessMode          ResearchAccessMode        @default(INVITE_ONLY) @map("access_mode")
+  inviteCodeEnabled   Boolean                   @default(false) @map("invite_code_enabled")
+  inviteCodeExpiresAt DateTime?                 @map("invite_code_expires_at")
+  abstract            String?                   @db.Text
+  status              ResearchStatus            @default(DRAFT)
+  workflowInstanceId  String?                   @unique @map("workflow_instance_id") @db.Uuid
+  createdBy           String                    @map("created_by") @db.Uuid
+  createdAt           DateTime                  @default(now()) @map("created_at")
+  updatedAt           DateTime                  @updatedAt @map("updated_at")
+  completedAt         DateTime?                 @map("completed_at")
 
   researchType     ResearchType      @relation(fields: [researchTypeId], references: [id], onDelete: Restrict)
   program          Program           @relation(fields: [programId], references: [id], onDelete: Restrict)
@@ -594,6 +624,8 @@ model ResearchProject {
   calendarEvents  CalendarEventResearch[]
   groupFolders    GroupFolder[]
   groupFiles      GroupFile[]
+  joinRequests    ResearchJoinRequest[]
+  titleRevisions  ResearchTitleRevision[]
 
   @@index([status])
   @@index([collegeId, academicYearId])
@@ -640,6 +672,46 @@ model ResearchMember {
   @@unique([researchId, userId, projectRole])
   @@index([userId])
   @@map("research_members")
+}
+
+model ResearchJoinRequest {
+  id           String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId   String                    @map("research_id") @db.Uuid
+  requesterId  String                    @map("requester_id") @db.Uuid
+  status       ResearchJoinRequestStatus @default(PENDING)
+  responseNote String?                   @map("response_note") @db.Text
+  respondedBy  String?                   @map("responded_by") @db.Uuid
+  respondedAt  DateTime?                 @map("responded_at")
+  createdAt    DateTime                  @default(now()) @map("created_at")
+  updatedAt    DateTime                  @updatedAt @map("updated_at")
+
+  research ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
+
+  @@unique([researchId, requesterId])
+  @@index([researchId, status])
+  @@index([requesterId, status])
+  @@map("research_join_requests")
+}
+
+model ResearchTitleRevision {
+  id            String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId    String                      @map("research_id") @db.Uuid
+  previousTitle String                      @map("previous_title") @db.Text
+  proposedTitle String                      @map("proposed_title") @db.Text
+  reason        String?                     @db.Text
+  status        ResearchTitleRevisionStatus @default(APPLIED)
+  requestedBy   String                      @map("requested_by") @db.Uuid
+  reviewedBy    String?                     @map("reviewed_by") @db.Uuid
+  reviewNote    String?                     @map("review_note") @db.Text
+  reviewedAt    DateTime?                   @map("reviewed_at")
+  createdAt     DateTime                    @default(now()) @map("created_at")
+  updatedAt     DateTime                    @updatedAt @map("updated_at")
+
+  research ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
+
+  @@index([researchId, createdAt])
+  @@index([status])
+  @@map("research_title_revisions")
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1369,7 +1441,7 @@ model DefenseSession {
   calledAt       DateTime?            @map("called_at")
 
   research          ResearchProject            @relation(fields: [researchId], references: [id], onDelete: Cascade)
-  defenseEvent      DefenseEvent?               @relation(fields: [defenseEventId], references: [id], onDelete: SetNull)
+  defenseEvent      DefenseEvent?              @relation(fields: [defenseEventId], references: [id], onDelete: SetNull)
   creator           User?                      @relation("DefenseSessionCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   invitations       DefenseInvitation[]
   evaluations       Evaluation[]

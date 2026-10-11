@@ -82,6 +82,13 @@ function StudentDashboardContent() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
   const [createAbstract, setCreateAbstract] = useState("");
+  const [createParticipationMode, setCreateParticipationMode] = useState<
+    "SOLO" | "GROUP"
+  >("SOLO");
+  const [createGroupName, setCreateGroupName] = useState("");
+  const [createAccessMode, setCreateAccessMode] = useState<
+    "INVITE_ONLY" | "PUBLIC_APPROVAL" | "PUBLIC_OPEN"
+  >("INVITE_ONLY");
   const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   // Synchronized Floating Google Meet Conference Session State
@@ -273,6 +280,13 @@ function StudentDashboardContent() {
     queryFn: () => apiClient.get<{ sessions: any[] }>("/api/defense-management"),
     refetchInterval: 15000,
   });
+  const projectDefenseSessions = (defenseManagementData?.sessions || []).filter(
+    (session: any) => session.researchId === activeProject?.id,
+  );
+  const currentDefenseSession =
+    projectDefenseSessions.find((session: any) =>
+      ["LIVE", "DELIBERATION", "SCHEDULED", "PENDING_ACKNOWLEDGEMENT", "NEEDS_RESCHEDULING"].includes(session.status),
+    ) || projectDefenseSessions[0] || null;
   const projectProgress = calculateWorkflowProgress(activeProject);
   const projectStatusLabel = activeProject?.status
     ? activeProject.status.toLowerCase().replace(/_/g, " ").replace(/^\w/, (letter: string) => letter.toUpperCase())
@@ -280,6 +294,40 @@ function StudentDashboardContent() {
   const activeStudentMembers = (activeProject?.members || []).filter((member: any) => !member.leftAt && ["LEADER", "MEMBER"].includes(member.projectRole));
   const currentMembership = activeStudentMembers.find((member: any) => member.userId === user?.id || member.user?.id === user?.id);
   const isGroupLeader = currentMembership?.projectRole === "LEADER";
+  const activeAdviserMembership = (activeProject?.members || []).find(
+    (member: any) => member.projectRole === "ADVISER" && !member.leftAt,
+  );
+  const {
+    data: adviserRequestData,
+    refetch: refetchAdviserRequests,
+  } = useQuery({
+    queryKey: ["student-adviser-requests", activeProject?.id],
+    queryFn: () =>
+      apiClient.get<{ requests: any[] }>("/api/adviser-requests"),
+    enabled: Boolean(activeProject?.id),
+    refetchInterval: 10000,
+  });
+  const adviserRequests = adviserRequestData?.requests || [];
+  const pendingAdviserRequest = adviserRequests.find(
+    (request: any) =>
+      request.researchId === activeProject?.id && request.status === "PENDING",
+  );
+  const latestAdviserRequest = adviserRequests.find(
+    (request: any) => request.researchId === activeProject?.id,
+  );
+  const { data: joinRequestData, refetch: refetchJoinRequests } = useQuery({
+    queryKey: ["student-research-join-requests", activeProject?.id],
+    queryFn: () =>
+      apiClient.get<{ requests: any[] }>(
+        `/api/research/${activeProject.id}/join-requests`,
+      ),
+    enabled: Boolean(activeProject?.id && isGroupLeader),
+    refetchInterval: 10000,
+  });
+  const joinRequests = joinRequestData?.requests || [];
+  const pendingJoinRequests = joinRequests.filter(
+    (request: any) => request.status === "PENDING",
+  );
 
   // State Data strictly from live API
   const [group, setGroup] = useState<any>(null);
@@ -288,6 +336,12 @@ function StudentDashboardContent() {
     if (activeProject) {
       setGroupNameInput(activeProject.groupName || "");
       setInviteCode(activeProject.inviteCode || "");
+      setProjectAccessMode(activeProject.accessMode || "INVITE_ONLY");
+      setProjectParticipationMode(
+        activeProject.participationMode ||
+          (activeStudentMembers.length > 1 ? "GROUP" : "SOLO"),
+      );
+      setProjectInviteEnabled(activeProject.inviteCodeEnabled === true);
       setGroup({
         id: activeProject.id,
         name: activeProject.groupName || (activeProject.title?.length > 25 ? activeProject.title.substring(0, 25) + "..." : activeProject.title),
@@ -417,8 +471,22 @@ function StudentDashboardContent() {
   const [modalJoinConferencing, setModalJoinConferencing] = useState(false);
   const [groupNameInput, setGroupNameInput] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false);
+  const [editProjectTitle, setEditProjectTitle] = useState("");
+  const [editProjectAbstract, setEditProjectAbstract] = useState("");
+  const [editProjectReason, setEditProjectReason] = useState("");
+  const [editProjectSaving, setEditProjectSaving] = useState(false);
+  const [projectAccessMode, setProjectAccessMode] = useState<
+    "INVITE_ONLY" | "PUBLIC_APPROVAL" | "PUBLIC_OPEN"
+  >("INVITE_ONLY");
+  const [projectParticipationMode, setProjectParticipationMode] = useState<
+    "SOLO" | "GROUP"
+  >("SOLO");
+  const [projectInviteEnabled, setProjectInviteEnabled] = useState(false);
+  const [projectAccessSaving, setProjectAccessSaving] = useState(false);
   const [groupAction, setGroupAction] = useState<{ type: "transfer" | "leave" | "disband" | "remove" | "delete"; member?: any } | null>(null);
   const [groupActionPending, setGroupActionPending] = useState(false);
+  const [adviserCancelPending, setAdviserCancelPending] = useState(false);
 
   const [toast, setToast] = useState<string | null>(null);
   const triggerToast = (msg: string) => {
@@ -531,7 +599,7 @@ function StudentDashboardContent() {
     if (activeProject) {
       setShowCreateModal(false);
       triggerToast(activeProject.status === "REJECTED"
-        ? "Delete the rejected project before registering a replacement."
+        ? "Revise the rejected title from My Projects instead of creating a replacement."
         : "You already have a registered research project.");
       return;
     }
@@ -541,11 +609,23 @@ function StudentDashboardContent() {
       await apiClient.post("/api/research", {
         title: createTitle.trim(),
         abstract: createAbstract.trim() || undefined,
+        participationMode: createParticipationMode,
+        groupName:
+          createParticipationMode === "GROUP"
+            ? createGroupName.trim() || undefined
+            : undefined,
+        accessMode:
+          createParticipationMode === "GROUP"
+            ? createAccessMode
+            : "INVITE_ONLY",
       });
       queryClient.invalidateQueries({ queryKey: ["student-research"] });
       setShowCreateModal(false);
       setCreateTitle("");
       setCreateAbstract("");
+      setCreateParticipationMode("SOLO");
+      setCreateGroupName("");
+      setCreateAccessMode("INVITE_ONLY");
       triggerToast("Research study registered successfully!");
     } catch (err: any) {
       triggerToast(err.message || "Failed to register project");
@@ -572,12 +652,103 @@ function StudentDashboardContent() {
   const handleCreateInvite = async () => {
     if (!activeProject?.id) return;
     try {
-      const response = await apiClient.post<{ inviteCode: string }>(`/api/research/${activeProject.id}/invite-code`);
+      const response = await apiClient.post<{ inviteCode: string }>(`/api/research/${activeProject.id}/invite-code`, { accessMode: projectAccessMode });
       setInviteCode(response.inviteCode);
       await refreshGroup();
       triggerToast("A new group invitation is ready.");
     } catch (error: any) {
       triggerToast(error?.message || "Invitation could not be created.");
+    }
+  };
+
+  const openEditProject = () => {
+    if (!activeProject) return;
+    setEditProjectTitle(activeProject.title || "");
+    setEditProjectAbstract(activeProject.abstract || "");
+    setEditProjectReason("");
+    setShowEditProjectModal(true);
+  };
+
+  const handleSaveProjectDetails = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!activeProject?.id || !editProjectTitle.trim()) return;
+    setEditProjectSaving(true);
+    try {
+      const result = await apiClient.patch<{ titleChangePending?: boolean }>(
+        `/api/research/${activeProject.id}/details`,
+        {
+          title: editProjectTitle.trim(),
+          abstract: editProjectAbstract.trim(),
+          groupName: groupNameInput.trim(),
+          reason: editProjectReason.trim(),
+        },
+      );
+      await refreshGroup();
+      setShowEditProjectModal(false);
+      triggerToast(
+        result.titleChangePending
+          ? "Your title-change request was submitted for approval."
+          : "Research project details updated.",
+      );
+    } catch (error: any) {
+      triggerToast(error?.message || "Project details could not be updated.");
+    } finally {
+      setEditProjectSaving(false);
+    }
+  };
+
+  const handleSaveProjectAccess = async () => {
+    if (!activeProject?.id) return;
+    setProjectAccessSaving(true);
+    try {
+      await apiClient.patch(`/api/research/${activeProject.id}/access`, {
+        participationMode: projectParticipationMode,
+        accessMode: projectAccessMode,
+        inviteCodeEnabled: projectInviteEnabled,
+      });
+      await refreshGroup();
+      triggerToast("Group access settings updated.");
+    } catch (error: any) {
+      triggerToast(error?.message || "Access settings could not be updated.");
+    } finally {
+      setProjectAccessSaving(false);
+    }
+  };
+
+  const decideJoinRequest = async (
+    requestId: string,
+    action: "ACCEPT" | "REJECT",
+  ) => {
+    if (!activeProject?.id) return;
+    try {
+      await apiClient.patch(
+        `/api/research/${activeProject.id}/join-requests/${requestId}`,
+        { action },
+      );
+      await Promise.all([refreshGroup(), refetchJoinRequests()]);
+      triggerToast(
+        action === "ACCEPT"
+          ? "Researcher added to the group."
+          : "Join request declined.",
+      );
+    } catch (error: any) {
+      triggerToast(error?.message || "The join request could not be updated.");
+    }
+  };
+
+  const cancelAdviserRequest = async () => {
+    if (!pendingAdviserRequest?.id || !isGroupLeader) return;
+    setAdviserCancelPending(true);
+    try {
+      await apiClient.patch(
+        `/api/adviser-requests/${pendingAdviserRequest.id}/cancel`,
+      );
+      await refetchAdviserRequests();
+      triggerToast("The pending adviser request was cancelled.");
+    } catch (error: any) {
+      triggerToast(error?.message || "The adviser request could not be cancelled.");
+    } finally {
+      setAdviserCancelPending(false);
     }
   };
 
@@ -634,6 +805,14 @@ function StudentDashboardContent() {
     }
     if (tab === "adviser-pool") {
       router.push("/student/adviser-pool");
+      return;
+    }
+    if (tab === "defense") {
+      router.push(
+        currentDefenseSession?.id
+          ? `/student/defense/${currentDefenseSession.id}`
+          : "/student/defense",
+      );
       return;
     }
     router.push(`/student/dashboard?tab=${tab}`);
@@ -1461,7 +1640,7 @@ function StudentDashboardContent() {
 
                         {/* Step 3: Choose an Adviser */}
                         <button
-                          onClick={() => router.push("/student/adviser-pool")}
+                          onClick={() => isGroupLeader ? router.push("/student/adviser-pool") : handleTabChange("group")}
                           className="group relative flex flex-col items-center text-center cursor-pointer focus:outline-none"
                         >
                           <span className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shadow-xs ${
@@ -1476,7 +1655,7 @@ function StudentDashboardContent() {
                             Choose an adviser
                           </span>
                           <span className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
-                            Browse verified faculty and send a formal request.
+                            {isGroupLeader ? "Browse verified faculty and send a formal request." : "View your project’s adviser status."}
                           </span>
                         </button>
                       </div>
@@ -1888,29 +2067,175 @@ function StudentDashboardContent() {
             ),
             group: (
               <div className="flex flex-col gap-5">
-                <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex flex-col gap-1"><h3 className="text-[16px] font-extrabold text-[#1b4264]">Research Group Management</h3><p className="text-[11px] font-bold text-slate-400">Work solo or invite researchers while preserving the official project record.</p></div>
-                {group && activeProject ? <div className="mt-5 space-y-5"><div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-bold text-slate-500">Official research title</p><p className="mt-1 font-extrabold text-[#102f49]">{activeProject.title}</p></div><div><label className="text-xs font-extrabold text-slate-600">Optional group name</label><div className="mt-1.5 flex gap-2"><input value={groupNameInput} onChange={(event) => setGroupNameInput(event.target.value)} disabled={!isGroupLeader} maxLength={120} placeholder="e.g. Team Innovators" className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm disabled:bg-slate-100" />{isGroupLeader && <button onClick={handleSaveGroupName} className="rounded-xl bg-[#173f63] px-4 text-sm font-extrabold text-white">Save</button>}</div><p className="mt-1 text-[10px] text-slate-400">This label does not change the official research title.</p></div>
-                  <div><div className="flex items-center justify-between"><h4 className="font-extrabold text-[#102f49]">Active members</h4><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div><div className="mt-3 space-y-2">{activeStudentMembers.map((member: any) => <div key={member.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{(member.userId === user?.id || member.user?.id === user?.id) ? " (You)" : ""}</p><p className="text-xs text-slate-500">{member.user.email} · {member.projectRole === "LEADER" ? "Group Leader" : "Member"}</p></div>{isGroupLeader && member.projectRole === "MEMBER" && <div className="flex gap-2"><button onClick={() => setGroupAction({ type: "transfer", member })} className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-700">Transfer leadership</button><button onClick={() => setGroupAction({ type: "remove", member })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-600">Remove</button></div>}</div>)}</div></div>
-                  {isGroupLeader && <div className="rounded-xl border border-blue-100 bg-blue-50 p-4"><h4 className="font-extrabold text-[#102f49]">Invite researchers</h4><p className="mt-1 text-xs text-slate-600">Your project can remain solo. Generate an invitation only when you want members to join.</p>{inviteCode ? <div className="mt-3 space-y-2"><div className="rounded-lg bg-white p-3 font-mono text-sm font-bold text-[#173f63]">Code: {inviteCode}</div><div className="flex flex-wrap gap-2"><button onClick={() => navigator.clipboard.writeText(inviteCode).then(() => triggerToast("Invite code copied."))} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-700"><i className="ti ti-copy mr-1" />Copy code</button><button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join-group?code=${inviteCode}`).then(() => triggerToast("Shareable link copied."))} className="rounded-lg bg-[#173f63] px-3 py-2 text-xs font-extrabold text-white"><i className="ti ti-link mr-1" />Copy shareable link</button><button onClick={handleCreateInvite} className="rounded-lg px-3 py-2 text-xs font-bold text-slate-600">Rotate code</button></div></div> : <button onClick={handleCreateInvite} className="mt-3 rounded-xl bg-[#173f63] px-4 py-2.5 text-xs font-extrabold text-white"><i className="ti ti-user-plus mr-1" />Create invitation</button>}</div>}
-                </div> : (
-                  <div className="bg-slate-50 p-6 border border-slate-200 rounded-xl text-center flex flex-col items-center gap-3">
-                    <p className="text-slate-500 text-xs">You do not have a research group registered yet.</p>
-                    <button
-                      onClick={() => setShowCreateModal(true)}
-                      className="px-4 py-2 bg-[#1b4264] text-[#ffa400] font-bold rounded-lg text-xs cursor-pointer"
-                    >
-                      Register Research Study
-                    </button>
+                <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#C58A18]">Research workspace</p>
+                      <h3 className="mt-1 text-[18px] font-extrabold text-[#1b4264]">My Projects</h3>
+                      <p className="mt-1 text-[11px] font-bold text-slate-400">Create a solo study, form a group, or join an existing research project.</p>
+                    </div>
+                    {activeProject && isGroupLeader && (
+                      <button onClick={openEditProject} className="rounded-xl border border-[#173f63] px-4 py-2 text-xs font-extrabold text-[#173f63]">
+                        <i className="ti ti-edit mr-1.5" />Edit project
+                      </button>
+                    )}
                   </div>
-                )}</section>
-                {activeProject && <section className="rounded-xl border border-rose-200 bg-white p-6 shadow-sm"><h3 className="font-extrabold text-rose-700">Project management</h3><p className="mt-1 text-xs text-slate-500">These actions require a final confirmation and preserve historical submissions.</p><div className="mt-4 flex flex-wrap gap-2">{!isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-xs font-bold text-amber-700">Leave group</button>}{isGroupLeader && <button onClick={() => setGroupAction({ type: "disband" })} className="rounded-xl border border-rose-300 px-4 py-2 text-xs font-bold text-rose-700">Disband group</button>}{activeProject.status === "REJECTED" && isGroupLeader && <button onClick={() => setGroupAction({ type: "delete" })} className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-extrabold text-white">Delete rejected project</button>}</div>{activeProject.status === "REJECTED" && <p className="mt-3 text-xs text-rose-600">Deleting this rejected project allows you to register a replacement.</p>}</section>}
+
+                  {group && activeProject ? (
+                    <div className="mt-5 space-y-5">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="flex flex-wrap gap-2">
+                              <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-extrabold text-blue-800">
+                                {(activeProject.participationMode || (activeStudentMembers.length > 1 ? "GROUP" : "SOLO")) === "SOLO" ? "Solo project" : "Group project"}
+                              </span>
+                              <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[10px] font-extrabold text-slate-700">{projectStatusLabel}</span>
+                              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-extrabold text-amber-800">
+                                {(activeProject.accessMode || "INVITE_ONLY").replace(/_/g, " ")}
+                              </span>
+                            </div>
+                            <p className="mt-3 text-xs font-bold text-slate-500">Official research title</p>
+                            <p className="mt-1 text-base font-extrabold text-[#102f49]">{activeProject.title}</p>
+                            {activeProject.groupName && <p className="mt-1 text-xs text-slate-500">Group: <strong>{activeProject.groupName}</strong></p>}
+                          </div>
+                          <div className="rounded-xl bg-white px-4 py-3 text-center">
+                            <p className="text-xl font-black text-[#173f63]">{activeStudentMembers.length}</p>
+                            <p className="text-[10px] font-bold text-slate-400">researcher{activeStudentMembers.length === 1 ? "" : "s"}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {activeProject.status === "REJECTED" && isGroupLeader && (
+                        <div className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div><p className="text-sm font-extrabold text-rose-800">Your proposed title needs revision</p><p className="mt-1 text-xs text-rose-700">Revise this project instead of deleting it. Memberships, files, and workflow history will be preserved.</p></div>
+                          <button onClick={openEditProject} className="shrink-0 rounded-xl bg-rose-700 px-4 py-2 text-xs font-extrabold text-white">Revise title</button>
+                        </div>
+                      )}
+
+                      <div>
+                        <div className="flex items-center justify-between"><h4 className="font-extrabold text-[#102f49]">Active researchers</h4><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div>
+                        <div className="mt-3 space-y-2">{activeStudentMembers.map((member: any) => <div key={member.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{(member.userId === user?.id || member.user?.id === user?.id) ? " (You)" : ""}</p><p className="text-xs text-slate-500">{member.user.email} · {member.projectRole === "LEADER" ? "Group Leader" : "Member"}</p></div>{isGroupLeader && member.projectRole === "MEMBER" && <div className="flex gap-2"><button onClick={() => setGroupAction({ type: "transfer", member })} className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-700">Transfer leadership</button><button onClick={() => setGroupAction({ type: "remove", member })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-600">Remove</button></div>}</div>)}</div>
+                      </div>
+
+                      <div className={`rounded-2xl border p-5 ${activeAdviserMembership ? "border-emerald-200 bg-emerald-50" : pendingAdviserRequest ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="font-extrabold text-[#102f49]">Adviser</h4>
+                              <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${activeAdviserMembership ? "bg-emerald-200 text-emerald-900" : pendingAdviserRequest ? "bg-amber-200 text-amber-900" : "bg-white text-slate-600"}`}>
+                                {activeAdviserMembership ? "ASSIGNED" : pendingAdviserRequest ? "PENDING" : latestAdviserRequest?.status || "NOT ASSIGNED"}
+                              </span>
+                            </div>
+
+                            {activeAdviserMembership ? (
+                              <div className="mt-3">
+                                <p className="text-sm font-extrabold text-[#102f49]">{activeAdviserMembership.user.firstName} {activeAdviserMembership.user.lastName}</p>
+                                <p className="mt-1 text-xs text-slate-600">{activeAdviserMembership.user.email} · Adviser for the entire research project</p>
+                                <p className="mt-2 text-[11px] text-emerald-800">Assigned {activeAdviserMembership.joinedAt ? new Date(activeAdviserMembership.joinedAt).toLocaleDateString() : "to your group"}</p>
+                              </div>
+                            ) : pendingAdviserRequest ? (
+                              <div className="mt-3">
+                                <p className="text-sm font-extrabold text-[#102f49]">{pendingAdviserRequest.adviser?.firstName} {pendingAdviserRequest.adviser?.lastName}</p>
+                                <p className="mt-1 text-xs text-slate-600">Request sent {new Date(pendingAdviserRequest.createdAt).toLocaleString()}</p>
+                                {pendingAdviserRequest.note && <p className="mt-2 whitespace-pre-line text-xs text-slate-600">{pendingAdviserRequest.note}</p>}
+                                {!isGroupLeader && <p className="mt-2 text-[11px] font-semibold text-amber-800">Your group leader manages this request.</p>}
+                              </div>
+                            ) : (
+                              <div className="mt-3">
+                                <p className="text-sm font-extrabold text-[#102f49]">No adviser assigned</p>
+                                <p className="mt-1 text-xs text-slate-600">{isGroupLeader ? "Browse verified advisers for your program and send one formal request." : "Your group leader can browse the adviser pool and send a request."}</p>
+                                {latestAdviserRequest && ["REJECTED", "CANCELLED"].includes(latestAdviserRequest.status) && (
+                                  <div className="mt-3 rounded-xl bg-white p-3 text-xs">
+                                    <p className="font-bold text-slate-700">Previous request: {latestAdviserRequest.status.toLowerCase()}</p>
+                                    <p className="mt-1 text-slate-500">{latestAdviserRequest.adviser?.firstName} {latestAdviserRequest.adviser?.lastName}{latestAdviserRequest.respondedAt ? ` · ${new Date(latestAdviserRequest.respondedAt).toLocaleDateString()}` : ""}</p>
+                                    {latestAdviserRequest.responseNote && <p className="mt-1 text-slate-600">{latestAdviserRequest.responseNote}</p>}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {isGroupLeader && !activeAdviserMembership && (
+                            <div className="flex shrink-0 flex-wrap gap-2">
+                              {pendingAdviserRequest ? (
+                                <button onClick={cancelAdviserRequest} disabled={adviserCancelPending} className="rounded-xl border border-rose-300 bg-white px-4 py-2 text-xs font-extrabold text-rose-700 disabled:opacity-50">
+                                  {adviserCancelPending ? "Cancelling…" : "Cancel request"}
+                                </button>
+                              ) : (
+                                <button onClick={() => router.push("/student/adviser-pool")} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-xs font-extrabold text-white">
+                                  <i className="ti ti-user-search mr-1.5" />Browse adviser pool
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className={`rounded-2xl border p-5 ${currentDefenseSession ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-slate-50"}`}>
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4 className="font-extrabold text-[#102f49]">Defense</h4>
+                              <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${currentDefenseSession ? "bg-blue-200 text-blue-900" : activeProject.workflowInstance?.completedAt ? "bg-emerald-100 text-emerald-800" : "bg-white text-slate-600"}`}>
+                                {currentDefenseSession ? currentDefenseSession.status.replace(/_/g, " ") : activeProject.workflowInstance?.completedAt ? "READY FOR SCHEDULING" : "NOT YET ELIGIBLE"}
+                              </span>
+                            </div>
+                            {currentDefenseSession ? (
+                              <div className="mt-3">
+                                <p className="text-sm font-extrabold text-[#102f49]">{currentDefenseSession.defenseEvent?.code || `Session ${currentDefenseSession.id.slice(0, 8)}`}</p>
+                                <p className="mt-1 text-xs text-slate-600">{currentDefenseSession.scheduledStart ? new Date(currentDefenseSession.scheduledStart).toLocaleString() : "Schedule to be announced"}{currentDefenseSession.venue ? ` · ${currentDefenseSession.venue}` : ""}</p>
+                                <p className="mt-1 text-[11px] text-blue-700">Queue {currentDefenseSession.queuePosition || "—"} · {(currentDefenseSession.queueStatus || "WAITING").replace(/_/g, " ")}</p>
+                              </div>
+                            ) : (
+                              <p className="mt-3 text-xs text-slate-600">{activeProject.workflowInstance?.completedAt ? "Your professor can now place this project into a defense event after the remaining approval checks." : "Complete the workflow, final manuscript, adviser assignment, and Dean approval to become schedulable."}</p>
+                            )}
+                          </div>
+                          <button onClick={() => handleTabChange("defense")} className="shrink-0 rounded-xl bg-[#173f63] px-4 py-2.5 text-xs font-extrabold text-white">
+                            <i className="ti ti-presentation mr-1.5" />{currentDefenseSession ? "View defense" : "View readiness"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {isGroupLeader && (
+                        <div className="grid gap-4 lg:grid-cols-2">
+                          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                            <h4 className="font-extrabold text-[#102f49]">Group access</h4>
+                            <label className="mt-3 block text-xs font-bold text-slate-600">Working arrangement<select value={projectParticipationMode} onChange={(event) => setProjectParticipationMode(event.target.value as "SOLO" | "GROUP")} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="SOLO">Solo</option><option value="GROUP">Group</option></select></label>
+                            {projectParticipationMode === "GROUP" && <><label className="mt-3 block text-xs font-bold text-slate-600">How researchers can join<select value={projectAccessMode} onChange={(event) => setProjectAccessMode(event.target.value as typeof projectAccessMode)} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="INVITE_ONLY">Invite only</option><option value="PUBLIC_APPROVAL">Code access — leader approval</option><option value="PUBLIC_OPEN">Code access — join immediately</option></select></label><label className="mt-3 flex items-center gap-2 text-xs font-bold text-slate-600"><input type="checkbox" checked={projectInviteEnabled} onChange={(event) => setProjectInviteEnabled(event.target.checked)} />Accept joins using the current code</label></>}
+                            <button onClick={handleSaveProjectAccess} disabled={projectAccessSaving} className="mt-4 rounded-lg bg-[#173f63] px-4 py-2 text-xs font-extrabold text-white disabled:opacity-50">{projectAccessSaving ? "Saving…" : "Save access settings"}</button>
+                          </div>
+                          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                            <h4 className="font-extrabold text-[#102f49]">Invitation code and link</h4>
+                            <p className="mt-1 text-xs text-slate-600">Researchers review the group before joining or requesting approval.</p>
+                            {inviteCode ? <div className="mt-3 space-y-2"><div className="rounded-lg bg-white p-3 font-mono text-sm font-bold text-[#173f63]">Code: {inviteCode}</div><div className="flex flex-wrap gap-2"><button onClick={() => navigator.clipboard.writeText(inviteCode).then(() => triggerToast("Invite code copied."))} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-700"><i className="ti ti-copy mr-1" />Copy code</button><button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join-group?code=${inviteCode}`).then(() => triggerToast("Shareable link copied."))} className="rounded-lg bg-[#173f63] px-3 py-2 text-xs font-extrabold text-white"><i className="ti ti-link mr-1" />Copy link</button><button onClick={handleCreateInvite} className="rounded-lg px-3 py-2 text-xs font-bold text-slate-600">Rotate code</button></div></div> : <button onClick={handleCreateInvite} className="mt-3 rounded-xl bg-[#173f63] px-4 py-2.5 text-xs font-extrabold text-white"><i className="ti ti-user-plus mr-1" />Create invitation</button>}
+                          </div>
+                        </div>
+                      )}
+
+                      {isGroupLeader && pendingJoinRequests.length > 0 && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center justify-between"><div><h4 className="font-extrabold text-[#102f49]">Pending join requests</h4><p className="mt-1 text-xs text-slate-600">Approve only researchers who should receive this project’s workflow and files.</p></div><span className="rounded-full bg-amber-200 px-2.5 py-1 text-xs font-extrabold text-amber-900">{pendingJoinRequests.length}</span></div><div className="mt-3 space-y-2">{pendingJoinRequests.map((request: any) => <div key={request.id} className="flex flex-col gap-3 rounded-xl bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-[#102f49]">{request.requester ? `${request.requester.firstName} ${request.requester.lastName}` : "Researcher"}</p><p className="text-xs text-slate-500">{request.requester?.email} · Requested {new Date(request.createdAt).toLocaleDateString()}</p></div><div className="flex gap-2"><button onClick={() => decideJoinRequest(request.id, "REJECT")} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-700">Reject</button><button onClick={() => decideJoinRequest(request.id, "ACCEPT")} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-extrabold text-white">Accept</button></div></div>)}</div></div>
+                      )}
+
+                      {Array.isArray(activeProject.titleRevisions) && activeProject.titleRevisions.length > 0 && (
+                        <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer text-sm font-extrabold text-[#102f49]">Title revision history ({activeProject.titleRevisions.length})</summary><div className="mt-3 space-y-2">{activeProject.titleRevisions.map((revision: any) => <div key={revision.id} className="rounded-lg bg-slate-50 p-3 text-xs"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-[#102f49]">{revision.proposedTitle}</strong><span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-600">{revision.status}</span></div><p className="mt-1 text-slate-500">Previous: {revision.previousTitle}</p>{revision.reason && <p className="mt-1 text-slate-600">Reason: {revision.reason}</p>}<p className="mt-1 text-[10px] text-slate-400">{new Date(revision.createdAt).toLocaleString()}</p></div>)}</div></details>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-5 grid gap-4 md:grid-cols-2">
+                      <button onClick={() => setShowCreateModal(true)} className="rounded-2xl border-2 border-[#173f63] bg-[#173f63] p-6 text-left text-white transition hover:-translate-y-0.5"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10"><i className="ti ti-folder-plus text-xl text-[#ffa400]" /></span><span className="mt-4 block text-base font-extrabold">Create research project</span><span className="mt-1 block text-xs leading-5 text-blue-100">Choose Solo or Group, enter the proposed title, and begin the assigned workflow.</span></button>
+                      <button onClick={() => router.push("/join-group")} className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-6 text-left transition hover:-translate-y-0.5 hover:border-[#173f63]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100"><i className="ti ti-users-plus text-xl text-[#173f63]" /></span><span className="mt-4 block text-base font-extrabold text-[#102f49]">Join research group</span><span className="mt-1 block text-xs leading-5 text-slate-500">Enter a group code, review its details, and join or request approval.</span></button>
+                    </div>
+                  )}
+                </section>
+                {activeProject && <section className="rounded-xl border border-rose-200 bg-white p-6 shadow-sm"><h3 className="font-extrabold text-rose-700">Project management</h3><p className="mt-1 text-xs text-slate-500">These actions require final confirmation and preserve historical submissions.</p><div className="mt-4 flex flex-wrap gap-2">{!isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-xs font-bold text-amber-700">Leave group</button>}{isGroupLeader && <button onClick={() => setGroupAction({ type: "disband" })} className="rounded-xl border border-rose-300 px-4 py-2 text-xs font-bold text-rose-700">Archive project</button>}</div></section>}
               </div>
             ),
             "adviser-credentials": (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-extrabold text-[#1b4264] text-[16px]">Adviser Credentials Hub</h3>
                 <p className="text-[11px] text-slate-400 font-bold">Adviser credentials now come from verified institutional accounts instead of sample profiles.</p>
-                <button onClick={() => router.push("/student/adviser-pool")} className="mt-2 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-left transition hover:border-[#f6a800]"><span><span className="block text-sm font-extrabold text-[#102f49]">Open Verified Adviser Pool</span><span className="mt-1 block text-xs text-slate-600">Browse active advisers and submit group details or an adviser-request PDF.</span></span><i className="ti ti-arrow-right text-xl text-[#173f63]" /></button>
+                <button onClick={() => isGroupLeader ? router.push("/student/adviser-pool") : handleTabChange("group")} className="mt-2 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-left transition hover:border-[#f6a800]"><span><span className="block text-sm font-extrabold text-[#102f49]">{isGroupLeader ? "Open Verified Adviser Pool" : "View Adviser Status"}</span><span className="mt-1 block text-xs text-slate-600">{isGroupLeader ? "Browse active advisers and send the project’s formal request." : "Adviser selection is managed by your group leader in My Projects."}</span></span><i className="ti ti-arrow-right text-xl text-[#173f63]" /></button>
               </div>
             ),
             "ai-recommendation": (
@@ -2319,14 +2644,14 @@ function StudentDashboardContent() {
         </div>
       )}
 
-      {/* REGISTER RESEARCH STUDY MODAL */}
+      {/* CREATE RESEARCH PROJECT MODAL */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border-t-4 border-[#1b4264] max-w-lg w-full p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-[#1b4264] text-[16px] flex items-center gap-2">
                 <i className="ti ti-folder-plus text-[#ffa400] text-xl" />
-                Register Research Study
+                Create research project
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -2336,6 +2661,21 @@ function StudentDashboardContent() {
               </button>
             </div>
             <form onSubmit={handleCreateResearch} className="flex flex-col gap-4 text-xs">
+              <fieldset>
+                <legend className="font-bold text-slate-700">How will you conduct this research?</legend>
+                <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                  {([
+                    { value: "SOLO", title: "Work solo", text: "Start with one researcher. You can convert it to a group later.", icon: "ti-user" },
+                    { value: "GROUP", title: "Create a group", text: "Become the leader and invite researchers using a code or link.", icon: "ti-users-group" },
+                  ] as const).map((option) => (
+                    <button key={option.value} type="button" onClick={() => setCreateParticipationMode(option.value)} className={`rounded-xl border-2 p-4 text-left transition ${createParticipationMode === option.value ? "border-[#173f63] bg-blue-50" : "border-slate-200 bg-white"}`}>
+                      <i className={`ti ${option.icon} text-xl text-[#173f63]`} />
+                      <span className="mt-2 block font-extrabold text-[#102f49]">{option.title}</span>
+                      <span className="mt-1 block text-[10px] leading-4 text-slate-500">{option.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
               <div className="flex flex-col gap-1.5">
                 <label className="font-bold text-slate-700">Research Project Title *</label>
                 <input
@@ -2347,6 +2687,22 @@ function StudentDashboardContent() {
                   className="p-3 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-[#ffa400]"
                 />
               </div>
+              {createParticipationMode === "GROUP" && (
+                <div className="grid gap-4 rounded-xl border border-blue-100 bg-blue-50 p-4 sm:grid-cols-2">
+                  <label className="flex flex-col gap-1.5 font-bold text-slate-700">
+                    Group name (optional)
+                    <input type="text" maxLength={120} value={createGroupName} onChange={(event) => setCreateGroupName(event.target.value)} placeholder="e.g. Team Innovators" className="rounded-xl border border-blue-200 bg-white p-3 font-normal text-slate-800 outline-none focus:border-[#173f63]" />
+                  </label>
+                  <label className="flex flex-col gap-1.5 font-bold text-slate-700">
+                    Joining permission
+                    <select value={createAccessMode} onChange={(event) => setCreateAccessMode(event.target.value as typeof createAccessMode)} className="h-[42px] rounded-xl border border-blue-200 bg-white px-3 font-normal text-slate-800 outline-none focus:border-[#173f63]">
+                      <option value="INVITE_ONLY">Invite only</option>
+                      <option value="PUBLIC_APPROVAL">Code — leader approval</option>
+                      <option value="PUBLIC_OPEN">Code — open joining</option>
+                    </select>
+                  </label>
+                </div>
+              )}
               <div className="flex flex-col gap-1.5">
                 <label className="font-bold text-slate-700">Abstract / Problem Scope (Optional)</label>
                 <textarea
@@ -2370,9 +2726,39 @@ function StudentDashboardContent() {
                   disabled={isCreatingProject || !createTitle.trim()}
                   className="px-5 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-extrabold rounded-xl shadow cursor-pointer disabled:opacity-50"
                 >
-                  {isCreatingProject ? "Registering..." : "Submit Registration"}
+                  {isCreatingProject ? "Creating..." : "Create project"}
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showEditProjectModal && activeProject && (
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-t-4 border-[#1b4264] bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#C58A18]">Project leader</p>
+                <h3 className="mt-1 text-lg font-extrabold text-[#1b4264]">Edit project details</h3>
+                <p className="mt-1 text-xs text-slate-500">Revise a rejected title without losing the project, members, files, or workflow history.</p>
+              </div>
+              <button type="button" onClick={() => setShowEditProjectModal(false)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-500"><i className="ti ti-x" /></button>
+            </div>
+            <form onSubmit={handleSaveProjectDetails} className="mt-5 space-y-4">
+              {activeProject.status === "REJECTED" && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"><strong>Title revision required.</strong> Saving a new title will move this project into Revision while preserving its existing academic record.</div>
+              )}
+              {activeProject.status === "APPROVED" && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"><strong>Approved title.</strong> A changed title will be submitted as a pending amendment and will not replace the official title until approved.</div>
+              )}
+              <label className="block text-xs font-bold text-slate-700">Research title *<input required minLength={5} value={editProjectTitle} onChange={(event) => setEditProjectTitle(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-[#173f63]" /></label>
+              <label className="block text-xs font-bold text-slate-700">Group name <span className="font-normal text-slate-400">(optional)</span><input maxLength={120} value={groupNameInput} onChange={(event) => setGroupNameInput(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-[#173f63]" /></label>
+              <label className="block text-xs font-bold text-slate-700">Abstract / problem scope<textarea rows={4} value={editProjectAbstract} onChange={(event) => setEditProjectAbstract(event.target.value)} className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-[#173f63]" /></label>
+              {editProjectTitle.trim() !== activeProject.title && (
+                <label className="block text-xs font-bold text-slate-700">Reason for changing the title<textarea rows={3} value={editProjectReason} onChange={(event) => setEditProjectReason(event.target.value)} placeholder="Explain the rejection feedback or reason for the revised title." className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-[#173f63]" /></label>
+              )}
+              <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" onClick={() => setShowEditProjectModal(false)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button><button type="submit" disabled={editProjectSaving || !editProjectTitle.trim()} className="rounded-xl bg-[#173f63] px-5 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">{editProjectSaving ? "Saving…" : activeProject.status === "APPROVED" && editProjectTitle.trim() !== activeProject.title ? "Submit title change" : "Save changes"}</button></div>
             </form>
           </div>
         </div>

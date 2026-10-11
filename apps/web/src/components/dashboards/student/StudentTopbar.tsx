@@ -49,6 +49,8 @@ export function StudentTopbar() {
   const title =
     pathname === "/student/dashboard"
       ? TAB_TITLES[currentTab] || "Researcher Dashboard"
+      : pathname.startsWith("/student/defense/")
+        ? "Defense Center"
       : PAGE_TITLES[pathname] || "Researcher Dashboard";
 
   return (

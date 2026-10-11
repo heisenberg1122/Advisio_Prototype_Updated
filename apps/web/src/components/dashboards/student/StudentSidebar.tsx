@@ -7,13 +7,13 @@ import {
   LayoutDashboard,
   FolderKanban,
   CheckSquare,
-  UserCheck,
   Clock,
   FileText,
   FolderOpen,
   Calendar,
   MessageSquare,
   Mail,
+  Presentation,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -21,7 +21,7 @@ const NAV_ITEMS = [
   { label: "My Project", href: "/student/dashboard?tab=group", tabName: "group", icon: FolderKanban },
   { label: "Group Files", href: "/student/group-files", icon: FolderOpen },
   { label: "Tasks", href: "/student/tasks", icon: CheckSquare },
-  { label: "Adviser Pool", href: "/student/adviser-pool", icon: UserCheck },
+  { label: "Defense", href: "/student/defense", icon: Presentation },
   { label: "Timeline", href: "/student/dashboard?tab=milestones", tabName: "milestones", icon: Clock },
   { label: "Documents", href: "/student/documents", icon: FileText },
   { label: "Consultations", href: "/student/dashboard?tab=consultations", tabName: "consultations", icon: Calendar },

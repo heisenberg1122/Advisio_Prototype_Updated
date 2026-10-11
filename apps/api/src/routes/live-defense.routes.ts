@@ -19,6 +19,18 @@ function requireFacilitator(req: Request, res: Response, next: NextFunction) {
 }
 
 const sessionInclude = {
+  defenseEvent: {
+    select: {
+      id: true,
+      code: true,
+      defenseType: true,
+      status: true,
+      scheduledStart: true,
+      scheduledEnd: true,
+      venue: true,
+      meetingUrl: true,
+    },
+  },
   research: {
     include: {
       researchType: true,
@@ -383,8 +395,15 @@ router.get("/defense-management", requireAuth, async (req: Request, res: Respons
       include: sessionInclude,
       orderBy: [{ scheduledStart: "asc" }, { createdAt: "desc" }],
     });
-    if (!facilitator && panelist && !researcher) {
-      sessions.forEach((session) => { session.invitations = session.invitations.filter((item) => item.inviteeId === req.user!.id); });
+    if (!facilitator && researcher) {
+      sessions.forEach((session) => {
+        session.evaluations = [];
+      });
+    } else if (!facilitator && panelist) {
+      sessions.forEach((session) => {
+        session.invitations = session.invitations.filter((item) => item.inviteeId === req.user!.id);
+        session.evaluations = session.evaluations.filter((item) => item.evaluatorId === req.user!.id);
+      });
     }
     res.json({ sessions });
   } catch (error: any) {
@@ -791,6 +810,13 @@ router.get("/defense-sessions/:id", requireAuth, async (req: Request, res: Respo
     if (!isInstitutionWide && !isFacilitator && !isMember && !isInvited) {
       res.status(404).json({ error: "Defense session was not found." });
       return;
+    }
+    if (req.user!.roles.includes("RESEARCHER") && isMember) {
+      session.evaluations = [];
+    } else if (!isInstitutionWide && !isFacilitator && isInvited) {
+      session.evaluations = session.evaluations.filter(
+        (evaluation) => evaluation.evaluatorId === req.user!.id,
+      );
     }
     res.json({ session });
   } catch (error: any) {

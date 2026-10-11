@@ -16,6 +16,11 @@ export const createResearchSchema = z.object({
   academicYearId: z.string().uuid("Invalid academic year ID"),
   title: z.string().min(5, "Title must be at least 5 characters"),
   abstract: z.string().optional(),
+  groupName: z.string().max(120).optional(),
+  participationMode: z.enum(["SOLO", "GROUP"]).default("SOLO"),
+  accessMode: z
+    .enum(["INVITE_ONLY", "PUBLIC_APPROVAL", "PUBLIC_OPEN"])
+    .default("INVITE_ONLY"),
 });
 
 export const updateResearchSchema = z.object({

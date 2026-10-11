@@ -214,6 +214,14 @@ export function AppRoutes() {
           }
         />
         <Route
+          path="/student/defense/:sessionId"
+          element={
+            <StudentPortal>
+              <StudentDefensePage />
+            </StudentPortal>
+          }
+        />
+        <Route
           path="/student/grades"
           element={
             <StudentPortal>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdvisers } from "@/hooks/use-student";
 import { useAuth } from "@/hooks/use-auth";
@@ -14,27 +15,38 @@ type RequestMethod = "details" | "pdf";
 export default function AdviserPoolPage() {
   const { data, isPending, isError, refetch } = useAdvisers();
   const { user } = useAuth();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [selectedAdviser, setSelectedAdviser] = useState<any | null>(null);
   const [requestMethod, setRequestMethod] = useState<RequestMethod>("details");
-  const [contactName, setContactName] = useState("");
-  const [groupName, setGroupName] = useState("");
-  const [memberNames, setMemberNames] = useState("");
   const [requestNote, setRequestNote] = useState("");
   const [requestPdf, setRequestPdf] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const project = data?.project;
+  const activeResearchers = (project?.members || []).filter(
+    (member: any) =>
+      !member.leftAt && ["LEADER", "MEMBER"].includes(member.projectRole),
+  );
+  const isLeader = activeResearchers.some(
+    (member: any) =>
+      member.projectRole === "LEADER" &&
+      (member.userId === user?.id || member.user?.id === user?.id),
+  );
+
+  useEffect(() => {
+    if (!isPending && data && user && (!project || !isLeader)) {
+      router.replace("/student/dashboard?tab=group");
+    }
+  }, [data, isLeader, isPending, project, router, user]);
 
   const openRequest = (adviser: any) => {
     if (adviser.isFull || !adviser.isAcceptingAdvisees) {
       setMessage(adviser.isAcceptingAdvisees ? "This adviser has reached their group capacity." : "This adviser is not accepting new requests.");
       return;
     }
-    const project = data?.project;
     setSelectedAdviser(adviser);
     setRequestMethod("details");
-    setContactName(`${user?.firstName || ""} ${user?.lastName || ""}`.trim());
-    setGroupName(project?.title || "");
-    setMemberNames((project?.members || []).filter((member: any) => member.projectRole !== "ADVISER" && !member.leftAt).map((member: any) => `${member.user?.firstName || ""} ${member.user?.lastName || ""}`.trim()).filter(Boolean).join(", "));
     setRequestNote("");
     setRequestPdf(null);
     setMessage(null);
@@ -48,14 +60,13 @@ export default function AdviserPoolPage() {
   const applyMutation = useMutation({
     mutationFn: async () => {
       if (!data?.projectId || !selectedAdviser?.id) throw new Error("Register a research project before requesting an adviser.");
-      if (requestMethod === "details" && (!contactName.trim() || !groupName.trim() || !memberNames.trim())) throw new Error("Contact name, group name, and group members are required.");
       if (requestMethod === "pdf" && !requestPdf) throw new Error("Select the completed adviser request form in PDF format.");
 
       let requestFormDocumentId: string | undefined;
       if (requestMethod === "pdf" && requestPdf) {
         const formData = new FormData();
         formData.append("file", requestPdf);
-        formData.append("title", `Adviser Request Form - ${data.project?.title || groupName || "Research Group"}`);
+        formData.append("title", `Adviser Request Form - ${data.project?.title || "Research Group"}`);
         formData.append("documentType", "ADVISER_REQUEST_FORM");
         const token = localStorage.getItem("advisio_token");
         const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
@@ -65,9 +76,11 @@ export default function AdviserPoolPage() {
         requestFormDocumentId = upload.document?.id;
       }
 
-      const structuredNote = requestMethod === "details"
-        ? [`Contact name: ${contactName.trim()}`, `Group name: ${groupName.trim()}`, `Members: ${memberNames.trim()}`, requestNote.trim() ? `Message: ${requestNote.trim()}` : ""].filter(Boolean).join("\n")
-        : requestNote.trim() || "Completed adviser request form attached as PDF.";
+      const structuredNote =
+        requestNote.trim() ||
+        (requestMethod === "pdf"
+          ? "Completed adviser request form attached as PDF."
+          : undefined);
 
       return apiClient.post("/api/adviser-requests", { researchId: data.projectId, adviserId: selectedAdviser.id, note: structuredNote, requestFormDocumentId });
     },
@@ -79,7 +92,8 @@ export default function AdviserPoolPage() {
     onError: (error: any) => setMessage(error?.message || "Unable to send adviser request."),
   });
 
-  if (isPending) return <CardsPageSkeleton cards={4} />;
+  if (isPending || !user || (data && (!project || !isLeader)))
+    return <CardsPageSkeleton cards={4} />;
   if (isError || !data) {
     return (
       <div className="mx-auto w-full max-w-screen-2xl p-4 sm:p-6 lg:p-8">
@@ -93,7 +107,7 @@ export default function AdviserPoolPage() {
     );
   }
 
-  const { assigned, available, project } = data;
+  const { assigned, available, pendingRequest } = data;
   return (
     <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {!project && (
@@ -201,6 +215,8 @@ export default function AdviserPoolPage() {
                   <Tag variant="info">Request pending</Tag>
                 ) : adviser.requestStatus === "ACCEPTED" ? (
                   <Tag variant="success">Accepted</Tag>
+                ) : pendingRequest ? (
+                  <Tag variant="neutral">Another request is pending</Tag>
                 ) : (
                   <button
                     onClick={() => openRequest(adviser)}
@@ -279,19 +295,14 @@ export default function AdviserPoolPage() {
             </div>
 
             {requestMethod === "details" ? (
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <Field label="Representative name" value={contactName} onChange={setContactName} />
-                <Field label="Group / research name" value={groupName} onChange={setGroupName} />
-                <label className="sm:col-span-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Group members
-                  <textarea
-                    value={memberNames}
-                    onChange={(e) => setMemberNames(e.target.value)}
-                    rows={3}
-                    placeholder="Separate names with commas"
-                    className="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#0B1726] p-3 text-xs sm:text-sm text-slate-800 dark:text-slate-100 outline-none focus:border-[#0B3A53] dark:focus:border-[#C9A227]"
-                  />
-                </label>
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Project details</p>
+                <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+                  <div><dt className="font-bold text-slate-500">Project</dt><dd className="mt-1 font-extrabold text-[#17212B] dark:text-white">{project?.title}</dd></div>
+                  <div><dt className="font-bold text-slate-500">Group</dt><dd className="mt-1 font-extrabold text-[#17212B] dark:text-white">{project?.groupName || (project?.participationMode === "SOLO" ? "Solo research project" : "Research group")}</dd></div>
+                  <div className="sm:col-span-2"><dt className="font-bold text-slate-500">Researchers</dt><dd className="mt-1 text-slate-700 dark:text-slate-300">{activeResearchers.map((member: any) => `${member.user?.firstName || ""} ${member.user?.lastName || ""}`.trim()).filter(Boolean).join(", ")}</dd></div>
+                </dl>
+                <p className="mt-3 text-[11px] text-slate-500">These verified project details are included automatically and cannot be changed in the request.</p>
               </div>
             ) : (
               <label className="mt-5 flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed border-slate-300 dark:border-white/20 bg-slate-50/50 dark:bg-white/5 p-7 text-center transition hover:border-[#0B3A53] dark:hover:border-[#C9A227]">
@@ -351,17 +362,5 @@ export default function AdviserPoolPage() {
         </div>
       )}
     </div>
-  );
-}
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-      {label}
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#0B1726] p-3 text-xs sm:text-sm text-slate-800 dark:text-slate-100 outline-none focus:border-[#0B3A53] dark:focus:border-[#C9A227]"
-      />
-    </label>
   );
 }
