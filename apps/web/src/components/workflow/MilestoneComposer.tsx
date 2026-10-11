@@ -15,6 +15,7 @@ type MilestoneComposerProps = {
   saving: boolean;
   advancedOpen: boolean;
   requirementsContent?: React.ReactNode;
+  attachmentsContent?: React.ReactNode;
   onTitleChange: (value: string) => void;
   onTopicIdChange: (value: string) => void;
   onInstructionsChange: (value: string) => void;
@@ -45,6 +46,7 @@ export function MilestoneComposer({
   saving,
   advancedOpen,
   requirementsContent,
+  attachmentsContent,
   onTitleChange,
   onTopicIdChange,
   onInstructionsChange,
@@ -70,10 +72,15 @@ export function MilestoneComposer({
     category,
   });
   const initialSignature = useRef(currentSignature);
-  const hasUnsavedChanges = currentSignature !== initialSignature.current && saveStatus !== "saved";
+  const hasUnsavedChanges =
+    currentSignature !== initialSignature.current && saveStatus !== "saved";
   const requestClose = () => {
     if (saving) return;
-    if (hasUnsavedChanges && !window.confirm("Discard your unsaved milestone changes?")) return;
+    if (
+      hasUnsavedChanges &&
+      !window.confirm("Discard your unsaved milestone changes?")
+    )
+      return;
     onClose();
   };
 
@@ -107,16 +114,22 @@ export function MilestoneComposer({
               <i className="ti ti-x text-xl" />
             </button>
             <div className="min-w-0">
-              <h2 id="milestone-composer-title" className="truncate text-lg font-extrabold text-[#102f49] sm:text-xl">
+              <h2
+                id="milestone-composer-title"
+                className="truncate text-lg font-extrabold text-[#102f49] sm:text-xl"
+              >
                 {isCreate ? "New milestone" : "Edit milestone"}
               </h2>
-              <p className="truncate text-xs text-slate-500">{workflowName || "Research workflow"}</p>
+              <p className="truncate text-xs text-slate-500">
+                {workflowName || "Research workflow"}
+              </p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {saveStatus === "saved" && (
               <span className="hidden text-sm font-bold text-emerald-600 sm:inline">
-                <i className="ti ti-circle-check-filled mr-1" />Saved
+                <i className="ti ti-circle-check-filled mr-1" />
+                Saved
               </span>
             )}
             <button
@@ -133,7 +146,10 @@ export function MilestoneComposer({
           <div className="mx-auto grid w-full max-w-[1180px] gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_330px] lg:gap-6 lg:p-8">
             <main className="space-y-5">
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                <label htmlFor="milestone-title" className="block text-sm font-extrabold text-slate-700">
+                <label
+                  htmlFor="milestone-title"
+                  className="block text-sm font-extrabold text-slate-700"
+                >
                   Milestone title <span className="text-rose-600">*</span>
                 </label>
                 <input
@@ -146,8 +162,12 @@ export function MilestoneComposer({
                   placeholder="e.g. Submit research proposal"
                   className="mt-2 w-full border-0 border-b-2 border-slate-200 px-0 py-3 text-lg font-bold text-[#102f49] outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-[#f6a800]"
                 />
-                <label htmlFor="milestone-instructions" className="mt-6 block text-sm font-extrabold text-slate-700">
-                  Instructions <span className="font-normal text-slate-400">(optional)</span>
+                <label
+                  htmlFor="milestone-instructions"
+                  className="mt-6 block text-sm font-extrabold text-slate-700"
+                >
+                  Instructions{" "}
+                  <span className="font-normal text-slate-400">(optional)</span>
                 </label>
                 <textarea
                   id="milestone-instructions"
@@ -163,14 +183,21 @@ export function MilestoneComposer({
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="font-extrabold text-[#102f49]">Submission requirements</h3>
-                    <p className="mt-1 text-sm text-slate-500">Choose whether researchers must upload a deliverable for this milestone.</p>
+                    <h3 className="font-extrabold text-[#102f49]">
+                      Submission requirements
+                    </h3>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Choose whether researchers must upload a deliverable for
+                      this milestone.
+                    </p>
                   </div>
                   <label className="relative inline-flex cursor-pointer items-center">
                     <input
                       type="checkbox"
                       checked={requiresDocument}
-                      onChange={(event) => onRequiresDocumentChange(event.target.checked)}
+                      onChange={(event) =>
+                        onRequiresDocumentChange(event.target.checked)
+                      }
                       className="peer sr-only"
                     />
                     <span className="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-[#173f63] after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
@@ -182,18 +209,27 @@ export function MilestoneComposer({
                       <div className="flex gap-3">
                         <i className="ti ti-file-upload mt-0.5 text-lg text-blue-700" />
                         <div>
-                          <strong className="block">One document submission will be created</strong>
-                          <span className="mt-1 block text-xs leading-5 text-blue-800">It will use the milestone title and accept PDF or DOCX files. You can add or refine requirements after creating the milestone.</span>
+                          <strong className="block">
+                            One document submission will be created
+                          </strong>
+                          <span className="mt-1 block text-xs leading-5 text-blue-800">
+                            It will use the milestone title and accept PDF or
+                            DOCX files. You can add or refine requirements after
+                            creating the milestone.
+                          </span>
                         </div>
                       </div>
                     </div>
                   )
                 ) : (
                   <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-                    Researchers will see the instructions but will not be asked to upload a document.
+                    Researchers will see the instructions but will not be asked
+                    to upload a document.
                   </div>
                 )}
               </section>
+
+              {attachmentsContent}
 
               {!isCreate && onDelete && (
                 <button
@@ -201,18 +237,25 @@ export function MilestoneComposer({
                   onClick={onDelete}
                   className="rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-extrabold text-rose-700 transition hover:bg-rose-50"
                 >
-                  <i className="ti ti-trash mr-1.5" />Remove milestone
+                  <i className="ti ti-trash mr-1.5" />
+                  Remove milestone
                 </button>
               )}
             </main>
 
             <aside className="h-fit space-y-4 lg:sticky lg:top-6">
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="font-extrabold text-[#102f49]">Milestone settings</h3>
+                <h3 className="font-extrabold text-[#102f49]">
+                  Milestone settings
+                </h3>
                 <div className="mt-5 space-y-5">
                   <div>
-                    <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">Workflow</span>
-                    <p className="mt-1.5 text-sm font-bold text-[#102f49]">{workflowName || "Not selected"}</p>
+                    <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
+                      Workflow
+                    </span>
+                    <p className="mt-1.5 text-sm font-bold text-[#102f49]">
+                      {workflowName || "Not selected"}
+                    </p>
                   </div>
                   <label className="block text-sm font-bold text-slate-700">
                     Topic <span className="text-rose-600">*</span>
@@ -224,7 +267,9 @@ export function MilestoneComposer({
                     >
                       <option value="">Choose a topic</option>
                       {topics.map((topic) => (
-                        <option key={topic.id} value={topic.id}>{topic.title}</option>
+                        <option key={topic.id} value={topic.id}>
+                          {topic.title}
+                        </option>
                       ))}
                     </select>
                   </label>
@@ -232,7 +277,9 @@ export function MilestoneComposer({
                     Completed by
                     <select
                       value={submissionMode}
-                      onChange={(event) => onSubmissionModeChange(event.target.value)}
+                      onChange={(event) =>
+                        onSubmissionModeChange(event.target.value)
+                      }
                       className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal"
                     >
                       <option value="GROUP">Research group</option>
@@ -248,24 +295,37 @@ export function MilestoneComposer({
                         min="0"
                         max="3650"
                         value={deadlineDays}
-                        onChange={(event) => onDeadlineDaysChange(event.target.value)}
+                        onChange={(event) =>
+                          onDeadlineDaysChange(event.target.value)
+                        }
                         placeholder="No target"
                         className="w-full rounded-xl border border-slate-300 px-3 py-2.5 pr-14 text-sm font-normal"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">days</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+                        days
+                      </span>
                     </div>
-                    <span className="mt-1 block text-xs font-normal leading-5 text-slate-400">Relative to when the milestone becomes available.</span>
+                    <span className="mt-1 block text-xs font-normal leading-5 text-slate-400">
+                      Relative to when the milestone becomes available.
+                    </span>
                   </label>
                   <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <input
                       type="checkbox"
                       checked={requiresApproval}
-                      onChange={(event) => onRequiresApprovalChange(event.target.checked)}
+                      onChange={(event) =>
+                        onRequiresApprovalChange(event.target.checked)
+                      }
                       className="mt-0.5 h-4 w-4 accent-[#173f63]"
                     />
                     <span>
-                      <span className="block text-sm font-bold text-[#102f49]">Approval required</span>
-                      <span className="mt-0.5 block text-xs leading-5 text-slate-500">Researchers cannot continue until this milestone is approved.</span>
+                      <span className="block text-sm font-bold text-[#102f49]">
+                        Approval required
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-5 text-slate-500">
+                        Researchers cannot continue until this milestone is
+                        approved.
+                      </span>
                     </span>
                   </label>
                 </div>
@@ -278,10 +338,16 @@ export function MilestoneComposer({
                   className="flex w-full items-center justify-between text-left"
                 >
                   <span>
-                    <span className="block font-extrabold text-[#102f49]">Advanced settings</span>
-                    <span className="text-xs text-slate-500">Most milestones use the default type.</span>
+                    <span className="block font-extrabold text-[#102f49]">
+                      Advanced settings
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      Most milestones use the default type.
+                    </span>
                   </span>
-                  <i className={`ti ${advancedOpen ? "ti-chevron-up" : "ti-chevron-down"}`} />
+                  <i
+                    className={`ti ${advancedOpen ? "ti-chevron-up" : "ti-chevron-down"}`}
+                  />
                 </button>
                 {advancedOpen && (
                   <label className="mt-4 block text-sm font-bold text-slate-700">

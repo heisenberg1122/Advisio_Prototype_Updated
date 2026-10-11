@@ -668,8 +668,9 @@ model WorkflowResource {
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  uploader User     @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+  workflow         Workflow                  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  uploader         User                      @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+  stageAttachments WorkflowStageAttachment[]
 
   @@index([workflowId, updatedAt])
   @@index([uploadedBy])
@@ -708,17 +709,42 @@ model WorkflowStage {
   isFinal           Boolean @default(false) @map("is_final")
   submissionMode    String  @default("EITHER") @map("submission_mode") @db.VarChar(20)
 
-  workflow         Workflow             @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  topic            WorkflowTopic?       @relation(fields: [topicId], references: [id], onDelete: SetNull)
-  responsible      Role                 @relation(fields: [responsibleRoleId], references: [id], onDelete: Restrict)
-  fromTransitions  WorkflowTransition[] @relation("FromStage")
-  toTransitions    WorkflowTransition[] @relation("ToStage")
+  workflow         Workflow                  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  topic            WorkflowTopic?            @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  responsible      Role                      @relation(fields: [responsibleRoleId], references: [id], onDelete: Restrict)
+  fromTransitions  WorkflowTransition[]      @relation("FromStage")
+  toTransitions    WorkflowTransition[]      @relation("ToStage")
   currentInstances WorkflowInstance[]
   tasks            WorkflowTask[]
+  attachments      WorkflowStageAttachment[]
 
   @@unique([workflowId, sequence])
   @@index([topicId])
   @@map("workflow_stages")
+}
+
+model WorkflowStageAttachment {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  stageId            String   @map("stage_id") @db.Uuid
+  type               String   @db.VarChar(20)
+  title              String   @db.VarChar(180)
+  url                String?  @db.Text
+  workflowResourceId String?  @map("workflow_resource_id") @db.Uuid
+  fileName           String?  @map("file_name") @db.VarChar(255)
+  mimeType           String?  @map("mime_type") @db.VarChar(100)
+  fileSize           Int?     @map("file_size")
+  storagePath        String?  @map("storage_path") @db.Text
+  googleDriveFileId  String?  @map("google_drive_file_id") @db.VarChar(255)
+  uploadedBy         String   @map("uploaded_by") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  stage            WorkflowStage     @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  workflowResource WorkflowResource? @relation(fields: [workflowResourceId], references: [id], onDelete: Cascade)
+
+  @@unique([stageId, workflowResourceId])
+  @@index([stageId, createdAt])
+  @@index([workflowResourceId])
+  @@map("workflow_stage_attachments")
 }
 
 model WorkflowEnrollment {
