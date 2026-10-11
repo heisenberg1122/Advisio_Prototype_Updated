@@ -36,12 +36,18 @@ export default function ResearchTasksPage() {
       ]);
       const project = list.projects?.[0];
       const enrollments = enrollmentList.enrollments || [];
-      if (!project) return { project: null, tasks: [], enrollments };
-      const stages = project.workflowInstance?.workflow?.stages || [];
+      const activeEnrollment =
+        enrollments.find(
+          (enrollment: any) =>
+            enrollment.workflowId === project?.workflowInstance?.workflowId,
+        ) || enrollments[0];
+      const stages = project
+        ? project.workflowInstance?.workflow?.stages || []
+        : activeEnrollment?.workflow?.stages || [];
       const currentSequence =
-        project.workflowInstance?.currentStage?.sequence || 0;
+        project?.workflowInstance?.currentStage?.sequence || 0;
       const submissions = new Map(
-        (project.taskSubmissions || []).map((submission: any) => [
+        (project?.taskSubmissions || []).map((submission: any) => [
           submission.taskId,
           submission,
         ]),
@@ -64,6 +70,7 @@ export default function ResearchTasksPage() {
                 stage.sequence > currentSequence && stage.requiresApproval,
               milestoneOnly: true,
               requiresDocument: false,
+              previewOnly: !project,
             },
           ];
         const requirements = stage.tasks || [];
@@ -75,6 +82,7 @@ export default function ResearchTasksPage() {
             locked: stage.sequence > currentSequence && stage.requiresApproval,
             milestoneOnly: false,
             requiresDocument: true,
+            previewOnly: !project,
           }));
         return [
           {
@@ -91,6 +99,7 @@ export default function ResearchTasksPage() {
             locked: stage.sequence > currentSequence && stage.requiresApproval,
             milestoneOnly: true,
             requiresDocument: true,
+            previewOnly: !project,
           },
         ];
       });
@@ -352,15 +361,24 @@ export default function ResearchTasksPage() {
           <StatCard label="Remaining" value={Math.max(0, tasks.length - completed)} icon="ti-clock" iconBg="bg-amber-50 dark:bg-amber-950/40" iconColor="text-amber-700 dark:text-amber-300" />
         </section>
 
-      {!project ? (
-        <Empty text={activeEnrollment ? "Workflow accepted. Register a project to begin submitting its professor-created requirements." : "Join a professor workflow, then register a project to receive its requirements."} />
-      ) : !tasks.length ? (
-        <Empty text="Requirements will appear here when your professor adds them to the project workflow." />
+      {!tasks.length ? (
+        <Empty text={activeEnrollment ? "Your professor has not added milestones to this workflow yet." : "Join a professor workflow, then register a project to receive its requirements."} />
       ) : (
         <section className="space-y-3.5">
+          {!project && (
+            <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+              <i className="ti ti-eye mt-0.5 text-lg" />
+              <div>
+                <strong className="block">Milestone preview</strong>
+                <span>You can review the professor&apos;s current milestones now. Register or join a research project before starting tasks or submitting files.</span>
+              </div>
+            </div>
+          )}
           {tasks.map((task: any) => {
             const status =
-              task.submission?.status ||
+              task.previewOnly
+                ? "AWAITING_PROJECT"
+                : task.submission?.status ||
               (task.stage.sequence < currentSequence
                 ? "COMPLETED"
                 : task.locked
@@ -491,14 +509,20 @@ function TaskDetails({
   const currentSequence =
     project?.workflowInstance?.currentStage?.sequence || 0;
   const status =
-    task.submission?.status ||
+    task.previewOnly
+      ? "AWAITING_PROJECT"
+      : task.submission?.status ||
     (task.stage.sequence < currentSequence
       ? "COMPLETED"
       : task.locked
         ? "LOCKED"
         : "IN_PROGRESS");
   const canSubmit =
-    !task.locked && !task.milestoneOnly && status !== "APPROVED";
+    Boolean(project) &&
+    !task.previewOnly &&
+    !task.locked &&
+    !task.milestoneOnly &&
+    status !== "APPROVED";
   const canCreateInDocuments = /DOC|DOCX|HTML|TXT/i.test(
     task.allowedFileTypes || "",
   );
@@ -636,7 +660,9 @@ function TaskDetails({
             )}
           </section>
         )}
-        {task.locked ? (
+        {task.previewOnly ? (
+          <Notice text="This milestone is available for review. Join or register a research project connected to this workflow before starting work or submitting files." />
+        ) : task.locked ? (
           <Notice text="This milestone is visible to your group, but submission opens when the preceding milestone is completed." />
         ) : task.milestoneOnly ? (
           <section className="mt-6 rounded-2xl border border-[#C9A227]/40 bg-[#FDF8E8] dark:bg-amber-950/20 p-5">

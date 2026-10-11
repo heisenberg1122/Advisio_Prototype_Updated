@@ -79,6 +79,12 @@ export class DocumentSigningService {
         signedSignature: true,
         document: {
           include: {
+            deanInboxMessages: {
+              where: { attachmentVersionId: { not: null } },
+              orderBy: { createdAt: "asc" },
+              take: 1,
+              select: { authorId: true },
+            },
             research: {
               include: {
                 members: {
@@ -118,6 +124,8 @@ export class DocumentSigningService {
     );
     const isProfessorInScope = options.signerRoles.includes("RESEARCH_COORDINATOR") && Boolean(options.signerCollegeId) && source.document.research.collegeId === options.signerCollegeId;
     const isDean = options.signerRoles.some((role) => ["RPO", "VPAA"].includes(role));
+    if (source.document.documentType === "DEAN_DEFENSE_APPROVAL" && !isDean)
+      throw new Error("Only the assigned Dean's Office can sign a Dean defense approval.");
     if (!isAssignedAdviser && !isAssignedPanelist && !isProfessorInScope && !isDean)
       throw new Error("You are not authorized to sign for this research project.");
     if (isAssignedPanelist && research.evaluations.length === 0)
@@ -245,6 +253,54 @@ export class DocumentSigningService {
             attachmentVersionId: signedVersion.id,
           },
         });
+        const requesterId = source.document.deanInboxMessages[0]?.authorId;
+        if (requesterId && requesterId !== options.signerId) {
+          const mailSubject = `Signed: ${source.document.title}`.slice(0, 255);
+          const mailBody = `${signerName} signed the Dean approval request for ${research.title}. Verification code: ${verificationCode}`;
+          const mailThread = await tx.mailThread.create({
+            data: {
+              subject: mailSubject,
+              createdById: options.signerId,
+              participants: {
+                create: [
+                  { userId: options.signerId, readAt: signedAt },
+                  { userId: requesterId },
+                ],
+              },
+              messages: {
+                create: {
+                  senderId: options.signerId,
+                  body: mailBody,
+                  sentAt: signedAt,
+                  attachments: {
+                    create: {
+                      fileName,
+                      mimeType: "application/pdf",
+                      fileSize: signedBuffer.length,
+                      fileData: Uint8Array.from(signedBuffer),
+                      signedById: options.signerId,
+                      signedAt,
+                      verificationCode,
+                      originalFileHash: documentSignature.originalFileHash,
+                      signedFileHash: documentSignature.signedFileHash,
+                      signaturePlacements: options.placements,
+                    },
+                  },
+                },
+              },
+            },
+          });
+          await tx.notification.create({
+            data: {
+              recipientId: requesterId,
+              type: "DOCUMENT_REVIEWED",
+              title: "Dean signed your request",
+              message: `${signerName} signed ${source.document.title}. The official signed PDF is available in your Inbox.`,
+              entityType: "MailThread",
+              entityId: mailThread.id,
+            },
+          });
+        }
       }
       await tx.auditLog.create({
         data: {

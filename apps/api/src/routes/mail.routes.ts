@@ -5,6 +5,7 @@ import { requireAuth } from "../middleware/auth.js";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { loadVersionFile } from "../services/document-signing.service.js";
 
 const router = Router();
 const attachments = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 5 } });
@@ -19,6 +20,83 @@ function validatePlacement(value: Placement) {
   if (numbers.some((item) => !Number.isFinite(item) || item < 0 || item > 1) || value.width <= 0 || value.height <= 0 || value.x + value.width > 1 || value.y + value.height > 1)
     throw new Error("The signature placement must fit completely inside the page.");
 }
+
+router.post("/sync-dean-approvals", requireAuth, async (req, res) => {
+  if (!req.user!.roles.includes("RESEARCH_COORDINATOR")) {
+    return void res.status(403).json({ error: "Only a research professor or coordinator can synchronize Dean approvals." });
+  }
+  const signatures = await prisma.documentSignature.findMany({
+    where: {
+      revokedAt: null,
+      sourceVersion: {
+        document: {
+          documentType: "DEAN_DEFENSE_APPROVAL",
+          deanInboxMessages: { some: { authorId: req.user!.id, attachmentVersionId: { not: null } } },
+        },
+      },
+    },
+    include: {
+      signedVersion: true,
+      signedBy: { select: person },
+      sourceVersion: { include: { document: { include: { research: { select: { title: true } } } } } },
+    },
+    orderBy: { signedAt: "asc" },
+  });
+  let delivered = 0;
+  for (const signature of signatures) {
+    const existing = await prisma.mailAttachment.findUnique({ where: { verificationCode: signature.verificationCode }, select: { id: true } });
+    if (existing) continue;
+    const signedBuffer = await loadVersionFile(signature.signedVersion);
+    const signerName = [signature.signedBy.firstName, signature.signedBy.middleName, signature.signedBy.lastName].filter(Boolean).join(" ");
+    const document = signature.sourceVersion.document;
+    try {
+      await prisma.$transaction(async (tx) => {
+        const thread = await tx.mailThread.create({
+          data: {
+            subject: `Signed: ${document.title}`.slice(0, 255),
+            createdById: signature.signedById,
+            participants: { create: [{ userId: signature.signedById, readAt: signature.signedAt }, { userId: req.user!.id }] },
+            messages: {
+              create: {
+                senderId: signature.signedById,
+                sentAt: signature.signedAt,
+                body: `${signerName} signed the Dean approval request for ${document.research.title}. Verification code: ${signature.verificationCode}`,
+                attachments: {
+                  create: {
+                    fileName: signature.signedVersion.fileName,
+                    mimeType: signature.signedVersion.mimeType,
+                    fileSize: signedBuffer.length,
+                    fileData: Uint8Array.from(signedBuffer),
+                    signedById: signature.signedById,
+                    signedAt: signature.signedAt,
+                    verificationCode: signature.verificationCode,
+                    originalFileHash: signature.originalFileHash,
+                    signedFileHash: signature.signedFileHash,
+                    signaturePlacements: signature.placements as any,
+                  },
+                },
+              },
+            },
+          },
+        });
+        await tx.notification.create({
+          data: {
+            recipientId: req.user!.id,
+            type: "DOCUMENT_REVIEWED",
+            title: "Dean signed your request",
+            message: `${signerName} signed ${document.title}. The official signed PDF is available in your Inbox.`,
+            entityType: "MailThread",
+            entityId: thread.id,
+          },
+        });
+      });
+      delivered += 1;
+    } catch (error: any) {
+      if (error?.code !== "P2002") throw error;
+    }
+  }
+  res.json({ delivered });
+});
 
 router.get("/contacts", requireAuth, async (req, res) => {
   const users = await prisma.user.findMany({

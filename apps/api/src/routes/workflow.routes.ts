@@ -392,6 +392,21 @@ async function normalizeWorkflowStageSequences(tx: any, workflowId: string) {
       },
     });
   }
+  const finalStage = await tx.workflowStage.findFirst({
+    where: { workflowId, category: { not: "Archived" } },
+    orderBy: [{ sequence: "desc" }, { id: "desc" }],
+    select: { id: true },
+  });
+  await tx.workflowStage.updateMany({
+    where: { workflowId, category: { not: "Archived" } },
+    data: { isFinal: false },
+  });
+  if (finalStage) {
+    await tx.workflowStage.update({
+      where: { id: finalStage.id },
+      data: { isFinal: true },
+    });
+  }
 }
 
 async function normalizeWorkflowTopicSequences(tx: any, workflowId: string) {
@@ -454,6 +469,17 @@ async function resequenceWorkflowStagesByTopics(tx: any, workflowId: string) {
     await tx.workflowStage.update({
       where: { id: archived[index].id },
       data: { sequence: -(index + 1) },
+    });
+  }
+  await tx.workflowStage.updateMany({
+    where: { workflowId, category: { not: "Archived" } },
+    data: { isFinal: false },
+  });
+  const finalStage = orderedActive.at(-1);
+  if (finalStage) {
+    await tx.workflowStage.update({
+      where: { id: finalStage.id },
+      data: { isFinal: true },
     });
   }
 }
@@ -2578,8 +2604,20 @@ router.patch(
             requiredTasks.length > 0 &&
             approvedTaskCount === requiredTasks.length
           ) {
-            if (reviewedStage.isFinal) {
+            const nextStage = await tx.workflowStage.findFirst({
+              where: {
+                workflowId: reviewedStage.workflowId,
+                category: { not: "Archived" },
+                sequence: { gt: reviewedStage.sequence },
+              },
+              orderBy: { sequence: "asc" },
+            });
+            if (!nextStage) {
               const completedAt = new Date();
+              await tx.workflowStage.update({
+                where: { id: reviewedStage.id },
+                data: { isFinal: true },
+              });
               await tx.workflowInstance.update({
                 where: { id: instance.id },
                 data: { completedAt },
@@ -2590,34 +2628,24 @@ router.patch(
               });
               progression = { advanced: true, completed: true };
             } else {
-              const nextStage = await tx.workflowStage.findFirst({
-                where: {
-                  workflowId: reviewedStage.workflowId,
-                  category: { not: "Archived" },
-                  sequence: { gt: reviewedStage.sequence },
+              await tx.workflowTransition.create({
+                data: {
+                  workflowInstanceId: instance.id,
+                  fromStageId: reviewedStage.id,
+                  toStageId: nextStage.id,
+                  performedBy: req.user!.id,
+                  remarks: `Advanced automatically after all required submissions for ${reviewedStage.name} were approved.`,
                 },
-                orderBy: { sequence: "asc" },
               });
-              if (nextStage) {
-                await tx.workflowTransition.create({
-                  data: {
-                    workflowInstanceId: instance.id,
-                    fromStageId: reviewedStage.id,
-                    toStageId: nextStage.id,
-                    performedBy: req.user!.id,
-                    remarks: `Advanced automatically after all required submissions for ${reviewedStage.name} were approved.`,
-                  },
-                });
-                await tx.workflowInstance.update({
-                  where: { id: instance.id },
-                  data: { currentStageId: nextStage.id },
-                });
-                progression = {
-                  advanced: true,
-                  completed: false,
-                  nextStageName: nextStage.name,
-                };
-              }
+              await tx.workflowInstance.update({
+                where: { id: instance.id },
+                data: { currentStageId: nextStage.id },
+              });
+              progression = {
+                advanced: true,
+                completed: false,
+                nextStageName: nextStage.name,
+              };
             }
           }
         }

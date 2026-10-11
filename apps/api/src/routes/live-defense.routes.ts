@@ -26,10 +26,46 @@ const sessionInclude = {
         where: { leftAt: null },
         include: { user: { select: { id: true, firstName: true, lastName: true, email: true } } },
       },
+      adviserRequests: {
+        where: { status: "ACCEPTED" as const },
+        include: {
+          adviser: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { respondedAt: "desc" as const },
+      },
       documents: {
         orderBy: { currentVersion: "desc" as const },
         take: 5,
-        include: { versions: { where: { status: "ACTIVE" as const }, orderBy: { versionNumber: "desc" as const }, take: 1 } },
+        select: {
+          id: true,
+          title: true,
+          documentType: true,
+          currentVersion: true,
+          versions: {
+            where: { status: "ACTIVE" as const },
+            orderBy: { versionNumber: "desc" as const },
+            take: 1,
+            select: {
+              id: true,
+              documentId: true,
+              versionNumber: true,
+              fileName: true,
+              mimeType: true,
+              storagePath: true,
+              googleDriveFileId: true,
+              uploadedBy: true,
+              uploadedAt: true,
+              status: true,
+            },
+          },
+        },
       },
     },
   },
@@ -87,6 +123,57 @@ async function syncDefenseEventStatus(tx: any, eventId: string | null) {
   await tx.defenseEvent.update({ where: { id: eventId }, data: { status: ready ? "READY" : "DRAFT" } });
 }
 
+async function reconcileCompletedWorkflows(options: { researchIds?: string[]; collegeId?: string }) {
+  const researchWhere: any = {
+    ...(options.researchIds?.length ? { id: { in: options.researchIds } } : {}),
+    ...(options.collegeId ? { collegeId: options.collegeId } : {}),
+  };
+  const instances = await prisma.workflowInstance.findMany({
+    where: {
+      completedAt: null,
+      research: { is: researchWhere },
+    },
+    include: {
+      workflow: {
+        select: {
+          stages: {
+            where: { category: { not: "Archived" } },
+            orderBy: [{ sequence: "desc" }, { id: "desc" }],
+            take: 1,
+            select: { id: true },
+          },
+        },
+      },
+      currentStage: {
+        include: {
+          tasks: { where: { isRequired: true }, select: { id: true } },
+        },
+      },
+      research: {
+        select: {
+          id: true,
+          taskSubmissions: {
+            where: { status: "APPROVED" },
+            select: { taskId: true },
+          },
+        },
+      },
+    },
+  });
+  for (const instance of instances) {
+    const finalStageId = instance.workflow.stages[0]?.id;
+    const requiredTaskIds = instance.currentStage?.tasks.map((task) => task.id) || [];
+    const approvedTaskIds = new Set(instance.research?.taskSubmissions.map((submission) => submission.taskId) || []);
+    if (!instance.research || !finalStageId || instance.currentStageId !== finalStageId || requiredTaskIds.length === 0 || !requiredTaskIds.every((id) => approvedTaskIds.has(id))) continue;
+    const completedAt = new Date();
+    await prisma.$transaction([
+      prisma.workflowStage.update({ where: { id: finalStageId }, data: { isFinal: true } }),
+      prisma.workflowInstance.update({ where: { id: instance.id }, data: { completedAt } }),
+      prisma.researchProject.update({ where: { id: instance.research.id }, data: { status: "COMPLETED", completedAt } }),
+    ]);
+  }
+}
+
 router.get("/defense-events", requireAuth, requireFacilitator, async (req: Request, res: Response) => {
   try {
     const scope = getCollegeScope(req.user!);
@@ -124,15 +211,40 @@ router.post("/defense-events", requireAuth, requireFacilitator, async (req: Requ
       return void res.status(400).json({ error: "Assign one panel chair and at least one panelist." });
     }
     const uniqueInvitees = Array.from(new Map(invitees.map((item: any) => [String(item.userId), item])).values()) as any[];
+    const requestScope = getCollegeScope(req.user!);
+    await reconcileCompletedWorkflows({
+      researchIds,
+      ...(requestScope.kind === "college" ? { collegeId: requestScope.collegeId } : {}),
+    });
     const projects = await prisma.researchProject.findMany({
       where: { id: { in: researchIds } },
-      include: { workflowInstance: true },
+      include: {
+        workflowInstance: true,
+        documents: {
+          where: {
+            documentType: "DEAN_DEFENSE_APPROVAL",
+            versions: {
+              some: {
+                status: "ACTIVE",
+                signedSignature: {
+                  is: {
+                    revokedAt: null,
+                    signedBy: { roles: { some: { role: { name: { in: ["RPO", "VPAA"] } } } } },
+                  },
+                },
+              },
+            },
+          },
+          select: { id: true },
+        },
+      },
     });
     if (projects.length !== researchIds.length) return void res.status(404).json({ error: "One or more research groups were not found." });
     if (projects.some((project) => !canAccessCollege(req.user!, project.collegeId))) return void res.status(404).json({ error: "One or more research groups are outside your college scope." });
     const collegeIds = new Set(projects.map((project) => project.collegeId));
     if (collegeIds.size !== 1) return void res.status(400).json({ error: "A defense event can only contain groups from the same college." });
     if (projects.some((project) => !project.workflowInstance?.completedAt)) return void res.status(409).json({ error: "Every selected group must complete its workflow requirements first." });
+    if (projects.some((project) => project.documents.length === 0)) return void res.status(409).json({ error: "Every selected group needs a signed Dean approval before a defense event can be created." });
     const activeSession = await prisma.defenseSession.findFirst({
       where: { researchId: { in: researchIds }, status: { in: ["PENDING_ACKNOWLEDGEMENT", "NEEDS_RESCHEDULING", "SCHEDULED", "LIVE", "DELIBERATION"] } },
       select: { researchId: true },
@@ -284,10 +396,27 @@ router.get("/defense-management/eligible-groups", requireAuth, requireFacilitato
   try {
     const scope = getCollegeScope(req.user!);
     if (scope.kind === "unassigned") return void res.status(403).json({ error: "Your account has not been assigned to a college or school." });
+    await reconcileCompletedWorkflows(scope.kind === "college" ? { collegeId: scope.collegeId } : {});
     const projects = await prisma.researchProject.findMany({
       where: {
         ...(scope.kind === "college" && { collegeId: scope.collegeId }),
         workflowInstance: { completedAt: { not: null } },
+        documents: {
+          some: {
+            documentType: "DEAN_DEFENSE_APPROVAL",
+            versions: {
+              some: {
+                status: "ACTIVE",
+                signedSignature: {
+                  is: {
+                    revokedAt: null,
+                    signedBy: { roles: { some: { role: { name: { in: ["RPO", "VPAA"] } } } } },
+                  },
+                },
+              },
+            },
+          },
+        },
         defenseSessions: { none: { status: { in: ["PENDING_ACKNOWLEDGEMENT", "NEEDS_RESCHEDULING", "SCHEDULED", "LIVE", "DELIBERATION"] } } },
       },
       select: { id: true, title: true, program: { select: { code: true, name: true } }, members: { where: { leftAt: null }, select: { id: true } } },

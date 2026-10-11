@@ -529,7 +529,7 @@ export function AppRoutes() {
           }
         />
         <Route path="/admin/calendar" element={<ProtectedRoute allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}><AdminLayout><CalendarPage /></AdminLayout></ProtectedRoute>} />
-        <Route path="/admin/signatures" element={<ProtectedRoute allowedRoles={["RPO", "VPAA"]}><AdminLayout><SignatureCenterPage /></AdminLayout></ProtectedRoute>} />
+        <Route path="/admin/signatures" element={<Navigate to="/admin/inbox?view=signature-requests" replace />} />
         <Route path="/admin/inbox" element={<ProtectedRoute allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}><AdminLayout><MailInboxPage /></AdminLayout></ProtectedRoute>} />
 
         {/* Fallback */}

@@ -248,8 +248,19 @@ function StudentDashboardContent() {
     staleTime: 5000,
     refetchInterval: 5000,
   });
+  const { data: workflowEnrollmentData } = useQuery({
+    queryKey: ["student-workflow-enrollments"],
+    queryFn: () =>
+      apiClient.get<{ enrollments: any[] }>("/api/workflows/enrollments/me"),
+    refetchOnWindowFocus: true,
+  });
 
   const activeProject = researchData?.projects?.[0];
+  const activeWorkflowEnrollment =
+    workflowEnrollmentData?.enrollments?.find(
+      (enrollment: any) =>
+        enrollment.workflowId === activeProject?.workflowInstance?.workflowId,
+    ) || workflowEnrollmentData?.enrollments?.[0];
   const { data: defenseResultData } = useQuery({
     queryKey: ["student-defense-result", activeProject?.id],
     queryFn: () => apiClient.get<{ result: any | null }>(`/api/research/${activeProject.id}/defense-result`),
@@ -301,11 +312,30 @@ function StudentDashboardContent() {
         description: stage.description || "",
         category: stage.category || "Milestone",
       })));
+    } else if (activeWorkflowEnrollment?.workflow?.stages) {
+      setGroup(null);
+      setMilestones(
+        activeWorkflowEnrollment.workflow.stages.map(
+          (stage: any, index: number) => ({
+            id: stage.id,
+            title: stage.name,
+            status: index === 0 ? "in-progress" : "upcoming",
+            deadlineDays: stage.deadlineDays,
+            requiresApproval: stage.requiresApproval,
+            sequence: stage.sequence,
+            topicId: stage.topic?.id || null,
+            topicTitle: stage.topic?.title || "Ungrouped milestones",
+            description: stage.description || "",
+            category: stage.category || "Milestone",
+            previewOnly: true,
+          }),
+        ),
+      );
     } else {
       setGroup(null);
       setMilestones([]);
     }
-  }, [activeProject]);
+  }, [activeProject, activeWorkflowEnrollment]);
 
   const [aiMatches, setAiMatches] = useState<any[]>([]);
   const [submissions, setSubmissions] = useState<any[]>([]);

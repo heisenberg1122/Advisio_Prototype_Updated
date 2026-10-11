@@ -15,6 +15,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { SubmissionDocumentPreview } from "@/components/professor/SubmissionDocumentPreview";
 import { ProfessorDeanRequestModal } from "@/components/professor/ProfessorDeanRequestModal";
 import { DefensePacketConfigurator } from "@/components/professor/DefensePacketConfigurator";
+import { DefenseSessionStatusModal } from "@/components/professor/DefenseSessionStatusModal";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
 import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
 import {
@@ -62,14 +63,14 @@ function ProfessorDashboardContent() {
   const liveDefense = defenseData?.session || null;
   const [officialDecision, setOfficialDecision] = useState("APPROVED");
   const [defenseActionPending, setDefenseActionPending] = useState(false);
-  const { data: defenseManagementData, refetch: refetchDefenseManagement } =
+  const { data: defenseManagementData, refetch: refetchDefenseManagement, error: defenseManagementError } =
     useQuery({
       queryKey: ["professor-defense-management"],
       queryFn: () =>
         apiClient.get<{ sessions: any[] }>("/api/defense-management"),
       refetchInterval: 15000,
     });
-  const { data: defenseEventData, refetch: refetchDefenseEvents } = useQuery({
+  const { data: defenseEventData, refetch: refetchDefenseEvents, error: defenseEventError } = useQuery({
     queryKey: ["professor-defense-events"],
     queryFn: () => apiClient.get<{ events: any[] }>("/api/defense-events"),
     refetchInterval: 15000,
@@ -81,6 +82,7 @@ function ProfessorDashboardContent() {
         apiClient.get<{ projects: any[] }>(
           "/api/defense-management/eligible-groups",
         ),
+      refetchInterval: 15000,
     });
   const { data: defenseCandidateData } = useQuery({
     queryKey: ["defense-participant-candidates"],
@@ -92,11 +94,16 @@ function ProfessorDashboardContent() {
   const legacyDefenseSessions = defenseSessions.filter(
     (session: any) => !session.defenseEventId,
   );
+  const defenseLoadError = defenseEventError || defenseManagementError;
   const eligibleDefenseGroups = eligibleDefenseData?.projects || [];
   const defenseCandidates = defenseCandidateData?.users || [];
   const [showDefenseForm, setShowDefenseForm] = useState(false);
   const [showDeanRequestForm, setShowDeanRequestForm] = useState(false);
   const [packetSession, setPacketSession] = useState<any | null>(null);
+  const [statusSession, setStatusSession] = useState<{
+    session: any;
+    event?: any;
+  } | null>(null);
   const [defenseProjectId, setDefenseProjectId] = useState("");
   const [defenseProjectIds, setDefenseProjectIds] = useState<string[]>([]);
   const [defenseType, setDefenseType] = useState("PRE_ORAL_DEFENSE");
@@ -747,7 +754,7 @@ function ProfessorDashboardContent() {
         status,
         reviewNote: reviewFeedback.trim() || "Requirement approved.",
       });
-      await refetchResearch();
+      await Promise.all([refetchResearch(), refetchEligibleDefenseGroups()]);
       setSelectedProject(null);
       setSelectedSubmission(null);
       setReviewFeedback("");
@@ -1428,9 +1435,7 @@ function ProfessorDashboardContent() {
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
       {showDeanRequestForm && (
         <ProfessorDeanRequestModal
-          projects={
-            eligibleDefenseGroups.length ? eligibleDefenseGroups : projects
-          }
+          projects={projects}
           onClose={() => setShowDeanRequestForm(false)}
           onSent={(message) => {
             setShowDeanRequestForm(false);
@@ -1447,6 +1452,13 @@ function ProfessorDashboardContent() {
             triggerToast(message);
             refetchDefenseManagement();
           }}
+        />
+      )}
+      {statusSession && (
+        <DefenseSessionStatusModal
+          session={statusSession.session}
+          event={statusSession.event}
+          onClose={() => setStatusSession(null)}
         />
       )}
       {toast && (
@@ -3477,7 +3489,7 @@ function ProfessorDashboardContent() {
                     <p className="mt-4 rounded-xl bg-blue-50 p-3 text-xs text-blue-800">
                       <i className="ti ti-info-circle mr-1" />A group becomes
                       schedulable after every required workflow milestone is
-                      completed.
+                      completed and its Dean approval request is signed.
                     </p>
                   )}
                 </section>
@@ -3538,6 +3550,12 @@ function ProfessorDashboardContent() {
                       </div>
                     </div>
                   </section>
+                )}
+                {defenseLoadError && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+                    <p className="font-extrabold"><i className="ti ti-alert-circle mr-1.5" />Defense status could not be loaded</p>
+                    <p className="mt-1 text-xs">{(defenseLoadError as Error).message || "Refresh the page or check the API connection."}</p>
+                  </div>
                 )}
                 <section className="grid gap-4 sm:grid-cols-3">
                   {[
@@ -3635,6 +3653,19 @@ function ProfessorDashboardContent() {
                             <div className="flex flex-wrap gap-2">
                               <button
                                 type="button"
+                                onClick={() =>
+                                  setStatusSession({
+                                    session,
+                                    event: defenseEvent,
+                                  })
+                                }
+                                className="rounded-lg border border-[#173f63] bg-white px-3 py-2 text-xs font-extrabold text-[#173f63]"
+                              >
+                                <i className="ti ti-users-group mr-1.5" />
+                                View status
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => setPacketSession(session)}
                                 className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-extrabold text-[#173f63]"
                               >
@@ -3711,6 +3742,14 @@ function ProfessorDashboardContent() {
                             </p>
                           </div>
                           <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setStatusSession({ session })}
+                              className="rounded-xl border border-[#173f63] bg-white px-4 py-2 text-sm font-extrabold text-[#173f63]"
+                            >
+                              <i className="ti ti-users-group mr-1.5" />
+                              View status
+                            </button>
                             <button
                               type="button"
                               onClick={() => setPacketSession(session)}
@@ -3805,7 +3844,7 @@ function ProfessorDashboardContent() {
                       </article>
                     );
                   })}
-                  {!defenseEvents.length && !legacyDefenseSessions.length && (
+                  {!defenseLoadError && !defenseEvents.length && !legacyDefenseSessions.length && (
                     <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
                       <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-blue-50 text-[#173f63]">
                         <i className="ti ti-presentation text-2xl" />

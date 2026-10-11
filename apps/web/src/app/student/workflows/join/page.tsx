@@ -23,6 +23,8 @@ export default function JoinWorkflowPage() {
     try {
       const result = await apiClient.post<{ workflow: any }>(`/api/workflows/join/${code}`, {});
       await queryClient.invalidateQueries({ queryKey: ["student", "workflow-enrollments"] });
+      await queryClient.invalidateQueries({ queryKey: ["student", "workflow-tasks"] });
+      await queryClient.invalidateQueries({ queryKey: ["student-workflow-enrollments"] });
       navigate(`/student/tasks?workflowAccepted=${encodeURIComponent(result.workflow.name)}`, { replace: true });
     } catch (caught: any) {
       setError(caught?.message || "This workflow invitation could not be accepted.");

@@ -746,6 +746,7 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
         members: {
           where: { leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } },
         },
+        workflowInstance: { select: { workflowId: true } },
       },
     });
     if (!project)
@@ -772,25 +773,44 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
         projectRole: { in: ["LEADER", "MEMBER"] },
       },
     });
-    const member = existing
-      ? await prisma.researchMember.update({
-          where: { id: existing.id },
-          data: {
-            projectRole:
-              existing.projectRole === "LEADER" ? "LEADER" : "MEMBER",
-            leftAt: null,
-            joinedAt: new Date(),
-          },
-        })
-      : await prisma.researchMember.create({
-          data: {
-            researchId: project.id,
-            userId: req.user.id,
-            projectRole: "MEMBER",
-          },
-        });
+    const { member, enrollment } = await prisma.$transaction(async (tx) => {
+      const member = existing
+        ? await tx.researchMember.update({
+            where: { id: existing.id },
+            data: {
+              projectRole:
+                existing.projectRole === "LEADER" ? "LEADER" : "MEMBER",
+              leftAt: null,
+              joinedAt: new Date(),
+            },
+          })
+        : await tx.researchMember.create({
+            data: {
+              researchId: project.id,
+              userId: req.user!.id,
+              projectRole: "MEMBER",
+            },
+          });
+      const enrollment = project.workflowInstance?.workflowId
+        ? await tx.workflowEnrollment.upsert({
+            where: {
+              workflowId_userId: {
+                workflowId: project.workflowInstance.workflowId,
+                userId: req.user!.id,
+              },
+            },
+            update: { status: "ACTIVE", joinedAt: new Date() },
+            create: {
+              workflowId: project.workflowInstance.workflowId,
+              userId: req.user!.id,
+            },
+          })
+        : null;
+      return { member, enrollment };
+    });
     res.status(201).json({
       member,
+      enrollment,
       project: {
         id: project.id,
         title: project.title,

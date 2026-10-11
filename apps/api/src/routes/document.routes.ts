@@ -144,7 +144,7 @@ router.get("/dean-inbox/threads", requireAuth, async (req, res) => {
       research: { select: { id: true, title: true, groupName: true } },
       versions: {
         orderBy: { versionNumber: "desc" },
-        select: { id: true, versionNumber: true, fileName: true, mimeType: true, googleDriveFileId: true, uploadedAt: true, sourceSignature: { select: { signedVersionId: true } }, signedSignature: { select: { verificationCode: true, signedAt: true } } },
+        select: { id: true, versionNumber: true, fileName: true, mimeType: true, googleDriveFileId: true, uploadedAt: true, sourceSignature: { select: { signedVersionId: true } }, signedSignature: { select: { verificationCode: true, signedAt: true, revokedAt: true } } },
       },
       deanInboxMessages: {
         orderBy: { createdAt: "asc" },
