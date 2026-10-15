@@ -16,7 +16,7 @@ export function DataTable({ children, className, ...props }: DataTableProps) {
   return (
     <div
       className={cn(
-        "w-full overflow-x-auto rounded-2xl border border-[#DDE3E8] dark:border-white/10 bg-white dark:bg-[#101b2b] shadow-xs",
+        "w-full overflow-x-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)]",
         className
       )}
       {...props}
@@ -32,7 +32,7 @@ export function TableHead({ children, className }: { children: ReactNode; classN
   return (
     <thead
       className={cn(
-        "bg-slate-50/80 dark:bg-white/5 border-b border-[#EEF2F6] dark:border-white/10 text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none",
+        "bg-[var(--color-surface-subtle)] border-b border-[var(--color-border)] text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none",
         className
       )}
     >

@@ -6,11 +6,12 @@ import { cn } from "@/lib/utils";
 export interface PageContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   className?: string;
-  maxWidth?: "default" | "wide" | "narrow" | "full";
+  maxWidth?: "default" | "standard" | "wide" | "narrow" | "full";
 }
 
 const maxWidthMap = {
-  default: "max-w-7xl",
+  default: "max-w-[1360px]",
+  standard: "max-w-[1360px]",
   wide: "max-w-screen-2xl",
   narrow: "max-w-4xl",
   full: "max-w-full",

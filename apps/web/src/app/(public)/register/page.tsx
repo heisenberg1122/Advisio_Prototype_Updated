@@ -11,6 +11,8 @@ import { apiClient } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 type AccountType = "RESEARCHER" | "ADVISER";
+type RegistrationProgram = { id: string; collegeId: string; code: string; name: string };
+type RegistrationCollege = { id: string; code: string; name: string; programs: RegistrationProgram[] };
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -18,6 +20,7 @@ export default function RegisterPage() {
   const [form, setForm] = useState({ firstName: "", lastName: "", universityId: "", email: "", password: "", confirmPassword: "" });
   const [role, setRole] = useState<AccountType>("RESEARCHER");
   const [collegeId, setCollegeId] = useState("");
+  const [programId, setProgramId] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [showPolicies, setShowPolicies] = useState(false);
@@ -27,8 +30,15 @@ export default function RegisterPage() {
   const [onboardingReady, setOnboardingReady] = useState(false);
   const collegesQuery = useQuery({
     queryKey: ["registration-institutional-units"],
-    queryFn: () => apiClient.get<{ colleges: { id: string; name: string }[] }>("/api/colleges"),
+    queryFn: () => apiClient.get<{ colleges: RegistrationCollege[] }>("/api/colleges"),
   });
+  const programs = (collegesQuery.data?.colleges || [])
+    .flatMap((college) => college.programs.map((program) => ({ ...program, college })))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const selectedProgram = programs.find((program) => program.id === programId);
+  const assignedCollege = role === "RESEARCHER"
+    ? selectedProgram?.college
+    : collegesQuery.data?.colleges.find((college) => college.id === collegeId);
   const set = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   const submit = async (event: React.FormEvent) => {
@@ -41,15 +51,26 @@ export default function RegisterPage() {
     if (!agreed) return setError("Please accept the Terms, Privacy Notice, and Research Integrity Policy.");
     setLoading(true);
     try {
-      if (!collegeId) return setError("Please select your college or school.");
-      const result = await register({ universityId: form.universityId.trim(), email: form.email.trim(), firstName: form.firstName.trim(), lastName: form.lastName.trim(), password: form.password, role, collegeId });
+      if (role === "RESEARCHER" && !selectedProgram) return setError("Please select your academic program.");
+      if (role === "ADVISER" && !collegeId) return setError("Please select your assigned college or school.");
+      const resolvedCollegeId = assignedCollege?.id || "";
+      const result = await register({
+        universityId: form.universityId.trim(),
+        email: form.email.trim(),
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        password: form.password,
+        role,
+        collegeId: resolvedCollegeId,
+        programId: role === "RESEARCHER" ? programId : undefined,
+      });
       if (!result.success) return setError(result.error || "Failed to create account.");
       const identity = { name: `${form.firstName.trim()} ${form.lastName.trim()}`, email: form.email.trim(), universityId: form.universityId.trim() };
       setCreated({ name: identity.name, email: identity.email, id: identity.universityId, role: role === "ADVISER" ? "Faculty Member" : "Researcher" });
       if (role === "RESEARCHER" && result.onboardingToken) {
         sessionStorage.setItem("advisio_researcher_onboarding_token", result.onboardingToken);
-        sessionStorage.setItem("advisio_researcher_onboarding_identity", JSON.stringify({ ...identity, collegeId }));
-        sessionStorage.setItem("advisio_researcher_onboarding_draft", JSON.stringify({ collegeId }));
+        sessionStorage.setItem("advisio_researcher_onboarding_identity", JSON.stringify({ ...identity, collegeId: resolvedCollegeId, programId }));
+        sessionStorage.setItem("advisio_researcher_onboarding_draft", JSON.stringify({ collegeId: resolvedCollegeId, programId }));
         setOnboardingReady(true);
       }
     } catch (err: unknown) { setError(err instanceof Error ? err.message : "Registration failed."); }
@@ -70,7 +91,7 @@ export default function RegisterPage() {
           {error && <div role="alert" className="mb-5 flex gap-3 rounded-xl border border-red-200 bg-red-50 p-3.5 text-[12px] text-red-700"><ShieldCheck size={17} className="shrink-0" />{error}</div>}
           <form onSubmit={submit} className="space-y-4">
             <div><Label>How will you use Advisio?</Label><div className="grid grid-cols-2 gap-2.5"><Role active={role === "RESEARCHER"} icon={<GraduationCap size={18} />} title="Researcher" subtitle="Undergraduate or graduate" onClick={() => setRole("RESEARCHER")} /><Role active={role === "ADVISER"} icon={<BookOpenCheck size={18} />} title="Faculty" subtitle="Institutional member" onClick={() => setRole("ADVISER")} /></div></div>
-            <div><Label>College / School</Label>{collegesQuery.isLoading ? <div role="status" aria-label="Loading colleges"><Skeleton className="h-12 w-full rounded-xl" /></div> : <select value={collegeId} onChange={(event) => setCollegeId(event.target.value)} required className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-[13px] text-slate-700 shadow-sm outline-none focus:border-[#e69800] focus:ring-4 focus:ring-[#ffb21c]/10"><option value="">Select your college or school</option>{collegesQuery.data?.colleges.map((college) => <option key={college.id} value={college.id}>{college.name}</option>)}</select>}</div>
+            {collegesQuery.isLoading ? <div role="status" aria-label="Loading academic programs"><Skeleton className="h-12 w-full rounded-xl" /></div> : role === "RESEARCHER" ? <div className="space-y-3"><div><Label>Course / Program</Label><select value={programId} onChange={(event) => setProgramId(event.target.value)} required className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-[13px] text-slate-700 shadow-sm outline-none focus:border-[#e69800] focus:ring-4 focus:ring-[#ffb21c]/10"><option value="">Select your academic program</option>{programs.map((program) => <option key={program.id} value={program.id}>{program.name} ({program.code})</option>)}</select></div><div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"><span className="block text-[10px] font-extrabold uppercase tracking-[.11em] text-slate-400">Assigned College / School</span><strong className="mt-1 block text-[13px] text-[#153d5c]">{assignedCollege?.name || "Select a program to identify your college"}</strong></div></div> : <div><Label>Assigned College / School</Label><select value={collegeId} onChange={(event) => setCollegeId(event.target.value)} required className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-[13px] text-slate-700 shadow-sm outline-none focus:border-[#e69800] focus:ring-4 focus:ring-[#ffb21c]/10"><option value="">Select your assigned college or school</option>{collegesQuery.data?.colleges.map((college) => <option key={college.id} value={college.id}>{college.name}</option>)}</select><p className="mt-1.5 text-[10px] text-slate-400">This assignment remains pending until institutional verification.</p></div>}
             <div className="grid gap-4 sm:grid-cols-2"><Input id="first-name" label="First name" icon={<UserRound size={16} />} value={form.firstName} setValue={(v) => set("firstName", v)} placeholder="Maria" /><Input id="last-name" label="Last name" icon={<UserRound size={16} />} value={form.lastName} setValue={(v) => set("lastName", v)} placeholder="Santos" /></div>
             <div className="grid gap-4 sm:grid-cols-2"><Input id="university-id" label={role === "ADVISER" ? "Employee number" : "Researcher ID"} icon={<IdCard size={17} />} value={form.universityId} setValue={(v) => set("universityId", v)} placeholder={role === "ADVISER" ? "FAC-2026-001" : "2026-10025"} /><Input id="reg-email" label="University email" type="email" icon={<Mail size={17} />} value={form.email} setValue={(v) => set("email", v)} placeholder="name@university.edu.ph" /></div>
             <div className="grid gap-4 sm:grid-cols-2"><Password id="reg-password" label="Password" value={form.password} setValue={(v) => set("password", v)} show={showPassword} toggle={() => setShowPassword(!showPassword)} /><Password id="confirm-password" label="Confirm password" value={form.confirmPassword} setValue={(v) => set("confirmPassword", v)} show={showPassword} /></div>

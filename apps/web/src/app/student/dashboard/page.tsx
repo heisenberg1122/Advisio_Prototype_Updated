@@ -4,20 +4,26 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { apiClient } from "@/lib/api-client";
+import { calculateMilestoneProgress } from "@/lib/workflow-progress";
 import { Tag } from "@/components/ui/Tag";
 import { CourseCard } from "@/components/ui/CourseCard";
 import { StatCard } from "@/components/ui/StatCard";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import { CardsPageSkeleton, DashboardSkeleton, FilesPageSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import { StudentGroupChats } from "@/components/dashboards/student/StudentGroupChats";
-import { getChatStore } from "@/lib/chat-store";
 import { getStoredMeetingSession, saveMeetingSession, DEFAULT_SHARED_MEET_URL } from "@/lib/meeting-store";
 import { GoogleMeetConnectModal } from "@/components/consultations/GoogleMeetConnectModal";
 import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consultations/GoogleMeetTranscriptModal";
-import { getStoredConsultations, addStoredConsultation, saveStoredConsultations, updateStoredConsultationNotes, ConsultationItem } from "@/lib/consultation-store";
+import {
+  getPendingConsultationImports,
+  recordConsultationImportReceipts,
+  type ConsultationItem,
+} from "@/lib/consultation-store";
 import { ProductTour, TourStep } from "@/components/shared/ProductTour";
 import { StudentGanttChart } from "@/components/dashboards/student/StudentGanttChart";
-import { calculateWorkflowProgress, getOrderedWorkflowStages } from "@/lib/workflow-progress";
+import { getOrderedWorkflowStages } from "@/lib/workflow-progress";
+import { useNotifications as useStudentNotifications } from "@/hooks/use-student";
+import { useActiveProject } from "@/providers/active-project-provider";
 
 const STUDENT_TOUR_STEPS: TourStep[] = [
   {
@@ -63,6 +69,7 @@ function StudentDashboardContent() {
   const { isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { data: apiNotifications = [] } = useStudentNotifications();
   const [isTourOpen, setIsTourOpen] = useState(false);
 
   // Auto-redirect if tab is workspace or documents to the modern /student/documents workspace
@@ -71,6 +78,8 @@ function StudentDashboardContent() {
       const milestoneId = searchParams.get("milestoneId");
       const taskId = searchParams.get("taskId");
       const params = new URLSearchParams();
+      const projectId = searchParams.get("projectId");
+      if (projectId) params.set("projectId", projectId);
       if (milestoneId) params.set("milestoneId", milestoneId);
       if (taskId) params.set("taskId", taskId);
       const queryStr = params.toString();
@@ -107,59 +116,18 @@ function StudentDashboardContent() {
   // Live query for consultations with background refresh
   const { data: consultationsApiData, refetch: refetchConsultations } = useQuery({
     queryKey: ["consultations"],
-    queryFn: () => apiClient.get<{ consultations: any[] }>("/api/consultations").catch(() => ({ consultations: [] })),
+    queryFn: () => apiClient.get<{ consultations: any[] }>("/api/consultations"),
     refetchInterval: 15000,
     refetchOnWindowFocus: true,
   });
 
-  const [consultations, setConsultations] = useState<ConsultationItem[]>(getStoredConsultations());
+  const [consultations, setConsultations] = useState<ConsultationItem[]>([]);
 
   useEffect(() => {
-    const syncConsultations = () => {
-      if (consultationsApiData?.consultations && consultationsApiData.consultations.length > 0) {
-        setConsultations(consultationsApiData.consultations);
-        saveStoredConsultations(consultationsApiData.consultations);
-      } else {
-        setConsultations(getStoredConsultations());
-      }
-    };
-
-    syncConsultations();
-    window.addEventListener("storage", syncConsultations);
-    return () => window.removeEventListener("storage", syncConsultations);
+    if (consultationsApiData?.consultations) {
+      setConsultations(consultationsApiData.consultations);
+    }
   }, [consultationsApiData]);
-
-  // Poll backend database for active stream across different browsers (Edge, Brave, etc.)
-  useEffect(() => {
-    const fetchActiveStream = async () => {
-      try {
-        const res = await apiClient.get<{ success: boolean; stream: any }>("/api/consultations/active-stream?groupId=g1");
-        if (res?.stream) {
-          const s = res.stream;
-          setIsMeetingActive(s.isActive);
-          if (s.meetingUrl) setActiveMeetingUrl(s.meetingUrl);
-          if (s.topic) setActiveMeetingTopic(s.topic);
-          if (s.participants && s.participants.length > 0) {
-            setActiveParticipants(s.participants);
-          }
-          saveMeetingSession({
-            groupId: s.groupId || "default",
-            groupName: s.groupName || "Research Group",
-            topic: s.topic,
-            meetingUrl: s.meetingUrl,
-            isActive: s.isActive,
-            participants: s.participants || [],
-          });
-        }
-      } catch {
-        // Fallback to local store
-      }
-    };
-
-    fetchActiveStream();
-    const interval = setInterval(fetchActiveStream, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -236,7 +204,8 @@ function StudentDashboardContent() {
       participants: [],
     });
     try {
-      await apiClient.post("/api/consultations/active-stream/end", { groupId: "g1" });
+      if (activeProject?.id)
+        await apiClient.post("/api/consultations/active-stream/end", { groupId: activeProject.id });
     } catch {
       // Graceful fallback
     }
@@ -262,7 +231,76 @@ function StudentDashboardContent() {
     refetchOnWindowFocus: true,
   });
 
-  const activeProject = researchData?.projects?.[0];
+  const projectSelection = useActiveProject(researchData?.projects || []);
+  const activeProject = projectSelection.project;
+  useEffect(() => {
+    if (!activeProject?.id) return;
+    const pending = getPendingConsultationImports(activeProject.id);
+    if (!pending.length) return;
+    let cancelled = false;
+    apiClient
+      .post<{ receipts: Array<{ clientId: string; consultationId: string }> }>(
+        "/api/consultations/import",
+        { researchId: activeProject.id, consultations: pending },
+      )
+      .then((result) => {
+        if (cancelled) return;
+        recordConsultationImportReceipts(activeProject.id, result.receipts || []);
+        refetchConsultations();
+      })
+      .catch(() => {
+        // Legacy records remain intact and will be retried idempotently later.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeProject?.id, refetchConsultations]);
+  // Live conference presence is intentionally transient, but still scoped to
+  // the selected research project and an authenticated membership.
+  useEffect(() => {
+    if (!activeProject?.id) return;
+    const fetchActiveStream = async () => {
+      try {
+        const res = await apiClient.get<{ success: boolean; stream: any }>(
+          `/api/consultations/active-stream?groupId=${activeProject.id}`,
+        );
+        if (!res?.stream) return;
+        const stream = res.stream;
+        setIsMeetingActive(stream.isActive);
+        if (stream.meetingUrl) setActiveMeetingUrl(stream.meetingUrl);
+        if (stream.topic) setActiveMeetingTopic(stream.topic);
+        setActiveParticipants(stream.participants || []);
+        saveMeetingSession({
+          groupId: stream.groupId,
+          groupName: stream.groupName || activeProject.title,
+          topic: stream.topic,
+          meetingUrl: stream.meetingUrl,
+          isActive: stream.isActive,
+          participants: stream.participants || [],
+        });
+      } catch {
+        // Transient local presence remains available while the API is offline.
+      }
+    };
+    fetchActiveStream();
+    const interval = window.setInterval(fetchActiveStream, 3000);
+    return () => window.clearInterval(interval);
+  }, [activeProject?.id, activeProject?.title]);
+  const { data: dashboardDocumentData } = useQuery({
+    queryKey: ["student-dashboard-documents", activeProject?.id],
+    queryFn: () =>
+      apiClient.get<{ documents: any[] }>(
+        `/api/research/${activeProject.id}/documents`,
+      ),
+    enabled: Boolean(activeProject?.id),
+    refetchOnWindowFocus: true,
+  });
+  const { data: manuscriptWorkflowData } = useQuery({
+    queryKey: ["student-manuscript-workflow", activeProject?.id],
+    queryFn: () => apiClient.get<{ milestones: any[]; activity: any[] }>(`/api/research/${activeProject.id}/manuscript-workflow`),
+    enabled: Boolean(activeProject?.id),
+    refetchOnWindowFocus: true,
+  });
   const activeWorkflowEnrollment =
     workflowEnrollmentData?.enrollments?.find(
       (enrollment: any) =>
@@ -287,7 +325,10 @@ function StudentDashboardContent() {
     projectDefenseSessions.find((session: any) =>
       ["LIVE", "DELIBERATION", "SCHEDULED", "PENDING_ACKNOWLEDGEMENT", "NEEDS_RESCHEDULING"].includes(session.status),
     ) || projectDefenseSessions[0] || null;
-  const projectProgress = calculateWorkflowProgress(activeProject);
+  const projectProgress = calculateMilestoneProgress(
+    manuscriptWorkflowData?.milestones,
+    Boolean(activeProject?.workflowInstance?.completedAt),
+  );
   const projectStatusLabel = activeProject?.status
     ? activeProject.status.toLowerCase().replace(/_/g, " ").replace(/^\w/, (letter: string) => letter.toUpperCase())
     : "Not registered";
@@ -349,15 +390,16 @@ function StudentDashboardContent() {
         members: activeProject.members?.map((m: any) => `${m.user.firstName} ${m.user.lastName}`) || [],
         status: activeProject.status?.toLowerCase() || "draft",
       });
-      const currentSequence = activeProject.workflowInstance?.currentStage?.sequence || 0;
+      const authoritative = new Map((manuscriptWorkflowData?.milestones || []).map((milestone: any) => [milestone.id, milestone]));
       setMilestones(getOrderedWorkflowStages(activeProject).map((stage) => ({
         id: stage.id,
         title: stage.name,
-        status: activeProject.status === "COMPLETED" || stage.sequence < currentSequence
+        status: authoritative.get(stage.id)?.completed
           ? "completed"
-          : stage.sequence === currentSequence
+          : ["IN_PROGRESS", "AWAITING_REVIEW", "REVISION_REQUIRED", "APPROVED"].includes(authoritative.get(stage.id)?.status)
             ? "in-progress"
             : "upcoming",
+        completionPercent: authoritative.get(stage.id)?.completionPercent || 0,
         deadlineDays: stage.deadlineDays,
         requiresApproval: stage.requiresApproval,
         sequence: stage.sequence,
@@ -389,36 +431,31 @@ function StudentDashboardContent() {
       setGroup(null);
       setMilestones([]);
     }
-  }, [activeProject, activeWorkflowEnrollment]);
+  }, [activeProject, activeWorkflowEnrollment, manuscriptWorkflowData?.milestones]);
 
   const [aiMatches, setAiMatches] = useState<any[]>([]);
-  const [submissions, setSubmissions] = useState<any[]>([]);
-  const [workspaceSubmissions, setWorkspaceSubmissions] = useState<any[]>([]);
-
-  useEffect(() => {
-    const syncSubmissions = () => {
-      const stored = localStorage.getItem("advisio_student_submissions");
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          const filtered = Array.isArray(parsed)
-            ? parsed.filter((s: any) => !s.docName?.includes("Chapter 3 Methodology Draft"))
-            : [];
-          setWorkspaceSubmissions(filtered);
-        } catch (e) {}
-      }
-    };
-    syncSubmissions();
-    window.addEventListener("storage", syncSubmissions);
-    return () => window.removeEventListener("storage", syncSubmissions);
-  }, []);
-
-  const combinedSubmissions = [...workspaceSubmissions, ...submissions];
+  const combinedSubmissions = (dashboardDocumentData?.documents || []).flatMap(
+    (document: any) =>
+      (document.versions || []).map((version: any) => ({
+        id: version.id,
+        documentId: document.id,
+        docName: document.title,
+        milestone:
+          version.milestone?.name ||
+          document.milestone?.name ||
+          document.documentType,
+        date: new Date(version.uploadedAt).toISOString().split("T")[0],
+        version: `v${version.versionNumber}`,
+        status: String(
+          version.manuscriptStatus || document.lifecycleStatus || "DRAFT",
+        )
+          .toLowerCase()
+          .replace(/_/g, " "),
+      })),
+  );
 
   const [milestones, setMilestones] = useState<any[]>([]);
   const [defenses, setDefenses] = useState<any[]>([]);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [chatStoreNotifications, setChatStoreNotifications] = useState<any[]>([]);
 
   useEffect(() => {
     setDefenses((defenseManagementData?.sessions || []).map((session: any) => ({
@@ -434,23 +471,21 @@ function StudentDashboardContent() {
     })));
   }, [defenseManagementData]);
 
-  useEffect(() => {
-    const syncNotifs = () => {
-      const store = getChatStore();
-      const userNotifs = store.notifications.filter(
-        n => n.userId === user?.email
-      );
-      setChatStoreNotifications(userNotifs);
-    };
-    syncNotifs();
-    window.addEventListener("storage", syncNotifs);
-    return () => window.removeEventListener("storage", syncNotifs);
-  }, [user]);
+  const combinedNotifications = apiNotifications.map((notification: any) => {
+    const createdAt = notification.createdAt
+      ? new Date(notification.createdAt)
+      : null;
 
-  const combinedNotifications = [
-    ...chatStoreNotifications.map(n => ({ id: n.id, msg: n.msg, date: n.date || "Just now", type: "system" })),
-    ...notifications
-  ];
+    return {
+      id: notification.id,
+      msg: notification.message || notification.title,
+      date:
+        createdAt && !Number.isNaN(createdAt.getTime())
+          ? createdAt.toLocaleDateString()
+          : "",
+      type: notification.type,
+    };
+  });
 
   // Form input controllers
   const [topicInput, setTopicInput] = useState("");
@@ -513,31 +548,18 @@ function StudentDashboardContent() {
         formData.append("title", uploadFileName.trim());
         formData.append("documentType", uploadMilestone);
 
-        const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
-        const token = localStorage.getItem("advisio_token");
-
-        await fetch(`${API_BASE}/api/research/${activeProject.id}/documents`, {
-          method: "POST",
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: formData,
+        await apiClient.upload(
+          `/api/research/${activeProject.id}/documents`,
+          formData,
+        );
+        await queryClient.invalidateQueries({
+          queryKey: ["student-dashboard-documents", activeProject.id],
         });
       }
-
-      const newDoc = {
-        id: Math.random().toString(),
-        docName: uploadFileName.trim(),
-        milestone: uploadMilestone,
-        date: new Date().toISOString().split("T")[0],
-        version: `v${(submissions.length + 1).toFixed(1)}`,
-        status: "pending",
-      };
-      setSubmissions(prev => [newDoc, ...prev]);
       setUploadFileName("");
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      triggerToast(`Submitted "${newDoc.docName}" for adviser review!`);
+      triggerToast(`Uploaded "${uploadFileName.trim()}" to Documents.`);
     } catch (err: any) {
       triggerToast(`Submission failed: ${err.message || "Network error"}`);
     } finally {
@@ -552,42 +574,24 @@ function StudentDashboardContent() {
       const startDateTime = new Date(`${consultDate || new Date().toISOString().split("T")[0]}T${consultTime || "10:00"}:00`);
       const endDateTime = new Date(startDateTime.getTime() + 3600000);
 
-      let meetUrl = DEFAULT_SHARED_MEET_URL;
-      try {
-        const res = await apiClient.post<{ consultation: any; meetingUrl?: string }>("/api/consultations", {
-          researchId: activeProject?.id || "default-id",
-          title: consultTopic,
-          description: `Student consultation requested by ${user?.firstName || "Student"}`,
-          scheduledStart: startDateTime.toISOString(),
-          scheduledEnd: endDateTime.toISOString(),
-        });
-        if (res?.meetingUrl) meetUrl = res.meetingUrl;
-      } catch {
-        const letters = "abcdefghijklmnopqrstuvwxyz";
-        let p1 = "", p2 = "", p3 = "";
-        for (let i = 0; i < 3; i++) p1 += letters[Math.floor(Math.random() * 26)];
-        for (let i = 0; i < 4; i++) p2 += letters[Math.floor(Math.random() * 26)];
-        for (let i = 0; i < 3; i++) p3 += letters[Math.floor(Math.random() * 26)];
-        meetUrl = `https://meet.google.com/${p1}-${p2}-${p3}`;
-      }
-
-      const newConsult: ConsultationItem = {
-        id: Math.random().toString(),
-        groupName: group?.name || activeProject?.title || "Research Group",
-        topic: consultTopic,
-        date: consultDate || new Date().toISOString().split("T")[0],
-        time: consultTime || "10:00 AM",
-        mode: consultMode === "In-Person" ? "In-Person" : "Google Meet",
-        meetingUrl: consultMode !== "In-Person" ? meetUrl : undefined,
-        status: "pending",
-      };
-
-      addStoredConsultation(newConsult);
-      setConsultations(prev => [newConsult, ...prev.filter(c => c.id !== newConsult.id)]);
-      refetchConsultations();
-      triggerToast(`Consultation request submitted! Awaiting adviser approval.`);
-    } catch {
-      // Graceful fallback
+      if (!activeProject?.id) throw new Error("Select a research project first.");
+      const result = await apiClient.post<{ consultation: ConsultationItem; warning?: string }>("/api/consultations", {
+        researchId: activeProject.id,
+        title: consultTopic,
+        description: `Student consultation requested by ${user?.firstName || "Student"}`,
+        scheduledStart: startDateTime.toISOString(),
+        scheduledEnd: endDateTime.toISOString(),
+      });
+      setConsultations((previous) => [
+        result.consultation,
+        ...previous.filter((item) => item.id !== result.consultation.id),
+      ]);
+      await refetchConsultations();
+      triggerToast(
+        result.warning || "Consultation request submitted! Awaiting adviser approval.",
+      );
+    } catch (error: any) {
+      triggerToast(error?.message || "Unable to save the consultation request.");
     }
     setConsultTopic("");
     setConsultDate("");
@@ -776,46 +780,47 @@ function StudentDashboardContent() {
     setShowTranscriptModal(true);
   };
 
-  const handleSaveConsultationNotes = (
+  const handleSaveConsultationNotes = async (
     consultationId: string,
     notes: string,
     actionItems: string[],
     transcript: ParsedChatMessage[]
   ) => {
-    updateStoredConsultationNotes(consultationId, notes, actionItems, transcript);
-    setConsultations((prev) =>
-      prev.map((c) =>
-        c.id === consultationId
-          ? { ...c, notes, actionItems, transcript }
-          : c
-      )
-    );
-    refetchConsultations();
-    triggerToast("Saved consultation notes and Google Meet chat transcript!");
+    try {
+      await apiClient.post(`/api/consultations/${consultationId}/notes`, {
+        notes,
+        actionItems,
+        transcript,
+      });
+      await refetchConsultations();
+      triggerToast("Saved consultation notes and Google Meet chat transcript!");
+    } catch (error: any) {
+      triggerToast(error?.message || "Unable to save consultation notes.");
+    }
   };
 
   const handleTabChange = (tab: string) => {
     if (tab === "workspace" || tab === "documents") {
-      router.push("/student/documents");
+      router.push(projectSelection.projectHref("/student/documents"));
       return;
     }
     if (tab === "tasks") {
-      router.push("/student/tasks");
+      router.push(projectSelection.projectHref("/student/tasks"));
       return;
     }
     if (tab === "adviser-pool") {
-      router.push("/student/adviser-pool");
+      router.push(projectSelection.projectHref("/student/adviser-pool"));
       return;
     }
     if (tab === "defense") {
       router.push(
         currentDefenseSession?.id
-          ? `/student/defense/${currentDefenseSession.id}`
-          : "/student/defense",
+          ? projectSelection.projectHref(`/student/defense/${currentDefenseSession.id}`)
+          : projectSelection.projectHref("/student/defense"),
       );
       return;
     }
-    router.push(`/student/dashboard?tab=${tab}`);
+    router.push(projectSelection.projectHref(`/student/dashboard?tab=${tab}`));
   };
 
   const [consultFilter, setConsultFilter] = useState<"all" | "approved" | "pending">("all");
@@ -835,20 +840,23 @@ function StudentDashboardContent() {
 
     return (
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col justify-between gap-4 rounded-2xl bg-white p-6 shadow-xs dark:bg-[#101b2b] md:flex-row md:items-center sm:p-8">
+        {/* Course-Themed Page Header Banner */}
+        <div className="flex flex-col justify-between gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-6 shadow-xs md:flex-row md:items-center sm:p-8">
           <div className="max-w-3xl">
-            <span className="block text-xs font-extrabold uppercase tracking-widest text-[#C58A18]">
+            <span className="block text-xs font-extrabold uppercase tracking-widest text-[var(--color-primary)]">
               Adviser Consultations & Scheduled Meetings
             </span>
-            <h2 className="mt-1 text-2xl font-black tracking-tight text-[#0B3A53] dark:text-white">Faculty Consultation Repository & Video Rooms</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-[var(--color-text-primary)] dark:text-white">
+              Faculty Consultation Repository & Video Rooms
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
               Book advising slots, launch synchronized Google Meet rooms, and review auto-indexed meeting transcripts.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-3">
             <button
               onClick={() => handleStartConference(DEFAULT_SHARED_MEET_URL, "Advising Video Conference")}
-              className="flex h-11 cursor-pointer items-center gap-2 rounded-xl bg-[#FFA400] px-5 text-sm font-extrabold text-[#072A3D] shadow-xs transition hover:bg-[#E09000]"
+              className="flex h-11 cursor-pointer items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 text-sm font-extrabold text-white shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98]"
             >
               <i className="ti ti-video text-base font-bold" />
               <span>Instant Google Meet</span>
@@ -856,27 +864,28 @@ function StudentDashboardContent() {
           </div>
         </div>
 
-        <section className="rounded-2xl bg-slate-50/80 px-4 py-4 dark:bg-white/[0.04] sm:px-6" aria-label="Consultation calendar">
+        {/* Course-Tinted Consultation Calendar */}
+        <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-5 py-4" aria-label="Consultation calendar">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="shrink-0">
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Consultation calendar</p>
-              <p className="mt-1 text-lg font-bold text-[#0B3A53] dark:text-white">
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">Consultation calendar</p>
+              <p className="mt-1 text-lg font-bold text-[var(--color-text-primary)] dark:text-white">
                 {today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
               </p>
             </div>
-            <div className="grid grid-cols-7 gap-1 sm:gap-2">
+            <div className="grid grid-cols-7 gap-2 sm:gap-3">
               {visibleDays.map((date) => {
                 const isToday = date.toDateString() === today.toDateString();
                 return (
                   <div
                     key={date.toISOString()}
-                    className={`flex min-w-10 flex-col items-center rounded-xl px-2 py-2 text-center sm:min-w-14 ${
+                    className={`flex min-w-11 flex-col items-center rounded-xl px-2.5 py-2.5 text-center transition sm:min-w-16 ${
                       isToday
-                        ? "bg-[#0B3A53] text-white shadow-sm dark:bg-[#C9A227] dark:text-[#072A3D]"
-                        : "text-slate-500 dark:text-slate-400"
+                        ? "bg-[var(--color-primary)] text-white shadow-xs font-black"
+                        : "bg-[var(--color-surface)] border border-[var(--color-border)]/70 text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/40 hover:text-[var(--color-text-primary)]"
                     }`}
                   >
-                    <span className="text-xs font-bold uppercase">{date.toLocaleDateString(undefined, { weekday: "short" })}</span>
+                    <span className="text-[11px] font-bold uppercase">{date.toLocaleDateString(undefined, { weekday: "short" })}</span>
                     <span className="mt-1 text-sm font-black">{date.getDate()}</span>
                   </div>
                 );
@@ -886,42 +895,43 @@ function StudentDashboardContent() {
         </section>
 
         <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
+          {/* Scheduled Sessions Container */}
           <div className="flex min-w-0 flex-col gap-5">
-            <div className="flex min-h-[600px] flex-col gap-4 rounded-2xl bg-slate-50/70 p-4 dark:bg-white/[0.03] sm:p-6">
+            <div className="flex min-h-[460px] flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6 shadow-xs">
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EAF3F7] text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)]">
                     <i className="ti ti-calendar-time text-lg" />
                   </span>
-                  <h3 className="flex items-center gap-2 text-base font-extrabold text-[#0B3A53] dark:text-white">
+                  <h3 className="flex items-center gap-2 text-base font-extrabold text-[var(--color-text-primary)] dark:text-white">
                     Scheduled Sessions
                   </h3>
-                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-500 shadow-xs dark:bg-white/10 dark:text-slate-300">
+                  <span className="rounded-full bg-[var(--color-surface-muted)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)]">
                     {consultations.length}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1 rounded-xl bg-white p-1 text-xs font-bold shadow-xs dark:bg-white/[0.06]">
+                <div className="flex items-center gap-1 rounded-xl bg-[var(--color-surface-muted)] p-1 text-xs font-bold border border-[var(--color-border)]">
                   <button
                     onClick={() => setConsultFilter("all")}
-                    className={`h-9 cursor-pointer rounded-lg px-3 transition ${
-                      consultFilter === "all" ? "bg-[#DDEBF1] text-[#0B3A53] dark:bg-[#38bdf8]/15 dark:text-[#38bdf8]" : "text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                    className={`h-8 cursor-pointer rounded-lg px-3 transition ${
+                      consultFilter === "all" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                     }`}
                   >
                     All ({consultations.length})
                   </button>
                   <button
                     onClick={() => setConsultFilter("approved")}
-                    className={`h-9 cursor-pointer rounded-lg px-3 transition ${
-                      consultFilter === "approved" ? "bg-[#DDEBF1] text-[#0B3A53] dark:bg-[#38bdf8]/15 dark:text-[#38bdf8]" : "text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                    className={`h-8 cursor-pointer rounded-lg px-3 transition ${
+                      consultFilter === "approved" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                     }`}
                   >
                     Confirmed
                   </button>
                   <button
                     onClick={() => setConsultFilter("pending")}
-                    className={`h-9 cursor-pointer rounded-lg px-3 transition ${
-                      consultFilter === "pending" ? "bg-[#DDEBF1] text-[#0B3A53] dark:bg-[#38bdf8]/15 dark:text-[#38bdf8]" : "text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                    className={`h-8 cursor-pointer rounded-lg px-3 transition ${
+                      consultFilter === "pending" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
                     }`}
                   >
                     Pending
@@ -934,21 +944,21 @@ function StudentDashboardContent() {
                   {filteredConsultations.map((c: any) => (
                     <div
                       key={c.id}
-                      className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-xs transition hover:shadow-md dark:bg-[#101b2b] sm:p-5"
+                      className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xs transition hover:shadow-sm sm:p-5"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-[#0B3A53] dark:text-white">{c.topic}</span>
+                            <span className="text-sm font-bold text-[var(--color-text-primary)] dark:text-white">{c.topic}</span>
                             <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
                               {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
                             </Tag>
                           </div>
-                          <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+                          <span className="mt-1 block text-xs text-[var(--color-text-secondary)]">
                             {c.groupName || "Research Group"} · {c.date} at {c.time} ({c.mode})
                           </span>
                           {c.meetingUrl && (
-                            <span className="mt-2 inline-block rounded-lg bg-[#EAF3F7] px-2 py-1 font-mono text-xs text-[#0B3A53] dark:bg-white/10 dark:text-[#38bdf8]">
+                            <span className="mt-2 inline-block rounded-lg bg-[var(--color-primary-light)] px-2 py-1 font-mono text-xs text-[var(--color-primary)]">
                               {c.meetingUrl}
                             </span>
                           )}
@@ -957,20 +967,20 @@ function StudentDashboardContent() {
                         <div className="flex items-center gap-2 self-start sm:self-auto">
                           <button
                             onClick={() => handleOpenTranscriptModal(c)}
-                            className="px-3 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-xs shadow-sm cursor-pointer transition flex items-center gap-1"
+                            className="px-3 py-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-surface-muted)] text-[var(--color-text-primary)] font-bold rounded-lg border border-[var(--color-border)] text-xs shadow-xs cursor-pointer transition flex items-center gap-1"
                           >
-                            <i className="ti ti-file-text text-amber-500" />
+                            <i className="ti ti-file-text text-[var(--color-primary)]" />
                             <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "Notes & Chat" : "Import Chat"}</span>
                           </button>
                           {c.status === "pending" || c.status === "requested" ? (
-                            <span className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 font-bold rounded-lg text-xs flex items-center gap-1">
+                            <span className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-bold rounded-lg text-xs flex items-center gap-1">
                               <i className="ti ti-clock" />
                               <span>Pending</span>
                             </span>
                           ) : (
                             <button
                               onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
-                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow transition cursor-pointer flex items-center gap-1"
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-xs transition cursor-pointer flex items-center gap-1"
                             >
                               <i className="ti ti-video" />
                               <span>Join Meet</span>
@@ -983,7 +993,7 @@ function StudentDashboardContent() {
                                 triggerToast("Copied Google Meet link!");
                               }}
                               title="Copy Meet Link"
-                              className="p-1.5 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg text-slate-600 cursor-pointer text-xs"
+                              className="p-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-muted)] rounded-lg text-[var(--color-text-secondary)] cursor-pointer text-xs"
                             >
                               <i className="ti ti-copy" />
                             </button>
@@ -992,8 +1002,8 @@ function StudentDashboardContent() {
                       </div>
 
                       {c.notes && (
-                        <div className="rounded-xl bg-slate-50 p-4 text-xs text-slate-700 dark:bg-white/5 dark:text-slate-300">
-                          <span className="mb-1 block font-bold text-[#0B3A53] dark:text-white">Adviser Feedback & Summary:</span>
+                        <div className="rounded-xl bg-[var(--color-surface-muted)] p-4 text-xs text-[var(--color-text-secondary)]">
+                          <span className="mb-1 block font-bold text-[var(--color-text-primary)] dark:text-white">Adviser Feedback & Summary:</span>
                           <p className="whitespace-pre-wrap">{c.notes}</p>
                         </div>
                       )}
@@ -1001,13 +1011,13 @@ function StudentDashboardContent() {
                   ))}
                 </div>
               ) : (
-                <div className="flex min-h-[440px] flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-[#EAF3F7] text-3xl text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">
+                <div className="flex min-h-[360px] flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-primary-light)] text-2xl text-[var(--color-primary)]">
                     <i className="ti ti-calendar-off" />
                   </div>
                   <div>
-                    <h4 className="text-xl font-extrabold tracking-tight text-[#0B3A53] dark:text-white">No Consultations Found</h4>
-                    <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500 dark:text-slate-400">
+                    <h4 className="text-lg font-extrabold tracking-tight text-[var(--color-text-primary)] dark:text-white">No Consultations Found</h4>
+                    <p className="mt-1.5 max-w-sm text-sm leading-6 text-[var(--color-text-secondary)]">
                       {consultFilter === "all"
                         ? "You have not booked any advising consultations yet. Use the booking form on the right to schedule a session."
                         : `No ${consultFilter} consultations found.`}
@@ -1018,58 +1028,59 @@ function StudentDashboardContent() {
             </div>
           </div>
 
+          {/* Right Panel: Booking Form & Live Conferencing */}
           <div className="flex flex-col gap-5 xl:sticky xl:top-6">
-            <div className="flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-xs dark:bg-[#101b2b] sm:p-6">
-              <h3 className="flex items-center gap-2 text-base font-extrabold text-[#0B3A53] dark:text-white">
-                <i className="ti ti-calendar-plus text-[#ffa400]" />
+            <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xs sm:p-6">
+              <h3 className="flex items-center gap-2 text-base font-extrabold text-[var(--color-text-primary)] dark:text-white">
+                <i className="ti ti-calendar-plus text-[var(--color-primary)]" />
                 Book a Consultation Session
               </h3>
-              <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
+              <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
                 Submit your preferred date and topic to your research adviser.
               </p>
               <form onSubmit={handleRequestConsult} className="flex flex-col gap-4 text-sm">
                 <div className="flex flex-col gap-2">
-                  <label className="font-bold text-slate-700 dark:text-slate-200">Discussion Topic *</label>
+                  <label className="font-bold text-[var(--color-text-primary)]">Discussion Topic *</label>
                   <input
                     required
                     type="text"
                     value={consultTopic}
                     onChange={(e) => setConsultTopic(e.target.value)}
                     placeholder="e.g. Chapter 3 Methodology Validation"
-                    className="h-11 rounded-xl border border-slate-300 bg-white px-3.5 outline-none focus:border-[#FFA400] dark:border-white/15 dark:bg-[#0D1525]"
+                    className="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] text-[var(--color-text-primary)]"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
-                    <label className="font-bold text-slate-700 dark:text-slate-200">Preferred Date *</label>
+                    <label className="font-bold text-[var(--color-text-primary)]">Preferred Date *</label>
                     <input
                       required
                       type="date"
                       value={consultDate}
                       onChange={(e) => setConsultDate(e.target.value)}
-                      className="h-11 rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-[#FFA400] dark:border-white/15 dark:bg-[#0D1525]"
+                      className="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] text-[var(--color-text-primary)]"
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="font-bold text-slate-700 dark:text-slate-200">Preferred Time *</label>
+                    <label className="font-bold text-[var(--color-text-primary)]">Preferred Time *</label>
                     <input
                       required
                       type="text"
                       value={consultTime}
                       onChange={(e) => setConsultTime(e.target.value)}
                       placeholder="10:00 AM"
-                      className="h-11 rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-[#FFA400] dark:border-white/15 dark:bg-[#0D1525]"
+                      className="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] text-[var(--color-text-primary)]"
                     />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="font-bold text-slate-700 dark:text-slate-200">Meeting Mode</label>
+                  <label className="font-bold text-[var(--color-text-primary)]">Meeting Mode</label>
                   <select
                     value={consultMode}
                     onChange={(e) => setConsultMode(e.target.value)}
-                    className="h-11 rounded-xl border border-slate-300 bg-white px-3 outline-none focus:border-[#FFA400] dark:border-white/15 dark:bg-[#0D1525]"
+                    className="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] text-[var(--color-text-primary)]"
                   >
                     <option value="Video Call">Google Meet (Online Video Conference)</option>
                     <option value="In-Person">In-Person (Faculty Consultation Room)</option>
@@ -1078,16 +1089,16 @@ function StudentDashboardContent() {
 
                 <button
                   type="submit"
-                  className="mt-1 h-11 w-full cursor-pointer rounded-xl bg-[#FFA400] px-4 font-extrabold text-[#072A3D] shadow-xs transition hover:bg-[#E09000]"
+                  className="mt-1 h-11 w-full cursor-pointer rounded-xl bg-[var(--color-primary)] px-4 font-extrabold text-white shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98]"
                 >
                   Submit Consultation Request
                 </button>
               </form>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-2xl bg-white p-5 shadow-xs dark:bg-[#101b2b] sm:p-6">
+            <div className="flex flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xs sm:p-6">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-extrabold text-[#1b4264] uppercase tracking-wider flex items-center gap-1.5">
+                <span className="text-[11px] font-extrabold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-1.5">
                   <i className="ti ti-video text-emerald-600" />
                   Live Conferencing Room
                 </span>
@@ -1096,24 +1107,24 @@ function StudentDashboardContent() {
                   Ready
                 </span>
               </div>
-              <p className="text-slate-500 text-xs">
+              <p className="text-[var(--color-text-secondary)] text-xs leading-relaxed">
                 Need an immediate sync with your team members or adviser? Launch a synchronized Google Meet room with floating transcript window.
               </p>
               <button
                 onClick={() => handleStartConference(DEFAULT_SHARED_MEET_URL, `${group?.name || "Student"} Instant Room`)}
-                className="w-full py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-extrabold rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.98]"
               >
                 <i className="ti ti-external-link" />
                 <span>Launch Instant Meet Room</span>
               </button>
             </div>
 
-            <div className="flex flex-col gap-2 rounded-2xl bg-slate-50 p-5 text-xs dark:bg-white/[0.04]">
-              <span className="font-bold text-[#1b4264] flex items-center gap-1.5">
-                <i className="ti ti-info-circle text-[#ffa400]" />
+            <div className="flex flex-col gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-5 text-xs">
+              <span className="font-bold text-[var(--color-text-primary)] flex items-center gap-1.5">
+                <i className="ti ti-info-circle text-[var(--color-primary)]" />
                 Advising Guidelines & Policies
               </span>
-              <ul className="list-disc list-inside text-slate-600 space-y-1 text-[11px]">
+              <ul className="list-disc list-inside text-[var(--color-text-secondary)] space-y-1 text-[11px]">
                 <li>Book consultations at least 48 hours in advance.</li>
                 <li>Upload your updated draft to Document Workspace prior to the call.</li>
                 <li>In-call chats and action items are automatically preserved for compliance.</li>
@@ -1125,13 +1136,13 @@ function StudentDashboardContent() {
     );
   };
 
-  const renderSubmissionsHub = () => {
+    const renderSubmissionsHub = () => {
     return (
       <div className="flex flex-col gap-6">
         <div className="flex justify-end">
           <button
             onClick={() => router.push("/student/documents")}
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#ffa400] px-4 text-xs font-extrabold text-[#1b4264] shadow-xs transition hover:bg-[#e09000]"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 text-xs font-extrabold text-white shadow-xs transition"
           >
             <i className="ti ti-edit font-bold" />
             <span>Open Document Workspace</span>
@@ -1172,11 +1183,15 @@ function StudentDashboardContent() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Tag variant={sub.status === "approved" ? "success" : "warn"}>
-                          {sub.status === "approved" ? "Approved" : "Pending Review"}
+                        <Tag variant={sub.status === "approved" || sub.status === "finalized" ? "success" : "warn"}>
+                          {sub.status.replace(/\b\w/g, (letter: string) => letter.toUpperCase())}
                         </Tag>
                         <button
-                          onClick={() => router.push("/student/documents")}
+                          onClick={() =>
+                            router.push(
+                              `/student/documents?projectId=${activeProject?.id || ""}&documentId=${sub.documentId}`,
+                            )
+                          }
                           className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-[#1b4264] font-bold text-xs cursor-pointer transition flex items-center gap-1"
                         >
                           <i className="ti ti-edit" />
@@ -1308,7 +1323,7 @@ function StudentDashboardContent() {
                 <button
                   type="submit"
                   disabled={isUploading}
-                  className="w-full py-2.5 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-lg shadow transition cursor-pointer mt-1 disabled:opacity-60 flex items-center justify-center gap-2"
+                  className="w-full py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-lg shadow transition cursor-pointer mt-1 disabled:opacity-60 flex items-center justify-center gap-2"
                 >
                   {isUploading ? (
                     <>
@@ -1362,7 +1377,7 @@ function StudentDashboardContent() {
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
       
       {toast && (
-        <div className="fixed top-5 right-5 z-55 bg-[#1b4264] border-l-4 border-[#ffa400] text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
+        <div className="fixed top-5 right-5 z-55 bg-[#1b4264] border border-white/10 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
           <i className="ti ti-circle-check text-[#ffa400] text-lg" />
           <span className="text-[12px] font-bold">{toast}</span>
         </div>
@@ -1379,7 +1394,17 @@ function StudentDashboardContent() {
       />
 
       {/* MAIN CONTAINER */}
-      <div className={`w-full flex-1 space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-screen-2xl p-4 sm:p-6 lg:p-8"}`}>
+      <div className={`w-full flex-1 space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
+        {((researchData?.projects?.length || 0) > 1 || projectSelection.invalidRequestedProjectId) && (
+          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-5">
+            <label htmlFor="dashboard-project" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">Active research project</label>
+            <select id="dashboard-project" value={activeProject?.id || ""} onChange={(event) => projectSelection.selectProject(event.target.value || null)} className="h-11 w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]">
+              <option value="">Choose a research project</option>
+              {(researchData?.projects || []).map((project: any) => <option key={project.id} value={project.id}>{project.groupName || project.title}</option>)}
+            </select>
+            {!activeProject && <p className="mt-2 text-xs text-[var(--color-text-secondary)]">{projectSelection.invalidRequestedProjectId ? "That project is unavailable or you do not have access to it." : "Choose a project to view its authoritative workflow data."}</p>}
+          </section>
+        )}
         
         {(() => {
           const tabTitles: Record<string, string> = {
@@ -1422,10 +1447,10 @@ function StudentDashboardContent() {
                       </button>
                     ) : !activeProject ? (
                       <button
-                        onClick={() => setShowCreateModal(true)}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#FFA400] px-6 text-sm font-bold text-[#072A3D] shadow-xs transition hover:bg-[#E59400]"
+                        onClick={() => (researchData?.projects?.length ? window.scrollTo({ top: 0, behavior: "smooth" }) : setShowCreateModal(true))}
+                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-6 text-sm font-bold text-white shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98]"
                       >
-                        <i className="ti ti-plus text-base font-bold" /> Register Project
+                        <i className={`ti ${researchData?.projects?.length ? "ti-folders" : "ti-plus"} text-base font-bold`} /> {researchData?.projects?.length ? "Select Project" : "Register Project"}
                       </button>
                     ) : activeProject.status === "REJECTED" ? (
                       <div className="flex flex-wrap items-center justify-end gap-3">
@@ -1444,13 +1469,13 @@ function StudentDashboardContent() {
                       <>
                         <button
                           onClick={() => handleTabChange("group")}
-                          className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#FFA400] px-5 text-sm font-bold text-[#072A3D] shadow-xs transition hover:bg-[#E59400]"
+                          className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 text-sm font-bold text-white shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98]"
                         >
                           <i className="ti ti-folder-open text-base" /> View My Project
                         </button>
                         <button
                           onClick={() => router.push("/student/documents")}
-                          className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-5 text-sm font-bold text-white backdrop-blur-xs transition hover:bg-white/20"
+                          className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-5 text-sm font-bold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
                         >
                           <i className="ti ti-file-text text-base" /> Document Workspace
                         </button>
@@ -1532,7 +1557,7 @@ function StudentDashboardContent() {
                 {activeProject && (
                   <div>
                     <div className="mb-3 flex items-center justify-between">
-                      <h2 className="flex items-center gap-2 text-base font-bold text-slate-900 dark:text-white">
+                      <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--color-text-primary)]">
                         <span>Active Research Study</span>
                         <span className="rounded-full bg-[#0B3A53]/10 dark:bg-[#0B3A53]/30 px-2.5 py-0.5 text-xs font-bold text-[#0B3A53] dark:text-[#38bdf8]">
                           ENROLLED
@@ -1542,7 +1567,7 @@ function StudentDashboardContent() {
                         onClick={() => handleTabChange("group")}
                         className="flex items-center gap-1 text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#FFA400] cursor-pointer"
                       >
-                        Manage Project <i className="ti ti-chevron-right text-xs" />
+                        Manage Project <i className="ti ti-chevron-right text-xs transition group-hover:translate-x-0.5" />
                       </button>
                     </div>
                     <CourseCard
@@ -1576,10 +1601,10 @@ function StudentDashboardContent() {
                   {/* Left Column (lg:col-span-7) */}
                   <div className="lg:col-span-7 flex flex-col gap-6">
                     {/* Getting Started Stepper Card */}
-                    <div className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 sm:p-7 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.05),0_1px_4px_-1px_rgba(15,23,42,0.03)]">
+                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)]">
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Getting Started</h3>
+                          <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Getting Started</h3>
                           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Complete these steps to begin your research journey.</p>
                         </div>
                         <button
@@ -1605,7 +1630,7 @@ function StudentDashboardContent() {
                           }`}>
                             {activeProject ? <i className="ti ti-check text-xs" /> : "1"}
                           </span>
-                          <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[#0B3A53] transition">
+                          <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[var(--color-primary)] transition">
                             <i className="ti ti-file-description text-xl" />
                           </span>
                           <span className="mt-3 text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
@@ -1627,7 +1652,7 @@ function StudentDashboardContent() {
                           }`}>
                             {activeStudentMembers.length > 1 ? <i className="ti ti-check text-xs" /> : "2"}
                           </span>
-                          <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[#0B3A53] transition">
+                          <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[var(--color-primary)] transition">
                             <i className="ti ti-users text-xl" />
                           </span>
                           <span className="mt-3 text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
@@ -1648,7 +1673,7 @@ function StudentDashboardContent() {
                           }`}>
                             {activeProject?.members?.some((m: any) => m.projectRole === "ADVISER") ? <i className="ti ti-check text-xs" /> : "3"}
                           </span>
-                          <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[#0B3A53] transition">
+                          <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[var(--color-primary)] transition">
                             <i className="ti ti-user-check text-xl" />
                           </span>
                           <span className="mt-3 text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
@@ -1662,9 +1687,9 @@ function StudentDashboardContent() {
                     </div>
 
                     {/* Recent Activity Card */}
-                    <div className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 sm:p-7 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.05),0_1px_4px_-1px_rgba(15,23,42,0.03)]">
+                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)]">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Recent Activity</h3>
+                        <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Recent Activity</h3>
                         <button
                           onClick={() => handleTabChange("notifications")}
                           className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition p-1"
@@ -1700,10 +1725,10 @@ function StudentDashboardContent() {
                   {/* Right Column (lg:col-span-5) */}
                   <div className="lg:col-span-5 flex flex-col gap-6">
                     {/* Next Consultation Card */}
-                    <div className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 sm:p-7 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.05),0_1px_4px_-1px_rgba(15,23,42,0.03)] flex flex-col justify-between">
+                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)] flex flex-col justify-between">
                       <div>
                         <div className="flex items-center justify-between">
-                          <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Next Consultation</h3>
+                          <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Next Consultation</h3>
                           <button
                             onClick={() => handleTabChange("consultations")}
                             className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition p-1"
@@ -1742,7 +1767,7 @@ function StudentDashboardContent() {
 
                       <button
                         onClick={() => handleTabChange("consultations")}
-                        className="w-full mt-4 h-11 bg-[#FFA400] hover:bg-[#E59400] text-[#072A3D] font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer active:scale-95"
+                        className="w-full mt-4 h-10 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-semibold rounded-xl shadow-xs transition flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer active:scale-[0.98]"
                       >
                         <i className="ti ti-calendar-plus text-base font-bold" />
                         <span>Book consultation</span>
@@ -1750,35 +1775,35 @@ function StudentDashboardContent() {
                     </div>
 
                     {/* Quick Actions Card */}
-                    <div className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 sm:p-7 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.05),0_1px_4px_-1px_rgba(15,23,42,0.03)]">
-                      <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mb-4">Quick Actions</h3>
+                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)]">
+                      <h3 className="text-base font-semibold text-[var(--color-text-primary)] mb-4">Quick Actions</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
                         <button
                           onClick={() => router.push("/student/documents")}
-                          className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-white/5 hover:border-[#0B3A53] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
+                          className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
                         >
-                          <i className="ti ti-file-text text-xl text-slate-700 dark:text-slate-200 group-hover:text-[#0B3A53] transition" />
+                          <i className="ti ti-file-text text-xl text-slate-700 dark:text-slate-200 group-hover:text-[var(--color-primary)] transition" />
                           <span className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-200">New document</span>
                         </button>
                         <button
                           onClick={() => handleTabChange("submissions")}
-                          className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-white/5 hover:border-[#0B3A53] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
+                          className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
                         >
-                          <i className="ti ti-upload text-xl text-slate-700 dark:text-slate-200 group-hover:text-[#0B3A53] transition" />
+                          <i className="ti ti-upload text-xl text-slate-700 dark:text-slate-200 group-hover:text-[var(--color-primary)] transition" />
                           <span className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-200">Submit draft</span>
                         </button>
                         <button
                           onClick={() => handleTabChange("group-chats")}
-                          className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-white/5 hover:border-[#0B3A53] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
+                          className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
                         >
-                          <i className="ti ti-message text-xl text-slate-700 dark:text-slate-200 group-hover:text-[#0B3A53] transition" />
+                          <i className="ti ti-message text-xl text-slate-700 dark:text-slate-200 group-hover:text-[var(--color-primary)] transition" />
                           <span className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-200">Message group</span>
                         </button>
                         <button
                           onClick={() => handleTabChange("milestones")}
-                          className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-white/5 hover:border-[#0B3A53] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
+                          className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
                         >
-                          <i className="ti ti-chart-bar text-xl text-slate-700 dark:text-slate-200 group-hover:text-[#0B3A53] transition" />
+                          <i className="ti ti-chart-bar text-xl text-slate-700 dark:text-slate-200 group-hover:text-[var(--color-primary)] transition" />
                           <span className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-200">View milestones</span>
                         </button>
                       </div>
@@ -1807,7 +1832,7 @@ function StudentDashboardContent() {
                     </button>
                   </div>
                 ) : (
-                  <div className="bg-gradient-to-r from-[#1b4264] to-[#255883] text-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="college-hero-surface border border-[var(--color-border)] text-[var(--color-text-primary)] p-6 rounded-2xl shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div>
                       <span className="text-[11px] font-extrabold text-[#ffa400] uppercase tracking-wider block">Active Research Study</span>
                       <h2 className="text-xl font-black mt-0.5">{group.projectTitle}</h2>
@@ -1815,7 +1840,7 @@ function StudentDashboardContent() {
                     </div>
                     <button
                       onClick={() => router.push("/student/documents")}
-                      className="px-4 py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-xl text-xs shadow transition cursor-pointer"
+                      className="px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer active:scale-[0.98]"
                     >
                       Open Document Workspace
                     </button>
@@ -1824,7 +1849,7 @@ function StudentDashboardContent() {
 
                 {/* EXACT STUDENT CARDS */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex items-center gap-4">
                     <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-lg">
                       <i className="ti ti-users" />
                     </div>
@@ -1834,7 +1859,7 @@ function StudentDashboardContent() {
                     </div>
                   </div>
 
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex items-center gap-4">
                     <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#ffa400] flex items-center justify-center text-lg">
                       <i className="ti ti-brain" />
                     </div>
@@ -1844,7 +1869,7 @@ function StudentDashboardContent() {
                     </div>
                   </div>
 
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex items-center gap-4">
                     <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-lg">
                       <i className="ti ti-file-text" />
                     </div>
@@ -1854,7 +1879,7 @@ function StudentDashboardContent() {
                     </div>
                   </div>
 
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex items-center gap-4">
                     <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#ffa400] flex items-center justify-center text-lg">
                       <i className="ti ti-calendar-event" />
                     </div>
@@ -1864,7 +1889,7 @@ function StudentDashboardContent() {
                     </div>
                   </div>
 
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-2.5 justify-center min-h-[72px]">
+                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col gap-2.5 justify-center min-h-[72px]">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-lg flex-shrink-0">
                         <i className="ti ti-target" />
@@ -1882,7 +1907,7 @@ function StudentDashboardContent() {
                     </div>
                   </div>
 
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex items-center gap-4">
                     <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#ffa400] flex items-center justify-center text-lg">
                       <i className="ti ti-calendar" />
                     </div>
@@ -1892,7 +1917,7 @@ function StudentDashboardContent() {
                     </div>
                   </div>
 
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex items-center gap-4">
                     <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#ffa400] flex items-center justify-center text-lg">
                       <i className="ti ti-certificate" />
                     </div>
@@ -1906,7 +1931,7 @@ function StudentDashboardContent() {
                 {/* Enhanced Bottom Cards: 4-card balanced grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                   {/* Card 1: Active Study Information */}
-                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
+                  <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
                     <div className="flex flex-col gap-2.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
@@ -1933,7 +1958,7 @@ function StudentDashboardContent() {
                   </div>
 
                   {/* Card 2: Upcoming Milestones */}
-                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
+                  <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
                     <div className="flex flex-col gap-2.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
@@ -1967,7 +1992,7 @@ function StudentDashboardContent() {
                   </div>
 
                   {/* Card 3: Next Consultation & Google Meet */}
-                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
+                  <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
                     <div className="flex flex-col gap-2.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
@@ -1989,7 +2014,7 @@ function StudentDashboardContent() {
                     </div>
                     <button
                       onClick={() => handleTabChange("consultations")}
-                      className="w-full py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] text-xs font-extrabold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                      className="w-full py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white text-xs font-extrabold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98]"
                     >
                       <i className="ti ti-plus font-bold text-xs" />
                       <span>Book Consultation</span>
@@ -1997,7 +2022,7 @@ function StudentDashboardContent() {
                   </div>
 
                   {/* Card 4: Quick Collaboration Tools */}
-                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
+                  <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
                     <div className="flex flex-col gap-2.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
@@ -2067,12 +2092,12 @@ function StudentDashboardContent() {
             ),
             group: (
               <div className="flex flex-col gap-5">
-                <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-xs">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#C58A18]">Research workspace</p>
-                      <h3 className="mt-1 text-[18px] font-extrabold text-[#1b4264]">My Projects</h3>
-                      <p className="mt-1 text-[11px] font-bold text-slate-400">Create a solo study, form a group, or join an existing research project.</p>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">Research workspace</p>
+                      <h3 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">My Projects</h3>
+                      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Create a solo study, form a group, or join an existing research project.</p>
                     </div>
                     {activeProject && isGroupLeader && (
                       <button onClick={openEditProject} className="rounded-xl border border-[#173f63] px-4 py-2 text-xs font-extrabold text-[#173f63]">
@@ -2083,7 +2108,7 @@ function StudentDashboardContent() {
 
                   {group && activeProject ? (
                     <div className="mt-5 space-y-5">
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                      <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-5">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <div className="flex flex-wrap gap-2">
@@ -2095,8 +2120,8 @@ function StudentDashboardContent() {
                                 {(activeProject.accessMode || "INVITE_ONLY").replace(/_/g, " ")}
                               </span>
                             </div>
-                            <p className="mt-3 text-xs font-bold text-slate-500">Official research title</p>
-                            <p className="mt-1 text-base font-extrabold text-[#102f49]">{activeProject.title}</p>
+                            <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">Official research title</p>
+                            <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)] leading-snug">{activeProject.title}</p>
                             {activeProject.groupName && <p className="mt-1 text-xs text-slate-500">Group: <strong>{activeProject.groupName}</strong></p>}
                           </div>
                           <div className="rounded-xl bg-white px-4 py-3 text-center">
@@ -2114,7 +2139,7 @@ function StudentDashboardContent() {
                       )}
 
                       <div>
-                        <div className="flex items-center justify-between"><h4 className="font-extrabold text-[#102f49]">Active researchers</h4><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div>
+                        <div className="flex items-center justify-between"><h4 className="text-sm font-semibold text-[var(--color-text-primary)]">Active researchers</h4><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div>
                         <div className="mt-3 space-y-2">{activeStudentMembers.map((member: any) => <div key={member.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{(member.userId === user?.id || member.user?.id === user?.id) ? " (You)" : ""}</p><p className="text-xs text-slate-500">{member.user.email} · {member.projectRole === "LEADER" ? "Group Leader" : "Member"}</p></div>{isGroupLeader && member.projectRole === "MEMBER" && <div className="flex gap-2"><button onClick={() => setGroupAction({ type: "transfer", member })} className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-700">Transfer leadership</button><button onClick={() => setGroupAction({ type: "remove", member })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-600">Remove</button></div>}</div>)}</div>
                       </div>
 
@@ -2122,7 +2147,7 @@ function StudentDashboardContent() {
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h4 className="font-extrabold text-[#102f49]">Adviser</h4>
+                              <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">Faculty Adviser</h4>
                               <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${activeAdviserMembership ? "bg-emerald-200 text-emerald-900" : pendingAdviserRequest ? "bg-amber-200 text-amber-900" : "bg-white text-slate-600"}`}>
                                 {activeAdviserMembership ? "ASSIGNED" : pendingAdviserRequest ? "PENDING" : latestAdviserRequest?.status || "NOT ASSIGNED"}
                               </span>
@@ -2176,7 +2201,7 @@ function StudentDashboardContent() {
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <h4 className="font-extrabold text-[#102f49]">Defense</h4>
+                              <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">Defense Readiness</h4>
                               <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${currentDefenseSession ? "bg-blue-200 text-blue-900" : activeProject.workflowInstance?.completedAt ? "bg-emerald-100 text-emerald-800" : "bg-white text-slate-600"}`}>
                                 {currentDefenseSession ? currentDefenseSession.status.replace(/_/g, " ") : activeProject.workflowInstance?.completedAt ? "READY FOR SCHEDULING" : "NOT YET ELIGIBLE"}
                               </span>
@@ -2200,13 +2225,13 @@ function StudentDashboardContent() {
                       {isGroupLeader && (
                         <div className="grid gap-4 lg:grid-cols-2">
                           <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                            <h4 className="font-extrabold text-[#102f49]">Group access</h4>
+                            <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">Group access</h4>
                             <label className="mt-3 block text-xs font-bold text-slate-600">Working arrangement<select value={projectParticipationMode} onChange={(event) => setProjectParticipationMode(event.target.value as "SOLO" | "GROUP")} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="SOLO">Solo</option><option value="GROUP">Group</option></select></label>
                             {projectParticipationMode === "GROUP" && <><label className="mt-3 block text-xs font-bold text-slate-600">How researchers can join<select value={projectAccessMode} onChange={(event) => setProjectAccessMode(event.target.value as typeof projectAccessMode)} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="INVITE_ONLY">Invite only</option><option value="PUBLIC_APPROVAL">Code access — leader approval</option><option value="PUBLIC_OPEN">Code access — join immediately</option></select></label><label className="mt-3 flex items-center gap-2 text-xs font-bold text-slate-600"><input type="checkbox" checked={projectInviteEnabled} onChange={(event) => setProjectInviteEnabled(event.target.checked)} />Accept joins using the current code</label></>}
                             <button onClick={handleSaveProjectAccess} disabled={projectAccessSaving} className="mt-4 rounded-lg bg-[#173f63] px-4 py-2 text-xs font-extrabold text-white disabled:opacity-50">{projectAccessSaving ? "Saving…" : "Save access settings"}</button>
                           </div>
                           <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                            <h4 className="font-extrabold text-[#102f49]">Invitation code and link</h4>
+                            <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">Invitation code and link</h4>
                             <p className="mt-1 text-xs text-slate-600">Researchers review the group before joining or requesting approval.</p>
                             {inviteCode ? <div className="mt-3 space-y-2"><div className="rounded-lg bg-white p-3 font-mono text-sm font-bold text-[#173f63]">Code: {inviteCode}</div><div className="flex flex-wrap gap-2"><button onClick={() => navigator.clipboard.writeText(inviteCode).then(() => triggerToast("Invite code copied."))} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-700"><i className="ti ti-copy mr-1" />Copy code</button><button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join-group?code=${inviteCode}`).then(() => triggerToast("Shareable link copied."))} className="rounded-lg bg-[#173f63] px-3 py-2 text-xs font-extrabold text-white"><i className="ti ti-link mr-1" />Copy link</button><button onClick={handleCreateInvite} className="rounded-lg px-3 py-2 text-xs font-bold text-slate-600">Rotate code</button></div></div> : <button onClick={handleCreateInvite} className="mt-3 rounded-xl bg-[#173f63] px-4 py-2.5 text-xs font-extrabold text-white"><i className="ti ti-user-plus mr-1" />Create invitation</button>}
                           </div>
@@ -2228,7 +2253,7 @@ function StudentDashboardContent() {
                     </div>
                   )}
                 </section>
-                {activeProject && <section className="rounded-xl border border-rose-200 bg-white p-6 shadow-sm"><h3 className="font-extrabold text-rose-700">Project management</h3><p className="mt-1 text-xs text-slate-500">These actions require final confirmation and preserve historical submissions.</p><div className="mt-4 flex flex-wrap gap-2">{!isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-xs font-bold text-amber-700">Leave group</button>}{isGroupLeader && <button onClick={() => setGroupAction({ type: "disband" })} className="rounded-xl border border-rose-300 px-4 py-2 text-xs font-bold text-rose-700">Archive project</button>}</div></section>}
+                {activeProject && <section className="rounded-xl border border-rose-200 bg-white p-6 shadow-sm"><h3 className="text-base font-semibold text-rose-700">Project management</h3><p className="mt-1 text-xs text-slate-500">These actions require final confirmation and preserve historical submissions.</p><div className="mt-4 flex flex-wrap gap-2">{!isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-xs font-bold text-amber-700">Leave group</button>}{isGroupLeader && <button onClick={() => setGroupAction({ type: "disband" })} className="rounded-xl border border-rose-300 px-4 py-2 text-xs font-bold text-rose-700">Archive project</button>}</div></section>}
               </div>
             ),
             "adviser-credentials": (
@@ -2253,7 +2278,7 @@ function StudentDashboardContent() {
                     />
                     <button 
                       onClick={() => triggerToast("Generated matches successfully.")} 
-                      className="px-4 py-2 bg-[#ffa400] text-[#1b4264] hover:bg-[#e09000] font-extrabold rounded-lg shadow-md border border-[#ffa400]"
+                      className="px-4 py-2 bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-dark)] font-extrabold rounded-lg shadow-xs border border-[var(--color-primary)]"
                     >
                       Find Match
                     </button>
@@ -2287,7 +2312,7 @@ function StudentDashboardContent() {
                     </div>
                     <button 
                       onClick={() => handleStartConference("https://meet.google.com/new", `${group?.name || "Research"} Study Stream`)} 
-                      className="px-5 py-2.5 bg-[#ffa400] text-[#1b4264] hover:bg-[#e09000] font-extrabold rounded-lg shadow border border-[#ffa400] self-center cursor-pointer transition-colors flex items-center gap-2"
+                      className="px-5 py-2.5 bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-dark)] font-extrabold rounded-lg shadow-xs border border-[var(--color-primary)] self-center cursor-pointer transition-colors flex items-center gap-2"
                     >
                       <i className="ti ti-video text-lg" />
                       <span>Start Stream Conference</span>
@@ -2368,7 +2393,27 @@ function StudentDashboardContent() {
             "version-control": renderSubmissionsHub(),
             milestones: (
               <div className="flex flex-col gap-5">
-                <StudentGanttChart project={activeProject} />
+                <StudentGanttChart project={activeProject} milestoneProgress={manuscriptWorkflowData?.milestones || []} />
+                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
+                  <h3 className="text-base font-bold text-[var(--color-text-primary)]">Recorded research activity</h3>
+                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Actual events from manuscript, milestone, consultation, defense, and official-copy records. The Gantt chart above remains the planned schedule.</p>
+                  <div className="mt-4 space-y-2">
+                    {(manuscriptWorkflowData?.activity || []).slice(0, 12).map((event: any) => {
+                      const href = event.documentId
+                        ? projectSelection.projectHref(`/student/documents?documentId=${event.documentId}${event.versionId ? `&versionId=${event.versionId}` : ""}`)
+                        : event.defenseSessionId
+                          ? projectSelection.projectHref(`/student/defense/${event.defenseSessionId}`)
+                          : event.consultationId
+                            ? projectSelection.projectHref(`/student/dashboard?tab=consultations&consultationId=${event.consultationId}`)
+                            : event.milestoneId
+                              ? projectSelection.projectHref(`/student/documents?tab=milestones&milestoneId=${event.milestoneId}`)
+                              : null;
+                      const content = <><span className="min-w-0"><span className="block text-sm font-semibold text-[var(--color-text-primary)]">{event.title}</span><span className="block truncate text-xs text-[var(--color-text-secondary)]">{event.description}</span></span><time className="shrink-0 text-[11px] text-[var(--color-text-muted)]">{new Date(event.timestamp).toLocaleString()}</time></>;
+                      return href ? <button key={event.id} type="button" onClick={() => router.push(href)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-muted)] p-3 text-left hover:border-[var(--color-primary)]">{content}</button> : <div key={event.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-muted)] p-3">{content}</div>;
+                    })}
+                    {!manuscriptWorkflowData?.activity?.length && <p className="rounded-xl border border-dashed border-[var(--color-border)] p-5 text-center text-xs text-[var(--color-text-secondary)]">No recorded workflow activity for this project yet.</p>}
+                  </div>
+                </div>
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                   <h3 className="font-extrabold text-[#1b4264] text-[16px]">Milestone Details</h3>
                   <p className="text-[11px] text-slate-400 font-bold">Review the professor-defined sequence, duration, approval gates, and current status.</p>
@@ -2567,7 +2612,7 @@ function StudentDashboardContent() {
                   </div>
                   <button 
                     onClick={() => setModalCert(true)} 
-                    className="px-3.5 py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-lg border border-[#ffa400] shadow cursor-pointer transition-colors"
+                    className="px-3.5 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-lg border border-[var(--color-primary)] shadow-xs cursor-pointer transition-colors"
                   >
                     View Status
                   </button>
@@ -2647,7 +2692,7 @@ function StudentDashboardContent() {
       {/* CREATE RESEARCH PROJECT MODAL */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border-t-4 border-[#1b4264] max-w-lg w-full p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4">
+          <div className="bg-white rounded-2xl border border-slate-200 max-w-lg w-full p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-[#1b4264] text-[16px] flex items-center gap-2">
                 <i className="ti ti-folder-plus text-[#ffa400] text-xl" />

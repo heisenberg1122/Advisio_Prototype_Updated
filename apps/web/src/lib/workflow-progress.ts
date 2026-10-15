@@ -20,6 +20,30 @@ export interface WorkflowProjectLike {
   } | null;
 }
 
+export interface MilestoneProgressLike {
+  completedRequirements?: number | null;
+  totalRequirements?: number | null;
+}
+
+export function calculateMilestoneProgress(
+  milestones?: MilestoneProgressLike[] | null,
+  workflowCompleted = false,
+) {
+  if (workflowCompleted) return 100;
+
+  const totals = (milestones || []).reduce(
+    (value, milestone) => ({
+      completed: value.completed + Math.max(0, milestone.completedRequirements || 0),
+      total: value.total + Math.max(0, milestone.totalRequirements || 0),
+    }),
+    { completed: 0, total: 0 },
+  );
+
+  return totals.total
+    ? Math.min(100, Math.max(0, Math.round((totals.completed / totals.total) * 100)))
+    : 0;
+}
+
 export function getOrderedWorkflowStages(project?: WorkflowProjectLike | null) {
   return [...(project?.workflowInstance?.workflow?.stages || [])].sort(
     (a, b) => a.sequence - b.sequence,

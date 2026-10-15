@@ -176,7 +176,7 @@ function PanelistDashboardContent() {
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
       
       {toast && (
-        <div className="fixed top-5 right-5 z-55 bg-[#1b4264] border-l-4 border-[#ffa400] text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
+        <div className="fixed top-5 right-5 z-55 bg-[#1b4264] border border-white/10 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
           <i className="ti ti-circle-check text-[#ffa400] text-lg" />
           <span className="text-[12px] font-bold">{toast}</span>
         </div>
@@ -185,7 +185,7 @@ function PanelistDashboardContent() {
       {respondingInvitation && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="decline-defense-title"><div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-start justify-between"><div><p className="text-xs font-extrabold uppercase tracking-wider text-rose-600">Availability response</p><h2 id="decline-defense-title" className="mt-1 text-xl font-extrabold text-[#102f49]">Cannot attend this schedule?</h2><p className="mt-1 text-sm text-slate-500">Your reason is shared with the professor, not the research group.</p></div><button type="button" onClick={() => setRespondingInvitation(null)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100"><i className="ti ti-x" /></button></div><label className="mt-5 block text-sm font-bold text-slate-700">Reason<textarea required value={declineReason} onChange={(event) => setDeclineReason(event.target.value)} rows={4} placeholder="Explain why you are unavailable…" className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm font-normal" /></label><label className="mt-4 block text-sm font-bold text-slate-700">Suggested alternative <span className="font-normal text-slate-400">(optional)</span><input type="datetime-local" value={suggestedAvailability} onChange={(event) => setSuggestedAvailability(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal" /></label><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setRespondingInvitation(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Keep invitation</button><button type="button" onClick={() => respondToInvitation(respondingInvitation, "DECLINED")} disabled={invitationSaving || !declineReason.trim()} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">Decline and notify professor</button></div></div></div>}
 
       {/* MAIN CONTAINER */}
-      <div className={`flex w-full flex-1 flex-col space-y-6 ${activeTab === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-screen-2xl p-4 sm:p-6 lg:p-8"}`}>
+      <div className={`flex w-full flex-1 flex-col space-y-6 ${activeTab === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
         
         {(() => {
           const tabContent: Record<string, React.ReactNode> = {
@@ -200,19 +200,19 @@ function PanelistDashboardContent() {
                     <>
                       <button
                         onClick={() => handleTabChange("evaluation")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#C9A227] px-5 text-sm font-bold text-[#0B3A53] shadow-xs transition hover:bg-[#B38E1E]"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 text-sm font-bold text-white shadow-xs transition"
                       >
                         <i className="ti ti-clipboard-check text-base" /> Start Evaluation
                       </button>
                       <button
                         onClick={() => handleTabChange("schedule")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur-xs transition hover:bg-white/20"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
                       >
                         <i className="ti ti-calendar-event text-base" /> Defense Schedule ({schedules.length})
                       </button>
                       <button
                         onClick={() => handleTabChange("documents")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur-xs transition hover:bg-white/20"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
                       >
                         <i className="ti ti-file-text text-base" /> Review Manuscripts ({documents.length})
                       </button>
@@ -388,7 +388,7 @@ function PanelistDashboardContent() {
                             </span>
                             <button
                               onClick={() => handleTabChange("evaluation")}
-                              className="ml-3 rounded-xl bg-[#C9A227] hover:bg-[#B38E1E] px-4 py-2 text-xs font-bold text-[#0B3A53] shadow-xs transition"
+                              className="ml-3 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2 text-xs font-bold text-white shadow-xs transition"
                             >
                               Evaluate
                             </button>

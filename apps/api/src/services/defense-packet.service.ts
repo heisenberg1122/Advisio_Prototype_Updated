@@ -529,6 +529,7 @@ export class DefensePacketService {
     };
   }
   async getRecommendationPreview(sessionId: string, panelistId: string) {
+    await this.recommendationContext(sessionId, panelistId);
     const recommendation = await prisma.panelistRecommendation.findUnique({
       where: {
         defenseSessionId_panelistId: {
@@ -650,6 +651,14 @@ export class DefensePacketService {
       where: { id: sessionId },
       include: {
         research: true,
+        invitations: {
+          where: {
+            inviteeId: panelistId,
+            status: "ACCEPTED",
+            role: { in: ["PANELIST", "PANEL_CHAIR"] },
+          },
+          select: { id: true },
+        },
         packet: { include: { evaluationTemplate: true } },
       },
     });
@@ -657,6 +666,7 @@ export class DefensePacketService {
     const mappings = validateMappings(session?.packet?.evaluationFieldMappings);
     if (
       !session ||
+      !session.invitations.length ||
       session.packet?.status !== "PUBLISHED" ||
       !template ||
       !mappings.length

@@ -20,7 +20,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="h-full antialiased">{children}</body>
+      <body className="h-full bg-[var(--sidebar-background)] text-[var(--color-text-primary)] antialiased">{children}</body>
     </html>
   );
 }

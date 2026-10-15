@@ -392,7 +392,7 @@ export function GoogleMeetTranscriptModal({
           <button
             type="button"
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-5 py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] font-extrabold rounded-lg shadow cursor-pointer transition text-xs border border-[#ffa400]"
+            className="flex items-center gap-1.5 px-5 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-lg shadow cursor-pointer transition text-xs border border-[var(--color-primary)]"
           >
             <i className="ti ti-device-floppy" />
             <span>Save to Consultation History</span>

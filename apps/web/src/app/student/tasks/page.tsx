@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { StatCard } from "@/components/ui/StatCard";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { TablePageSkeleton } from "@/components/ui/Skeleton";
 import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useActiveProject, useActiveProjectContext } from "@/providers/active-project-provider";
 
 const memberName = (member: any) =>
   `${member?.user?.firstName || ""} ${member?.user?.lastName || ""}`.trim();
@@ -18,8 +20,11 @@ export default function ResearchTasksPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { activeProjectId: sharedProjectId } = useActiveProjectContext();
+  const requestedTaskId = searchParams.get("taskId");
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [submissionKey, setSubmissionKey] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -28,13 +33,18 @@ export default function ResearchTasksPage() {
   const [activeSection, setActiveSection] = useState<"requirements" | "resources">("requirements");
 
   const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ["student", "workflow-tasks"],
+    queryKey: ["student", "workflow-tasks", sharedProjectId],
     queryFn: async () => {
       const [list, enrollmentList] = await Promise.all([
         apiClient.get<{ projects: any[] }>("/api/research"),
         apiClient.get<{ enrollments: any[] }>("/api/workflows/enrollments/me"),
       ]);
-      const project = list.projects?.[0];
+      const projects = list.projects || [];
+      const project = sharedProjectId
+        ? projects.find((candidate: any) => candidate.id === sharedProjectId)
+        : projects.length === 1
+          ? projects[0]
+          : undefined;
       const enrollments = enrollmentList.enrollments || [];
       const activeEnrollment =
         enrollments.find(
@@ -103,10 +113,11 @@ export default function ResearchTasksPage() {
           },
         ];
       });
-      return { project, tasks, enrollments };
+      return { project, projects, tasks, enrollments };
     },
     refetchOnWindowFocus: true,
   });
+  const projectSelection = useActiveProject(data?.projects || []);
 
   const workflowId = data?.project?.workflowInstance?.workflow?.id
     || data?.project?.workflowInstance?.workflowId
@@ -118,9 +129,18 @@ export default function ResearchTasksPage() {
     staleTime: 30_000,
   });
 
+  useEffect(() => {
+    if (!requestedTaskId || selectedTask || !data?.tasks) return;
+    const contextualTask = data.tasks.find(
+      (task: any) => task.id === requestedTaskId,
+    );
+    if (contextualTask) openTask(contextualTask);
+  }, [data?.tasks, requestedTaskId, selectedTask]);
+
   const openTask = (task: any) => {
     setSelectedTask(task);
     setFile(null);
+    setSubmissionKey(crypto.randomUUID());
     setNote(task.submission?.note || "");
     setMessage(null);
   };
@@ -142,27 +162,12 @@ export default function ResearchTasksPage() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("title", `${selectedTask.title} - ${data.project.title}`);
-      formData.append("documentType", `TASK_${selectedTask.id}`);
-      const token = localStorage.getItem("advisio_token");
-      const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
-      const uploadResponse = await fetch(
-        `${apiBase}/api/research/${data.project.id}/documents`,
-        {
-          method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          body: formData,
-        },
-      );
-      const upload = await uploadResponse.json().catch(() => ({}));
-      if (!uploadResponse.ok)
-        throw new Error(upload.error || "Document upload failed.");
-      await apiClient.post(
-        `/api/workflows/tasks/${selectedTask.id}/submissions`,
-        {
-          researchId: data.project.id,
-          documentId: upload.document.id,
-          note: note.trim() || undefined,
-        },
+      formData.append("researchId", data.project.id);
+      formData.append("idempotencyKey", submissionKey || crypto.randomUUID());
+      if (note.trim()) formData.append("note", note.trim());
+      await apiClient.upload(
+        `/api/workflows/tasks/${selectedTask.id}/submissions/upload`,
+        formData,
       );
       await queryClient.invalidateQueries({
         queryKey: ["student", "workflow-tasks"],
@@ -274,7 +279,7 @@ export default function ResearchTasksPage() {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {message && (
         <div className="rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/30 p-3.5 text-sm font-semibold text-blue-900 dark:text-blue-200">
           {message}
@@ -295,14 +300,49 @@ export default function ResearchTasksPage() {
         </div>
       )}
 
+      {(data?.projects?.length || 0) > 1 && (
+        <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-5">
+          <label
+            htmlFor="task-project"
+            className="mb-2 block text-xs font-extrabold uppercase tracking-wider text-slate-500"
+          >
+            Research project
+          </label>
+          <select
+            id="task-project"
+            value={project?.id || ""}
+            onChange={(event) => {
+              setSelectedTask(null);
+              const projectId = event.target.value;
+              projectSelection.selectProject(projectId || null);
+            }}
+            className="h-11 w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
+          >
+            <option value="">Select a project</option>
+            {data.projects.map((candidate: any) => (
+              <option key={candidate.id} value={candidate.id}>
+                {candidate.groupName || candidate.title}
+              </option>
+            ))}
+          </select>
+          {!project && (
+            <p className="mt-2 text-xs text-slate-500">
+              {projectSelection.invalidRequestedProjectId
+                ? "That project is unavailable or you do not have access to it. Choose an authorized project."
+                : "Choose a project to view its requirements and submission history."}
+            </p>
+          )}
+        </section>
+      )}
+
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)]">
-        <div className="rounded-2xl border border-[#DDE3E8] bg-white p-5 shadow-xs dark:border-white/10 dark:bg-[#101b2b] sm:p-6">
+        <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#C9A227]">Active workflow</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">Active workflow</p>
               {activeEnrollment ? (
                 <>
-                  <h2 className="mt-1 text-xl font-black text-[#17212B] dark:text-white">{activeEnrollment.workflow.name}</h2>
+                  <h2 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">{activeEnrollment.workflow.name}</h2>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     {activeEnrollment.workflow.creator
                       ? `Professor: ${`${activeEnrollment.workflow.creator.firstName || ""} ${activeEnrollment.workflow.creator.lastName || ""}`.trim() || activeEnrollment.workflow.creator.email}`
@@ -310,7 +350,7 @@ export default function ResearchTasksPage() {
                   </p>
                 </>
               ) : (
-                <><h2 className="mt-1 text-xl font-black text-[#17212B] dark:text-white">No workflow joined yet</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Use the code or invitation link provided by your professor.</p></>
+                <><h2 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">No workflow joined yet</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Use the code or invitation link provided by your professor.</p></>
               )}
             </div>
             <Tag variant={activeEnrollment ? "success" : "info"}>{activeEnrollment ? "Active" : "Not joined"}</Tag>
@@ -331,24 +371,24 @@ export default function ResearchTasksPage() {
             const code = workflowCode.trim().toUpperCase();
             if (code) navigate(`/student/workflows/join/${encodeURIComponent(code)}`);
           }}
-          className="rounded-2xl border border-[#DDE3E8] bg-white p-5 shadow-xs dark:border-white/10 dark:bg-[#101b2b] sm:p-6"
+          className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6"
         >
-          <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#C9A227]">Join a workflow</p>
-          <h2 className="mt-1 text-base font-black text-[#17212B] dark:text-white">Enter professor invitation code</h2>
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">Join a workflow</p>
+          <h2 className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">Enter professor invitation code</h2>
           <p className="mt-1 text-xs leading-5 text-slate-500">You will review the invitation before deciding to accept or reject it.</p>
           <div className="mt-4 flex gap-2">
-            <input value={workflowCode} onChange={(event) => setWorkflowCode(event.target.value.toUpperCase())} maxLength={32} placeholder="Invitation code" className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 font-mono text-sm font-bold uppercase text-[#17212B] outline-none focus:border-[#0B3A53] dark:border-white/20 dark:bg-[#0B1726] dark:text-white" />
-            <button type="submit" disabled={!workflowCode.trim()} className="rounded-xl bg-[#0B3A53] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">Review</button>
+            <input value={workflowCode} onChange={(event) => setWorkflowCode(event.target.value.toUpperCase())} maxLength={32} placeholder="Invitation code" className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 font-mono text-sm font-bold uppercase text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]" />
+            <button type="submit" disabled={!workflowCode.trim()} className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Review</button>
           </div>
         </form>
       </section>
 
-      <nav role="tablist" aria-label="Tasks and workflow resources" className="flex w-full gap-1 rounded-2xl border border-slate-200 bg-slate-100 p-1.5 dark:border-white/10 dark:bg-white/5 sm:w-fit">
-        <button type="button" role="tab" aria-selected={activeSection === "requirements"} onClick={() => setActiveSection("requirements")} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-extrabold transition sm:flex-none ${activeSection === "requirements" ? "bg-white text-[#0B3A53] shadow-sm dark:bg-[#101b2b] dark:text-white" : "text-slate-500 hover:text-[#0B3A53] dark:text-slate-400 dark:hover:text-white"}`}>
+      <nav role="tablist" aria-label="Tasks and workflow resources" className="flex w-full gap-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-1.5 sm:w-fit">
+        <button type="button" role="tab" aria-selected={activeSection === "requirements"} onClick={() => setActiveSection("requirements")} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition sm:flex-none ${activeSection === "requirements" ? "bg-[var(--color-surface)] text-[var(--color-primary)] font-semibold shadow-xs" : "text-slate-500 hover:text-[#0B3A53] dark:text-slate-400 dark:hover:text-white"}`}>
           <i className="ti ti-checklist" /> Requirements
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] dark:bg-white/10">{tasks.length}</span>
         </button>
-        <button type="button" role="tab" aria-selected={activeSection === "resources"} onClick={() => setActiveSection("resources")} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-extrabold transition sm:flex-none ${activeSection === "resources" ? "bg-white text-[#0B3A53] shadow-sm dark:bg-[#101b2b] dark:text-white" : "text-slate-500 hover:text-[#0B3A53] dark:text-slate-400 dark:hover:text-white"}`}>
+        <button type="button" role="tab" aria-selected={activeSection === "resources"} onClick={() => setActiveSection("resources")} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition sm:flex-none ${activeSection === "resources" ? "bg-[var(--color-surface)] text-[var(--color-primary)] font-semibold shadow-xs" : "text-slate-500 hover:text-[#0B3A53] dark:text-slate-400 dark:hover:text-white"}`}>
           <i className="ti ti-books" /> Guides &amp; Templates
           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] dark:bg-white/10">{workflowResources?.resources?.length || 0}</span>
         </button>
@@ -394,39 +434,57 @@ export default function ResearchTasksPage() {
                   if (event.key === "Enter" || event.key === " ")
                     openTask(task);
                 }}
-                className="group cursor-pointer rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-5 sm:p-6 shadow-[0_2px_8px_-2px_rgba(15,23,42,0.05),0_1px_4px_-1px_rgba(15,23,42,0.03)] transition hover:-translate-y-0.5 hover:border-[#0B3A53] dark:hover:border-[#FFA400] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0B3A53]"
+                className={`group cursor-pointer rounded-2xl border p-4 sm:p-5 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)] ${
+                  status === "IN_PROGRESS"
+                    ? "border-[var(--color-primary)] bg-[var(--color-surface)] shadow-xs ring-1 ring-[var(--college-focus-ring)]"
+                    : status === "LOCKED"
+                    ? "border-[var(--color-border)] bg-[var(--color-surface-subtle)] opacity-80"
+                    : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)] hover:border-[var(--color-primary)]"
+                }`}
               >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                      {task.stage.topic?.title || "Ungrouped milestones"} · {task.stage.sequence}. Professor milestone
-                    </p>
-                    <h2 className="mt-1 text-base font-extrabold text-[#17212B] dark:text-white">
+                <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+                        {task.stage.topic?.title || "Ungrouped milestones"} · Stage {task.stage.sequence}
+                      </p>
+                      {status === "IN_PROGRESS" && (
+                        <span className="inline-flex items-center rounded-full bg-[var(--color-primary-light)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-primary)]">
+                          Active Milestone
+                        </span>
+                      )}
+                      {status === "LOCKED" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-white/10 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                          <i className="ti ti-lock text-xs" /> Locked
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="mt-1 text-base font-semibold text-[var(--color-text-primary)] leading-snug">
                       {task.title}
                     </h2>
-                    <p className="mt-1.5 line-clamp-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                    <p className="mt-1 line-clamp-2 text-xs sm:text-sm text-[var(--color-text-secondary)] leading-relaxed">
                       {task.instructions}
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-bold text-slate-500">
-                      <span className="rounded-lg bg-slate-100 dark:bg-white/5 px-2.5 py-1">
+                    <div className="mt-2.5 flex flex-wrap gap-2 text-xs font-medium text-[var(--color-text-secondary)]">
+                      <span className="rounded-lg bg-[var(--color-surface-muted)] px-2.5 py-1">
                         {task.dueDays != null
                           ? `Due within ${task.dueDays} days`
                           : "Milestone deadline"}
                       </span>
                       {!task.milestoneOnly && (
-                        <span className="rounded-lg bg-slate-100 dark:bg-white/5 px-2.5 py-1">
+                        <span className="rounded-lg bg-[var(--color-surface-muted)] px-2.5 py-1">
                           {task.allowedFileTypes}
                         </span>
                       )}
-                      <span className="rounded-lg bg-[#EAF3F7] dark:bg-white/10 px-2.5 py-1 text-[#0B3A53] dark:text-[#38bdf8]">
+                      <span className="rounded-lg bg-[var(--color-primary-light)] px-2.5 py-1 text-[var(--color-primary)]">
                         Shared with {activeMembers.length || 1} member
                         {activeMembers.length === 1 ? "" : "s"}
                       </span>
                     </div>
                     {task.submission && (
-                      <p className="mt-3 text-xs font-semibold text-slate-500">
+                      <p className="mt-2.5 text-xs font-medium text-[var(--color-text-secondary)]">
                         Submitted by:{" "}
-                        <span className="text-[#0B3A53] dark:text-[#FFA400] font-bold">
+                        <span className="text-[var(--color-primary)] font-semibold">
                           {userName(task.submission.submittedByUser)}
                         </span>{" "}
                         ·{" "}
@@ -447,9 +505,9 @@ export default function ResearchTasksPage() {
                     >
                       {status.replace(/_/g, " ")}
                     </Tag>
-                    <span className="text-xs font-extrabold text-[#0B3A53] dark:text-[#FFA400] group-hover:underline">
-                      View details{" "}
-                      <i className="ti ti-chevron-right transition group-hover:translate-x-0.5" />
+                    <span className="text-xs font-semibold text-[var(--color-primary)] group-hover:underline inline-flex items-center gap-0.5">
+                      View details
+                      <i className="ti ti-chevron-right text-xs transition group-hover:translate-x-0.5" />
                     </span>
                   </div>
                 </div>
@@ -533,13 +591,13 @@ function TaskDetails({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="h-full w-full max-w-2xl overflow-y-auto bg-white dark:bg-[#101b2b] p-6 shadow-2xl sm:p-8 animate-in slide-in-from-right duration-200">
+      <div className="h-full w-full max-w-2xl overflow-y-auto bg-white dark:bg-[var(--color-surface)] p-6 shadow-2xl sm:p-8 animate-in slide-in-from-right duration-200">
         <div className="flex items-start justify-between gap-4 border-b border-[#EEF2F6] dark:border-white/10 pb-5">
           <div>
             <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#C9A227]">
               Milestone {task.stage.sequence}
             </p>
-            <h2 className="mt-1 text-2xl font-black text-[#17212B] dark:text-white">
+            <h2 className="mt-1 text-2xl font-black text-[var(--color-text-primary)]">
               {task.title}
             </h2>
             <div className="mt-2">
@@ -658,6 +716,52 @@ function TaskDetails({
                 {task.submission.reviewNote}
               </p>
             )}
+            {task.submission.attempts?.length > 0 && (
+              <div className="mt-4 border-t border-blue-200 pt-4 dark:border-blue-900">
+                <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                  Submission history
+                </h4>
+                <ol className="mt-3 space-y-2">
+                  {task.submission.attempts.map((attempt: any) => (
+                    <li
+                      key={attempt.id}
+                      className="flex flex-col gap-1 rounded-xl border border-slate-200 bg-white p-3 text-xs dark:border-white/10 dark:bg-white/5 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <p className="font-bold text-[var(--color-text-primary)]">
+                          Attempt {attempt.attemptNumber}
+                          {attempt.documentVersion
+                            ? ` · Version ${attempt.documentVersion.versionNumber}`
+                            : ""}
+                        </p>
+                        <p className="mt-0.5 text-slate-500">
+                          {userName(attempt.submittedByUser)} ·{" "}
+                          {new Date(attempt.submittedAt).toLocaleString()}
+                        </p>
+                        <a
+                          href={`/student/documents?projectId=${task.submission.researchId}&milestoneId=${task.stage.id}&taskId=${task.id}&documentId=${attempt.documentId}&versionId=${attempt.documentVersionId}`}
+                          className="mt-1 inline-block font-bold text-[var(--color-primary)] hover:underline"
+                        >
+                          Open exact submitted version
+                        </a>
+                      </div>
+                      <Tag
+                        variant={
+                          attempt.status === "APPROVED"
+                            ? "success"
+                            : attempt.status === "REVISION_REQUIRED" ||
+                                attempt.status === "REJECTED"
+                              ? "warn"
+                              : "info"
+                        }
+                      >
+                        {attempt.status.replace(/_/g, " ")}
+                      </Tag>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </section>
         )}
         {task.previewOnly ? (
@@ -682,7 +786,7 @@ function TaskDetails({
             <button
               onClick={onStart}
               disabled={starting}
-              className="mt-4 w-full rounded-xl bg-[#C9A227] hover:bg-[#B38E1B] px-5 py-3 text-sm font-extrabold text-[#072A3D] shadow-sm transition disabled:opacity-50 cursor-pointer"
+              className="mt-4 w-full rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 py-3 text-sm font-extrabold text-white shadow-sm transition disabled:opacity-50 cursor-pointer"
             >
               <i
                 className={`ti ${starting ? "ti-loader-2 animate-spin" : "ti-player-play"} mr-2`}
@@ -696,8 +800,8 @@ function TaskDetails({
           <Notice text="This shared group requirement has been approved. No further submission is needed." />
         ) : submissionMode === "choose" ? (
           <section className="mt-6 border-t border-[#EEF2F6] dark:border-white/10 pt-6">
-            <h3 className="text-base font-extrabold text-[#17212B] dark:text-white">
-              How would you like to prepare the submission?
+            <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">
+               How would you like to prepare the submission?
             </h3>
             <p className="mt-1 text-xs sm:text-sm text-slate-500">
               Only methods allowed by the professor’s file requirement are
@@ -714,12 +818,17 @@ function TaskDetails({
               {canCreateInDocuments && (
                 <button
                   onClick={() => {
-                    window.location.href = `/student/documents?milestoneId=${task.stage.id}&taskId=${task.id}`;
+                    const context = new URLSearchParams({
+                      projectId: project?.id || "",
+                      milestoneId: task.stage.id,
+                      taskId: task.id,
+                    });
+                    window.location.href = `/student/documents?${context.toString()}`;
                   }}
-                  className="rounded-xl border-2 border-[#0B3A53] bg-white dark:bg-white/5 p-5 text-left transition hover:bg-[#EAF3F7] dark:hover:bg-white/10 cursor-pointer"
+                  className="rounded-xl border-2 border-[var(--color-primary)] bg-white dark:bg-white/5 p-5 text-left transition hover:bg-[var(--color-primary-light)]/30 dark:hover:bg-white/10 cursor-pointer"
                 >
-                  <i className="ti ti-file-text text-2xl text-[#0B3A53] dark:text-[#C9A227]" />
-                  <span className="mt-3 block font-extrabold text-[#17212B] dark:text-white">
+                  <i className="ti ti-file-text text-2xl text-[var(--color-primary)]" />
+                  <span className="mt-3 block font-extrabold text-[var(--color-text-primary)]">
                     Create in Documents
                   </span>
                   <span className="mt-1 block text-xs text-slate-500">
@@ -730,10 +839,10 @@ function TaskDetails({
               )}
               <button
                 onClick={() => setSubmissionMode("upload")}
-                className="rounded-xl border-2 border-[#C9A227] bg-[#FDF8E8] dark:bg-amber-950/20 p-5 text-left transition hover:bg-[#F9ECC4] dark:hover:bg-amber-900/30 cursor-pointer"
+                className="rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-primary-light)]/20 dark:bg-white/5 p-5 text-left transition hover:bg-[var(--color-primary-light)]/40 dark:hover:bg-white/10 cursor-pointer"
               >
-                <i className="ti ti-upload text-2xl text-[#C9A227]" />
-                <span className="mt-3 block font-extrabold text-[#17212B] dark:text-white">
+                <i className="ti ti-upload text-2xl text-[var(--color-primary)]" />
+                <span className="mt-3 block font-extrabold text-[var(--color-text-primary)]">
                   Upload a file
                 </span>
                 <span className="mt-1 block text-xs text-slate-500">
@@ -752,7 +861,7 @@ function TaskDetails({
               <i className="ti ti-arrow-left mr-1" />
               Choose another method
             </button>
-            <h3 className="text-sm font-extrabold text-[#17212B] dark:text-white">
+            <h3 className="text-sm font-extrabold text-[var(--color-text-primary)]">
               {task.submission
                 ? "Resubmit group requirement"
                 : "Upload group requirement"}
@@ -814,7 +923,7 @@ function Summary({
   icon: string;
 }) {
   return (
-    <div className="flex items-center gap-3.5 rounded-2xl border border-[#DDE3E8] dark:border-white/10 bg-white dark:bg-[#101b2b] p-5 shadow-xs transition hover:shadow-sm">
+    <div className="flex items-center gap-3.5 rounded-2xl border border-[#DDE3E8] dark:border-white/10 bg-white dark:bg-[var(--color-surface)] p-5 shadow-xs transition hover:shadow-sm">
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#C9A227]">
         <i className={`ti ${icon} text-xl`} />
       </span>
@@ -822,7 +931,7 @@ function Summary({
         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
           {label}
         </p>
-        <p className="text-xl sm:text-2xl font-black text-[#17212B] dark:text-white mt-0.5 tracking-tight">
+        <p className="text-xl sm:text-2xl font-black text-[var(--color-text-primary)] mt-0.5 tracking-tight">
           {value}
         </p>
       </div>
@@ -832,9 +941,9 @@ function Summary({
 
 function Empty({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border-2 border-dashed border-[#DDE3E8] dark:border-white/10 bg-white/60 dark:bg-[#101b2b]/60 p-10 text-center flex flex-col items-center justify-center gap-2">
+    <div className="rounded-2xl border-2 border-dashed border-[#DDE3E8] dark:border-white/10 bg-white/60 dark:bg-[var(--color-surface)]/60 p-10 text-center flex flex-col items-center justify-center gap-2">
       <i className="ti ti-checklist text-4xl text-slate-300 dark:text-slate-600 mb-1" />
-      <p className="font-extrabold text-[#17212B] dark:text-white">
+      <p className="font-extrabold text-[var(--color-text-primary)]">
         No milestones deployed yet
       </p>
       <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm">

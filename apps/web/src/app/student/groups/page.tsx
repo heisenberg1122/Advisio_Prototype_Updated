@@ -13,7 +13,7 @@ export default function GroupsPage() {
   if (!group) return null;
 
   return (
-    <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {/* Group info card */}
       <Card>
         <CardHeader>

@@ -14,8 +14,8 @@ export interface TagProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const variantStyles: Record<string, string> = {
-  primary: "bg-[#0B3A53]/10 text-[#0B3A53] border-[#0B3A53]/25 dark:bg-[#0B3A53]/30 dark:text-[#38bdf8]",
-  accent:  "bg-[#C9A227]/15 text-[#8A6A0B] border-[#C9A227]/35 dark:bg-[#C9A227]/25 dark:text-[#f6a800]",
+  primary: "bg-[var(--color-primary-light)] text-[var(--color-primary)] border-[var(--color-border)] dark:bg-[var(--color-primary-light)] dark:text-[var(--color-primary)]",
+  accent:  "bg-[var(--color-primary-light)] text-[var(--color-primary)] border-[var(--color-border)] dark:bg-[var(--color-primary-light)] dark:text-[var(--color-primary)]",
   info:    "bg-[#EAF3F7] text-[#0B3A53] border-[#0B3A53]/20 dark:bg-[#0B3A53]/30 dark:text-[#38bdf8]",
   success: "bg-[#EAF5EE] text-[#2E7D5B] border-[#2E7D5B]/25 dark:bg-[#2E7D5B]/20 dark:text-[#4ade80]",
   warn:    "bg-[#FEF7EA] text-[#C58A18] border-[#C58A18]/30 dark:bg-[#C58A18]/20 dark:text-[#fbbf24]",
@@ -26,8 +26,8 @@ const variantStyles: Record<string, string> = {
 };
 
 const dotColors: Record<string, string> = {
-  primary: "bg-[#0B3A53]",
-  accent:  "bg-[#C9A227]",
+  primary: "bg-[var(--color-primary)]",
+  accent:  "bg-[var(--color-primary)]",
   info:    "bg-[#0B3A53]",
   success: "bg-[#2E7D5B]",
   warn:    "bg-[#C58A18]",
@@ -38,9 +38,9 @@ const dotColors: Record<string, string> = {
 };
 
 const sizeStyles = {
-  xs: "text-[10px] px-2 py-0.5 gap-1",
-  sm: "text-[11px] px-2.5 py-0.5 gap-1.5",
-  md: "text-xs px-3 py-1 gap-1.5",
+  xs: "text-[11px] px-2 py-0.5 gap-1",
+  sm: "text-xs px-2.5 py-0.5 gap-1.5",
+  md: "text-xs sm:text-[13px] px-3 py-1 gap-1.5",
 };
 
 export function Tag({

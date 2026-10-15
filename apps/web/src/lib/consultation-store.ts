@@ -1,5 +1,5 @@
 // apps/web/src/lib/consultation-store.ts
-// Synchronized consultation repository store across portals & browsers
+// Read-only compatibility source for importing legacy browser consultations.
 
 export interface ConsultationTranscriptMessage {
   id: string;
@@ -10,6 +10,7 @@ export interface ConsultationTranscriptMessage {
 
 export interface ConsultationItem {
   id: string;
+  researchId?: string;
   groupName?: string;
   topic: string;
   date: string;
@@ -24,10 +25,23 @@ export interface ConsultationItem {
 }
 
 const STORAGE_KEY = "advisio_consultations_store";
+const IMPORT_RECEIPTS_KEY = "advisio_consultation_import_receipts";
 
-export const INITIAL_CONSULTATIONS: ConsultationItem[] = [];
+export function shouldImportLegacyConsultation(
+  item: ConsultationItem,
+  researchId: string,
+  receipts: Record<string, string>,
+) {
+  const isDatabaseId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.id);
+  if (isDatabaseId) return false;
+  if (item.researchId && item.researchId !== researchId) return false;
 
-export const getStoredConsultations = (): ConsultationItem[] => {
+  // Older items did not store their project. Once one is acknowledged by any
+  // project, do not copy it into another project when the user switches context.
+  return !Object.keys(receipts).some((key) => key.endsWith(`:${item.id}`));
+}
+
+const getStoredConsultations = (): ConsultationItem[] => {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -45,48 +59,37 @@ export const getStoredConsultations = (): ConsultationItem[] => {
   return [];
 };
 
-export const saveStoredConsultations = (items: ConsultationItem[]): void => {
-  if (typeof window === "undefined") return;
+export const getPendingConsultationImports = (
+  researchId: string,
+): ConsultationItem[] => {
+  if (typeof window === "undefined" || !researchId) return [];
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    window.dispatchEvent(new Event("storage"));
+    const receipts = JSON.parse(
+      localStorage.getItem(IMPORT_RECEIPTS_KEY) || "{}",
+    ) as Record<string, string>;
+    return getStoredConsultations().filter((item) =>
+      shouldImportLegacyConsultation(item, researchId, receipts),
+    );
   } catch {
-    // Ignore storage errors
+    return [];
   }
 };
 
-export const addStoredConsultation = (item: ConsultationItem): ConsultationItem[] => {
-  const current = getStoredConsultations();
-  const exists = current.some((c) => c.id === item.id);
-  const updated = exists ? current.map((c) => (c.id === item.id ? item : c)) : [item, ...current];
-  saveStoredConsultations(updated);
-  return updated;
-};
-
-export const updateStoredConsultationStatus = (id: string, status: string): ConsultationItem[] => {
-  const current = getStoredConsultations();
-  const updated = current.map((c) => (c.id === id ? { ...c, status } : c));
-  saveStoredConsultations(updated);
-  return updated;
-};
-
-export const updateStoredConsultationNotes = (
-  id: string,
-  notes: string,
-  actionItems: string[],
-  transcript: ConsultationTranscriptMessage[]
-): ConsultationItem[] => {
-  const current = getStoredConsultations();
-  const updated = current.map((c) =>
-    c.id === id
-      ? {
-          ...c,
-          notes,
-          actionItems,
-          transcript,
-        }
-      : c
-  );
-  saveStoredConsultations(updated);
-  return updated;
+export const recordConsultationImportReceipts = (
+  researchId: string,
+  receipts: Array<{ clientId: string; consultationId: string }>,
+): void => {
+  if (typeof window === "undefined") return;
+  try {
+    const current = JSON.parse(
+      localStorage.getItem(IMPORT_RECEIPTS_KEY) || "{}",
+    ) as Record<string, string>;
+    receipts.forEach((receipt) => {
+      current[`${researchId}:${receipt.clientId}`] = receipt.consultationId;
+    });
+    localStorage.setItem(IMPORT_RECEIPTS_KEY, JSON.stringify(current));
+    // The legacy store is intentionally retained until the user removes it.
+  } catch {
+    // A failed receipt write leaves the idempotent import eligible for retry.
+  }
 };

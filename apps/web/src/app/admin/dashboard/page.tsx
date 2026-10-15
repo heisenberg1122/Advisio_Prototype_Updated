@@ -250,7 +250,7 @@ function DeanDashboardContent() {
         </div>
       )}
 
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
         {activeView === "overview" && (
           <DashboardWelcome
             firstName={user?.firstName}

@@ -14,6 +14,8 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
     const { universityId, email, firstName, middleName, lastName, password, collegeId, programId, role } = req.body;
 
     const normalizedEmail = email.toLowerCase().trim();
+    const requestedRole = String(role || "RESEARCHER").toUpperCase();
+    const isResearcher = requestedRole === "RESEARCHER";
 
     const existingUser = await prisma.user.findFirst({
       where: {
@@ -32,12 +34,51 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
       return;
     }
 
+    let resolvedCollegeId: string | null = null;
+    let resolvedProgramId: string | null = null;
+
+    if (isResearcher) {
+      if (!programId) {
+        res.status(400).json({ error: "Select an active academic program." });
+        return;
+      }
+
+      const selectedProgram = await prisma.program.findFirst({
+        where: {
+          id: programId,
+          isActive: true,
+          college: { isActive: true },
+        },
+        select: { id: true, collegeId: true },
+      });
+
+      if (!selectedProgram || (collegeId && collegeId !== selectedProgram.collegeId)) {
+        res.status(400).json({ error: "The selected program is not available for that college." });
+        return;
+      }
+
+      resolvedProgramId = selectedProgram.id;
+      resolvedCollegeId = selectedProgram.collegeId;
+    } else {
+      if (!collegeId) {
+        res.status(400).json({ error: "Select your assigned college or school." });
+        return;
+      }
+      const selectedCollege = await prisma.college.findFirst({
+        where: { id: collegeId, isActive: true },
+        select: { id: true },
+      });
+      if (!selectedCollege) {
+        res.status(400).json({ error: "The selected college or school is unavailable." });
+        return;
+      }
+      resolvedCollegeId = selectedCollege.id;
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
 
     const isAdmin = normalizedEmail === "admin01@university.edu.ph" || normalizedEmail.includes("admin");
     const initialStatus = isAdmin ? "ACTIVE" : "PENDING";
-    const requestedRole = String(role || "RESEARCHER").toUpperCase();
-    const isResearcher = requestedRole === "RESEARCHER";
     const onboardingToken = isResearcher ? randomBytes(32).toString("hex") : null;
     const onboardingTokenHash = onboardingToken
       ? createHash("sha256").update(onboardingToken).digest("hex")
@@ -51,8 +92,8 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
         middleName,
         lastName,
         passwordHash,
-        collegeId: collegeId || null,
-        programId: programId || null,
+        collegeId: resolvedCollegeId,
+        programId: resolvedProgramId,
         status: initialStatus,
         onboardingTokenHash,
         onboardingTokenExpiresAt: onboardingToken ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null,
@@ -92,6 +133,8 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
+          collegeId: user.collegeId,
+          programId: user.programId,
           status: "PENDING",
         },
         onboardingToken,
@@ -143,8 +186,18 @@ router.post(
         return;
       }
 
+      if (
+        (user.programId && user.programId !== programId) ||
+        (user.collegeId && user.collegeId !== collegeId)
+      ) {
+        res.status(400).json({ error: "Your verified registration program cannot be changed during onboarding." });
+        return;
+      }
+
+      const resolvedProgramId = user.programId || programId;
+      const resolvedCollegeId = user.collegeId || collegeId;
       const [program, academicYear] = await Promise.all([
-        prisma.program.findFirst({ where: { id: programId, collegeId, isActive: true } }),
+        prisma.program.findFirst({ where: { id: resolvedProgramId, collegeId: resolvedCollegeId, isActive: true, college: { isActive: true } } }),
         prisma.academicYear.findFirst({ where: { id: academicYearId, isActive: true } }),
       ]);
 
@@ -161,8 +214,8 @@ router.post(
         prisma.user.update({
           where: { id: user.id },
           data: {
-            collegeId,
-            programId,
+            collegeId: resolvedCollegeId,
+            programId: resolvedProgramId,
             onboardingTokenHash: null,
             onboardingTokenExpiresAt: null,
           },
@@ -200,8 +253,13 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
   try {
     const { email, password } = req.body;
     const normalizedEmail = (email || "").toLowerCase().trim();
+    const demoProvisioningEnabled =
+      process.env.NODE_ENV !== "production" &&
+      process.env.ALLOW_DEMO_ACCOUNT_PROVISIONING === "true";
+    const demoAccountPassword = process.env.DEMO_ACCOUNT_PASSWORD;
 
     let user = null;
+    let databaseLookupFailed = false;
     try {
       user = await prisma.user.findUnique({
         where: { email: normalizedEmail },
@@ -214,7 +272,8 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
         },
       });
     } catch (dbError) {
-      console.warn("Database lookup failed, falling back to demo check:", dbError);
+      databaseLookupFailed = true;
+      console.error("Database lookup failed during login:", dbError);
     }
 
     if (!user || !user.passwordHash) {
@@ -264,16 +323,18 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
         "superadmin01@university.edu.ph": { role: "SYSTEM_ADMIN", firstName: "System", lastName: "Administrator", universityId: "SYSADMIN-001" },
         "admin@advisio.edu.ph": { role: "SYSTEM_ADMIN", firstName: "System", lastName: "Administrator", universityId: "SYSADMIN-002" },
       };
-      const demoAccount = demoAccounts[normalizedEmail];
+      const demoAccount = demoProvisioningEnabled
+        ? demoAccounts[normalizedEmail]
+        : undefined;
 
       if (demoAccount) {
-        if (password !== "password123" && password !== "Admin@12345" && password !== "Adviser@12345" && password !== "Student@12345") {
+        if (!demoAccountPassword || password !== demoAccountPassword) {
           res.status(401).json({ error: "Invalid email or password" });
           return;
         }
 
         try {
-          const passwordHash = await bcrypt.hash(password || "password123", 10);
+          const passwordHash = await bcrypt.hash(demoAccountPassword, 10);
           const firstName = demoAccount.firstName;
           const lastName = demoAccount.lastName;
           const roleName = demoAccount.role;
@@ -310,26 +371,20 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
             },
           });
           return;
-        } catch {
-          const demoId = `demo-${Date.now()}`;
-          const token = generateToken(demoId);
-          res.json({
-            message: "Login successful",
-            token,
-            user: {
-              id: demoId,
-              universityId: demoAccount.universityId || "UA-2026-DEMO",
-              email: normalizedEmail,
-              firstName: demoAccount.firstName,
-              lastName: demoAccount.lastName,
-              roles: [demoAccount.role],
-            },
+        } catch (provisioningError) {
+          console.error("Demo account provisioning failed:", provisioningError);
+          res.status(503).json({
+            error: "The account service is temporarily unavailable.",
           });
           return;
         }
       }
 
-      res.status(401).json({ error: "Invalid email or password. Please verify your credentials or register." });
+      res.status(databaseLookupFailed ? 503 : 401).json({
+        error: databaseLookupFailed
+          ? "The account service is temporarily unavailable."
+          : "Invalid email or password. Please verify your credentials or register.",
+      });
       return;
     }
 
@@ -400,6 +455,25 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
       return;
     }
 
+    if (req.user.id.startsWith("demo-")) {
+      res.json({
+        user: {
+          id: req.user.id,
+          universityId: req.user.universityId,
+          email: req.user.email,
+          firstName: req.user.firstName || "Demo",
+          middleName: null,
+          lastName: req.user.lastName || "User",
+          college: null,
+          program: null,
+          appearancePreference: "SYSTEM",
+          roles: req.user.roles,
+          permissions: req.user.permissions,
+        },
+      });
+      return;
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
       include: {
@@ -428,12 +502,44 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
         lastName: user.lastName,
         college: user.college,
         program: user.program,
+        appearancePreference: user.appearancePreference,
         roles: req.user.roles,
         permissions: req.user.permissions,
       },
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to fetch user profile" });
+  }
+});
+
+// PATCH /api/auth/me/appearance
+router.patch("/me/appearance", requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const appearancePreference = String(req.body.appearancePreference || "").toUpperCase();
+    if (!(["LIGHT", "DARK", "SYSTEM"] as const).includes(appearancePreference as any)) {
+      res.status(400).json({ error: "Appearance must be LIGHT, DARK, or SYSTEM." });
+      return;
+    }
+
+    if (req.user.id.startsWith("demo-")) {
+      res.json({ appearancePreference });
+      return;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { appearancePreference: appearancePreference as "LIGHT" | "DARK" | "SYSTEM" },
+      select: { appearancePreference: true },
+    });
+
+    res.json({ appearancePreference: user.appearancePreference });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to save appearance preference" });
   }
 });
 

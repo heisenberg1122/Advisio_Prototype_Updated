@@ -97,6 +97,13 @@ const generalDemoAccounts: DemoAccount[] = [
 ];
 
 export default function LoginPage() {
+  const demoAccountPassword =
+    import.meta.env.VITE_DEMO_ACCOUNT_PASSWORD ||
+    (import.meta.env.DEV ? "password123" : "");
+  const demoAccountsEnabled =
+    Boolean(demoAccountPassword) &&
+    (import.meta.env.DEV ||
+      import.meta.env.VITE_ENABLE_DEMO_ACCOUNTS === "true");
   const router = useRouter();
   const navigate = useNavigate();
   const location = useLocation();
@@ -148,7 +155,11 @@ export default function LoginPage() {
     } finally { setLoading(false); }
   };
 
-  const fillDemo = (demoEmail: string) => { setEmail(demoEmail); setPassword("password123"); setError(null); };
+  const fillDemo = (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword(demoAccountPassword);
+    setError(null);
+  };
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#f4f7fb] font-sans text-slate-900 lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(500px,.92fr)]">
@@ -234,7 +245,7 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-7 text-center text-[12px] text-slate-500">New to Advisio? <Link href="/register" className="font-extrabold text-[#164866] hover:text-[#d98600]">Request an account</Link></p>
-          <div className="mt-8 border-t border-slate-200 pt-5">
+          {demoAccountsEnabled && <div className="mt-8 border-t border-slate-200 pt-5">
             <button
               type="button"
               onClick={() => setShowDemoAccs(!showDemoAccs)}
@@ -298,10 +309,10 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <p className="pt-1 text-center text-[9px] text-slate-400">Default demo password: <code className="font-semibold text-slate-600">password123</code></p>
+                <p className="pt-1 text-center text-[9px] text-slate-400">Demo access is enabled for this environment.</p>
               </div>
             )}
-          </div>
+          </div>}
           <div className="mt-8 flex items-center justify-center gap-2 text-[10px] text-slate-400"><ShieldCheck size={13} /> Protected university access</div>
         </div>
       </section>

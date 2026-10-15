@@ -15,72 +15,91 @@ import {
   CalendarDays,
   Mail,
 } from "lucide-react";
-import { AppSidebar } from "@/components/layout/AppSidebar";
+import { AppSidebar, NavSection } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
 import { AppWorkspaceFrame } from "@/components/layout/AppWorkspaceFrame";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 
-const NAV_ITEMS = [
+const SYSTEM_ADMIN_NAV_SECTIONS: NavSection[] = [
   {
-    label: "Overview",
-    href: "/system-admin/dashboard",
-    tabName: "overview",
-    icon: LayoutDashboard,
+    title: "HOME",
+    items: [
+      {
+        label: "Overview",
+        href: "/system-admin/dashboard",
+        tabName: "overview",
+        icon: LayoutDashboard,
+      },
+      {
+        label: "Announcements",
+        href: "/system-admin/dashboard?tab=announcements",
+        tabName: "announcements",
+        icon: Megaphone,
+      },
+    ],
   },
   {
-    label: "Announcements",
-    href: "/system-admin/dashboard?tab=announcements",
-    tabName: "announcements",
-    icon: Megaphone,
+    title: "SYSTEM ADMINISTRATION",
+    items: [
+      {
+        label: "Users",
+        href: "/system-admin/dashboard?tab=users",
+        tabName: "users",
+        icon: Users,
+      },
+      {
+        label: "College & Programs",
+        href: "/system-admin/dashboard?tab=onboarding",
+        tabName: "onboarding",
+        icon: Building2,
+      },
+      {
+        label: "Role Permissions",
+        href: "/system-admin/dashboard?tab=roles",
+        tabName: "roles",
+        icon: Shield,
+      },
+      {
+        label: "System Configuration",
+        href: "/system-admin/dashboard?tab=config",
+        tabName: "config",
+        icon: Wrench,
+      },
+      {
+        label: "Integrations",
+        href: "/system-admin/dashboard?tab=integrations",
+        tabName: "integrations",
+        icon: CloudCog,
+      },
+      {
+        label: "Audit Logs",
+        href: "/system-admin/dashboard?tab=logs",
+        tabName: "logs",
+        icon: FileText,
+      },
+      {
+        label: "Database Backups",
+        href: "/system-admin/dashboard?tab=backups",
+        tabName: "backups",
+        icon: Database,
+      },
+    ],
   },
   {
-    label: "Users",
-    href: "/system-admin/dashboard?tab=users",
-    tabName: "users",
-    icon: Users,
+    title: "COMMUNICATION & SCHEDULE",
+    items: [
+      {
+        label: "Calendar",
+        href: "/system-admin/calendar",
+        icon: CalendarDays,
+      },
+      {
+        label: "Inbox",
+        href: "/system-admin/inbox",
+        icon: Mail,
+      },
+    ],
   },
-  {
-    label: "College & Programs",
-    href: "/system-admin/dashboard?tab=onboarding",
-    tabName: "onboarding",
-    icon: Building2,
-  },
-  {
-    label: "Role Permissions",
-    href: "/system-admin/dashboard?tab=roles",
-    tabName: "roles",
-    icon: Shield,
-  },
-  {
-    label: "System Configuration",
-    href: "/system-admin/dashboard?tab=config",
-    tabName: "config",
-    icon: Wrench,
-  },
-  {
-    label: "Integrations",
-    href: "/system-admin/dashboard?tab=integrations",
-    tabName: "integrations",
-    icon: CloudCog,
-  },
-  {
-    label: "Audit Logs",
-    href: "/system-admin/dashboard?tab=logs",
-    tabName: "logs",
-    icon: FileText,
-  },
-  {
-    label: "Calendar",
-    href: "/system-admin/calendar",
-    icon: CalendarDays,
-  },
-  {
-    label: "Database Backups",
-    href: "/system-admin/dashboard?tab=backups",
-    tabName: "backups",
-    icon: Database,
-  },
-  { label: "Inbox", href: "/system-admin/inbox", icon: Mail },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -122,7 +141,7 @@ function SystemAdminLayoutInner({ children }: { children: React.ReactNode }) {
         <AppSidebar
           roleTitle="System Administrator"
           roleBadge="ADMIN CONSOLE"
-          navItems={NAV_ITEMS}
+          navSections={SYSTEM_ADMIN_NAV_SECTIONS}
           collapsed={collapsed}
           onToggleCollapse={toggle}
           settingsHref="/system-admin/dashboard?tab=settings"
@@ -155,7 +174,7 @@ export default function SystemAdminLayout({
 }) {
   return (
     <Suspense
-      fallback={<div className="min-h-screen bg-[#F4F6F8] dark:bg-[#080E18]" />}
+      fallback={<div className="min-h-screen bg-[var(--sidebar-background)]" />}
     >
       <SystemAdminLayoutInner>{children}</SystemAdminLayoutInner>
     </Suspense>

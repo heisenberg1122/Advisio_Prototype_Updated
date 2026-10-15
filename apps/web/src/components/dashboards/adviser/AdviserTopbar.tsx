@@ -4,12 +4,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { AppTopbar } from "@/components/layout/AppTopbar";
 
 const PAGE_TITLES: Record<string, string> = {
-  "/adviser/advisees": "My Advisees",
-  "/adviser/requests": "Milestone Requests",
-  "/adviser/consultations": "Consultations",
   "/adviser/reviews": "Document Reviews",
-  "/adviser/tasks": "Tasks",
-  "/adviser/announcements": "Announcements",
   "/adviser/profile": "My Profile",
   "/adviser/profile/edit": "Edit Profile",
   "/adviser/notifications": "Notifications",

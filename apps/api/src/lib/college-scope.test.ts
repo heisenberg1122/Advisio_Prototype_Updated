@@ -2,14 +2,38 @@ import { describe, expect, it } from "vitest";
 import { canAccessCollege, getCollegeScope } from "./college-scope.js";
 import type { AuthenticatedUser } from "../middleware/auth.js";
 
-function user(roles: AuthenticatedUser["roles"], collegeId: string | null): AuthenticatedUser {
-  return { id: "user-1", email: "user@example.edu", universityId: "UA-1", roles, permissions: [], collegeId };
+function user(
+  roles: AuthenticatedUser["roles"],
+  collegeId: string | null,
+): AuthenticatedUser {
+  return {
+    id: "user-1",
+    email: "user@example.edu",
+    universityId: "UA-1",
+    roles,
+    permissions: [],
+    collegeId,
+  };
 }
 
 describe("college scope", () => {
-  it.each(["SYSTEM_ADMIN", "RPO", "VPAA"] as const)("gives %s institution-wide scope", (role) => {
-    expect(getCollegeScope(user([role], "cit"))).toEqual({ kind: "institution", collegeId: null });
-    expect(canAccessCollege(user([role], "cit"), "accountancy")).toBe(true);
+  it.each(["SYSTEM_ADMIN", "VPAA"] as const)(
+    "gives %s institution-wide scope",
+    (role) => {
+      expect(getCollegeScope(user([role], "cit"))).toEqual({
+        kind: "institution",
+        collegeId: null,
+      });
+      expect(canAccessCollege(user([role], "cit"), "accountancy")).toBe(true);
+    },
+  );
+
+  it("keeps RPO authority within the assigned college", () => {
+    const rpo = user(["RPO"], "cit");
+    expect(getCollegeScope(rpo)).toEqual({ kind: "college", collegeId: "cit" });
+    expect(canAccessCollege(rpo, "cit")).toBe(true);
+    expect(canAccessCollege(rpo, "accountancy")).toBe(false);
+    expect(getCollegeScope(user(["RPO"], null)).kind).toBe("unassigned");
   });
 
   it("limits a college role to its assigned college", () => {

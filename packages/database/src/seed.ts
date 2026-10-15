@@ -1,4 +1,5 @@
 import { PrismaClient, InstitutionalRole } from "@prisma/client";
+import { programCatalogKey, upsertVerifiedPrograms } from "./program-catalog.js";
 
 const prisma = new PrismaClient();
 
@@ -123,16 +124,9 @@ async function main() {
     },
   });
 
-  const bsit = await prisma.program.upsert({
-    where: { collegeId_code: { collegeId: cit.id, code: "BSIT" } },
-    update: { name: "Bachelor of Science in Information Technology" },
-    create: {
-      collegeId: cit.id,
-      code: "BSIT",
-      name: "Bachelor of Science in Information Technology",
-      description: "BSIT Undergraduate Degree Program",
-    },
-  });
+  const verifiedPrograms = await upsertVerifiedPrograms(prisma);
+  const bsit = verifiedPrograms.get(programCatalogKey("CIT", "BSIT"));
+  if (!bsit) throw new Error("The verified BSIT program could not be seeded.");
 
   const ay2526 = await prisma.academicYear.upsert({
     where: { name: "2025-2026" },

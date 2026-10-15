@@ -1,7 +1,10 @@
 import type { Request, Response } from "express";
 import type { AuthenticatedUser } from "../middleware/auth.js";
 
-export const INSTITUTION_WIDE_ROLES = new Set(["SYSTEM_ADMIN", "RPO", "VPAA"]);
+// System administrators need institution-wide operational visibility and the
+// VPAA has institution-wide academic scope. RPO/Dean access is college-bound
+// and must never become global simply because the account lacks a college.
+export const INSTITUTION_WIDE_ROLES = new Set(["SYSTEM_ADMIN", "VPAA"]);
 
 export type CollegeScope =
   | { kind: "institution"; collegeId: null }
@@ -16,19 +19,33 @@ export function getCollegeScope(user: AuthenticatedUser): CollegeScope {
   return { kind: "unassigned", collegeId: null };
 }
 
-export function canAccessCollege(user: AuthenticatedUser, collegeId: string | null | undefined): boolean {
+export function canAccessCollege(
+  user: AuthenticatedUser,
+  collegeId: string | null | undefined,
+): boolean {
   const scope = getCollegeScope(user);
-  return scope.kind === "institution" || (scope.kind === "college" && scope.collegeId === collegeId);
+  return (
+    scope.kind === "institution" ||
+    (scope.kind === "college" && scope.collegeId === collegeId)
+  );
 }
 
-export function requireAssignedCollege(req: Request, res: Response): string | null {
+export function requireAssignedCollege(
+  req: Request,
+  res: Response,
+): string | null {
   if (!req.user) {
     res.status(401).json({ error: "Authentication required" });
     return null;
   }
   const scope = getCollegeScope(req.user);
   if (scope.kind === "unassigned") {
-    res.status(403).json({ error: "Your account has not been assigned to a college or school. Contact the System Administrator." });
+    res
+      .status(403)
+      .json({
+        error:
+          "Your account has not been assigned to a college or school. Contact the System Administrator.",
+      });
     return null;
   }
   return scope.collegeId;

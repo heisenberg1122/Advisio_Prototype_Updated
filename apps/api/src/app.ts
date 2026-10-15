@@ -26,6 +26,8 @@ import calendarRoutes from "./routes/calendar.routes";
 import groupFileRoutes from "./routes/group-file.routes";
 import mailRoutes from "./routes/mail.routes";
 import defensePacketRoutes from "./routes/defense-packet.routes";
+import reviewerAssignmentRoutes from "./routes/reviewer-assignment.routes";
+import officialCopyRoutes from "./routes/official-copy.routes";
 import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
@@ -83,6 +85,8 @@ app.use("/api", calendarRoutes);
 app.use("/api", groupFileRoutes);
 app.use("/api/mail", mailRoutes);
 app.use("/api", defensePacketRoutes);
+app.use("/api", reviewerAssignmentRoutes);
+app.use("/api", officialCopyRoutes);
 
 // Root fallback
 app.get("/", (_req, res) => {

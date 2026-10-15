@@ -30,7 +30,7 @@ export function AppWorkspaceFrame({
   return (
     <div
       className={cn(
-        "min-h-screen bg-[#F4F6F8] text-[#17212B] dark:bg-[#080E18] dark:text-[#F1F5F9]",
+        "min-h-screen bg-[var(--sidebar-background)] text-[var(--color-text-primary)]",
         isDark && "dark"
       )}
     >
@@ -38,25 +38,18 @@ export function AppWorkspaceFrame({
 
       <div
         className={cn(
-          "flex min-h-screen min-w-0 flex-col transition-all duration-300 ease-in-out",
-          collapsed ? "lg:pl-[72px]" : "lg:pl-[240px]"
+          "flex min-h-screen min-w-0 flex-col transition-all duration-300 ease-in-out bg-[var(--sidebar-background)]",
+          collapsed ? "lg:pl-[72px]" : "lg:pl-[260px]"
         )}
       >
         {topbar}
         <main
           className={cn(
-            "flex min-w-0 flex-1 flex-col px-2 pb-2 sm:px-4 sm:pb-4 lg:pr-6 lg:pb-6",
-            collapsed ? "lg:pl-2" : "lg:pl-6"
+            "app-workspace flex min-h-[calc(100vh-4rem)] min-w-0 flex-1 flex-col rounded-tl-[32px] bg-white dark:bg-[var(--color-surface)] border-0 outline-none shadow-none",
+            shouldPadContent && "p-4 sm:p-6 lg:p-8"
           )}
         >
-          <div
-            className={cn(
-              "app-workspace min-h-[calc(100vh-80px)] flex-1 overflow-hidden rounded-2xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] dark:bg-[#101B2B] sm:min-h-[calc(100vh-88px)] lg:min-h-[calc(100vh-96px)] lg:rounded-[20px]",
-              shouldPadContent && "p-4 sm:p-6 lg:p-8"
-            )}
-          >
-            {children}
-          </div>
+          {children}
         </main>
       </div>
     </div>

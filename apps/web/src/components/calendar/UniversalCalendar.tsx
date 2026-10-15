@@ -325,26 +325,24 @@ export default function UniversalCalendar() {
   if (calendar.isLoading) return <CalendarSkeleton />;
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-4 p-3 sm:space-y-5 sm:p-6 lg:p-8">
-      <section className="relative overflow-hidden rounded-[28px] bg-[#0B3A53] px-5 py-6 text-white shadow-[0_18px_45px_rgba(11,58,83,.2)] sm:px-7 sm:py-7">
-        <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-sky-300/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 left-1/3 h-44 w-44 rounded-full bg-[#ffb21c]/10 blur-3xl" />
+    <div className="mx-auto w-full max-w-[1800px] space-y-5 p-3 sm:p-5 lg:p-6 xl:p-7">
+      <section className="college-hero-surface relative overflow-hidden rounded-[24px] border px-5 py-6 sm:px-7 sm:py-7">
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/10 text-[#ffbf3c] ring-1 ring-white/10"><CalendarDays size={24} /></span>
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[var(--color-primary-light)] text-[var(--color-primary)] ring-1 ring-[var(--college-focus-ring)]"><CalendarDays size={24} /></span>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[.24em] text-[#ffbf3c]">Universal Calendar</p>
-              <h1 className="mt-1.5 text-2xl font-black tracking-tight sm:text-3xl">Your Advisio schedule</h1>
-              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-200">Review deadlines, defenses, consultations, and availability in one shared calendar.</p>
+              <p className="text-[10px] font-black uppercase tracking-[.24em] text-[var(--color-primary)]">Universal Calendar</p>
+              <h1 className="mt-1.5 text-2xl font-black tracking-tight text-[var(--color-text-primary)] sm:text-3xl">Your Advisio schedule</h1>
+              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[var(--color-text-secondary)]">Review deadlines, defenses, consultations, and availability in one shared calendar.</p>
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="rounded-2xl border border-white/10 bg-white/[.08] px-4 py-3 text-xs font-semibold backdrop-blur">
-              <span className="mb-0.5 block text-[9px] font-black uppercase tracking-widest text-[#ffcf70]">Your calendar scope</span>
+            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 px-4 py-3 text-xs font-semibold text-[var(--color-text-secondary)] shadow-[var(--shadow-card)] backdrop-blur">
+              <span className="mb-0.5 block text-[9px] font-black uppercase tracking-widest text-[var(--color-primary)]">Your calendar scope</span>
               {isPanelist ? "Events and defenses assigned to you" : user?.program?.name || user?.college?.name || "Institution events assigned to you"}
             </div>
             {canSchedule && (
-              <button onClick={() => openComposer(new Date())} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#ffb21c] px-4 text-xs font-black text-[#0B3A53] shadow-sm transition hover:bg-[#ffc44f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+              <button onClick={() => openComposer(new Date())} className="college-focus inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 text-xs font-black text-[var(--college-on-primary)] shadow-sm transition hover:bg-[var(--color-primary-dark)] focus-visible:outline-none dark:text-[var(--college-on-primary-dark)]">
                 <Plus size={16} />New entry
               </button>
             )}
@@ -352,23 +350,23 @@ export default function UniversalCalendar() {
         </div>
       </section>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_320px] xl:gap-5">
-        <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#101b2b]">
-          <div className="flex flex-col gap-4 border-b border-slate-200 p-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_344px]">
+        <section className="overflow-hidden rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)]">
+          <div className="flex flex-col gap-4 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-[#B77900] dark:bg-amber-400/10 dark:text-amber-300"><CalendarDays size={20} /></span>
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)]"><CalendarDays size={20} /></span>
               <div>
-                <h2 className="text-base font-black text-slate-900 dark:text-white">{cursor.toLocaleDateString("en-PH", { month: "long", year: "numeric" })}</h2>
+                <h2 className="text-base font-black text-[var(--color-text-primary)]">{cursor.toLocaleDateString("en-PH", { month: "long", year: "numeric" })}</h2>
                 <p className="text-[11px] font-semibold text-slate-400">Philippine Time{canSchedule ? " · Select any date to add an entry" : ""}</p>
               </div>
             </div>
             <div className="grid grid-cols-[40px_1fr_40px] items-center gap-2 sm:flex">
-              <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:border-[#C98B00]/50 hover:bg-amber-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/5" aria-label="Previous month"><ChevronLeft size={18} /></button>
-              <button onClick={() => setCursor(new Date())} className="h-10 rounded-xl border border-slate-200 px-4 text-xs font-black text-slate-700 transition hover:border-[#C98B00]/50 hover:bg-amber-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/5">Today</button>
-              <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:border-[#C98B00]/50 hover:bg-amber-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/5" aria-label="Next month"><ChevronRight size={18} /></button>
+              <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)]" aria-label="Previous month"><ChevronLeft size={18} /></button>
+              <button onClick={() => setCursor(new Date())} className="h-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 text-xs font-black text-[var(--color-text-primary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)]">Today</button>
+              <button onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)]" aria-label="Next month"><ChevronRight size={18} /></button>
             </div>
           </div>
-          <div className="flex items-center gap-4 overflow-x-auto border-b border-slate-100 px-4 py-3 dark:border-white/5 sm:px-5">
+          <div className="flex items-center gap-4 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 py-3 sm:px-5">
             <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400">Event types</span>
             <div className="flex items-center gap-4">
               {(["ACADEMIC", "CONSULTATION", "DEFENSE", "DEADLINE", "MILESTONE", "AVAILABILITY"] as CalendarEventType[]).map((type) => (
@@ -379,8 +377,8 @@ export default function UniversalCalendar() {
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/80 dark:border-white/10 dark:bg-white/[.03]">
-            {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((day) => <div key={day} className="px-1 py-2.5 text-center text-[9px] font-black uppercase tracking-wider text-slate-400 sm:px-2 sm:text-[10px]"><span className="sm:hidden">{day.slice(0, 1)}</span><span className="hidden sm:inline">{day.slice(0, 3)}</span></div>)}
+          <div className="grid grid-cols-7 border-b border-[var(--color-border)] bg-[var(--color-surface-muted)]/55">
+            {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((day) => <div key={day} className="px-1 py-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400"><span className="sm:hidden">{day.slice(0, 1)}</span><span className="hidden sm:inline">{day.slice(0, 3)}</span></div>)}
           </div>
           {calendar.isError ? (
             <div className="grid min-h-[420px] place-items-center p-8 text-center"><div><CalendarDays className="mx-auto text-rose-300" size={30} /><p className="mt-3 text-sm font-bold text-rose-600">The calendar could not be loaded.</p><p className="mt-1 text-xs text-slate-400">Refresh the page to try again.</p></div></div>
@@ -391,6 +389,7 @@ export default function UniversalCalendar() {
                 const dayEvents = eventsByDay.get(key) || [];
                 const inMonth = day.getMonth() === cursor.getMonth();
                 const today = key === dateKey(new Date());
+                const weekend = day.getDay() === 0 || day.getDay() === 6;
                 return (
                   <div
                     key={key}
@@ -404,11 +403,11 @@ export default function UniversalCalendar() {
                         setSelectedDay(day);
                       }
                     }}
-                    className={`group min-h-[72px] cursor-pointer border-b border-r border-slate-100 p-1 outline-none transition hover:z-10 hover:bg-amber-50/60 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#C98B00] dark:border-white/5 dark:hover:bg-white/5 sm:min-h-[118px] sm:p-2 ${inMonth ? "bg-white dark:bg-[#101b2b]" : "bg-slate-50/60 dark:bg-black/10"}`}
+                    className={`group min-h-[72px] cursor-pointer border-b border-r border-[var(--color-border)] p-1 outline-none transition hover:z-10 hover:bg-[var(--color-primary-light)]/55 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-primary)] sm:min-h-[112px] sm:p-2 ${inMonth ? weekend ? "bg-[var(--color-surface-subtle)]" : "bg-[var(--color-surface)]" : "bg-[var(--color-surface-muted)]/45"}`}
                   >
                     <div className="mb-1.5 flex items-center justify-between">
-                      <span className={`grid h-7 w-7 place-items-center rounded-full text-[11px] font-black sm:h-8 sm:w-8 sm:text-xs ${today ? "bg-[#0B3A53] text-white shadow-sm ring-2 ring-[#ffb21c]/50 dark:bg-sky-400 dark:text-slate-950" : inMonth ? "text-slate-700 dark:text-slate-200" : "text-slate-300 dark:text-slate-600"}`}>{day.getDate()}</span>
-                      <span className="hidden text-[8px] font-black uppercase tracking-wide text-[#9A6A00] group-hover:sm:inline">View</span>
+                      <span className={`grid h-7 w-7 place-items-center rounded-full text-xs font-semibold sm:h-8 sm:w-8 ${today ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : inMonth ? "text-slate-800 dark:text-slate-200" : "text-slate-400 dark:text-slate-500"}`}>{day.getDate()}</span>
+                      <span className="hidden text-[8px] font-black uppercase tracking-wide text-[var(--color-primary)] group-hover:sm:inline">View</span>
                     </div>
                     <div className="flex items-center gap-1 px-1 sm:hidden">
                       {dayEvents.slice(0, 3).map((calendarEvent) => <span key={calendarEvent.id} className={`h-2 w-2 rounded-full border ${COLORS[calendarEvent.type] || COLORS.OTHER}`} />)}
@@ -419,12 +418,12 @@ export default function UniversalCalendar() {
                         <button
                           key={calendarEvent.id}
                           onClick={(event) => { event.stopPropagation(); setSelectedEvent(calendarEvent); }}
-                          className={`block w-full truncate rounded-lg border px-2 py-1 text-left text-[9px] font-bold transition hover:brightness-95 ${COLORS[calendarEvent.type] || COLORS.OTHER}`}
+                          className={`block w-full truncate rounded-md border px-2 py-1 text-left text-[11px] font-medium transition hover:brightness-95 ${COLORS[calendarEvent.type] || COLORS.OTHER}`}
                         >
                           {calendarEvent.allDay ? "" : `${timeText(calendarEvent.startsAt)} `}{calendarEvent.title}
                         </button>
                       ))}
-                      {dayEvents.length > 3 && <button onClick={(event) => { event.stopPropagation(); setSelectedDay(day); }} className="px-1 text-[9px] font-black text-slate-500 hover:text-[#0B3A53] dark:text-slate-400">+{dayEvents.length - 3} more</button>}
+                      {dayEvents.length > 3 && <button onClick={(event) => { event.stopPropagation(); setSelectedDay(day); }} className="px-1 text-xs font-semibold text-slate-500 hover:text-[var(--color-primary)] dark:text-slate-400">+{dayEvents.length - 3} more</button>}
                     </div>
                   </div>
                 );
@@ -433,19 +432,19 @@ export default function UniversalCalendar() {
           )}
         </section>
 
-        <aside className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-[#101b2b] sm:p-5 xl:sticky xl:top-5">
+        <aside className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-5 xl:sticky xl:top-5">
           <div className="flex items-start justify-between gap-3">
-            <div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[#C98B00]">Coming up</p><h2 className="mt-1 text-lg font-black text-slate-900 dark:text-white">Upcoming events</h2></div>
-            <span className="grid h-9 min-w-9 place-items-center rounded-xl bg-slate-100 px-2 text-xs font-black text-[#0B3A53] dark:bg-white/10 dark:text-sky-300">{upcoming.length}</span>
+            <div><p className="text-[10px] font-black uppercase tracking-[.18em] text-[var(--color-primary)]">Coming up</p><h2 className="mt-1 text-lg font-black text-[var(--color-text-primary)]">Upcoming events</h2></div>
+            <span className="grid h-9 min-w-9 place-items-center rounded-xl bg-[var(--color-primary-light)] px-2 text-xs font-black text-[var(--color-primary)]">{upcoming.length}</span>
           </div>
           <p className="mt-1 text-xs text-slate-400">Your next assigned dates in this calendar view.</p>
           <div className="mt-4 space-y-2.5">
             {upcoming.length ? upcoming.map((calendarEvent) => (
-              <button key={calendarEvent.id} onClick={() => setSelectedEvent(calendarEvent)} className="group flex w-full items-start gap-3 rounded-2xl border border-slate-100 p-3 text-left transition hover:-translate-y-0.5 hover:border-[#C9A227]/50 hover:bg-amber-50/40 hover:shadow-sm dark:border-white/10 dark:hover:bg-white/5">
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#0B3A53] text-center text-white dark:bg-sky-400 dark:text-slate-950"><span><span className="block text-[8px] font-black uppercase leading-none">{new Date(calendarEvent.startsAt).toLocaleDateString("en-PH", { timeZone: TZ, month: "short" })}</span><span className="mt-0.5 block text-base font-black leading-none">{new Date(calendarEvent.startsAt).toLocaleDateString("en-PH", { timeZone: TZ, day: "numeric" })}</span></span></span>
-                <span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-2"><strong className="line-clamp-2 text-xs leading-5 text-slate-800 dark:text-white">{calendarEvent.title}</strong><ChevronRight size={14} className="mt-0.5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#C98B00]" /></span><span className="mt-1 block text-[10px] font-semibold text-slate-500 dark:text-slate-400">{prettyType(calendarEvent.type)} · {calendarEvent.allDay ? "All day" : timeText(calendarEvent.startsAt)}</span></span>
+              <button key={calendarEvent.id} onClick={() => setSelectedEvent(calendarEvent)} className="group flex w-full items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-sm">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--color-primary-light)] text-center text-[var(--color-primary)]"><span><span className="block text-[8px] font-black uppercase leading-none">{new Date(calendarEvent.startsAt).toLocaleDateString("en-PH", { timeZone: TZ, month: "short" })}</span><span className="mt-0.5 block text-base font-black leading-none">{new Date(calendarEvent.startsAt).toLocaleDateString("en-PH", { timeZone: TZ, day: "numeric" })}</span></span></span>
+                <span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-2"><strong className="line-clamp-2 text-xs leading-5 text-[var(--color-text-primary)]">{calendarEvent.title}</strong><ChevronRight size={14} className="mt-0.5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[var(--color-primary)]" /></span><span className="mt-1 block text-[10px] font-semibold text-slate-500 dark:text-slate-400">{prettyType(calendarEvent.type)} · {calendarEvent.allDay ? "All day" : timeText(calendarEvent.startsAt)}</span></span>
               </button>
-            )) : <div className="rounded-2xl bg-slate-50 p-7 text-center dark:bg-white/5"><CalendarDays className="mx-auto text-slate-300" size={26} /><p className="mt-3 text-xs font-bold text-slate-500 dark:text-slate-300">No upcoming events</p><p className="mt-1 text-[10px] text-slate-400">Your schedule is clear for this view.</p></div>}
+            )) : <div className="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-7 text-center"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--color-primary-light)] text-[var(--color-primary)]"><CalendarDays size={24} /></span><p className="mt-4 text-sm font-bold text-[var(--color-text-primary)]">No upcoming events</p><p className="mt-1 max-w-48 text-xs leading-5 text-[var(--color-text-secondary)]">Your schedule is clear for this calendar view.</p></div>}
           </div>
         </aside>
       </div>
@@ -506,23 +505,23 @@ function DayOverviewDialog({ day, events, options, onClose, onOpenEvent, onCreat
 }) {
   return (
     <div className="fixed inset-0 z-[100] grid items-end overflow-y-auto bg-slate-950/60 p-0 backdrop-blur-sm sm:place-items-center sm:p-4" onClick={(event) => event.target === event.currentTarget && onClose()}>
-      <section role="dialog" aria-modal="true" aria-labelledby="day-overview-title" className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-2xl dark:bg-[#101b2b] sm:my-6 sm:rounded-[28px] sm:p-6">
+      <section role="dialog" aria-modal="true" aria-labelledby="day-overview-title" className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-modal)] sm:my-6 sm:rounded-[28px] sm:p-6">
         <div className="flex items-start justify-between gap-4">
-          <div><p className="text-[10px] font-black uppercase tracking-widest text-[#C98B00]">Day overview</p><h2 id="day-overview-title" className="mt-1 text-xl font-black text-slate-900 dark:text-white">{day.toLocaleDateString("en-PH", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</h2></div>
+          <div><p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-primary)]">Day overview</p><h2 id="day-overview-title" className="mt-1 text-xl font-black text-[var(--color-text-primary)]">{day.toLocaleDateString("en-PH", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</h2></div>
           <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm font-bold text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5">Close</button>
         </div>
         <div className="mt-5 space-y-2">
           {events.length ? events.map((calendarEvent) => (
-            <button key={calendarEvent.id} onClick={() => onOpenEvent(calendarEvent)} className="flex w-full items-center gap-3 rounded-xl border border-slate-200 p-3 text-left transition hover:border-[#C98B00] hover:bg-amber-50/30 dark:border-white/10 dark:hover:bg-white/5">
+            <button key={calendarEvent.id} onClick={() => onOpenEvent(calendarEvent)} className="flex w-full items-center gap-3 rounded-xl border border-[var(--color-border)] p-3 text-left transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]/45">
               <span className={`rounded-lg border px-2 py-1 text-[9px] font-black ${COLORS[calendarEvent.type] || COLORS.OTHER}`}>{prettyType(calendarEvent.type)}</span>
-              <span className="min-w-0 flex-1"><strong className="block truncate text-sm text-slate-800 dark:text-white">{calendarEvent.title}</strong><span className="mt-0.5 block text-xs text-slate-500">{calendarEvent.allDay ? "All day" : `${timeText(calendarEvent.startsAt)}–${timeText(calendarEvent.endsAt)}`}</span></span>
+              <span className="min-w-0 flex-1"><strong className="block truncate text-sm text-[var(--color-text-primary)]">{calendarEvent.title}</strong><span className="mt-0.5 block text-xs text-slate-500">{calendarEvent.allDay ? "All day" : `${timeText(calendarEvent.startsAt)}–${timeText(calendarEvent.endsAt)}`}</span></span>
               <ChevronRight size={16} className="text-slate-400" />
             </button>
           )) : <div className="rounded-xl bg-slate-50 p-8 text-center dark:bg-white/5"><CalendarDays className="mx-auto text-slate-300" /><p className="mt-3 text-sm font-bold text-slate-600 dark:text-slate-300">No events scheduled</p><p className="mt-1 text-xs text-slate-400">This date is currently clear.</p></div>}
         </div>
         {(options?.canCreate || options?.canManageAvailability) && (
           <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-5 dark:border-white/10">
-            {options.canCreate && <button onClick={onCreateEvent} className="inline-flex items-center gap-2 rounded-xl bg-[#0B3A53] px-4 py-2.5 text-xs font-black text-white"><Plus size={15} />Add event</button>}
+            {options.canCreate && <button onClick={onCreateEvent} className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-xs font-black text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]"><Plus size={15} />Add event</button>}
             {options.canManageAvailability && <button onClick={onCreateAvailability} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-black text-slate-700 dark:border-white/15 dark:text-slate-200"><Clock3 size={15} />Set availability</button>}
           </div>
         )}
@@ -541,23 +540,23 @@ function EventDetailsDialog({ event, cancelling, cancelError, onClose, onEdit, o
 }) {
   return (
     <div className="fixed inset-0 z-[100] grid items-end overflow-y-auto bg-slate-950/60 p-0 backdrop-blur-sm sm:place-items-center sm:p-4" onClick={(click) => click.target === click.currentTarget && onClose()}>
-      <section role="dialog" aria-modal="true" className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-2xl dark:bg-[#101b2b] sm:my-6 sm:rounded-[28px] sm:p-6">
+      <section role="dialog" aria-modal="true" className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-modal)] sm:my-6 sm:rounded-[28px] sm:p-6">
         <div className="flex items-start justify-between gap-4">
-          <div><span className={`inline-flex rounded-lg border px-2 py-1 text-[9px] font-black ${COLORS[event.type] || COLORS.OTHER}`}>{prettyType(event.type)}</span><h2 className="mt-3 text-xl font-black text-slate-900 dark:text-white">{event.title}</h2>{event.creator && <p className="mt-1 text-xs text-slate-400">Added by {event.creator.name}</p>}</div>
+          <div><span className={`inline-flex rounded-lg border px-2 py-1 text-[9px] font-black ${COLORS[event.type] || COLORS.OTHER}`}>{prettyType(event.type)}</span><h2 className="mt-3 text-xl font-black text-[var(--color-text-primary)]">{event.title}</h2>{event.creator && <p className="mt-1 text-xs text-slate-400">Added by {event.creator.name}</p>}</div>
           <button onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm font-bold text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5">Close</button>
         </div>
         {event.description && <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-600 dark:text-slate-300">{event.description}</p>}
         <div className="mt-5 space-y-3 text-xs font-semibold text-slate-600 dark:text-slate-300">
-          <p className="flex gap-2"><Clock3 size={16} className="shrink-0 text-[#C98B00]" />{event.allDay ? allDayText(event) : `${new Date(event.startsAt).toLocaleString("en-PH", { timeZone: TZ, dateStyle: "medium", timeStyle: "short" })} – ${new Date(event.endsAt).toLocaleString("en-PH", { timeZone: TZ, dateStyle: "medium", timeStyle: "short" })}`}</p>
-          {event.availabilityStatus && <p className="flex gap-2"><ShieldAlert size={16} className="shrink-0 text-[#C98B00]" />{AVAILABILITY_LABELS[event.availabilityStatus]}{event.blocksScheduling ? " · Scheduling conflict enabled" : ""}</p>}
-          {event.location && <p className="flex gap-2"><MapPin size={16} className="shrink-0 text-[#C98B00]" />{event.location}</p>}
-          {event.groups.length > 0 && <p className="flex gap-2"><Users size={16} className="shrink-0 text-[#C98B00]" />{event.groups.map((group) => group.name).join(", ")}</p>}
-          {event.participantNames.length > 1 && <p className="flex gap-2"><Users size={16} className="shrink-0 text-[#C98B00]" />{event.participantNames.join(", ")}</p>}
+          <p className="flex gap-2"><Clock3 size={16} className="shrink-0 text-[var(--color-primary)]" />{event.allDay ? allDayText(event) : `${new Date(event.startsAt).toLocaleString("en-PH", { timeZone: TZ, dateStyle: "medium", timeStyle: "short" })} – ${new Date(event.endsAt).toLocaleString("en-PH", { timeZone: TZ, dateStyle: "medium", timeStyle: "short" })}`}</p>
+          {event.availabilityStatus && <p className="flex gap-2"><ShieldAlert size={16} className="shrink-0 text-[var(--color-primary)]" />{AVAILABILITY_LABELS[event.availabilityStatus]}{event.blocksScheduling ? " · Scheduling conflict enabled" : ""}</p>}
+          {event.location && <p className="flex gap-2"><MapPin size={16} className="shrink-0 text-[var(--color-primary)]" />{event.location}</p>}
+          {event.groups.length > 0 && <p className="flex gap-2"><Users size={16} className="shrink-0 text-[var(--color-primary)]" />{event.groups.map((group) => group.name).join(", ")}</p>}
+          {event.participantNames.length > 1 && <p className="flex gap-2"><Users size={16} className="shrink-0 text-[var(--color-primary)]" />{event.participantNames.join(", ")}</p>}
         </div>
         {event.privateNotes && <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-3"><p className="text-[10px] font-black uppercase tracking-wider text-amber-800">Private administrative note</p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-amber-900">{event.privateNotes}</p></div>}
         {cancelError && <p className="mt-4 rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700">{cancelError}</p>}
         <div className="mt-6 flex flex-wrap gap-2">
-          {event.meetingUrl && <a href={event.meetingUrl} target="_blank" rel="noreferrer" className="inline-flex rounded-xl bg-[#0B3A53] px-4 py-2.5 text-xs font-black text-white hover:bg-[#0E4968]">Open meeting</a>}
+          {event.meetingUrl && <a href={event.meetingUrl} target="_blank" rel="noreferrer" className="inline-flex rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-xs font-black text-[var(--college-on-primary)] hover:bg-[var(--color-primary-dark)] dark:text-[var(--college-on-primary-dark)]">Open meeting</a>}
           {event.canEdit && event.source === "CALENDAR" && <button onClick={onEdit} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-black text-slate-700 dark:border-white/15 dark:text-slate-200"><Pencil size={14} />Edit</button>}
           {event.canEdit && event.source === "CALENDAR" && <button onClick={onCancel} disabled={cancelling} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-2.5 text-xs font-black text-rose-700 disabled:opacity-50"><Trash2 size={14} />{cancelling ? "Cancelling…" : "Cancel entry"}</button>}
         </div>
@@ -585,16 +584,16 @@ function CalendarComposer({ form, options, editing, conflicts, conflictsAcknowle
   const availableTypes = [...(options?.canCreate ? standardTypes : []), ...(options?.canManageAvailability ? ["AVAILABILITY" as const] : [])];
   return (
     <div className="fixed inset-0 z-[110] grid items-end overflow-y-auto bg-slate-950/60 p-0 backdrop-blur-sm sm:place-items-center sm:p-4">
-      <form onSubmit={onSubmit} className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-2xl dark:bg-[#101b2b] sm:my-6 sm:rounded-[28px] sm:p-6">
+      <form onSubmit={onSubmit} className="max-h-[94vh] w-full max-w-2xl overflow-y-auto rounded-t-[28px] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-modal)] sm:my-6 sm:rounded-[28px] sm:p-6">
         <div className="flex items-start justify-between gap-4">
-          <div><p className="text-[10px] font-black uppercase tracking-widest text-[#C98B00]">{editing ? "Edit calendar entry" : "New calendar entry"}</p><h2 className="mt-1 text-xl font-black text-slate-900 dark:text-white">{isAvailability ? "Set your availability" : "Schedule the right audience"}</h2></div>
+          <div><p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-primary)]">{editing ? "Edit calendar entry" : "New calendar entry"}</p><h2 className="mt-1 text-xl font-black text-[var(--color-text-primary)]">{isAvailability ? "Set your availability" : "Schedule the right audience"}</h2></div>
           <button type="button" onClick={onClose} className="text-xs font-bold text-slate-400">Close</button>
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="text-xs font-bold">Entry type<select value={form.type} onChange={(event) => { const type = event.target.value as CalendarEventType; onChange({ type, title: type === "AVAILABILITY" ? "Unavailable" : "", allDay: type === "AVAILABILITY", blocksScheduling: type === "AVAILABILITY" }); }} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-[#101b2b]">{availableTypes.map((type) => <option key={type} value={type}>{prettyType(type)}</option>)}</select></label>
-          <label className="text-xs font-bold">Visibility<select value={form.visibility} onChange={(event) => onChange({ visibility: event.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-[#101b2b]"><option value="PARTICIPANTS">{isAvailability ? "Only me" : "Selected groups and people"}</option><option value="PROGRAM">My department/program</option><option value="COLLEGE">My college</option>{options?.canManageAll && <option value="INSTITUTION">Entire institution</option>}</select></label>
+          <label className="text-xs font-bold">Entry type<select value={form.type} onChange={(event) => { const type = event.target.value as CalendarEventType; onChange({ type, title: type === "AVAILABILITY" ? "Unavailable" : "", allDay: type === "AVAILABILITY", blocksScheduling: type === "AVAILABILITY" }); }} className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5">{availableTypes.map((type) => <option key={type} value={type}>{prettyType(type)}</option>)}</select></label>
+          <label className="text-xs font-bold">Visibility<select value={form.visibility} onChange={(event) => onChange({ visibility: event.target.value })} className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5"><option value="PARTICIPANTS">{isAvailability ? "Only me" : "Selected groups and people"}</option><option value="PROGRAM">My department/program</option><option value="COLLEGE">My college</option>{options?.canManageAll && <option value="INSTITUTION">Entire institution</option>}</select></label>
           {isAvailability ? (
-            <label className="sm:col-span-2 text-xs font-bold">Availability status<select value={form.availabilityStatus} onChange={(event) => onChange({ availabilityStatus: event.target.value as AvailabilityStatus })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-[#101b2b]">{Object.entries(AVAILABILITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label className="sm:col-span-2 text-xs font-bold">Availability status<select value={form.availabilityStatus} onChange={(event) => onChange({ availabilityStatus: event.target.value as AvailabilityStatus })} className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5">{Object.entries(AVAILABILITY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           ) : (
             <label className="sm:col-span-2 text-xs font-bold">Title<input required value={form.title} onChange={(event) => onChange({ title: event.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-transparent px-3 py-2.5 dark:border-white/10" /></label>
           )}
@@ -609,7 +608,7 @@ function CalendarComposer({ form, options, editing, conflicts, conflictsAcknowle
         {!isAvailability && form.visibility === "PARTICIPANTS" && <div className="mt-5 grid gap-4 sm:grid-cols-2"><SelectionList title="Research groups" items={(options?.groups || []).map((item) => ({ id: item.id, label: item.name, meta: item.programCode }))} selected={form.researchIds} onChange={(researchIds) => onChange({ researchIds })} /><SelectionList title="Additional people" items={(options?.people || []).map((item) => ({ id: item.id, label: item.name, meta: item.roles.join(", ") }))} selected={form.participantIds} onChange={(participantIds) => onChange({ participantIds })} /></div>}
         {conflicts.length > 0 && <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4"><div className="flex gap-2"><ShieldAlert className="shrink-0 text-amber-700" size={18} /><div><p className="text-xs font-black text-amber-900">Availability conflict detected</p><ul className="mt-2 space-y-1 text-xs text-amber-900">{conflicts.map((conflict) => <li key={conflict.eventId}>{conflict.name} is marked {AVAILABILITY_LABELS[conflict.status].toLowerCase()} during this schedule.</li>)}</ul><label className="mt-3 flex items-start gap-2 text-xs font-bold text-amber-900"><input className="mt-0.5" type="checkbox" checked={conflictsAcknowledged} onChange={(event) => onAcknowledgeConflicts(event.target.checked)} />I reviewed the conflict and want to continue.</label></div></div></div>}
         {error && <p className="mt-4 rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700">{error}</p>}
-        <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold dark:border-white/10">Cancel</button><button disabled={saving || (conflicts.length > 0 && !conflictsAcknowledged)} className="rounded-xl bg-[#0B3A53] px-5 py-2.5 text-xs font-black text-white disabled:opacity-50">{saving ? "Saving…" : conflicts.length > 0 ? "Schedule anyway" : editing ? "Save changes" : isAvailability ? "Save availability" : "Schedule event"}</button></div>
+        <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={onClose} className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-xs font-bold">Cancel</button><button disabled={saving || (conflicts.length > 0 && !conflictsAcknowledged)} className="rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-xs font-black text-[var(--college-on-primary)] disabled:opacity-50 dark:text-[var(--college-on-primary-dark)]">{saving ? "Saving…" : conflicts.length > 0 ? "Schedule anyway" : editing ? "Save changes" : isAvailability ? "Save availability" : "Schedule event"}</button></div>
       </form>
     </div>
   );

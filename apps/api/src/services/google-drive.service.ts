@@ -29,6 +29,19 @@ export interface DriveFileResult {
   webContentLink: string;
   storagePath: string;
 }
+export interface DriveSnapshotResult {
+  buffer: Buffer;
+  fileName: string;
+  mimeType: "application/pdf";
+  sourceMimeType: string;
+  sourceModifiedAt: Date | null;
+}
+export interface DriveNativeDocumentResult {
+  fileId: string;
+  fileName: string;
+  mimeType: "application/vnd.google-apps.document";
+  webViewLink: string;
+}
 type DriveHealthStatus =
   | "DISCONNECTED"
   | "HEALTHY"
@@ -538,36 +551,42 @@ class GoogleDriveService {
       }
 
       const queryName = this.escapeDriveQuery(segment.name);
-      const found = await connection.drive.files.list({
-        q: `'${parentFolderId}' in parents and name = '${queryName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-        spaces: "drive",
-        fields: "files(id,name)",
-        pageSize: 2,
-        supportsAllDrives: true,
-        includeItemsFromAllDrives: true,
-      }, { timeout: DRIVE_REQUEST_TIMEOUT_MS });
+      const found = await connection.drive.files.list(
+        {
+          q: `'${parentFolderId}' in parents and name = '${queryName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+          spaces: "drive",
+          fields: "files(id,name)",
+          pageSize: 2,
+          supportsAllDrives: true,
+          includeItemsFromAllDrives: true,
+        },
+        { timeout: DRIVE_REQUEST_TIMEOUT_MS },
+      );
       const folder =
         found.data.files?.[0] ||
         (
-          await connection.drive.files.create({
-            requestBody: {
-              name: segment.name,
-              mimeType: "application/vnd.google-apps.folder",
-              parents: [parentFolderId],
-              appProperties: driveAppProperties({
-                advisioManaged: "true",
-                advisioPathKey: pathKey,
-                ...(segment.entityType
-                  ? { advisioEntityType: segment.entityType }
-                  : {}),
-                ...(segment.entityId
-                  ? { advisioEntityId: segment.entityId }
-                  : {}),
-              }),
+          await connection.drive.files.create(
+            {
+              requestBody: {
+                name: segment.name,
+                mimeType: "application/vnd.google-apps.folder",
+                parents: [parentFolderId],
+                appProperties: driveAppProperties({
+                  advisioManaged: "true",
+                  advisioPathKey: pathKey,
+                  ...(segment.entityType
+                    ? { advisioEntityType: segment.entityType }
+                    : {}),
+                  ...(segment.entityId
+                    ? { advisioEntityId: segment.entityId }
+                    : {}),
+                }),
+              },
+              fields: "id,name",
+              supportsAllDrives: true,
             },
-            fields: "id,name",
-            supportsAllDrives: true,
-          }, { timeout: DRIVE_REQUEST_TIMEOUT_MS })
+            { timeout: DRIVE_REQUEST_TIMEOUT_MS },
+          )
         ).data;
       if (!folder.id)
         throw new Error(
@@ -623,21 +642,24 @@ class GoogleDriveService {
       process.env.GOOGLE_DRIVE_FOLDER_ID ||
       "";
     if (connection?.drive && folderId) {
-      const response = await connection.drive.files.create({
-        requestBody: {
-          name: options.fileName,
-          description:
-            options.description || "Uploaded via Advisio Research Platform",
-          parents: [folderId],
-          appProperties: driveAppProperties(options.appProperties),
+      const response = await connection.drive.files.create(
+        {
+          requestBody: {
+            name: options.fileName,
+            description:
+              options.description || "Uploaded via Advisio Research Platform",
+            parents: [folderId],
+            appProperties: driveAppProperties(options.appProperties),
+          },
+          media: {
+            mimeType: options.mimeType,
+            body: Readable.from(options.buffer),
+          },
+          fields: "id,name,mimeType,size",
+          supportsAllDrives: true,
         },
-        media: {
-          mimeType: options.mimeType,
-          body: Readable.from(options.buffer),
-        },
-        fields: "id,name,mimeType,size",
-        supportsAllDrives: true,
-      }, { timeout: DRIVE_REQUEST_TIMEOUT_MS });
+        { timeout: DRIVE_REQUEST_TIMEOUT_MS },
+      );
       const file = response.data;
       if (!file.id)
         throw new Error("Google Drive did not return a file identifier");
@@ -686,6 +708,163 @@ class GoogleDriveService {
     ).data;
   }
 
+  /** Creates a real, editable Google Doc inside Advisio's managed hierarchy.
+   * The app only grants editor access to the authenticated requester's email;
+   * project authorization is still enforced by Advisio on every API action. */
+  public async createNativeDocument(options: {
+    fileName: string;
+    folderId: string;
+    editorEmail: string;
+    description?: string;
+    appProperties?: Record<string, string>;
+  }): Promise<DriveNativeDocumentResult> {
+    const connection = await this.connectedClient();
+    if (!connection?.drive)
+      throw new Error(
+        "Google Drive is not connected. A System Administrator must connect storage before Google Docs can be created.",
+      );
+
+    const response = await connection.drive.files.create(
+      {
+        requestBody: {
+          name: options.fileName,
+          mimeType: "application/vnd.google-apps.document",
+          description:
+            options.description || "Created via Advisio Research Platform",
+          parents: [options.folderId],
+          appProperties: driveAppProperties(options.appProperties),
+        },
+        fields: "id,name,mimeType,webViewLink",
+        supportsAllDrives: true,
+      },
+      { timeout: DRIVE_REQUEST_TIMEOUT_MS },
+    );
+    const fileId = response.data.id;
+    if (!fileId)
+      throw new Error("Google Drive did not return a document identifier.");
+
+    try {
+      await connection.drive.permissions.create(
+        {
+          fileId,
+          requestBody: {
+            type: "user",
+            role: "writer",
+            emailAddress: options.editorEmail,
+          },
+          sendNotificationEmail: true,
+          supportsAllDrives: true,
+        },
+        { timeout: DRIVE_REQUEST_TIMEOUT_MS },
+      );
+    } catch (error) {
+      // Never leave an inaccessible, orphaned draft behind when sharing fails.
+      await connection.drive.files
+        .update({
+          fileId,
+          requestBody: { trashed: true },
+          supportsAllDrives: true,
+        })
+        .catch(() => undefined);
+      throw error;
+    }
+
+    return {
+      fileId,
+      fileName: response.data.name || options.fileName,
+      mimeType: "application/vnd.google-apps.document",
+      webViewLink:
+        response.data.webViewLink ||
+        `https://docs.google.com/document/d/${fileId}/edit`,
+    };
+  }
+
+  /** Downloads the actual source contents used for a formal submission.
+   * Native Google Docs are exported as PDF; existing PDFs are downloaded
+   * byte-for-byte. Other Drive formats are rejected instead of creating a
+   * misleading link or placeholder snapshot. */
+  public async exportImmutablePdf(
+    fileId: string,
+  ): Promise<DriveSnapshotResult> {
+    const connection = await this.connectedClient();
+    if (!connection?.drive)
+      throw new Error(
+        "Google Drive is not connected. A System Administrator must connect storage before manuscripts can be submitted.",
+      );
+
+    const metadata = (
+      await connection.drive.files.get(
+        {
+          fileId,
+          fields:
+            "id,name,mimeType,size,modifiedTime,trashed,capabilities(canDownload)",
+          supportsAllDrives: true,
+        },
+        { timeout: DRIVE_REQUEST_TIMEOUT_MS },
+      )
+    ).data;
+    if (!metadata.id || metadata.trashed)
+      throw new Error("The linked Google document is unavailable or in trash.");
+    if (metadata.capabilities?.canDownload === false)
+      throw new Error(
+        "The connected Google account is not allowed to export this document.",
+      );
+
+    const sourceMimeType = metadata.mimeType || "";
+    let data: unknown;
+    if (sourceMimeType === "application/vnd.google-apps.document") {
+      data = (
+        await connection.drive.files.export(
+          { fileId, mimeType: "application/pdf" },
+          {
+            responseType: "arraybuffer",
+            timeout: DRIVE_REQUEST_TIMEOUT_MS,
+          },
+        )
+      ).data;
+    } else if (sourceMimeType === "application/pdf") {
+      data = (
+        await connection.drive.files.get(
+          { fileId, alt: "media", supportsAllDrives: true },
+          {
+            responseType: "arraybuffer",
+            timeout: DRIVE_REQUEST_TIMEOUT_MS,
+          },
+        )
+      ).data;
+    } else {
+      throw new Error(
+        "Formal submission currently supports native Google Docs and PDF files only.",
+      );
+    }
+
+    const buffer = Buffer.isBuffer(data)
+      ? data
+      : Buffer.from(data as ArrayBuffer);
+    if (
+      buffer.length < 5 ||
+      buffer.subarray(0, 5).toString("ascii") !== "%PDF-"
+    )
+      throw new Error("Google Drive did not return a valid PDF manuscript.");
+    if (buffer.length > 50 * 1024 * 1024)
+      throw new Error("The exported manuscript exceeds the 50 MB limit.");
+
+    const baseName = (metadata.name || "manuscript")
+      .replace(/\.pdf$/i, "")
+      .replace(/[^a-zA-Z0-9._ -]/g, "-")
+      .trim()
+      .slice(0, 220);
+    return {
+      buffer,
+      fileName: `${baseName || "manuscript"}.pdf`,
+      mimeType: "application/pdf",
+      sourceMimeType,
+      sourceModifiedAt: metadata.modifiedTime
+        ? new Date(metadata.modifiedTime)
+        : null,
+    };
+  }
+
   public async getFileStream(fileId: string) {
     const connection = await this.connectedClient();
     if (!connection?.drive) throw new Error("Google Drive is not connected");
@@ -699,6 +878,20 @@ class GoogleDriveService {
     const connection = await this.connectedClient();
     if (!connection?.drive) return false;
     await connection.drive.files.delete({ fileId, supportsAllDrives: true });
+    return true;
+  }
+
+  public async deleteStoredFile(fileId: string): Promise<boolean> {
+    if (!fileId.startsWith("gdrive-")) return this.deleteFile(fileId);
+    const uploadDir = path.resolve(process.cwd(), "uploads");
+    if (!fs.existsSync(uploadDir)) return false;
+    const diskName = fs
+      .readdirSync(uploadDir)
+      .find((name) => name.startsWith(`${fileId}-`));
+    if (!diskName) return false;
+    const target = path.resolve(uploadDir, diskName);
+    if (!target.startsWith(`${uploadDir}${path.sep}`)) return false;
+    fs.unlinkSync(target);
     return true;
   }
 }

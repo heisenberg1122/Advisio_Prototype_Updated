@@ -18,10 +18,10 @@ function StudentProfilePageContent() {
   }, [searchParams]);
 
   return (
-    <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {toast && (
-        <div className="fixed top-5 right-5 z-50 bg-[#0B3A53] border-l-4 border-[#C9A227] text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3">
-          <i className="ti ti-circle-check text-[#C9A227] text-lg" />
+        <div className="fixed top-5 right-5 z-50 bg-[#0B3A53] border border-white/10 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3">
+          <i className="ti ti-circle-check text-[var(--color-primary)] text-lg" />
           <span className="text-xs font-bold">{toast}</span>
         </div>
       )}
@@ -33,7 +33,7 @@ function StudentProfilePageContent() {
 
 export default function StudentProfilePage() {
   return (
-    <Suspense fallback={<div className="mx-auto w-full max-w-screen-2xl p-4 sm:p-6 lg:p-8"><ProfileSkeleton /></div>}>
+    <Suspense fallback={<div className="mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8"><ProfileSkeleton /></div>}>
       <StudentProfilePageContent />
     </Suspense>
   );

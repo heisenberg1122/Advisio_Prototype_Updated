@@ -11,9 +11,12 @@
     "build": "turbo run build",
     "db:push": "npm --workspace=@research-management/database run db:push",
     "db:seed": "npm --workspace=@research-management/database run build && npm --workspace=@research-management/database run seed",
+    "db:demo-themes": "npm --workspace=@research-management/database run demo:themes:seed",
+    "db:demo-themes:cleanup": "npm --workspace=@research-management/database run demo:themes:cleanup",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "test": "turbo run test",
+    "test:integration": "npm --workspace=api run test:integration",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {

@@ -115,6 +115,35 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
         taskSubmissions: {
           include: {
             task: true,
+            documentVersion: {
+              select: {
+                id: true,
+                versionNumber: true,
+                fileName: true,
+                manuscriptStatus: true,
+              },
+            },
+            attempts: {
+              orderBy: { attemptNumber: "asc" },
+              include: {
+                documentVersion: {
+                  select: {
+                    id: true,
+                    versionNumber: true,
+                    fileName: true,
+                    manuscriptStatus: true,
+                  },
+                },
+                submittedByUser: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    universityId: true,
+                  },
+                },
+              },
+            },
             document: {
               select: {
                 id: true,
@@ -487,6 +516,35 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
         taskSubmissions: {
           include: {
             task: true,
+            documentVersion: {
+              select: {
+                id: true,
+                versionNumber: true,
+                fileName: true,
+                manuscriptStatus: true,
+              },
+            },
+            attempts: {
+              orderBy: { attemptNumber: "asc" },
+              include: {
+                documentVersion: {
+                  select: {
+                    id: true,
+                    versionNumber: true,
+                    fileName: true,
+                    manuscriptStatus: true,
+                  },
+                },
+                submittedByUser: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    universityId: true,
+                  },
+                },
+              },
+            },
             submittedByUser: {
               select: {
                 id: true,

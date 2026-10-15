@@ -1,13 +1,12 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import type { TaskStatus, DefenseEligibility, DefenseRequirement, GradeReport } from "@/types/student";
+import type { DefenseEligibility, DefenseRequirement, GradeReport } from "@/types/student";
+import { useActiveProjectContext } from "@/providers/active-project-provider";
 
 export const studentKeys = {
   all: ["student"] as const,
-  overview: () => [...studentKeys.all, "overview"] as const,
-  submissions: () => [...studentKeys.all, "submissions"] as const,
   consultations: () => [...studentKeys.all, "consultations"] as const,
   notifications: () => [...studentKeys.all, "notifications"] as const,
   group: () => [...studentKeys.all, "group"] as const,
@@ -17,45 +16,10 @@ export const studentKeys = {
 };
 
 // ── Overview (dashboard home) ──────────────────────────────────
-export function useStudentOverview() {
-  return useQuery({
-    queryKey: studentKeys.overview(),
-    queryFn: async () => {
-      try {
-        const research = await apiClient.get<{ projects: any[] }>("/api/research");
-        const active = research?.projects?.[0];
-        if (!active) return null;
-        return {
-          id: active.id,
-          projectTitle: active.title,
-          abstract: active.abstract || "",
-          status: active.status,
-          currentMilestone: active.workflowInstance?.currentStage?.name || "Topic Proposal",
-          overallProgress: 10,
-          pendingTasks: [],
-        };
-      } catch {
-        return null;
-      }
-    },
-    staleTime: 30_000,
-  });
-}
+// The current dashboard owns its project-scoped overview queries directly.
 
 // ── Submissions ────────────────────────────────────────────────
-export function useSubmissions() {
-  return useQuery({
-    queryKey: studentKeys.submissions(),
-    queryFn: async () => {
-      try {
-        const res = await apiClient.get<{ documents: any[] }>("/api/documents");
-        return res.documents || [];
-      } catch {
-        return [];
-      }
-    },
-  });
-}
+// Legacy submissions now redirect to Tasks or Documents.
 
 // ── Consultations ──────────────────────────────────────────────
 export function useConsultations() {
@@ -92,12 +56,16 @@ export function useNotifications() {
 
 // ── Group ──────────────────────────────────────────────────────
 export function useStudentGroup() {
+  const { activeProjectId } = useActiveProjectContext();
   return useQuery({
-    queryKey: studentKeys.group(),
+    queryKey: [...studentKeys.group(), activeProjectId],
     queryFn: async () => {
       try {
         const res = await apiClient.get<{ projects: any[] }>("/api/research");
-        const active = res?.projects?.[0];
+        const projects = res?.projects || [];
+        const active = activeProjectId
+          ? projects.find((project: any) => project.id === activeProjectId)
+          : projects.length === 1 ? projects[0] : null;
         if (!active) return null;
         return {
           id: active.id,
@@ -127,12 +95,16 @@ export function useStudentGroup() {
 
 // ── Advisers ───────────────────────────────────────────────────
 export function useAdvisers() {
+  const { activeProjectId } = useActiveProjectContext();
   return useQuery({
-    queryKey: studentKeys.advisers(),
+    queryKey: [...studentKeys.advisers(), activeProjectId],
     queryFn: async () => {
       try {
         const research = await apiClient.get<{ projects: any[] }>("/api/research");
-        const project = research.projects?.[0];
+        const projects = research.projects || [];
+        const project = activeProjectId
+          ? projects.find((candidate: any) => candidate.id === activeProjectId)
+          : projects.length === 1 ? projects[0] : null;
         const adviserParams = new URLSearchParams({ role: "ADVISER", status: "ACTIVE" });
         if (project?.programId) adviserParams.set("programId", project.programId);
         const res = await apiClient.get<{ users: any[] }>(`/api/users?${adviserParams.toString()}`);
@@ -180,17 +152,24 @@ export function useAdvisers() {
 
 // ── Defense ───────────────────────────────────────────────────
 export function useDefense() {
+  const { activeProjectId } = useActiveProjectContext();
   return useQuery<{
     requirements: DefenseRequirement[];
     eligibility: DefenseEligibility;
     project: any | null;
     sessions: any[];
     documents: any[];
+    projects: any[];
   }>({
-    queryKey: studentKeys.defense(),
+    queryKey: [...studentKeys.defense(), activeProjectId],
     queryFn: async () => {
       const research = await apiClient.get<{ projects: any[] }>("/api/research");
-      const project = research.projects?.[0] || null;
+      const projects = research.projects || [];
+      const project = activeProjectId
+        ? projects.find((candidate: any) => candidate.id === activeProjectId) || null
+        : projects.length === 1
+          ? projects[0]
+          : null;
       if (!project) {
         return {
           requirements: [],
@@ -198,6 +177,7 @@ export function useDefense() {
           project: null,
           sessions: [],
           documents: [],
+          projects,
         };
       }
 
@@ -265,6 +245,7 @@ export function useDefense() {
         project,
         sessions,
         documents,
+        projects,
       };
     },
     refetchInterval: 10000,
@@ -287,15 +268,3 @@ export function useGrades() {
 }
 
 // ── Optimistic task toggle ─────────────────────────────────────
-export function useToggleTask() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ taskId, status }: { taskId: string; status: TaskStatus }) => {
-      return { taskId, status };
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: studentKeys.overview() });
-    },
-  });
-}

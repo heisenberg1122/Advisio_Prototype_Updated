@@ -28,7 +28,6 @@ export function NavItem({
   badgeVariant = "accent",
   collapsed = false,
   onClick,
-  appearance = "default",
 }: NavItemProps) {
   const pathname = usePathname() || "";
   const searchParams = useSearchParams();
@@ -40,22 +39,35 @@ export function NavItem({
     const cleanHref = href.split("?")[0].replace(/\/$/, "");
     const cleanPath = pathname.replace(/\/$/, "");
 
-    if (tabName && (href.includes("?tab=") || cleanHref.endsWith("/dashboard"))) {
+    if (
+      tabName &&
+      (href.includes("?tab=") || cleanHref.endsWith("/dashboard"))
+    ) {
       isItemActive = cleanPath === cleanHref && currentTab === tabName;
     } else if (href.includes("?tab=")) {
       const targetTab = new URLSearchParams(href.split("?")[1]).get("tab");
       isItemActive = cleanPath === cleanHref && currentTab === targetTab;
     } else {
-      isItemActive = cleanPath === cleanHref || cleanPath.startsWith(cleanHref + "/");
+      isItemActive =
+        cleanPath === cleanHref || cleanPath.startsWith(cleanHref + "/");
     }
   }
 
   const renderIcon = () => {
     if (typeof Icon === "string") {
-      return <i className={cn("ti", Icon, "shrink-0 text-xl")} aria-hidden="true" />;
+      return (
+        <i
+          className={cn(
+            "ti",
+            Icon,
+            "shrink-0 text-xl leading-none flex items-center justify-center",
+          )}
+          aria-hidden="true"
+        />
+      );
     }
     const LucideIcon = Icon;
-    return <LucideIcon className="h-[22px] w-[22px] shrink-0 transition-colors" />;
+    return <LucideIcon className="h-5 w-5 shrink-0 transition-colors" />;
   };
 
   return (
@@ -64,43 +76,42 @@ export function NavItem({
       onClick={onClick}
       title={collapsed ? label : undefined}
       className={cn(
-        "group relative flex items-center transition-all duration-150 select-none outline-none focus:outline-none focus-visible:outline-none focus-visible:ring-0",
-        appearance === "workspace" ? "h-12 rounded-xl text-[15px]" : "h-11 rounded-xl text-[15px]",
-        collapsed ? "h-11 w-11 shrink-0 justify-center p-0" : "gap-3.5 px-3.5 mx-2 font-medium",
+        "group relative flex items-center select-none outline-none transition-colors duration-150 cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--college-focus-ring)]",
+        collapsed
+          ? "h-11 w-11 mx-auto justify-center rounded-xl p-0"
+          : "h-11 mx-2.5 px-3.5 rounded-xl gap-3.5 text-sm",
         isItemActive
-          ? appearance === "workspace"
-            ? "bg-[#DDEBF1] text-[#0B3A53] font-bold shadow-none dark:bg-[#38bdf8]/15 dark:text-[#38bdf8]"
-            : "bg-[#0B3A53] text-white font-bold shadow-sm dark:bg-[#C9A227] dark:text-[#072A3D]"
-          : "text-slate-600 hover:bg-slate-100 hover:text-[#0B3A53] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+          ? "bg-[var(--nav-active-bg)] text-[var(--color-primary)] font-semibold shadow-none"
+          : "text-[var(--color-text-primary)]/80 hover:bg-[var(--nav-hover-bg)] hover:text-[var(--color-primary)] dark:text-slate-300 font-medium",
       )}
       aria-current={isItemActive ? "page" : undefined}
     >
       <span
         className={cn(
+          "flex items-center justify-center shrink-0 w-5 h-5",
           isItemActive
-            ? appearance === "workspace"
-              ? "text-[#0B3A53] dark:text-[#38bdf8]"
-              : "text-[#FFA400] dark:text-[#072A3D]"
-            : "text-slate-400 group-hover:text-[#0B3A53] dark:text-slate-400 dark:group-hover:text-white"
+            ? "text-[var(--color-primary)]"
+            : "text-slate-500 group-hover:text-[var(--color-primary)] dark:text-slate-400",
         )}
       >
         {renderIcon()}
       </span>
 
       {!collapsed && (
-        <span className="flex-1 truncate text-[15px] tracking-normal">
-          {label}
-        </span>
+        <span className="flex-1 truncate tracking-normal">{label}</span>
       )}
 
       {!collapsed && badge !== undefined && (
         <span
           className={cn(
-            "ml-auto shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold",
-            badgeVariant === "accent" && "bg-[#C9A227]/20 text-[#8A6A0B] dark:bg-[#C9A227]/30 dark:text-[#C9A227]",
-            badgeVariant === "primary" && "bg-[#0B3A53] text-white",
+            "ml-auto shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold",
+            badgeVariant === "accent" &&
+              "bg-[var(--color-primary)] text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]",
+            badgeVariant === "primary" &&
+              "bg-[var(--color-primary)] text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]",
             badgeVariant === "danger" && "bg-red-500 text-white",
-            badgeVariant === "neutral" && "bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300"
+            badgeVariant === "neutral" &&
+              "bg-black/5 dark:bg-white/10 text-slate-600 dark:text-slate-300",
           )}
         >
           {badge}

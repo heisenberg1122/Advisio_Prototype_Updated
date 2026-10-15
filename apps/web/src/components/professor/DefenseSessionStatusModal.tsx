@@ -73,13 +73,13 @@ const titleCase = (value = "") =>
 
 function PersonCard({ member }: { member: any }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
+    <div className="flex items-start gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-50 text-xs font-extrabold text-[#173f63]">
         {member.user?.firstName?.[0] || "?"}
         {member.user?.lastName?.[0] || ""}
       </span>
       <div className="min-w-0">
-        <p className="truncate text-sm font-extrabold text-[#102f49]">
+        <p className="truncate text-sm font-extrabold text-[var(--color-text-primary)]">
           {fullName(member.user)}
         </p>
         <p className="truncate text-xs text-slate-500">{member.user?.email}</p>
@@ -157,8 +157,8 @@ export function DefenseSessionStatusModal({
         if (mouseEvent.target === mouseEvent.currentTarget) onClose();
       }}
     >
-      <div className="max-h-[94vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
-        <header className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-200 bg-white p-5">
+      <div className="max-h-[94vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-2xl">
+        <header className="sticky top-0 z-10 flex items-start justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] p-5">
           <div>
             <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#d98d00]">
               Defense session status
@@ -166,7 +166,7 @@ export function DefenseSessionStatusModal({
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <h2
                 id="defense-session-status-title"
-                className="text-xl font-black text-[#102f49]"
+                className="text-xl font-black text-[var(--color-text-primary)]"
               >
                 {session.research?.title || "Research group"}
               </h2>
@@ -197,7 +197,7 @@ export function DefenseSessionStatusModal({
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 Schedule
               </p>
-              <p className="mt-1 text-sm font-bold text-[#102f49]">
+              <p className="mt-1 text-sm font-bold text-[var(--color-text-primary)]">
                 {session.scheduledStart
                   ? new Date(session.scheduledStart).toLocaleString()
                   : "Not scheduled"}
@@ -207,8 +207,9 @@ export function DefenseSessionStatusModal({
               <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 Venue
               </p>
-              <p className="mt-1 text-sm font-bold text-[#102f49]">
-                {session.venue || (session.meetingUrl ? "Online defense" : "Not set")}
+              <p className="mt-1 text-sm font-bold text-[var(--color-text-primary)]">
+                {session.venue ||
+                  (session.meetingUrl ? "Online defense" : "Not set")}
               </p>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
@@ -221,12 +222,20 @@ export function DefenseSessionStatusModal({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <p className="text-[10px] font-bold uppercase text-amber-700">Pending</p>
-                <p className="mt-1 text-xl font-extrabold text-amber-800">{pendingCount}</p>
+                <p className="text-[10px] font-bold uppercase text-amber-700">
+                  Pending
+                </p>
+                <p className="mt-1 text-xl font-extrabold text-amber-800">
+                  {pendingCount}
+                </p>
               </div>
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
-                <p className="text-[10px] font-bold uppercase text-rose-700">Declined</p>
-                <p className="mt-1 text-xl font-extrabold text-rose-800">{declinedCount}</p>
+                <p className="text-[10px] font-bold uppercase text-rose-700">
+                  Declined
+                </p>
+                <p className="mt-1 text-xl font-extrabold text-rose-800">
+                  {declinedCount}
+                </p>
               </div>
             </div>
           </section>
@@ -234,7 +243,9 @@ export function DefenseSessionStatusModal({
           <section className="rounded-2xl border border-slate-200 p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h3 className="font-extrabold text-[#102f49]">Defense panel</h3>
+                <h3 className="font-extrabold text-[var(--color-text-primary)]">
+                  Defense panel
+                </h3>
                 <p className="mt-0.5 text-xs text-slate-500">
                   Invitation roles and current responses for this session.
                 </p>
@@ -258,7 +269,7 @@ export function DefenseSessionStatusModal({
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-extrabold text-[#102f49]">
+                          <p className="truncate text-sm font-extrabold text-[var(--color-text-primary)]">
                             {fullName(invitation.invitee)}
                           </p>
                           <p className="truncate text-xs text-slate-500">
@@ -266,7 +277,9 @@ export function DefenseSessionStatusModal({
                           </p>
                           <p className="mt-1 text-[10px] font-extrabold uppercase tracking-wider text-[#173f63]">
                             {titleCase(invitation.role)}
-                            {invitation.isRequired === false ? " · Optional" : " · Required"}
+                            {invitation.isRequired === false
+                              ? " · Optional"
+                              : " · Required"}
                           </p>
                         </div>
                         <span
@@ -278,11 +291,12 @@ export function DefenseSessionStatusModal({
                       </div>
                       {invitation.respondedAt && (
                         <p className="mt-2 text-[10px] text-slate-400">
-                          Responded {new Date(invitation.respondedAt).toLocaleString()}
+                          Responded{" "}
+                          {new Date(invitation.respondedAt).toLocaleString()}
                         </p>
                       )}
                       {invitation.responseNote && (
-                        <p className="mt-2 rounded-lg bg-white p-2 text-xs text-slate-600">
+                        <p className="mt-2 rounded-lg bg-[var(--color-surface)] p-2 text-xs text-[var(--color-text-secondary)]">
                           <strong>Response:</strong> {invitation.responseNote}
                         </p>
                       )}
@@ -300,7 +314,9 @@ export function DefenseSessionStatusModal({
           <div className="grid gap-5 lg:grid-cols-2">
             <section className="rounded-2xl border border-slate-200 p-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-extrabold text-[#102f49]">Researchers</h3>
+                <h3 className="font-extrabold text-[var(--color-text-primary)]">
+                  Researchers
+                </h3>
                 <span className="text-xs font-bold text-slate-500">
                   {researchers.length}
                 </span>
@@ -320,7 +336,9 @@ export function DefenseSessionStatusModal({
 
             <section className="rounded-2xl border border-slate-200 p-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-extrabold text-[#102f49]">Advisers</h3>
+                <h3 className="font-extrabold text-[var(--color-text-primary)]">
+                  Advisers
+                </h3>
                 <span className="text-xs font-bold text-slate-500">
                   {advisers.length}
                 </span>
@@ -340,7 +358,7 @@ export function DefenseSessionStatusModal({
           </div>
         </div>
 
-        <footer className="sticky bottom-0 flex justify-end border-t border-slate-200 bg-white p-4">
+        <footer className="sticky bottom-0 flex justify-end border-t border-[var(--color-border)] bg-[var(--color-surface)] p-4">
           <button
             type="button"
             onClick={onClose}

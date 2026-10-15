@@ -1,12 +1,17 @@
 import { prisma } from "../lib/prisma.js";
 import { googleDriveService } from "./google-drive.service.js";
 
-export type WorkspaceBucket = "WORKING" | "SUBMISSIONS" | "FEEDBACK";
+export type WorkspaceBucket =
+  | "WORKING"
+  | "SUBMISSIONS"
+  | "FEEDBACK"
+  | "OFFICIAL";
 
 const BUCKETS: Array<{ bucket: WorkspaceBucket; name: string }> = [
   { bucket: "WORKING", name: "01-Working-Documents" },
   { bucket: "SUBMISSIONS", name: "02-Submissions" },
   { bucket: "FEEDBACK", name: "03-Feedback" },
+  { bucket: "OFFICIAL", name: "04-Official-Copies" },
 ];
 
 function safeName(value: string, fallback: string) {

@@ -34,12 +34,14 @@ import {
   X,
   Mail,
   Moon,
+  Sun,
+  Laptop,
 } from "lucide-react";
 
 function SystemAdminDashboardContent() {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
-  const { isDark, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const { user } = useAuth();
 
   // Query live colleges and programs
@@ -144,7 +146,7 @@ function SystemAdminDashboardContent() {
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent text-slate-800 transition-colors dark:text-slate-100">
       {/* MAIN CONTAINER */}
-      <main className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col gap-6 overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <main className="mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-6 overflow-y-auto p-4 sm:p-6 lg:p-8">
         {/* TAB CONTENTS */}
         {(() => {
           if (activeTab === "announcements") return <SystemAnnouncements />;
@@ -390,25 +392,21 @@ function SystemAdminDashboardContent() {
                       className="accent-[#C9A227] w-4 h-4 cursor-pointer"
                     />
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div>
                     <div className="flex items-center gap-3">
                       <Moon className="h-5 w-5 text-slate-400" />
                       <div>
-                        <span className="font-bold text-slate-900 dark:text-white block text-sm">
-                          Dark Mode
-                        </span>
-                        <span className="text-xs text-slate-400">
-                          Toggle University Light or Elevated Dark Navy
-                          appearance.
-                        </span>
+                        <span className="font-bold text-slate-900 dark:text-white block text-sm">Appearance</span>
+                        <span className="text-xs text-slate-400">Saved to your administrator account.</span>
                       </div>
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={isDark}
-                      onChange={toggleTheme}
-                      className="accent-[#C9A227] w-4 h-4 cursor-pointer"
-                    />
+                    <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                      {([{ id: "light", label: "Light", icon: Sun }, { id: "dark", label: "Dark", icon: Moon }, { id: "system", label: "System", icon: Laptop }] as const).map(({ id, label, icon: Icon }) => (
+                        <button key={id} type="button" onClick={() => setTheme(id)} className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${theme === id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"}`}>
+                          <Icon className="h-4 w-4" />{label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -432,7 +430,7 @@ function SystemAdminDashboardContent() {
                     </button>
                     <button
                       onClick={() => handleTabChange("onboarding")}
-                      className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-xs font-bold text-white backdrop-blur-xs transition hover:bg-white/20 sm:flex-none"
+                      className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-xs font-bold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20 sm:flex-none"
                     >
                       <Plus className="h-4 w-4" /> Add Program
                     </button>

@@ -3,7 +3,7 @@ import multer from "multer";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { prisma } from "../lib/prisma.js";
+import { Prisma, prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { googleDriveService } from "../services/google-drive.service.js";
 import { storageHierarchyService } from "../services/storage-hierarchy.service.js";
@@ -268,18 +268,84 @@ router.post("/research/:researchId/group-files/:fileId/promote", requireAuth, as
   try {
     const researchId = String(req.params.researchId);
     if (!(await requireMember(req, res, researchId))) return;
-    const file = await prisma.groupFile.findFirst({ where: { id: String(req.params.fileId), researchId, deletedAt: null } });
+    const fileId = String(req.params.fileId);
+    const file = await prisma.groupFile.findFirst({ where: { id: fileId, researchId, deletedAt: null } });
     if (!file) return void res.status(404).json({ error: "File not found." });
-    if (file.promotedDocumentId) return void res.status(409).json({ error: "This file is already in Documents.", documentId: file.promotedDocumentId });
-    const result = await prisma.$transaction(async (tx) => {
-      const document = await tx.document.create({ data: { researchId, title: file.name, documentType: "GROUP_FILE", currentVersion: 1, storageProvider: file.storageProvider, externalFileId: file.externalFileId, createdBy: req.user!.id } });
-      await tx.documentVersion.create({ data: { documentId: document.id, versionNumber: 1, fileName: file.name, mimeType: file.mimeType, fileSize: file.fileSize, storagePath: file.storagePath, googleDriveFileId: file.storageProvider === "GOOGLE_DRIVE" ? file.externalFileId : null, uploadedBy: req.user!.id, status: "ACTIVE" } });
-      await tx.groupFile.update({ where: { id: file.id }, data: { promotedDocumentId: document.id } });
-      return document;
-    });
-    res.status(201).json({ document: result });
+    if (file.promotedDocumentId) {
+      const document = await prisma.document.findUnique({ where: { id: file.promotedDocumentId } });
+      return void res.json({ document, reused: true });
+    }
+
+    let result: { document: any; reused: boolean } | null = null;
+    for (let attempt = 0; attempt < 3 && !result; attempt += 1) {
+      try {
+        result = await prisma.$transaction(
+          async (tx) => {
+            const current = await tx.groupFile.findFirst({
+              where: { id: fileId, researchId, deletedAt: null },
+            });
+            if (!current) throw Object.assign(new Error("File not found."), { statusCode: 404 });
+            if (current.promotedDocumentId) {
+              const document = await tx.document.findUniqueOrThrow({ where: { id: current.promotedDocumentId } });
+              return { document, reused: true };
+            }
+
+            if (current.milestoneId) {
+              const project = await tx.researchProject.findUnique({
+                where: { id: researchId },
+                select: { workflowInstance: { select: { workflowId: true } } },
+              });
+              const milestone = project?.workflowInstance
+                ? await tx.workflowStage.findFirst({
+                    where: { id: current.milestoneId, workflowId: project.workflowInstance.workflowId },
+                    select: { id: true },
+                  })
+                : null;
+              if (!milestone) {
+                throw Object.assign(new Error("The file milestone does not belong to this project's workflow."), { statusCode: 409 });
+              }
+            }
+
+            const document = await tx.document.create({
+              data: {
+                researchId,
+                milestoneId: current.milestoneId,
+                title: current.name,
+                documentType: "GROUP_FILE",
+                currentVersion: 1,
+                storageProvider: current.storageProvider,
+                externalFileId: current.externalFileId,
+                createdBy: req.user!.id,
+              },
+            });
+            await tx.documentVersion.create({
+              data: {
+                documentId: document.id,
+                milestoneId: current.milestoneId,
+                versionNumber: 1,
+                fileName: current.name,
+                mimeType: current.mimeType,
+                fileSize: current.fileSize,
+                storagePath: current.storagePath,
+                googleDriveFileId: current.storageProvider === "GOOGLE_DRIVE" ? current.externalFileId : null,
+                uploadedBy: req.user!.id,
+                status: "ACTIVE",
+              },
+            });
+            await tx.groupFile.update({ where: { id: current.id }, data: { promotedDocumentId: document.id } });
+            return { document, reused: false };
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
+      } catch (error: any) {
+        if (error?.code === "P2034" && attempt < 2) continue;
+        throw error;
+      }
+    }
+    if (!result) throw new Error("Unable to complete the promotion transaction.");
+    res.status(result.reused ? 200 : 201).json(result);
   } catch (error: any) {
-    res.status(500).json({ error: error.message || "Unable to add file to Documents." });
+    res.status(error?.statusCode || 500).json({ error: error.message || "Unable to add file to Documents." });
   }
 });
 

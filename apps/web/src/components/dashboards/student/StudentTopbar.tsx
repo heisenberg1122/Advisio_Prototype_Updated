@@ -7,7 +7,6 @@ const PAGE_TITLES: Record<string, string> = {
   "/student/groups": "My Group",
   "/student/join-group": "Join Research Group",
   "/student/adviser-pool": "Adviser Pool",
-  "/student/submissions": "Submissions",
   "/student/consultations": "Consultations",
   "/student/defense": "Defense Center",
   "/student/grades": "Grades",

@@ -7,14 +7,16 @@ import { Tag } from "@/components/ui/Tag";
 import { CardsPageSkeleton, DashboardSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import { CourseCard } from "@/components/ui/CourseCard";
 import { AdviserGroupChats } from "@/components/dashboards/adviser/AdviserGroupChats";
-import { getChatStore } from "@/lib/chat-store";
 import { getStoredMeetingSession, saveMeetingSession, DEFAULT_SHARED_MEET_URL } from "@/lib/meeting-store";
 import { GoogleMeetConnectModal } from "@/components/consultations/GoogleMeetConnectModal";
 import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consultations/GoogleMeetTranscriptModal";
-import { getStoredConsultations, addStoredConsultation, saveStoredConsultations, updateStoredConsultationStatus, updateStoredConsultationNotes, ConsultationItem } from "@/lib/consultation-store";
+import type { ConsultationItem } from "@/lib/consultation-store";
 import { useAuth } from "@/providers/auth-provider";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import { AdviserDocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
+import { calculateMilestoneProgress } from "@/lib/workflow-progress";
+
+const EMPTY_MILESTONE_PROGRESS_BY_PROJECT: Record<string, any[]> = {};
 
 const resolveApiFileUrl = (value: string) => value.startsWith("/")
   ? `${(import.meta.env.VITE_API_URL || "").replace(/\/$/, "")}${value}`
@@ -52,37 +54,30 @@ function AdviserDashboardContent() {
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showTranscriptModal, setShowTranscriptModal] = useState(false);
   const [selectedConsultationForTranscript, setSelectedConsultationForTranscript] = useState<ConsultationItem | null>(null);
+  const [conferenceProjectId, setConferenceProjectId] = useState("");
 
   // Live query for consultations with background refresh
   const { data: consultationsApiData, refetch: refetchConsultations } = useQuery({
     queryKey: ["consultations"],
-    queryFn: () => apiClient.get<{ consultations: any[] }>("/api/consultations").catch(() => ({ consultations: [] })),
+    queryFn: () => apiClient.get<{ consultations: any[] }>("/api/consultations"),
     refetchInterval: 15000,
     refetchOnWindowFocus: true,
   });
 
-  const [consultations, setConsultations] = useState<ConsultationItem[]>(getStoredConsultations());
+  const [consultations, setConsultations] = useState<ConsultationItem[]>([]);
 
   useEffect(() => {
-    const syncConsultations = () => {
-      if (consultationsApiData?.consultations && consultationsApiData.consultations.length > 0) {
-        setConsultations(consultationsApiData.consultations);
-        saveStoredConsultations(consultationsApiData.consultations);
-      } else {
-        setConsultations(getStoredConsultations());
-      }
-    };
-
-    syncConsultations();
-    window.addEventListener("storage", syncConsultations);
-    return () => window.removeEventListener("storage", syncConsultations);
+    if (consultationsApiData?.consultations) {
+      setConsultations(consultationsApiData.consultations);
+    }
   }, [consultationsApiData]);
 
   // Poll backend database for active stream across different browsers (Edge, Brave, etc.)
   useEffect(() => {
     const fetchActiveStream = async () => {
       try {
-        const res = await apiClient.get<{ success: boolean; stream: any }>("/api/consultations/active-stream?groupId=g1");
+        if (!conferenceProjectId) return;
+        const res = await apiClient.get<{ success: boolean; stream: any }>(`/api/consultations/active-stream?groupId=${conferenceProjectId}`);
         if (res?.stream) {
           const s = res.stream;
           setIsMeetingActive(s.isActive);
@@ -108,7 +103,7 @@ function AdviserDashboardContent() {
     fetchActiveStream();
     const interval = setInterval(fetchActiveStream, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [conferenceProjectId]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -126,8 +121,8 @@ function AdviserDashboardContent() {
     setIsMeetingActive(true);
 
     const adviserParticipant = {
-      id: "p1",
-      name: "Dr. Rachel Lim",
+      id: user?.id || selectedEmail,
+      name: `${user?.firstName || "Faculty"} ${user?.lastName || "Adviser"}`.trim(),
       role: "Faculty Adviser",
       email: selectedEmail,
       joinedAt: "Just now",
@@ -143,7 +138,7 @@ function AdviserDashboardContent() {
     // Broadcast active stream to backend database so other browser receives exact same URL
     try {
       await apiClient.post("/api/consultations/active-stream", {
-        groupId: "default",
+        groupId: conferenceProjectId,
         groupName: "Advisee Consultation",
         topic: activeMeetingTopic,
         meetingUrl: targetUrl,
@@ -154,7 +149,7 @@ function AdviserDashboardContent() {
     }
 
     saveMeetingSession({
-      groupId: "default",
+      groupId: conferenceProjectId,
       groupName: "Advisee Consultation",
       topic: activeMeetingTopic,
       meetingUrl: targetUrl,
@@ -166,9 +161,10 @@ function AdviserDashboardContent() {
     window.open(targetUrl, "GoogleMeetWindow", "width=1024,height=720,resizable=yes");
   };
 
-  const handleStartConference = (url?: string, topicTitle: string = "Group Conferencing") => {
+  const handleStartConference = (url?: string, topicTitle: string = "Group Conferencing", researchId?: string) => {
     if (url) setActiveMeetingUrl(url);
     if (topicTitle) setActiveMeetingTopic(topicTitle);
+    if (researchId) setConferenceProjectId(researchId);
     setShowConnectModal(true);
   };
 
@@ -185,7 +181,8 @@ function AdviserDashboardContent() {
       participants: [],
     });
     try {
-      await apiClient.post("/api/consultations/active-stream/end", { groupId: "g1" });
+      if (conferenceProjectId)
+        await apiClient.post("/api/consultations/active-stream/end", { groupId: conferenceProjectId });
     } catch {
       // Graceful fallback
     }
@@ -198,6 +195,10 @@ function AdviserDashboardContent() {
   };
 
   const handleTabChange = (tab: string) => {
+    if (tab === "reviews") {
+      router.push("/adviser/reviews");
+      return;
+    }
     router.push(`/adviser/dashboard?tab=${tab}`);
   };
 
@@ -210,6 +211,32 @@ function AdviserDashboardContent() {
     refetchOnWindowFocus: true,
   });
 
+  const adviserProjectIds = (researchData?.projects || [])
+    .filter((project: any) => project.members?.some(
+      (member: any) => member.projectRole === "ADVISER" && member.user?.id === user?.id && !member.leftAt,
+    ))
+    .map((project: any) => project.id as string);
+  const adviserProjectKey = adviserProjectIds.join(",");
+  const { data: milestoneProgressByProject = EMPTY_MILESTONE_PROGRESS_BY_PROJECT } = useQuery({
+    queryKey: ["adviser-milestone-progress", adviserProjectKey],
+    queryFn: async () => {
+      const entries = await Promise.all(adviserProjectIds.map(async (projectId) => {
+        try {
+          const projection = await apiClient.get<{ milestones: any[] }>(
+            `/api/research/${projectId}/manuscript-workflow`,
+          );
+          return [projectId, projection.milestones || []] as const;
+        } catch {
+          return [projectId, []] as const;
+        }
+      }));
+      return Object.fromEntries(entries) as Record<string, any[]>;
+    },
+    enabled: adviserProjectIds.length > 0,
+    staleTime: 15000,
+    refetchInterval: 15000,
+  });
+
   // Real State Data strictly from database queries
   const [advisees, setAdvisees] = useState<any[]>([]);
 
@@ -220,9 +247,10 @@ function AdviserDashboardContent() {
           .filter((p: any) => p.members?.some((member: any) => member.projectRole === "ADVISER" && member.user?.id === user?.id && !member.leftAt))
           .map((p: any) => {
             const stages = p.workflowInstance?.workflow?.stages || [];
-            const currentStageId = p.workflowInstance?.currentStage?.id;
-            const currentIndex = stages.findIndex((stage: any) => stage.id === currentStageId);
-            const progress = stages.length > 0 ? Math.max(0, Math.round(((currentIndex + 1) / stages.length) * 100)) : 0;
+            const progress = calculateMilestoneProgress(
+              milestoneProgressByProject[p.id],
+              Boolean(p.workflowInstance?.completedAt),
+            );
             const taskSubmissions = new Map((p.taskSubmissions || []).map((submission: any) => [submission.taskId, submission]));
             const tasks = stages.flatMap((stage: any) => (stage.tasks || []).map((task: any) => ({
               ...task,
@@ -246,7 +274,7 @@ function AdviserDashboardContent() {
           })
       );
     }
-  }, [researchData, user?.id]);
+  }, [milestoneProgressByProject, researchData, user?.id]);
 
   const [selectedAdvisee, setSelectedAdvisee] = useState<any | null>(null);
   const [showWithdrawalForm, setShowWithdrawalForm] = useState(false);
@@ -283,37 +311,38 @@ function AdviserDashboardContent() {
   const [reviews, setReviews] = useState<any[]>([]);
 
   const { data: reviewQueueData, refetch: refetchReviewQueue } = useQuery({
-    queryKey: ["adviser-review-queue", user?.id, researchData?.projects?.map((project: any) => project.id).join(",")],
-    enabled: Boolean(researchData?.projects),
+    queryKey: ["adviser-review-queue", user?.id],
+    enabled: Boolean(user?.id),
     queryFn: async () => {
-      const assignedProjects = (researchData?.projects || []).filter((project: any) =>
-        project.members?.some((member: any) => member.projectRole === "ADVISER" && member.user?.id === user?.id && !member.leftAt)
-      );
-      const projectDocuments = await Promise.all(assignedProjects.map(async (project: any) => {
-        const response = await apiClient.get<{ documents: any[] }>(`/api/research/${project.id}/documents`).catch(() => ({ documents: [] }));
-        return (response.documents || []).flatMap((document: any) => {
-          const latestVersion = document.versions?.[0];
-          if (!latestVersion || latestVersion.reviews?.some((review: any) => review.reviewerId === user?.id && review.status === "SUBMITTED")) return [];
-          return [{
-            id: latestVersion.id,
-            versionId: latestVersion.id,
-            docName: document.title,
-            groupName: project.title,
-            milestone: project.workflowInstance?.currentStage?.name || "Research document",
-            fileUrl: latestVersion.webViewLink,
-            mimeType: latestVersion.mimeType,
-            signed: Boolean(latestVersion.sourceSignature || latestVersion.signedSignature),
-            submittedAt: latestVersion.createdAt,
-          }];
-        });
-      }));
-      return projectDocuments.flat().sort((a: any, b: any) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime());
+      const response = await apiClient.get<{ assignments: any[] }>("/api/reviewer-assignments/me");
+      return (response.assignments || []).map((assignment: any) => ({
+        id: assignment.id,
+        assignmentId: assignment.id,
+        projectId: assignment.research.id,
+        documentId: assignment.document.id,
+        versionId: assignment.documentVersion.id,
+        docName: `${assignment.document.title} · Version ${assignment.documentVersion.versionNumber}`,
+        groupName: assignment.research.groupName || assignment.research.title,
+        milestone: assignment.documentVersion.milestone?.name || "Research manuscript",
+        submittedAt: assignment.documentVersion.submittedAt || assignment.assignedAt,
+        status: assignment.status,
+        recommendation: assignment.review?.recommendation || null,
+      })).sort((a: any, b: any) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime());
     },
   });
 
   useEffect(() => {
-    setReviews(reviewQueueData || []);
+    setReviews((reviewQueueData || []).filter((assignment: any) => assignment.status === "ACTIVE"));
   }, [reviewQueueData]);
+  const openAssignedReview = (review: any) => {
+    const params = new URLSearchParams({
+      projectId: review.projectId,
+      documentId: review.documentId,
+      versionId: review.versionId,
+      assignmentId: review.assignmentId,
+    });
+    router.push(`/adviser/reviews?${params.toString()}`);
+  };
 
   const { data: adviserRequestData, refetch: refetchAdviserRequests } = useQuery({
     queryKey: ["adviser-requests"],
@@ -369,56 +398,41 @@ function AdviserDashboardContent() {
       const startDateTime = new Date(`${consultDate || new Date().toISOString().split("T")[0]}T${consultTime || "10:00"}:00`);
       const endDateTime = new Date(startDateTime.getTime() + 3600000);
 
-      let meetUrl = customMeetUrl.trim() || DEFAULT_SHARED_MEET_URL;
-      try {
-        const res = await apiClient.post<{ consultation: any; meetingUrl?: string }>("/api/consultations", {
-          researchId: selectedAdv?.id || "default-id",
-          title: consultTopic,
-          description: `Advising session for ${selectedAdv?.groupName || "Research Group"}`,
-          scheduledStart: startDateTime.toISOString(),
-          scheduledEnd: endDateTime.toISOString(),
-          meetingUrl: meetUrl,
-        });
-        if (res?.meetingUrl) meetUrl = res.meetingUrl;
-      } catch {
-        // Fallback to meetUrl
-      }
-
-      const newC: ConsultationItem = {
-        id: Math.random().toString(),
-        groupName: selectedAdv?.groupName || "Advisee Group",
-        topic: consultTopic,
-        date: consultDate || new Date().toISOString().split("T")[0],
-        time: consultTime || "10:00 AM",
-        mode: "Google Meet",
-        meetingUrl: meetUrl,
-        status: "scheduled",
-      };
-
-      addStoredConsultation(newC);
-      setConsultations(prev => [newC, ...prev.filter(c => c.id !== newC.id)]);
-      refetchConsultations();
+      if (!selectedAdv?.id) throw new Error("Select an assigned research group.");
+      const result = await apiClient.post<{ consultation: ConsultationItem; warning?: string }>("/api/consultations", {
+        researchId: selectedAdv.id,
+        title: consultTopic,
+        description: `Advising session for ${selectedAdv.groupName || "Research Group"}`,
+        scheduledStart: startDateTime.toISOString(),
+        scheduledEnd: endDateTime.toISOString(),
+        meetingUrl: customMeetUrl.trim() || undefined,
+      });
+      setConsultations((previous) => [
+        result.consultation,
+        ...previous.filter((item) => item.id !== result.consultation.id),
+      ]);
+      await refetchConsultations();
       setConsultTopic("");
       setConsultDate("");
       setConsultTime("");
       setCustomMeetUrl("");
       setShowScheduleModal(false);
-      triggerToast(`Created Google Meet consultation: ${meetUrl}`);
+      triggerToast(result.warning || "Consultation scheduled successfully.");
+    } catch (error: any) {
+      triggerToast(error?.message || "Unable to schedule the consultation.");
     } finally {
       setIsScheduling(false);
     }
   };
 
   const handleApproveConsultation = async (id: string, topic: string) => {
-    updateStoredConsultationStatus(id, "scheduled");
-    setConsultations(prev => prev.map(c => c.id === id ? { ...c, status: "scheduled" } : c));
     try {
       await apiClient.patch(`/api/consultations/${id}/approve`);
-      refetchConsultations();
-    } catch {
-      // Graceful fallback
+      await refetchConsultations();
+      triggerToast(`Approved consultation: ${topic}`);
+    } catch (error: any) {
+      triggerToast(error?.message || "Unable to approve this consultation.");
     }
-    triggerToast(`Approved consultation: ${topic}`);
   };
 
   const handleOpenTranscriptModal = (consultation: ConsultationItem) => {
@@ -432,48 +446,20 @@ function AdviserDashboardContent() {
     actionItems: string[],
     transcript: ParsedChatMessage[]
   ) => {
-    updateStoredConsultationNotes(consultationId, notes, actionItems, transcript);
-    setConsultations((prev) =>
-      prev.map((c) =>
-        c.id === consultationId
-          ? { ...c, notes, actionItems, transcript }
-          : c
-      )
-    );
     try {
       await apiClient.post(`/api/consultations/${consultationId}/notes`, {
         notes,
         actionItems,
         transcript,
       });
-    } catch {
-      // In-memory / storage fallback
+      await refetchConsultations();
+      triggerToast("Consultation notes saved.");
+    } catch (error: any) {
+      triggerToast(error?.message || "Unable to save consultation notes.");
     }
-    refetchConsultations();
-    triggerToast("Saved consultation notes and Google Meet chat transcript!");
   };
 
   const [approvals, setApprovals] = useState<any[]>([]);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [chatStoreNotifications, setChatStoreNotifications] = useState<any[]>([]);
-
-  useEffect(() => {
-    const syncNotifs = () => {
-      const store = getChatStore();
-      const userNotifs = store.notifications.filter(
-        n => n.userId === user?.email
-      );
-      setChatStoreNotifications(userNotifs);
-    };
-    syncNotifs();
-    window.addEventListener("storage", syncNotifs);
-    return () => window.removeEventListener("storage", syncNotifs);
-  }, [user]);
-
-  const combinedNotifications = [
-    ...chatStoreNotifications.map(n => ({ id: n.id, msg: n.msg, date: n.date || "Just now" })),
-    ...notifications
-  ];
 
   const [commentInput, setCommentInput] = useState("");
   const [signingDocument, setSigningDocument] = useState<any | null>(null);
@@ -534,7 +520,7 @@ function AdviserDashboardContent() {
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
       
       {toast && (
-        <div className="fixed top-5 right-5 z-55 bg-[#1b4264] border-l-4 border-[#ffa400] text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
+        <div className="fixed top-5 right-5 z-55 bg-[#1b4264] border border-white/10 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
           <i className="ti ti-circle-check text-[#ffa400] text-lg" />
           <span className="text-[12px] font-bold">{toast}</span>
         </div>
@@ -600,12 +586,12 @@ function AdviserDashboardContent() {
       )}
 
       {/* MAIN CONTAINER */}
-      <div className={`flex w-full flex-1 flex-col space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-screen-2xl p-4 sm:p-6 lg:p-8"}`}>
+      <div className={`flex w-full flex-1 flex-col space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
         
         {(() => {
           const tabContent: Record<string, React.ReactNode> = {
             overview: (
-              <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6">
+              <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6">
                 <DashboardWelcome
                   firstName={user?.firstName}
                   fallbackName="Adviser"
@@ -614,19 +600,19 @@ function AdviserDashboardContent() {
                     <>
                       <button
                         onClick={() => handleTabChange("reviews")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#C9A227] px-5 text-sm font-bold text-[#0B3A53] shadow-xs transition hover:bg-[#B38E1E]"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 text-sm font-bold text-white shadow-xs transition"
                       >
                         <i className="ti ti-file-search text-base" /> Review Documents {reviews.length > 0 && `(${reviews.length})`}
                       </button>
                       <button
                         onClick={() => setShowScheduleModal(true)}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur-xs transition hover:bg-white/20"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
                       >
                         <i className="ti ti-calendar-plus text-base" /> Schedule Consultation
                       </button>
                       <button
                         onClick={() => handleTabChange("advisees")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur-xs transition hover:bg-white/20"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
                       >
                         <i className="ti ti-users text-base" /> All Advisees ({advisees.length})
                       </button>
@@ -823,7 +809,7 @@ function AdviserDashboardContent() {
                         {reviews.slice(0, 2).map((review) => (
                           <button
                             key={review.id}
-                            onClick={() => handleTabChange("reviews")}
+                            onClick={() => openAssignedReview(review)}
                             className="flex w-full items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5"
                           >
                             <span className="flex min-w-0 items-center gap-3">
@@ -877,8 +863,8 @@ function AdviserDashboardContent() {
                           </p>
                         </div>
                         <button
-                          onClick={() => handleStartConference(consultations[0].meetingUrl || DEFAULT_SHARED_MEET_URL, consultations[0].topic)}
-                          className="mt-4 rounded-xl bg-[#C9A227] hover:bg-[#B38E1E] py-2.5 text-xs font-bold text-[#0B3A53] shadow-xs transition"
+                          onClick={() => handleStartConference(consultations[0].meetingUrl || DEFAULT_SHARED_MEET_URL, consultations[0].topic, consultations[0].researchId)}
+                          className="mt-4 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] py-2.5 text-xs font-bold text-white shadow-xs transition"
                         >
                           <i className="ti ti-video mr-1.5" /> Join Google Meet
                         </button>
@@ -914,7 +900,7 @@ function AdviserDashboardContent() {
                     </div>
                     <div className="space-y-2.5">
                       {reviews.slice(0, 3).map((review) => (
-                        <button key={review.id} onClick={() => handleTabChange("reviews")} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5">
+                        <button key={review.id} onClick={() => openAssignedReview(review)} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5">
                           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i className="ti ti-file-text" /></span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">{review.docName || "Document submission"}</span>
@@ -1067,7 +1053,7 @@ function AdviserDashboardContent() {
                           placeholder="Provide detailed feedback comments..." 
                           className="bg-white border border-slate-350 rounded-lg p-2.5 text-[12px] focus:outline-none" 
                         />
-                        <button onClick={()=>handleReviewComment(rev.id)} className="px-4 py-2 bg-[#ffa400] text-[#1b4264] font-extrabold rounded-lg border border-[#ffa400] self-start mt-2">
+                        <button onClick={()=>handleReviewComment(rev.id)} className="px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-lg border border-[var(--color-primary)] self-start mt-2 transition">
                           Submit Comments
                         </button>
                       </div>
@@ -1270,14 +1256,14 @@ function AdviserDashboardContent() {
                         {(c.status === "pending" || c.status === "requested") && (
                           <button
                             onClick={() => handleApproveConsultation(c.id, c.topic)}
-                            className="flex h-10 items-center gap-1.5 rounded-xl bg-[#FFA400] px-3.5 text-xs font-bold text-[#072A3D] transition hover:bg-[#E09000]"
+                            className="flex h-10 items-center gap-1.5 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-3.5 text-xs font-bold text-white transition"
                           >
                             <i className="ti ti-check" />
                             <span>Approve Consultation</span>
                           </button>
                         )}
                         <button
-                          onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
+                          onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic, c.researchId)}
                           className="flex h-10 items-center gap-1.5 rounded-xl bg-[#0B3A53] px-3.5 text-xs font-bold text-white transition hover:bg-[#072A3D]"
                         >
                           <i className="ti ti-video" />
@@ -1303,7 +1289,7 @@ function AdviserDashboardContent() {
                       <span className="grid h-16 w-16 place-items-center rounded-2xl bg-[#EAF3F7] text-2xl text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i className="ti ti-calendar-time" /></span>
                       <h3 className="mt-5 text-lg font-bold text-[#0B3A53] dark:text-white">No consultations scheduled</h3>
                       <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">Schedule an advising session or wait for a student consultation request.</p>
-                      <button onClick={() => setShowScheduleModal(true)} className="mt-5 flex h-11 items-center gap-2 rounded-xl bg-[#FFA400] px-5 text-sm font-bold text-[#072A3D] hover:bg-[#E09000]"><i className="ti ti-plus" />Schedule consultation</button>
+                      <button onClick={() => setShowScheduleModal(true)} className="mt-5 flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 text-sm font-bold text-white transition"><i className="ti ti-plus" />Schedule consultation</button>
                     </div>
                   )}
                   </div>
@@ -1478,7 +1464,7 @@ function AdviserDashboardContent() {
                       <span className="text-[10.5px] text-slate-400">Join consultation call with your assigned advisee groups</span>
                     </div>
                     <button 
-                      onClick={() => handleStartConference("https://meet.google.com/new", "In-App Voice and Video Group Conferencing")} 
+                      onClick={() => handleStartConference("https://meet.google.com/new", "In-App Voice and Video Group Conferencing", advisees[0]?.id)}
                       className="px-5 py-2.5 bg-[#ffa400] text-[#1b4264] hover:bg-[#e09000] font-extrabold rounded-lg shadow border border-[#ffa400] self-center cursor-pointer transition-colors flex items-center gap-2"
                     >
                       <i className="ti ti-video text-lg" />

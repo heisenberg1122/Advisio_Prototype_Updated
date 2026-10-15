@@ -24,7 +24,7 @@ export function ThemeToggle({ className, showLabel = false }: ThemeToggleProps) 
       aria-label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
     >
       {isDark ? (
-        <i className="ti ti-sun text-base text-[#ffa400]" aria-hidden="true" />
+        <i className="ti ti-sun text-base text-[var(--color-primary)]" aria-hidden="true" />
       ) : (
         <i className="ti ti-moon text-base" aria-hidden="true" />
       )}

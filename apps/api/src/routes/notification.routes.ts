@@ -20,13 +20,13 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
     }
 
     const notifications = await prisma.notification.findMany({
-      where: { recipientId: req.user.id },
+      where: { recipientId: req.user.id, archivedAt: null },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
 
     const unreadCount = await prisma.notification.count({
-      where: { recipientId: req.user.id, isRead: false },
+      where: { recipientId: req.user.id, isRead: false, archivedAt: null },
     });
 
     res.json({ notifications, unreadCount });
@@ -48,7 +48,7 @@ router.patch("/:id/read", requireAuth, async (req: Request, res: Response) => {
     const id = req.params.id as string;
 
     const result = await prisma.notification.updateMany({
-      where: { id, recipientId: req.user.id },
+      where: { id, recipientId: req.user.id, archivedAt: null },
       data: {
         isRead: true,
         readAt: new Date(),
@@ -77,7 +77,7 @@ router.patch("/read-all", requireAuth, async (req: Request, res: Response) => {
     }
 
     const result = await prisma.notification.updateMany({
-      where: { recipientId: req.user.id, isRead: false },
+      where: { recipientId: req.user.id, isRead: false, archivedAt: null },
       data: { isRead: true, readAt: new Date() },
     });
 
@@ -86,6 +86,21 @@ router.patch("/read-all", requireAuth, async (req: Request, res: Response) => {
     res
       .status(500)
       .json({ error: error.message || "Failed to mark notifications as read" });
+  }
+});
+
+// PATCH /api/notifications/:id/archive keeps the institutional history while
+// removing a notification from the recipient's active inbox.
+router.patch("/:id/archive", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const result = await prisma.notification.updateMany({
+      where: { id: req.params.id as string, recipientId: req.user!.id, archivedAt: null },
+      data: { archivedAt: new Date(), isRead: true, readAt: new Date() },
+    });
+    if (!result.count) return void res.status(404).json({ error: "Notification not found" });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to archive notification" });
   }
 });
 

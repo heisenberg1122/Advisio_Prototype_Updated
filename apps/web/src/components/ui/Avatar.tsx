@@ -15,8 +15,8 @@ export interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const variantStyles: Record<string, string> = {
-  primary: "bg-[#0B3A53] text-white border-white/20",
-  accent:  "bg-[#C9A227] text-[#072A3D] font-bold border-white/30",
+  primary: "bg-[var(--color-primary)] text-white border-white/20",
+  accent:  "bg-[var(--color-primary)] text-white font-bold border-white/30",
   info:    "bg-[#EAF3F7] text-[#0B3A53] border-[#0B3A53]/20",
   success: "bg-[#EAF5EE] text-[#2E7D5B] border-[#2E7D5B]/25",
   warning: "bg-[#FEF7EA] text-[#C58A18] border-[#C58A18]/25",

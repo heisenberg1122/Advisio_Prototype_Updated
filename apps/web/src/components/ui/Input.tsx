@@ -23,9 +23,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           disabled={disabled}
           className={cn(
             "w-full h-10 px-3.5 text-xs sm:text-sm rounded-xl transition-all duration-150",
-            "border border-slate-300 dark:border-white/15 bg-white dark:bg-[#0B1726]",
+            "border border-[var(--color-border-strong)] bg-[var(--color-surface)]",
             "text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500",
-            "focus:outline-none focus:border-[#0B3A53] focus:ring-2 focus:ring-[#0B3A53]/20 dark:focus:border-[#C9A227] dark:focus:ring-[#C9A227]/20",
+            "focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]",
             "disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-white/5 disabled:cursor-not-allowed",
             leftIcon && "pl-10",
             rightIcon && "pr-10",
@@ -63,9 +63,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           disabled={disabled}
           className={cn(
             "w-full h-10 px-3.5 text-xs sm:text-sm rounded-xl transition-all duration-150 cursor-pointer",
-            "border border-slate-300 dark:border-white/15 bg-white dark:bg-[#0B1726]",
+            "border border-[var(--color-border-strong)] bg-[var(--color-surface)]",
             "text-slate-800 dark:text-slate-100",
-            "focus:outline-none focus:border-[#0B3A53] focus:ring-2 focus:ring-[#0B3A53]/20 dark:focus:border-[#C9A227] dark:focus:ring-[#C9A227]/20",
+            "focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]",
             "disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-white/5 disabled:cursor-not-allowed",
             error && "border-red-500 focus:border-red-500 focus:ring-red-500/20",
             className
@@ -98,9 +98,9 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           disabled={disabled}
           className={cn(
             "w-full p-3.5 text-xs sm:text-sm rounded-xl transition-all duration-150 resize-y min-h-[96px]",
-            "border border-slate-300 dark:border-white/15 bg-white dark:bg-[#0B1726]",
+            "border border-[var(--color-border-strong)] bg-[var(--color-surface)]",
             "text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500",
-            "focus:outline-none focus:border-[#0B3A53] focus:ring-2 focus:ring-[#0B3A53]/20 dark:focus:border-[#C9A227] dark:focus:ring-[#C9A227]/20",
+            "focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]",
             "disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-white/5 disabled:cursor-not-allowed",
             error && "border-red-500 focus:border-red-500 focus:ring-red-500/20",
             className

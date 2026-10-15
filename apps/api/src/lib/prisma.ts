@@ -27,7 +27,7 @@ for (const envPath of possibleEnvPaths) {
 
 // Fallback to local PostgreSQL if not defined
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = "postgresql://postgres:admin@localhost:5432/advisio_dev?schema=public";
+  process.env.DATABASE_URL = "postgresql://postgres:admin@localhost:5432/advisio_local?schema=public";
 }
 
 declare global {

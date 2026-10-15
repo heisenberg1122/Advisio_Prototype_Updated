@@ -101,13 +101,35 @@ function roleMatches(recipient: Recipient, filter: string) {
 
 function MessagingSkeleton() {
   return (
-    <section role="status" aria-label="Loading conversations" className="grid min-h-[700px] w-full overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#101B2B] lg:h-[calc(100vh-112px)] lg:grid-cols-[360px_minmax(0,1fr)]">
-      <aside className="border-r border-slate-200 p-6 dark:border-white/10">
-        <div className="flex items-center justify-between"><div className="space-y-2"><Skeleton className="h-3 w-20" /><Skeleton className="h-6 w-36" /></div><Skeleton className="h-11 w-11 rounded-xl" /></div>
-        <Skeleton className="mt-6 h-11 w-full rounded-xl" />
-        <div className="mt-7 space-y-4">{Array.from({ length: 6 }).map((_, index) => <div key={index} className="flex gap-3"><Skeleton className="h-10 w-10 rounded-full" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-2/3" /><Skeleton className="h-3 w-1/2" /></div></div>)}</div>
+    <section
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      className="grid min-h-[700px] w-full overflow-hidden bg-[var(--color-surface)] lg:h-[calc(100vh-112px)] lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[390px_minmax(0,1fr)]"
+    >
+      <span className="sr-only">Loading conversations</span>
+      <aside className="border-[var(--color-border)] p-4 sm:p-6 lg:border-r">
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-2"><Skeleton className="h-3 w-20" /><Skeleton className="h-6 w-36" /></div>
+          <Skeleton className="h-11 w-11 shrink-0 rounded-xl bg-[var(--color-primary)]/20" />
+        </div>
+        <Skeleton className="mt-5 h-11 w-full rounded-xl bg-[var(--color-primary)]/20" />
+        <div className="mt-6 space-y-2">
+          <Skeleton className="mb-3 h-3 w-24" />
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="flex items-center gap-3 rounded-xl p-3">
+              <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2"><Skeleton className={index % 2 ? "h-4 w-3/4" : "h-4 w-2/3"} /><Skeleton className="h-3 w-1/2" /></div>
+              <Skeleton className="h-5 w-5 shrink-0 rounded-full" />
+            </div>
+          ))}
+        </div>
       </aside>
-      <main className="hidden bg-slate-50/70 p-7 dark:bg-black/10 lg:block"><Skeleton className="h-16 w-full rounded-2xl" /><div className="mt-8 space-y-4"><Skeleton className="h-20 w-2/3 rounded-2xl" /><Skeleton className="ml-auto h-24 w-3/5 rounded-2xl" /><Skeleton className="h-20 w-1/2 rounded-2xl" /></div><Skeleton className="mt-[360px] h-14 w-full rounded-2xl" /></main>
+      <main className="hidden min-h-0 flex-col overflow-hidden rounded-r-[22px] border border-[var(--color-border)] bg-[var(--color-surface-subtle)] lg:flex">
+        <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:px-7"><Skeleton className="h-5 w-48" /><Skeleton className="mt-2 h-3 w-72 max-w-full" /><div className="mt-3 flex gap-2"><Skeleton className="h-6 w-24 rounded-full" /><Skeleton className="h-6 w-28 rounded-full" /></div></div>
+        <div className="min-h-0 flex-1 space-y-5 p-7"><Skeleton className="h-20 w-2/3 rounded-2xl" /><Skeleton className="ml-auto h-24 w-3/5 rounded-2xl bg-[var(--color-primary)]/20" /><Skeleton className="h-20 w-1/2 rounded-2xl" /></div>
+        <div className="border-t border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:px-7"><Skeleton className="h-12 w-full rounded-2xl" /></div>
+      </main>
     </section>
   );
 }
@@ -288,7 +310,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                   return <button key={recipient.id} type="button" onClick={() => toggleRecipient(recipient.id)} className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-slate-50 dark:hover:bg-white/5"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#EAF3F7] text-xs font-black text-[#0B3A53] dark:bg-sky-400/15 dark:text-sky-300">{initials(recipient.name)}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{recipient.name}</span><span className="block truncate text-[11px] text-slate-500 dark:text-slate-400">{recipient.role}{recipient.isAssignedStudent ? " · Assigned student" : ""}</span></span><span className={`grid h-5 w-5 place-items-center rounded-full border ${selected ? "border-[#0B3A53] bg-[#0B3A53] text-white dark:border-sky-400 dark:bg-sky-400 dark:text-slate-950" : "border-slate-300 dark:border-white/20"}`}>{selected && <Check className="h-3.5 w-3.5" />}</span></button>;
                 }) : <div className="rounded-xl bg-slate-50 p-5 text-center text-xs text-slate-500 dark:bg-white/5 dark:text-slate-400">No eligible recipients found for this filter.</div>}
               </div>
-              <button type="submit" disabled={!title.trim() || !selectedIds.length || saving} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#F5A800] text-sm font-black text-[#102F49] disabled:cursor-not-allowed disabled:opacity-40"><Users className="h-4 w-4" />{saving ? "Creating…" : `Create group (${selectedIds.length} selected)`}</button>
+              <button type="submit" disabled={!title.trim() || !selectedIds.length || saving} className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-sm font-black text-white transition disabled:cursor-not-allowed disabled:opacity-40"><Users className="h-4 w-4" />{saving ? "Creating…" : `Create group (${selectedIds.length} selected)`}</button>
             </form>
           )}
         </div>}
@@ -319,7 +341,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
             const mine = item.senderId === user?.id || item.senderId === user?.email;
             return <article key={item.id} className={`max-w-[85%] ${mine ? "ml-auto" : "mr-auto"}`}><div className={`rounded-2xl px-4 py-3 ${mine ? "rounded-br-md bg-[#0B3A53] text-white dark:bg-sky-400 dark:text-slate-950" : "rounded-bl-md border border-slate-200 bg-white text-slate-700 dark:border-white/10 dark:bg-[#162438] dark:text-slate-100"}`}><div className={`mb-1 text-[10px] font-bold ${mine ? "text-sky-100 dark:text-slate-700" : "text-slate-500 dark:text-slate-400"}`}>{item.senderName} · {item.senderRole}</div><p className="whitespace-pre-wrap text-sm leading-6">{item.message}</p></div><time className={`mt-1 block px-1 text-[10px] text-slate-400 ${mine ? "text-right" : "text-left"}`}>{new Date(item.createdAt).toLocaleString()}</time></article>;
           })}{!activeMessages.length && <div className="grid h-full min-h-64 place-items-center text-center text-sm text-slate-400">No messages yet. Start the conversation.</div>}<div ref={messageEndRef} /></div>
-          <form onSubmit={sendMessage} className="border-t border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-[#101B2B] sm:px-7"><div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white p-2 focus-within:border-sky-500 dark:border-white/10 dark:bg-white/5"><textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={1} placeholder="Write a message…" className="max-h-32 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} /><button type="submit" disabled={!message.trim() || saving} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#F5A800] text-[#102F49] disabled:opacity-40" aria-label="Send message"><Send className="h-4 w-4" /></button></div></form>
+          <form onSubmit={sendMessage} className="border-t border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-[#101B2B] sm:px-7"><div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white p-2 focus-within:border-sky-500 dark:border-white/10 dark:bg-white/5"><textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={1} placeholder="Write a message…" className="max-h-32 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none" onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} /><button type="submit" disabled={!message.trim() || saving} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white transition disabled:opacity-40" aria-label="Send message"><Send className="h-4 w-4" /></button></div></form>
         </>}
       </main>
     </section>

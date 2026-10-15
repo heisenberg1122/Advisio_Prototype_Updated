@@ -125,7 +125,7 @@ async function prepareProfilePhoto(file: File) {
 export default function AccountSettingsPage() {
   const { user } = useAuth();
   const { profile, updateProfile } = useProfile();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, collegeTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>("account");
   const [savedMessage, setSavedMessage] = useState("");
   const [editingAccount, setEditingAccount] = useState(false);
@@ -226,13 +226,13 @@ export default function AccountSettingsPage() {
   return (
     <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {savedMessage && (
-        <div className="fixed right-5 top-20 z-50 flex items-center gap-2 rounded-xl border-l-4 border-[#C9A227] bg-[#0B3A53] px-4 py-3 text-sm font-bold text-white shadow-xl">
-          <Check className="h-4 w-4 text-[#C9A227]" /> {savedMessage}
+        <div className="fixed right-5 top-20 z-50 flex items-center gap-2 rounded-xl border border-white/10 bg-[#0B3A53] px-4 py-3 text-sm font-bold text-white shadow-xl">
+          <Check className="h-4 w-4 text-[var(--color-primary)]" /> {savedMessage}
         </div>
       )}
 
       <div>
-        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#C9A227]">My account</p>
+        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--color-primary)]">My account</p>
         <h1 className="mt-1 text-2xl font-extrabold text-[#17212B] dark:text-white">Account Settings</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Manage personal preferences for your Advisio account.</p>
       </div>
@@ -240,7 +240,7 @@ export default function AccountSettingsPage() {
       <div className="grid items-start gap-6 lg:grid-cols-[260px_1fr]">
         <nav className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:pb-0" aria-label="Account settings sections">
           {categories.map(({ id, label, description, icon: Icon }) => (
-            <button key={id} type="button" onClick={() => setActiveTab(id)} className={cn("flex min-w-52 items-center gap-3 rounded-xl border p-3 text-left transition", activeTab === id ? "border-[#0B3A53] bg-[#0B3A53] text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-[#101b2b] dark:text-slate-200")}>
+            <button key={id} type="button" onClick={() => setActiveTab(id)} className={cn("flex min-w-52 items-center gap-3 rounded-xl border p-3 text-left transition", activeTab === id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]" : "border-[var(--color-border)] bg-[var(--color-surface)] text-slate-700 hover:bg-[var(--color-primary-light)] dark:text-slate-200")}>
               <span className={cn("grid h-9 w-9 place-items-center rounded-lg", activeTab === id ? "bg-white/15" : "bg-slate-100 dark:bg-white/10")}><Icon className="h-4 w-4" /></span>
               <span><strong className="block text-sm">{label}</strong><span className={cn("text-[11px]", activeTab === id ? "text-slate-200" : "text-slate-400")}>{description}</span></span>
             </button>
@@ -316,7 +316,7 @@ export default function AccountSettingsPage() {
                 {options.map(([id, title, description]) => (
                   <label key={id} className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
                     <span><strong className="block text-sm text-slate-800 dark:text-white">{title}</strong><span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">{description}</span></span>
-                    <input type="checkbox" checked={preferences[id] ?? true} onChange={(event) => setPreferences((current) => ({ ...current, [id]: event.target.checked }))} className="mt-1 h-4 w-4 accent-[#0B3A53]" />
+                    <input type="checkbox" checked={preferences[id] ?? true} onChange={(event) => setPreferences((current) => ({ ...current, [id]: event.target.checked }))} className="mt-1 h-4 w-4 accent-[var(--color-primary)]" />
                   </label>
                 ))}
               </CardContent>
@@ -326,11 +326,19 @@ export default function AccountSettingsPage() {
 
           {activeTab === "appearance" && (
             <Card>
-              <CardHeader><div><CardTitle icon={Palette}>Appearance</CardTitle><CardDescription>Your theme selection is saved for this account.</CardDescription></div></CardHeader>
+              <CardHeader><div><CardTitle icon={Palette}>Appearance</CardTitle><CardDescription>Your verified college identity is automatic. Your appearance preference is saved to your account.</CardDescription></div></CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-3">
+                <div className="sm:col-span-3 flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                  <span className="h-12 w-12 shrink-0 rounded-xl border border-black/10 shadow-sm" style={{ backgroundColor: collegeTheme.referenceColor }} aria-hidden="true" />
+                  <div className="min-w-0">
+                    <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Current College / School</span>
+                    <strong className="mt-1 block truncate text-sm text-slate-800 dark:text-white">{user?.college?.name || "University-wide Advisio theme"}</strong>
+                    <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">Assigned theme: {collegeTheme.name}</span>
+                  </div>
+                </div>
                 {([{ id: "light", label: "Light", icon: Sun }, { id: "dark", label: "Dark", icon: Moon }, { id: "system", label: "System", icon: Laptop }] as const).map(({ id, label, icon: Icon }) => (
-                  <button key={id} type="button" onClick={() => setTheme(id)} className={cn("rounded-xl border p-5 text-center transition", theme === id ? "border-[#C9A227] bg-[#C9A227]/10 ring-2 ring-[#C9A227]/20" : "border-slate-200 bg-white hover:bg-slate-50 dark:border-white/10 dark:bg-white/5")}>
-                    <Icon className="mx-auto h-6 w-6 text-[#0B3A53] dark:text-[#C9A227]" /><strong className="mt-2 block text-sm text-slate-800 dark:text-white">{label}</strong>
+                  <button key={id} type="button" onClick={() => setTheme(id)} className={cn("rounded-xl border p-5 text-center transition", theme === id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] ring-2 ring-[var(--college-focus-ring)]" : "border-slate-200 bg-white hover:bg-slate-50 dark:border-white/10 dark:bg-white/5")}>
+                    <Icon className="mx-auto h-6 w-6 text-[var(--color-primary)]" /><strong className="mt-2 block text-sm text-slate-800 dark:text-white">{label}</strong>
                   </button>
                 ))}
               </CardContent>
@@ -377,7 +385,7 @@ function EditableField({ label, value, placeholder, editing, onChange, icon }: {
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className={cn("h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-[#C9A227] focus:ring-2 focus:ring-[#C9A227]/15 dark:border-white/15 dark:bg-white/5 dark:text-white", icon && "pl-10")}
+          className={cn("h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] dark:border-white/15 dark:bg-white/5 dark:text-white", icon && "pl-10")}
         />
       </span>
     </label>

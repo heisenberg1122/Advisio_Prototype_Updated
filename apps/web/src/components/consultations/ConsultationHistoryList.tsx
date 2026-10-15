@@ -15,7 +15,7 @@ export function ConsultationHistoryList({ history }: ConsultationHistoryListProp
       </CardTitle>
 
       {history.length === 0 ? (
-        <div className="empty">No past consultations yet.</div>
+        <div className="py-8 text-center text-sm font-semibold text-[var(--color-text-muted)]">No past consultations yet.</div>
       ) : (
         history.map((c, i) => (
           <div
@@ -36,8 +36,8 @@ export function ConsultationHistoryList({ history }: ConsultationHistoryListProp
               <i className="ti ti-check text-sm" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[13px] truncate">{c.title}</div>
-              <div className="text-[11px] text-[var(--color-text-tertiary)] mt-px">
+              <div className="text-[13px] font-bold text-[var(--color-text-primary)] truncate">{c.title}</div>
+              <div className="text-[12px] text-[var(--color-text-secondary)] mt-0.5">
                 {c.date} · {c.duration} · {c.adviser}
               </div>
             </div>

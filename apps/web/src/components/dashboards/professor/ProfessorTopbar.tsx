@@ -20,17 +20,13 @@ const TITLES: Record<string, string> = {
 };
 
 const PAGES: Record<string, string> = {
-  "/professor/analytics": "Analytics",
-  "/professor/milestones": "Milestones",
-  "/professor/panelists": "Panelists",
-  "/professor/plagiarism": "Plagiarism Checks",
-  "/professor/rubric": "Evaluation Rubrics",
   "/professor/profile": "My Profile",
   "/professor/profile/edit": "Edit Profile",
   "/professor/notifications": "Notifications",
   "/professor/settings": "Account Settings",
   "/professor/inbox": "Inbox",
   "/professor/signatures": "Signature Requests",
+  "/professor/reviews": "Manuscript Reviews",
 };
 
 export function ProfessorTopbar() {

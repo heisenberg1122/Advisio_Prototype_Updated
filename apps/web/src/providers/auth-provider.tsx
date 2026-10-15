@@ -10,6 +10,7 @@ export interface UserProfile {
   lastName: string;
   college?: { id: string; name: string; code: string } | null;
   program?: { id: string; name: string; code: string } | null;
+  appearancePreference?: "LIGHT" | "DARK" | "SYSTEM";
   roles: string[];
   permissions: string[];
 }
@@ -47,6 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         console.warn("Session expired or invalid, logging out.");
         localStorage.removeItem("advisio_token");
+        localStorage.removeItem("advisio_theme:active");
+        localStorage.removeItem("advisio_college-theme:active");
         setToken(null);
         setUser(null);
       } finally {
@@ -119,6 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setShowLogoutModal(false);
     if (typeof window !== "undefined") {
       localStorage.removeItem("advisio_token");
+      localStorage.removeItem("advisio_theme:active");
+      localStorage.removeItem("advisio_college-theme:active");
       setToken(null);
       setUser(null);
       window.location.href = "/login";
@@ -204,6 +209,8 @@ export function useAuth(): AuthContextType {
       logout: () => {
         if (typeof window !== "undefined") {
           localStorage.removeItem("advisio_token");
+          localStorage.removeItem("advisio_theme:active");
+          localStorage.removeItem("advisio_college-theme:active");
           window.location.href = "/login";
         }
       },

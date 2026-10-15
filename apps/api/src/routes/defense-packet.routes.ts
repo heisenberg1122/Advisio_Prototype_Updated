@@ -5,6 +5,13 @@ import { canAccessCollege } from "../lib/college-scope.js";
 import { defensePacketService } from "../services/defense-packet.service.js";
 import { googleDriveService } from "../services/google-drive.service.js";
 import { storageHierarchyService } from "../services/storage-hierarchy.service.js";
+import { createNotificationsOnce } from "../services/research-workflow-integration.service.js";
+import {
+  defenseManuscriptService,
+  hasDefenseFacilitatorAccess,
+  panelistPacketAccessPolicy,
+  validateDefensePacketMutation,
+} from "../services/defense-manuscript.service.js";
 import multer from "multer";
 
 const router = Router();
@@ -12,7 +19,6 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
 });
-const FACILITATORS = new Set(["RESEARCH_COORDINATOR", "RPO", "SYSTEM_ADMIN"]);
 const versionSelect = {
   id: true,
   versionNumber: true,
@@ -20,23 +26,17 @@ const versionSelect = {
   mimeType: true,
   googleDriveFileId: true,
   uploadedAt: true,
+  submittedAt: true,
+  manuscriptStatus: true,
+  isImmutable: true,
+  contentChecksum: true,
+  milestone: { select: { id: true, name: true, sequence: true } },
   document: {
     select: {
       id: true,
       title: true,
       documentType: true,
       researchId: true,
-      versions: {
-        select: {
-          id: true,
-          versionNumber: true,
-          fileName: true,
-          mimeType: true,
-          googleDriveFileId: true,
-          uploadedAt: true,
-        },
-        orderBy: { versionNumber: "desc" as const },
-      },
     },
   },
 } as const;
@@ -59,17 +59,60 @@ const recommendationSelect = {
 async function access(sessionId: string, user: NonNullable<Request["user"]>) {
   const session = await prisma.defenseSession.findUnique({
     where: { id: sessionId },
-    include: { research: true, invitations: true },
+    include: {
+      research: {
+        include: {
+          members: {
+            where: { userId: user.id, leftAt: null },
+            select: { id: true },
+          },
+        },
+      },
+      invitations: true,
+    },
   });
   if (!session || !canAccessCollege(user, session.research.collegeId))
     return null;
-  const facilitator = user.roles.some((role) => FACILITATORS.has(role));
+  const facilitator = hasDefenseFacilitatorAccess(user);
+  const projectMember = session.research.members.length > 0;
   const invitation = session.invitations.find(
-    (item) => item.inviteeId === user.id && item.status !== "REMOVED",
+    (item) =>
+      item.inviteeId === user.id &&
+      panelistPacketAccessPolicy({
+        packetPublished: true,
+        invitationStatus: item.status,
+        invitationRole: item.role,
+      }),
   );
-  if (!facilitator && !invitation) return null;
-  return { session, facilitator, invitation };
+  if (!facilitator && !invitation && !projectMember) return null;
+  return { session, facilitator, invitation, projectMember };
 }
+
+router.get(
+  "/defense-sessions/:id/manuscript-readiness",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const allowed = await access(req.params.id as string, req.user!);
+      if (!allowed?.facilitator)
+        return void res
+          .status(403)
+          .json({ error: "Defense facilitator access is required." });
+      const readiness = await defenseManuscriptService.getReadiness(
+        allowed.session.id,
+      );
+      if (!readiness)
+        return void res
+          .status(404)
+          .json({ error: "Defense session was not found." });
+      res.json({ readiness });
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message || "Failed to verify manuscript readiness.",
+      });
+    }
+  },
+);
 
 router.get("/defense-review-packets", requireAuth, async (req, res) => {
   try {
@@ -193,6 +236,48 @@ router.get(
   },
 );
 
+router.get(
+  "/defense-sessions/:id/review-packet/history",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const allowed = await access(req.params.id as string, req.user!);
+      if (!allowed?.facilitator && !allowed?.projectMember)
+        return void res
+          .status(403)
+          .json({ error: "Defense packet history is not available to this account." });
+      const packet = await prisma.defensePacket.findUnique({
+        where: { defenseSessionId: allowed.session.id },
+        select: { id: true },
+      });
+      if (!packet) return void res.json({ publications: [] });
+      const publications = await prisma.auditLog.findMany({
+        where: {
+          entityType: "DefensePacketPublication",
+          entityId: packet.id,
+          action: "PUBLISH",
+        },
+        select: {
+          id: true,
+          action: true,
+          oldValues: true,
+          newValues: true,
+          createdAt: true,
+          user: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      res.json({ publications });
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message || "Failed to load packet publication history.",
+      });
+    }
+  },
+);
+
 router.put(
   "/defense-sessions/:id/review-packet",
   requireAuth,
@@ -208,6 +293,29 @@ router.put(
         return void res
           .status(400)
           .json({ error: "Select the eligible manuscript version." });
+      const publish = req.body.publish === true;
+      const existingPacket = await prisma.defensePacket.findUnique({
+        where: { defenseSessionId: allowed.session.id },
+      });
+      const publicationReason = String(req.body.publicationReason || "").trim();
+      validateDefensePacketMutation({
+        existingStatus: existingPacket?.status,
+        existingMappingVersion: existingPacket?.mappingVersion,
+        publish,
+        replacePublished: req.body.replacePublished === true,
+        expectedMappingVersion: Number.isFinite(
+          Number(req.body.expectedMappingVersion),
+        )
+          ? Number(req.body.expectedMappingVersion)
+          : null,
+        publicationReason,
+      });
+      const manuscriptEligibility = publish
+        ? await defenseManuscriptService.requireEligible(
+            allowed.session.id,
+            manuscriptVersionId,
+          )
+        : null;
       const ids = [
         manuscriptVersionId,
         req.body.similarityReportVersionId,
@@ -243,7 +351,6 @@ router.put(
       const evaluationFieldMappings = defensePacketService.normalizeMappings(
         req.body.evaluationFieldMappings,
       );
-      const publish = req.body.publish === true;
       if (
         publish &&
         req.body.recommendationTemplateVersionId &&
@@ -293,46 +400,95 @@ router.put(
           details: preflightErrors,
           preflightReport,
         });
-      const packet = await prisma.defensePacket.upsert({
-        where: { defenseSessionId: allowed.session.id },
-        create: {
-          defenseSessionId: allowed.session.id,
-          manuscriptVersionId,
-          similarityReportVersionId: req.body.similarityReportVersionId || null,
-          recommendationTemplateVersionId:
-            req.body.recommendationTemplateVersionId || null,
-          evaluationTemplateVersionId:
-            req.body.evaluationTemplateVersionId || null,
-          recommendationFieldMappings: recommendationFieldMappings as any,
-          evaluationFieldMappings: evaluationFieldMappings as any,
-          reviewDeadline: req.body.reviewDeadline
-            ? new Date(req.body.reviewDeadline)
-            : null,
-          publishedById: req.user!.id,
-          preflightReport: preflightReport as any,
-          engineVersion: "2.0",
-          status: publish ? "PUBLISHED" : "DRAFT",
-          publishedAt: publish ? new Date() : null,
-        },
-        update: {
-          manuscriptVersionId,
-          similarityReportVersionId: req.body.similarityReportVersionId || null,
-          recommendationTemplateVersionId:
-            req.body.recommendationTemplateVersionId || null,
-          evaluationTemplateVersionId:
-            req.body.evaluationTemplateVersionId || null,
-          recommendationFieldMappings: recommendationFieldMappings as any,
-          evaluationFieldMappings: evaluationFieldMappings as any,
-          reviewDeadline: req.body.reviewDeadline
-            ? new Date(req.body.reviewDeadline)
-            : null,
-          publishedById: req.user!.id,
-          preflightReport: preflightReport as any,
-          engineVersion: "2.0",
-          mappingVersion: { increment: 1 },
-          status: publish ? "PUBLISHED" : "DRAFT",
-          publishedAt: publish ? new Date() : null,
-        },
+      const publishedAt = publish ? new Date() : null;
+      const packetData = {
+        manuscriptVersionId,
+        similarityReportVersionId: req.body.similarityReportVersionId || null,
+        recommendationTemplateVersionId:
+          req.body.recommendationTemplateVersionId || null,
+        evaluationTemplateVersionId:
+          req.body.evaluationTemplateVersionId || null,
+        recommendationFieldMappings: recommendationFieldMappings as any,
+        evaluationFieldMappings: evaluationFieldMappings as any,
+        reviewDeadline: req.body.reviewDeadline
+          ? new Date(req.body.reviewDeadline)
+          : null,
+        publishedById: req.user!.id,
+        preflightReport: preflightReport as any,
+        engineVersion: "2.0",
+        status: publish ? ("PUBLISHED" as const) : ("DRAFT" as const),
+        publishedAt,
+      };
+      const packet = await prisma.$transaction(async (tx) => {
+        let saved;
+        if (existingPacket) {
+          const updated = await tx.defensePacket.updateMany({
+            where: {
+              id: existingPacket.id,
+              mappingVersion: existingPacket.mappingVersion,
+              status: existingPacket.status,
+            },
+            data: { ...packetData, mappingVersion: { increment: 1 } },
+          });
+          if (!updated.count) {
+            const conflict = new Error(
+              "The defense packet changed concurrently. Refresh before saving again.",
+            ) as Error & { statusCode?: number; code?: string };
+            conflict.statusCode = 409;
+            conflict.code = "PACKET_VERSION_CONFLICT";
+            throw conflict;
+          }
+          saved = await tx.defensePacket.findUniqueOrThrow({
+            where: { id: existingPacket.id },
+          });
+        } else {
+          saved = await tx.defensePacket.create({
+            data: {
+              defenseSessionId: allowed.session.id,
+              ...packetData,
+            },
+          });
+        }
+        if (publish) {
+          await tx.auditLog.create({
+            data: {
+              userId: req.user!.id,
+              action:
+                existingPacket?.status === "PUBLISHED" ? "UPDATE" : "CREATE",
+              entityType: "DefensePacketPublication",
+              entityId: saved.id,
+              oldValues: existingPacket
+                ? {
+                    manuscriptVersionId: existingPacket.manuscriptVersionId,
+                    similarityReportVersionId:
+                      existingPacket.similarityReportVersionId,
+                    recommendationTemplateVersionId:
+                      existingPacket.recommendationTemplateVersionId,
+                    evaluationTemplateVersionId:
+                      existingPacket.evaluationTemplateVersionId,
+                    mappingVersion: existingPacket.mappingVersion,
+                    publishedAt:
+                      existingPacket.publishedAt?.toISOString() || null,
+                  }
+                : undefined,
+              newValues: {
+                manuscriptVersionId: saved.manuscriptVersionId,
+                similarityReportVersionId: saved.similarityReportVersionId,
+                recommendationTemplateVersionId:
+                  saved.recommendationTemplateVersionId,
+                evaluationTemplateVersionId: saved.evaluationTemplateVersionId,
+                mappingVersion: saved.mappingVersion,
+                publishedAt: saved.publishedAt?.toISOString() || null,
+                publicationReason: publicationReason || null,
+                defenseStage:
+                  manuscriptEligibility?.candidate.milestone || null,
+              },
+              ipAddress: req.ip,
+              userAgent: req.get("user-agent"),
+            },
+          });
+        }
+        return saved;
       });
       if (publish) {
         const invitees = allowed.session.invitations.filter(
@@ -340,22 +496,60 @@ router.put(
             item.status === "ACCEPTED" &&
             ["PANELIST", "PANEL_CHAIR"].includes(item.role),
         );
-        if (invitees.length)
-          await prisma.notification.createMany({
-            data: invitees.map((item) => ({
-              recipientId: item.inviteeId,
-              type: "DOCUMENT_UPLOADED" as const,
-              title: "Defense manuscript ready for review",
-              message: `${allowed.session.research.title} is ready for pre-defense manuscript review.`,
-              entityType: "DefenseSession",
-              entityId: allowed.session.id,
-            })),
-          });
+        const researchers = await prisma.researchMember.findMany({
+          where: {
+            researchId: allowed.session.researchId,
+            leftAt: null,
+            projectRole: { in: ["LEADER", "MEMBER"] },
+          },
+          select: { userId: true },
+        });
+        const updatedPublication = existingPacket?.status === "PUBLISHED";
+        await createNotificationsOnce(prisma, [
+          ...invitees.map((item) => ({
+            recipientId: item.inviteeId,
+            type: "DOCUMENT_UPLOADED" as const,
+            title: updatedPublication
+              ? "Authorized defense document updated"
+              : "Defense packet published",
+            message: updatedPublication
+              ? `${allowed.session.research.title} has an approved defense document update. The previous manuscript remains in the audit history.`
+              : `${allowed.session.research.title} is ready for pre-defense manuscript review.`,
+            entityType: "DefenseSession",
+            entityId: allowed.session.id,
+            actionUrl: `/panelist/reviews?sessionId=${allowed.session.id}`,
+            deduplicationKey: `defense-packet:${packet.id}:publication:${packet.mappingVersion}:${item.inviteeId}`,
+          })),
+          ...researchers.map(({ userId: recipientId }) => ({
+            recipientId,
+            type: "DOCUMENT_REVIEWED" as const,
+            title: updatedPublication
+              ? "Defense manuscript updated"
+              : "Defense packet published",
+            message: updatedPublication
+              ? "An authorized replacement was published without changing the original defense manuscript history."
+              : "The approved manuscript version is now available to the accepted defense panel.",
+            entityType: "DefenseSession",
+            entityId: allowed.session.id,
+            actionUrl: `/student/defense?sessionId=${allowed.session.id}`,
+            deduplicationKey: `defense-packet:${packet.id}:publication:${packet.mappingVersion}:${recipientId}`,
+          })),
+        ]);
       }
-      res.json({ packet, preflightReport });
+      res.json({
+        packet,
+        preflightReport,
+        defenseStage: manuscriptEligibility?.candidate.milestone || null,
+      });
     } catch (error: any) {
-      res.status(400).json({
-        error: error.message || "Failed to save the defense review packet.",
+      const conflict = error?.statusCode === 409 || error?.code === "P2002";
+      res.status(error?.statusCode || (conflict ? 409 : 400)).json({
+        error:
+          error?.code === "P2002"
+            ? "Another packet publication completed first. Refresh before trying again."
+            : error.message || "Failed to save the defense review packet.",
+        code: error?.code === "P2002" ? "PACKET_VERSION_CONFLICT" : error?.code,
+        details: error?.details,
       });
     }
   },

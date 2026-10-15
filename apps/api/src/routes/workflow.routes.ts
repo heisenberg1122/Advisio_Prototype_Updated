@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { storageHierarchyService } from "../services/storage-hierarchy.service.js";
-import { prisma } from "../lib/prisma.js";
+import { ManuscriptLifecycleStatus, prisma } from "../lib/prisma.js";
 import {
   createWorkflowTopicSchema,
   createWorkflowSchema,
@@ -17,6 +17,13 @@ import { randomBytes } from "node:crypto";
 import multer from "multer";
 import fs from "node:fs";
 import { googleDriveService } from "../services/google-drive.service.js";
+import { canReviewTaskSubmission } from "../services/task-submission-access.service.js";
+import {
+  advanceMilestoneIfSatisfied,
+  createNotificationsOnce,
+  recordTaskSubmissionAttempt,
+} from "../services/research-workflow-integration.service.js";
+import { uploadTaskSubmission } from "../services/task-submission-upload.service.js";
 
 const router = Router();
 const resourceUpload = multer({
@@ -164,11 +171,9 @@ router.get("/stages/:stageId/attachments", requireAuth, async (req, res) => {
     });
     res.json({ attachments, canManage: context.access.manages });
   } catch (error: any) {
-    res
-      .status(500)
-      .json({
-        error: error.message || "Failed to load milestone attachments.",
-      });
+    res.status(500).json({
+      error: error.message || "Failed to load milestone attachments.",
+    });
   }
 });
 
@@ -300,11 +305,9 @@ router.get(
         return void res.status(404).json({ error: "Attachment not found." });
       }
       if (!attachment.storagePath || !attachment.fileName) {
-        return void res
-          .status(400)
-          .json({
-            error: "This attachment does not contain an uploaded file.",
-          });
+        return void res.status(400).json({
+          error: "This attachment does not contain an uploaded file.",
+        });
       }
       res.setHeader(
         "Content-Type",
@@ -596,11 +599,9 @@ router.post(
       });
       res.status(201).json({ resource: serializeResource(resource) });
     } catch (error: any) {
-      res
-        .status(500)
-        .json({
-          error: error.message || "Failed to upload workflow resource.",
-        });
+      res.status(500).json({
+        error: error.message || "Failed to upload workflow resource.",
+      });
     }
   },
 );
@@ -657,11 +658,9 @@ router.patch(
       });
       res.json({ resource: serializeResource(resource) });
     } catch (error: any) {
-      res
-        .status(500)
-        .json({
-          error: error.message || "Failed to update workflow resource.",
-        });
+      res.status(500).json({
+        error: error.message || "Failed to update workflow resource.",
+      });
     }
   },
 );
@@ -756,11 +755,9 @@ router.post(
           .catch(() => undefined);
       res.json({ resource: serializeResource(resource) });
     } catch (error: any) {
-      res
-        .status(500)
-        .json({
-          error: error.message || "Failed to replace workflow resource.",
-        });
+      res.status(500).json({
+        error: error.message || "Failed to replace workflow resource.",
+      });
     }
   },
 );
@@ -853,11 +850,9 @@ router.delete(
         fs.unlink(existing.storagePath, () => undefined);
       res.json({ success: true });
     } catch (error: any) {
-      res
-        .status(500)
-        .json({
-          error: error.message || "Failed to remove workflow resource.",
-        });
+      res.status(500).json({
+        error: error.message || "Failed to remove workflow resource.",
+      });
     }
   },
 );
@@ -868,12 +863,10 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
     const { researchTypeId } = req.query;
     const scope = getCollegeScope(req.user!);
     if (scope.kind === "unassigned") {
-      res
-        .status(403)
-        .json({
-          error:
-            "Your account has not been assigned to a college or school. Contact the System Administrator.",
-        });
+      res.status(403).json({
+        error:
+          "Your account has not been assigned to a college or school. Contact the System Administrator.",
+      });
       return;
     }
     const scopedResearchTypeIds =
@@ -943,11 +936,9 @@ router.post(
         select: { id: true },
       });
       if (duplicate) {
-        return void res
-          .status(409)
-          .json({
-            error: "A topic with this title already exists in the workflow.",
-          });
+        return void res.status(409).json({
+          error: "A topic with this title already exists in the workflow.",
+        });
       }
       const topic = await prisma.$transaction(async (tx) => {
         await normalizeWorkflowTopicSequences(tx, workflowId);
@@ -1002,11 +993,9 @@ router.patch(
           select: { id: true },
         });
         if (duplicate) {
-          return void res
-            .status(409)
-            .json({
-              error: "A topic with this title already exists in the workflow.",
-            });
+          return void res.status(409).json({
+            error: "A topic with this title already exists in the workflow.",
+          });
         }
       }
       const topic = await prisma.workflowTopic.update({
@@ -1052,12 +1041,9 @@ router.patch(
         new Set(requestedIds).size !== requestedIds.length ||
         requestedIds.some((id) => !existingIds.has(id))
       ) {
-        return void res
-          .status(400)
-          .json({
-            error:
-              "Topic order must contain every workflow topic exactly once.",
-          });
+        return void res.status(400).json({
+          error: "Topic order must contain every workflow topic exactly once.",
+        });
       }
       await prisma.$transaction(async (tx) => {
         for (let index = 0; index < requestedIds.length; index += 1) {
@@ -1140,12 +1126,10 @@ router.post(
       const { researchTypeId, name, description, stages = [] } = req.body;
       const scope = getCollegeScope(req.user);
       if (scope.kind === "unassigned") {
-        res
-          .status(403)
-          .json({
-            error:
-              "Your account has not been assigned to a college or school. Contact the System Administrator.",
-          });
+        res.status(403).json({
+          error:
+            "Your account has not been assigned to a college or school. Contact the System Administrator.",
+        });
         return;
       }
 
@@ -1163,12 +1147,10 @@ router.post(
         include: { program: { include: { college: true } } },
       });
       if (!researchType) {
-        res
-          .status(403)
-          .json({
-            error:
-              "The selected research type is outside your assigned department or program.",
-          });
+        res.status(403).json({
+          error:
+            "The selected research type is outside your assigned department or program.",
+        });
         return;
       }
 
@@ -1186,12 +1168,10 @@ router.post(
         select: { id: true },
       });
       if (duplicate) {
-        res
-          .status(409)
-          .json({
-            error:
-              "A workflow with this name already exists in your department or program.",
-          });
+        res.status(409).json({
+          error:
+            "A workflow with this name already exists in your department or program.",
+        });
         return;
       }
 
@@ -1281,11 +1261,9 @@ router.post(
       });
       res.json({ invitation: updated });
     } catch (error: any) {
-      res
-        .status(500)
-        .json({
-          error: error.message || "Failed to generate workflow invitation.",
-        });
+      res.status(500).json({
+        error: error.message || "Failed to generate workflow invitation.",
+      });
     }
   },
 );
@@ -1297,11 +1275,9 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       if (!req.user!.roles.includes("RESEARCHER")) {
-        return void res
-          .status(403)
-          .json({
-            error: "Researcher access is required to view this invitation.",
-          });
+        return void res.status(403).json({
+          error: "Researcher access is required to view this invitation.",
+        });
       }
       const code = String(req.params.code || "")
         .trim()
@@ -1351,11 +1327,9 @@ router.get(
         },
       });
     } catch (error: any) {
-      res
-        .status(500)
-        .json({
-          error: error.message || "Failed to load the workflow invitation.",
-        });
+      res.status(500).json({
+        error: error.message || "Failed to load the workflow invitation.",
+      });
     }
   },
 );
@@ -1396,11 +1370,9 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
       req.user!.collegeId !== researchType.program.collegeId ||
       req.user!.programId !== researchType.programId
     )
-      return void res
-        .status(403)
-        .json({
-          error: "This workflow belongs to a different department or program.",
-        });
+      return void res.status(403).json({
+        error: "This workflow belongs to a different department or program.",
+      });
     const enrollment = await prisma.workflowEnrollment.upsert({
       where: {
         workflowId_userId: { workflowId: workflow.id, userId: req.user!.id },
@@ -1464,11 +1436,9 @@ router.get(
       });
       res.json({ enrollments });
     } catch (error: any) {
-      res
-        .status(500)
-        .json({
-          error: error.message || "Failed to load workflow enrollments.",
-        });
+      res.status(500).json({
+        error: error.message || "Failed to load workflow enrollments.",
+      });
     }
   },
 );
@@ -1652,11 +1622,9 @@ router.post(
         ? req.body.items.slice(0, 100)
         : [];
       if (!items.length) {
-        return void res
-          .status(400)
-          .json({
-            error: "Select at least one deadline before sending reminders.",
-          });
+        return void res.status(400).json({
+          error: "Select at least one deadline before sending reminders.",
+        });
       }
       const researchIds: string[] = Array.from(
         new Set<string>(
@@ -1747,12 +1715,10 @@ router.post(
       }
 
       if (!notifications.size) {
-        return void res
-          .status(400)
-          .json({
-            error:
-              "No eligible researchers were found for the selected deadlines.",
-          });
+        return void res.status(400).json({
+          error:
+            "No eligible researchers were found for the selected deadlines.",
+        });
       }
       const result = await prisma.notification.createMany({
         data: Array.from(notifications.values()),
@@ -1948,6 +1914,10 @@ router.delete(
         return void res
           .status(404)
           .json({ error: "Workflow milestone not found." });
+      if (!(await workflowAccess(stage.workflowId, req.user!))?.manages)
+        return void res
+          .status(404)
+          .json({ error: "Workflow milestone not found." });
 
       const taskIds = stage.tasks.map((task) => task.id);
       const [activeUsage, submissions, transitions] = await Promise.all([
@@ -2043,12 +2013,16 @@ router.post(
         res.status(404).json({ error: "Workflow instance not found" });
         return;
       }
+      if (!(await workflowAccess(instance.workflowId, req.user!))?.manages) {
+        res.status(404).json({ error: "Workflow instance not found" });
+        return;
+      }
 
       const targetStage = await prisma.workflowStage.findUnique({
         where: { id: toStageId },
       });
 
-      if (!targetStage) {
+      if (!targetStage || targetStage.workflowId !== instance.workflowId) {
         res.status(404).json({ error: "Target workflow stage not found" });
         return;
       }
@@ -2202,6 +2176,10 @@ router.post(
         res.status(404).json({ error: "Workflow stage not found" });
         return;
       }
+      if (!(await workflowAccess(currentStage.workflowId, req.user!))?.manages) {
+        res.status(404).json({ error: "Workflow stage not found" });
+        return;
+      }
 
       const updated = await prisma.workflowStage.update({
         where: { id: stageId },
@@ -2253,6 +2231,10 @@ router.post(
         where: { id: stageId },
       });
       if (!stage)
+        return void res
+          .status(404)
+          .json({ error: "Workflow milestone not found." });
+      if (!(await workflowAccess(stage.workflowId, req.user!))?.manages)
         return void res
           .status(404)
           .json({ error: "Workflow milestone not found." });
@@ -2366,6 +2348,17 @@ router.delete(
   async (req: Request, res: Response) => {
     try {
       const taskId = req.params.taskId as string;
+      const task = await prisma.workflowTask.findUnique({
+        where: { id: taskId },
+        select: { stage: { select: { workflowId: true } } },
+      });
+      if (
+        !task ||
+        !(await workflowAccess(task.stage.workflowId, req.user!))?.manages
+      )
+        return void res
+          .status(404)
+          .json({ error: "Workflow task not found." });
       const submissions = await prisma.taskSubmission.count({
         where: { taskId },
       });
@@ -2386,6 +2379,49 @@ router.delete(
 );
 
 // POST /api/workflows/tasks/:taskId/submissions — group links an uploaded document to a valid workflow task.
+// One authoritative operation uploads the blob and commits all related
+// submission records. The existing link route below remains backward compatible.
+router.post(
+  "/tasks/:taskId/submissions/upload",
+  requireAuth,
+  resourceUpload.single("file"),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.file)
+        return void res.status(400).json({ error: "Choose a PDF, DOC, or DOCX file." });
+      const researchId = String(req.body.researchId || "");
+      const clientKey = String(req.body.idempotencyKey || "").trim().slice(0, 100);
+      const title = String(req.body.title || req.file.originalname).trim().slice(0, 255);
+      if (!researchId || !clientKey || !title)
+        return void res.status(400).json({
+          error: "researchId, idempotencyKey, and title are required.",
+        });
+      if (
+        req.file.mimetype === "application/pdf" &&
+        req.file.buffer.subarray(0, 5).toString() !== "%PDF-"
+      )
+        return void res.status(400).json({ error: "The uploaded file is not a valid PDF." });
+
+      const result = await uploadTaskSubmission({
+        user: req.user!,
+        researchId,
+        taskId: String(req.params.taskId),
+        clientKey,
+        title,
+        note: String(req.body.note || "").trim() || null,
+        file: req.file,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent"),
+      });
+      res.status(result.duplicate ? 200 : 201).json(result);
+    } catch (error: any) {
+      res
+        .status(error?.statusCode || 500)
+        .json({ error: error.message || "Failed to upload task submission." });
+    }
+  },
+);
+
 router.post(
   "/tasks/:taskId/submissions",
   requireAuth,
@@ -2394,7 +2430,7 @@ router.post(
       if (!req.user)
         return void res.status(401).json({ error: "Unauthorized" });
       const taskId = req.params.taskId as string;
-      const { researchId, documentId, note } = req.body;
+      const { researchId, documentId, documentVersionId, note } = req.body;
       if (!researchId || !documentId)
         return void res
           .status(400)
@@ -2436,41 +2472,76 @@ router.post(
           .json({ error: "This task is not part of the project workflow." });
       const document = await prisma.document.findFirst({
         where: { id: documentId, researchId },
+        include: {
+          versions: {
+            orderBy: { versionNumber: "desc" },
+            select: { id: true, manuscriptStatus: true },
+          },
+        },
       });
       if (!document)
         return void res.status(400).json({
           error: "The uploaded document does not belong to this project.",
         });
-      const submission = await prisma.taskSubmission.upsert({
-        where: { researchId_taskId: { researchId, taskId } },
-        update: {
-          documentId,
-          submittedBy: req.user.id,
-          note: note?.trim() || null,
-          status: "SUBMITTED",
-          submittedAt: new Date(),
-          reviewedAt: null,
-          reviewNote: null,
-        },
-        create: {
+      if (document.liveDocumentUrl)
+        return void res.status(409).json({
+          error:
+            "Live Google manuscripts must be submitted from Documents so an immutable snapshot and review history are created.",
+        });
+      const version = documentVersionId
+        ? document.versions.find((item) => item.id === documentVersionId)
+        : document.versions[0];
+      if (!version)
+        return void res.status(400).json({
+          error: "Select an exact stored document version for this task.",
+        });
+      const submittedAt = new Date();
+      const submission = await prisma.$transaction(async (tx) => {
+        const recorded = await recordTaskSubmissionAttempt(tx, {
           researchId,
           taskId,
+          milestoneId: task.stageId,
           documentId,
-          submittedBy: req.user.id,
-          note: note?.trim() || null,
-        },
-        include: {
-          document: true,
-          task: true,
-          submittedByUser: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              universityId: true,
+          documentVersionId: version.id,
+          submittedBy: req.user!.id,
+          submittedAt,
+          note,
+          lifecycleStatus:
+            version.manuscriptStatus || ManuscriptLifecycleStatus.SUBMITTED,
+        });
+        await tx.auditLog.create({
+          data: {
+            userId: req.user!.id,
+            action: "CREATE",
+            entityType: "TaskSubmissionAttempt",
+            entityId: recorded.attempt.id,
+            newValues: {
+              researchId,
+              taskId,
+              documentId,
+              documentVersionId: version.id,
+              attemptNumber: recorded.attempt.attemptNumber,
             },
+            ipAddress: req.ip,
+            userAgent: req.get("user-agent"),
           },
-        },
+        });
+        return tx.taskSubmission.findUniqueOrThrow({
+          where: { id: recorded.summary.id },
+          include: {
+            document: true,
+            task: true,
+            submittedByUser: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                universityId: true,
+              },
+            },
+            attempts: { orderBy: { attemptNumber: "desc" } },
+          },
+        });
       });
 
       // Notifications are best-effort and must never roll back a valid group submission.
@@ -2494,16 +2565,19 @@ router.post(
             select: { id: true },
           });
           if (validRecipients.length) {
-            await prisma.notification.createMany({
-              data: validRecipients.map(({ id: recipientId }) => ({
+            await createNotificationsOnce(
+              prisma,
+              validRecipients.map(({ id: recipientId }) => ({
                 recipientId,
-                type: "DOCUMENT_UPLOADED" as const,
+                type: "DOCUMENT_UPLOADED",
                 title: "Research task submitted",
                 message: `${project.title}: ${task.title} was submitted for review.`,
                 entityType: "TaskSubmission",
                 entityId: submission.id,
+                actionUrl: `/research/manuscript?projectId=${researchId}&milestoneId=${task.stageId}&taskId=${task.id}&documentId=${documentId}&versionId=${version.id}`,
+                deduplicationKey: `task-attempt:${submission.documentVersionId}:submitted:${recipientId}`,
               })),
-            });
+            );
           }
         } catch (notificationError) {
           console.error(
@@ -2551,7 +2625,16 @@ router.patch(
       const existing = await prisma.taskSubmission.findUnique({
         where: { id: submissionId },
         include: {
-          task: { include: { stage: true } },
+          task: {
+            include: {
+              stage: {
+                include: {
+                  responsible: { select: { name: true } },
+                  workflow: { select: { createdBy: true } },
+                },
+              },
+            },
+          },
           research: {
             include: {
               members: {
@@ -2561,12 +2644,41 @@ router.patch(
               workflowInstance: { include: { currentStage: true } },
             },
           },
+          documentVersion: {
+            select: {
+              id: true,
+              isImmutable: true,
+              manuscriptStatus: true,
+            },
+          },
         },
       });
       if (!existing)
         return void res
           .status(404)
           .json({ error: "Task submission not found." });
+      if (
+        existing.documentVersion?.isImmutable ||
+        existing.documentVersion?.manuscriptStatus
+      )
+        return void res.status(409).json({
+          error:
+            "This task is synchronized with the formal manuscript review workflow. Submit the assigned exact-version reviewer decision instead.",
+        });
+      if (
+        !req.user ||
+        !canReviewTaskSubmission(req.user, {
+          submittedBy: existing.submittedBy,
+          researchCollegeId: existing.research.collegeId,
+          workflowOwnerId: existing.task.stage.workflow.createdBy,
+          responsibleRole: existing.task.stage.responsible.name,
+        })
+      ) {
+        return void res.status(403).json({
+          error:
+            "You are not assigned to review this project's task submission.",
+        });
+      }
       const result = await prisma.$transaction(async (tx) => {
         const updated = await tx.taskSubmission.update({
           where: { id: submissionId },
@@ -2576,79 +2688,26 @@ router.patch(
             reviewedAt: new Date(),
           },
         });
-        let progression: {
-          advanced: boolean;
-          completed: boolean;
-          nextStageName?: string;
-        } = { advanced: false, completed: false };
-
-        const instance = existing.research.workflowInstance;
-        const reviewedStage = existing.task.stage;
-        if (
-          status === "APPROVED" &&
-          instance?.currentStageId === reviewedStage.id
-        ) {
-          const requiredTasks = await tx.workflowTask.findMany({
-            where: { stageId: reviewedStage.id, isRequired: true },
-            select: { id: true },
-          });
-          const approvedTaskCount = await tx.taskSubmission.count({
+        if (existing.documentVersionId)
+          await tx.taskSubmissionAttempt.updateMany({
             where: {
-              researchId: existing.researchId,
-              taskId: { in: requiredTasks.map((task) => task.id) },
-              status: "APPROVED",
+              taskSubmissionId: existing.id,
+              documentVersionId: existing.documentVersionId,
+            },
+            data: {
+              status,
+              reviewNote: reviewNote?.trim() || null,
+              reviewedAt: new Date(),
             },
           });
-
-          if (
-            requiredTasks.length > 0 &&
-            approvedTaskCount === requiredTasks.length
-          ) {
-            const nextStage = await tx.workflowStage.findFirst({
-              where: {
-                workflowId: reviewedStage.workflowId,
-                category: { not: "Archived" },
-                sequence: { gt: reviewedStage.sequence },
-              },
-              orderBy: { sequence: "asc" },
-            });
-            if (!nextStage) {
-              const completedAt = new Date();
-              await tx.workflowStage.update({
-                where: { id: reviewedStage.id },
-                data: { isFinal: true },
-              });
-              await tx.workflowInstance.update({
-                where: { id: instance.id },
-                data: { completedAt },
-              });
-              await tx.researchProject.update({
-                where: { id: existing.researchId },
-                data: { status: "COMPLETED", completedAt },
-              });
-              progression = { advanced: true, completed: true };
-            } else {
-              await tx.workflowTransition.create({
-                data: {
-                  workflowInstanceId: instance.id,
-                  fromStageId: reviewedStage.id,
-                  toStageId: nextStage.id,
-                  performedBy: req.user!.id,
-                  remarks: `Advanced automatically after all required submissions for ${reviewedStage.name} were approved.`,
-                },
-              });
-              await tx.workflowInstance.update({
-                where: { id: instance.id },
-                data: { currentStageId: nextStage.id },
-              });
-              progression = {
-                advanced: true,
-                completed: false,
-                nextStageName: nextStage.name,
-              };
-            }
-          }
-        }
+        const progression =
+          status === "APPROVED"
+            ? await advanceMilestoneIfSatisfied(tx, {
+                researchId: existing.researchId,
+                milestoneId: existing.task.stage.id,
+                actorId: req.user!.id,
+              })
+            : { advanced: false, completed: false };
 
         const recipients = new Set(
           existing.research.members
@@ -2660,8 +2719,9 @@ router.patch(
             .map((member) => member.userId),
         );
         if (recipients.size) {
-          await tx.notification.createMany({
-            data: Array.from(recipients).map((recipientId) => ({
+          await createNotificationsOnce(
+            tx,
+            Array.from(recipients).map((recipientId) => ({
               recipientId,
               type:
                 status === "REVISION_REQUIRED" || status === "REJECTED"
@@ -2671,8 +2731,10 @@ router.patch(
               message: `${existing.task.title} for ${existing.research.title} is now ${String(status).toLowerCase().replace(/_/g, " ")}.`,
               entityType: "TaskSubmission",
               entityId: updated.id,
+              actionUrl: `/research/manuscript?projectId=${existing.researchId}&milestoneId=${existing.task.stage.id}&taskId=${existing.task.id}&documentId=${existing.documentId}${existing.documentVersionId ? `&versionId=${existing.documentVersionId}` : ""}`,
+              deduplicationKey: `task:${updated.id}:review:${status}:${recipientId}`,
             })),
-          });
+          );
         }
         return { submission: updated, progression };
       });

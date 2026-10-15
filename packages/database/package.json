@@ -20,10 +20,13 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "node --env-file=../../.env dist/seed.js",
-    "seed": "node --env-file=../../.env dist/seed.js"
+    "seed": "node --env-file=../../.env dist/seed.js",
+    "demo:themes:seed": "tsc && node --env-file=../../.env dist/theme-demo-accounts.js seed",
+    "demo:themes:cleanup": "tsc && node --env-file=../../.env dist/theme-demo-accounts.js cleanup"
   },
   "dependencies": {
-    "@prisma/client": "^6.4.1"
+    "@prisma/client": "^6.4.1",
+    "bcryptjs": "^3.0.2"
   },
   "devDependencies": {
     "prisma": "^6.4.1",

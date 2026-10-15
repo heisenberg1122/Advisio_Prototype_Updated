@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 
 export interface CreateDocumentPayload {
   researchId: string;
+  milestoneId?: string | null;
   title: string;
   documentType: string;
   fileBuffer: Buffer;
@@ -24,15 +25,9 @@ export interface CreateVersionPayload {
 }
 
 class DocumentService {
-  /**
-   * Uploads a file to the explicitly configured storage provider and persists Document + DocumentVersion (v1).
-   */
-  public async createDocumentWithVersion(payload: CreateDocumentPayload) {
-    // Google Drive is the institution-level default. Supabase remains an explicit legacy option.
+  public async storeDocumentFile(payload: CreateDocumentPayload) {
     let storageResult: any = null;
-    let provider = (
-      process.env.STORAGE_PROVIDER || "GOOGLE_DRIVE"
-    ).toUpperCase();
+    let provider = (process.env.STORAGE_PROVIDER || "GOOGLE_DRIVE").toUpperCase();
 
     if (provider === "SUPABASE" && supabaseStorageService.isConfigured()) {
       storageResult = await supabaseStorageService.uploadFile({
@@ -44,17 +39,21 @@ class DocumentService {
     }
 
     if (provider === "GOOGLE_DRIVE") {
-      provider = "GOOGLE_DRIVE";
       const taskId = payload.documentType.startsWith("TASK_")
         ? payload.documentType.slice(5)
         : null;
-      const destinationFolderId = payload.documentType === "DEAN_DEFENSE_APPROVAL"
-        ? await storageHierarchyService.resolveDeanApprovalsFolder(payload.researchId, payload.deanRecipient)
-        : await storageHierarchyService.resolveFolder({
-            researchId: payload.researchId,
-            bucket: taskId ? "SUBMISSIONS" : "WORKING",
-            taskId,
-          });
+      const destinationFolderId =
+        payload.documentType === "DEAN_DEFENSE_APPROVAL"
+          ? await storageHierarchyService.resolveDeanApprovalsFolder(
+              payload.researchId,
+              payload.deanRecipient,
+            )
+          : await storageHierarchyService.resolveFolder({
+              researchId: payload.researchId,
+              bucket: taskId ? "SUBMISSIONS" : "WORKING",
+              taskId,
+              stageId: payload.milestoneId,
+            });
       storageResult = await googleDriveService.uploadFile({
         fileName: payload.fileName,
         mimeType: payload.mimeType,
@@ -65,25 +64,50 @@ class DocumentService {
           advisioManaged: "true",
           advisioResearchId: payload.researchId,
           advisioUploaderId: payload.uploadedBy,
-          advisioLifecycle: payload.documentType === "DEAN_DEFENSE_APPROVAL" ? "DEAN_APPROVAL_REQUEST" : taskId ? "SUBMITTED" : "WORKING",
+          advisioLifecycle:
+            payload.documentType === "DEAN_DEFENSE_APPROVAL"
+              ? "DEAN_APPROVAL_REQUEST"
+              : taskId
+                ? "SUBMITTED"
+                : "WORKING",
           ...(taskId ? { advisioTaskId: taskId } : {}),
-          advisioChecksum: crypto
-            .createHash("sha256")
-            .update(payload.fileBuffer)
-            .digest("hex"),
+          advisioChecksum: crypto.createHash("sha256").update(payload.fileBuffer).digest("hex"),
         },
       });
     }
-    if (!storageResult)
-      throw new Error(
-        `The configured storage provider (${provider}) is unavailable.`,
-      );
+    if (!storageResult) {
+      throw new Error(`The configured storage provider (${provider}) is unavailable.`);
+    }
+    return { provider, storageResult };
+  }
+
+  public async cleanupStoredFile(provider: string, storageResult: any) {
+    try {
+      if (provider === "GOOGLE_DRIVE") {
+        return await googleDriveService.deleteStoredFile(storageResult.fileId);
+      }
+      if (provider === "SUPABASE") {
+        return await supabaseStorageService.deleteStoredFile(storageResult.storagePath);
+      }
+    } catch (error) {
+      console.error("Unable to clean up an uncommitted document upload:", error);
+    }
+    return false;
+  }
+
+  /**
+   * Uploads a file to the explicitly configured storage provider and persists Document + DocumentVersion (v1).
+   */
+  public async createDocumentWithVersion(payload: CreateDocumentPayload) {
+    const { provider, storageResult } = await this.storeDocumentFile(payload);
 
     // 2. Transactionally save Document and DocumentVersion in Prisma PostgreSQL
-    return await prisma.$transaction(async (tx) => {
+    try {
+      return await prisma.$transaction(async (tx) => {
       const doc = await tx.document.create({
         data: {
           researchId: payload.researchId,
+          milestoneId: payload.milestoneId || null,
           title: payload.title,
           documentType: payload.documentType,
           currentVersion: 1,
@@ -96,6 +120,7 @@ class DocumentService {
       const version = await tx.documentVersion.create({
         data: {
           documentId: doc.id,
+          milestoneId: payload.milestoneId || null,
           versionNumber: 1,
           fileName: storageResult.fileName,
           mimeType: storageResult.mimeType,
@@ -108,6 +133,21 @@ class DocumentService {
         },
       });
 
+      await tx.auditLog.create({
+        data: {
+          userId: payload.uploadedBy,
+          action: "CREATE",
+          entityType: "DocumentVersion",
+          entityId: version.id,
+          newValues: {
+            documentId: doc.id,
+            researchId: payload.researchId,
+            versionNumber: 1,
+            fileName: version.fileName,
+          },
+        },
+      });
+
       return {
         document: doc,
         version: {
@@ -117,7 +157,11 @@ class DocumentService {
           webContentLink: storageResult.webContentLink,
         },
       };
-    });
+      });
+    } catch (error) {
+      await this.cleanupStoredFile(provider, storageResult);
+      throw error;
+    }
   }
 
   /**
@@ -235,6 +279,20 @@ class DocumentService {
           storageProvider: provider,
           externalFileId: storageResult.fileId,
           updatedAt: new Date(),
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: payload.uploadedBy,
+          action: "CREATE",
+          entityType: "DocumentVersion",
+          entityId: newVersion.id,
+          newValues: {
+            documentId: payload.documentId,
+            versionNumber: nextVersionNumber,
+            fileName: newVersion.fileName,
+          },
         },
       });
 

@@ -119,9 +119,7 @@ export function PanelistReviewPackets() {
     };
   }, [previewVersion?.id]);
 
-  const manuscriptVersions =
-    detail?.packet?.manuscriptVersion?.document?.versions || [];
-  const latestVersion = manuscriptVersions[0];
+  const publishedManuscript = detail?.packet?.manuscriptVersion || null;
   const progress = useMemo(
     () => [
       { label: "Manuscript opened", done: Boolean(previewUrl) },
@@ -385,9 +383,9 @@ export function PanelistReviewPackets() {
                     : "not specified"}
                 </p>
               </div>
-              {latestVersion && (
+              {publishedManuscript && (
                 <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-[10px] font-extrabold text-emerald-700">
-                  Latest version: v{latestVersion.versionNumber}
+                  Published for defense: v{publishedManuscript.versionNumber}
                 </span>
               )}
             </div>
@@ -434,33 +432,31 @@ export function PanelistReviewPackets() {
               <aside className="space-y-4">
                 <div className="rounded-xl border p-4">
                   <h3 className="text-sm font-extrabold text-[#173f63]">
-                    Document versions
+                    Published manuscript
                   </h3>
                   <div className="mt-3 space-y-2">
-                    {manuscriptVersions.map((version: any, index: number) => (
+                    {publishedManuscript && (
                       <button
-                        key={version.id}
+                        key={publishedManuscript.id}
                         onClick={() =>
                           setPreviewVersion({
-                            ...version,
+                            ...publishedManuscript,
                             document: detail.packet.manuscriptVersion.document,
                           })
                         }
-                        className={`w-full rounded-lg border p-2 text-left text-xs ${previewVersion?.id === version.id ? "border-[#f6a800] bg-amber-50" : "border-slate-200"}`}
+                        className={`w-full rounded-lg border p-2 text-left text-xs ${previewVersion?.id === publishedManuscript.id ? "border-[#f6a800] bg-amber-50" : "border-slate-200"}`}
                       >
                         <span className="font-bold">
-                          Version {version.versionNumber}
+                          Version {publishedManuscript.versionNumber}
                         </span>
-                        {index === 0 && (
-                          <span className="ml-2 text-[9px] font-extrabold text-emerald-600">
-                            LATEST
-                          </span>
-                        )}
+                        <span className="ml-2 text-[9px] font-extrabold text-emerald-600">
+                          PUBLISHED FOR DEFENSE
+                        </span>
                         <span className="mt-1 block truncate text-[10px] text-slate-400">
-                          {version.fileName}
+                          {publishedManuscript.fileName}
                         </span>
                       </button>
-                    ))}
+                    )}
                   </div>
                   {previewVersion?.googleDriveFileId && (
                     <button
@@ -514,7 +510,7 @@ export function PanelistReviewPackets() {
                       setAnnotationText("");
                       setTab("notes");
                     }}
-                    className="mt-2 w-full rounded-lg bg-[#f6a800] px-3 py-2 text-xs font-extrabold text-[#102f49] disabled:opacity-50"
+                    className="mt-2 w-full rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-3 py-2 text-xs font-extrabold text-white transition disabled:opacity-50"
                   >
                     Add page comment
                   </button>
@@ -694,7 +690,7 @@ export function PanelistReviewPackets() {
                   <button
                     disabled={saving}
                     onClick={() => saveReview(true)}
-                    className="flex-1 rounded-xl bg-[#f6a800] px-4 py-3 text-xs font-extrabold text-[#102f49]"
+                    className="flex-1 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-3 text-xs font-extrabold text-white transition"
                   >
                     Mark reviewed
                   </button>
@@ -768,7 +764,7 @@ export function PanelistReviewPackets() {
                       saving || detail?.recommendation?.status === "LOCKED"
                     }
                     onClick={generateRecommendationPreview}
-                    className="rounded-xl bg-[#f6a800] px-5 py-3 text-xs font-extrabold text-[#102f49]"
+                    className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 py-3 text-xs font-extrabold text-white transition"
                   >
                     Generate preview
                   </button>

@@ -96,7 +96,7 @@ export default function AdviserPoolPage() {
     return <CardsPageSkeleton cards={4} />;
   if (isError || !data) {
     return (
-      <div className="mx-auto w-full max-w-screen-2xl p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8">
         <div className="rounded-2xl border border-rose-200 bg-rose-50 dark:bg-rose-950/20 p-5 text-sm text-rose-700 dark:text-rose-300">
           Unable to load verified advisers.{" "}
           <button onClick={() => refetch()} className="ml-2 font-extrabold underline cursor-pointer">
@@ -109,7 +109,7 @@ export default function AdviserPoolPage() {
 
   const { assigned, available, pendingRequest } = data;
   return (
-    <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {!project && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-4 text-xs sm:text-sm font-semibold text-amber-800 dark:text-amber-200 flex items-center gap-2">
           <i className="ti ti-alert-circle text-base shrink-0 text-amber-600" />
@@ -221,7 +221,7 @@ export default function AdviserPoolPage() {
                   <button
                     onClick={() => openRequest(adviser)}
                     disabled={!project || Boolean(assigned)}
-                    className="inline-flex h-10 items-center justify-center rounded-xl bg-[#FFA400] hover:bg-[#E59400] text-[#072A3D] px-5 text-xs font-bold shadow-xs transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                    className="inline-flex h-10 items-center justify-center rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white px-5 text-xs font-bold shadow-xs transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                   >
                     Request adviser
                   </button>

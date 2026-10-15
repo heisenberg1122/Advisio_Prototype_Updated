@@ -23,6 +23,12 @@ enum UserStatus {
   PENDING
 }
 
+enum AppearancePreference {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
 enum ResearcherDegreeLevel {
   UNDERGRADUATE
   MASTERS
@@ -104,6 +110,7 @@ enum ReviewType {
   PANEL
   REB
   COORDINATOR
+  DEAN
 }
 
 enum ReviewStatus {
@@ -129,6 +136,42 @@ enum DocumentStatus {
   ACTIVE
   SUPERSEDED
   ARCHIVED
+}
+
+enum ReviewerAssignmentStatus {
+  ACTIVE
+  COMPLETED
+  REVOKED
+  REASSIGNED
+  SUPERSEDED
+}
+
+enum ReviewerAssignmentAction {
+  ASSIGNED
+  COMPLETED
+  REVOKED
+  REASSIGNED
+  SUPERSEDED
+}
+
+enum ManuscriptLifecycleStatus {
+  DRAFT
+  SUBMITTED
+  IN_REVIEW
+  REVISION_REQUIRED
+  APPROVED
+  FINALIZED
+}
+
+enum OfficialCopyStatus {
+  ACTIVE
+  SUPERSEDED
+  REVOKED
+}
+
+enum OfficialSignatureStatus {
+  ACTIVE
+  REVOKED
 }
 
 enum FormStatus {
@@ -220,6 +263,7 @@ enum DefensePacketStatus {
 }
 
 enum ConsultationStatus {
+  REQUESTED
   SCHEDULED
   ONGOING
   COMPLETED
@@ -268,6 +312,12 @@ enum NotificationType {
   DOCUMENT_UPLOADED
   DOCUMENT_REVIEWED
   REVISION_REQUESTED
+  REVIEW_ASSIGNED
+  REVIEWER_REASSIGNED
+  MANUSCRIPT_APPROVED
+  OFFICIAL_COPY_AVAILABLE
+  OFFICIAL_COPY_SIGNED
+  OFFICIAL_COPY_REVOKED
   WORKFLOW_CHANGED
   CONSULTATION_SCHEDULED
   REB_DECISION
@@ -425,70 +475,81 @@ model AcademicYear {
 // ─────────────────────────────────────────────────────────────
 
 model User {
-  id                       String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  universityId             String     @unique @map("university_id") @db.VarChar(50)
-  email                    String     @unique @db.Citext
-  firstName                String     @map("first_name") @db.VarChar(100)
-  middleName               String?    @map("middle_name") @db.VarChar(100)
-  lastName                 String     @map("last_name") @db.VarChar(100)
-  passwordHash             String?    @map("password_hash") @db.VarChar(255)
-  collegeId                String?    @map("college_id") @db.Uuid
-  programId                String?    @map("program_id") @db.Uuid
-  status                   UserStatus @default(PENDING)
-  maxAdviseeGroups         Int        @default(5) @map("max_advisee_groups")
-  isAcceptingAdvisees      Boolean    @default(true) @map("is_accepting_advisees")
-  adviserCapacityNote      String?    @map("adviser_capacity_note") @db.Text
-  adviserCapacitySetBy     String?    @map("adviser_capacity_set_by") @db.Uuid
-  adviserCapacitySetAt     DateTime?  @map("adviser_capacity_set_at")
-  lastLoginAt              DateTime?  @map("last_login_at")
-  createdAt                DateTime   @default(now()) @map("created_at")
-  updatedAt                DateTime   @updatedAt @map("updated_at")
-  onboardingTokenHash      String?    @map("onboarding_token_hash") @db.VarChar(64)
-  onboardingTokenExpiresAt DateTime?  @map("onboarding_token_expires_at")
+  id                       String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  universityId             String               @unique @map("university_id") @db.VarChar(50)
+  email                    String               @unique @db.Citext
+  firstName                String               @map("first_name") @db.VarChar(100)
+  middleName               String?              @map("middle_name") @db.VarChar(100)
+  lastName                 String               @map("last_name") @db.VarChar(100)
+  passwordHash             String?              @map("password_hash") @db.VarChar(255)
+  collegeId                String?              @map("college_id") @db.Uuid
+  programId                String?              @map("program_id") @db.Uuid
+  appearancePreference     AppearancePreference @default(SYSTEM) @map("appearance_preference")
+  status                   UserStatus           @default(PENDING)
+  maxAdviseeGroups         Int                  @default(5) @map("max_advisee_groups")
+  isAcceptingAdvisees      Boolean              @default(true) @map("is_accepting_advisees")
+  adviserCapacityNote      String?              @map("adviser_capacity_note") @db.Text
+  adviserCapacitySetBy     String?              @map("adviser_capacity_set_by") @db.Uuid
+  adviserCapacitySetAt     DateTime?            @map("adviser_capacity_set_at")
+  lastLoginAt              DateTime?            @map("last_login_at")
+  createdAt                DateTime             @default(now()) @map("created_at")
+  updatedAt                DateTime             @updatedAt @map("updated_at")
+  onboardingTokenHash      String?              @map("onboarding_token_hash") @db.VarChar(64)
+  onboardingTokenExpiresAt DateTime?            @map("onboarding_token_expires_at")
 
-  college                  College?                   @relation(fields: [collegeId], references: [id], onDelete: SetNull)
-  program                  Program?                   @relation(fields: [programId], references: [id], onDelete: SetNull)
-  roles                    UserRole[]
-  memberships              ResearchMember[]
-  ownedResearch            ResearchProject[]          @relation("ProjectCreator")
-  reviews                  Review[]
-  comments                 ReviewComment[]
-  evaluations              Evaluation[]
-  notifications            Notification[]
-  auditLogs                AuditLog[]
-  certificatesIssued       Certificate[]              @relation("CertificateIssuer")
-  workflowTransitions      WorkflowTransition[]
-  consultationParticipants ConsultationParticipant[]
-  adviserRequestsReceived  AdviserRequest[]           @relation("RequestedAdviser")
-  adviserRequestsCreated   AdviserRequest[]           @relation("AdviserRequestCreator")
-  taskSubmissions          TaskSubmission[]           @relation("TaskSubmissionSubmitter")
-  announcementsCreated     SystemAnnouncement[]       @relation("AnnouncementCreator")
-  workflowsCreated         Workflow[]                 @relation("WorkflowCreator")
-  workflowEnrollments      WorkflowEnrollment[]
-  workflowResources        WorkflowResource[]
-  defenseSessionsCreated   DefenseSession[]           @relation("DefenseSessionCreator")
-  defenseEventsCreated     DefenseEvent[]             @relation("DefenseEventCreator")
-  defenseInvitations       DefenseInvitation[]
-  researcherProfile        ResearcherProfile?
-  calendarEventsCreated    CalendarEvent[]            @relation("CalendarEventCreator")
-  calendarEventInvitations CalendarEventParticipant[]
-  groupFoldersCreated      GroupFolder[]              @relation("GroupFolderCreator")
-  groupFilesUploaded       GroupFile[]                @relation("GroupFileUploader")
-  signatureProfile         UserSignature?
-  documentSignatures       DocumentSignature[]        @relation("DocumentSigner")
-  deanInboxMessages        DeanInboxMessage[]         @relation("DeanInboxAuthor")
-  deanInboxReceived        DeanInboxMessage[]         @relation("DeanInboxRecipient")
-  mailThreadsCreated       MailThread[]               @relation("MailThreadCreator")
-  mailParticipants         MailParticipant[]
-  mailMessages             MailMessage[]
-  signedMailAttachments    MailAttachment[]           @relation("MailAttachmentSigner")
-  defensePacketsPublished  DefensePacket[]            @relation("DefensePacketPublisher")
-  manuscriptReviews        PanelistManuscriptReview[]
-  panelRecommendations     PanelistRecommendation[]
-  chatGroupsCreated        ChatGroup[]                @relation("ChatGroupCreator")
-  chatParticipations       ChatParticipant[]          @relation("ChatParticipantUser")
-  chatInvitationsSent      ChatParticipant[]          @relation("ChatParticipantInviter")
-  chatMessagesSent         ChatMessage[]              @relation("ChatMessageSender")
+  college                   College?                   @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+  program                   Program?                   @relation(fields: [programId], references: [id], onDelete: SetNull)
+  roles                     UserRole[]
+  memberships               ResearchMember[]
+  ownedResearch             ResearchProject[]          @relation("ProjectCreator")
+  reviews                   Review[]
+  reviewerAssignments       ReviewerAssignment[]       @relation("AssignedReviewer")
+  reviewerAssignmentsMade   ReviewerAssignment[]       @relation("ReviewerAssignmentAssigner")
+  reviewerAssignmentEvents  ReviewerAssignmentEvent[]  @relation("ReviewerAssignmentEventActor")
+  comments                  ReviewComment[]
+  evaluations               Evaluation[]
+  notifications             Notification[]
+  auditLogs                 AuditLog[]
+  certificatesIssued        Certificate[]              @relation("CertificateIssuer")
+  workflowTransitions       WorkflowTransition[]
+  consultationParticipants  ConsultationParticipant[]
+  adviserRequestsReceived   AdviserRequest[]           @relation("RequestedAdviser")
+  adviserRequestsCreated    AdviserRequest[]           @relation("AdviserRequestCreator")
+  taskSubmissions           TaskSubmission[]           @relation("TaskSubmissionSubmitter")
+  taskSubmissionAttempts    TaskSubmissionAttempt[]    @relation("TaskSubmissionAttemptSubmitter")
+  submittedDocumentVersions DocumentVersion[]          @relation("DocumentVersionSubmitter")
+  manuscriptStatusEvents    ManuscriptStatusEvent[]    @relation("ManuscriptStatusActor")
+  announcementsCreated      SystemAnnouncement[]       @relation("AnnouncementCreator")
+  workflowsCreated          Workflow[]                 @relation("WorkflowCreator")
+  workflowEnrollments       WorkflowEnrollment[]
+  workflowResources         WorkflowResource[]
+  defenseSessionsCreated    DefenseSession[]           @relation("DefenseSessionCreator")
+  defenseEventsCreated      DefenseEvent[]             @relation("DefenseEventCreator")
+  defenseInvitations        DefenseInvitation[]
+  researcherProfile         ResearcherProfile?
+  calendarEventsCreated     CalendarEvent[]            @relation("CalendarEventCreator")
+  calendarEventInvitations  CalendarEventParticipant[]
+  groupFoldersCreated       GroupFolder[]              @relation("GroupFolderCreator")
+  groupFilesUploaded        GroupFile[]                @relation("GroupFileUploader")
+  signatureProfile          UserSignature?
+  documentSignatures        DocumentSignature[]        @relation("DocumentSigner")
+  officialCopiesFinalized   OfficialCopy[]             @relation("OfficialCopyFinalizer")
+  officialCopiesRevoked     OfficialCopy[]             @relation("OfficialCopyRevoker")
+  officialCopySignatures    OfficialCopySignature[]    @relation("OfficialCopySigner")
+  officialSignaturesRevoked OfficialCopySignature[]    @relation("OfficialCopySignatureRevoker")
+  deanInboxMessages         DeanInboxMessage[]         @relation("DeanInboxAuthor")
+  deanInboxReceived         DeanInboxMessage[]         @relation("DeanInboxRecipient")
+  mailThreadsCreated        MailThread[]               @relation("MailThreadCreator")
+  mailParticipants          MailParticipant[]
+  mailMessages              MailMessage[]
+  signedMailAttachments     MailAttachment[]           @relation("MailAttachmentSigner")
+  defensePacketsPublished   DefensePacket[]            @relation("DefensePacketPublisher")
+  manuscriptReviews         PanelistManuscriptReview[]
+  panelRecommendations      PanelistRecommendation[]
+  chatGroupsCreated         ChatGroup[]                @relation("ChatGroupCreator")
+  chatParticipations        ChatParticipant[]          @relation("ChatParticipantUser")
+  chatInvitationsSent       ChatParticipant[]          @relation("ChatParticipantInviter")
+  chatMessagesSent          ChatMessage[]              @relation("ChatMessageSender")
 
   @@index([collegeId])
   @@index([programId])
@@ -632,20 +693,23 @@ model ResearchProject {
   creator          User              @relation("ProjectCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   workflowInstance WorkflowInstance? @relation(fields: [workflowInstanceId], references: [id], onDelete: SetNull)
 
-  members         ResearchMember[]
-  documents       Document[]
-  formSubmissions FormSubmission[]
-  evaluations     Evaluation[]
-  consultations   Consultation[]
-  certificates    Certificate[]
-  adviserRequests AdviserRequest[]
-  taskSubmissions TaskSubmission[]
-  defenseSessions DefenseSession[]
-  calendarEvents  CalendarEventResearch[]
-  groupFolders    GroupFolder[]
-  groupFiles      GroupFile[]
-  joinRequests    ResearchJoinRequest[]
-  titleRevisions  ResearchTitleRevision[]
+  members                ResearchMember[]
+  documents              Document[]
+  formSubmissions        FormSubmission[]
+  evaluations            Evaluation[]
+  consultations          Consultation[]
+  certificates           Certificate[]
+  adviserRequests        AdviserRequest[]
+  taskSubmissions        TaskSubmission[]
+  taskSubmissionAttempts TaskSubmissionAttempt[]
+  defenseSessions        DefenseSession[]
+  calendarEvents         CalendarEventResearch[]
+  groupFolders           GroupFolder[]
+  groupFiles             GroupFile[]
+  joinRequests           ResearchJoinRequest[]
+  titleRevisions         ResearchTitleRevision[]
+  reviewerAssignments    ReviewerAssignment[]
+  officialCopies         OfficialCopy[]
 
   @@index([status])
   @@index([collegeId, academicYearId])
@@ -821,14 +885,17 @@ model WorkflowStage {
   isFinal           Boolean @default(false) @map("is_final")
   submissionMode    String  @default("EITHER") @map("submission_mode") @db.VarChar(20)
 
-  workflow         Workflow                  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  topic            WorkflowTopic?            @relation(fields: [topicId], references: [id], onDelete: SetNull)
-  responsible      Role                      @relation(fields: [responsibleRoleId], references: [id], onDelete: Restrict)
-  fromTransitions  WorkflowTransition[]      @relation("FromStage")
-  toTransitions    WorkflowTransition[]      @relation("ToStage")
-  currentInstances WorkflowInstance[]
-  tasks            WorkflowTask[]
-  attachments      WorkflowStageAttachment[]
+  workflow               Workflow                  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  topic                  WorkflowTopic?            @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  responsible            Role                      @relation(fields: [responsibleRoleId], references: [id], onDelete: Restrict)
+  fromTransitions        WorkflowTransition[]      @relation("FromStage")
+  toTransitions          WorkflowTransition[]      @relation("ToStage")
+  currentInstances       WorkflowInstance[]
+  tasks                  WorkflowTask[]
+  attachments            WorkflowStageAttachment[]
+  documents              Document[]                @relation("DocumentMilestone")
+  submittedVersions      DocumentVersion[]         @relation("DocumentVersionMilestone")
+  taskSubmissionAttempts TaskSubmissionAttempt[]
 
   @@unique([workflowId, sequence])
   @@index([topicId])
@@ -886,8 +953,9 @@ model WorkflowTask {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  stage       WorkflowStage    @relation(fields: [stageId], references: [id], onDelete: Cascade)
-  submissions TaskSubmission[]
+  stage              WorkflowStage           @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  submissions        TaskSubmission[]
+  submissionAttempts TaskSubmissionAttempt[]
 
   @@unique([stageId, sequence])
   @@index([stageId])
@@ -895,27 +963,66 @@ model WorkflowTask {
 }
 
 model TaskSubmission {
-  id          String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  researchId  String               @map("research_id") @db.Uuid
-  taskId      String               @map("task_id") @db.Uuid
-  documentId  String               @map("document_id") @db.Uuid
-  submittedBy String               @map("submitted_by") @db.Uuid
-  status      TaskSubmissionStatus @default(SUBMITTED)
-  note        String?              @db.Text
-  reviewNote  String?              @map("review_note") @db.Text
-  submittedAt DateTime             @default(now()) @map("submitted_at")
-  reviewedAt  DateTime?            @map("reviewed_at")
-  updatedAt   DateTime             @updatedAt @map("updated_at")
+  id                String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId        String               @map("research_id") @db.Uuid
+  taskId            String               @map("task_id") @db.Uuid
+  documentId        String               @map("document_id") @db.Uuid
+  documentVersionId String?              @map("document_version_id") @db.Uuid
+  submittedBy       String               @map("submitted_by") @db.Uuid
+  status            TaskSubmissionStatus @default(SUBMITTED)
+  note              String?              @db.Text
+  reviewNote        String?              @map("review_note") @db.Text
+  submittedAt       DateTime             @default(now()) @map("submitted_at")
+  reviewedAt        DateTime?            @map("reviewed_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
 
-  research        ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
-  task            WorkflowTask    @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  document        Document        @relation(fields: [documentId], references: [id], onDelete: Restrict)
-  submittedByUser User            @relation("TaskSubmissionSubmitter", fields: [submittedBy], references: [id], onDelete: Restrict)
+  research        ResearchProject         @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  task            WorkflowTask            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  document        Document                @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  documentVersion DocumentVersion?        @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
+  submittedByUser User                    @relation("TaskSubmissionSubmitter", fields: [submittedBy], references: [id], onDelete: Restrict)
+  attempts        TaskSubmissionAttempt[]
 
   @@unique([researchId, taskId])
   @@index([taskId, status])
   @@index([submittedBy])
+  @@index([documentVersionId])
   @@map("task_submissions")
+}
+
+model TaskSubmissionAttempt {
+  id                String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskSubmissionId  String               @map("task_submission_id") @db.Uuid
+  researchId        String               @map("research_id") @db.Uuid
+  taskId            String               @map("task_id") @db.Uuid
+  milestoneId       String               @map("milestone_id") @db.Uuid
+  documentId        String               @map("document_id") @db.Uuid
+  documentVersionId String               @map("document_version_id") @db.Uuid
+  attemptNumber     Int                  @map("attempt_number")
+  submittedBy       String               @map("submitted_by") @db.Uuid
+  status            TaskSubmissionStatus @default(SUBMITTED)
+  note              String?              @db.Text
+  reviewNote        String?              @map("review_note") @db.Text
+  submittedAt       DateTime             @default(now()) @map("submitted_at")
+  reviewedAt        DateTime?            @map("reviewed_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  taskSubmission  TaskSubmission  @relation(fields: [taskSubmissionId], references: [id], onDelete: Cascade)
+  research        ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  task            WorkflowTask    @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  milestone       WorkflowStage   @relation(fields: [milestoneId], references: [id], onDelete: Restrict)
+  document        Document        @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  documentVersion DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
+  submittedByUser User            @relation("TaskSubmissionAttemptSubmitter", fields: [submittedBy], references: [id], onDelete: Restrict)
+
+  @@unique([taskSubmissionId, attemptNumber])
+  @@unique([taskSubmissionId, documentVersionId])
+  @@index([researchId, milestoneId, submittedAt])
+  @@index([taskId, status])
+  @@index([documentVersionId])
+  @@index([submittedBy])
+  @@map("task_submission_attempts")
 }
 
 model WorkflowInstance {
@@ -959,40 +1066,65 @@ model WorkflowTransition {
 // ─────────────────────────────────────────────────────────────
 
 model Document {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  researchId      String   @map("research_id") @db.Uuid
-  documentType    String   @db.VarChar(50)
-  title           String   @db.VarChar(255)
-  currentVersion  Int      @default(1) @map("current_version")
-  storageProvider String   @default("GOOGLE_DRIVE") @map("storage_provider")
-  externalFileId  String?  @map("external_file_id") @db.VarChar(255)
-  createdBy       String   @map("created_by") @db.Uuid
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id                   String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId           String                    @map("research_id") @db.Uuid
+  milestoneId          String?                   @map("milestone_id") @db.Uuid
+  documentType         String                    @db.VarChar(50)
+  title                String                    @db.VarChar(255)
+  currentVersion       Int                       @default(1) @map("current_version")
+  storageProvider      String                    @default("GOOGLE_DRIVE") @map("storage_provider")
+  externalFileId       String?                   @map("external_file_id") @db.VarChar(255)
+  liveDocumentUrl      String?                   @map("live_document_url") @db.Text
+  liveExternalFileId   String?                   @map("live_external_file_id") @db.VarChar(255)
+  lifecycleStatus      ManuscriptLifecycleStatus @default(DRAFT) @map("lifecycle_status")
+  pendingSubmissionKey String?                   @map("pending_submission_key") @db.VarChar(100)
+  pendingSubmissionAt  DateTime?                 @map("pending_submission_at")
+  creationKey          String?                   @unique @map("creation_key") @db.VarChar(100)
+  createdBy            String                    @map("created_by") @db.Uuid
+  createdAt            DateTime                  @default(now()) @map("created_at")
+  updatedAt            DateTime                  @updatedAt @map("updated_at")
 
-  research          ResearchProject    @relation(fields: [researchId], references: [id], onDelete: Cascade)
-  versions          DocumentVersion[]
-  reviews           Review[]
-  adviserRequests   AdviserRequest[]
-  taskSubmissions   TaskSubmission[]
-  deanInboxMessages DeanInboxMessage[]
+  research               ResearchProject         @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  milestone              WorkflowStage?          @relation("DocumentMilestone", fields: [milestoneId], references: [id], onDelete: SetNull)
+  versions               DocumentVersion[]
+  reviews                Review[]
+  adviserRequests        AdviserRequest[]
+  taskSubmissions        TaskSubmission[]
+  taskSubmissionAttempts TaskSubmissionAttempt[]
+  deanInboxMessages      DeanInboxMessage[]
+  manuscriptStatusEvents ManuscriptStatusEvent[]
+  reviewerAssignments    ReviewerAssignment[]
+  officialCopies         OfficialCopy[]
+  sourceGroupFile        GroupFile?               @relation("PromotedGroupFileDocument")
 
+  @@unique([researchId, liveExternalFileId])
   @@index([researchId])
+  @@index([milestoneId])
   @@map("documents")
 }
 
 model DocumentVersion {
-  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  documentId        String         @map("document_id") @db.Uuid
-  versionNumber     Int            @map("version_number")
-  fileName          String         @map("file_name") @db.VarChar(255)
-  mimeType          String         @map("mime_type") @db.VarChar(100)
-  fileSize          BigInt         @map("file_size")
-  storagePath       String         @map("storage_path") @db.VarChar(500)
-  googleDriveFileId String?        @map("google_drive_file_id") @db.VarChar(255)
-  uploadedBy        String         @map("uploaded_by") @db.Uuid
-  uploadedAt        DateTime       @default(now()) @map("uploaded_at")
-  status            DocumentStatus @default(ACTIVE)
+  id                   String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId           String                     @map("document_id") @db.Uuid
+  versionNumber        Int                        @map("version_number")
+  fileName             String                     @map("file_name") @db.VarChar(255)
+  mimeType             String                     @map("mime_type") @db.VarChar(100)
+  fileSize             BigInt                     @map("file_size")
+  storagePath          String                     @map("storage_path") @db.VarChar(500)
+  googleDriveFileId    String?                    @map("google_drive_file_id") @db.VarChar(255)
+  uploadedBy           String                     @map("uploaded_by") @db.Uuid
+  uploadedAt           DateTime                   @default(now()) @map("uploaded_at")
+  status               DocumentStatus             @default(ACTIVE)
+  manuscriptStatus     ManuscriptLifecycleStatus? @map("manuscript_status")
+  isImmutable          Boolean                    @default(false) @map("is_immutable")
+  contentChecksum      String?                    @map("content_checksum") @db.VarChar(64)
+  submissionKey        String?                    @map("submission_key") @db.VarChar(100)
+  submittedBy          String?                    @map("submitted_by") @db.Uuid
+  submittedAt          DateTime?                  @map("submitted_at")
+  snapshotCreatedAt    DateTime?                  @map("snapshot_created_at")
+  sourceExternalFileId String?                    @map("source_external_file_id") @db.VarChar(255)
+  sourceModifiedAt     DateTime?                  @map("source_modified_at")
+  milestoneId          String?                    @map("milestone_id") @db.Uuid
 
   document                      Document                 @relation(fields: [documentId], references: [id], onDelete: Cascade)
   reviews                       Review[]
@@ -1005,9 +1137,40 @@ model DocumentVersion {
   packetRecommendationTemplates DefensePacket[]          @relation("DefensePacketRecommendationTemplate")
   packetEvaluationTemplates     DefensePacket[]          @relation("DefensePacketEvaluationTemplate")
   generatedRecommendations      PanelistRecommendation[] @relation("GeneratedRecommendationVersion")
+  submitter                     User?                    @relation("DocumentVersionSubmitter", fields: [submittedBy], references: [id], onDelete: Restrict)
+  milestone                     WorkflowStage?           @relation("DocumentVersionMilestone", fields: [milestoneId], references: [id], onDelete: SetNull)
+  manuscriptStatusEvents        ManuscriptStatusEvent[]
+  taskSubmissions               TaskSubmission[]
+  taskSubmissionAttempts        TaskSubmissionAttempt[]
+  reviewerAssignments           ReviewerAssignment[]
+  officialCopies                OfficialCopy[]           @relation("OfficialCopySourceVersion")
 
   @@unique([documentId, versionNumber])
+  @@unique([documentId, submissionKey])
+  @@index([submittedBy, submittedAt])
+  @@index([milestoneId])
   @@map("document_versions")
+}
+
+model ManuscriptStatusEvent {
+  id         String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  documentId String                     @map("document_id") @db.Uuid
+  versionId  String?                    @map("version_id") @db.Uuid
+  fromStatus ManuscriptLifecycleStatus? @map("from_status")
+  toStatus   ManuscriptLifecycleStatus  @map("to_status")
+  actorId    String                     @map("actor_id") @db.Uuid
+  reason     String?                    @db.Text
+  metadata   Json?
+  createdAt  DateTime                   @default(now()) @map("created_at")
+
+  document Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  version  DocumentVersion? @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  actor    User             @relation("ManuscriptStatusActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([documentId, createdAt])
+  @@index([versionId, createdAt])
+  @@index([actorId])
+  @@map("manuscript_status_events")
 }
 
 model UserSignature {
@@ -1044,6 +1207,85 @@ model DocumentSignature {
 
   @@index([signedById, signedAt])
   @@map("document_signatures")
+}
+
+// Immutable institutional archive records. These deliberately remain separate
+// from DocumentVersion so finalization and visual signing never replace or
+// supersede a submitted manuscript version.
+model OfficialCopy {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId        String             @map("research_id") @db.Uuid
+  documentId        String             @map("document_id") @db.Uuid
+  sourceVersionId   String             @unique @map("source_version_id") @db.Uuid
+  title             String             @db.VarChar(255)
+  documentType      String             @map("document_type") @db.VarChar(50)
+  fileName          String             @map("file_name") @db.VarChar(255)
+  mimeType          String             @default("application/pdf") @map("mime_type") @db.VarChar(100)
+  fileSize          BigInt             @map("file_size")
+  storageProvider   String             @default("GOOGLE_DRIVE") @map("storage_provider") @db.VarChar(40)
+  storagePath       String             @map("storage_path") @db.VarChar(500)
+  googleDriveFileId String?            @map("google_drive_file_id") @db.VarChar(255)
+  checksum          String             @db.VarChar(64)
+  verificationCode  String             @unique @map("verification_code") @db.VarChar(40)
+  status            OfficialCopyStatus @default(ACTIVE)
+  accessPolicy      Json               @default("{\"scope\":\"PROJECT\"}") @map("access_policy")
+  activeSlot        String?            @unique @map("active_slot") @db.Uuid
+  finalizedById     String             @map("finalized_by_id") @db.Uuid
+  finalizedAt       DateTime           @default(now()) @map("finalized_at")
+  supersedesId      String?            @unique @map("supersedes_id") @db.Uuid
+  supersededAt      DateTime?          @map("superseded_at")
+  revokedById       String?            @map("revoked_by_id") @db.Uuid
+  revokedAt         DateTime?          @map("revoked_at")
+  revocationReason  String?            @map("revocation_reason") @db.Text
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  research      ResearchProject         @relation(fields: [researchId], references: [id], onDelete: Restrict)
+  document      Document                @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  sourceVersion DocumentVersion         @relation("OfficialCopySourceVersion", fields: [sourceVersionId], references: [id], onDelete: Restrict)
+  finalizedBy   User                    @relation("OfficialCopyFinalizer", fields: [finalizedById], references: [id], onDelete: Restrict)
+  revokedBy     User?                   @relation("OfficialCopyRevoker", fields: [revokedById], references: [id], onDelete: Restrict)
+  supersedes    OfficialCopy?           @relation("OfficialCopySupersession", fields: [supersedesId], references: [id], onDelete: Restrict)
+  supersededBy  OfficialCopy?           @relation("OfficialCopySupersession")
+  signatures    OfficialCopySignature[]
+
+  @@index([researchId, status])
+  @@index([documentId, finalizedAt])
+  @@index([finalizedById, finalizedAt])
+  @@map("official_copies")
+}
+
+model OfficialCopySignature {
+  id                   String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  officialCopyId       String                  @map("official_copy_id") @db.Uuid
+  signedById           String                  @map("signed_by_id") @db.Uuid
+  signerRole           String                  @map("signer_role") @db.VarChar(40)
+  fileName             String                  @map("file_name") @db.VarChar(255)
+  mimeType             String                  @default("application/pdf") @map("mime_type") @db.VarChar(100)
+  fileSize             BigInt                  @map("file_size")
+  storagePath          String                  @map("storage_path") @db.VarChar(500)
+  googleDriveFileId    String?                 @map("google_drive_file_id") @db.VarChar(255)
+  sourceFileHash       String                  @map("source_file_hash") @db.VarChar(64)
+  signedFileHash       String                  @map("signed_file_hash") @db.VarChar(64)
+  signatureProfileHash String                  @map("signature_profile_hash") @db.VarChar(64)
+  placements           Json
+  authenticationMethod String                  @default("PASSWORD_VISUAL_SIGNATURE") @map("authentication_method") @db.VarChar(40)
+  verificationCode     String                  @unique @map("verification_code") @db.VarChar(40)
+  status               OfficialSignatureStatus @default(ACTIVE)
+  signedAt             DateTime                @default(now()) @map("signed_at")
+  revokedById          String?                 @map("revoked_by_id") @db.Uuid
+  revokedAt            DateTime?               @map("revoked_at")
+  revocationReason     String?                 @map("revocation_reason") @db.Text
+  createdAt            DateTime                @default(now()) @map("created_at")
+
+  officialCopy OfficialCopy @relation(fields: [officialCopyId], references: [id], onDelete: Restrict)
+  signedBy     User         @relation("OfficialCopySigner", fields: [signedById], references: [id], onDelete: Restrict)
+  revokedBy    User?        @relation("OfficialCopySignatureRevoker", fields: [revokedById], references: [id], onDelete: Restrict)
+
+  @@unique([officialCopyId, signedById])
+  @@index([officialCopyId, status, signedAt])
+  @@index([signedById, signedAt])
+  @@map("official_copy_signatures")
 }
 
 model DeanInboxMessage {
@@ -1186,14 +1428,65 @@ model GroupFile {
   research ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
   folder   GroupFolder?    @relation(fields: [folderId], references: [id], onDelete: SetNull)
   uploader User            @relation("GroupFileUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  promotedDocument Document? @relation("PromotedGroupFileDocument", fields: [promotedDocumentId], references: [id], onDelete: SetNull)
 
+  @@unique([promotedDocumentId])
   @@index([researchId, folderId, deletedAt])
   @@index([uploadedBy])
   @@map("group_files")
 }
 
+model ReviewerAssignment {
+  id                String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId        String                   @map("research_id") @db.Uuid
+  documentId        String                   @map("document_id") @db.Uuid
+  documentVersionId String                   @map("document_version_id") @db.Uuid
+  reviewerId        String                   @map("reviewer_id") @db.Uuid
+  reviewType        ReviewType               @map("review_type")
+  isRequired        Boolean                  @default(true) @map("is_required")
+  assignedById      String                   @map("assigned_by_id") @db.Uuid
+  status            ReviewerAssignmentStatus @default(ACTIVE)
+  assignedAt        DateTime                 @default(now()) @map("assigned_at")
+  completedAt       DateTime?                @map("completed_at")
+  revokedAt         DateTime?                @map("revoked_at")
+  statusReason      String?                  @map("status_reason") @db.Text
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+
+  research        ResearchProject           @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  document        Document                  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentVersion DocumentVersion           @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
+  reviewer        User                      @relation("AssignedReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  assignedBy      User                      @relation("ReviewerAssignmentAssigner", fields: [assignedById], references: [id], onDelete: Restrict)
+  review          Review?
+  events          ReviewerAssignmentEvent[]
+
+  @@index([researchId, status])
+  @@index([documentId, status])
+  @@index([documentVersionId, status])
+  @@index([reviewerId, status])
+  @@map("reviewer_assignments")
+}
+
+model ReviewerAssignmentEvent {
+  id           String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assignmentId String                   @map("assignment_id") @db.Uuid
+  action       ReviewerAssignmentAction
+  actorId      String                   @map("actor_id") @db.Uuid
+  details      Json?
+  createdAt    DateTime                 @default(now()) @map("created_at")
+
+  assignment ReviewerAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  actor      User               @relation("ReviewerAssignmentEventActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([assignmentId, createdAt])
+  @@index([actorId])
+  @@map("reviewer_assignment_events")
+}
+
 model Review {
   id                String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assignmentId      String?               @unique @map("assignment_id") @db.Uuid
   documentVersionId String                @map("document_version_id") @db.Uuid
   documentId        String                @map("document_id") @db.Uuid
   reviewerId        String                @map("reviewer_id") @db.Uuid
@@ -1204,9 +1497,10 @@ model Review {
   createdAt         DateTime              @default(now()) @map("created_at")
   submittedAt       DateTime?             @map("submitted_at")
 
-  documentVersion DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
-  document        Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  reviewer        User            @relation(fields: [reviewerId], references: [id], onDelete: Restrict)
+  documentVersion DocumentVersion     @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  document        Document            @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  reviewer        User                @relation(fields: [reviewerId], references: [id], onDelete: Restrict)
+  assignment      ReviewerAssignment? @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
   comments        ReviewComment[]
 
   @@index([documentId])
@@ -1537,7 +1831,9 @@ model Consultation {
   scheduledEnd   DateTime           @map("scheduled_end")
   meetingUrl     String?            @map("meeting_url") @db.VarChar(500)
   status         ConsultationStatus @default(SCHEDULED)
+  legacyImportKey String?           @unique @map("legacy_import_key") @db.VarChar(100)
   createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
 
   research     ResearchProject           @relation(fields: [researchId], references: [id], onDelete: Cascade)
   participants ConsultationParticipant[]
@@ -1568,7 +1864,10 @@ model ConsultationNote {
   consultationId String   @map("consultation_id") @db.Uuid
   authorId       String   @map("author_id") @db.Uuid
   notes          String   @db.Text
+  actionItems    Json?    @map("action_items")
+  transcript     Json?
   createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
 
@@ -1642,20 +1941,24 @@ model CalendarEventResearch {
 // ─────────────────────────────────────────────────────────────
 
 model Notification {
-  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  recipientId String           @map("recipient_id") @db.Uuid
-  type        NotificationType
-  title       String           @db.VarChar(200)
-  message     String           @db.Text
-  entityType  String?          @map("entity_type") @db.VarChar(50)
-  entityId    String?          @map("entity_id") @db.Uuid
-  isRead      Boolean          @default(false) @map("is_read")
-  createdAt   DateTime         @default(now()) @map("created_at")
-  readAt      DateTime?        @map("read_at")
+  id               String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recipientId      String           @map("recipient_id") @db.Uuid
+  type             NotificationType
+  title            String           @db.VarChar(200)
+  message          String           @db.Text
+  entityType       String?          @map("entity_type") @db.VarChar(50)
+  entityId         String?          @map("entity_id") @db.Uuid
+  deduplicationKey String?          @unique @map("deduplication_key") @db.VarChar(191)
+  actionUrl        String?          @map("action_url") @db.VarChar(500)
+  isRead           Boolean          @default(false) @map("is_read")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  readAt           DateTime?        @map("read_at")
+  archivedAt       DateTime?        @map("archived_at")
 
   recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@index([recipientId, isRead])
+  @@index([recipientId, archivedAt])
   @@index([createdAt])
   @@map("notifications")
 }

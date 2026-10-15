@@ -19,8 +19,8 @@ export interface StatCardProps {
 }
 
 const presetIconColorMap: Record<string, { bg: string; text: string }> = {
-  primary: { bg: "bg-blue-50 dark:bg-sky-950/40", text: "text-[#0B3A53] dark:text-[#38bdf8]" },
-  accent:  { bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-[#FFA400] dark:text-[#fbbf24]" },
+  primary: { bg: "bg-[var(--color-primary-light)]", text: "text-[var(--color-primary)]" },
+  accent:  { bg: "bg-[var(--color-primary-light)]", text: "text-[var(--color-primary)]" },
   success: { bg: "bg-emerald-50 dark:bg-emerald-950/40", text: "text-[#2E7D5B] dark:text-[#4ade80]" },
   warning: { bg: "bg-amber-50 dark:bg-amber-950/40", text: "text-[#C58A18] dark:text-[#fbbf24]" },
   danger:  { bg: "bg-rose-50 dark:bg-rose-950/40", text: "text-[#C94A4A] dark:text-[#f87171]" },
@@ -40,16 +40,16 @@ export function StatCard({
   const Component = onClick ? "button" : "div";
 
   const colorPreset = presetIconColorMap[iconColor];
-  const resolvedBg = iconBg || colorPreset?.bg || "bg-blue-50 dark:bg-white/10";
-  const resolvedColor = colorPreset?.text || (typeof iconColor === "string" && !presetIconColorMap[iconColor] ? iconColor : "text-[#0B3A53] dark:text-[#FFA400]");
+  const resolvedBg = iconBg || colorPreset?.bg || "bg-[var(--color-primary-light)]";
+  const resolvedColor = colorPreset?.text || (typeof iconColor === "string" && !presetIconColorMap[iconColor] ? iconColor : "text-[var(--color-primary)]");
 
   return (
     <Component
       onClick={onClick}
       className={cn(
-        "flex min-h-[96px] items-center gap-4 rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-5 text-left transition-all duration-200",
-        "shadow-[0_2px_8px_-2px_rgba(15,23,42,0.05),0_1px_4px_-1px_rgba(15,23,42,0.03)]",
-        onClick && "hover:shadow-[0_8px_20px_-4px_rgba(11,58,83,0.08)] hover:border-[#CBD5E1] hover:-translate-y-0.5 cursor-pointer select-none",
+        "flex min-h-[104px] items-center gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-left transition-all duration-200",
+        "shadow-[var(--shadow-card-soft)]",
+        onClick && "hover:shadow-[var(--shadow-card-hover)] hover:border-[var(--color-border-strong)] hover:-translate-y-0.5 cursor-pointer select-none",
         className
       )}
     >
@@ -70,11 +70,11 @@ export function StatCard({
       )}
 
       <div className="min-w-0 flex-1">
-        <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">
+        <span className="block text-xs font-semibold text-[var(--color-text-secondary)] truncate">
           {label}
         </span>
         <div className="mt-0.5 flex items-baseline gap-2">
-          <span className="block text-sm sm:text-base font-bold text-slate-900 dark:text-white truncate">
+          <span className="block text-sm sm:text-base font-bold text-[var(--color-text-primary)] truncate">
             {value}
           </span>
           {trend && (
@@ -94,7 +94,7 @@ export function StatCard({
           )}
         </div>
         {(description || trend?.label) && (
-          <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500 truncate">
+          <p className="mt-0.5 text-xs text-[var(--color-text-muted)] truncate">
             {trend?.label || description}
           </p>
         )}
@@ -102,4 +102,3 @@ export function StatCard({
     </Component>
   );
 }
-

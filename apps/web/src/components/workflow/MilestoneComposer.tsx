@@ -96,13 +96,13 @@ export function MilestoneComposer({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex flex-col bg-[#f6f8fb]"
+      className="fixed inset-0 z-[70] flex flex-col bg-[var(--color-background)]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="milestone-composer-title"
     >
       <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-6">
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-xs sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"

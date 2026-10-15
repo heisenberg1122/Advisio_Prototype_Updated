@@ -24,6 +24,7 @@ const PAGES: Record<string, string> = {
   "/panelist/notifications": "Notifications",
   "/panelist/settings": "Account Settings",
   "/panelist/inbox": "Inbox",
+  "/panelist/reviews": "Manuscript Reviews",
 };
 
 export function PanelistTopbar() {

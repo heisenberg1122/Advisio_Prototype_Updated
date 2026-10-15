@@ -1,43 +1,67 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ─── University of the Assumption (UA) Design Tokens ────────────── */
 :root {
-  /* Brand Primary: UA Deep Institutional Navy */
-  --color-primary: #0B3A53;
-  --color-primary-dark: #072A3D;
-  --color-primary-light: #EAF3F7;
-  --color-primary-subtle: #F1F7FA;
-  --color-primary-hover: #082E42;
+  /* Active academic identity. Defaults preserve Advisio UA branding for users
+     who are not assigned to an academic unit. */
+  --college-reference: #0B3A53;
+  --college-primary: #0B3A53;
+  --college-primary-hover: #072A3D;
+  --college-primary-soft: #CADCE8;
+  --college-primary-soft-dark: rgba(56, 189, 248, 0.15);
+  --college-primary-dark-mode: #38BDF8;
+  --college-primary-dark-mode-hover: #0EA5E9;
+  --college-decorative: #7EA5B7;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #082F49;
+  --college-focus-ring: rgba(11, 58, 83, 0.28);
 
-  /* Brand Accent: UA Warm Academic Gold */
+  /* Brand Primary */
+  --color-primary: var(--college-primary);
+  --color-primary-dark: var(--college-primary-hover);
+  --color-primary-light: var(--college-primary-soft);
+  --color-primary-subtle: #F2F6F9;
+  --color-primary-hover: var(--college-primary-hover);
+
+  /* Brand Accent */
   --color-accent: #C9A227;
   --color-accent-dark: #B38E1B;
   --color-accent-light: #FDF8E8;
   --color-accent-hover: #A58216;
 
-  /* Surfaces & Backgrounds (Clean Academic Workspace) */
-  --color-background: #F8FAFC;
-  --color-surface: #FFFFFF;
-  --color-surface-muted: #F1F5F9;
-  --color-surface-subtle: #F8FAFC;
+  /* Surfaces & Backgrounds (Academic Course Atmosphere) */
+  --color-background: #F2F6F9;
+  --sidebar-background: #E4ECF2;
+  --header-background: #E4ECF2;
+  --color-surface: #F8FAFC;
+  --color-surface-muted: #DAE6EF;
+  --color-surface-subtle: #ECF2F6;
+
+  /* Navigation States */
+  --nav-active-bg: #CADCE8;
+  --nav-hover-bg: #D4E4EE;
 
   /* Borders */
-  --color-border: #E2E8F0;
-  --color-border-subtle: #F1F5F9;
-  --color-border-strong: #CBD5E1;
+  --color-border: #BDD2E1;
+  --color-border-subtle: #D5E3EE;
+  --color-border-strong: #9CBCCF;
 
   /* Typography Colors */
-  --color-text-primary: #17212B;
+  --color-text-primary: #243047;
   --color-text-secondary: #64748B;
   --color-text-muted: #94A3B8;
   --color-text-inverse: #FFFFFF;
 
   /* Reference Warm Gold / Amber Accent */
-  --color-accent-gold: #FFA400;
-  --color-accent-gold-hover: #E09000;
-  --color-accent-gold-light: #FFF8E7;
+  --color-accent-gold: var(--color-primary);
+  --color-accent-gold-hover: var(--color-primary-dark);
+  --color-accent-gold-light: var(--color-primary-light);
 
   /* Semantic Feedback Statuses */
   --color-success: #2E7D5B;
@@ -46,33 +70,8 @@
   --color-warning-light: #FEF7EA;
   --color-danger: #C94A4A;
   --color-danger-light: #FDEEEE;
-  --color-info: #0B3A53;
-  --color-info-light: #EAF3F7;
-
-  /* Backward Compatibility Aliases */
-  --color-background-primary: var(--color-surface);
-  --color-background-secondary: var(--color-surface-muted);
-  --color-background-tertiary: var(--color-background);
-
-  --color-background-info: var(--color-primary-light);
-  --color-background-success: var(--color-success-light);
-  --color-background-warning: var(--color-warning-light);
-  --color-background-danger: var(--color-danger-light);
-
-  --color-border-tertiary: var(--color-border-subtle);
-  --color-border-secondary: var(--color-border);
-  --color-border-primary: var(--color-border-strong);
-
-  --color-border-info: rgba(11, 58, 83, 0.3);
-  --color-border-success: rgba(46, 125, 91, 0.35);
-  --color-border-warning: rgba(197, 138, 24, 0.35);
-  --color-border-danger: rgba(201, 74, 74, 0.35);
-
-  --color-text-info: var(--color-primary);
-  --color-text-success: var(--color-success);
-  --color-text-warning: var(--color-warning);
-  --color-text-danger: var(--color-danger);
-  --color-text-tertiary: var(--color-text-muted);
+  --color-info: var(--color-primary);
+  --color-info-light: var(--color-primary-light);
 
   /* Radius Tokens */
   --border-radius-sm: 6px;
@@ -82,7 +81,747 @@
   --border-radius-2xl: 16px;
 
   /* Typography */
-  --font-sans: 'Inter', 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  /* Semantic application aliases */
+  --background: var(--color-background);
+  --surface: var(--color-surface);
+  --surface-secondary: var(--color-surface-muted);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --border: var(--color-border);
+  --border-color: var(--color-border);
+  --sidebar-active: var(--nav-active-bg);
+  --focus-ring: var(--college-focus-ring);
+  --color-border-tertiary: var(--color-border-subtle);
+  --color-text-tertiary: var(--color-text-muted);
+}
+
+html,
+body {
+  font-family: var(--font-sans);
+  background-color: var(--sidebar-background);
+  color: var(--color-text-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── 1. College of Accountancy: BSA & BSAIS ──────────────────────── */
+:root[data-college-theme="bsa"],
+:root[data-college-theme="coa"] {
+  --college-reference: #815D00;
+  --college-primary: #815D00;
+  --college-primary-hover: #674A00;
+  --college-primary-soft: #F5ECCA;
+  --college-primary-soft-dark: rgba(224, 176, 52, 0.20);
+  --college-primary-dark-mode: #E0B034;
+  --college-primary-dark-mode-hover: #ECC254;
+  --college-decorative: #815D00;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #241C08;
+  --college-focus-ring: rgba(129, 93, 0, 0.28);
+
+  --color-primary: #815D00;
+  --color-primary-dark: #674A00;
+  --color-primary-hover: #674A00;
+  --color-primary-light: #F5ECCA;
+  --color-primary-subtle: #FCF9EE;
+
+  --color-background: #FCF9EE;
+  --sidebar-background: #F9F2DB;
+  --header-background: #F9F2DB;
+  --color-surface: #FDFCF6;
+  --color-surface-muted: #F6EFD7;
+  --color-surface-subtle: #FAF5E6;
+  --nav-active-bg: #F5ECCA;
+  --nav-hover-bg: #F8F0D3;
+  --color-border: #EADBAC;
+  --color-border-subtle: #F3E7C3;
+  --color-border-strong: #D5C28C;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+:root[data-college-theme="bsais"] {
+  --college-reference: #926B10;
+  --college-primary: #926B10;
+  --college-primary-hover: #79570B;
+  --college-primary-soft: #F5ECCF;
+  --college-primary-soft-dark: rgba(229, 186, 66, 0.20);
+  --college-primary-dark-mode: #E5BA42;
+  --college-primary-dark-mode-hover: #F0CA5E;
+  --college-decorative: #926B10;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #241C08;
+  --college-focus-ring: rgba(146, 107, 16, 0.28);
+
+  --color-primary: #926B10;
+  --color-primary-dark: #79570B;
+  --color-primary-hover: #79570B;
+  --color-primary-light: #F5ECCF;
+  --color-primary-subtle: #FCF9F0;
+
+  --color-background: #FCF9F0;
+  --sidebar-background: #F8F2DF;
+  --header-background: #F8F2DF;
+  --color-surface: #FDFCF6;
+  --color-surface-muted: #F6EEDA;
+  --color-surface-subtle: #FAF5E8;
+  --nav-active-bg: #F5ECCF;
+  --nav-hover-bg: #F8F0D7;
+  --color-border: #E9DCB2;
+  --color-border-subtle: #F2E8C9;
+  --color-border-strong: #D4C38E;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+/* ─── 2. College of Engineering and Architecture: BSArch, BSCE, BSCpE, BSIE ─── */
+:root[data-college-theme="bsarch"] {
+  --college-reference: #B53A24;
+  --college-primary: #B53A24;
+  --college-primary-hover: #962F1C;
+  --college-primary-soft: #EAC8C2;
+  --college-primary-soft-dark: rgba(242, 117, 94, 0.22);
+  --college-primary-dark-mode: #F2755E;
+  --college-primary-dark-mode-hover: #F6907D;
+  --college-decorative: #B53A24;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #271008;
+  --college-focus-ring: rgba(181, 58, 36, 0.28);
+
+  --color-primary: #B53A24;
+  --color-primary-dark: #962F1C;
+  --color-primary-hover: #962F1C;
+  --color-primary-light: #EAC8C2;
+  --color-primary-subtle: #F8EDEB;
+
+  --color-background: #F8EDEB;
+  --sidebar-background: #F1DAD5;
+  --header-background: #F1DAD5;
+  --color-surface: #FBF5F4;
+  --color-surface-muted: #EDD1CB;
+  --color-surface-subtle: #F6E6E3;
+  --nav-active-bg: #EAC8C2;
+  --nav-hover-bg: #EED1CB;
+  --color-border: #E2B9B2;
+  --color-border-subtle: #ECCFC9;
+  --color-border-strong: #CD9B92;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+:root[data-college-theme="bsce"],
+:root[data-college-theme="cea"] {
+  --college-reference: #AC4323;
+  --college-primary: #AC4323;
+  --college-primary-hover: #8E351A;
+  --college-primary-soft: #E8CAC1;
+  --college-primary-soft-dark: rgba(238, 126, 95, 0.22);
+  --college-primary-dark-mode: #EE7E5F;
+  --college-primary-dark-mode-hover: #F4987E;
+  --college-decorative: #AC4323;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #271008;
+  --college-focus-ring: rgba(172, 67, 35, 0.28);
+
+  --color-primary: #AC4323;
+  --color-primary-dark: #8E351A;
+  --color-primary-hover: #8E351A;
+  --color-primary-light: #E8CAC1;
+  --color-primary-subtle: #F8EEEB;
+
+  --color-background: #F8EEEB;
+  --sidebar-background: #EFDBD5;
+  --header-background: #EFDBD5;
+  --color-surface: #FBF6F4;
+  --color-surface-muted: #EBD2CB;
+  --color-surface-subtle: #F5E7E2;
+  --nav-active-bg: #E8CAC1;
+  --nav-hover-bg: #ECD3CB;
+  --color-border: #DFBCB2;
+  --color-border-subtle: #EBD0C7;
+  --color-border-strong: #C99E92;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+:root[data-college-theme="bscpe"] {
+  --college-reference: #AB452B;
+  --college-primary: #AB452B;
+  --college-primary-hover: #8D361F;
+  --college-primary-soft: #E7CBC4;
+  --college-primary-soft-dark: rgba(238, 128, 104, 0.22);
+  --college-primary-dark-mode: #EE8068;
+  --college-primary-dark-mode-hover: #F49B86;
+  --college-decorative: #AB452B;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #271008;
+  --college-focus-ring: rgba(171, 69, 43, 0.28);
+
+  --color-primary: #AB452B;
+  --color-primary-dark: #8D361F;
+  --color-primary-hover: #8D361F;
+  --color-primary-light: #E7CBC4;
+  --color-primary-subtle: #F7EEEC;
+
+  --color-background: #F7EEEC;
+  --sidebar-background: #EEDCD7;
+  --header-background: #EEDCD7;
+  --color-surface: #FBF6F4;
+  --color-surface-muted: #EAD3CD;
+  --color-surface-subtle: #F4E8E4;
+  --nav-active-bg: #E7CBC4;
+  --nav-hover-bg: #ECD4CD;
+  --color-border: #DEBEB6;
+  --color-border-subtle: #E9D1C9;
+  --color-border-strong: #C89F95;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+:root[data-college-theme="bsie"] {
+  --college-reference: #B44C2A;
+  --college-primary: #B44C2A;
+  --college-primary-hover: #943D1F;
+  --college-primary-soft: #EACDC3;
+  --college-primary-soft-dark: rgba(240, 134, 101, 0.22);
+  --college-primary-dark-mode: #F08665;
+  --college-primary-dark-mode-hover: #F59F82;
+  --college-decorative: #B44C2A;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #271008;
+  --college-focus-ring: rgba(180, 76, 42, 0.28);
+
+  --color-primary: #B44C2A;
+  --color-primary-dark: #943D1F;
+  --color-primary-hover: #943D1F;
+  --color-primary-light: #EACDC3;
+  --color-primary-subtle: #F8EFEC;
+
+  --color-background: #F8EFEC;
+  --sidebar-background: #F1DDD7;
+  --header-background: #F1DDD7;
+  --color-surface: #FBF6F4;
+  --color-surface-muted: #ECD4CD;
+  --color-surface-subtle: #F5E8E4;
+  --nav-active-bg: #EACDC3;
+  --nav-hover-bg: #EED5CB;
+  --color-border: #E0BFB4;
+  --color-border-subtle: #EBD2C9;
+  --color-border-strong: #CAA194;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+/* ─── 3. College of Hospitality and Tourism Management: BSHM & BSTM ─── */
+:root[data-college-theme="bshm"] {
+  --college-reference: #B20D53;
+  --college-primary: #B20D53;
+  --college-primary-hover: #910942;
+  --college-primary-soft: #E9BBCF;
+  --college-primary-soft-dark: rgba(242, 98, 152, 0.22);
+  --college-primary-dark-mode: #F26298;
+  --college-primary-dark-mode-hover: #F87DAE;
+  --college-decorative: #B20D53;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #FFFFFF;
+  --college-focus-ring: rgba(178, 13, 83, 0.28);
+
+  --color-primary: #B20D53;
+  --color-primary-dark: #910942;
+  --color-primary-hover: #910942;
+  --color-primary-light: #E9BBCF;
+  --color-primary-subtle: #F8E9F0;
+
+  --color-background: #F8E9F0;
+  --sidebar-background: #F0D1DE;
+  --header-background: #F0D1DE;
+  --color-surface: #FBF3F6;
+  --color-surface-muted: #ECC6D6;
+  --color-surface-subtle: #F5E2EC;
+  --nav-active-bg: #E9BBCF;
+  --nav-hover-bg: #EEC7D7;
+  --color-border: #DFACCE;
+  --color-border-subtle: #EBC4DA;
+  --color-border-strong: #C98BAF;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+:root[data-college-theme="bstm"],
+:root[data-college-theme="chtm"] {
+  --college-reference: #AF245F;
+  --college-primary: #AF245F;
+  --college-primary-hover: #8E1B4C;
+  --college-primary-soft: #E9C2D2;
+  --college-primary-soft-dark: rgba(238, 106, 159, 0.22);
+  --college-primary-dark-mode: #EE6A9F;
+  --college-primary-dark-mode-hover: #F587B2;
+  --college-decorative: #AF245F;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #FFFFFF;
+  --college-focus-ring: rgba(175, 36, 95, 0.28);
+
+  --color-primary: #AF245F;
+  --color-primary-dark: #8E1B4C;
+  --color-primary-hover: #8E1B4C;
+  --color-primary-light: #E9C2D2;
+  --color-primary-subtle: #F8EBF1;
+
+  --color-background: #F8EBF1;
+  --sidebar-background: #F0D5E1;
+  --header-background: #F0D5E1;
+  --color-surface: #FBF4F7;
+  --color-surface-muted: #ECCAD9;
+  --color-surface-subtle: #F5E4EC;
+  --nav-active-bg: #E9C2D2;
+  --nav-hover-bg: #EECDDA;
+  --color-border: #DFB2C4;
+  --color-border-subtle: #EBC8D6;
+  --color-border-strong: #C891A6;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+/* ─── 4. College of Information Technology: BSIT & BLIS ─────────────── */
+:root[data-college-theme="bsit"],
+:root[data-college-theme="cit"] {
+  /* BSIT primary accent standardized to #58647A */
+  --college-reference: #58647A;
+  --college-primary: #58647A;
+  --college-primary-hover: #444F63;
+  --college-primary-soft: #CFD5D3;
+  --college-primary-soft-dark: rgba(141, 155, 181, 0.22);
+  --college-primary-dark-mode: #8D9BB5;
+  --college-primary-dark-mode-hover: #A3B0C7;
+  --college-decorative: #58647A;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #141A24;
+  --college-focus-ring: rgba(88, 100, 122, 0.28);
+
+  --color-primary: #58647A;
+  --color-primary-dark: #444F63;
+  --color-primary-hover: #444F63;
+  --color-primary-light: #CFD5D3;
+  --color-primary-subtle: #EFF1F1;
+
+  --color-background: #EFF1F1;
+  --sidebar-background: #DEE2E1;
+  --header-background: #DEE2E1;
+  --color-surface: #F6F7F7;
+  --color-surface-muted: #D7DDDC;
+  --color-surface-subtle: #E8ECEB;
+  --nav-active-bg: #CFD5D3;
+  --nav-hover-bg: #D7DDDC;
+  --color-border: #C0C9C6;
+  --color-border-subtle: #D2D9D7;
+  --color-border-strong: #A6B1AE;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+:root[data-college-theme="blis"] {
+  --college-reference: #58647A;
+  --college-primary: #58647A;
+  --college-primary-hover: #444F63;
+  --college-primary-soft: #D0D4DA;
+  --college-primary-soft-dark: rgba(141, 155, 181, 0.22);
+  --college-primary-dark-mode: #8D9BB5;
+  --college-primary-dark-mode-hover: #A3B0C7;
+  --college-decorative: #58647A;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #141A24;
+  --college-focus-ring: rgba(88, 100, 122, 0.28);
+
+  --color-primary: #58647A;
+  --color-primary-dark: #444F63;
+  --color-primary-hover: #444F63;
+  --color-primary-light: #D0D4DA;
+  --color-primary-subtle: #F0F1F3;
+
+  --color-background: #F0F1F3;
+  --sidebar-background: #DFE2E6;
+  --header-background: #DFE2E6;
+  --color-surface: #F7F7F8;
+  --color-surface-muted: #D7DCE1;
+  --color-surface-subtle: #E9ECEF;
+  --nav-active-bg: #D0D4DA;
+  --nav-hover-bg: #D8DCE2;
+  --color-border: #C2C7CE;
+  --color-border-subtle: #D3D8DF;
+  --color-border-strong: #A7AEB8;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+/* ─── 5. College of Nursing and Pharmacy: BSN & BSPh ────────────────── */
+:root[data-college-theme="bsn"],
+:root[data-college-theme="cnp"] {
+  --college-reference: #26703E;
+  --college-primary: #26703E;
+  --college-primary-hover: #1E5931;
+  --college-primary-soft: #C2D7C9;
+  --college-primary-soft-dark: rgba(82, 189, 116, 0.24);
+  --college-primary-dark-mode: #52BD74;
+  --college-primary-dark-mode-hover: #6DC98C;
+  --college-decorative: #26703E;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #0A2413;
+  --college-focus-ring: rgba(38, 112, 62, 0.28);
+
+  --color-primary: #26703E;
+  --color-primary-dark: #1E5931;
+  --color-primary-hover: #1E5931;
+  --color-primary-light: #C2D7C9;
+  --color-primary-subtle: #EBF2EE;
+
+  --color-background: #EBF2EE;
+  --sidebar-background: #D6E4DA;
+  --header-background: #D6E4DA;
+  --color-surface: #F4F8F5;
+  --color-surface-muted: #CCDFD2;
+  --color-surface-subtle: #E2ECE5;
+  --nav-active-bg: #C2D7C9;
+  --nav-hover-bg: #CDDFD4;
+  --color-border: #B2CEBB;
+  --color-border-subtle: #C8DDCF;
+  --color-border-strong: #96B9A1;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+:root[data-college-theme="bsph"] {
+  --college-reference: #386D42;
+  --college-primary: #386D42;
+  --college-primary-hover: #2C5634;
+  --college-primary-soft: #C7D6CA;
+  --college-primary-soft-dark: rgba(98, 184, 114, 0.24);
+  --college-primary-dark-mode: #62B872;
+  --college-primary-dark-mode-hover: #7AC588;
+  --college-decorative: #386D42;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #0E2413;
+  --college-focus-ring: rgba(56, 109, 66, 0.28);
+
+  --color-primary: #386D42;
+  --color-primary-dark: #2C5634;
+  --color-primary-hover: #2C5634;
+  --color-primary-light: #C7D6CA;
+  --color-primary-subtle: #EDF2EE;
+
+  --color-background: #EDF2EE;
+  --sidebar-background: #D9E3DB;
+  --header-background: #D9E3DB;
+  --color-surface: #F5F8F6;
+  --color-surface-muted: #D0DED3;
+  --color-surface-subtle: #E4ECE6;
+  --nav-active-bg: #C7D6CA;
+  --nav-hover-bg: #D1DED3;
+  --color-border: #B8CBBC;
+  --color-border-subtle: #CCDACF;
+  --color-border-strong: #9CB4A1;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+/* ─── 6. School of Arts and Sciences: ABComm, BSCrim, BHS, BSPsych ─── */
+:root[data-college-theme="abcomm"],
+:root[data-college-theme="sas"] {
+  --college-reference: #234B80;
+  --college-primary: #234B80;
+  --college-primary-hover: #1A3B66;
+  --college-primary-soft: #C1CDDB;
+  --college-primary-soft-dark: rgba(94, 143, 212, 0.22);
+  --college-primary-dark-mode: #5E8FD4;
+  --college-primary-dark-mode-hover: #7AA5E0;
+  --college-decorative: #234B80;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #0A182E;
+  --college-focus-ring: rgba(35, 75, 128, 0.28);
+
+  --color-primary: #234B80;
+  --color-primary-dark: #1A3B66;
+  --color-primary-hover: #1A3B66;
+  --color-primary-light: #C1CDDB;
+  --color-primary-subtle: #EBEFF4;
+
+  --color-background: #EBEFF4;
+  --sidebar-background: #D5DDE7;
+  --header-background: #D5DDE7;
+  --color-surface: #F4F6F9;
+  --color-surface-muted: #CBD5E1;
+  --color-surface-subtle: #E1E8F0;
+  --nav-active-bg: #C1CDDB;
+  --nav-hover-bg: #CAD6E2;
+  --color-border: #B0BFD0;
+  --color-border-subtle: #C7D3E2;
+  --color-border-strong: #93A6BD;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+:root[data-college-theme="bscrim"] {
+  --college-reference: #274466;
+  --college-primary: #274466;
+  --college-primary-hover: #1E3550;
+  --college-primary-soft: #C3CBD4;
+  --college-primary-soft-dark: rgba(100, 136, 184, 0.22);
+  --college-primary-dark-mode: #6488B8;
+  --college-primary-dark-mode-hover: #80A0C8;
+  --college-decorative: #274466;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #0B1724;
+  --college-focus-ring: rgba(39, 68, 102, 0.28);
+
+  --color-primary: #274466;
+  --color-primary-dark: #1E3550;
+  --color-primary-hover: #1E3550;
+  --color-primary-light: #C3CBD4;
+  --color-primary-subtle: #ECEEF1;
+
+  --color-background: #ECEEF1;
+  --sidebar-background: #D6DBE2;
+  --header-background: #D6DBE2;
+  --color-surface: #F4F6F7;
+  --color-surface-muted: #CCD3DC;
+  --color-surface-subtle: #E2E6EB;
+  --nav-active-bg: #C3CBD4;
+  --nav-hover-bg: #CCD4DC;
+  --color-border: #B3BDC8;
+  --color-border-subtle: #C9D2DB;
+  --color-border-strong: #98A4B2;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+:root[data-college-theme="bhs"] {
+  --college-reference: #395A7D;
+  --college-primary: #395A7D;
+  --college-primary-hover: #2C4662;
+  --college-primary-soft: #C8D1DB;
+  --college-primary-soft-dark: rgba(114, 158, 200, 0.22);
+  --college-primary-dark-mode: #729EC8;
+  --college-primary-dark-mode-hover: #8EB4D8;
+  --college-decorative: #395A7D;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #0D1926;
+  --college-focus-ring: rgba(57, 90, 125, 0.28);
+
+  --color-primary: #395A7D;
+  --color-primary-dark: #2C4662;
+  --color-primary-hover: #2C4662;
+  --color-primary-light: #C8D1DB;
+  --color-primary-subtle: #EDF0F3;
+
+  --color-background: #EDF0F3;
+  --sidebar-background: #D9E0E6;
+  --header-background: #D9E0E6;
+  --color-surface: #F5F7F8;
+  --color-surface-muted: #D0D9E1;
+  --color-surface-subtle: #E4E9EE;
+  --nav-active-bg: #C8D1DB;
+  --nav-hover-bg: #D1DAE2;
+  --color-border: #B9C5D0;
+  --color-border-subtle: #CDD7E0;
+  --color-border-strong: #9EADB9;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+:root[data-college-theme="bspsych"] {
+  --college-reference: #4C5682;
+  --college-primary: #4C5682;
+  --college-primary-hover: #3A4266;
+  --college-primary-soft: #CDD0DC;
+  --college-primary-soft-dark: rgba(134, 146, 196, 0.22);
+  --college-primary-dark-mode: #8692C4;
+  --college-primary-dark-mode-hover: #9FAAD4;
+  --college-decorative: #4C5682;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #121526;
+  --college-focus-ring: rgba(76, 86, 130, 0.28);
+
+  --color-primary: #4C5682;
+  --color-primary-dark: #3A4266;
+  --color-primary-hover: #3A4266;
+  --color-primary-light: #CDD0DC;
+  --color-primary-subtle: #EFF0F4;
+
+  --color-background: #EFF0F4;
+  --sidebar-background: #DDDFE7;
+  --header-background: #DDDFE7;
+  --color-surface: #F6F7F9;
+  --color-surface-muted: #D4D7E2;
+  --color-surface-subtle: #E7E9EF;
+  --nav-active-bg: #CDD0DC;
+  --nav-hover-bg: #D5D8E3;
+  --color-border: #BEC3CF;
+  --color-border-subtle: #D2D6E0;
+  --color-border-strong: #A2A9B9;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+/* ─── 7. School of Business and Public Administration: BSBA-MM & BSBA-OM ─── */
+:root[data-college-theme="bsba-mm"],
+:root[data-college-theme="sbpa"] {
+  --college-reference: #855E00;
+  --college-primary: #855E00;
+  --college-primary-hover: #6B4B00;
+  --college-primary-soft: #F4E9CA;
+  --college-primary-soft-dark: rgba(222, 172, 51, 0.20);
+  --college-primary-dark-mode: #DEAC33;
+  --college-primary-dark-mode-hover: #E8BC4F;
+  --college-decorative: #855E00;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #241A00;
+  --college-focus-ring: rgba(133, 94, 0, 0.28);
+
+  --color-primary: #855E00;
+  --color-primary-dark: #6B4B00;
+  --color-primary-hover: #6B4B00;
+  --color-primary-light: #F4E9CA;
+  --color-primary-subtle: #FBF8EE;
+
+  --color-background: #FBF8EE;
+  --sidebar-background: #F7F0DB;
+  --header-background: #F7F0DB;
+  --color-surface: #FDFBF6;
+  --color-surface-muted: #F4ECD5;
+  --color-surface-subtle: #FAF4E4;
+  --nav-active-bg: #F4E9CA;
+  --nav-hover-bg: #F6EED2;
+  --color-border: #E7DBB8;
+  --color-border-subtle: #F0E6CA;
+  --color-border-strong: #D1C094;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+:root[data-college-theme="bsba-om"] {
+  --college-reference: #866914;
+  --college-primary: #866914;
+  --college-primary-hover: #6C5410;
+  --college-primary-soft: #F3EACD;
+  --college-primary-soft-dark: rgba(223, 183, 69, 0.20);
+  --college-primary-dark-mode: #DFB745;
+  --college-primary-dark-mode-hover: #E9C461;
+  --college-decorative: #866914;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #241C04;
+  --college-focus-ring: rgba(134, 105, 20, 0.28);
+
+  --color-primary: #866914;
+  --color-primary-dark: #6C5410;
+  --color-primary-hover: #6C5410;
+  --color-primary-light: #F3EACD;
+  --color-primary-subtle: #FBF8EF;
+
+  --color-background: #FBF8EF;
+  --sidebar-background: #F7F1DD;
+  --header-background: #F7F1DD;
+  --color-surface: #FDFBF6;
+  --color-surface-muted: #F3EBD4;
+  --color-surface-subtle: #FAF5E5;
+  --nav-active-bg: #F3EACD;
+  --nav-hover-bg: #F6EED4;
+  --color-border: #E7DDBB;
+  --color-border-subtle: #EFE7CC;
+  --color-border-strong: #D0C397;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+/* ─── 8. School of Education: BEEd & BSEd ──────────────────────────── */
+:root[data-college-theme="beed"],
+:root[data-college-theme="soe"] {
+  --college-reference: #302B8A;
+  --college-primary: #302B8A;
+  --college-primary-hover: #25216E;
+  --college-primary-soft: #C5C4DE;
+  --college-primary-soft-dark: rgba(128, 119, 237, 0.22);
+  --college-primary-dark-mode: #8077ED;
+  --college-primary-dark-mode-hover: #9A92F2;
+  --college-decorative: #302B8A;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #0D0A2E;
+  --college-focus-ring: rgba(48, 43, 138, 0.28);
+
+  --color-primary: #302B8A;
+  --color-primary-dark: #25216E;
+  --color-primary-hover: #25216E;
+  --color-primary-light: #C5C4DE;
+  --color-primary-subtle: #ECECF4;
+
+  --color-background: #ECECF4;
+  --sidebar-background: #D8D7E9;
+  --header-background: #D8D7E9;
+  --color-surface: #F5F4F9;
+  --color-surface-muted: #CECCE4;
+  --color-surface-subtle: #E3E2F0;
+  --nav-active-bg: #C5C4DE;
+  --nav-hover-bg: #CFCEE4;
+  --color-border: #B5B3D2;
+  --color-border-subtle: #C8C6DF;
+  --color-border-strong: #9693BC;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
+}
+
+:root[data-college-theme="bsed"] {
+  --college-reference: #3B3075;
+  --college-primary: #3B3075;
+  --college-primary-hover: #2D255A;
+  --college-primary-soft: #C7C5D8;
+  --college-primary-soft-dark: rgba(141, 128, 216, 0.22);
+  --college-primary-dark-mode: #8D80D8;
+  --college-primary-dark-mode-hover: #A398E0;
+  --college-decorative: #3B3075;
+  --college-on-primary: #FFFFFF;
+  --college-on-primary-dark: #120D2B;
+  --college-focus-ring: rgba(59, 48, 117, 0.28);
+
+  --color-primary: #3B3075;
+  --color-primary-dark: #2D255A;
+  --color-primary-hover: #2D255A;
+  --color-primary-light: #C7C5D8;
+  --color-primary-subtle: #EDECF3;
+
+  --color-background: #EDECF3;
+  --sidebar-background: #D9D8E5;
+  --header-background: #D9D8E5;
+  --color-surface: #F5F5F8;
+  --color-surface-muted: #D0CEE0;
+  --color-surface-subtle: #E4E3EC;
+  --nav-active-bg: #C7C5D8;
+  --nav-hover-bg: #D0CFE0;
+  --color-border: #B7B5CC;
+  --color-border-subtle: #CAC9D9;
+  --color-border-strong: #9996B6;
+
+  --color-text-primary: #243047;
+  --color-text-secondary: #64748B;
 }
 
 /* ─── Tailwind v4 Theme Extension ───────────────────────────── */
@@ -101,6 +840,8 @@
   --color-accent-hover: var(--color-accent-hover);
 
   --color-background: var(--color-background);
+  --color-sidebar: var(--sidebar-background);
+  --color-header: var(--header-background);
   --color-surface: var(--color-surface);
   --color-surface-muted: var(--color-surface-muted);
   --color-surface-subtle: var(--color-surface-subtle);
@@ -152,15 +893,15 @@
   --radius-2xl: 16px;
   --radius-3xl: 20px;
 
-  /* Box Shadows (Aligned with Reference Layout) */
-  --shadow-card: 0 1px 3px 0 rgba(11, 58, 83, 0.04), 0 1px 2px -1px rgba(11, 58, 83, 0.04);
-  --shadow-card-soft: 0 2px 8px -2px rgba(15, 23, 42, 0.05), 0 1px 4px -1px rgba(15, 23, 42, 0.03);
-  --shadow-card-hover: 0 8px 20px -4px rgba(11, 58, 83, 0.08), 0 4px 8px -2px rgba(11, 58, 83, 0.04);
-  --shadow-dropdown: 0 10px 25px -5px rgba(11, 58, 83, 0.12), 0 8px 10px -6px rgba(11, 58, 83, 0.08);
-  --shadow-modal: 0 20px 35px -10px rgba(11, 58, 83, 0.22);
+  /* Box Shadows */
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.05), 0 4px 12px -4px rgba(15, 23, 42, 0.08);
+  --shadow-card-soft: 0 1px 3px rgba(15, 23, 42, 0.04), 0 6px 16px -6px rgba(15, 23, 42, 0.10);
+  --shadow-card-hover: 0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 12px 24px -10px rgba(15, 23, 42, 0.16);
+  --shadow-dropdown: 0 10px 25px -5px rgba(15, 23, 42, 0.10), 0 8px 10px -6px rgba(15, 23, 42, 0.06);
+  --shadow-modal: 0 20px 35px -10px rgba(15, 23, 42, 0.18);
 }
 
-/* ─── Global Design System Components (Reference Aligned) ─── */
+/* ─── Global Design System Components ─── */
 .card-standard {
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -197,11 +938,11 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  height: 2.75rem; /* 44px */
+  height: 2.75rem;
   padding-left: 1.25rem;
   padding-right: 1.25rem;
-  background-color: var(--color-accent-gold, #FFA400);
-  color: #072A3D;
+  background-color: var(--color-primary);
+  color: #FFFFFF;
   font-weight: 700;
   font-size: 0.875rem;
   border-radius: 12px;
@@ -211,7 +952,7 @@
 }
 
 .btn-primary-gold:hover {
-  background-color: var(--color-accent-gold-hover, #E09000);
+  background-color: var(--color-primary-dark);
   transform: translateY(-1px);
 }
 
@@ -220,7 +961,9 @@
 }
 
 /* ─── Base Styles ───────────────────────────────────────────── */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -237,20 +980,58 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 180ms ease, color 180ms ease;
 }
+
+.college-primary-bg {
+  background-color: var(--color-primary);
+  color: var(--college-on-primary);
+}
+
+.college-primary-bg:hover {
+  background-color: var(--color-primary-dark);
+}
+
+.college-primary-text {
+  color: var(--color-primary);
+}
+
+.college-primary-soft {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.college-primary-border {
+  border-color: var(--color-border);
+}
+
+.college-focus:focus-visible {
+  box-shadow: 0 0 0 3px var(--college-focus-ring);
+}
+
+.college-hero-surface {
+  background:
+    linear-gradient(112deg, color-mix(in srgb, var(--color-primary-light) 82%, var(--color-surface)) 0%, var(--color-surface) 72%);
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-card-soft);
+}
+
 
 /* ─── Scrollbar ─────────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
   border-radius: 99px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-border-strong);
 }
@@ -267,12 +1048,42 @@ body {
   white-space: nowrap;
   letter-spacing: 0.01em;
 }
-.tag-info    { background: var(--color-primary-light); color: var(--color-primary); border: 1px solid rgba(11, 58, 83, 0.15); }
-.tag-accent  { background: var(--color-accent-light);  color: var(--color-accent-dark); border: 1px solid rgba(201, 162, 39, 0.25); }
-.tag-success { background: var(--color-success-light); color: var(--color-success); border: 1px solid rgba(46, 125, 91, 0.2); }
-.tag-warn    { background: var(--color-warning-light); color: var(--color-warning); border: 1px solid rgba(197, 138, 24, 0.25); }
-.tag-danger  { background: var(--color-danger-light);  color: var(--color-danger);  border: 1px solid rgba(201, 74, 74, 0.2); }
-.tag-neutral { background: var(--color-surface-muted); color: var(--color-text-secondary); border: 1px solid var(--color-border); }
+
+.tag-info {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+}
+
+.tag-accent {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+}
+
+.tag-success {
+  background: var(--color-success-light);
+  color: var(--color-success);
+  border: 1px solid rgba(46, 125, 91, 0.2);
+}
+
+.tag-warn {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+  border: 1px solid rgba(197, 138, 24, 0.25);
+}
+
+.tag-danger {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+  border: 1px solid rgba(201, 74, 74, 0.2);
+}
+
+.tag-neutral {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
 
 /* ─── Step Pills ────────────────────────────────────────────── */
 .step-pill {
@@ -283,8 +1094,19 @@ body {
   color: var(--color-text-muted);
   font-weight: 500;
 }
-.step-pill.done    { background: var(--color-success-light); border-color: rgba(46, 125, 91, 0.3); color: var(--color-success); }
-.step-pill.current { background: var(--color-primary-light); border-color: rgba(11, 58, 83, 0.3); color: var(--color-primary); font-weight: 600; }
+
+.step-pill.done {
+  background: var(--color-success-light);
+  border-color: rgba(46, 125, 91, 0.3);
+  color: var(--color-success);
+}
+
+.step-pill.current {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 600;
+}
 
 /* ─── Progress Bar ──────────────────────────────────────────── */
 .progress-bar-track {
@@ -294,10 +1116,11 @@ body {
   overflow: hidden;
   border: 1px solid var(--color-border-subtle);
 }
+
 .progress-bar-fill {
   height: 100%;
   border-radius: 99px;
-  background: linear-gradient(90deg, #0B3A53 0%, #C9A227 100%);
+  background: var(--color-primary);
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -312,8 +1135,18 @@ body {
   align-items: center;
   justify-content: center;
 }
-.check-circle.done    { background: var(--color-success); border-color: var(--color-success); color: #ffffff; }
-.check-circle.pending { background: var(--color-warning-light); border-color: var(--color-warning); color: var(--color-warning); }
+
+.check-circle.done {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #ffffff;
+}
+
+.check-circle.pending {
+  background: var(--color-warning-light);
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
 
 /* ─── Task Check ────────────────────────────────────────────── */
 .task-check {
@@ -328,8 +1161,17 @@ body {
   cursor: pointer;
   transition: all 0.15s ease;
 }
-.task-check.done { background: var(--color-primary); border-color: var(--color-primary); color: #ffffff; }
-.task-check:hover:not(.done) { border-color: var(--color-primary); background: var(--color-primary-light); }
+
+.task-check.done {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+.task-check:hover:not(.done) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light);
+}
 
 /* ─── Avatar ────────────────────────────────────────────────── */
 .avatar {
@@ -344,12 +1186,32 @@ body {
   font-weight: 600;
   color: var(--color-primary);
   flex-shrink: 0;
-  border: 1px solid rgba(11, 58, 83, 0.15);
+  border: 1px solid var(--color-border);
 }
-.avatar-accent  { background: var(--color-accent-light);  color: var(--color-accent-dark); border-color: rgba(201, 162, 39, 0.25); }
-.avatar-success { background: var(--color-success-light); color: var(--color-success); border-color: rgba(46, 125, 91, 0.25); }
-.avatar-warning { background: var(--color-warning-light); color: var(--color-warning); border-color: rgba(197, 138, 24, 0.25); }
-.avatar-danger  { background: var(--color-danger-light);  color: var(--color-danger); border-color: rgba(201, 74, 74, 0.25); }
+
+.avatar-accent {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  border-color: var(--color-border);
+}
+
+.avatar-success {
+  background: var(--color-success-light);
+  color: var(--color-success);
+  border-color: rgba(46, 125, 91, 0.25);
+}
+
+.avatar-warning {
+  background: var(--color-warning-light);
+  color: var(--color-warning);
+  border-color: rgba(197, 138, 24, 0.25);
+}
+
+.avatar-danger {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+  border-color: rgba(201, 74, 74, 0.25);
+}
 
 /* ─── Icon Button ───────────────────────────────────────────── */
 .icon-btn {
@@ -365,13 +1227,17 @@ body {
   color: var(--color-text-secondary);
   transition: all 0.15s ease;
 }
+
 .icon-btn:hover {
   background: var(--color-surface-muted);
   color: var(--color-text-primary);
   border-color: var(--color-border-strong);
 }
 
-.badge-dot { position: relative; }
+.badge-dot {
+  position: relative;
+}
+
 .badge-dot::after {
   content: '';
   position: absolute;
@@ -379,7 +1245,7 @@ body {
   right: 4px;
   width: 8px;
   height: 8px;
-  background: var(--color-accent);
+  background: var(--color-primary);
   border-radius: 50%;
   border: 2px solid var(--color-surface);
 }
@@ -403,31 +1269,37 @@ body {
   transition: all 0.15s ease;
   white-space: nowrap;
 }
+
 .btn:hover {
   background: var(--color-surface-muted);
   border-color: var(--color-border-strong);
 }
+
 .btn-primary {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: #ffffff;
   font-weight: 600;
 }
+
 .btn-primary:hover {
   background: var(--color-primary-dark);
   border-color: var(--color-primary-dark);
   color: #ffffff;
 }
+
 .btn-accent {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-primary-dark);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
   font-weight: 600;
 }
+
 .btn-accent:hover {
-  background: var(--color-accent-hover);
-  border-color: var(--color-accent-hover);
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
 }
+
 .btn-sm {
   height: 32px;
   padding: 4px 10px;
@@ -442,12 +1314,12 @@ body {
   border-radius: var(--border-radius-2xl);
   overflow: hidden;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 3px 0 rgba(11, 58, 83, 0.04);
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04);
 }
+
 .card-classroom:hover {
-  box-shadow: 0 8px 20px -4px rgba(11, 58, 83, 0.09);
-  border-color: #BAC7D5;
-  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -4px rgba(15, 23, 42, 0.08);
+  border-color: var(--color-border-strong);
 }
 
 /* ─── Empty State ───────────────────────────────────────────── */
@@ -460,43 +1332,14 @@ body {
 
 /* ─── Animations ────────────────────────────────────────────── */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.6; }
-}
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 
-@keyframes skeleton-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-@keyframes skeleton-reveal {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.skeleton-shimmer {
-  background-color: #e8edf2;
-  background-image: linear-gradient(90deg, #e8edf2 0%, #f5f7f9 46%, #e8edf2 92%);
-  background-size: 220% 100%;
-  animation:
-    skeleton-reveal 120ms ease-out 80ms both,
-    skeleton-shimmer 1.7s ease-in-out 80ms infinite;
-}
-
-.dark .skeleton-shimmer {
-  background-color: #1a2a3e;
-  background-image: linear-gradient(90deg, #1a2a3e 0%, #26384e 46%, #1a2a3e 92%);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .skeleton-shimmer {
-    animation: none;
+  to {
     opacity: 1;
-    background-image: none;
+    transform: translateY(0);
   }
 }
 
@@ -504,40 +1347,187 @@ body {
   animation: fadeInUp 0.2s ease forwards;
 }
 
-.animate-stagger > * {
-  animation: fadeInUp 0.2s ease forwards;
-  opacity: 0;
+/* ─── Skeleton Loading Shimmer ──────────────────────────────── */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: color-mix(in srgb, var(--color-primary-light) 28%, var(--color-surface-muted));
 }
-.animate-stagger > *:nth-child(1)  { animation-delay: 0.04s; }
-.animate-stagger > *:nth-child(2)  { animation-delay: 0.08s; }
-.animate-stagger > *:nth-child(3)  { animation-delay: 0.12s; }
-.animate-stagger > *:nth-child(4)  { animation-delay: 0.16s; }
-.animate-stagger > *:nth-child(5)  { animation-delay: 0.20s; }
-.animate-stagger > *:nth-child(6)  { animation-delay: 0.24s; }
+
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--color-surface) 72%, transparent) 50%,
+      transparent 100%);
+  animation: skeletonShimmer 1.65s infinite ease-in-out;
+  will-change: transform;
+}
+
+:is(.dark, [data-appearance="dark"]) .skeleton-shimmer,
+.dark .skeleton-shimmer {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+:is(.dark, [data-appearance="dark"]) .skeleton-shimmer::after,
+.dark .skeleton-shimmer::after {
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.12) 50%,
+      transparent 100%);
+}
+
+@keyframes skeletonShimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer::after {
+    animation: none;
+    transform: none;
+    opacity: 0.35;
+  }
+}
+
+/* ─── Course Theme Surface Overrides (Light Mode) ───────────── */
+:root[data-college-theme]:not([data-college-theme="default"]):not(.dark) :where(.card-classroom,
+  .card-standard,
+  .app-workspace [class~="bg-white"],
+  .app-workspace [class~="bg-white/95"],
+  .app-workspace [class~="bg-white/90"],
+  main [class~="bg-white"],
+  main [class~="bg-white/95"],
+  main [class~="bg-white/90"]) {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+:root[data-college-theme]:not([data-college-theme="default"]):not(.dark) :where(.app-workspace [class~="bg-slate-50"],
+  .app-workspace [class~="bg-slate-50/70"],
+  .app-workspace [class~="bg-slate-50/80"],
+  .app-workspace [class~="bg-slate-100"],
+  main [class~="bg-slate-50"],
+  main [class~="bg-slate-50/70"],
+  main [class~="bg-slate-50/80"],
+  main [class~="bg-slate-100"]) {
+  background-color: var(--color-surface-muted);
+  border-color: var(--color-border);
+}
+
+:root[data-college-theme]:not([data-college-theme="default"]):not(.dark) :where(.app-workspace [class~="border-slate-200"],
+  .app-workspace [class~="border-slate-300"],
+  .app-workspace [class~="border-slate-100"],
+  main [class~="border-slate-200"],
+  main [class~="border-slate-300"],
+  main [class~="border-slate-100"]) {
+  border-color: var(--color-border);
+}
+
+/* Light mode form controls inside course workspace */
+:root[data-college-theme]:not([data-college-theme="default"]):not(.dark) :where(input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select) {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+:root[data-college-theme]:not([data-college-theme="default"]):not(.dark) :where(input:focus,
+  textarea:focus,
+  select:focus) {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 2px var(--college-focus-ring) !important;
+}
+
+/* Legacy color utility mapping inside signed-in course view */
+:root[data-college-theme]:not([data-college-theme="default"]) :where([class~="bg-[#0B3A53]"],
+  [class~="bg-[#0b3a53]"],
+  [class~="bg-[#173f63]"],
+  [class~="bg-[#1b4264]"],
+  [class~="bg-[#102f49]"],
+  [class~="bg-[#102F49]"],
+  [class~="bg-[#526862]"],
+  [class~="bg-[#58647A]"],
+  [class~="bg-[#58647a]"]) {
+  background-color: var(--color-primary) !important;
+}
+
+:root[data-college-theme]:not([data-college-theme="default"]) :where([class~="text-[#0B3A53]"],
+  [class~="text-[#0b3a53]"],
+  [class~="text-[#173f63]"],
+  [class~="text-[#526862]"],
+  [class~="text-[#58647A]"],
+  [class~="text-[#58647a]"]) {
+  color: var(--color-primary) !important;
+}
+
+:root[data-college-theme]:not([data-college-theme="default"]) :where([class~="hover:bg-[#072A3D]"]:hover,
+  [class~="hover:bg-[#0E4968]"]:hover,
+  [class~="hover:bg-[#15344f]"]:hover,
+  [class~="hover:bg-[#15344F]"]:hover) {
+  background-color: var(--color-primary-dark) !important;
+}
+
+:root[data-college-theme]:not([data-college-theme="default"]) :where([class~="border-[#0B3A53]"],
+  [class~="border-[#173f63]"],
+  [class~="border-[#1b4264]"],
+  [class~="border-[#526862]"],
+  [class~="border-[#58647A]"],
+  [class~="border-[#58647a]"],
+  [class~="focus:border-[#0B3A53]"]:focus,
+  [class~="focus:border-[#173f63]"]:focus,
+  [class~="focus:border-[#1b4264]"]:focus,
+  [class~="focus:border-[#58647A]"]:focus) {
+  border-color: var(--color-primary) !important;
+}
+
+:root[data-college-theme]:not([data-college-theme="default"]) :where([class~="focus:ring-[#0B3A53]"]:focus,
+  [class~="focus:ring-[#526862]"]:focus,
+  [class~="focus:ring-[#58647A]"]:focus) {
+  --tw-ring-color: var(--college-focus-ring) !important;
+}
 
 /* ─── Dark Mode Design System ───────────────────────────────── */
+/* Shared Dark Mode palette from official design system (Screenshot 3):
+   Main background: #111820
+   Sidebar: #19232D
+   Header: #19232D
+   Cards: #222D38
+   Active navigation: #303744
+   Primary text: #F1F5F9
+   Secondary text: #A8B6C6 */
 .dark {
-  --color-primary: #38bdf8;
-  --color-primary-dark: #0284c7;
-  --color-primary-light: rgba(56, 189, 248, 0.15);
-  --color-primary-subtle: rgba(56, 189, 248, 0.08);
+  --color-primary: var(--college-primary-dark-mode);
+  --color-primary-dark: var(--college-primary-dark-mode-hover);
+  --color-primary-light: var(--college-primary-soft-dark);
+  --color-primary-subtle: var(--college-primary-soft-dark);
 
   --color-accent: #C9A227;
   --color-accent-light: rgba(201, 162, 39, 0.15);
 
-  --color-background: #080E18;
-  --color-surface: #111A2E;
-  --color-surface-muted: #162438;
-  --color-surface-subtle: #1C2D45;
+  --color-background: #111820;
+  --sidebar-background: #19232D;
+  --header-background: #19232D;
+  --color-surface: #222D38;
+  --color-surface-muted: #1D2733;
+  --color-surface-subtle: #2B3744;
+  --nav-active-bg: #303744;
+  --nav-hover-bg: rgba(255, 255, 255, 0.06);
 
-  --color-border: rgba(255, 255, 255, 0.1);
+  --color-border: rgba(255, 255, 255, 0.10);
   --color-border-subtle: rgba(255, 255, 255, 0.06);
-  --color-border-strong: rgba(255, 255, 255, 0.2);
+  --color-border-strong: rgba(255, 255, 255, 0.20);
 
   --color-text-primary: #F1F5F9;
-  --color-text-secondary: #94A3B8;
-  --color-text-muted: #64748B;
-  --color-text-inverse: #080E18;
+  --color-text-secondary: #A8B6C6;
+  --color-text-muted: #7F90A2;
+  --color-text-inverse: #111820;
 
   --color-success: #4ade80;
   --color-success-light: rgba(74, 222, 128, 0.15);
@@ -545,123 +1535,486 @@ body {
   --color-warning-light: rgba(251, 191, 36, 0.15);
   --color-danger: #f87171;
   --color-danger-light: rgba(248, 113, 113, 0.15);
+}
 
-  /* Legacy variable mappings in dark mode */
-  --color-background-primary: #111A2E;
-  --color-background-secondary: #162438;
-  --color-background-tertiary: #080E18;
-  --color-border-secondary: rgba(255, 255, 255, 0.1);
-  --color-border-primary: rgba(255, 255, 255, 0.2);
+/* Dark Mode Course Accent Customizations */
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bsa"],
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="coa"],
+.dark[data-college-theme="bsa"],
+.dark[data-college-theme="coa"],
+.dark [data-college-theme="bsa"],
+.dark [data-college-theme="coa"] {
+  --color-primary: #E0B034;
+  --color-primary-dark: #ECC254;
+  --color-primary-hover: #ECC254;
+  --color-primary-light: rgba(224, 176, 52, 0.20);
+  --college-focus-ring: rgba(224, 176, 52, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bsais"],
+.dark[data-college-theme="bsais"],
+.dark [data-college-theme="bsais"] {
+  --color-primary: #E5BA42;
+  --color-primary-dark: #F0CA5E;
+  --color-primary-hover: #F0CA5E;
+  --color-primary-light: rgba(229, 186, 66, 0.20);
+  --college-focus-ring: rgba(229, 186, 66, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bsarch"],
+.dark[data-college-theme="bsarch"],
+.dark [data-college-theme="bsarch"] {
+  --color-primary: #F2755E;
+  --color-primary-dark: #F6907D;
+  --color-primary-hover: #F6907D;
+  --color-primary-light: rgba(242, 117, 94, 0.22);
+  --college-focus-ring: rgba(242, 117, 94, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bsce"],
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="cea"],
+.dark[data-college-theme="bsce"],
+.dark[data-college-theme="cea"],
+.dark [data-college-theme="bsce"],
+.dark [data-college-theme="cea"] {
+  --color-primary: #EE7E5F;
+  --color-primary-dark: #F4987E;
+  --color-primary-hover: #F4987E;
+  --color-primary-light: rgba(238, 126, 95, 0.22);
+  --college-focus-ring: rgba(238, 126, 95, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bscpe"],
+.dark[data-college-theme="bscpe"],
+.dark [data-college-theme="bscpe"] {
+  --color-primary: #EE8068;
+  --color-primary-dark: #F49B86;
+  --color-primary-hover: #F49B86;
+  --color-primary-light: rgba(238, 128, 104, 0.22);
+  --college-focus-ring: rgba(238, 128, 104, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bsie"],
+.dark[data-college-theme="bsie"],
+.dark [data-college-theme="bsie"] {
+  --color-primary: #F08665;
+  --color-primary-dark: #F59F82;
+  --color-primary-hover: #F59F82;
+  --color-primary-light: rgba(240, 134, 101, 0.22);
+  --college-focus-ring: rgba(240, 134, 101, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bshm"],
+.dark[data-college-theme="bshm"],
+.dark [data-college-theme="bshm"] {
+  --color-primary: #F26298;
+  --color-primary-dark: #F87DAE;
+  --color-primary-hover: #F87DAE;
+  --color-primary-light: rgba(242, 98, 152, 0.22);
+  --college-focus-ring: rgba(242, 98, 152, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bstm"],
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="chtm"],
+.dark[data-college-theme="bstm"],
+.dark[data-college-theme="chtm"],
+.dark [data-college-theme="bstm"],
+.dark [data-college-theme="chtm"] {
+  --color-primary: #EE6A9F;
+  --color-primary-dark: #F587B2;
+  --color-primary-hover: #F587B2;
+  --color-primary-light: rgba(238, 106, 159, 0.22);
+  --college-focus-ring: rgba(238, 106, 159, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bsit"],
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="cit"],
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="blis"],
+.dark[data-college-theme="bsit"],
+.dark[data-college-theme="cit"],
+.dark[data-college-theme="blis"],
+.dark [data-college-theme="bsit"],
+.dark [data-college-theme="cit"],
+.dark [data-college-theme="blis"] {
+  --color-primary: #8D9BB5;
+  --color-primary-dark: #A3B0C7;
+  --color-primary-hover: #A3B0C7;
+  --color-primary-light: rgba(141, 155, 181, 0.22);
+  --college-focus-ring: rgba(141, 155, 181, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bsn"],
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="cnp"],
+.dark[data-college-theme="bsn"],
+.dark[data-college-theme="cnp"],
+.dark [data-college-theme="bsn"],
+.dark [data-college-theme="cnp"] {
+  --color-primary: #52BD74;
+  --color-primary-dark: #6DC98C;
+  --color-primary-hover: #6DC98C;
+  --color-primary-light: rgba(82, 189, 116, 0.24);
+  --college-focus-ring: rgba(82, 189, 116, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bsph"],
+.dark[data-college-theme="bsph"],
+.dark [data-college-theme="bsph"] {
+  --color-primary: #62B872;
+  --color-primary-dark: #7AC588;
+  --color-primary-hover: #7AC588;
+  --color-primary-light: rgba(98, 184, 114, 0.24);
+  --college-focus-ring: rgba(98, 184, 114, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="abcomm"],
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="sas"],
+.dark[data-college-theme="abcomm"],
+.dark[data-college-theme="sas"],
+.dark [data-college-theme="abcomm"],
+.dark [data-college-theme="sas"] {
+  --color-primary: #5E8FD4;
+  --color-primary-dark: #7AA5E0;
+  --color-primary-hover: #7AA5E0;
+  --color-primary-light: rgba(94, 143, 212, 0.22);
+  --college-focus-ring: rgba(94, 143, 212, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bscrim"],
+.dark[data-college-theme="bscrim"],
+.dark [data-college-theme="bscrim"] {
+  --color-primary: #6488B8;
+  --color-primary-dark: #80A0C8;
+  --color-primary-hover: #80A0C8;
+  --color-primary-light: rgba(100, 136, 184, 0.22);
+  --college-focus-ring: rgba(100, 136, 184, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bhs"],
+.dark[data-college-theme="bhs"],
+.dark [data-college-theme="bhs"] {
+  --color-primary: #729EC8;
+  --color-primary-dark: #8EB4D8;
+  --color-primary-hover: #8EB4D8;
+  --color-primary-light: rgba(114, 158, 200, 0.22);
+  --college-focus-ring: rgba(114, 158, 200, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bspsych"],
+.dark[data-college-theme="bspsych"],
+.dark [data-college-theme="bspsych"] {
+  --color-primary: #8692C4;
+  --color-primary-dark: #9FAAD4;
+  --color-primary-hover: #9FAAD4;
+  --color-primary-light: rgba(134, 146, 196, 0.22);
+  --college-focus-ring: rgba(134, 146, 196, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bsba-mm"],
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="sbpa"],
+.dark[data-college-theme="bsba-mm"],
+.dark[data-college-theme="sbpa"],
+.dark [data-college-theme="bsba-mm"],
+.dark [data-college-theme="sbpa"] {
+  --color-primary: #DEAC33;
+  --color-primary-dark: #E8BC4F;
+  --color-primary-hover: #E8BC4F;
+  --color-primary-light: rgba(222, 172, 51, 0.20);
+  --college-focus-ring: rgba(222, 172, 51, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bsba-om"],
+.dark[data-college-theme="bsba-om"],
+.dark [data-college-theme="bsba-om"] {
+  --color-primary: #DFB745;
+  --color-primary-dark: #E9C461;
+  --color-primary-hover: #E9C461;
+  --color-primary-light: rgba(223, 183, 69, 0.20);
+  --college-focus-ring: rgba(223, 183, 69, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="beed"],
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="soe"],
+.dark[data-college-theme="beed"],
+.dark[data-college-theme="soe"],
+.dark [data-college-theme="beed"],
+.dark [data-college-theme="soe"] {
+  --color-primary: #8077ED;
+  --color-primary-dark: #9A92F2;
+  --color-primary-hover: #9A92F2;
+  --color-primary-light: rgba(128, 119, 237, 0.22);
+  --college-focus-ring: rgba(128, 119, 237, 0.28);
+}
+
+:is(.dark, [data-appearance="dark"]):root[data-college-theme="bsed"],
+.dark[data-college-theme="bsed"],
+.dark [data-college-theme="bsed"] {
+  --color-primary: #8D80D8;
+  --color-primary-dark: #A398E0;
+  --color-primary-hover: #A398E0;
+  --color-primary-light: rgba(141, 128, 216, 0.22);
+  --college-focus-ring: rgba(141, 128, 216, 0.28);
 }
 
 .dark body {
-  background-color: #080E18;
-  color: #F1F5F9;
+  background-color: var(--sidebar-background);
+  color: var(--color-text-primary);
 }
 
-/* Dark mode canvas backgrounds */
-.dark .bg-\[\#f6f8fb\],
-.dark .bg-\[\#F7F9FB\],
-.dark .bg-\[\#f4f7fa\] {
-  background-color: #080E18 !important;
-}
-
-/* Dark mode card surfaces */
-.dark .bg-white {
-  background-color: #111A2E !important;
-}
-
-/* Dark mode translucent tints & resets for light background utilities */
-.dark .bg-\[\#EAF3F7\],
-.dark .bg-\[\#EAF3F7\]\/50 {
-  background-color: rgba(56, 189, 248, 0.12) !important;
-  color: #38bdf8 !important;
+/* Dark mode surface mappings */
+.dark .bg-white,
+.dark [class~="bg-white"] {
+  background-color: var(--color-surface) !important;
 }
 
 .dark [class*="bg-slate-50"],
-.dark [class*="bg-slate-100"] {
-  background-color: rgba(255, 255, 255, 0.04) !important;
+.dark [class*="bg-slate-100"],
+.dark [class*="bg-gray-50"],
+.dark [class*="bg-gray-100"],
+.dark [class*="bg-zinc-50"],
+.dark [class*="bg-zinc-100"] {
+  background-color: var(--color-surface-muted) !important;
+}
+
+/* Dark mode border mappings */
+.dark [class*="border-slate-100"],
+.dark [class*="border-slate-200"],
+.dark [class*="border-slate-300"],
+.dark [class*="border-gray-100"],
+.dark [class*="border-gray-200"],
+.dark [class*="border-gray-300"],
+.dark [class*="border-zinc-200"] {
+  border-color: var(--color-border) !important;
+}
+
+/* Dark mode text hierarchy: WCAG AA contrast preservation */
+/* Primary text: Headings, titles, strong labels, table headers */
+.dark :is([class*="text-[#102f49]"],
+  [class*="text-[#102F49]"],
+  [class*="text-[#1b4264]"],
+  [class*="text-[#1B4264]"],
+  [class*="text-[#173f63]"],
+  [class*="text-[#173F63]"],
+  [class*="text-[#17212b]"],
+  [class*="text-[#17212B]"],
+  [class*="text-[#243047]"],
+  [class*="text-[#0B3A53]"],
+  [class*="text-[#0b3a53]"],
+  [class*="text-slate-900"],
+  [class*="text-slate-800"],
+  [class*="text-gray-900"],
+  [class*="text-gray-800"],
+  [class*="text-zinc-900"],
+  [class*="text-zinc-800"]) {
+  color: var(--color-text-primary) !important;
+}
+
+/* Secondary text: Subtitles, section descriptions, secondary labels */
+.dark :is([class*="text-slate-700"],
+  [class*="text-slate-600"],
+  [class*="text-gray-700"],
+  [class*="text-gray-600"],
+  [class*="text-zinc-700"],
+  [class*="text-zinc-600"]) {
+  color: var(--color-text-secondary) !important;
+}
+
+/* Supporting / Muted metadata */
+.dark :is([class*="text-slate-500"],
+  [class*="text-slate-400"],
+  [class*="text-gray-500"],
+  [class*="text-gray-400"],
+  [class*="text-zinc-500"],
+  [class*="text-zinc-400"]) {
+  color: var(--color-text-muted) !important;
+}
+
+/* Soft colored status containers in dark mode */
+.dark [class*="bg-blue-50"] {
+  background-color: rgba(56, 189, 248, 0.12) !important;
+}
+
+.dark [class*="border-blue-100"],
+.dark [class*="border-blue-200"] {
+  border-color: rgba(56, 189, 248, 0.25) !important;
+}
+
+.dark :is([class*="text-blue-700"], [class*="text-blue-800"], [class*="text-blue-900"]) {
+  color: #7dd3fc !important;
+}
+
+.dark [class*="bg-emerald-50"] {
+  background-color: rgba(74, 222, 128, 0.12) !important;
+}
+
+.dark [class*="border-emerald-100"],
+.dark [class*="border-emerald-200"] {
+  border-color: rgba(74, 222, 128, 0.25) !important;
+}
+
+.dark :is([class*="text-emerald-700"], [class*="text-emerald-800"], [class*="text-emerald-900"]) {
+  color: #86efac !important;
+}
+
+.dark [class*="bg-amber-50"] {
+  background-color: rgba(251, 191, 36, 0.12) !important;
+}
+
+.dark [class*="border-amber-100"],
+.dark [class*="border-amber-200"] {
+  border-color: rgba(251, 191, 36, 0.25) !important;
+}
+
+.dark :is([class*="text-amber-700"], [class*="text-amber-800"], [class*="text-amber-900"]) {
+  color: #fde047 !important;
+}
+
+.dark [class*="bg-rose-50"] {
+  background-color: rgba(248, 113, 113, 0.12) !important;
+}
+
+.dark [class*="border-rose-100"],
+.dark [class*="border-rose-200"] {
+  border-color: rgba(248, 113, 113, 0.25) !important;
+}
+
+.dark :is([class*="text-rose-700"], [class*="text-rose-800"], [class*="text-rose-900"]) {
+  color: #fca5a5 !important;
+}
+
+.dark [class*="bg-violet-50"],
+.dark [class*="bg-purple-50"] {
+  background-color: rgba(168, 85, 247, 0.12) !important;
+}
+
+.dark :is([class*="text-violet-700"], [class*="text-violet-800"], [class*="text-purple-700"], [class*="text-purple-800"]) {
+  color: #d8b4fe !important;
 }
 
 /* Active navigation styling in dark mode */
 .dark a[aria-current="page"],
 .dark button[aria-current="page"] {
-  background-color: rgba(56, 189, 248, 0.15) !important;
-  color: #38bdf8 !important;
+  background-color: var(--nav-active-bg) !important;
+  color: var(--color-primary) !important;
 }
 
 .dark a[aria-current="page"] svg,
 .dark a[aria-current="page"] i,
 .dark button[aria-current="page"] svg,
 .dark button[aria-current="page"] i {
-  color: #38bdf8 !important;
-}
-
-/* Dark mode border softening */
-.dark .border-slate-200,
-.dark .border-slate-100,
-.dark .border-slate-300,
-.dark .border-\[\#DDE3E8\],
-.dark .border-\[\#E2E8F0\] {
-  border-color: rgba(255, 255, 255, 0.08) !important;
-}
-
-/* Dark mode typography mappings for institutional dark colors */
-.dark .text-\[\#102f49\],
-.dark .text-\[\#0B3A53\],
-.dark .text-\[\#173f63\],
-.dark .text-\[\#1b4264\],
-.dark .text-\[\#102f4d\],
-.dark .text-\[\#17212B\],
-.dark .text-slate-900,
-.dark .text-slate-800 {
-  color: #F1F5F9 !important;
-}
-
-.dark .text-slate-700 {
-  color: #CBD5E1 !important;
-}
-
-.dark .text-slate-600,
-.dark .text-slate-500 {
-  color: #94A3B8 !important;
-}
-
-.dark .text-slate-400 {
-  color: #64748B !important;
-}
-
-/* Dark mode translucent badge tints */
-.dark .bg-blue-50 {
-  background-color: rgba(56, 189, 248, 0.12) !important;
-  color: #38bdf8 !important;
-}
-.dark .bg-amber-50 {
-  background-color: rgba(201, 162, 39, 0.15) !important;
-  color: #f6b31a !important;
-}
-.dark .bg-emerald-50 {
-  background-color: rgba(74, 222, 128, 0.12) !important;
-  color: #4ade80 !important;
-}
-.dark .bg-rose-50 {
-  background-color: rgba(248, 113, 113, 0.12) !important;
-  color: #f87171 !important;
-}
-.dark .bg-violet-50 {
-  background-color: rgba(167, 139, 250, 0.12) !important;
-  color: #c084fc !important;
+  color: var(--color-primary) !important;
 }
 
 /* Dark mode form controls */
 .dark input:not([type="checkbox"]):not([type="radio"]),
 .dark textarea,
 .dark select {
-  background-color: #111A2E !important;
-  color: #F1F5F9 !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-border) !important;
 }
+
 .dark input::placeholder,
 .dark textarea::placeholder {
-  color: #64748B !important;
+  color: var(--color-text-muted) !important;
+}
+
+/* ─── Institutional College Button & Accent Overrides ─────────── */
+/* Ensure all legacy action buttons and interactive controls strictly adhere
+   to the active college/course theme palette (var(--color-primary)) */
+
+:is([data-college-theme], body) :is(button[class*="bg-[#FFA400]"],
+  button[class*="bg-[#ffa400]"],
+  button[class*="bg-[#f6a800]"],
+  button[class*="bg-[#F6A800]"],
+  button[class*="bg-[#F5A800]"],
+  button[class*="bg-[#C9A227]"],
+  button[class*="bg-[#c9a227]"],
+  button[class*="bg-[#ffad14]"],
+  a[class*="bg-[#FFA400]"],
+  a[class*="bg-[#ffa400]"],
+  a[class*="bg-[#f6a800]"],
+  a[class*="bg-[#F6A800]"],
+  a[class*="bg-[#F5A800]"],
+  a[class*="bg-[#C9A227]"],
+  a[class*="bg-[#c9a227]"],
+  a[class*="bg-[#ffad14]"],
+  .btn-primary-gold,
+  .btn-accent,
+  .btn-gold) {
+  background-color: var(--color-primary) !important;
+  color: var(--college-on-primary, #ffffff) !important;
+  border-color: var(--color-primary) !important;
+}
+
+:is([data-college-theme], body) :is(button[class*="bg-[#FFA400]"]:hover,
+  button[class*="bg-[#ffa400]"]:hover,
+  button[class*="bg-[#f6a800]"]:hover,
+  button[class*="bg-[#F6A800]"]:hover,
+  button[class*="bg-[#F5A800]"]:hover,
+  button[class*="bg-[#C9A227]"]:hover,
+  button[class*="bg-[#c9a227]"]:hover,
+  button[class*="bg-[#ffad14]"]:hover,
+  a[class*="bg-[#FFA400]"]:hover,
+  a[class*="bg-[#ffa400]"]:hover,
+  a[class*="bg-[#f6a800]"]:hover,
+  a[class*="bg-[#F6A800]"]:hover,
+  a[class*="bg-[#F5A800]"]:hover,
+  a[class*="bg-[#C9A227]"]:hover,
+  a[class*="bg-[#c9a227]"]:hover,
+  a[class*="bg-[#ffad14]"]:hover,
+  .btn-primary-gold:hover,
+  .btn-accent:hover,
+  .btn-gold:hover) {
+  background-color: var(--color-primary-dark, var(--college-primary-hover)) !important;
+  color: var(--college-on-primary, #ffffff) !important;
+}
+
+/* Ensure child icons/spans in these buttons inherit readable contrast color */
+:is([data-college-theme], body) :is(button[class*="bg-[#FFA400]"] > *,
+  button[class*="bg-[#ffa400]"] > *,
+  button[class*="bg-[#f6a800]"] > *,
+  button[class*="bg-[#F6A800]"] > *,
+  button[class*="bg-[#F5A800]"] > *,
+  button[class*="bg-[#C9A227]"] > *,
+  button[class*="bg-[#c9a227]"] > *,
+  button[class*="bg-[#ffad14]"] > *,
+  a[class*="bg-[#FFA400]"] > *,
+  a[class*="bg-[#ffa400]"] > *,
+  a[class*="bg-[#f6a800]"] > *,
+  a[class*="bg-[#F6A800]"] > *,
+  a[class*="bg-[#F5A800]"] > *,
+  a[class*="bg-[#C9A227]"] > *,
+  a[class*="bg-[#c9a227]"] > *,
+  a[class*="bg-[#ffad14]"] > *) {
+  color: inherit !important;
+}
+
+/* Text accents with legacy gold/yellow */
+:is([data-college-theme], body) :is([class*="text-[#C9A227]"],
+  [class*="text-[#c9a227]"],
+  [class*="text-[#FFA400]"],
+  [class*="text-[#ffa400]"],
+  [class*="text-[#f6a800]"],
+  [class*="text-[#F6A800]"],
+  [class*="text-[#F5A800]"],
+  [class*="text-[#d98d00]"]) {
+  color: var(--color-primary) !important;
+}
+
+/* Border accents with legacy gold/yellow */
+:is([data-college-theme], body) :is([class*="border-[#C9A227]"],
+  [class*="border-[#c9a227]"],
+  [class*="border-[#FFA400]"],
+  [class*="border-[#ffa400]"],
+  [class*="border-[#f6a800]"],
+  [class*="border-[#F6A800]"]) {
+  border-color: var(--color-primary) !important;
+}
+
+/* Strip line elimination: ensure no decorative border strips on cards or hero surfaces */
+.college-hero-surface::before,
+.college-hero-surface::after {
+  display: none !important;
+  content: none !important;
+  width: 0 !important;
 }

@@ -44,7 +44,7 @@ export function AppShell({
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#F7F9FB] dark:bg-[#080E18] text-[#17212B] dark:text-[#F1F5F9] font-sans antialiased">
+    <div className="min-h-screen bg-[var(--sidebar-background)] text-[var(--color-text-primary)] font-sans antialiased">
       {/* Universal Institutional Sidebar */}
       <AppSidebar
         roleTitle={roleTitle}
@@ -62,8 +62,8 @@ export function AppShell({
       {/* Main Layout Area */}
       <div
         className={cn(
-          "flex min-h-screen flex-col transition-all duration-300 ease-in-out",
-          collapsed ? "lg:pl-[68px]" : "lg:pl-[260px]"
+          "flex min-h-screen flex-col transition-all duration-300 ease-in-out bg-[var(--sidebar-background)]",
+          collapsed ? "lg:pl-[72px]" : "lg:pl-[260px]"
         )}
       >
         {/* Universal Topbar */}
@@ -83,7 +83,7 @@ export function AppShell({
         {/* Scrollable Main Content Container */}
         <main
           className={cn(
-            "flex-1 overflow-x-hidden min-w-0",
+            "app-workspace flex min-h-[calc(100vh-4rem)] flex-1 min-w-0 flex-col rounded-tl-[32px] bg-white dark:bg-[var(--color-surface)] border-0 outline-none shadow-none",
             contentClassName || "p-4 sm:p-6 lg:p-8"
           )}
         >

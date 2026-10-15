@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { AppSidebar } from "@/components/layout/AppSidebar";
+import { AppSidebar, NavSection } from "@/components/layout/AppSidebar";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import {
   LayoutDashboard,
@@ -12,17 +12,39 @@ import {
   Award,
   Mail,
   MessageSquare,
+  Archive,
 } from "lucide-react";
 
-const NAV_ITEMS = [
-  { label: "Overview", href: "/panelist/dashboard", tabName: "overview", icon: LayoutDashboard },
-  { label: "Messages", href: "/panelist/dashboard?tab=messages", tabName: "messages", icon: MessageSquare },
-  { label: "Defense Schedule", href: "/panelist/dashboard?tab=schedule", tabName: "schedule", icon: CalendarCheck },
-  { label: "Calendar", href: "/panelist/calendar", icon: CalendarDays },
-  { label: "Documents", href: "/panelist/dashboard?tab=documents", tabName: "documents", icon: FileText },
-  { label: "Evaluations", href: "/panelist/dashboard?tab=evaluation", tabName: "evaluation", icon: ClipboardCheck },
-  { label: "Results", href: "/panelist/dashboard?tab=grades", tabName: "grades", icon: Award },
-  { label: "Inbox", href: "/panelist/inbox", icon: Mail },
+const PANELIST_NAV_SECTIONS: NavSection[] = [
+  {
+    title: "HOME",
+    items: [
+      { label: "Overview", href: "/panelist/dashboard", tabName: "overview", icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: "PANEL EVALUATIONS",
+    items: [
+      { label: "Manuscript Reviews", href: "/panelist/reviews", icon: FileText },
+      { label: "Official Copies", href: "/panelist/documents?tab=official", icon: Archive },
+      { label: "Evaluations", href: "/panelist/dashboard?tab=evaluation", tabName: "evaluation", icon: ClipboardCheck },
+      { label: "Results", href: "/panelist/dashboard?tab=grades", tabName: "grades", icon: Award },
+    ],
+  },
+  {
+    title: "ACADEMIC ACTIVITIES",
+    items: [
+      { label: "Defense Schedule", href: "/panelist/dashboard?tab=schedule", tabName: "schedule", icon: CalendarCheck },
+      { label: "Calendar", href: "/panelist/calendar", icon: CalendarDays },
+    ],
+  },
+  {
+    title: "COMMUNICATION",
+    items: [
+      { label: "Messages", href: "/panelist/dashboard?tab=messages", tabName: "messages", icon: MessageSquare },
+      { label: "Inbox", href: "/panelist/inbox", icon: Mail },
+    ],
+  },
 ];
 
 export function PanelistSidebar() {
@@ -32,7 +54,7 @@ export function PanelistSidebar() {
     <AppSidebar
       roleTitle="Defense Panelist"
       roleBadge="PANELIST CENTER"
-      navItems={NAV_ITEMS}
+      navSections={PANELIST_NAV_SECTIONS}
       collapsed={collapsed}
       onToggleCollapse={toggle}
       settingsHref="/panelist/settings"

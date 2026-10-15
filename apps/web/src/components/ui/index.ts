@@ -6,7 +6,6 @@ export * from "./Tag";
 export * from "./StatCard";
 export * from "./PageContainer";
 export * from "./PageHeader";
-export * from "./SectionHeader";
 export * from "./Input";
 export * from "./EmptyState";
 export * from "./LoadingState";

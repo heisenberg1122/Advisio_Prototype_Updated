@@ -8,7 +8,16 @@ import { AuthProvider, useAuth } from "./auth-provider";
 function UserThemeProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
 
-  return <ThemeProvider userId={user?.id}>{children}</ThemeProvider>;
+  return (
+    <ThemeProvider
+      userId={user?.id}
+      college={user?.college}
+      program={user?.program}
+      appearancePreference={user?.appearancePreference}
+    >
+      {children}
+    </ThemeProvider>
+  );
 }
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -28,3 +37,4 @@ export function Providers({ children }: { children: ReactNode }) {
 
 export { ThemeProvider, useTheme } from "./theme-provider";
 export { AuthProvider, useAuth } from "./auth-provider";
+export { ActiveProjectProvider, useActiveProject, useActiveProjectContext } from "./active-project-provider";

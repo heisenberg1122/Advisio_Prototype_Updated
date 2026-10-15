@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
-import { calculateWorkflowProgress } from "@/lib/workflow-progress";
+import { calculateMilestoneProgress } from "@/lib/workflow-progress";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import {
   DashboardSkeleton,
@@ -29,6 +29,8 @@ import {
   type WorkflowDeadlineRow,
 } from "@/components/workflow/WorkflowDeadlineTracker";
 import { ResearchProjectsOnboarding } from "@/components/workflow/ResearchProjectsOnboarding";
+
+const EMPTY_MILESTONE_PROGRESS_BY_PROJECT: Record<string, any[]> = {};
 
 function ProfessorDashboardContent() {
   // Kept temporarily while the new composer and workflow workspace replace the
@@ -62,6 +64,7 @@ function ProfessorDashboardContent() {
   });
   const liveDefense = defenseData?.session || null;
   const [officialDecision, setOfficialDecision] = useState("APPROVED");
+  const [revisionInstructions, setRevisionInstructions] = useState("");
   const [defenseActionPending, setDefenseActionPending] = useState(false);
   const { data: defenseManagementData, refetch: refetchDefenseManagement, error: defenseManagementError } =
     useQuery({
@@ -180,6 +183,30 @@ function ProfessorDashboardContent() {
     refetchOnWindowFocus: true,
   });
 
+  const professorProjectIds = (researchData?.projects || [])
+    .filter((project: any) => project.status !== "ARCHIVED" && project.workflowInstance)
+    .map((project: any) => project.id as string);
+  const professorProjectKey = professorProjectIds.join(",");
+  const { data: milestoneProgressByProject = EMPTY_MILESTONE_PROGRESS_BY_PROJECT } = useQuery({
+    queryKey: ["professor-milestone-progress", professorProjectKey],
+    queryFn: async () => {
+      const entries = await Promise.all(professorProjectIds.map(async (projectId) => {
+        try {
+          const projection = await apiClient.get<{ milestones: any[] }>(
+            `/api/research/${projectId}/manuscript-workflow`,
+          );
+          return [projectId, projection.milestones || []] as const;
+        } catch {
+          return [projectId, []] as const;
+        }
+      }));
+      return Object.fromEntries(entries) as Record<string, any[]>;
+    },
+    enabled: professorProjectIds.length > 0,
+    staleTime: 15000,
+    refetchInterval: 15000,
+  });
+
   const {
     data: enrollmentData,
     isLoading: enrollmentsLoading,
@@ -234,7 +261,10 @@ function ProfessorDashboardContent() {
           workflowTransitions: p.workflowInstance?.transitions || [],
           workflowStages: p.workflowInstance?.workflow?.stages || [],
           taskSubmissions: p.taskSubmissions || [],
-          progress: calculateWorkflowProgress(p),
+          progress: calculateMilestoneProgress(
+            milestoneProgressByProject[p.id],
+            Boolean(p.workflowInstance?.completedAt),
+          ),
           status: p.status?.toLowerCase() || "ongoing",
         }));
       setProjects(mappedProjects);
@@ -246,7 +276,7 @@ function ProfessorDashboardContent() {
         ),
       );
     }
-  }, [researchData]);
+  }, [milestoneProgressByProject, researchData]);
 
   const [workflows, setWorkflows] = useState<any[]>([]);
   const [milestones, setMilestones] = useState<any[]>([]);
@@ -1386,11 +1416,17 @@ function ProfessorDashboardContent() {
     try {
       await apiClient.post(`/api/defense-sessions/${liveDefense.id}/release`, {
         decision: officialDecision,
+        revisionInstructions:
+          officialDecision === "APPROVED_WITH_MINOR_REVISIONS" ||
+          officialDecision === "MAJOR_REVISIONS_REQUIRED"
+            ? revisionInstructions.trim()
+            : undefined,
       });
       await Promise.all([refetchDefense(), refetchResearch(), refetchDefenseManagement(), refetchDefenseEvents()]);
       triggerToast(
         "Official defense result released to the researcher dashboard.",
       );
+      setRevisionInstructions("");
     } catch (error: any) {
       triggerToast(error?.message || "The result could not be released.");
     } finally {
@@ -1465,7 +1501,7 @@ function ProfessorDashboardContent() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed top-5 right-5 z-55 bg-[#1b4264] border-l-4 border-[#ffa400] text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3"
+          className="fixed top-5 right-5 z-55 bg-[#1b4264] border border-white/10 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3"
         >
           <i className="ti ti-circle-check text-[#ffa400] text-lg" />
           <span className="text-[12px] font-bold">{toast}</span>
@@ -2815,7 +2851,7 @@ function ProfessorDashboardContent() {
 
       {/* MAIN CONTAINER */}
       <div
-        className={`flex w-full flex-1 flex-col space-y-6 ${activeTab === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-screen-2xl p-4 sm:p-6 lg:p-8"}`}
+        className={`flex w-full flex-1 flex-col space-y-6 ${activeTab === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}
       >
         {(() => {
           const tabContent: Record<string, React.ReactNode> = {
@@ -2830,20 +2866,20 @@ function ProfessorDashboardContent() {
                     <>
                       <button
                         onClick={() => handleTabChange("builder")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#C9A227] px-5 text-sm font-bold text-[#0B3A53] shadow-xs transition hover:bg-[#B38E1E]"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 text-sm font-bold text-white shadow-xs transition"
                       >
                         <i className="ti ti-plus text-base" /> Create Milestone
                       </button>
                       <button
                         onClick={() => handleTabChange("monitoring")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur-xs transition hover:bg-white/20"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
                       >
                         <i className="ti ti-folders text-base" /> Monitor Groups
                         ({projects.length})
                       </button>
                       <button
                         onClick={() => handleTabChange("submissions")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 text-sm font-semibold text-white backdrop-blur-xs transition hover:bg-white/20"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
                       >
                         <i className="ti ti-file-text text-base" /> Submissions
                       </button>
@@ -3539,10 +3575,32 @@ function ProfessorDashboardContent() {
                             <option value="REJECTED">Rejected</option>
                           </select>
                         </label>
+                        {(officialDecision ===
+                          "APPROVED_WITH_MINOR_REVISIONS" ||
+                          officialDecision === "MAJOR_REVISIONS_REQUIRED") && (
+                          <label className="mt-2 block text-xs font-bold text-slate-600">
+                            Required manuscript revisions
+                            <textarea
+                              value={revisionInstructions}
+                              onChange={(event) =>
+                                setRevisionInstructions(event.target.value)
+                              }
+                              placeholder="Record the panel's required post-defense revisions."
+                              className="mt-1 min-h-24 w-full rounded-xl border border-slate-300 bg-white p-3 font-normal"
+                            />
+                          </label>
+                        )}
                         <button
                           type="button"
                           onClick={releaseDefenseResult}
-                          disabled={defenseActionPending}
+                          disabled={
+                            defenseActionPending ||
+                            ((officialDecision ===
+                              "APPROVED_WITH_MINOR_REVISIONS" ||
+                              officialDecision ===
+                                "MAJOR_REVISIONS_REQUIRED") &&
+                              revisionInstructions.trim().length < 10)
+                          }
                           className="mt-2 w-full rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
                         >
                           Release official result

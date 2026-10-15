@@ -58,8 +58,8 @@ export function CourseCard({
   return (
     <div
       className={cn(
-        "relative flex flex-col bg-white dark:bg-[#101b2b] border border-[#E2E8F0] dark:border-white/10 rounded-2xl overflow-hidden transition-all duration-200 select-none",
-        "shadow-xs hover:shadow-lg hover:border-[#BAC7D5] dark:hover:border-white/20 hover:-translate-y-1",
+        "relative flex flex-col bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden transition-all duration-200 select-none",
+        "shadow-[var(--shadow-card-soft)] hover:shadow-[var(--shadow-card-hover)] hover:border-[var(--color-border-strong)] hover:-translate-y-1",
         className
       )}
     >
@@ -165,7 +165,7 @@ export function CourseCard({
                     key={i}
                     href={act.href}
                     title={act.label}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-300 hover:text-[#0B3A53] transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-[var(--color-primary-light)] text-slate-500 dark:text-slate-300 hover:text-[var(--color-primary)] transition-colors"
                   >
                     <ActionIcon className="h-4 w-4" />
                   </Link>
@@ -174,7 +174,7 @@ export function CourseCard({
                     key={i}
                     onClick={act.onClick}
                     title={act.label}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-slate-500 dark:text-slate-300 hover:text-[#0B3A53] transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-[var(--color-primary-light)] text-slate-500 dark:text-slate-300 hover:text-[var(--color-primary)] transition-colors"
                   >
                     <ActionIcon className="h-4 w-4" />
                   </button>

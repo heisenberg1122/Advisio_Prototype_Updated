@@ -16,6 +16,75 @@ export type SignaturePlacement = {
   includeDate?: boolean;
 };
 
+export type LegacyDocumentSignatureAccessContext = {
+  researchCollegeId: string;
+  projectRoles: Array<{ userId: string; projectRole: string }>;
+  workflowOwnerId: string | null;
+  hasAcceptedPanelAssignment: boolean;
+  hasLockedPanelEvaluation: boolean;
+  documentType: string;
+  deanRecipientId: string | null;
+};
+
+/** Authorization for the pre-official-copy visual-signing workflow. This is
+ * intentionally project/assignment scoped; a broad platform role alone is
+ * never sufficient for an academic signature. */
+export function legacyDocumentSignatureAccessPolicy(
+  signer: {
+    id: string;
+    roles: string[];
+    collegeId: string | null;
+  },
+  context: LegacyDocumentSignatureAccessContext,
+) {
+  const roles = new Set(signer.roles);
+  const assignedRoles = new Set(
+    context.projectRoles
+      .filter((member) => member.userId === signer.id)
+      .map((member) => member.projectRole),
+  );
+  const isAssignedAdviser =
+    roles.has("ADVISER") && assignedRoles.has("ADVISER");
+  const isAssignedPanelist =
+    roles.has("PANELIST") &&
+    (assignedRoles.has("PANELIST") || context.hasAcceptedPanelAssignment);
+  const isWorkflowCoordinator =
+    roles.has("RESEARCH_COORDINATOR") && context.workflowOwnerId === signer.id;
+  const isScopedRpo =
+    roles.has("RPO") &&
+    Boolean(signer.collegeId) &&
+    signer.collegeId === context.researchCollegeId;
+  const isVpaa = roles.has("VPAA");
+  const isDeanDocument = context.documentType === "DEAN_DEFENSE_APPROVAL";
+  const isAssignedDean =
+    (isScopedRpo || isVpaa) &&
+    (!context.deanRecipientId || context.deanRecipientId === signer.id);
+
+  const canSign = isDeanDocument
+    ? isAssignedDean
+    : isAssignedAdviser ||
+      isAssignedPanelist ||
+      isWorkflowCoordinator ||
+      isScopedRpo ||
+      isVpaa;
+
+  return {
+    canSign,
+    isAssignedPanelist,
+    signerRole: isAssignedAdviser
+      ? "ADVISER"
+      : isAssignedPanelist
+        ? "PANELIST"
+        : isWorkflowCoordinator
+          ? "COORDINATOR"
+          : isScopedRpo
+            ? "DEAN"
+            : isVpaa
+              ? "VPAA"
+              : "NONE",
+  };
+}
+
 const sha256 = (value: Uint8Array) =>
   crypto.createHash("sha256").update(value).digest("hex");
 
@@ -32,7 +101,10 @@ export async function loadVersionFile(version: {
   storagePath: string;
 }): Promise<Buffer> {
   const fileId = version.googleDriveFileId;
-  if (!fileId) throw new Error("This document version does not have a readable stored PDF.");
+  if (!fileId)
+    throw new Error(
+      "This document version does not have a readable stored PDF.",
+    );
 
   if (!fileId.startsWith("gdrive-")) {
     const response = await googleDriveService.getFileStream(fileId);
@@ -47,14 +119,79 @@ export async function loadVersionFile(version: {
   return fs.readFileSync(path.join(uploadDir, diskName));
 }
 
-function validatePlacement(value: SignaturePlacement) {
+export function validateSignaturePlacement(value: SignaturePlacement) {
   const numbers = [value.x, value.y, value.width, value.height];
   if (!Number.isInteger(value.pageNumber) || value.pageNumber < 1)
     throw new Error("A valid PDF page number is required.");
   if (numbers.some((item) => !Number.isFinite(item) || item < 0 || item > 1))
-    throw new Error("Signature coordinates must be normalized between 0 and 1.");
-  if (value.width <= 0 || value.height <= 0 || value.x + value.width > 1 || value.y + value.height > 1)
-    throw new Error("The signature must fit completely inside the selected page.");
+    throw new Error(
+      "Signature coordinates must be normalized between 0 and 1.",
+    );
+  if (
+    value.width <= 0 ||
+    value.height <= 0 ||
+    value.x + value.width > 1 ||
+    value.y + value.height > 1
+  )
+    throw new Error(
+      "The signature must fit completely inside the selected page.",
+    );
+}
+
+/**
+ * Applies an account-authorized visual signature to a PDF. This is deliberately
+ * not described as a cryptographic digital signature: signer authentication and
+ * artifact hashes are recorded separately by the calling workflow.
+ */
+export async function createVisuallySignedPdf(options: {
+  original: Buffer;
+  signatureImage: Uint8Array;
+  signerName: string;
+  placements: SignaturePlacement[];
+  signedAt: Date;
+}) {
+  options.placements.forEach(validateSignaturePlacement);
+  const pdf = await PDFDocument.load(options.original, {
+    updateMetadata: false,
+  });
+  const signatureImage = await pdf.embedPng(options.signatureImage);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const signedDate = new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Manila",
+  }).format(options.signedAt);
+
+  for (const placement of options.placements) {
+    const page = pdf.getPages()[placement.pageNumber - 1];
+    if (!page)
+      throw new Error(`PDF page ${placement.pageNumber} does not exist.`);
+    const { width: pageWidth, height: pageHeight } = page.getSize();
+    const width = placement.width * pageWidth;
+    const height = placement.height * pageHeight;
+    const x = placement.x * pageWidth;
+    const y = pageHeight - placement.y * pageHeight - height;
+    page.drawImage(signatureImage, { x, y, width, height });
+
+    const detailLines = [
+      placement.includeName === false ? null : options.signerName,
+      placement.includeDate === false ? null : `Signed ${signedDate}`,
+    ].filter(Boolean) as string[];
+    detailLines.forEach((line, index) => {
+      page.drawText(line, {
+        x,
+        y: Math.max(4, y - 10 - index * 9),
+        size: 7,
+        font,
+        color: rgb(0.12, 0.18, 0.25),
+        maxWidth: Math.max(width, 120),
+      });
+    });
+  }
+
+  pdf.setProducer("Advisio Research Management System");
+  pdf.setModificationDate(options.signedAt);
+  return Buffer.from(await pdf.save());
 }
 
 export class DocumentSigningService {
@@ -70,7 +207,7 @@ export class DocumentSigningService {
   }) {
     if (!options.placements.length || options.placements.length > 10)
       throw new Error("Add between one and ten signature placements.");
-    options.placements.forEach(validatePlacement);
+    options.placements.forEach(validateSignaturePlacement);
 
     const source = await prisma.documentVersion.findUnique({
       where: { id: options.sourceVersionId },
@@ -83,7 +220,7 @@ export class DocumentSigningService {
               where: { attachmentVersionId: { not: null } },
               orderBy: { createdAt: "asc" },
               take: 1,
-              select: { authorId: true },
+              select: { authorId: true, recipientId: true },
             },
             research: {
               include: {
@@ -103,6 +240,11 @@ export class DocumentSigningService {
                   where: { evaluatorId: options.signerId, status: "LOCKED" },
                   select: { id: true },
                 },
+                workflowInstance: {
+                  select: {
+                    workflow: { select: { createdBy: true } },
+                  },
+                },
               },
             },
           },
@@ -110,29 +252,61 @@ export class DocumentSigningService {
       },
     });
     if (!source) throw new Error("Document version not found.");
-    if (source.mimeType !== "application/pdf") throw new Error("Only PDF documents can be signed.");
+    if (source.mimeType !== "application/pdf")
+      throw new Error("Only PDF documents can be signed.");
     // A signed output may be countersigned. A source version that already produced
     // a signed successor may not be reused, preserving one immutable signature chain.
-    if (source.sourceSignature) throw new Error("This document version has already been signed.");
-    if (source.status !== "ACTIVE" || source.versionNumber !== source.document.currentVersion)
-      throw new Error("Only the current active document version can be signed.");
+    if (source.sourceSignature)
+      throw new Error("This document version has already been signed.");
+    if (
+      source.status !== "ACTIVE" ||
+      source.versionNumber !== source.document.currentVersion
+    )
+      throw new Error(
+        "Only the current active document version can be signed.",
+      );
     const research = source.document.research;
-    const isAssignedAdviser = options.signerRoles.includes("ADVISER") && research.members.some((member) => member.userId === options.signerId && member.projectRole === "ADVISER");
-    const isAssignedPanelist = options.signerRoles.includes("PANELIST") && (
-      research.members.some((member) => member.userId === options.signerId && member.projectRole === "PANELIST") ||
-      research.defenseSessions.some((session) => session.invitations.some((invitation) => invitation.inviteeId === options.signerId && ["PANELIST", "PANEL_CHAIR"].includes(invitation.role)))
+    const signatureAccess = legacyDocumentSignatureAccessPolicy(
+      {
+        id: options.signerId,
+        roles: options.signerRoles,
+        collegeId: options.signerCollegeId ?? null,
+      },
+      {
+        researchCollegeId: research.collegeId,
+        projectRoles: research.members,
+        workflowOwnerId: research.workflowInstance?.workflow.createdBy || null,
+        hasAcceptedPanelAssignment: research.defenseSessions.some((session) =>
+          session.invitations.some(
+            (invitation) =>
+              invitation.inviteeId === options.signerId &&
+              ["PANELIST", "PANEL_CHAIR"].includes(invitation.role),
+          ),
+        ),
+        hasLockedPanelEvaluation: research.evaluations.length > 0,
+        documentType: source.document.documentType,
+        deanRecipientId:
+          source.document.deanInboxMessages[0]?.recipientId || null,
+      },
     );
-    const isProfessorInScope = options.signerRoles.includes("RESEARCH_COORDINATOR") && Boolean(options.signerCollegeId) && source.document.research.collegeId === options.signerCollegeId;
-    const isDean = options.signerRoles.some((role) => ["RPO", "VPAA"].includes(role));
-    if (source.document.documentType === "DEAN_DEFENSE_APPROVAL" && !isDean)
-      throw new Error("Only the assigned Dean's Office can sign a Dean defense approval.");
-    if (!isAssignedAdviser && !isAssignedPanelist && !isProfessorInScope && !isDean)
-      throw new Error("You are not authorized to sign for this research project.");
-    if (isAssignedPanelist && research.evaluations.length === 0)
-      throw new Error("Panelists can sign only after submitting and locking their final evaluation.");
+    if (!signatureAccess.canSign)
+      throw new Error(
+        "You are not authorized to sign for this research project.",
+      );
+    const isDeanDocument =
+      source.document.documentType === "DEAN_DEFENSE_APPROVAL";
+    if (signatureAccess.isAssignedPanelist && !research.evaluations.length)
+      throw new Error(
+        "Panelists can sign only after submitting and locking their final evaluation.",
+      );
 
-    const signature = await prisma.userSignature.findUnique({ where: { userId: options.signerId } });
-    if (!signature) throw new Error("Create or upload your signature before signing a document.");
+    const signature = await prisma.userSignature.findUnique({
+      where: { userId: options.signerId },
+    });
+    if (!signature)
+      throw new Error(
+        "Create or upload your signature before signing a document.",
+      );
 
     const adviser = await prisma.user.findUnique({
       where: { id: options.signerId },
@@ -141,56 +315,30 @@ export class DocumentSigningService {
     if (!adviser) throw new Error("Signer account not found.");
 
     const original = await loadVersionFile(source);
-    const pdf = await PDFDocument.load(original, { updateMetadata: false });
-    const signatureImage = await pdf.embedPng(signature.imageData);
-    const font = await pdf.embedFont(StandardFonts.Helvetica);
-    const signerName = [adviser.firstName, adviser.middleName, adviser.lastName].filter(Boolean).join(" ");
+    const signerName = [adviser.firstName, adviser.middleName, adviser.lastName]
+      .filter(Boolean)
+      .join(" ");
     const signedAt = new Date();
-    const signedDate = new Intl.DateTimeFormat("en-PH", {
-      dateStyle: "medium",
-      timeStyle: "short",
-      timeZone: "Asia/Manila",
-    }).format(signedAt);
-
-    for (const placement of options.placements) {
-      const page = pdf.getPages()[placement.pageNumber - 1];
-      if (!page) throw new Error(`PDF page ${placement.pageNumber} does not exist.`);
-      const { width: pageWidth, height: pageHeight } = page.getSize();
-      const width = placement.width * pageWidth;
-      const height = placement.height * pageHeight;
-      const x = placement.x * pageWidth;
-      const y = pageHeight - placement.y * pageHeight - height;
-      page.drawImage(signatureImage, { x, y, width, height });
-
-      const detailLines = [
-        placement.includeName === false ? null : signerName,
-        placement.includeDate === false ? null : `Signed ${signedDate}`,
-      ].filter(Boolean) as string[];
-      detailLines.forEach((line, index) => {
-        page.drawText(line, {
-          x,
-          y: Math.max(4, y - 10 - index * 9),
-          size: 7,
-          font,
-          color: rgb(0.12, 0.18, 0.25),
-          maxWidth: Math.max(width, 120),
-        });
-      });
-    }
-
-    pdf.setProducer("Advisio Research Management System");
-    pdf.setModificationDate(signedAt);
-    const signedBytes = await pdf.save();
-    const signedBuffer = Buffer.from(signedBytes);
+    const signedBuffer = await createVisuallySignedPdf({
+      original,
+      signatureImage: signature.imageData,
+      signerName,
+      placements: options.placements,
+      signedAt,
+    });
     const nextVersionNumber = source.document.currentVersion + 1;
     const baseName = source.fileName.replace(/\.pdf$/i, "");
     const fileName = `${baseName}-signed-v${nextVersionNumber}.pdf`;
-    const destinationFolderId = source.document.documentType === "DEAN_DEFENSE_APPROVAL"
-      ? await storageHierarchyService.resolveDeanApprovalsFolder(source.document.researchId, { id: options.signerId, name: signerName })
-      : await storageHierarchyService.resolveFolder({
-          researchId: source.document.researchId,
-          bucket: "SUBMISSIONS",
-        });
+    const destinationFolderId =
+      source.document.documentType === "DEAN_DEFENSE_APPROVAL"
+        ? await storageHierarchyService.resolveDeanApprovalsFolder(
+            source.document.researchId,
+            { id: options.signerId, name: signerName },
+          )
+        : await storageHierarchyService.resolveFolder({
+            researchId: source.document.researchId,
+            bucket: "SUBMISSIONS",
+          });
     const stored = await googleDriveService.uploadFile({
       fileName,
       mimeType: "application/pdf",
@@ -206,7 +354,16 @@ export class DocumentSigningService {
         advisioChecksum: sha256(signedBuffer),
       },
     });
-    const rolePrefix = isAssignedAdviser ? "ADV" : isAssignedPanelist ? "PNL" : isProfessorInScope ? "PROF" : "DEAN";
+    const rolePrefix =
+      signatureAccess.signerRole === "ADVISER"
+        ? "ADV"
+        : signatureAccess.signerRole === "PANELIST"
+          ? "PNL"
+          : signatureAccess.signerRole === "COORDINATOR"
+            ? "PROF"
+            : signatureAccess.signerRole === "VPAA"
+              ? "VPAA"
+              : "DEAN";
     const verificationCode = `${rolePrefix}-${crypto.randomBytes(6).toString("hex").toUpperCase()}`;
 
     return prisma.$transaction(async (tx) => {
@@ -229,7 +386,10 @@ export class DocumentSigningService {
       });
       await tx.document.update({
         where: { id: source.documentId },
-        data: { currentVersion: nextVersionNumber, externalFileId: stored.fileId },
+        data: {
+          currentVersion: nextVersionNumber,
+          externalFileId: stored.fileId,
+        },
       });
       const documentSignature = await tx.documentSignature.create({
         data: {
@@ -243,7 +403,7 @@ export class DocumentSigningService {
           signedAt,
         },
       });
-      if (isDean) {
+      if (isDeanDocument) {
         await tx.deanInboxMessage.create({
           data: {
             documentId: source.documentId,
@@ -320,7 +480,11 @@ export class DocumentSigningService {
         },
       });
       const researcherIds = source.document.research.members
-        .filter((member) => member.userId !== options.signerId && ["LEADER", "MEMBER"].includes(member.projectRole))
+        .filter(
+          (member) =>
+            member.userId !== options.signerId &&
+            ["LEADER", "MEMBER"].includes(member.projectRole),
+        )
         .map((member) => member.userId);
       if (researcherIds.length) {
         await tx.notification.createMany({
@@ -336,7 +500,11 @@ export class DocumentSigningService {
       }
       return {
         signature: documentSignature,
-        version: { ...signedVersion, fileSize: Number(signedVersion.fileSize), webViewLink: stored.webViewLink },
+        version: {
+          ...signedVersion,
+          fileSize: Number(signedVersion.fileSize),
+          webViewLink: stored.webViewLink,
+        },
       };
     });
   }

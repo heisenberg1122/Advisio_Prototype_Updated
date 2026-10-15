@@ -14,7 +14,7 @@ export const registerSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   collegeId: z.string().uuid("Invalid college ID").optional(),
   programId: z.string().uuid("Invalid program ID").optional(),
-  role: z.string().optional(),
+  role: z.enum(["RESEARCHER", "ADVISER"]).optional(),
 });
 
 export const researcherOnboardingSchema = z.object({

@@ -9,6 +9,7 @@ export interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
   description?: string;
   action?: ReactNode;
   className?: string;
+  size?: "sm" | "md" | "lg";
 }
 
 /**
@@ -21,35 +22,67 @@ export function EmptyState({
   description,
   action,
   className,
+  size = "md",
   ...props
 }: EmptyStateProps) {
+  const isSm = size === "sm";
+  const isLg = size === "lg";
+
   const renderIcon = () => {
     if (!Icon) return null;
     if (typeof Icon === "string") {
-      return <i className={cn("ti", Icon, "text-3xl text-slate-400 dark:text-slate-500")} aria-hidden="true" />;
+      return (
+        <i
+          className={cn(
+            "ti",
+            Icon,
+            isSm ? "text-xl" : isLg ? "text-3xl" : "text-2xl",
+            "text-[var(--color-primary)]"
+          )}
+          aria-hidden="true"
+        />
+      );
     }
     const LucideIcon = Icon;
-    return <LucideIcon className="h-8 w-8 text-slate-400 dark:text-slate-500 stroke-[1.75]" />;
+    return (
+      <LucideIcon
+        className={cn(
+          isSm ? "h-5 w-5" : isLg ? "h-8 w-8" : "h-6 w-6",
+          "text-[var(--color-primary)] stroke-[1.75]"
+        )}
+      />
+    );
   };
 
   return (
     <div
       className={cn(
-        "rounded-2xl border-2 border-dashed border-[#DDE3E8] dark:border-white/10 bg-white/60 dark:bg-[#101b2b]/60 p-8 sm:p-12 text-center flex flex-col items-center justify-center gap-3",
+        "rounded-2xl border-2 border-dashed border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-center flex flex-col items-center justify-center",
+        isSm ? "p-5 sm:p-6 gap-2" : isLg ? "p-8 sm:p-12 gap-3" : "p-6 sm:p-9 gap-2.5",
         className
       )}
       {...props}
     >
       {Icon && (
-        <div className="h-14 w-14 rounded-2xl bg-slate-100 dark:bg-white/5 flex items-center justify-center mb-1">
+        <div
+          className={cn(
+            "rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)] flex items-center justify-center mb-0.5",
+            isSm ? "h-10 w-10" : isLg ? "h-14 w-14 rounded-2xl" : "h-12 w-12"
+          )}
+        >
           {renderIcon()}
         </div>
       )}
-      <h3 className="text-base sm:text-lg font-extrabold text-[#17212B] dark:text-white">
+      <h3
+        className={cn(
+          "font-semibold text-[var(--color-text-primary)]",
+          isSm ? "text-sm" : isLg ? "text-base sm:text-lg" : "text-sm sm:text-base"
+        )}
+      >
         {title}
       </h3>
       {description && (
-        <p className="max-w-md text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+        <p className="max-w-md text-xs sm:text-sm text-[var(--color-text-secondary)] leading-relaxed">
           {description}
         </p>
       )}

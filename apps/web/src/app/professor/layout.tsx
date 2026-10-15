@@ -15,12 +15,12 @@ function ProfessorLayoutInner({ children }: { children: React.ReactNode }) {
       dashboardPath="/professor/dashboard"
       padSecondaryPages
       sidebar={
-        <Suspense fallback={<div className="fixed inset-y-0 left-0 hidden w-[240px] bg-[#F4F6F8] dark:bg-[#080E18] lg:block" />}>
+        <Suspense fallback={<div className="fixed inset-y-0 left-0 hidden w-[260px] bg-[var(--sidebar-background)] lg:block" />}>
           <ProfessorSidebar />
         </Suspense>
       }
       topbar={
-        <Suspense fallback={<header className="h-[72px] bg-[#F4F6F8] dark:bg-[#080E18]" />}>
+        <Suspense fallback={<header className="h-16 bg-[var(--header-background)]" />}>
           <ProfessorTopbar />
         </Suspense>
       }

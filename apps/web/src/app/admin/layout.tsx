@@ -13,23 +13,47 @@ import {
   UsersRound,
   Mail,
   MessageSquare,
+  FileSearch,
+  Archive,
 } from "lucide-react";
-import { AppSidebar } from "@/components/layout/AppSidebar";
+import { AppSidebar, NavSection } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
 import { AppWorkspaceFrame } from "@/components/layout/AppWorkspaceFrame";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 
-const NAV_ITEMS = [
-  { label: "Overview", href: "/admin/dashboard", tabName: "overview", icon: LayoutDashboard },
-  { label: "Students", href: "/admin/dashboard?tab=students", tabName: "students", icon: UserRound },
-  { label: "Research Groups", href: "/admin/dashboard?tab=research", tabName: "research", icon: BookOpenCheck },
-  { label: "Progress & Risk", href: "/admin/dashboard?tab=progress", tabName: "progress", icon: ChartNoAxesCombined },
-  { label: "Advisers", href: "/admin/dashboard?tab=advisers", tabName: "advisers", icon: UsersRound },
-  { label: "Defenses", href: "/admin/dashboard?tab=defenses", tabName: "defenses", icon: ClipboardList },
-  { label: "Calendar", href: "/admin/calendar", icon: CalendarDays },
-  { label: "Reports", href: "/admin/dashboard?tab=reports", tabName: "reports", icon: FileBarChart },
-  { label: "Messages", href: "/admin/dashboard?tab=messages", tabName: "messages", icon: MessageSquare },
-  { label: "Inbox", href: "/admin/inbox", icon: Mail },
+const ADMIN_NAV_SECTIONS: NavSection[] = [
+  {
+    title: "HOME",
+    items: [
+      { label: "Overview", href: "/admin/dashboard", tabName: "overview", icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: "COLLEGE RESEARCH",
+    items: [
+      { label: "Students", href: "/admin/dashboard?tab=students", tabName: "students", icon: UserRound },
+      { label: "Research Groups", href: "/admin/dashboard?tab=research", tabName: "research", icon: BookOpenCheck },
+      { label: "Manuscript Reviews", href: "/admin/reviews", icon: FileSearch },
+      { label: "Official Copies", href: "/admin/documents?tab=official", icon: Archive },
+      { label: "Progress & Risk", href: "/admin/dashboard?tab=progress", tabName: "progress", icon: ChartNoAxesCombined },
+      { label: "Advisers", href: "/admin/dashboard?tab=advisers", tabName: "advisers", icon: UsersRound },
+      { label: "Defenses", href: "/admin/dashboard?tab=defenses", tabName: "defenses", icon: ClipboardList },
+      { label: "Reports", href: "/admin/dashboard?tab=reports", tabName: "reports", icon: FileBarChart },
+    ],
+  },
+  {
+    title: "ACADEMIC ACTIVITIES",
+    items: [
+      { label: "Calendar", href: "/admin/calendar", icon: CalendarDays },
+    ],
+  },
+  {
+    title: "COMMUNICATION",
+    items: [
+      { label: "Messages", href: "/admin/dashboard?tab=messages", tabName: "messages", icon: MessageSquare },
+      { label: "Inbox", href: "/admin/inbox", icon: Mail },
+    ],
+  },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -59,11 +83,15 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           ? "Account Settings"
         : pathname === "/admin/notifications"
           ? "Notifications"
-          : pathname === "/admin/inbox"
-            ? "Inbox"
-          : pathname === "/admin/calendar"
-            ? "Universal Calendar"
-            : PAGE_TITLES[activeTab] || "Dean Dashboard";
+        : pathname === "/admin/inbox"
+          ? "Inbox"
+        : pathname === "/admin/calendar"
+          ? "Universal Calendar"
+        : pathname === "/admin/reviews"
+          ? "Manuscript Reviews"
+        : pathname === "/admin/documents"
+          ? "Official Copies"
+          : PAGE_TITLES[activeTab] || "Dean Dashboard";
 
   return (
     <AppWorkspaceFrame
@@ -74,7 +102,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         <AppSidebar
           roleTitle="Dean’s Office"
           roleBadge="DEAN PORTAL"
-          navItems={NAV_ITEMS}
+          navSections={ADMIN_NAV_SECTIONS}
           collapsed={collapsed}
           onToggleCollapse={toggle}
           settingsHref="/admin/settings"
@@ -102,7 +130,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F4F6F8] dark:bg-[#080E18]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[var(--sidebar-background)]" />}>
       <AdminLayoutContent>{children}</AdminLayoutContent>
     </Suspense>
   );

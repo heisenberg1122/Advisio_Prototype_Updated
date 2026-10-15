@@ -23,7 +23,7 @@ export function LoadingState({
       aria-live="polite"
       aria-busy="true"
       className={cn(
-        "min-h-[220px] space-y-4 rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-[#101b2b] sm:p-6",
+        "min-h-[220px] space-y-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6",
         className
       )}
     >

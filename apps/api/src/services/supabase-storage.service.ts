@@ -81,6 +81,17 @@ class SupabaseStorageService {
       return null;
     }
   }
+
+  public async deleteStoredFile(storagePath: string): Promise<boolean> {
+    if (!this.client) return false;
+    const prefix = `supabase://${this.bucketName}/`;
+    if (!storagePath.startsWith(prefix)) return false;
+    const filePath = storagePath.slice(prefix.length);
+    if (!filePath) return false;
+    const { error } = await this.client.from(this.bucketName).remove([filePath]);
+    if (error) throw new Error(error.message);
+    return true;
+  }
 }
 
 export const supabaseStorageService = new SupabaseStorageService();

@@ -462,7 +462,7 @@ export function ProfileEditForm() {
           <button
             type="submit"
             disabled={saving}
-            className="px-5 py-2.5 bg-[#ffa400] text-[#1b4264] hover:bg-[#e09000] font-extrabold rounded-xl border border-[#ffa400] shadow-sm flex items-center gap-2 cursor-pointer transition active:scale-[0.98] disabled:opacity-50"
+            className="px-5 py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-xl border border-[var(--color-primary)] shadow-sm flex items-center gap-2 cursor-pointer transition active:scale-[0.98] disabled:opacity-50"
           >
             {saving ? (
               <>

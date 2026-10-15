@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, LogOut, Settings, X } from "lucide-react";
+import { LogOut, Menu, Settings, X } from "lucide-react";
 import { NavItem, NavItemProps } from "./NavItem";
 import { useAuth } from "@/hooks/use-auth";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
@@ -37,13 +37,12 @@ export function AppSidebar({
   isMobileOpen,
   onMobileClose,
   settingsHref = "/student/settings",
-  variant = "default",
 }: AppSidebarProps) {
   const { logout } = useAuth();
-  const { mobileOpen, closeMobile } = useSidebarCollapsed();
+  const { mobileOpen, closeMobile, toggle } = useSidebarCollapsed();
   const resolvedMobileOpen = isMobileOpen ?? mobileOpen;
   const handleMobileClose = onMobileClose ?? closeMobile;
-  const isWorkspace = variant === "workspace";
+  const handleToggle = onToggleCollapse ?? toggle;
   const isVisuallyCollapsed = collapsed && !resolvedMobileOpen;
 
   const sections: NavSection[] = navSections || [
@@ -63,70 +62,47 @@ export function AppSidebar({
         />
       )}
 
-      {/* Shared institutional sidebar */}
+      {/* Google Classroom-Inspired Course Navigation Sidebar */}
       <aside
         className={cn(
-          "fixed top-0 bottom-0 left-0 z-50 flex flex-col text-slate-700 transition-all duration-300 ease-in-out dark:text-slate-200",
-          isWorkspace
-            ? "border-0 bg-[#F4F6F8] shadow-none dark:bg-[#080E18]"
-            : "border-r border-slate-200 bg-white shadow-[2px_0_12px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-[#0D1525]",
-          collapsed
-            ? isWorkspace ? "lg:w-[72px]" : "lg:w-[68px]"
-            : isWorkspace ? "lg:w-[240px]" : "lg:w-[260px]",
-          resolvedMobileOpen ? "translate-x-0 w-[270px]" : "-translate-x-full lg:translate-x-0"
+          "fixed top-0 bottom-0 left-0 z-50 flex flex-col text-[var(--color-text-primary)] transition-all duration-300 ease-in-out dark:text-slate-200",
+          "bg-[var(--sidebar-background)]",
+          isVisuallyCollapsed ? "w-[72px]" : "w-[260px]",
+          resolvedMobileOpen
+            ? "translate-x-0"
+            : "-translate-x-full lg:translate-x-0",
         )}
       >
-        {/* Collapse Toggle Button (Desktop Only) */}
-        {onToggleCollapse && !isWorkspace && (
-          <button
-            onClick={onToggleCollapse}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="absolute -right-3.5 top-1/2 z-50 hidden h-7 w-7 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-[#0B3A53] shadow-md outline-none transition-all hover:scale-110 hover:border-[#0B3A53] focus:outline-none dark:border-white/20 dark:bg-[#0D1525] dark:text-[#FFA400]"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4 stroke-[2.5]" />
-            ) : (
-              <ChevronLeft className="h-4 w-4 stroke-[2.5]" />
-            )}
-          </button>
-        )}
-
         {/* Mobile Close Button */}
         <button
           onClick={handleMobileClose}
-          className="absolute right-3 top-4 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white lg:hidden"
+          className="absolute right-3 top-4 rounded-xl p-2 text-slate-500 hover:bg-black/5 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white lg:hidden cursor-pointer"
           aria-label="Close sidebar"
         >
           <X className="h-5 w-5" />
         </button>
 
-        {/* Institutional Branding Header */}
+        {/* Google Classroom-Inspired Header with Hamburger & Logo */}
         <div
           className={cn(
-            "flex shrink-0 items-center transition-all",
-            isWorkspace ? "h-[72px] border-0" : "h-16 border-b border-slate-200 dark:border-white/10",
-            isVisuallyCollapsed ? "justify-center px-2" : isWorkspace ? "gap-2 px-4" : "gap-3 px-5"
+            "flex h-16 shrink-0 items-center transition-all",
+            isVisuallyCollapsed ? "justify-center px-2" : "gap-3 px-4",
           )}
         >
-          {isWorkspace && onToggleCollapse && (
+          {handleToggle && (
             <button
               type="button"
-              onClick={onToggleCollapse}
+              onClick={handleToggle}
               title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-200/70 hover:text-[#0B3A53] lg:flex dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-[var(--nav-hover-bg)] hover:text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] dark:text-slate-300"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
-              {collapsed ? (
-                <ChevronRight className="h-5 w-5 stroke-[2.25]" />
-              ) : (
-                <ChevronLeft className="h-5 w-5 stroke-[2.25]" />
-              )}
+              <Menu className="h-5 w-5 stroke-[2]" />
             </button>
           )}
 
           {!isVisuallyCollapsed && (
-            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-xl bg-white shadow-xs ring-1 ring-slate-200/70 dark:ring-white/10">
+            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-xl bg-white shadow-xs ring-1 ring-[var(--color-border)]">
               <img
                 src="/ao-logo.png"
                 alt="Advisio"
@@ -138,11 +114,11 @@ export function AppSidebar({
           {!isVisuallyCollapsed && (
             <div className="min-w-0 flex-1">
               <div className="flex items-center">
-                <span className="font-sans text-base font-black tracking-tight text-[#0B3A53] dark:text-white">
+                <span className="font-sans text-base font-bold tracking-tight text-[var(--color-text-primary)] dark:text-white">
                   ADVISIO
                 </span>
               </div>
-              <div className="text-xs font-bold uppercase leading-tight tracking-tighter text-slate-500 dark:text-slate-400">
+              <div className="text-[11px] font-semibold uppercase leading-tight tracking-wider text-[var(--color-primary)]">
                 {roleBadge || roleTitle}
               </div>
             </div>
@@ -151,19 +127,19 @@ export function AppSidebar({
 
         {/* Navigation Body */}
         <nav
-          className={cn(
-            "flex w-full flex-1 flex-col overflow-y-auto overflow-x-hidden space-y-4",
-            isWorkspace ? "px-2 py-2.5" : "px-1 py-3"
-          )}
+          className="flex w-full flex-1 flex-col overflow-y-auto overflow-x-hidden py-3 space-y-1"
           aria-label="Sidebar Navigation"
         >
           {sections.map((section, sIndex) => (
             <div
               key={section.title || sIndex}
-              className={cn("space-y-1.5", isVisuallyCollapsed && "flex w-full flex-col items-center")}
+              className={cn(
+                "space-y-1",
+                isVisuallyCollapsed && "flex w-full flex-col items-center",
+              )}
             >
               {section.title && !isVisuallyCollapsed && (
-                <div className="px-5 pb-1 pt-2 text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                <div className="px-4 pb-1.5 pt-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                   {section.title}
                 </div>
               )}
@@ -173,7 +149,6 @@ export function AppSidebar({
                   {...item}
                   collapsed={isVisuallyCollapsed}
                   onClick={handleMobileClose}
-                  appearance={isWorkspace ? "workspace" : "default"}
                 />
               ))}
             </div>
@@ -181,23 +156,27 @@ export function AppSidebar({
         </nav>
 
         {/* Bottom Utility Footer */}
-        <div className={cn(
-          "w-full shrink-0 space-y-1.5 p-3",
-          isVisuallyCollapsed && "flex flex-col items-center",
-          isWorkspace ? "border-0" : "border-t border-slate-200 dark:border-white/10"
-        )}>
+        <div
+          className={cn(
+            "w-full shrink-0 space-y-1 p-2.5",
+            isVisuallyCollapsed && "flex flex-col items-center",
+          )}
+        >
           {/* Settings Link */}
           <Link
             href={settingsHref}
             onClick={handleMobileClose}
             title={isVisuallyCollapsed ? "Settings" : undefined}
             className={cn(
-              "flex h-11 items-center rounded-xl text-slate-600 transition-all select-none outline-none hover:bg-slate-100 hover:text-[#0B3A53] dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white",
-              isVisuallyCollapsed ? "h-11 w-11 shrink-0 justify-center p-0" : "gap-3.5 px-3.5 mx-1 text-[15px] font-medium"
+              "flex h-11 items-center select-none outline-none transition-colors duration-150 rounded-xl cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--college-focus-ring)]",
+              isVisuallyCollapsed
+                ? "w-11 justify-center p-0"
+                : "mx-1 gap-3.5 px-3.5 text-sm font-medium",
+              "text-[var(--color-text-primary)]/80 hover:bg-[var(--nav-hover-bg)] hover:text-[var(--color-primary)] dark:text-slate-300",
             )}
           >
             <Settings className="h-5 w-5 shrink-0" />
-            {!isVisuallyCollapsed && <span className="text-[15px]">Settings</span>}
+            {!isVisuallyCollapsed && <span className="text-sm">Settings</span>}
           </Link>
 
           {/* Sign Out Button */}
@@ -208,13 +187,18 @@ export function AppSidebar({
             }}
             title={isVisuallyCollapsed ? "Sign Out" : undefined}
             className={cn(
-              "flex h-11 w-full cursor-pointer items-center rounded-xl text-rose-600 transition-all select-none outline-none hover:bg-rose-50 hover:text-rose-700 dark:text-rose-300 dark:hover:bg-rose-500/10 dark:hover:text-rose-200",
-              isVisuallyCollapsed ? "h-11 w-11 shrink-0 justify-center p-0" : "gap-3.5 px-3.5 mx-1 text-[15px] font-medium"
+              "flex h-11 w-full items-center select-none outline-none transition-colors duration-150 rounded-xl cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-400/50",
+              isVisuallyCollapsed
+                ? "w-11 justify-center p-0"
+                : "mx-1 gap-3.5 px-3.5 text-sm font-medium",
+              "text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-500/15",
             )}
             aria-label="Sign Out"
           >
             <LogOut className="h-5 w-5 shrink-0" />
-            {!isVisuallyCollapsed && <span className="text-[15px] font-medium">Sign Out</span>}
+            {!isVisuallyCollapsed && (
+              <span className="text-sm font-medium">Sign Out</span>
+            )}
           </button>
         </div>
       </aside>
