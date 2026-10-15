@@ -250,7 +250,7 @@ function DeanDashboardContent() {
         </div>
       )}
 
-      <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      <div className={`flex w-full flex-col gap-6 ${activeView === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
         {activeView === "overview" && (
           <DashboardWelcome
             firstName={user?.firstName}
@@ -258,7 +258,8 @@ function DeanDashboardContent() {
             summary="Here's an overview of research progress, programs, and academic activity across your college."
           />
         )}
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        {activeView !== "messages" && (
+          <div className="flex flex-wrap items-center justify-end gap-3">
               <label className="relative min-w-44 flex-1 sm:flex-none">
                 <span className="sr-only">Academic year</span>
                 <select
@@ -293,7 +294,8 @@ function DeanDashboardContent() {
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-slate-400" />
               </label>
-        </div>
+            </div>
+        )}
 
         {/* OVERVIEW TAB */}
         {activeView === "overview" && (
