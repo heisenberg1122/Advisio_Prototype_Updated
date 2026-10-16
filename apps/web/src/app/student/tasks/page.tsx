@@ -526,6 +526,7 @@ export default function ResearchTasksPage() {
           adviser={adviser}
           file={file}
           note={note}
+          submissionKey={submissionKey}
           message={message}
           submitting={submitting}
           starting={starting}
@@ -560,6 +561,7 @@ function TaskDetails({
   adviser,
   file,
   note,
+  submissionKey,
   message,
   submitting,
   starting,
@@ -823,7 +825,7 @@ function TaskDetails({
               </p>
             )}
             <div
-              className={`mt-4 grid gap-3 "sm:grid-cols-2"`}
+              className="mt-4 grid gap-3 sm:grid-cols-2"
             >
               <button
                 type="button"
