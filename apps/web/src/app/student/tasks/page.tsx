@@ -8,6 +8,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TablePageSkeleton } from "@/components/ui/Skeleton";
 import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
+import { TaskDocumentPicker } from "@/components/documents/TaskDocumentPicker";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useActiveProject, useActiveProjectContext } from "@/providers/active-project-provider";
 
@@ -537,6 +538,14 @@ export default function ResearchTasksPage() {
           }}
           onStart={startMilestoneTask}
           onSubmit={submitRequirement}
+          onExistingSubmitted={() => {
+            void queryClient.invalidateQueries({ queryKey: ["student", "workflow-tasks"] });
+            void queryClient.invalidateQueries({ queryKey: ["student", "task-existing-documents"] });
+            void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+            setSelectedTask(null);
+            setNote("");
+            setMessage("The selected document was submitted for the research group.");
+          }}
           onOpenSigned={openSubmissionVersion}
         />
       )}
@@ -559,9 +568,10 @@ function TaskDetails({
   onClose,
   onStart,
   onSubmit,
+  onExistingSubmitted,
   onOpenSigned,
 }: any) {
-  const [submissionMode, setSubmissionMode] = useState<"choose" | "upload">(
+  const [submissionMode, setSubmissionMode] = useState<"choose" | "existing" | "upload">(
     "choose",
   );
   const currentSequence =
@@ -581,7 +591,7 @@ function TaskDetails({
     !task.locked &&
     !task.milestoneOnly &&
     status !== "APPROVED";
-  const canCreateInDocuments = /DOC|DOCX|HTML|TXT/i.test(
+  const canCreateInDocuments = /DOC|DOCX|HTML|TXT|PDF/i.test(
     task.allowedFileTypes || "",
   );
   return (
@@ -801,11 +811,11 @@ function TaskDetails({
         ) : submissionMode === "choose" ? (
           <section className="mt-6 border-t border-[#EEF2F6] dark:border-white/10 pt-6">
             <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">
-               How would you like to prepare the submission?
+              How would you like to submit this requirement?
             </h3>
             <p className="mt-1 text-xs sm:text-sm text-slate-500">
-              Only methods allowed by the professor’s file requirement are
-              shown.
+              Use a file from your research workspace, create a new document,
+              or upload a finished file.
             </p>
             {message && (
               <p className="mt-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-3 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
@@ -813,8 +823,21 @@ function TaskDetails({
               </p>
             )}
             <div
-              className={`mt-4 grid gap-3 ${canCreateInDocuments ? "sm:grid-cols-2" : ""}`}
+              className={`mt-4 grid gap-3 "sm:grid-cols-2"`}
             >
+              <button
+                type="button"
+                onClick={() => setSubmissionMode("existing")}
+                className="rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-primary-light)]/30 p-5 text-left transition hover:bg-[var(--color-primary-light)]/60"
+              >
+                <i className="ti ti-folder-open text-2xl text-[var(--color-primary)]" />
+                <span className="mt-3 block font-extrabold text-[var(--color-text-primary)]">
+                  Choose from Documents
+                </span>
+                <span className="mt-1 block text-xs text-[var(--color-text-secondary)]">
+                  Submit a file or Google Doc already linked to your research project.
+                </span>
+              </button>
               {canCreateInDocuments && (
                 <button
                   onClick={() => {
@@ -832,8 +855,7 @@ function TaskDetails({
                     Create in Documents
                   </span>
                   <span className="mt-1 block text-xs text-slate-500">
-                    Write in the workspace and submit directly to this
-                    milestone.
+                    Prepare your Google Doc in Documents, then return to Tasks to submit.
                   </span>
                 </button>
               )}
@@ -852,6 +874,18 @@ function TaskDetails({
               </button>
             </div>
           </section>
+        ) : submissionMode === "existing" ? (
+          <TaskDocumentPicker
+            projectId={project.id}
+            taskId={task.id}
+            milestoneId={task.stage.id}
+            allowedFileTypes={task.allowedFileTypes || "PDF,DOCX"}
+            idempotencyKey={submissionKey}
+            note={note}
+            onNoteChange={onNote}
+            onSubmitted={onExistingSubmitted}
+            onCancel={() => setSubmissionMode("choose")}
+          />
         ) : (
           <section className="mt-6 border-t border-[#EEF2F6] dark:border-white/10 pt-6">
             <button
