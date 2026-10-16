@@ -12,6 +12,7 @@ import {
   FileClock,
   FileText,
   FolderKanban,
+  Search,
   History,
   Import,
   Link as LinkIcon,
@@ -424,6 +425,10 @@ export default function DocumentWorkspacePage() {
     null,
   );
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
+  const [fileSearch, setFileSearch] = useState("");
+  const [fileFilter, setFileFilter] = useState<"all" | "working" | "uploaded">("all");
+  const [fileSort, setFileSort] = useState<"recent" | "name">("recent");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(
     searchParams.get("tab") === "official" ? "official" : "workspace",
   );
@@ -488,6 +493,24 @@ export default function DocumentWorkspacePage() {
   );
   const selectedDocument =
     documents.find((document) => document.id === selectedDocumentId) || null;
+  const visibleDocuments = useMemo(
+    () => documents
+      .filter((document) => {
+        const search = fileSearch.trim().toLocaleLowerCase();
+        const matchesSearch = !search || document.title.toLocaleLowerCase().includes(search);
+        const matchesType =
+          fileFilter === "all" ||
+          (fileFilter === "working" && Boolean(document.liveDocumentUrl)) ||
+          (fileFilter === "uploaded" && !document.liveDocumentUrl);
+        return matchesSearch && matchesType;
+      })
+      .sort((left, right) =>
+        fileSort === "name"
+          ? left.title.localeCompare(right.title)
+          : new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+      ),
+    [documents, fileSearch, fileFilter, fileSort],
+  );
 
   const importableLegacyDocuments = useMemo(
     () =>
@@ -1068,19 +1091,19 @@ export default function DocumentWorkspacePage() {
   const tabs = [
     {
       id: "workspace",
-      label: "Workspace",
+      label: "My Files",
       icon: FolderKanban,
       badge: documents.length,
     },
     {
       id: "reviews",
-      label: "Reviews",
+      label: "Feedback History",
       icon: MessageSquareText,
       badge: reviewAssignments.length,
     },
     {
       id: "milestones",
-      label: "Milestones",
+      label: "Project Activity",
       icon: FileClock,
       badge: workflowMilestones.length,
     },
@@ -1108,7 +1131,7 @@ export default function DocumentWorkspacePage() {
         variant="banner"
         category="Research workspace"
         title="Documents"
-        subtitle="Keep live working documents, milestone context, reviews, and authorized official copies together."
+        subtitle="Create, organize, preview, and edit research files. Submit requirements through Tasks."
         actions={
           permissions?.canManageWorkingDocuments ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -1187,9 +1210,8 @@ export default function DocumentWorkspacePage() {
             </select>
           </div>
           <p className="max-w-lg text-xs leading-5 text-[var(--color-text-secondary)]">
-            Live Google documents remain editable in Google. A linked document
-            is not a frozen submission; current required deliverables still go
-            through Tasks.
+            Your research files live here. Open the working copy to edit it, then use Tasks
+            when you are ready to submit a required deliverable.
           </p>
         </div>
       </Card>
@@ -1246,6 +1268,33 @@ export default function DocumentWorkspacePage() {
               </Card>
             )}
 
+          <div className="grid gap-3 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => { setActiveTab("workspace"); setFileFilter("all"); }}
+              className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition hover:border-[var(--color-primary)]"
+            >
+              <span className="rounded-lg bg-[var(--color-primary-light)] p-2.5 text-[var(--color-primary)]"><FolderKanban className="h-5 w-5" /></span>
+              <span><span className="block text-sm font-semibold text-[var(--color-text-primary)]">All research files</span><span className="text-xs text-[var(--color-text-secondary)]">{documents.length} documents</span></span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab("workspace"); setFileFilter("working"); }}
+              className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition hover:border-[var(--color-primary)]"
+            >
+              <span className="rounded-lg bg-[var(--color-primary-light)] p-2.5 text-[var(--color-primary)]"><FileText className="h-5 w-5" /></span>
+              <span><span className="block text-sm font-semibold text-[var(--color-text-primary)]">Working documents</span><span className="text-xs text-[var(--color-text-secondary)]">{documents.filter((document) => Boolean(document.liveDocumentUrl)).length} editable links</span></span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab("workspace"); setFileFilter("uploaded"); }}
+              className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition hover:border-[var(--color-primary)]"
+            >
+              <span className="rounded-lg bg-[var(--color-primary-light)] p-2.5 text-[var(--color-primary)]"><Upload className="h-5 w-5" /></span>
+              <span><span className="block text-sm font-semibold text-[var(--color-text-primary)]">Uploaded files</span><span className="text-xs text-[var(--color-text-secondary)]">{documents.filter((document) => !document.liveDocumentUrl).length} stored items</span></span>
+            </button>
+          </div>
+
           <Card className="p-0 overflow-hidden">
             <Tabs
               tabs={tabs}
@@ -1263,9 +1312,46 @@ export default function DocumentWorkspacePage() {
                 <aside className="border-b border-[var(--color-border)] p-4 xl:border-b-0 xl:border-r sm:p-5">
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                      Project documents
+                      Research files
                     </h2>
-                    <Tag variant="neutral">{documents.length}</Tag>
+                    <Tag variant="neutral">{visibleDocuments.length}</Tag>
+                  </div>
+                  <div className="mb-4 space-y-2">
+                    <div className="relative">
+                      <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[var(--color-text-secondary)]" />
+                      <label htmlFor="document-search" className="sr-only">Search research files</label>
+                      <input
+                        id="document-search"
+                        type="search"
+                        value={fileSearch}
+                        onChange={(event) => setFileSearch(event.target.value)}
+                        placeholder="Search files..."
+                        className="h-10 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label htmlFor="document-type-filter" className="sr-only">File type</label>
+                      <select
+                        id="document-type-filter"
+                        value={fileFilter}
+                        onChange={(event) => setFileFilter(event.target.value as "all" | "working" | "uploaded")}
+                        className="h-10 min-w-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs font-medium text-[var(--color-text-primary)]"
+                      >
+                        <option value="all">All files</option>
+                        <option value="working">Google Docs</option>
+                        <option value="uploaded">Uploads</option>
+                      </select>
+                      <label htmlFor="document-sort" className="sr-only">Sort files</label>
+                      <select
+                        id="document-sort"
+                        value={fileSort}
+                        onChange={(event) => setFileSort(event.target.value as "recent" | "name")}
+                        className="h-10 min-w-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs font-medium text-[var(--color-text-primary)]"
+                      >
+                        <option value="recent">Recently updated</option>
+                        <option value="name">File name</option>
+                      </select>
+                    </div>
                   </div>
                   {documents.length === 0 ? (
                     <EmptyState
@@ -1286,9 +1372,20 @@ export default function DocumentWorkspacePage() {
                         ) : undefined
                       }
                     />
+                  ) : visibleDocuments.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-[var(--color-border)] p-5 text-center text-sm text-[var(--color-text-secondary)]">
+                      No files match your search or filter.
+                      <button
+                        type="button"
+                        onClick={() => { setFileSearch(""); setFileFilter("all"); }}
+                        className="mt-2 block w-full font-semibold text-[var(--color-primary)] hover:underline"
+                      >
+                        Clear filters
+                      </button>
+                    </div>
                   ) : (
                     <div className="space-y-2">
-                      {documents.map((document) => (
+                      {visibleDocuments.map((document) => (
                         <button
                           key={document.id}
                           type="button"
@@ -1430,9 +1527,16 @@ export default function DocumentWorkspacePage() {
                               <Button
                                 size="sm"
                                 icon={<Send className="h-4 w-4" />}
-                                onClick={openSubmission}
+                                onClick={() => {
+                                  if (taskParam) {
+                                    openSubmission();
+                                    return;
+                                  }
+                                  const params = new URLSearchParams({ projectId: activeProjectId });
+                                  window.location.href = `/student/tasks?${params.toString()}`;
+                                }}
                               >
-                                Submit manuscript
+                                {taskParam ? "Submit manuscript" : "Submit via Tasks"}
                               </Button>
                             )}
                         </div>
@@ -1449,7 +1553,7 @@ export default function DocumentWorkspacePage() {
                             <div className="mb-3 flex items-center justify-between gap-3">
                               <div>
                                 <h3 className="text-sm font-extrabold text-[var(--color-text-primary)]">
-                                  Immutable submission history
+                                  Previous submitted versions
                                 </h3>
                                 <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
                                   Frozen PDFs remain unchanged while the Google
