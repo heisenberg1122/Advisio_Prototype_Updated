@@ -16,6 +16,6 @@ JOIN "research_projects" AS project
 JOIN "workflow_instances" AS workflow_instance
   ON workflow_instance."id" = project."workflow_instance_id"
 WHERE member."left_at" IS NULL
-  AND member."project_role" IN ('LEADER', 'MEMBER')
+  AND member."projectRole" IN ('LEADER', 'MEMBER')
   AND project."status" <> 'ARCHIVED'
 ON CONFLICT ("workflow_id", "user_id") DO NOTHING;

@@ -64,10 +64,10 @@ BEGIN
 
     INSERT INTO "workspace_members" ("workspace_id", "user_id", "role", "joined_at", "left_at")
     SELECT new_workspace_id, "user_id",
-      CASE WHEN BOOL_OR("project_role" = 'LEADER' AND "left_at" IS NULL) THEN 'LEADER'::"WorkspaceMemberRole" ELSE 'MEMBER'::"WorkspaceMemberRole" END,
+      CASE WHEN BOOL_OR("projectRole" = 'LEADER' AND "left_at" IS NULL) THEN 'LEADER'::"WorkspaceMemberRole" ELSE 'MEMBER'::"WorkspaceMemberRole" END,
       MIN("joined_at"), CASE WHEN BOOL_OR("left_at" IS NULL) THEN NULL ELSE MAX("left_at") END
     FROM "research_members"
-    WHERE "research_id" = project_row."id" AND "project_role" IN ('LEADER', 'MEMBER')
+    WHERE "research_id" = project_row."id" AND "projectRole" IN ('LEADER', 'MEMBER')
     GROUP BY "user_id"
     ON CONFLICT ("workspace_id", "user_id") DO NOTHING;
 
