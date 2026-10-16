@@ -1,10 +1,27 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowRight, ChevronDown, ChevronUp, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { loginAction } from "@/actions/auth";
+
+type GoogleCredentialResponse = { credential: string };
+type GoogleIdentityApi = {
+  accounts: {
+    id: {
+      initialize: (options: {
+        client_id: string;
+        callback: (response: GoogleCredentialResponse) => void;
+        ux_mode?: "popup" | "redirect";
+      }) => void;
+      renderButton: (
+        element: HTMLElement,
+        options: { theme: "outline"; size: "large"; text: "signin_with"; shape: "pill"; width: number },
+      ) => void;
+    };
+  };
+};
 
 interface DemoAccount {
   label: string;
@@ -107,7 +124,11 @@ export default function LoginPage() {
   const router = useRouter();
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
+  const googleClientId = import.meta.env.VITE_GOOGLE_SIGN_IN_CLIENT_ID?.trim() || "";
+  const googleSelfSignupEnabled = import.meta.env.VITE_GOOGLE_SIGN_IN_ALLOW_SELF_SIGNUP === "true";
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const googleCredentialHandlerRef = useRef<(credential: string) => void>(() => undefined);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -115,6 +136,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showDemoAccs, setShowDemoAccs] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleButtonError, setGoogleButtonError] = useState<string | null>(null);
 
   const goToDashboard = (role = "") => {
     const value = role.toLowerCase();
@@ -138,6 +161,78 @@ export default function LoginPage() {
     else if (["rpo", "reb", "vpaa"].some((adminRole) => value.includes(adminRole))) router.push("/admin/dashboard");
     else router.push("/student/dashboard");
   };
+
+  googleCredentialHandlerRef.current = (credential: string) => {
+    if (googleLoading) return;
+    void (async () => {
+      setError(null);
+      setGoogleLoading(true);
+      try {
+        const result = await loginWithGoogle(credential);
+        if (result.success) {
+          if (result.needsAcademicSetup) {
+            router.push("/google-onboarding");
+            return;
+          }
+          goToDashboard(result.role || "RESEARCHER");
+          return;
+        }
+        setError(result.error || "Google sign-in failed. Please try again.");
+      } finally {
+        setGoogleLoading(false);
+      }
+    })();
+  };
+
+  useEffect(() => {
+    if (!googleClientId || !googleButtonRef.current) return;
+    let cancelled = false;
+    let script: HTMLScriptElement | null = document.querySelector(
+      'script[src="https://accounts.google.com/gsi/client"]',
+    );
+
+    const renderGoogleButton = () => {
+      if (cancelled || !googleButtonRef.current) return;
+      const google = (window as Window & { google?: GoogleIdentityApi }).google;
+      if (!google) return;
+      google.accounts.id.initialize({
+        client_id: googleClientId,
+        ux_mode: "popup",
+        callback: (response) => {
+          if (response.credential) googleCredentialHandlerRef.current(response.credential);
+        },
+      });
+      googleButtonRef.current.replaceChildren();
+      google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        text: "signin_with",
+        shape: "pill",
+        width: googleButtonRef.current.clientWidth || 360,
+      });
+    };
+
+    const handleScriptError = () => {
+      if (!cancelled) setGoogleButtonError("Google sign-in could not load. You can still use your email and password.");
+    };
+
+    if (script) {
+      if ((window as Window & { google?: GoogleIdentityApi }).google) renderGoogleButton();
+      else script.addEventListener("load", renderGoogleButton);
+    } else {
+      script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.onload = renderGoogleButton;
+      script.onerror = handleScriptError;
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      cancelled = true;
+      script?.removeEventListener("load", renderGoogleButton);
+    };
+  }, [googleClientId]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -243,6 +338,22 @@ export default function LoginPage() {
             <label className="flex cursor-pointer items-center gap-2.5 text-[12px] text-slate-600"><input type="checkbox" disabled={loading} checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} className="h-4 w-4 accent-[#0c3b5d]" />Keep me signed in on this device</label>
             <button type="submit" disabled={loading} className="group flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-[#ffad14] text-[13px] font-extrabold text-[#102f49] shadow-[0_10px_25px_rgba(255,173,20,.25)] transition hover:-translate-y-0.5 hover:bg-[#ffb82e] disabled:pointer-events-none disabled:opacity-60">{loading ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-[#102f49] border-t-transparent" />Signing in…</> : <>Sign in to Advisio <ArrowRight size={17} className="transition-transform group-hover:translate-x-1" /></>}</button>
           </form>
+
+          {googleClientId && <div className="mt-5">
+            <div className="mb-4 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[.14em] text-slate-400">
+              <span className="h-px flex-1 bg-slate-200" />
+              <span>Or</span>
+              <span className="h-px flex-1 bg-slate-200" />
+            </div>
+            <div
+              ref={googleButtonRef}
+              aria-label="Continue with Google"
+              aria-busy={googleLoading}
+              className={`flex min-h-11 w-full justify-center overflow-hidden rounded-full transition-opacity ${googleLoading ? "pointer-events-none opacity-60" : ""}`}
+            />
+            {googleSelfSignupEnabled && <p className="mt-2 text-center text-[11px] text-slate-500">First-time Google sign-in creates a researcher test account.</p>}
+            {googleButtonError && <p role="status" className="mt-2 text-center text-[11px] text-rose-600">{googleButtonError}</p>}
+          </div>}
 
           <p className="mt-7 text-center text-[12px] text-slate-500">New to Advisio? <Link href="/register" className="font-extrabold text-[#164866] hover:text-[#d98600]">Request an account</Link></p>
           {demoAccountsEnabled && <div className="mt-8 border-t border-slate-200 pt-5">

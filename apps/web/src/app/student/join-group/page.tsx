@@ -20,6 +20,7 @@ export default function JoinResearchGroupPage() {
   const [joining, setJoining] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [previewKind, setPreviewKind] = useState<"project" | "workspace">("project");
 
   const reviewGroup = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -27,13 +28,21 @@ export default function JoinResearchGroupPage() {
     setLoading(true);
     setMessage(null);
     setPreview(null);
+    setPreviewKind("project");
     try {
       const response = await apiClient.get<{ project: any }>(
         `/api/research/join/${code.trim().toUpperCase()}/preview`,
       );
       setPreview(response.project);
+      setPreviewKind("project");
     } catch (error: any) {
-      setMessage(error?.message || "This group code could not be found.");
+      try {
+        const response = await apiClient.get<{ workspace: any }>(`/api/workspaces/join/${code.trim().toUpperCase()}/preview`);
+        setPreview(response.workspace);
+        setPreviewKind("workspace");
+      } catch {
+        setMessage(error?.message || "This group code could not be found.");
+      }
     } finally {
       setLoading(false);
     }
@@ -44,13 +53,16 @@ export default function JoinResearchGroupPage() {
     setJoining(true);
     setMessage(null);
     try {
-      const response = await apiClient.post<{
+      const response = previewKind === "workspace" ? await apiClient.post<{ workspace: { name: string } }>(`/api/workspaces/join/${code.trim().toUpperCase()}`) : await apiClient.post<{
         pendingApproval?: boolean;
         project: { title: string; groupName?: string | null };
       }>(`/api/research/join/${code.trim().toUpperCase()}`);
-      const name = response.project.groupName || response.project.title;
+      const name = previewKind === "workspace" ? (response as { workspace: { name: string } }).workspace.name : ((response as { project: { title: string; groupName?: string | null } }).project.groupName || (response as { project: { title: string } }).project.title);
       setSuccess(true);
-      if (response.pendingApproval) {
+      if (previewKind === "workspace") {
+        setMessage(`You joined ${name}. Add the research project when your group is ready.`);
+        setTimeout(() => router.push("/student/dashboard?tab=group"), 900);
+      } else if ((response as { pendingApproval?: boolean }).pendingApproval) {
         setMessage(`Your request to join ${name} was sent to the group leader.`);
       } else {
         setMessage(`You joined ${name}.`);
@@ -108,13 +120,13 @@ export default function JoinResearchGroupPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#C58A18]">
-                    Group preview
+                    {previewKind === "workspace" ? "Workspace preview" : "Group preview"}
                   </p>
                   <h2 className="mt-1 text-lg font-black text-[#17212B] dark:text-white">
                     {preview.groupName || "Research group"}
                   </h2>
                   <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                    {preview.title}
+                    {previewKind === "workspace" ? `${preview.projectCount || 0} research projects` : preview.title}
                   </p>
                 </div>
                 <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-extrabold text-blue-800">

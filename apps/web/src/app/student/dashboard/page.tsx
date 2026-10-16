@@ -224,6 +224,12 @@ function StudentDashboardContent() {
     staleTime: 5000,
     refetchInterval: 5000,
   });
+  const { data: workspaceData } = useQuery({
+    queryKey: ["student-workspaces"],
+    queryFn: () => apiClient.get<{ workspaces: any[] }>("/api/workspaces/me"),
+    refetchOnWindowFocus: true,
+  });
+  const activeWorkspace = workspaceData?.workspaces?.[0] || null;
   const { data: workflowEnrollmentData } = useQuery({
     queryKey: ["student-workflow-enrollments"],
     queryFn: () =>
@@ -607,30 +613,36 @@ function StudentDashboardContent() {
         : "You already have a registered research project.");
       return;
     }
-    if (!createTitle.trim()) return;
+    if (activeWorkspace && !createTitle.trim()) return;
     setIsCreatingProject(true);
     try {
-      await apiClient.post("/api/research", {
-        title: createTitle.trim(),
-        abstract: createAbstract.trim() || undefined,
-        participationMode: createParticipationMode,
-        groupName:
-          createParticipationMode === "GROUP"
-            ? createGroupName.trim() || undefined
-            : undefined,
-        accessMode:
-          createParticipationMode === "GROUP"
-            ? createAccessMode
-            : "INVITE_ONLY",
-      });
+      const isCreatingProjectRecord = Boolean(createTitle.trim());
+      let workspace = activeWorkspace;
+      if (!workspace) {
+        const workspaceName = createGroupName.trim() || (createParticipationMode === "SOLO" ? "My research workspace" : "Research group");
+        const result = await apiClient.post<{ workspace: any }>("/api/workspaces", {
+          name: workspaceName,
+          participationMode: createParticipationMode,
+          accessMode: createParticipationMode === "GROUP" ? createAccessMode : "INVITE_ONLY",
+        });
+        workspace = result.workspace;
+      }
+      if (createTitle.trim()) {
+        await apiClient.post("/api/research", {
+          title: createTitle.trim(),
+          abstract: createAbstract.trim() || undefined,
+          workspaceId: workspace.id,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["student-research"] });
+      queryClient.invalidateQueries({ queryKey: ["student-workspaces"] });
       setShowCreateModal(false);
       setCreateTitle("");
       setCreateAbstract("");
       setCreateParticipationMode("SOLO");
       setCreateGroupName("");
       setCreateAccessMode("INVITE_ONLY");
-      triggerToast("Research study registered successfully!");
+      triggerToast(isCreatingProjectRecord ? "Workspace and research project created." : "Workspace created. Add your research title when you are ready.");
     } catch (err: any) {
       triggerToast(err.message || "Failed to register project");
     } finally {
@@ -2247,10 +2259,21 @@ function StudentDashboardContent() {
                       )}
                     </div>
                   ) : (
-                    <div className="mt-5 grid gap-4 md:grid-cols-2">
-                      <button onClick={() => setShowCreateModal(true)} className="rounded-2xl border-2 border-[#173f63] bg-[#173f63] p-6 text-left text-white transition hover:-translate-y-0.5"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10"><i className="ti ti-folder-plus text-xl text-[#ffa400]" /></span><span className="mt-4 block text-base font-extrabold">Create research project</span><span className="mt-1 block text-xs leading-5 text-blue-100">Choose Solo or Group, enter the proposed title, and begin the assigned workflow.</span></button>
-                      <button onClick={() => router.push("/join-group")} className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-6 text-left transition hover:-translate-y-0.5 hover:border-[#173f63]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100"><i className="ti ti-users-plus text-xl text-[#173f63]" /></span><span className="mt-4 block text-base font-extrabold text-[#102f49]">Join research group</span><span className="mt-1 block text-xs leading-5 text-slate-500">Enter a group code, review its details, and join or request approval.</span></button>
-                    </div>
+                    activeWorkspace ? (
+                      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                          <div><p className="text-[10px] font-extrabold uppercase tracking-widest text-[#C58A18]">{activeWorkspace.participationMode === "GROUP" ? "Research group" : "Solo workspace"}</p><h4 className="mt-1 text-lg font-extrabold text-[#102f49]">{activeWorkspace.name}</h4><p className="mt-1 text-xs text-slate-500">{activeWorkspace.program?.code || activeWorkspace.program?.name} · {activeWorkspace.members?.length || 1} member{(activeWorkspace.members?.length || 1) === 1 ? "" : "s"}</p></div>
+                          {!activeWorkspace.projects?.length && <button onClick={() => { setCreateTitle(""); setShowCreateModal(true); }} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-xs font-extrabold text-white"><i className="ti ti-plus mr-1" />Add research project</button>}
+                        </div>
+                        {activeWorkspace.projects?.length > 0 && <div className="mt-4 space-y-2">{activeWorkspace.projects.map((project: any) => <div key={project.id} className="flex items-center justify-between rounded-xl bg-white p-3"><span className="text-sm font-bold text-[#102f49]">{project.title}</span><span className="text-[10px] font-bold text-slate-500">{project.status}</span></div>)}</div>}
+                        {activeWorkspace.participationMode === "GROUP" && <p className="mt-3 text-xs text-slate-500">Invite code: <strong className="font-mono text-[#173f63]">{activeWorkspace.inviteCode}</strong></p>}
+                      </div>
+                    ) : (
+                      <div className="mt-5 grid gap-4 md:grid-cols-2">
+                        <button onClick={() => { setCreateTitle(""); setCreateGroupName(""); setShowCreateModal(true); }} className="rounded-2xl border-2 border-[#173f63] bg-[#173f63] p-6 text-left text-white transition hover:-translate-y-0.5"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10"><i className="ti ti-folder-plus text-xl text-[#ffa400]" /></span><span className="mt-4 block text-base font-extrabold">Create a workspace</span><span className="mt-1 block text-xs leading-5 text-blue-100">Start Solo or create a group. Add a research title now or later.</span></button>
+                        <button onClick={() => router.push("/join-group")} className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-6 text-left transition hover:-translate-y-0.5 hover:border-[#173f63]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100"><i className="ti ti-users-plus text-xl text-[#173f63]" /></span><span className="mt-4 block text-base font-extrabold text-[#102f49]">Join a group</span><span className="mt-1 block text-xs leading-5 text-slate-500">Enter a group invitation code to join a research workspace.</span></button>
+                      </div>
+                    )
                   )}
                 </section>
                 {activeProject && <section className="rounded-xl border border-rose-200 bg-white p-6 shadow-sm"><h3 className="text-base font-semibold text-rose-700">Project management</h3><p className="mt-1 text-xs text-slate-500">These actions require final confirmation and preserve historical submissions.</p><div className="mt-4 flex flex-wrap gap-2">{!isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-xs font-bold text-amber-700">Leave group</button>}{isGroupLeader && <button onClick={() => setGroupAction({ type: "disband" })} className="rounded-xl border border-rose-300 px-4 py-2 text-xs font-bold text-rose-700">Archive project</button>}</div></section>}
@@ -2696,7 +2719,7 @@ function StudentDashboardContent() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-extrabold text-[#1b4264] text-[16px] flex items-center gap-2">
                 <i className="ti ti-folder-plus text-[#ffa400] text-xl" />
-                Create research project
+                {activeWorkspace ? "Add research project" : "Create research workspace"}
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -2706,7 +2729,7 @@ function StudentDashboardContent() {
               </button>
             </div>
             <form onSubmit={handleCreateResearch} className="flex flex-col gap-4 text-xs">
-              <fieldset>
+              {!activeWorkspace && <fieldset>
                 <legend className="font-bold text-slate-700">How will you conduct this research?</legend>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
                   {([
@@ -2720,34 +2743,30 @@ function StudentDashboardContent() {
                     </button>
                   ))}
                 </div>
-              </fieldset>
+              </fieldset>}
               <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-700">Research Project Title *</label>
+                <label className="font-bold text-slate-700">Research title {!activeWorkspace && <span className="font-normal text-slate-400">(optional — you can add it later)</span>}</label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. Real-Time Water Quality Monitoring Using IoT"
                   value={createTitle}
                   onChange={(e) => setCreateTitle(e.target.value)}
                   className="p-3 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-[#ffa400]"
                 />
               </div>
-              {createParticipationMode === "GROUP" && (
-                <div className="grid gap-4 rounded-xl border border-blue-100 bg-blue-50 p-4 sm:grid-cols-2">
-                  <label className="flex flex-col gap-1.5 font-bold text-slate-700">
-                    Group name (optional)
-                    <input type="text" maxLength={120} value={createGroupName} onChange={(event) => setCreateGroupName(event.target.value)} placeholder="e.g. Team Innovators" className="rounded-xl border border-blue-200 bg-white p-3 font-normal text-slate-800 outline-none focus:border-[#173f63]" />
-                  </label>
-                  <label className="flex flex-col gap-1.5 font-bold text-slate-700">
-                    Joining permission
-                    <select value={createAccessMode} onChange={(event) => setCreateAccessMode(event.target.value as typeof createAccessMode)} className="h-[42px] rounded-xl border border-blue-200 bg-white px-3 font-normal text-slate-800 outline-none focus:border-[#173f63]">
-                      <option value="INVITE_ONLY">Invite only</option>
-                      <option value="PUBLIC_APPROVAL">Code — leader approval</option>
-                      <option value="PUBLIC_OPEN">Code — open joining</option>
-                    </select>
-                  </label>
-                </div>
-              )}
+              {!activeWorkspace && <div className="grid gap-4 rounded-xl border border-blue-100 bg-blue-50 p-4 sm:grid-cols-2">
+                <label className="flex flex-col gap-1.5 font-bold text-slate-700">
+                  {createParticipationMode === "GROUP" ? "Group name" : "Workspace name"}
+                  <input type="text" required maxLength={120} value={createGroupName} onChange={(event) => setCreateGroupName(event.target.value)} placeholder={createParticipationMode === "GROUP" ? "e.g. Team Innovators" : "e.g. My Thesis Workspace"} className="rounded-xl border border-blue-200 bg-white p-3 font-normal text-slate-800 outline-none focus:border-[#173f63]" />
+                </label>
+                {createParticipationMode === "GROUP" && <label className="flex flex-col gap-1.5 font-bold text-slate-700">
+                  Joining permission
+                  <select value={createAccessMode} onChange={(event) => setCreateAccessMode(event.target.value as typeof createAccessMode)} className="h-[42px] rounded-xl border border-blue-200 bg-white px-3 font-normal text-slate-800 outline-none focus:border-[#173f63]">
+                    <option value="INVITE_ONLY">Invite code</option>
+                    <option value="PUBLIC_OPEN">Open code joining</option>
+                  </select>
+                </label>}
+              </div>}
               <div className="flex flex-col gap-1.5">
                 <label className="font-bold text-slate-700">Abstract / Problem Scope (Optional)</label>
                 <textarea
@@ -2768,10 +2787,10 @@ function StudentDashboardContent() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isCreatingProject || !createTitle.trim()}
+                  disabled={isCreatingProject || (activeWorkspace ? !createTitle.trim() : !createGroupName.trim())}
                   className="px-5 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-extrabold rounded-xl shadow cursor-pointer disabled:opacity-50"
                 >
-                  {isCreatingProject ? "Creating..." : "Create project"}
+                  {isCreatingProject ? "Creating..." : activeWorkspace ? "Create research project" : createTitle.trim() ? "Create workspace and project" : "Create workspace"}
                 </button>
               </div>
             </form>

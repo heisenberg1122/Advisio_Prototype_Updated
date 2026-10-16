@@ -16,9 +16,6 @@ const TITLES: Record<string, string> = {
 };
 
 const PAGES: Record<string, string> = {
-  "/panelist/schedule": "Defense Schedule",
-  "/panelist/evaluations": "Research Documents",
-  "/panelist/scoring": "Evaluation & Scoring",
   "/panelist/profile": "My Profile",
   "/panelist/profile/edit": "Edit Profile",
   "/panelist/notifications": "Notifications",

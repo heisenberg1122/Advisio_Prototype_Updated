@@ -13,6 +13,7 @@ router.get("/events", optionalAuth, (req: Request, res: Response) => {
     "Connection": "keep-alive",
     "X-Accel-Buffering": "no", // Disables response buffering in Nginx reverse proxy
   });
+  res.flushHeaders();
 
   const clientId = `sse-${crypto.randomUUID()}`;
   const userId = req.user?.id || req.user?.email;

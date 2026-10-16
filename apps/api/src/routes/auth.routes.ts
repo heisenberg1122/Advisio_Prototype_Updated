@@ -1,12 +1,14 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { OAuth2Client } from "google-auth-library";
 import { prisma, type InstitutionalRole } from "../lib/prisma.js";
 import { loginSchema, registerSchema, researcherOnboardingSchema } from "@research-management/validations";
 import { validateBody } from "../middleware/validate";
 import { requireAuth, generateToken } from "../middleware/auth";
 
 const router = Router();
+const googleSignInClient = new OAuth2Client();
 
 // POST /api/auth/register
 router.post("/register", validateBody(registerSchema), async (req: Request, res: Response) => {
@@ -444,6 +446,153 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to login" });
+  }
+});
+
+// POST /api/auth/google
+// Verifies a Google Identity Services ID token and issues an Advisio session.
+router.post("/google", async (req: Request, res: Response) => {
+  try {
+    const clientId = process.env.GOOGLE_SIGN_IN_CLIENT_ID?.trim();
+    const idToken = typeof req.body?.credential === "string" ? req.body.credential : "";
+    if (!clientId) {
+      return void res.status(503).json({ error: "Google sign-in is not configured." });
+    }
+    if (!idToken) {
+      return void res.status(400).json({ error: "A Google sign-in credential is required." });
+    }
+
+    const ticket = await googleSignInClient
+      .verifyIdToken({ idToken, audience: clientId })
+      .catch(() => null);
+    if (!ticket) {
+      return void res.status(401).json({ error: "Google sign-in could not be verified. Please try again." });
+    }
+    const identity = ticket.getPayload();
+    if (!identity?.sub || !identity.email || identity.email_verified !== true) {
+      return void res.status(401).json({ error: "Google did not provide a verified email address." });
+    }
+
+    const email = identity.email.trim().toLowerCase();
+    const includeRoles = { roles: { include: { role: true } } } as const;
+    let user = await prisma.user.findUnique({
+      where: { googleSubject: identity.sub },
+      include: includeRoles,
+    });
+
+    if (!user) {
+      user = await prisma.user.findUnique({ where: { email }, include: includeRoles });
+      if (user) {
+        if (user.googleSubject && user.googleSubject !== identity.sub) {
+          return void res.status(409).json({
+            error: "This Advisio account is already linked to a different Google account.",
+          });
+        }
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { googleSubject: identity.sub, lastLoginAt: new Date() },
+          include: includeRoles,
+        });
+      }
+    }
+
+    if (!user) {
+      if (process.env.GOOGLE_SIGN_IN_ALLOW_SELF_SIGNUP !== "true") {
+        return void res.status(403).json({
+          error: "No Advisio account is linked to this Google email. Ask an administrator to enable test sign-up or register first.",
+        });
+      }
+
+      const researcherRole = await prisma.role.findUnique({ where: { name: "RESEARCHER" } });
+      if (!researcherRole) {
+        return void res.status(503).json({ error: "Researcher accounts are not available right now." });
+      }
+
+      const firstName = identity.given_name?.trim() || identity.name?.trim().split(/\s+/)[0] || "Google";
+      const lastName = identity.family_name?.trim() || identity.name?.trim().split(/\s+/).slice(1).join(" ") || "Researcher";
+      user = await prisma.user.create({
+        data: {
+          universityId: `TEST-${randomUUID().replace(/-/g, "")}`,
+          email,
+          googleSubject: identity.sub,
+          firstName: firstName.slice(0, 100),
+          lastName: lastName.slice(0, 100),
+          status: "ACTIVE",
+          lastLoginAt: new Date(),
+          roles: { create: { roleId: researcherRole.id } },
+        },
+        include: includeRoles,
+      });
+    } else if (user.status !== "ACTIVE") {
+      const message = user.status === "PENDING"
+        ? "Your Advisio account is pending approval. Please contact an administrator."
+        : user.status === "SUSPENDED"
+          ? "Your Advisio account is suspended. Please contact an administrator."
+          : "Your Advisio account is not active. Please contact an administrator.";
+      return void res.status(403).json({ error: message, status: user.status });
+    } else {
+      await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    }
+
+    const token = generateToken(user.id);
+    return void res.json({
+      message: "Google sign-in successful",
+      token,
+      needsAcademicSetup: user.roles.some((userRole) => userRole.role.name === "RESEARCHER") && (!user.collegeId || !user.programId),
+      user: {
+        id: user.id,
+        universityId: user.universityId,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        roles: user.roles.map((userRole) => userRole.role.name),
+      },
+    });
+  } catch (error: any) {
+    if (error?.code === "P2002") {
+      return void res.status(409).json({ error: "An account already exists for this Google identity or email." });
+    }
+    console.error("Google sign-in failed:", error?.message || error);
+    return void res.status(500).json({ error: "Google sign-in is temporarily unavailable. Please try again." });
+  }
+});
+
+// PATCH /api/auth/google/academic-profile
+// Lets newly created Google researchers choose their academic affiliation before entering the dashboard.
+router.patch("/google/academic-profile", requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return void res.status(401).json({ error: "Authentication required" });
+    const collegeId = typeof req.body?.collegeId === "string" ? req.body.collegeId : "";
+    const programId = typeof req.body?.programId === "string" ? req.body.programId : "";
+    if (!collegeId || !programId) {
+      return void res.status(400).json({ error: "Choose a department and course." });
+    }
+
+    const account = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: { roles: { include: { role: true } } },
+    });
+    if (!account || !account.googleSubject || !account.roles.some((item) => item.role.name === "RESEARCHER")) {
+      return void res.status(403).json({ error: "This setup is available to new Google researcher accounts only." });
+    }
+    if (account.collegeId && account.collegeId !== collegeId) {
+      return void res.status(403).json({ error: "Your account already has a different department assigned." });
+    }
+    if (account.programId && account.programId !== programId) {
+      return void res.status(403).json({ error: "Your account already has a different course assigned." });
+    }
+
+    const program = await prisma.program.findFirst({
+      where: { id: programId, collegeId, isActive: true, college: { isActive: true } },
+      select: { id: true },
+    });
+    if (!program) return void res.status(400).json({ error: "Choose an active course within the selected department." });
+
+    await prisma.user.update({ where: { id: account.id }, data: { collegeId, programId } });
+    return void res.json({ message: "Academic profile saved." });
+  } catch (error: any) {
+    console.error("Google researcher academic setup failed:", error?.message || error);
+    return void res.status(500).json({ error: "Could not save your academic profile. Please try again." });
   }
 });
 

@@ -105,6 +105,7 @@ import RegisterPage from "./app/(public)/register/page";
 import ResearcherOnboardingPage from "./app/(public)/researcher-onboarding/page";
 import ForgotPasswordPage from "./app/(public)/forgot-password/page";
 import FirstTimeSetupPage from "./app/(public)/first-login-setup/page";
+import GoogleOnboardingPage from "./app/(public)/google-onboarding/page";
 
 function RouteLoader() {
   return <AppShellSkeleton />;
@@ -165,6 +166,7 @@ export function AppRoutes() {
         <Route path="/researcher-onboarding" element={<ResearcherOnboardingPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/first-login-setup" element={<FirstTimeSetupPage />} />
+        <Route path="/google-onboarding" element={<GoogleOnboardingPage />} />
 
         {/* Student / Researcher Portal */}
         <Route

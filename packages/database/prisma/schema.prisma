@@ -99,6 +99,11 @@ enum ResearchTitleRevisionStatus {
   SUPERSEDED
 }
 
+enum WorkspaceMemberRole {
+  LEADER
+  MEMBER
+}
+
 enum WorkflowStatus {
   DRAFT
   PUBLISHED
@@ -402,14 +407,15 @@ model College {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  programs         Program[]
-  users            User[]
-  researchProjects ResearchProject[]
-  forms            Form[]
-  dashboardConfigs DashboardConfig[]
-  announcements    SystemAnnouncement[]
-  calendarEvents   CalendarEvent[]
-  defenseEvents    DefenseEvent[]
+  programs           Program[]
+  users              User[]
+  researchProjects   ResearchProject[]
+  researchWorkspaces ResearchWorkspace[]
+  forms              Form[]
+  dashboardConfigs   DashboardConfig[]
+  announcements      SystemAnnouncement[]
+  calendarEvents     CalendarEvent[]
+  defenseEvents      DefenseEvent[]
 
   @@index([isActive])
   @@map("colleges")
@@ -426,12 +432,13 @@ model Program {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  college          College           @relation(fields: [collegeId], references: [id], onDelete: Restrict)
-  majors           ProgramMajor[]
-  users            User[]
-  researchTypes    ResearchType[]
-  researchProjects ResearchProject[]
-  calendarEvents   CalendarEvent[]
+  college            College             @relation(fields: [collegeId], references: [id], onDelete: Restrict)
+  majors             ProgramMajor[]
+  users              User[]
+  researchTypes      ResearchType[]
+  researchProjects   ResearchProject[]
+  researchWorkspaces ResearchWorkspace[]
+  calendarEvents     CalendarEvent[]
 
   @@unique([collegeId, code])
   @@index([isActive])
@@ -481,6 +488,7 @@ model User {
   firstName                String               @map("first_name") @db.VarChar(100)
   middleName               String?              @map("middle_name") @db.VarChar(100)
   lastName                 String               @map("last_name") @db.VarChar(100)
+  googleSubject            String?              @unique @map("google_subject") @db.VarChar(255)
   passwordHash             String?              @map("password_hash") @db.VarChar(255)
   collegeId                String?              @map("college_id") @db.Uuid
   programId                String?              @map("program_id") @db.Uuid
@@ -501,6 +509,8 @@ model User {
   program                   Program?                   @relation(fields: [programId], references: [id], onDelete: SetNull)
   roles                     UserRole[]
   memberships               ResearchMember[]
+  workspaceMemberships      WorkspaceMember[]
+  createdWorkspaces         ResearchWorkspace[]        @relation("WorkspaceCreator")
   ownedResearch             ResearchProject[]          @relation("ProjectCreator")
   reviews                   Review[]
   reviewerAssignments       ReviewerAssignment[]       @relation("AssignedReviewer")
@@ -685,13 +695,15 @@ model ResearchProject {
   createdAt           DateTime                  @default(now()) @map("created_at")
   updatedAt           DateTime                  @updatedAt @map("updated_at")
   completedAt         DateTime?                 @map("completed_at")
+  workspaceId         String?                   @map("workspace_id") @db.Uuid
 
-  researchType     ResearchType      @relation(fields: [researchTypeId], references: [id], onDelete: Restrict)
-  program          Program           @relation(fields: [programId], references: [id], onDelete: Restrict)
-  college          College           @relation(fields: [collegeId], references: [id], onDelete: Restrict)
-  academicYear     AcademicYear      @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
-  creator          User              @relation("ProjectCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  workflowInstance WorkflowInstance? @relation(fields: [workflowInstanceId], references: [id], onDelete: SetNull)
+  researchType     ResearchType       @relation(fields: [researchTypeId], references: [id], onDelete: Restrict)
+  program          Program            @relation(fields: [programId], references: [id], onDelete: Restrict)
+  college          College            @relation(fields: [collegeId], references: [id], onDelete: Restrict)
+  academicYear     AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  creator          User               @relation("ProjectCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  workspace        ResearchWorkspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  workflowInstance WorkflowInstance?  @relation(fields: [workflowInstanceId], references: [id], onDelete: SetNull)
 
   members                ResearchMember[]
   documents              Document[]
@@ -714,7 +726,48 @@ model ResearchProject {
   @@index([status])
   @@index([collegeId, academicYearId])
   @@index([researchTypeId])
+  @@index([workspaceId])
   @@map("research_projects")
+}
+
+model ResearchWorkspace {
+  id                String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String                    @db.VarChar(120)
+  participationMode ResearchParticipationMode @map("participation_mode")
+  accessMode        ResearchAccessMode        @default(INVITE_ONLY) @map("access_mode")
+  inviteCode        String                    @unique @map("invite_code") @db.VarChar(32)
+  inviteCodeEnabled Boolean                   @default(true) @map("invite_code_enabled")
+  collegeId         String                    @map("college_id") @db.Uuid
+  programId         String                    @map("program_id") @db.Uuid
+  createdBy         String                    @map("created_by") @db.Uuid
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+
+  college  College           @relation(fields: [collegeId], references: [id], onDelete: Restrict)
+  program  Program           @relation(fields: [programId], references: [id], onDelete: Restrict)
+  creator  User              @relation("WorkspaceCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  members  WorkspaceMember[]
+  projects ResearchProject[]
+
+  @@index([collegeId, programId])
+  @@index([createdBy])
+  @@map("research_workspaces")
+}
+
+model WorkspaceMember {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String              @map("workspace_id") @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  role        WorkspaceMemberRole @default(MEMBER)
+  joinedAt    DateTime            @default(now()) @map("joined_at")
+  leftAt      DateTime?           @map("left_at")
+
+  workspace ResearchWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([workspaceId, userId])
+  @@index([userId, leftAt])
+  @@map("workspace_members")
 }
 
 model AdviserRequest {
@@ -1095,7 +1148,7 @@ model Document {
   manuscriptStatusEvents ManuscriptStatusEvent[]
   reviewerAssignments    ReviewerAssignment[]
   officialCopies         OfficialCopy[]
-  sourceGroupFile        GroupFile?               @relation("PromotedGroupFileDocument")
+  sourceGroupFile        GroupFile?              @relation("PromotedGroupFileDocument")
 
   @@unique([researchId, liveExternalFileId])
   @@index([researchId])
@@ -1425,10 +1478,10 @@ model GroupFile {
   updatedAt          DateTime  @updatedAt @map("updated_at")
   deletedAt          DateTime? @map("deleted_at")
 
-  research ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
-  folder   GroupFolder?    @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  uploader User            @relation("GroupFileUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
-  promotedDocument Document? @relation("PromotedGroupFileDocument", fields: [promotedDocumentId], references: [id], onDelete: SetNull)
+  research         ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  folder           GroupFolder?    @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  uploader         User            @relation("GroupFileUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  promotedDocument Document?       @relation("PromotedGroupFileDocument", fields: [promotedDocumentId], references: [id], onDelete: SetNull)
 
   @@unique([promotedDocumentId])
   @@index([researchId, folderId, deletedAt])
@@ -1822,18 +1875,18 @@ model DefenseInvitation {
 // ─────────────────────────────────────────────────────────────
 
 model Consultation {
-  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  researchId     String             @map("research_id") @db.Uuid
-  createdBy      String             @map("created_by") @db.Uuid
-  title          String             @db.VarChar(200)
-  description    String?            @db.Text
-  scheduledStart DateTime           @map("scheduled_start")
-  scheduledEnd   DateTime           @map("scheduled_end")
-  meetingUrl     String?            @map("meeting_url") @db.VarChar(500)
-  status         ConsultationStatus @default(SCHEDULED)
-  legacyImportKey String?           @unique @map("legacy_import_key") @db.VarChar(100)
-  createdAt      DateTime           @default(now()) @map("created_at")
-  updatedAt      DateTime           @updatedAt @map("updated_at")
+  id              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId      String             @map("research_id") @db.Uuid
+  createdBy       String             @map("created_by") @db.Uuid
+  title           String             @db.VarChar(200)
+  description     String?            @db.Text
+  scheduledStart  DateTime           @map("scheduled_start")
+  scheduledEnd    DateTime           @map("scheduled_end")
+  meetingUrl      String?            @map("meeting_url") @db.VarChar(500)
+  status          ConsultationStatus @default(SCHEDULED)
+  legacyImportKey String?            @unique @map("legacy_import_key") @db.VarChar(100)
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
 
   research     ResearchProject           @relation(fields: [researchId], references: [id], onDelete: Cascade)
   participants ConsultationParticipant[]

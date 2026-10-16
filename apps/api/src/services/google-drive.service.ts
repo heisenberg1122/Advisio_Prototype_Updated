@@ -521,16 +521,17 @@ class GoogleDriveService {
     }>,
   ): Promise<string> {
     const connection = await this.connectedClient();
+    const localFallback = process.env.ALLOW_LOCAL_STORAGE_FALLBACK === "true";
     const rootFolderId =
       connection?.integration?.rootFolderId ||
       process.env.GOOGLE_DRIVE_FOLDER_ID ||
       "";
-    if (!connection?.drive || !rootFolderId)
+    if ((!connection?.drive || !rootFolderId) && !localFallback)
       throw new Error(
         "Google Drive is not connected. A System Administrator must connect storage before folders can be provisioned.",
       );
 
-    let parentFolderId = rootFolderId;
+    let parentFolderId = rootFolderId || "local-fallback-root";
     const accumulatedKeys: string[] = [];
     for (const segment of segments) {
       accumulatedKeys.push(segment.key);
@@ -547,6 +548,30 @@ class GoogleDriveService {
         // health is checked separately by administration/recovery workflows,
         // avoiding a Google API round-trip for every parent on every upload.
         parentFolderId = mapped.externalFolderId;
+        continue;
+      }
+
+      // Preserve the normal hierarchy contract for isolated/local runs while
+      // the upload service stores the actual bytes on disk.
+      if (!connection?.drive) {
+        const folderId = `local-folder-${crypto
+          .createHash("sha256")
+          .update(pathKey)
+          .digest("hex")
+          .slice(0, 32)}`;
+        const entityType = segment.entityType || null;
+        const entityId = segment.entityId || null;
+        await prisma.$executeRaw`INSERT INTO "storage_folders"
+          ("provider", "path_key", "external_folder_id", "parent_folder_id", "name", "entity_type", "entity_id", "updated_at")
+          VALUES (${PROVIDER}, ${pathKey}, ${folderId}, ${parentFolderId}, ${segment.name}, ${entityType}, ${entityId}, CURRENT_TIMESTAMP)
+          ON CONFLICT ("provider", "path_key") DO UPDATE SET
+            "external_folder_id" = EXCLUDED."external_folder_id",
+            "parent_folder_id" = EXCLUDED."parent_folder_id",
+            "name" = EXCLUDED."name",
+            "entity_type" = EXCLUDED."entity_type",
+            "entity_id" = EXCLUDED."entity_id",
+            "updated_at" = CURRENT_TIMESTAMP`;
+        parentFolderId = folderId;
         continue;
       }
 

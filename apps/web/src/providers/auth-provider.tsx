@@ -21,6 +21,7 @@ export interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password?: string) => Promise<{ success: boolean; role?: string; error?: string }>;
+  loginWithGoogle: (credential: string) => Promise<{ success: boolean; role?: string; needsAcademicSetup?: boolean; error?: string }>;
   register: (payload: any) => Promise<{ success: boolean; isPending?: boolean; message?: string; user?: any; onboardingToken?: string | null; error?: string }>;
   logout: () => void;
 }
@@ -84,6 +85,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithGoogle = async (credential: string) => {
+    try {
+      const data = await apiClient.post<{
+        message: string;
+        token: string;
+        needsAcademicSetup?: boolean;
+        user: { id: string; universityId: string; email: string; firstName: string; lastName: string; roles: string[] };
+      }>("/api/auth/google", { credential });
+
+      localStorage.setItem("advisio_token", data.token);
+      setToken(data.token);
+
+      const profile = await apiClient.get<{ user: UserProfile }>("/api/auth/me").catch(() => null);
+      if (profile) setUser(profile.user);
+
+      return {
+        success: true,
+        role: (data.user.roles[0] || "RESEARCHER").toLowerCase(),
+        needsAcademicSetup: data.needsAcademicSetup === true,
+      };
+    } catch (error: any) {
+      return { success: false, error: error.message || "Google sign-in failed" };
+    }
+  };
+
   const register = async (payload: any) => {
     try {
       const data = await apiClient.post<{
@@ -142,6 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         login,
+        loginWithGoogle,
         register,
         logout,
       }}
@@ -205,6 +232,7 @@ export function useAuth(): AuthContextType {
       isLoading: false,
       isAuthenticated: false,
       login: async () => ({ success: false, role: undefined, error: "AuthProvider not mounted" }),
+      loginWithGoogle: async () => ({ success: false, needsAcademicSetup: false, error: "AuthProvider not mounted" }),
       register: async () => ({ success: false, error: "AuthProvider not mounted" }),
       logout: () => {
         if (typeof window !== "undefined") {

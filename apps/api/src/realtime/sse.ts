@@ -9,6 +9,7 @@ export interface SSEClient {
 class SSEManager {
   private clients: Map<string, SSEClient> = new Map();
   private heartbeatTimer: NodeJS.Timeout | null = null;
+  private eventSequence = 0;
 
   constructor() {
     this.startHeartbeat();
@@ -25,7 +26,7 @@ class SSEManager {
     this.clients.set(client.id, client);
 
     // Initial connection handshake
-    client.res.write(`event: connected\ndata: ${JSON.stringify({ clientId: client.id, timestamp: new Date().toISOString() })}\n\n`);
+    client.res.write(`retry: 1000\nevent: connected\ndata: ${JSON.stringify({ clientId: client.id, timestamp: new Date().toISOString() })}\n\n`);
 
     client.res.on("close", () => {
       this.removeClient(client.id);
@@ -52,7 +53,7 @@ class SSEManager {
   }
 
   public broadcastEvent(eventType: string, data: any) {
-    const payload = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
+    const payload = this.eventPayload(eventType, data);
     for (const [id, client] of this.clients.entries()) {
       try {
         client.res.write(payload);
@@ -64,7 +65,7 @@ class SSEManager {
   }
 
   public sendToUser(userId: string, eventType: string, data: any) {
-    const payload = `event: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
+    const payload = this.eventPayload(eventType, data);
     for (const [id, client] of this.clients.entries()) {
       if (client.userId === userId) {
         try {
@@ -75,6 +76,11 @@ class SSEManager {
         }
       }
     }
+  }
+
+  private eventPayload(eventType: string, data: any) {
+    this.eventSequence += 1;
+    return `id: ${Date.now()}-${this.eventSequence}\nevent: ${eventType}\ndata: ${JSON.stringify(data)}\n\n`;
   }
 }
 

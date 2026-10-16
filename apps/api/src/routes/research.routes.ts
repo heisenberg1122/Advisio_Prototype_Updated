@@ -21,7 +21,7 @@ function researchScopeWhere(user: AuthenticatedUser) {
 
   const access: any[] = [];
   if (user.roles.includes("RESEARCHER")) {
-    access.push({ OR: [{ createdBy: user.id }, { members: { some: { userId: user.id, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } } } }] });
+    access.push({ OR: [{ createdBy: user.id }, { members: { some: { userId: user.id, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } } } }, { workspace: { is: { members: { some: { userId: user.id, leftAt: null } } } } }] });
   }
   if (user.roles.includes("ADVISER")) {
     access.push({ members: { some: { userId: user.id, leftAt: null, projectRole: "ADVISER" } } });
@@ -211,7 +211,7 @@ router.post(
 
       const { title, abstract } = req.body;
       let { researchTypeId, programId, collegeId, academicYearId } = req.body;
-      const participationMode = PARTICIPATION_MODES.has(
+      let participationMode = PARTICIPATION_MODES.has(
         String(req.body.participationMode || "SOLO").toUpperCase(),
       )
         ? String(req.body.participationMode || "SOLO").toUpperCase()
@@ -219,11 +219,12 @@ router.post(
       const requestedAccessMode = String(
         req.body.accessMode || "INVITE_ONLY",
       ).toUpperCase();
-      const accessMode = ACCESS_MODES.has(requestedAccessMode)
+      let accessMode = ACCESS_MODES.has(requestedAccessMode)
         ? requestedAccessMode
         : "INVITE_ONLY";
-      const groupName =
+      let groupName =
         typeof req.body.groupName === "string" ? req.body.groupName.trim() : "";
+      const workspaceId = typeof req.body.workspaceId === "string" ? req.body.workspaceId : null;
       if (groupName.length > 120) {
         res.status(400).json({ error: "Group name must be 120 characters or fewer." });
         return;
@@ -240,6 +241,20 @@ router.post(
           return;
         }
         collegeId = scope.collegeId;
+      }
+
+      let workspace: { id: string; name: string; inviteCode: string; participationMode: "SOLO" | "GROUP"; accessMode: "INVITE_ONLY" | "PUBLIC_APPROVAL" | "PUBLIC_OPEN"; inviteCodeEnabled: boolean; collegeId: string; programId: string } | null = null;
+      if (workspaceId) {
+        workspace = await prisma.researchWorkspace.findFirst({
+          where: { id: workspaceId, members: { some: { userId: req.user.id, role: "LEADER", leftAt: null } } },
+          select: { id: true, name: true, inviteCode: true, participationMode: true, accessMode: true, inviteCodeEnabled: true, collegeId: true, programId: true },
+        }) as typeof workspace;
+        if (!workspace) { res.status(403).json({ error: "Only a workspace leader can register its research project." }); return; }
+        participationMode = workspace.participationMode;
+        groupName = workspace.participationMode === "GROUP" ? workspace.name : "";
+        accessMode = workspace.accessMode;
+        collegeId = workspace.collegeId;
+        programId = workspace.programId;
       }
 
       if (!title || typeof title !== "string" || title.trim().length < 3) {
@@ -374,11 +389,12 @@ router.post(
             accessMode:
               participationMode === "GROUP" ? (accessMode as any) : "INVITE_ONLY",
             inviteCode:
-              participationMode === "GROUP" ? makeInviteCode() : null,
-            inviteCodeEnabled: participationMode === "GROUP",
+              participationMode === "GROUP" ? (workspace?.participationMode === "GROUP" ? workspace.inviteCode : makeInviteCode()) : null,
+            inviteCodeEnabled: participationMode === "GROUP" && (workspace ? workspace.inviteCodeEnabled : true),
             abstract: abstract?.trim() || null,
             status: "DRAFT",
             createdBy: req.user!.id,
+            workspaceId: workspace?.id,
           },
         });
 
@@ -397,6 +413,22 @@ router.post(
             where: { id: newProject.id },
             data: { workflowInstanceId: wfInstance.id },
           });
+
+          // The creator is the project's active leader and receives this
+          // workflow automatically, so keep their enrollment badge in sync.
+          await tx.workflowEnrollment.upsert({
+            where: {
+              workflowId_userId: {
+                workflowId: researchType.workflow.id,
+                userId: req.user!.id,
+              },
+            },
+            update: { status: "ACTIVE", joinedAt: new Date() },
+            create: {
+              workflowId: researchType.workflow.id,
+              userId: req.user!.id,
+            },
+          });
         }
 
         // Add creator as LEADER
@@ -407,6 +439,21 @@ router.post(
             projectRole: "LEADER",
           },
         });
+
+        if (workspace) {
+          const otherMembers = await tx.workspaceMember.findMany({ where: { workspaceId: workspace.id, leftAt: null, userId: { not: req.user!.id } }, select: { userId: true } });
+          if (otherMembers.length) await tx.researchMember.createMany({
+            data: otherMembers.map(({ userId }) => ({ researchId: newProject.id, userId, projectRole: "MEMBER" as const })),
+            skipDuplicates: true,
+          });
+          if (researchType.workflow && otherMembers.length) {
+            for (const { userId } of otherMembers) await tx.workflowEnrollment.upsert({
+              where: { workflowId_userId: { workflowId: researchType.workflow.id, userId } },
+              update: { status: "ACTIVE", joinedAt: new Date() },
+              create: { workflowId: researchType.workflow.id, userId },
+            });
+          }
+        }
 
         return newProject;
       });
@@ -1120,6 +1167,11 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
             },
           })
         : null;
+      if (project.workspaceId) await tx.workspaceMember.upsert({
+        where: { workspaceId_userId: { workspaceId: project.workspaceId, userId: req.user!.id } },
+        update: { leftAt: null },
+        create: { workspaceId: project.workspaceId, userId: req.user!.id, role: "MEMBER" },
+      });
       await tx.researchProject.update({
         where: { id: project.id },
         data: { participationMode: "GROUP" },
@@ -1260,6 +1312,7 @@ router.patch(
         select: {
           title: true,
           groupName: true,
+          workspaceId: true,
           workflowInstance: { select: { workflowId: true } },
         },
       });
@@ -1300,6 +1353,11 @@ router.patch(
               },
             })
           : null;
+        if (project.workspaceId) await tx.workspaceMember.upsert({
+          where: { workspaceId_userId: { workspaceId: project.workspaceId, userId: joinRequest.requesterId } },
+          update: { leftAt: null },
+          create: { workspaceId: project.workspaceId, userId: joinRequest.requesterId, role: "MEMBER" },
+        });
         const request = await tx.researchJoinRequest.update({
           where: { id: joinRequest.id },
           data: {
@@ -1401,9 +1459,13 @@ router.patch(
             requestedBy: req.user.id,
           },
         });
-        const updated = await prisma.researchProject.update({
-          where: { id: researchId },
-          data: { groupName: groupName || null, abstract: abstract || null },
+        const updated = await prisma.$transaction(async (tx) => {
+          const value = await tx.researchProject.update({
+            where: { id: researchId },
+            data: { groupName: groupName || null, abstract: abstract || null },
+          });
+          if (project.workspaceId) await tx.researchWorkspace.update({ where: { id: project.workspaceId }, data: { name: groupName || project.title } });
+          return value;
         });
         return void res.json({
           project: updated,
@@ -1424,7 +1486,7 @@ router.patch(
               reviewedAt: new Date(),
             },
           });
-        return tx.researchProject.update({
+        const value = await tx.researchProject.update({
           where: { id: researchId },
           data: {
             title,
@@ -1435,6 +1497,8 @@ router.patch(
               : {}),
           },
         });
+        if (project.workspaceId) await tx.researchWorkspace.update({ where: { id: project.workspaceId }, data: { name: groupName || title } });
+        return value;
       });
       res.json({ project: updated, titleChangePending: false });
     } catch (error: any) {
