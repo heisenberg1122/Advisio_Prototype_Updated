@@ -70,7 +70,7 @@ export function TaskDocumentPicker({
 
   const eligibleDocuments = useMemo<EligibleDocument[]>(() => {
     const allowed = acceptedExtensions(allowedFileTypes);
-    return (data?.documents || []).flatMap((document) => {
+    return (data?.documents || []).flatMap<EligibleDocument>((document) => {
       const isLiveGoogleDoc = Boolean(document.liveDocumentUrl);
       if (isLiveGoogleDoc) {
         // Formal Google Docs submissions are exported as PDF by the existing
