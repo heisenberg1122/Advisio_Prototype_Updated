@@ -100,4 +100,16 @@ describe("Advisio Express API Integration Suite", () => {
     const errData = (await resInvalid.json()) as any;
     expect(errData).toHaveProperty("error");
   });
+
+  it("protects account appearance preferences from unauthenticated updates", async () => {
+    const response = await fetch(`${baseUrl}/api/auth/me/appearance`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ colorThemePreference: "DEFAULT_ADVISIO" }),
+    });
+
+    expect(response.status).toBe(401);
+    const data = (await response.json()) as { error?: string };
+    expect(data.error).toMatch(/authentication required/i);
+  });
 });

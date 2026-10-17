@@ -32,6 +32,8 @@ export type CollegeThemeKey =
   | "soe"
   | CourseThemeKey;
 
+export type ColorThemePreference = "DEFAULT_ADVISIO" | "COLLEGE_PROGRAM";
+
 export interface CollegeThemePalette {
   appBackground: string;
   sidebarBackground: string;
@@ -758,4 +760,22 @@ export function resolveCollegeTheme(
   }
 
   return COLLEGE_THEMES.default;
+}
+
+export function resolvePreferredCollegeTheme(
+  college?: { code?: string | null; name?: string | null } | null,
+  program?: { code?: string | null; name?: string | null } | null,
+  preference: ColorThemePreference = "COLLEGE_PROGRAM",
+  roles: readonly string[] = [],
+  fallbackKey?: CollegeThemeKey,
+): CollegeThemeMetadata {
+  const isSystemAdministrator = roles.some(
+    (role) => role.toUpperCase() === "SYSTEM_ADMIN",
+  );
+
+  if (isSystemAdministrator || preference === "DEFAULT_ADVISIO") {
+    return COLLEGE_THEMES.default;
+  }
+
+  return resolveCollegeTheme(college, program, fallbackKey);
 }

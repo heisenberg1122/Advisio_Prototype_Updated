@@ -2,9 +2,11 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 import { apiClient } from '@/lib/api-client';
 import {
   COLLEGE_THEMES,
+  ColorThemePreference,
   CollegeThemeKey,
   CollegeThemeMetadata,
   resolveCollegeTheme,
+  resolvePreferredCollegeTheme,
 } from '@/lib/college-themes';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -13,8 +15,11 @@ interface ThemeContextType {
   theme: Theme;
   isDark: boolean;
   collegeTheme: CollegeThemeMetadata;
+  assignedCollegeTheme: CollegeThemeMetadata;
+  colorThemePreference: ColorThemePreference;
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
+  setColorThemePreference: (preference: ColorThemePreference) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -24,13 +29,23 @@ interface ThemeProviderProps {
   userId?: string | null;
   college?: { code?: string | null; name?: string | null } | null;
   program?: { code?: string | null; name?: string | null } | null;
+  roles?: readonly string[] | null;
   appearancePreference?: string | null;
+  colorThemePreference?: string | null;
 }
 
 const getThemeStorageKey = (userId: string) => `advisio_theme:${userId}`;
+const getColorThemeStorageKey = (userId: string) =>
+  `advisio_color-theme:${userId}`;
 
 function isTheme(value: string | null): value is Theme {
   return value === 'dark' || value === 'light' || value === 'system';
+}
+
+function isColorThemePreference(
+  value: string | null,
+): value is ColorThemePreference {
+  return value === 'DEFAULT_ADVISIO' || value === 'COLLEGE_PROGRAM';
 }
 
 function storedActiveTheme(): Theme {
@@ -45,18 +60,59 @@ function storedActiveCollegeTheme(): CollegeThemeKey {
   return stored && COLLEGE_THEMES[stored] ? stored : 'default';
 }
 
+function storedActiveColorThemePreference(): ColorThemePreference {
+  if (typeof window === 'undefined' || !localStorage.getItem('advisio_token')) {
+    return 'COLLEGE_PROGRAM';
+  }
+  const stored = localStorage.getItem('advisio_color-theme:active');
+  return isColorThemePreference(stored) ? stored : 'COLLEGE_PROGRAM';
+}
+
 export function ThemeProvider({
   children,
   userId = null,
   college = null,
   program = null,
+  roles = [],
   appearancePreference = null,
+  colorThemePreference: serverColorThemePreference = null,
 }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<Theme>(storedActiveTheme);
+  const [colorThemePreference, setColorThemePreferenceState] =
+    useState<ColorThemePreference>(storedActiveColorThemePreference);
   const [systemIsDark, setSystemIsDark] = useState(false);
+  const normalizedRoles = useMemo(
+    () => (roles || []).map((role) => role.toUpperCase()),
+    [roles],
+  );
+  const isSystemAdministrator = normalizedRoles.includes('SYSTEM_ADMIN');
+  const assignedCollegeTheme = useMemo(
+    () =>
+      resolveCollegeTheme(
+        college,
+        program,
+        userId ? undefined : storedActiveCollegeTheme(),
+      ),
+    [college?.code, college?.name, program?.code, program?.name, userId],
+  );
   const collegeTheme = useMemo(
-    () => resolveCollegeTheme(college, program, storedActiveCollegeTheme()),
-    [college?.code, college?.name, program?.code, program?.name],
+    () =>
+      resolvePreferredCollegeTheme(
+        college,
+        program,
+        colorThemePreference,
+        normalizedRoles,
+        userId ? undefined : storedActiveCollegeTheme(),
+      ),
+    [
+      college?.code,
+      college?.name,
+      colorThemePreference,
+      normalizedRoles,
+      program?.code,
+      program?.name,
+      userId,
+    ],
   );
 
   useEffect(() => {
@@ -106,6 +162,31 @@ export function ThemeProvider({
     }
   }, [appearancePreference, userId]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    if (!userId) {
+      setColorThemePreferenceState(storedActiveColorThemePreference());
+      return;
+    }
+
+    const stored = localStorage.getItem(getColorThemeStorageKey(userId));
+    const serverPreference = serverColorThemePreference?.toUpperCase() || null;
+    const resolvedPreference: ColorThemePreference = isSystemAdministrator
+      ? 'DEFAULT_ADVISIO'
+      : userId.startsWith('demo-') && isColorThemePreference(stored)
+        ? stored
+        : isColorThemePreference(serverPreference)
+          ? serverPreference
+          : isColorThemePreference(stored)
+            ? stored
+            : 'COLLEGE_PROGRAM';
+
+    setColorThemePreferenceState(resolvedPreference);
+    localStorage.setItem(getColorThemeStorageKey(userId), resolvedPreference);
+    localStorage.setItem('advisio_color-theme:active', resolvedPreference);
+  }, [isSystemAdministrator, serverColorThemePreference, userId]);
+
   const isDark = theme === 'dark' || (theme === 'system' && systemIsDark);
 
   useEffect(() => {
@@ -116,7 +197,7 @@ export function ThemeProvider({
     root.dataset.appearance = theme;
     root.style.colorScheme = isDark ? 'dark' : 'light';
 
-    if (userId && collegeTheme.key !== 'default') {
+    if (userId) {
       localStorage.setItem('advisio_college-theme:active', collegeTheme.key);
     }
   }, [collegeTheme.key, isDark, theme, userId]);
@@ -140,14 +221,44 @@ export function ThemeProvider({
     saveTheme(newTheme);
   };
 
+  const setColorThemePreference = (newPreference: ColorThemePreference) => {
+    if (isSystemAdministrator) {
+      setColorThemePreferenceState('DEFAULT_ADVISIO');
+      return;
+    }
+
+    const previousPreference = colorThemePreference;
+    setColorThemePreferenceState(newPreference);
+    if (typeof window !== 'undefined' && userId) {
+      localStorage.setItem(getColorThemeStorageKey(userId), newPreference);
+      localStorage.setItem('advisio_color-theme:active', newPreference);
+      void apiClient.patch('/api/auth/me/appearance', {
+        colorThemePreference: newPreference,
+      }).catch(() => {
+        setColorThemePreferenceState(previousPreference);
+        localStorage.setItem(
+          getColorThemeStorageKey(userId),
+          previousPreference,
+        );
+        localStorage.setItem(
+          'advisio_color-theme:active',
+          previousPreference,
+        );
+      });
+    }
+  };
+
   return (
     <ThemeContext.Provider
       value={{
         theme,
         isDark,
         collegeTheme,
+        assignedCollegeTheme,
+        colorThemePreference,
         toggleTheme,
         setTheme,
+        setColorThemePreference,
       }}
     >
       {children}

@@ -214,6 +214,14 @@ export function AppRoutes() {
           }
         />
         <Route
+          path="/student/tasks/:taskId"
+          element={
+            <StudentPortal>
+              <StudentTasksPage />
+            </StudentPortal>
+          }
+        />
+        <Route
           path="/student/documents"
           element={
             <StudentPortal>

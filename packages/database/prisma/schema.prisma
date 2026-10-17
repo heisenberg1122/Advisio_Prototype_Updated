@@ -29,6 +29,11 @@ enum AppearancePreference {
   SYSTEM
 }
 
+enum ColorThemePreference {
+  DEFAULT_ADVISIO
+  COLLEGE_PROGRAM
+}
+
 enum ResearcherDegreeLevel {
   UNDERGRADUATE
   MASTERS
@@ -493,6 +498,7 @@ model User {
   collegeId                String?              @map("college_id") @db.Uuid
   programId                String?              @map("program_id") @db.Uuid
   appearancePreference     AppearancePreference @default(SYSTEM) @map("appearance_preference")
+  colorThemePreference     ColorThemePreference @default(COLLEGE_PROGRAM) @map("color_theme_preference")
   status                   UserStatus           @default(PENDING)
   maxAdviseeGroups         Int                  @default(5) @map("max_advisee_groups")
   isAcceptingAdvisees      Boolean              @default(true) @map("is_accepting_advisees")

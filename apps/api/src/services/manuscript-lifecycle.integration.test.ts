@@ -10,7 +10,11 @@ import {
   manuscriptLifecycleService,
 } from "./manuscript-lifecycle.service.js";
 import { storageHierarchyService } from "./storage-hierarchy.service.js";
-import { assertIsolatedIntegrationDatabase } from "../test/database-integration.js";
+import {
+  assertIsolatedIntegrationDatabase,
+  cleanupIntegrationFixture,
+  createIntegrationFixtureScope,
+} from "../test/database-integration.js";
 import { reviewerAssignmentService } from "./reviewer-assignment.service.js";
 import {
   submitStoredTaskVersion,
@@ -40,6 +44,9 @@ databaseDescribe(
   "Phase 3 manuscript workflow with isolated PostgreSQL fixtures",
   () => {
     const fixtureSuffix = crypto.randomUUID().slice(0, 8).toUpperCase();
+    const fixture = createIntegrationFixtureScope(
+      `phase3-${fixtureSuffix.toLowerCase()}`,
+    );
     const sourceFileId = `phase3-source-${fixtureSuffix}`;
     let student: AuthenticatedUser;
     let outsider: AuthenticatedUser;
@@ -58,10 +65,12 @@ databaseDescribe(
     );
 
     beforeAll(async () => {
-      assertIsolatedIntegrationDatabase();
+      await assertIsolatedIntegrationDatabase(prisma);
+      fixture.databaseVerified = true;
       const college = await prisma.college.create({
         data: { code: `P3${fixtureSuffix}`, name: "Phase 3 Isolated College" },
       });
+      fixture.collegeIds.push(college.id);
       collegeId = college.id;
       const program = await prisma.program.create({
         data: {
@@ -70,6 +79,7 @@ databaseDescribe(
           name: "Phase 3 Isolated Program",
         },
       });
+      fixture.programIds.push(program.id);
       programId = program.id;
       const academicYear = await prisma.academicYear.create({
         data: {
@@ -78,6 +88,7 @@ databaseDescribe(
           endDate: new Date("2099-05-31T00:00:00.000Z"),
         },
       });
+      fixture.academicYearIds.push(academicYear.id);
       const roleNames = [
         "RESEARCHER",
         "ADVISER",
@@ -92,8 +103,8 @@ databaseDescribe(
       });
       const roleByName = new Map(storedRoles.map((role) => [role.name, role]));
       const roles = roleNames.map((name) => roleByName.get(name)!);
-      const createUser = (suffix: string) =>
-        prisma.user.create({
+      const createUser = async (suffix: string) => {
+        const user = await prisma.user.create({
           data: {
             universityId: `P3-${fixtureSuffix}-${suffix}`,
             email: `phase3-${fixtureSuffix.toLowerCase()}-${suffix.toLowerCase()}@isolated.test`,
@@ -104,6 +115,9 @@ databaseDescribe(
             programId,
           },
         });
+        fixture.userIds.push(user.id);
+        return user;
+      };
       const [studentRecord, outsiderRecord, adviserRecord, professorRecord] =
         await Promise.all([
           createUser("Student"),
@@ -146,6 +160,7 @@ databaseDescribe(
           code: `P3-MANUSCRIPT-${fixtureSuffix}`,
         },
       });
+      fixture.researchTypeIds.push(researchType.id);
       const workflow = await prisma.workflow.create({
         data: {
           researchTypeId: researchType.id,
@@ -154,6 +169,7 @@ databaseDescribe(
           createdBy: professor.id,
         },
       });
+      fixture.workflowIds.push(workflow.id);
       await prisma.researchType.update({
         where: { id: researchType.id },
         data: { workflowId: workflow.id },
@@ -188,6 +204,7 @@ databaseDescribe(
           createdBy: student.id,
         },
       });
+      fixture.projectIds.push(project.id);
       projectId = project.id;
       const workflowInstance = await prisma.workflowInstance.create({
         data: {
@@ -256,6 +273,7 @@ databaseDescribe(
           createdBy: student.id,
         },
       });
+      fixture.projectIds.push(foreignProject.id);
       const foreignWorkflowInstance = await prisma.workflowInstance.create({
         data: {
           researchId: foreignProject.id,
@@ -328,8 +346,24 @@ databaseDescribe(
     });
 
     afterAll(async () => {
+      const teardownErrors: unknown[] = [];
       vi.restoreAllMocks();
-      await prisma.$disconnect();
+      try {
+        await cleanupIntegrationFixture(prisma, fixture);
+      } catch (error) {
+        teardownErrors.push(error);
+      }
+      try {
+        await prisma.$disconnect();
+      } catch (error) {
+        teardownErrors.push(error);
+      }
+      if (teardownErrors.length > 0) {
+        throw new AggregateError(
+          teardownErrors,
+          `Integration fixture cleanup failed for ${fixture.marker}.`,
+        );
+      }
     });
 
     it("submits, authorizes, transitions, resubmits, and preserves exact versions", async () => {

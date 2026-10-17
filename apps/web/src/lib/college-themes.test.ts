@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { COLLEGE_THEMES, resolveCollegeTheme, CourseThemeKey } from "./college-themes";
+import {
+  COLLEGE_THEMES,
+  resolveCollegeTheme,
+  resolvePreferredCollegeTheme,
+  CourseThemeKey,
+} from "./college-themes";
 
 describe("resolveCollegeTheme", () => {
   it.each([
@@ -210,5 +215,38 @@ describe("resolveCollegeTheme", () => {
   it("uses the Advisio default for an unassigned college", () => {
     expect(resolveCollegeTheme(null)).toEqual(COLLEGE_THEMES.default);
     expect(resolveCollegeTheme({ code: "SHS" }).key).toBe("default");
+  });
+
+  it("uses the assigned college/program theme by default for regular roles", () => {
+    expect(
+      resolvePreferredCollegeTheme(
+        { code: "CIT" },
+        { code: "BSIT" },
+        "COLLEGE_PROGRAM",
+        ["RESEARCHER"],
+      ).key,
+    ).toBe("bsit");
+  });
+
+  it("restores the original Advisio theme when explicitly selected", () => {
+    expect(
+      resolvePreferredCollegeTheme(
+        { code: "CIT" },
+        { code: "BSIT" },
+        "DEFAULT_ADVISIO",
+        ["RESEARCHER"],
+      ),
+    ).toEqual(COLLEGE_THEMES.default);
+  });
+
+  it("always uses the original Advisio theme for System Administrators", () => {
+    expect(
+      resolvePreferredCollegeTheme(
+        { code: "CIT" },
+        { code: "BSIT" },
+        "COLLEGE_PROGRAM",
+        ["SYSTEM_ADMIN"],
+      ),
+    ).toEqual(COLLEGE_THEMES.default);
   });
 });

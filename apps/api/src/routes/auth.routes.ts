@@ -2,7 +2,16 @@ import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
-import { prisma, type InstitutionalRole } from "../lib/prisma.js";
+import {
+  prisma,
+  type AppearancePreference,
+  type ColorThemePreference,
+  type InstitutionalRole,
+} from "../lib/prisma.js";
+import {
+  effectiveColorThemePreference,
+  parseColorThemePreference,
+} from "../lib/appearance-preference.js";
 import { loginSchema, registerSchema, researcherOnboardingSchema } from "@research-management/validations";
 import { validateBody } from "../middleware/validate";
 import { requireAuth, generateToken } from "../middleware/auth";
@@ -616,6 +625,10 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
           college: null,
           program: null,
           appearancePreference: "SYSTEM",
+          colorThemePreference: effectiveColorThemePreference(
+            "COLLEGE_PROGRAM",
+            req.user.roles,
+          ),
           roles: req.user.roles,
           permissions: req.user.permissions,
         },
@@ -652,6 +665,10 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
         college: user.college,
         program: user.program,
         appearancePreference: user.appearancePreference,
+        colorThemePreference: effectiveColorThemePreference(
+          user.colorThemePreference,
+          req.user.roles,
+        ),
         roles: req.user.roles,
         permissions: req.user.permissions,
       },
@@ -669,24 +686,85 @@ router.patch("/me/appearance", requireAuth, async (req: Request, res: Response) 
       return;
     }
 
-    const appearancePreference = String(req.body.appearancePreference || "").toUpperCase();
-    if (!(["LIGHT", "DARK", "SYSTEM"] as const).includes(appearancePreference as any)) {
-      res.status(400).json({ error: "Appearance must be LIGHT, DARK, or SYSTEM." });
+    const hasAppearancePreference = Object.prototype.hasOwnProperty.call(
+      req.body,
+      "appearancePreference",
+    );
+    const hasColorThemePreference = Object.prototype.hasOwnProperty.call(
+      req.body,
+      "colorThemePreference",
+    );
+
+    if (!hasAppearancePreference && !hasColorThemePreference) {
+      res.status(400).json({
+        error: "Provide an appearance or color theme preference.",
+      });
       return;
     }
 
+    let appearancePreference: AppearancePreference | undefined;
+    if (hasAppearancePreference) {
+      const requestedAppearance = String(
+        req.body.appearancePreference || "",
+      ).toUpperCase();
+      if (
+        !(["LIGHT", "DARK", "SYSTEM"] as const).includes(
+          requestedAppearance as AppearancePreference,
+        )
+      ) {
+        res.status(400).json({
+          error: "Appearance must be LIGHT, DARK, or SYSTEM.",
+        });
+        return;
+      }
+      appearancePreference = requestedAppearance as AppearancePreference;
+    }
+
+    let requestedColorTheme: ColorThemePreference | undefined;
+    if (hasColorThemePreference) {
+      requestedColorTheme = parseColorThemePreference(
+        req.body.colorThemePreference,
+      ) || undefined;
+      if (!requestedColorTheme) {
+        res.status(400).json({
+          error:
+            "Color theme must be DEFAULT_ADVISIO or COLLEGE_PROGRAM.",
+        });
+        return;
+      }
+    }
+
+    const colorThemePreference = effectiveColorThemePreference(
+      requestedColorTheme || "COLLEGE_PROGRAM",
+      req.user.roles,
+    );
+
     if (req.user.id.startsWith("demo-")) {
-      res.json({ appearancePreference });
+      res.json({
+        appearancePreference: appearancePreference || "SYSTEM",
+        colorThemePreference,
+      });
       return;
     }
 
     const user = await prisma.user.update({
       where: { id: req.user.id },
-      data: { appearancePreference: appearancePreference as "LIGHT" | "DARK" | "SYSTEM" },
-      select: { appearancePreference: true },
+      data: {
+        ...(appearancePreference ? { appearancePreference } : {}),
+        ...(hasColorThemePreference || req.user.roles.includes("SYSTEM_ADMIN")
+          ? { colorThemePreference }
+          : {}),
+      },
+      select: { appearancePreference: true, colorThemePreference: true },
     });
 
-    res.json({ appearancePreference: user.appearancePreference });
+    res.json({
+      appearancePreference: user.appearancePreference,
+      colorThemePreference: effectiveColorThemePreference(
+        user.colorThemePreference,
+        req.user.roles,
+      ),
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to save appearance preference" });
   }

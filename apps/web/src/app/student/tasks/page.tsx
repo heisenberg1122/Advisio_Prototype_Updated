@@ -5,12 +5,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { StatCard } from "@/components/ui/StatCard";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { TablePageSkeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   useActiveProject,
   useActiveProjectContext,
@@ -28,6 +27,11 @@ import {
   uploadFileCompatibility,
   uploadSubmissionSummary,
 } from "@/lib/task-submission";
+import {
+  legacyTaskDetailsHref,
+  studentTaskDetailsHref,
+  studentTasksHref,
+} from "@/lib/student-task-navigation";
 
 const memberName = (member: any) =>
   `${member?.user?.firstName || ""} ${member?.user?.lastName || ""}`.trim();
@@ -38,17 +42,22 @@ const EMPTY_SUBMISSION_OPTIONS: TaskSubmissionOption[] = [];
 export default function ResearchTasksPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { taskId: routeTaskId } = useParams<{ taskId: string }>();
   const [searchParams] = useSearchParams();
   const { activeProjectId: sharedProjectId } = useActiveProjectContext();
-  const requestedTaskId = searchParams.get("taskId");
-  const [selectedTask, setSelectedTask] = useState<any | null>(null);
+  const legacyTaskId = searchParams.get("taskId");
+  const requestedTaskId = routeTaskId || legacyTaskId;
   const [file, setFile] = useState<File | null>(null);
   const [submissionKey, setSubmissionKey] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const submissionInFlightRef = useRef(false);
+  const preparedTaskIdRef = useRef<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [startedTaskOverride, setStartedTaskOverride] = useState<any | null>(
+    null,
+  );
   const [workflowCode, setWorkflowCode] = useState("");
   const [activeSection, setActiveSection] = useState<
     "requirements" | "resources"
@@ -140,6 +149,13 @@ export default function ResearchTasksPage() {
     refetchOnWindowFocus: true,
   });
   const projectSelection = useActiveProject(data?.projects || []);
+  const projectedSelectedTask = requestedTaskId
+    ? data?.tasks?.find((task: any) => task.id === requestedTaskId) || null
+    : null;
+  const selectedTask =
+    startedTaskOverride?.id === requestedTaskId
+      ? startedTaskOverride
+      : projectedSelectedTask;
 
   const workflowId =
     data?.project?.workflowInstance?.workflow?.id ||
@@ -156,19 +172,25 @@ export default function ResearchTasksPage() {
   });
 
   useEffect(() => {
-    if (!requestedTaskId || selectedTask || !data?.tasks) return;
-    const contextualTask = data.tasks.find(
-      (task: any) => task.id === requestedTaskId,
+    if (routeTaskId || !legacyTaskId) return;
+    const destination = legacyTaskDetailsHref(
+      `?${searchParams.toString()}`,
     );
-    if (contextualTask) openTask(contextualTask);
-  }, [data?.tasks, requestedTaskId, selectedTask]);
+    if (destination) navigate(destination, { replace: true });
+  }, [legacyTaskId, navigate, routeTaskId, searchParams]);
 
-  const openTask = (task: any) => {
-    setSelectedTask(task);
+  useEffect(() => {
+    if (!selectedTask || preparedTaskIdRef.current === selectedTask.id) return;
+    preparedTaskIdRef.current = selectedTask.id;
     setFile(null);
     setSubmissionKey(crypto.randomUUID());
-    setNote(task.submission?.note || "");
+    setNote(selectedTask.submission?.note || "");
     setMessage(null);
+  }, [selectedTask]);
+
+  const openTask = (task: any) => {
+    setStartedTaskOverride(null);
+    navigate(studentTaskDetailsHref(task.id, data?.project?.id));
   };
 
   const selectSubmissionFile = (nextFile: File | null) => {
@@ -185,11 +207,18 @@ export default function ResearchTasksPage() {
   };
 
   const finishSubmission = async (successMessage: string) => {
-    await queryClient.invalidateQueries({
-      queryKey: ["student", "workflow-tasks"],
-    });
-    await queryClient.invalidateQueries({ queryKey: ["notifications"] });
-    setSelectedTask(null);
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["student", "workflow-tasks"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["task-submission-options"],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ["student-manuscript-workflow"],
+      }),
+      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    ]);
     setFile(null);
     setNote("");
     setMessage(successMessage);
@@ -296,9 +325,12 @@ export default function ResearchTasksPage() {
             noDocumentRequired: true,
             requiresDocument: false,
           };
-      setSelectedTask(startedTask);
+      setStartedTaskOverride(response.task ? null : startedTask);
       await queryClient.invalidateQueries({
         queryKey: ["student", "workflow-tasks"],
+      });
+      navigate(studentTaskDetailsHref(startedTask.id, data.project.id), {
+        replace: true,
       });
       setMessage(
         "Task started. Your group can now upload and submit the required file.",
@@ -367,6 +399,49 @@ export default function ResearchTasksPage() {
     (member: any) => !member.leftAt && member.projectRole === "ADVISER",
   );
 
+  if (requestedTaskId) {
+    if (!project) {
+      const explanation = projectSelection.invalidRequestedProjectId
+        ? "That project is unavailable or you do not have access to it."
+        : "Select an authorized research project before opening this milestone.";
+      return (
+        <TaskDetailsUnavailable
+          title="Milestone unavailable"
+          explanation={explanation}
+          backHref={studentTasksHref(project?.id)}
+        />
+      );
+    }
+    if (!selectedTask) {
+      return (
+        <TaskDetailsUnavailable
+          title="Milestone not found"
+          explanation="This task is not part of the selected project's assigned workflow."
+          backHref={studentTasksHref(project.id)}
+        />
+      );
+    }
+    return (
+      <MilestoneDetailsWorkspace
+        task={selectedTask}
+        project={project}
+        members={activeMembers}
+        adviser={adviser}
+        file={file}
+        note={note}
+        message={message}
+        submitting={submitting}
+        starting={starting}
+        onFile={selectSubmissionFile}
+        onNote={setNote}
+        onStart={startMilestoneTask}
+        onSubmitUpload={submitUploadedRequirement}
+        onSubmitDocument={submitDocumentRequirement}
+        onOpenSigned={openSubmissionVersion}
+      />
+    );
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {message && (
@@ -410,7 +485,7 @@ export default function ResearchTasksPage() {
             id="task-project"
             value={project?.id || ""}
             onChange={(event) => {
-              setSelectedTask(null);
+              setStartedTaskOverride(null);
               const projectId = event.target.value;
               projectSelection.selectProject(projectId || null);
             }}
@@ -724,35 +799,11 @@ export default function ResearchTasksPage() {
       ) : (
         <WorkflowResourcesCard workflowId={workflowId} />
       )}
-      {selectedTask && (
-        <TaskDetails
-          task={selectedTask}
-          project={project}
-          members={activeMembers}
-          adviser={adviser}
-          file={file}
-          note={note}
-          message={message}
-          submitting={submitting}
-          starting={starting}
-          onFile={selectSubmissionFile}
-          onNote={setNote}
-          onClose={() => {
-            setSelectedTask(null);
-            setFile(null);
-            setMessage(null);
-          }}
-          onStart={startMilestoneTask}
-          onSubmitUpload={submitUploadedRequirement}
-          onSubmitDocument={submitDocumentRequirement}
-          onOpenSigned={openSubmissionVersion}
-        />
-      )}
     </div>
   );
 }
 
-function TaskDetails({
+function MilestoneDetailsWorkspace({
   task,
   project,
   members,
@@ -764,7 +815,6 @@ function TaskDetails({
   starting,
   onFile,
   onNote,
-  onClose,
   onStart,
   onSubmitUpload,
   onSubmitDocument,
@@ -782,6 +832,15 @@ function TaskDetails({
     "documents" | "upload" | null
   >(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSubmissionMode("choose");
+    setSelectedOptionKey(null);
+    setDocumentSubmissionKey(null);
+    setConfirmation(null);
+    setSubmissionError(null);
+  }, [task.id]);
+
   const currentSequence =
     project?.workflowInstance?.currentStage?.sequence || 0;
   const status = task.previewOnly
@@ -825,6 +884,17 @@ function TaskDetails({
   const uploadFileTypes = directUploadFileTypes(allowedFileTypes);
   const uploadAccept = allowedUploadExtensions(uploadFileTypes).join(",");
   const canUpload = canSubmit && uploadFileTypes.length > 0;
+  const workflowProjectionQuery = useQuery({
+    queryKey: ["student-manuscript-workflow", project?.id],
+    queryFn: () =>
+      apiClient.get<{ milestones: any[]; activity: any[] }>(
+        `/api/research/${project.id}/manuscript-workflow`,
+      ),
+    enabled: Boolean(project?.id),
+  });
+  const milestoneProgress = workflowProjectionQuery.data?.milestones?.find(
+    (milestone: any) => milestone.id === task.stage.id,
+  );
 
   useEffect(() => {
     if (
@@ -878,127 +948,101 @@ function TaskDetails({
     }
   };
   return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs animate-in fade-in"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="task-details-title"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !submitting) onClose();
-      }}
-    >
-      <div
-        className="h-full w-full max-w-2xl overflow-y-auto bg-[var(--color-surface)] p-6 shadow-2xl sm:p-8 animate-in slide-in-from-right duration-200"
-        tabIndex={-1}
-        autoFocus
-        onKeyDown={(event) => {
-          if (event.key === "Escape" && !confirmation && !submitting) onClose();
-        }}
+    <div className="mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8">
+      <Link
+        to={studentTasksHref(project.id)}
+        className="inline-flex items-center gap-2 rounded-lg text-sm font-semibold text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-[#EEF2F6] dark:border-white/10 pb-5">
-          <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#C9A227]">
+        <i className="ti ti-arrow-left" aria-hidden="true" />
+        Back to Tasks
+      </Link>
+      <header className="mt-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
+        <nav aria-label="Breadcrumb" className="text-xs font-semibold text-[var(--color-text-secondary)]">
+          <Link to={studentTasksHref(project.id)} className="hover:text-[var(--color-primary)]">
+            Tasks &amp; Milestones
+          </Link>
+          <span className="mx-2" aria-hidden="true">/</span>
+          <span aria-current="page">{task.title}</span>
+        </nav>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-extrabold uppercase tracking-wider text-[var(--color-primary)]">
               Milestone {task.stage.sequence}
             </p>
-            <h2
+            <h1
               id="task-details-title"
-              className="mt-1 text-2xl font-black text-[var(--color-text-primary)]"
+              className="mt-1 break-words text-2xl font-bold leading-tight text-[var(--color-text-primary)] sm:text-3xl"
             >
               {task.title}
-            </h2>
-            <div className="mt-2">
-              <Tag
-                variant={
-                  status === "APPROVED" || status === "COMPLETED"
-                    ? "success"
-                    : status === "REVISION_REQUIRED" || status === "REJECTED"
-                      ? "warn"
-                      : "info"
-                }
-              >
-                {status.replace(/_/g, " ")}
-              </Tag>
-            </div>
+            </h1>
+            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+              {task.stage.topic?.title ||
+                project.workflowInstance?.workflow?.name ||
+                "Research workflow"}
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={submitting}
-            aria-label="Close task details"
-            className="cursor-pointer rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-white/5 dark:hover:text-slate-200"
+          <Tag
+            variant={
+              status === "APPROVED" || status === "COMPLETED"
+                ? "success"
+                : status === "REVISION_REQUIRED" || status === "REJECTED"
+                  ? "warn"
+                  : "info"
+            }
           >
-            <i className="ti ti-x text-xl" />
-          </button>
+            {status.replace(/_/g, " ")}
+          </Tag>
         </div>
-        <section className="mt-6">
-          <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#0B3A53] dark:text-[#C9A227]">
+      </header>
+
+      {message && (
+        <div
+          className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-3.5 text-sm font-semibold text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200"
+          role="status"
+        >
+          {message}
+        </div>
+      )}
+
+      <div className="mt-5 grid items-start gap-5 lg:grid-cols-[minmax(0,2.1fr)_minmax(280px,.9fr)]">
+        <main className="min-w-0 space-y-5">
+        <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
+          <h2 className="text-base font-bold text-[var(--color-text-primary)]">
             Professor instructions
-          </h3>
-          <p className="mt-2 whitespace-pre-wrap rounded-xl bg-slate-50 dark:bg-white/5 p-4 text-xs sm:text-sm leading-6 text-slate-700 dark:text-slate-200 border border-[#EEF2F6] dark:border-white/5">
-            {task.instructions ||
-              "Complete this milestone according to your professor's instructions."}
-          </p>
-        </section>
-        <section className="mt-5 grid gap-3 sm:grid-cols-2">
-          <Info
-            icon="ti-calendar"
-            label="Deadline"
-            value={
-              task.dueDays != null
-                ? `Within ${task.dueDays} days`
-                : "Follow the milestone schedule"
-            }
-          />
-          <Info
-            icon="ti-file-type-pdf"
-            label="Submission"
-            value={
-              task.requiresDocument === false
+          </h2>
+          {task.stage.description && task.stage.description !== task.instructions && (
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--color-text-secondary)]">
+              {task.stage.description}
+            </p>
+          )}
+          {task.instructions ? (
+            <p className="mt-3 whitespace-pre-wrap border-t border-[var(--color-border)] pt-4 text-sm leading-6 text-[var(--color-text-primary)]">
+              {task.instructions}
+            </p>
+          ) : (
+            <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+              No additional instructions were provided for this milestone.
+            </p>
+          )}
+          <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-[var(--color-text-secondary)]">
+            <span className="rounded-lg bg-[var(--color-surface-muted)] px-2.5 py-1.5">
+              {task.requiresDocument === false
                 ? "No document required"
-                : task.milestoneOnly
-                  ? "PDF, DOCX after starting"
-                  : task.allowedFileTypes
-            }
-          />
-          <Info
-            icon="ti-user-shield"
-            label="Adviser"
-            value={adviser ? memberName(adviser) : "No adviser assigned"}
-          />
-          <Info
-            icon="ti-users"
-            label="Shared task"
-            value={`${members.length || 1} active group member${members.length === 1 ? "" : "s"}`}
-          />
-        </section>
-        <section className="mt-6">
-          <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#0B3A53] dark:text-[#C9A227]">
-            Research group
-          </h3>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {members.length ? (
-              members.map((member: any) => (
-                <span
-                  key={member.id}
-                  className="rounded-full border border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200"
-                >
-                  <i className="ti ti-user mr-1 text-[#0B3A53] dark:text-[#C9A227]" />
-                  {memberName(member)}
-                  {member.projectRole === "LEADER" ? " · Leader" : ""}
-                </span>
-              ))
-            ) : (
-              <span className="text-sm text-slate-500">
-                Individual research project
+                : `Accepted: ${task.milestoneOnly ? "PDF, DOCX after starting" : task.allowedFileTypes}`}
+            </span>
+            {task.isRequired && (
+              <span className="rounded-lg bg-[var(--color-primary-light)] px-2.5 py-1.5 text-[var(--color-primary)]">
+                Required
               </span>
             )}
           </div>
         </section>
+        <StudentMilestoneAttachments stageId={task.stage.id} />
         {task.submission && (
-          <section className="mt-6 rounded-2xl border border-blue-200 dark:border-blue-900 bg-blue-50/70 dark:bg-blue-950/20 p-4">
-            <h3 className="text-sm font-extrabold text-[#0B3A53] dark:text-white">
-              Current group submission
-            </h3>
+          <section className="rounded-2xl border border-blue-200 bg-blue-50/70 p-5 dark:border-blue-900 dark:bg-blue-950/20 sm:p-6">
+            <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+              Your submission
+            </h2>
             <p className="mt-2 text-sm text-slate-700 dark:text-slate-200">
               <strong>Submitted by:</strong>{" "}
               {userName(task.submission.submittedByUser)}
@@ -1006,10 +1050,26 @@ function TaskDetails({
             <p className="mt-1 text-xs text-slate-500">
               {new Date(task.submission.submittedAt).toLocaleString()} ·{" "}
               {task.submission.document?.title || "Submitted document"}
+              {task.submission.documentVersion?.versionNumber
+                ? ` · Version ${task.submission.documentVersion.versionNumber}`
+                : ""}
             </p>
+            {task.submission.documentId && task.submission.documentVersionId && (
+              <Link
+                to={`/student/documents?projectId=${encodeURIComponent(task.submission.researchId)}&milestoneId=${encodeURIComponent(task.stage.id)}&taskId=${encodeURIComponent(task.id)}&documentId=${encodeURIComponent(task.submission.documentId)}&versionId=${encodeURIComponent(task.submission.documentVersionId)}`}
+                className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+              >
+                <i className="ti ti-external-link" aria-hidden="true" />
+                Open exact submitted version
+              </Link>
+            )}
             {(() => {
-              const latestVersion = task.submission.document?.versions?.[0];
-              const signature = latestVersion?.signedSignature;
+              const submittedVersion =
+                task.submission.document?.versions?.find(
+                  (version: any) =>
+                    version.id === task.submission.documentVersionId,
+                ) || task.submission.document?.versions?.[0];
+              const signature = submittedVersion?.signedSignature;
               if (!signature) return null;
               return (
                 <div className="mt-3 flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/30 sm:flex-row sm:items-center sm:justify-between">
@@ -1023,7 +1083,8 @@ function TaskDetails({
                     </p>
                   </div>
                   <button
-                    onClick={() => onOpenSigned(latestVersion)}
+                    type="button"
+                    onClick={() => onOpenSigned(submittedVersion)}
                     className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white"
                   >
                     View signed PDF
@@ -1034,12 +1095,6 @@ function TaskDetails({
             {task.submission.note && (
               <p className="mt-3 whitespace-pre-wrap rounded-xl bg-white dark:bg-white/5 p-3 text-xs text-slate-600 dark:text-slate-300">
                 {task.submission.note}
-              </p>
-            )}
-            {task.submission.reviewNote && (
-              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 p-3 text-xs text-amber-900 dark:text-amber-200">
-                <strong>Professor feedback:</strong>{" "}
-                {task.submission.reviewNote}
               </p>
             )}
             {task.submission.attempts?.length > 0 && (
@@ -1064,12 +1119,12 @@ function TaskDetails({
                           {userName(attempt.submittedByUser)} ·{" "}
                           {new Date(attempt.submittedAt).toLocaleString()}
                         </p>
-                        <a
-                          href={`/student/documents?projectId=${task.submission.researchId}&milestoneId=${task.stage.id}&taskId=${task.id}&documentId=${attempt.documentId}&versionId=${attempt.documentVersionId}`}
+                        <Link
+                          to={`/student/documents?projectId=${encodeURIComponent(task.submission.researchId)}&milestoneId=${encodeURIComponent(task.stage.id)}&taskId=${encodeURIComponent(task.id)}&documentId=${encodeURIComponent(attempt.documentId)}&versionId=${encodeURIComponent(attempt.documentVersionId)}`}
                           className="mt-1 inline-block font-bold text-[var(--color-primary)] hover:underline"
                         >
                           Open exact submitted version
-                        </a>
+                        </Link>
                       </div>
                       <Tag
                         variant={
@@ -1090,25 +1145,31 @@ function TaskDetails({
             )}
           </section>
         )}
+        {!task.submission && (
+          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
+            <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+              Submission history
+            </h2>
+            <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+              No previous submissions. Upload your work or choose an eligible
+              document when submission is available.
+            </p>
+          </section>
+        )}
         {task.previewOnly ? (
           <Notice text="This milestone is available for review. Join or register a research project connected to this workflow before starting work or submitting files." />
         ) : task.locked ? (
           <Notice text="This milestone is visible to your group, but submission opens when the preceding milestone is completed." />
         ) : task.milestoneOnly ? (
-          <section className="mt-6 rounded-2xl border border-[#C9A227]/40 bg-[#FDF8E8] dark:bg-amber-950/20 p-5">
-            <h3 className="text-base font-extrabold text-[#0B3A53] dark:text-white">
+          <section className="rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-primary-light)]/30 p-5">
+            <h3 className="text-base font-bold text-[var(--color-text-primary)]">
               Ready to work on this milestone?
             </h3>
-            <p className="mt-2 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+            <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
               {task.requiresDocument === false
                 ? "This milestone does not require a file. Start it to review and follow the professor's instructions."
                 : "Start the task to choose between creating a document in the workspace or uploading a finished file."}
             </p>
-            {message && (
-              <p className="mt-3 text-xs font-semibold text-rose-600">
-                {message}
-              </p>
-            )}
             <button
               onClick={onStart}
               disabled={starting}
@@ -1124,7 +1185,7 @@ function TaskDetails({
           <Notice text="Task started. No document is required for this milestone. Follow the professor’s instructions; completion is handled through the milestone workflow." />
         ) : submissionOptionsQuery.isPending ? (
           <section
-            className="mt-6 flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]"
+            className="flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]"
             aria-live="polite"
           >
             <i className="ti ti-loader-2 animate-spin text-lg text-[var(--color-primary)]" />
@@ -1132,7 +1193,7 @@ function TaskDetails({
           </section>
         ) : submissionOptionsQuery.isError ? (
           <section
-            className="mt-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200"
+            className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200"
             role="alert"
           >
             <p className="font-semibold">
@@ -1148,7 +1209,7 @@ function TaskDetails({
             </button>
           </section>
         ) : !submissionOptionsQuery.data?.availability.canSubmit ? (
-          <section className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+          <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
             <p className="font-bold">Submission is not currently available</p>
             <p className="mt-1 text-xs leading-5">
               {submissionOptionsQuery.data?.availability.reasons[0]?.message ||
@@ -1156,7 +1217,7 @@ function TaskDetails({
             </p>
           </section>
         ) : submissionMode === "choose" ? (
-          <section className="mt-6 border-t border-[var(--color-border)] pt-6">
+          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
             <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">
               How would you like to submit?
             </h3>
@@ -1212,25 +1273,17 @@ function TaskDetails({
               </p>
             )}
             {canCreateInDocuments && (
-              <button
-                type="button"
-                onClick={() => {
-                  const context = new URLSearchParams({
-                    projectId: project?.id || "",
-                    milestoneId: task.stage.id,
-                    taskId: task.id,
-                  });
-                  window.location.href = `/student/documents?${context.toString()}`;
-                }}
+              <Link
+                to={`/student/documents?projectId=${encodeURIComponent(project.id)}&milestoneId=${encodeURIComponent(task.stage.id)}&taskId=${encodeURIComponent(task.id)}`}
                 className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-[var(--color-primary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
               >
                 <i className="ti ti-external-link" />
                 Create or manage a working copy in Documents
-              </button>
+              </Link>
             )}
           </section>
         ) : submissionMode === "documents" ? (
-          <section className="mt-6 border-t border-[var(--color-border)] pt-6">
+          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
             <SubmissionBackButton onClick={() => setSubmissionMode("choose")} />
             <h3 className="text-sm font-extrabold text-[var(--color-text-primary)]">
               Choose an exact document version
@@ -1297,7 +1350,7 @@ function TaskDetails({
             </Button>
           </section>
         ) : (
-          <section className="mt-6 border-t border-[var(--color-border)] pt-6">
+          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
             <SubmissionBackButton onClick={() => setSubmissionMode("choose")} />
             <h3 className="text-sm font-extrabold text-[var(--color-text-primary)]">
               {task.submission
@@ -1339,7 +1392,21 @@ function TaskDetails({
           </section>
         )}
 
-        <SubmissionConfirmation
+          <FacultyFeedback submission={task.submission} />
+        </main>
+
+        <MilestoneInformationPanel
+          task={task}
+          project={project}
+          members={members}
+          adviser={adviser}
+          status={status}
+          progress={milestoneProgress}
+          progressLoading={workflowProjectionQuery.isPending}
+        />
+      </div>
+
+      <SubmissionConfirmation
           mode={confirmation}
           task={task}
           file={file}
@@ -1354,7 +1421,353 @@ function TaskDetails({
               ? confirmDocumentSubmission
               : confirmUploadSubmission
           }
-        />
+      />
+    </div>
+  );
+}
+
+type StudentMilestoneAttachment = {
+  id: string;
+  type: "GUIDE" | "LINK" | "PDF" | "FILE";
+  title: string;
+  url?: string | null;
+  fileName?: string | null;
+  fileSize?: number | null;
+  workflowResource?: {
+    id: string;
+    fileName?: string | null;
+  } | null;
+};
+
+function TaskDetailsUnavailable({
+  title,
+  explanation,
+  backHref,
+}: {
+  title: string;
+  explanation: string;
+  backHref: string;
+}) {
+  return (
+    <div className="mx-auto w-full max-w-3xl p-4 sm:p-6 lg:p-8">
+      <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-center shadow-[var(--shadow-card-soft)] sm:p-8">
+        <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[var(--color-surface-muted)] text-[var(--color-primary)]">
+          <i className="ti ti-file-alert text-2xl" aria-hidden="true" />
+        </span>
+        <h1 className="mt-4 text-xl font-bold text-[var(--color-text-primary)]">
+          {title}
+        </h1>
+        <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-[var(--color-text-secondary)]">
+          {explanation}
+        </p>
+        <Link
+          to={backHref}
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--color-primary-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+        >
+          <i className="ti ti-arrow-left" aria-hidden="true" />
+          Back to Tasks
+        </Link>
+      </section>
+    </div>
+  );
+}
+
+function StudentMilestoneAttachments({ stageId }: { stageId: string }) {
+  const [notice, setNotice] = useState<string | null>(null);
+  const attachmentsQuery = useQuery({
+    queryKey: ["milestone-attachments", stageId],
+    queryFn: () =>
+      apiClient.get<{ attachments: StudentMilestoneAttachment[] }>(
+        `/api/workflows/stages/${stageId}/attachments`,
+      ),
+  });
+  const attachments = attachmentsQuery.data?.attachments || [];
+
+  const openAttachment = async (attachment: StudentMilestoneAttachment) => {
+    setNotice(null);
+    if (attachment.type === "LINK" && attachment.url) {
+      window.open(attachment.url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    try {
+      const endpoint =
+        attachment.type === "GUIDE" && attachment.workflowResource
+          ? `/api/workflows/resources/${attachment.workflowResource.id}/file`
+          : `/api/workflows/stage-attachments/${attachment.id}/file`;
+      const blob = await apiClient.file(endpoint);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener,noreferrer");
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (error: any) {
+      setNotice(error?.message || "The attachment could not be opened.");
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+            Guides and attachments
+          </h2>
+          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+            Materials attached by faculty to this milestone.
+          </p>
+        </div>
+        {attachments.length > 0 && (
+          <span className="rounded-full bg-[var(--color-surface-muted)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text-secondary)]">
+            {attachments.length}
+          </span>
+        )}
+      </div>
+
+      {attachmentsQuery.isPending ? (
+        <div className="mt-4 flex items-center gap-2 text-sm text-[var(--color-text-secondary)]" role="status">
+          <i className="ti ti-loader-2 animate-spin text-[var(--color-primary)]" />
+          Loading milestone materials...
+        </div>
+      ) : attachmentsQuery.isError ? (
+        <div className="mt-4 text-sm text-rose-700 dark:text-rose-300" role="alert">
+          Milestone materials could not be loaded.{" "}
+          <button type="button" onClick={() => attachmentsQuery.refetch()} className="font-semibold underline">
+            Retry
+          </button>
+        </div>
+      ) : attachments.length ? (
+        <div className="mt-4 divide-y divide-[var(--color-border)] rounded-xl border border-[var(--color-border)]">
+          {attachments.map((attachment) => {
+            const fileName =
+              attachment.workflowResource?.fileName || attachment.fileName;
+            const icon =
+              attachment.type === "LINK"
+                ? "ti-link"
+                : attachment.type === "GUIDE"
+                  ? "ti-books"
+                  : attachment.type === "PDF"
+                    ? "ti-file-type-pdf"
+                    : "ti-paperclip";
+            return (
+              <button
+                key={attachment.id}
+                type="button"
+                onClick={() => void openAttachment(attachment)}
+                className="flex w-full items-center gap-3 p-3 text-left transition first:rounded-t-xl last:rounded-b-xl hover:bg-[var(--color-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--college-focus-ring)]"
+              >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)]">
+                  <i className={`ti ${icon} text-xl`} aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-[var(--color-text-primary)]">
+                    {attachment.title}
+                  </span>
+                  <span className="mt-0.5 block truncate text-xs text-[var(--color-text-secondary)]">
+                    {fileName || attachment.url || attachment.type}
+                  </span>
+                </span>
+                <i className="ti ti-external-link shrink-0 text-[var(--color-text-secondary)]" aria-hidden="true" />
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-[var(--color-text-secondary)]">
+          No guides or attachments were added to this milestone.
+        </p>
+      )}
+      {notice && (
+        <p className="mt-3 text-sm font-semibold text-rose-700 dark:text-rose-300" role="alert">
+          {notice}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function FacultyFeedback({ submission }: { submission: any }) {
+  const attemptFeedback = (submission?.attempts || []).filter(
+    (attempt: any) => attempt.reviewNote,
+  );
+  const hasCurrentFeedback =
+    submission?.reviewNote &&
+    !attemptFeedback.some(
+      (attempt: any) => attempt.reviewNote === submission.reviewNote,
+    );
+
+  return (
+    <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
+      <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+        Faculty feedback
+      </h2>
+      {hasCurrentFeedback && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+          <p className="whitespace-pre-wrap">{submission.reviewNote}</p>
+          {submission.reviewedAt && (
+            <p className="mt-2 text-xs opacity-75">
+              Reviewed {new Date(submission.reviewedAt).toLocaleString()}
+            </p>
+          )}
+        </div>
+      )}
+      {attemptFeedback.length > 0 && (
+        <ol className="mt-4 space-y-3">
+          {attemptFeedback.map((attempt: any) => (
+            <li key={attempt.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+                  Attempt {attempt.attemptNumber}
+                  {attempt.documentVersion?.versionNumber
+                    ? ` · Version ${attempt.documentVersion.versionNumber}`
+                    : ""}
+                </p>
+                <Tag variant={attempt.status === "APPROVED" ? "success" : "warn"}>
+                  {attempt.status.replace(/_/g, " ")}
+                </Tag>
+              </div>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--color-text-secondary)]">
+                {attempt.reviewNote}
+              </p>
+              {attempt.reviewedAt && (
+                <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                  {new Date(attempt.reviewedAt).toLocaleString()}
+                </p>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      {!hasCurrentFeedback && !attemptFeedback.length && (
+        <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+          Faculty feedback will appear here when available.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function MilestoneInformationPanel({
+  task,
+  project,
+  members,
+  adviser,
+  status,
+  progress,
+  progressLoading,
+}: any) {
+  const formats =
+    task.requiresDocument === false
+      ? "No document required"
+      : task.milestoneOnly
+        ? "PDF, DOCX after starting"
+        : task.allowedFileTypes || "Not configured";
+  const progressMeaningful =
+    progress && Number(progress.totalRequirements || 0) > 0;
+
+  return (
+    <aside className="space-y-5" aria-label="Milestone information">
+      <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)]">
+        <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+          Milestone information
+        </h2>
+        <dl className="mt-4 divide-y divide-[var(--color-border)]">
+          <InformationRow
+            icon="ti-calendar-due"
+            label="Deadline"
+            value={
+              task.dueDays != null
+                ? `Within ${task.dueDays} days of availability`
+                : "No deadline set"
+            }
+          />
+          <InformationRow icon="ti-file-type-pdf" label="Accepted formats" value={formats} />
+          <InformationRow
+            icon="ti-user-shield"
+            label="Adviser"
+            value={adviser ? memberName(adviser) : "No adviser assigned"}
+          />
+          <InformationRow
+            icon="ti-progress-check"
+            label="Workflow status"
+            value={(progress?.status || status).replace(/_/g, " ")}
+          />
+        </dl>
+      </section>
+
+      <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)]">
+        <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+          Research group
+        </h2>
+        <p className="mt-1 text-sm font-semibold text-[var(--color-primary)]">
+          {project.groupName || project.title}
+        </p>
+        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+          {members.length || 1} active member{members.length === 1 ? "" : "s"}
+        </p>
+        {members.length > 0 && (
+          <ul className="mt-4 space-y-2">
+            {members.map((member: any) => (
+              <li key={member.id} className="flex items-center gap-2 text-sm text-[var(--color-text-primary)]">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--color-surface-muted)] text-[var(--color-primary)]">
+                  <i className="ti ti-user text-sm" aria-hidden="true" />
+                </span>
+                <span className="min-w-0 truncate">{memberName(member)}</span>
+                {member.projectRole === "LEADER" && (
+                  <span className="ml-auto text-[10px] font-bold uppercase text-[var(--color-text-secondary)]">
+                    Leader
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)]">
+        <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+          Milestone progress
+        </h2>
+        {progressLoading ? (
+          <p className="mt-3 text-sm text-[var(--color-text-secondary)]">Loading progress...</p>
+        ) : progressMeaningful ? (
+          <>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
+              <div
+                className="h-full rounded-full bg-[var(--color-primary)]"
+                style={{ width: `${Math.max(0, Math.min(100, progress.completionPercent))}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+              {progress.completedRequirements} of {progress.totalRequirements} requirements complete ({progress.completionPercent}%)
+            </p>
+          </>
+        ) : (
+          <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+            Progress will appear when this milestone has configured requirements.
+          </p>
+        )}
+      </section>
+    </aside>
+  );
+}
+
+function InformationRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex gap-3 py-3 first:pt-0 last:pb-0">
+      <i className={`ti ${icon} mt-0.5 text-lg text-[var(--color-primary)]`} aria-hidden="true" />
+      <div className="min-w-0">
+        <dt className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
+          {label}
+        </dt>
+        <dd className="mt-0.5 break-words text-sm font-semibold text-[var(--color-text-primary)]">
+          {value}
+        </dd>
       </div>
     </div>
   );
@@ -1577,8 +1990,8 @@ function Info({
 
 function Notice({ text }: { text: string }) {
   return (
-    <div className="mt-6 rounded-xl border border-[#EEF2F6] dark:border-white/10 bg-slate-50/80 dark:bg-white/5 p-4 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300 flex items-start gap-2.5">
-      <i className="ti ti-info-circle text-base text-[#0B3A53] dark:text-[#C9A227] shrink-0 mt-0.5" />
+    <div className="flex items-start gap-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 text-sm font-semibold text-[var(--color-text-secondary)]">
+      <i className="ti ti-info-circle mt-0.5 shrink-0 text-base text-[var(--color-primary)]" />
       <span>{text}</span>
     </div>
   );

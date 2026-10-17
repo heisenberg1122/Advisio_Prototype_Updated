@@ -5,7 +5,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FacultyProfileUpdateInput } from "@research-management/validations";
 import app from "../app.js";
 import { prisma } from "../lib/prisma.js";
-import { assertIsolatedIntegrationDatabase } from "../test/database-integration.js";
+import {
+  assertIsolatedIntegrationDatabase,
+  cleanupIntegrationFixture,
+  createIntegrationFixtureScope,
+} from "../test/database-integration.js";
 
 const JWT_SECRET =
   process.env.JWT_SECRET ||
@@ -70,6 +74,9 @@ async function closeServer(server: http.Server | undefined): Promise<void> {
 
 databaseDescribe("Faculty Profile End-to-End API Persistence Suite", () => {
   const fixtureSuffix = crypto.randomUUID().slice(0, 8).toUpperCase();
+  const fixtureScope = createIntegrationFixtureScope(
+    `faculty-profile-${fixtureSuffix.toLowerCase()}`,
+  );
   let server: http.Server | undefined;
   let baseUrl = "";
   let fixture: FacultyProfileFixture | undefined;
@@ -78,7 +85,8 @@ databaseDescribe("Faculty Profile End-to-End API Persistence Suite", () => {
   let otherCollegeToken = "";
 
   beforeAll(async () => {
-    assertIsolatedIntegrationDatabase();
+    await assertIsolatedIntegrationDatabase(prisma);
+    fixtureScope.databaseVerified = true;
 
     fixture = await prisma.$transaction(async (tx) => {
       const adviserRole = await tx.role.upsert({
@@ -176,6 +184,9 @@ databaseDescribe("Faculty Profile End-to-End API Persistence Suite", () => {
         collegeIds: [adviserCollege.id, otherCollege.id],
       };
     });
+    fixtureScope.collegeIds.push(...fixture.collegeIds);
+    fixtureScope.programIds.push(...fixture.programIds);
+    fixtureScope.userIds.push(...fixture.userIds);
 
     adviserToken = jwt.sign({ userId: fixture.adviser.id }, JWT_SECRET, {
       expiresIn: "1h",
@@ -216,29 +227,10 @@ databaseDescribe("Faculty Profile End-to-End API Persistence Suite", () => {
       teardownErrors.push(error);
     }
 
-    if (fixture) {
-      try {
-        await prisma.$transaction([
-          prisma.auditLog.deleteMany({
-            where: { userId: { in: fixture.userIds } },
-          }),
-          prisma.facultyProfile.deleteMany({
-            where: { userId: { in: fixture.userIds } },
-          }),
-          prisma.userRole.deleteMany({
-            where: { userId: { in: fixture.userIds } },
-          }),
-          prisma.user.deleteMany({ where: { id: { in: fixture.userIds } } }),
-          prisma.program.deleteMany({
-            where: { id: { in: fixture.programIds } },
-          }),
-          prisma.college.deleteMany({
-            where: { id: { in: fixture.collegeIds } },
-          }),
-        ]);
-      } catch (error) {
-        teardownErrors.push(error);
-      }
+    try {
+      await cleanupIntegrationFixture(prisma, fixtureScope);
+    } catch (error) {
+      teardownErrors.push(error);
     }
 
     try {

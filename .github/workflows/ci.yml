@@ -59,21 +59,24 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: advisio_integration_test
+          POSTGRES_USER: advisio_test
+          POSTGRES_PASSWORD: advisio_test_password
+          POSTGRES_DB: advisio_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d advisio_integration_test"
+          --health-cmd "pg_isready -U advisio_test -d advisio_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
 
     env:
-      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/advisio_integration_test?schema=public"
-      DIRECT_URL: "postgresql://postgres:postgres@127.0.0.1:5432/advisio_integration_test?schema=public"
-      INTEGRATION_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/advisio_integration_test?schema=public"
+      NODE_ENV: "test"
+      RUN_DATABASE_INTEGRATION_TESTS: "1"
+      INTEGRATION_DATABASE_EXPECTED_NAME: "advisio_test"
+      DATABASE_URL: "postgresql://advisio_test:advisio_test_password@127.0.0.1:5432/advisio_test?schema=public&application_name=advisio-integration-tests"
+      DIRECT_URL: "postgresql://advisio_test:advisio_test_password@127.0.0.1:5432/advisio_test?schema=public&application_name=advisio-integration-tests"
+      INTEGRATION_DATABASE_URL: "postgresql://advisio_test:advisio_test_password@127.0.0.1:5432/advisio_test?schema=public&application_name=advisio-integration-tests"
       JWT_SECRET: "ci-secret-jwt-key-for-test-validation"
 
     steps:

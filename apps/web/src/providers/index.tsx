@@ -13,7 +13,9 @@ function UserThemeProvider({ children }: { children: ReactNode }) {
       userId={user?.id}
       college={user?.college}
       program={user?.program}
+      roles={user?.roles}
       appearancePreference={user?.appearancePreference}
+      colorThemePreference={user?.colorThemePreference}
     >
       {children}
     </ThemeProvider>

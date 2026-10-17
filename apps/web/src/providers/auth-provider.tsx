@@ -11,6 +11,7 @@ export interface UserProfile {
   college?: { id: string; name: string; code: string } | null;
   program?: { id: string; name: string; code: string } | null;
   appearancePreference?: "LIGHT" | "DARK" | "SYSTEM";
+  colorThemePreference?: "DEFAULT_ADVISIO" | "COLLEGE_PROGRAM";
   roles: string[];
   permissions: string[];
 }
@@ -50,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("Session expired or invalid, logging out.");
         localStorage.removeItem("advisio_token");
         localStorage.removeItem("advisio_theme:active");
+        localStorage.removeItem("advisio_color-theme:active");
         localStorage.removeItem("advisio_college-theme:active");
         setToken(null);
         setUser(null);
@@ -149,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") {
       localStorage.removeItem("advisio_token");
       localStorage.removeItem("advisio_theme:active");
+      localStorage.removeItem("advisio_color-theme:active");
       localStorage.removeItem("advisio_college-theme:active");
       setToken(null);
       setUser(null);
@@ -238,6 +241,7 @@ export function useAuth(): AuthContextType {
         if (typeof window !== "undefined") {
           localStorage.removeItem("advisio_token");
           localStorage.removeItem("advisio_theme:active");
+          localStorage.removeItem("advisio_color-theme:active");
           localStorage.removeItem("advisio_college-theme:active");
           window.location.href = "/login";
         }

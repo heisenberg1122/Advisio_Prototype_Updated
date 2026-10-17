@@ -36,12 +36,13 @@ import {
   Moon,
   Sun,
   Laptop,
+  Palette,
 } from "lucide-react";
 
 function SystemAdminDashboardContent() {
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab") || "overview";
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, collegeTheme } = useTheme();
   const { user } = useAuth();
 
   // Query live colleges and programs
@@ -394,11 +395,19 @@ function SystemAdminDashboardContent() {
                   </div>
                   <div>
                     <div className="flex items-center gap-3">
-                      <Moon className="h-5 w-5 text-slate-400" />
+                      <Palette className="h-5 w-5 text-slate-400" />
                       <div>
                         <span className="font-bold text-slate-900 dark:text-white block text-sm">Appearance</span>
-                        <span className="text-xs text-slate-400">Saved to your administrator account.</span>
+                        <span className="text-xs text-slate-400">The original Advisio palette and display mode are saved to your administrator account.</span>
                       </div>
+                    </div>
+                    <div className="mt-4 flex items-center gap-3 rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary-light)] p-4 ring-2 ring-[var(--college-focus-ring)]">
+                      <span className="h-11 w-11 shrink-0 rounded-xl border border-black/10 shadow-sm" style={{ backgroundColor: collegeTheme.referenceColor }} aria-hidden="true" />
+                      <div className="min-w-0 flex-1">
+                        <span className="block text-sm font-extrabold text-slate-900 dark:text-white">Default Advisio Theme</span>
+                        <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">System Administrators always use the original University of the Assumption-inspired palette.</span>
+                      </div>
+                      <Check className="h-4 w-4 shrink-0 text-[var(--color-primary)]" aria-label="Active theme" />
                     </div>
                     <div className="mt-4 grid gap-2 sm:grid-cols-3">
                       {([{ id: "light", label: "Light", icon: Sun }, { id: "dark", label: "Dark", icon: Moon }, { id: "system", label: "System", icon: Laptop }] as const).map(({ id, label, icon: Icon }) => (

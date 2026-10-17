@@ -10,7 +10,10 @@
     "start": "node dist/index.js",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:integration": "node scripts/run-database-integration-tests.mjs"
+    "test:integration": "node scripts/run-database-integration-tests.mjs",
+    "audit:integration-fixtures": "node scripts/audit-integration-fixtures.mjs",
+    "cleanup:phase3-fixtures": "node scripts/cleanup-phase3-fixtures.mjs",
+    "cleanup:phase4-fixtures": "node scripts/cleanup-phase3-fixtures.mjs --phase4"
   },
   "dependencies": {
     "@research-management/auth": "*",

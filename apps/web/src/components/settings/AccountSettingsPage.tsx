@@ -24,6 +24,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
+import { COLLEGE_THEMES } from "@/lib/college-themes";
 
 type SettingsTab = "account" | "notifications" | "appearance" | "security";
 type NotificationPreferences = Record<string, boolean>;
@@ -125,7 +126,14 @@ async function prepareProfilePhoto(file: File) {
 export default function AccountSettingsPage() {
   const { user } = useAuth();
   const { profile, updateProfile } = useProfile();
-  const { theme, setTheme, collegeTheme } = useTheme();
+  const {
+    theme,
+    setTheme,
+    collegeTheme,
+    assignedCollegeTheme,
+    colorThemePreference,
+    setColorThemePreference,
+  } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>("account");
   const [savedMessage, setSavedMessage] = useState("");
   const [editingAccount, setEditingAccount] = useState(false);
@@ -136,6 +144,9 @@ export default function AccountSettingsPage() {
   const [photoBusy, setPhotoBusy] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const primaryRole = (user?.roles?.[0] || "RESEARCHER").toUpperCase();
+  const isSystemAdministrator = Boolean(
+    user?.roles?.some((role) => role.toUpperCase() === "SYSTEM_ADMIN"),
+  );
   const settingsRole = preferenceRole(primaryRole);
   const options = ROLE_NOTIFICATIONS[settingsRole] || ROLE_NOTIFICATIONS.RESEARCHER;
   const storageKey = `advisio_account_preferences:${user?.id || "guest"}`;
@@ -326,21 +337,78 @@ export default function AccountSettingsPage() {
 
           {activeTab === "appearance" && (
             <Card>
-              <CardHeader><div><CardTitle icon={Palette}>Appearance</CardTitle><CardDescription>Your verified college identity is automatic. Your appearance preference is saved to your account.</CardDescription></div></CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-3">
-                <div className="sm:col-span-3 flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-                  <span className="h-12 w-12 shrink-0 rounded-xl border border-black/10 shadow-sm" style={{ backgroundColor: collegeTheme.referenceColor }} aria-hidden="true" />
-                  <div className="min-w-0">
-                    <span className="block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Current College / School</span>
-                    <strong className="mt-1 block truncate text-sm text-slate-800 dark:text-white">{user?.college?.name || "University-wide Advisio theme"}</strong>
-                    <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">Assigned theme: {collegeTheme.name}</span>
+              <CardHeader><div><CardTitle icon={Palette}>Appearance</CardTitle><CardDescription>Choose your Advisio color identity and display mode. Preferences are saved to your account.</CardDescription></div></CardHeader>
+              <CardContent className="space-y-6">
+                <section aria-labelledby="color-theme-heading">
+                  <div className="mb-3">
+                    <h3 id="color-theme-heading" className="text-sm font-extrabold text-slate-800 dark:text-white">Color theme</h3>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      {isSystemAdministrator
+                        ? "System Administrators always use the original University of the Assumption-inspired Advisio theme."
+                        : "Use your assigned academic identity or restore the original Advisio palette."}
+                    </p>
                   </div>
-                </div>
-                {([{ id: "light", label: "Light", icon: Sun }, { id: "dark", label: "Dark", icon: Moon }, { id: "system", label: "System", icon: Laptop }] as const).map(({ id, label, icon: Icon }) => (
-                  <button key={id} type="button" onClick={() => setTheme(id)} className={cn("rounded-xl border p-5 text-center transition", theme === id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] ring-2 ring-[var(--college-focus-ring)]" : "border-slate-200 bg-white hover:bg-slate-50 dark:border-white/10 dark:bg-white/5")}>
-                    <Icon className="mx-auto h-6 w-6 text-[var(--color-primary)]" /><strong className="mt-2 block text-sm text-slate-800 dark:text-white">{label}</strong>
-                  </button>
-                ))}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      aria-pressed={colorThemePreference === "DEFAULT_ADVISIO"}
+                      onClick={() => setColorThemePreference("DEFAULT_ADVISIO")}
+                      className={cn(
+                        "relative flex min-h-28 items-start gap-4 rounded-xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] focus-visible:ring-offset-2",
+                        colorThemePreference === "DEFAULT_ADVISIO"
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] ring-2 ring-[var(--college-focus-ring)]"
+                          : "border-slate-200 bg-white hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10",
+                      )}
+                    >
+                      <span className="h-12 w-12 shrink-0 rounded-xl border border-black/10 shadow-sm" style={{ backgroundColor: COLLEGE_THEMES.default.referenceColor }} aria-hidden="true" />
+                      <span className="min-w-0 pr-6">
+                        <strong className="block text-sm text-slate-800 dark:text-white">Default Advisio Theme</strong>
+                        <span className="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">Original University of the Assumption-inspired palette.</span>
+                      </span>
+                      {colorThemePreference === "DEFAULT_ADVISIO" && <Check className="absolute right-3 top-3 h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />}
+                    </button>
+
+                    <button
+                      type="button"
+                      aria-pressed={colorThemePreference === "COLLEGE_PROGRAM"}
+                      disabled={isSystemAdministrator || assignedCollegeTheme.key === "default"}
+                      onClick={() => setColorThemePreference("COLLEGE_PROGRAM")}
+                      className={cn(
+                        "relative flex min-h-28 items-start gap-4 rounded-xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-55",
+                        colorThemePreference === "COLLEGE_PROGRAM"
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] ring-2 ring-[var(--college-focus-ring)]"
+                          : "border-slate-200 bg-white hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10",
+                      )}
+                    >
+                      <span className="h-12 w-12 shrink-0 rounded-xl border border-black/10 shadow-sm" style={{ backgroundColor: assignedCollegeTheme.referenceColor }} aria-hidden="true" />
+                      <span className="min-w-0 pr-6">
+                        <strong className="block text-sm text-slate-800 dark:text-white">College / Program Theme</strong>
+                        <span className="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">
+                          {assignedCollegeTheme.key === "default" ? "No college or program theme is assigned." : assignedCollegeTheme.name}
+                        </span>
+                      </span>
+                      {colorThemePreference === "COLLEGE_PROGRAM" && <Check className="absolute right-3 top-3 h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />}
+                    </button>
+                  </div>
+                  <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+                    <span className="h-8 w-8 shrink-0 rounded-lg border border-black/10" style={{ backgroundColor: collegeTheme.referenceColor }} aria-hidden="true" />
+                    <p className="min-w-0 text-xs text-slate-500 dark:text-slate-400">Currently using <strong className="text-slate-800 dark:text-white">{collegeTheme.name}</strong>.</p>
+                  </div>
+                </section>
+
+                <section aria-labelledby="display-mode-heading">
+                  <div className="mb-3">
+                    <h3 id="display-mode-heading" className="text-sm font-extrabold text-slate-800 dark:text-white">Display mode</h3>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Choose Light, Dark, or follow your device setting.</p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {([{ id: "light", label: "Light", icon: Sun }, { id: "dark", label: "Dark", icon: Moon }, { id: "system", label: "System", icon: Laptop }] as const).map(({ id, label, icon: Icon }) => (
+                      <button key={id} type="button" aria-pressed={theme === id} onClick={() => setTheme(id)} className={cn("rounded-xl border p-5 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] focus-visible:ring-offset-2", theme === id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] ring-2 ring-[var(--college-focus-ring)]" : "border-slate-200 bg-white hover:bg-slate-50 dark:border-white/10 dark:bg-white/5")}>
+                        <Icon className="mx-auto h-6 w-6 text-[var(--color-primary)]" /><strong className="mt-2 block text-sm text-slate-800 dark:text-white">{label}</strong>
+                      </button>
+                    ))}
+                  </div>
+                </section>
               </CardContent>
             </Card>
           )}
