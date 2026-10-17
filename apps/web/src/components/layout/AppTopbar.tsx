@@ -15,11 +15,11 @@ import {
   X,
   ArrowRight,
   Check,
-  Calendar,
+  CalendarClock,
+  CalendarDays,
   FileText,
   LayoutDashboard,
   MessageSquare,
-  Clock,
   ShieldCheck,
 } from "lucide-react";
 import { NotificationPopover } from "@/components/notifications/NotificationPopover";
@@ -134,8 +134,8 @@ export function AppTopbar({
     tasks: Check,
     documents: FileText,
     reviews: ShieldCheck,
-    consultations: Calendar,
-    calendar: Clock,
+    consultations: CalendarClock,
+    calendar: CalendarDays,
     messages: MessageSquare,
     signatures: ShieldCheck,
   };

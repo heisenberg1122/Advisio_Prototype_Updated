@@ -72,6 +72,14 @@ router.get(
               role: true,
             },
           },
+          facultyProfile: {
+            select: {
+              academicTitle: true,
+              facultyDesignation: true,
+              department: true,
+              expertiseKeywords: true,
+            },
+          },
           createdAt: true,
           lastLoginAt: true,
           _count: {

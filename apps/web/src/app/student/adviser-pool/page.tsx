@@ -9,6 +9,7 @@ import { apiClient } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
 import { CardsPageSkeleton } from "@/components/ui/Skeleton";
+import { AdviserProfileModal } from "@/components/profile/AdviserProfileModal";
 
 type RequestMethod = "details" | "pdf";
 
@@ -18,6 +19,7 @@ export default function AdviserPoolPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [selectedAdviser, setSelectedAdviser] = useState<any | null>(null);
+  const [profileModalAdviser, setProfileModalAdviser] = useState<any | null>(null);
   const [requestMethod, setRequestMethod] = useState<RequestMethod>("details");
   const [requestNote, setRequestNote] = useState("");
   const [requestPdf, setRequestPdf] = useState<File | null>(null);
@@ -128,14 +130,38 @@ export default function AdviserPoolPage() {
         <section className="rounded-2xl border border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/70 dark:bg-emerald-950/20 p-5 shadow-xs">
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">Assigned adviser</p>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setProfileModalAdviser(assigned)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setProfileModalAdviser(assigned);
+                }
+              }}
+              className="flex items-center gap-3.5 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-xl p-1 -m-1 transition"
+              aria-label={`View academic profile for ${assigned.name}`}
+            >
               <Avatar initials={assigned.initials} colorVariant="info" size="lg" />
               <div>
-                <p className="font-extrabold text-[#17212B] dark:text-white text-base">{assigned.name}</p>
+                <p className="font-extrabold text-[#17212B] dark:text-white text-base group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition flex items-center gap-1.5">
+                  {assigned.name}
+                  <span className="text-xs font-normal text-slate-400 opacity-0 group-hover:opacity-100 transition">(View CV)</span>
+                </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{assigned.college} · {assigned.email}</p>
               </div>
             </div>
-            <Tag variant="success">Assigned</Tag>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setProfileModalAdviser(assigned)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 transition cursor-pointer"
+              >
+                <i className="ti ti-id" /> View Profile
+              </button>
+              <Tag variant="success">Assigned</Tag>
+            </div>
           </div>
         </section>
       )}
@@ -162,11 +188,25 @@ export default function AdviserPoolPage() {
               }`}
             >
               <div>
-                <div className="flex items-start gap-3.5">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setProfileModalAdviser(adviser)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setProfileModalAdviser(adviser);
+                    }
+                  }}
+                  className="flex items-start gap-3.5 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-[#0B3A53] dark:focus:ring-[#FFA400] rounded-xl p-1 -m-1 transition"
+                  aria-label={`View academic profile for ${adviser.name}`}
+                >
                   <Avatar initials={adviser.initials} colorVariant={adviser.colorVariant ?? "info"} size="lg" />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-extrabold text-[#17212B] dark:text-white">{adviser.name}</h3>
+                      <h3 className="font-extrabold text-[#17212B] dark:text-white group-hover:text-[#0B3A53] dark:group-hover:text-[#FFA400] transition">
+                        {adviser.name}
+                      </h3>
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-400">
                         <i className="ti ti-rosette-discount-check" /> Verified
                       </span>
@@ -176,10 +216,35 @@ export default function AdviserPoolPage() {
                         </span>
                       )}
                     </div>
+                    {adviser.facultyProfile?.facultyDesignation ? (
+                      <p className="mt-0.5 text-xs font-semibold text-[#C9A227]">
+                        {adviser.facultyProfile.facultyDesignation}
+                      </p>
+                    ) : null}
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{adviser.college}</p>
                     <p className="mt-0.5 truncate text-xs text-slate-400 dark:text-slate-500">{adviser.email}</p>
                   </div>
                 </div>
+
+                {/* Direct expertise keywords preview */}
+                {Array.isArray(adviser.facultyProfile?.expertiseKeywords) &&
+                  adviser.facultyProfile.expertiseKeywords.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {adviser.facultyProfile.expertiseKeywords.slice(0, 3).map((keyword: string, idx: number) => (
+                        <span
+                          key={idx}
+                          className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/10"
+                        >
+                          {keyword}
+                        </span>
+                      ))}
+                      {adviser.facultyProfile.expertiseKeywords.length > 3 && (
+                        <span className="text-[10px] font-medium text-slate-400 self-center">
+                          +{adviser.facultyProfile.expertiseKeywords.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                 <div className="mt-5 rounded-xl bg-slate-50/70 dark:bg-white/5 p-3.5 border border-[#EEF2F6] dark:border-white/5">
                   <div className="mb-2 flex items-center justify-between text-xs">
@@ -206,7 +271,20 @@ export default function AdviserPoolPage() {
                 </div>
               </div>
 
-              <div className="mt-5 flex items-center justify-end border-t border-[#EEF2F6] dark:border-white/10 pt-4">
+              <div className="mt-5 flex items-center justify-between border-t border-[#EEF2F6] dark:border-white/10 pt-4">
+                <button
+                  type="button"
+                  id={`view-profile-${adviser.id}`}
+                  data-testid={`view-profile-${adviser.id}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setProfileModalAdviser(adviser);
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0B3A53] dark:text-[#C9A227] hover:underline cursor-pointer focus:outline-none"
+                >
+                  <i className="ti ti-id" /> View Profile
+                </button>
+
                 {!adviser.isAcceptingAdvisees ? (
                   <Tag variant="neutral">Requests paused</Tag>
                 ) : adviser.isFull ? (
@@ -219,7 +297,12 @@ export default function AdviserPoolPage() {
                   <Tag variant="neutral">Another request is pending</Tag>
                 ) : (
                   <button
-                    onClick={() => openRequest(adviser)}
+                    id={`request-adviser-${adviser.id}`}
+                    data-testid={`request-adviser-${adviser.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openRequest(adviser);
+                    }}
                     disabled={!project || Boolean(assigned)}
                     className="inline-flex h-10 items-center justify-center rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white px-5 text-xs font-bold shadow-xs transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                   >
@@ -361,6 +444,25 @@ export default function AdviserPoolPage() {
           </div>
         </div>
       )}
+
+      <AdviserProfileModal
+        adviser={profileModalAdviser}
+        isOpen={Boolean(profileModalAdviser)}
+        onClose={() => setProfileModalAdviser(null)}
+        onRequestAdviser={(adv) => {
+          setProfileModalAdviser(null);
+          openRequest(adv);
+        }}
+        canRequest={
+          Boolean(project) &&
+          !assigned &&
+          !pendingRequest &&
+          !profileModalAdviser?.isFull &&
+          Boolean(profileModalAdviser?.isAcceptingAdvisees) &&
+          profileModalAdviser?.requestStatus !== "PENDING" &&
+          profileModalAdviser?.requestStatus !== "ACCEPTED"
+        }
+      />
     </div>
   );
 }

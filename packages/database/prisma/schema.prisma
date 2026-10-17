@@ -537,6 +537,7 @@ model User {
   defenseEventsCreated      DefenseEvent[]             @relation("DefenseEventCreator")
   defenseInvitations        DefenseInvitation[]
   researcherProfile         ResearcherProfile?
+  facultyProfile            FacultyProfile?
   calendarEventsCreated     CalendarEvent[]            @relation("CalendarEventCreator")
   calendarEventInvitations  CalendarEventParticipant[]
   groupFoldersCreated       GroupFolder[]              @relation("GroupFolderCreator")
@@ -593,6 +594,36 @@ model ResearcherProfile {
   @@index([academicYearId])
   @@index([status])
   @@map("researcher_profiles")
+}
+
+model FacultyProfile {
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                   String   @unique @map("user_id") @db.Uuid
+  academicTitle            String?  @map("academic_title") @db.VarChar(100)
+  facultyDesignation       String?  @map("faculty_designation") @db.VarChar(150)
+  department               String?  @db.VarChar(150)
+  photoUrl                 String?  @map("photo_url") @db.Text
+  biography                String?  @db.Text
+  teachingBackground       String?  @map("teaching_background") @db.Text
+  mentoringPhilosophy      String?  @map("mentoring_philosophy") @db.Text
+  preferredProjectTypes    String?  @map("preferred_project_types") @db.Text
+  expertiseKeywords        String[] @default([]) @map("expertise_keywords")
+  researchInterests        String[] @default([]) @map("research_interests")
+  specializedTopics        String[] @default([]) @map("specialized_topics")
+  supervisionMethodologies String[] @default([]) @map("supervision_methodologies")
+  acceptedResearchTypes    String[] @default([]) @map("accepted_research_types")
+  advisingPreferences      String?  @map("advising_preferences") @db.Text
+  educations               Json     @default("[]")
+  certifications           Json     @default("[]")
+  experiences              Json     @default("[]")
+  publications             Json     @default("[]")
+  awards                   Json     @default("[]")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@map("faculty_profiles")
 }
 
 model Role {

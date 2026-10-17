@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { ProfileCard } from "@/components/profile/ProfileCard";
+import { AdviserFacultyProfileView } from "@/components/profile/AdviserFacultyProfileView";
 import { ProfileSkeleton } from "@/components/ui/Skeleton";
 
 function AdviserProfilePageContent() {
@@ -26,7 +26,7 @@ function AdviserProfilePageContent() {
         </div>
       )}
 
-      <ProfileCard />
+      <AdviserFacultyProfileView />
     </div>
   );
 }

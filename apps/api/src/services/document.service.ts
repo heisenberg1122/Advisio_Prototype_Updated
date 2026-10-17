@@ -3,6 +3,8 @@ import { googleDriveService } from "./google-drive.service.js";
 import { supabaseStorageService } from "./supabase-storage.service.js";
 import { storageHierarchyService } from "./storage-hierarchy.service.js";
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 export interface CreateDocumentPayload {
   researchId: string;
@@ -25,9 +27,84 @@ export interface CreateVersionPayload {
 }
 
 class DocumentService {
+  public async readStoredVersionFile(options: {
+    storageProvider: string;
+    storagePath: string;
+    googleDriveFileId?: string | null;
+    expectedSize?: bigint | number | null;
+  }) {
+    const maxBytes = 50 * 1024 * 1024;
+    const expectedSize = Number(options.expectedSize || 0);
+    if (expectedSize > maxBytes)
+      throw new Error("The stored file exceeds the 50 MB snapshot limit.");
+
+    let buffer: Buffer;
+    let sourceModifiedAt: Date | null = null;
+    if (options.storageProvider === "SUPABASE") {
+      buffer = await supabaseStorageService.downloadStoredFile(
+        options.storagePath,
+      );
+    } else if (options.storageProvider === "GOOGLE_DRIVE") {
+      const fileId = options.googleDriveFileId;
+      if (!fileId)
+        throw new Error("The stored Google Drive file identifier is missing.");
+      if (fileId.startsWith("gdrive-")) {
+        const uploadDir = path.resolve(process.cwd(), "uploads");
+        const diskName = fs.existsSync(uploadDir)
+          ? fs
+              .readdirSync(uploadDir)
+              .find((name) => name.startsWith(`${fileId}-`))
+          : undefined;
+        if (!diskName)
+          throw new Error("The locally stored source file is unavailable.");
+        const target = path.resolve(uploadDir, diskName);
+        if (!target.startsWith(`${uploadDir}${path.sep}`))
+          throw new Error("The locally stored source file path is invalid.");
+        buffer = fs.readFileSync(target);
+      } else {
+        const metadata = await googleDriveService.getFileMetadata(fileId);
+        if (!metadata)
+          throw new Error(
+            "Google Drive is not connected or the source file is unavailable.",
+          );
+        sourceModifiedAt = metadata.modifiedTime
+          ? new Date(metadata.modifiedTime)
+          : null;
+        const response = await googleDriveService.getFileStream(fileId);
+        const chunks: Buffer[] = [];
+        let size = 0;
+        for await (const chunk of response.data as AsyncIterable<
+          Buffer | Uint8Array | string
+        >) {
+          const next = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+          size += next.length;
+          if (size > maxBytes)
+            throw new Error(
+              "The stored file exceeds the 50 MB snapshot limit.",
+            );
+          chunks.push(next);
+        }
+        buffer = Buffer.concat(chunks);
+      }
+    } else {
+      throw new Error(
+        `Stored ${options.storageProvider} files cannot be snapshotted safely.`,
+      );
+    }
+    if (buffer.length > maxBytes)
+      throw new Error("The stored file exceeds the 50 MB snapshot limit.");
+    if (expectedSize && buffer.length !== expectedSize)
+      throw new Error(
+        "The stored file changed size before it could be submitted.",
+      );
+    return { buffer, sourceModifiedAt };
+  }
+
   public async storeDocumentFile(payload: CreateDocumentPayload) {
     let storageResult: any = null;
-    let provider = (process.env.STORAGE_PROVIDER || "GOOGLE_DRIVE").toUpperCase();
+    let provider = (
+      process.env.STORAGE_PROVIDER || "GOOGLE_DRIVE"
+    ).toUpperCase();
 
     if (provider === "SUPABASE" && supabaseStorageService.isConfigured()) {
       storageResult = await supabaseStorageService.uploadFile({
@@ -71,12 +148,17 @@ class DocumentService {
                 ? "SUBMITTED"
                 : "WORKING",
           ...(taskId ? { advisioTaskId: taskId } : {}),
-          advisioChecksum: crypto.createHash("sha256").update(payload.fileBuffer).digest("hex"),
+          advisioChecksum: crypto
+            .createHash("sha256")
+            .update(payload.fileBuffer)
+            .digest("hex"),
         },
       });
     }
     if (!storageResult) {
-      throw new Error(`The configured storage provider (${provider}) is unavailable.`);
+      throw new Error(
+        `The configured storage provider (${provider}) is unavailable.`,
+      );
     }
     return { provider, storageResult };
   }
@@ -87,10 +169,15 @@ class DocumentService {
         return await googleDriveService.deleteStoredFile(storageResult.fileId);
       }
       if (provider === "SUPABASE") {
-        return await supabaseStorageService.deleteStoredFile(storageResult.storagePath);
+        return await supabaseStorageService.deleteStoredFile(
+          storageResult.storagePath,
+        );
       }
     } catch (error) {
-      console.error("Unable to clean up an uncommitted document upload:", error);
+      console.error(
+        "Unable to clean up an uncommitted document upload:",
+        error,
+      );
     }
     return false;
   }
@@ -104,59 +191,59 @@ class DocumentService {
     // 2. Transactionally save Document and DocumentVersion in Prisma PostgreSQL
     try {
       return await prisma.$transaction(async (tx) => {
-      const doc = await tx.document.create({
-        data: {
-          researchId: payload.researchId,
-          milestoneId: payload.milestoneId || null,
-          title: payload.title,
-          documentType: payload.documentType,
-          currentVersion: 1,
-          storageProvider: provider,
-          externalFileId: storageResult.fileId,
-          createdBy: payload.uploadedBy,
-        },
-      });
-
-      const version = await tx.documentVersion.create({
-        data: {
-          documentId: doc.id,
-          milestoneId: payload.milestoneId || null,
-          versionNumber: 1,
-          fileName: storageResult.fileName,
-          mimeType: storageResult.mimeType,
-          fileSize: BigInt(storageResult.sizeBytes),
-          storagePath: storageResult.webViewLink || storageResult.storagePath,
-          googleDriveFileId:
-            provider === "GOOGLE_DRIVE" ? storageResult.fileId : null,
-          uploadedBy: payload.uploadedBy,
-          status: "ACTIVE",
-        },
-      });
-
-      await tx.auditLog.create({
-        data: {
-          userId: payload.uploadedBy,
-          action: "CREATE",
-          entityType: "DocumentVersion",
-          entityId: version.id,
-          newValues: {
-            documentId: doc.id,
+        const doc = await tx.document.create({
+          data: {
             researchId: payload.researchId,
-            versionNumber: 1,
-            fileName: version.fileName,
+            milestoneId: payload.milestoneId || null,
+            title: payload.title,
+            documentType: payload.documentType,
+            currentVersion: 1,
+            storageProvider: provider,
+            externalFileId: storageResult.fileId,
+            createdBy: payload.uploadedBy,
           },
-        },
-      });
+        });
 
-      return {
-        document: doc,
-        version: {
-          ...version,
-          fileSize: Number(version.fileSize),
-          webViewLink: storageResult.webViewLink,
-          webContentLink: storageResult.webContentLink,
-        },
-      };
+        const version = await tx.documentVersion.create({
+          data: {
+            documentId: doc.id,
+            milestoneId: payload.milestoneId || null,
+            versionNumber: 1,
+            fileName: storageResult.fileName,
+            mimeType: storageResult.mimeType,
+            fileSize: BigInt(storageResult.sizeBytes),
+            storagePath: storageResult.webViewLink || storageResult.storagePath,
+            googleDriveFileId:
+              provider === "GOOGLE_DRIVE" ? storageResult.fileId : null,
+            uploadedBy: payload.uploadedBy,
+            status: "ACTIVE",
+          },
+        });
+
+        await tx.auditLog.create({
+          data: {
+            userId: payload.uploadedBy,
+            action: "CREATE",
+            entityType: "DocumentVersion",
+            entityId: version.id,
+            newValues: {
+              documentId: doc.id,
+              researchId: payload.researchId,
+              versionNumber: 1,
+              fileName: version.fileName,
+            },
+          },
+        });
+
+        return {
+          document: doc,
+          version: {
+            ...version,
+            fileSize: Number(version.fileSize),
+            webViewLink: storageResult.webViewLink,
+            webContentLink: storageResult.webContentLink,
+          },
+        };
       });
     } catch (error) {
       await this.cleanupStoredFile(provider, storageResult);

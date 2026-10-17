@@ -423,12 +423,14 @@ function SystemAdminDashboardContent() {
                 actions={
                   <>
                     <button
+                      type="button"
                       onClick={() => handleTabChange("onboarding")}
-                      className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#C9A227] px-4 text-xs font-black text-[#0B3A53] shadow-xs transition hover:brightness-105 sm:flex-none"
+                      className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 text-xs font-black text-[var(--college-on-primary)] shadow-xs transition hover:border-[var(--color-primary-dark)] hover:bg-[var(--color-primary-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] focus-visible:ring-offset-2 dark:text-[var(--college-on-primary-dark)] sm:flex-none"
                     >
                       <Plus className="h-4 w-4" /> Onboard College
                     </button>
                     <button
+                      type="button"
                       onClick={() => handleTabChange("onboarding")}
                       className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-xs font-bold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20 sm:flex-none"
                     >

@@ -33,6 +33,7 @@ import {
   getManuscriptActivity,
   getMilestoneProgress,
 } from "../services/research-workflow-integration.service.js";
+import { SubmissionIntegrityError } from "../services/submission.service.js";
 
 const router = Router();
 const upload = multer({
@@ -1254,7 +1255,10 @@ router.post(
         lifecycleStatus: result.lifecycleStatus,
       });
     } catch (error: any) {
-      if (error instanceof ManuscriptWorkflowError) {
+      if (
+        error instanceof ManuscriptWorkflowError ||
+        error instanceof SubmissionIntegrityError
+      ) {
         return void res
           .status(error.statusCode)
           .json({ error: error.message, code: error.code });

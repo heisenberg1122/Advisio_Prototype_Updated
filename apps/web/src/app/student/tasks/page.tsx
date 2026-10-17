@@ -1,20 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { StatCard } from "@/components/ui/StatCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TablePageSkeleton } from "@/components/ui/Skeleton";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useActiveProject, useActiveProjectContext } from "@/providers/active-project-provider";
+import {
+  useActiveProject,
+  useActiveProjectContext,
+} from "@/providers/active-project-provider";
+import {
+  allowedUploadExtensions,
+  buildDocumentSubmissionRequest,
+  directUploadFileTypes,
+  resolveStableSubmissionKey,
+  submissionOptionKey,
+  submissionOptionSummary,
+  type StableSubmissionKey,
+  type TaskSubmissionOption,
+  type TaskSubmissionOptionsResponse,
+  uploadFileCompatibility,
+  uploadSubmissionSummary,
+} from "@/lib/task-submission";
 
 const memberName = (member: any) =>
   `${member?.user?.firstName || ""} ${member?.user?.lastName || ""}`.trim();
 const userName = (user: any) =>
   `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Group member";
+const EMPTY_SUBMISSION_OPTIONS: TaskSubmissionOption[] = [];
 
 export default function ResearchTasksPage() {
   const queryClient = useQueryClient();
@@ -27,10 +46,13 @@ export default function ResearchTasksPage() {
   const [submissionKey, setSubmissionKey] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const submissionInFlightRef = useRef(false);
   const [starting, setStarting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [workflowCode, setWorkflowCode] = useState("");
-  const [activeSection, setActiveSection] = useState<"requirements" | "resources">("requirements");
+  const [activeSection, setActiveSection] = useState<
+    "requirements" | "resources"
+  >("requirements");
 
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: ["student", "workflow-tasks", sharedProjectId],
@@ -119,12 +141,16 @@ export default function ResearchTasksPage() {
   });
   const projectSelection = useActiveProject(data?.projects || []);
 
-  const workflowId = data?.project?.workflowInstance?.workflow?.id
-    || data?.project?.workflowInstance?.workflowId
-    || data?.enrollments?.[0]?.workflowId;
+  const workflowId =
+    data?.project?.workflowInstance?.workflow?.id ||
+    data?.project?.workflowInstance?.workflowId ||
+    data?.enrollments?.[0]?.workflowId;
   const { data: workflowResources } = useQuery({
     queryKey: ["workflow-resources", workflowId],
-    queryFn: () => apiClient.get<{ resources: any[]; canManage: boolean }>(`/api/workflows/${workflowId}/resources`),
+    queryFn: () =>
+      apiClient.get<{ resources: any[]; canManage: boolean }>(
+        `/api/workflows/${workflowId}/resources`,
+      ),
     enabled: Boolean(workflowId),
     staleTime: 30_000,
   });
@@ -145,17 +171,48 @@ export default function ResearchTasksPage() {
     setMessage(null);
   };
 
-  const submitRequirement = async () => {
+  const selectSubmissionFile = (nextFile: File | null) => {
+    const currentFingerprint = file
+      ? `${file.name}:${file.size}:${file.lastModified}`
+      : null;
+    const nextFingerprint = nextFile
+      ? `${nextFile.name}:${nextFile.size}:${nextFile.lastModified}`
+      : null;
+    if (currentFingerprint !== nextFingerprint) {
+      setSubmissionKey(crypto.randomUUID());
+    }
+    setFile(nextFile);
+  };
+
+  const finishSubmission = async (successMessage: string) => {
+    await queryClient.invalidateQueries({
+      queryKey: ["student", "workflow-tasks"],
+    });
+    await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    setSelectedTask(null);
+    setFile(null);
+    setNote("");
+    setMessage(successMessage);
+  };
+
+  const submitUploadedRequirement = async () => {
     if (!selectedTask || !data?.project || !file || selectedTask.milestoneOnly)
-      return;
+      throw new Error("Choose a file before submitting.");
     const allowed = String(selectedTask.allowedFileTypes || "PDF,DOCX")
       .split(",")
       .map((type: string) => type.trim().toLowerCase());
     const extension = file.name.split(".").pop()?.toLowerCase() || "";
     if (!allowed.includes(extension))
-      return void setMessage(
-        `Upload one of the allowed formats: ${selectedTask.allowedFileTypes}.`,
+      throw new Error(
+        `Choose one of the allowed formats: ${selectedTask.allowedFileTypes}.`,
       );
+    if (!submissionKey)
+      throw new Error(
+        "The submission session expired. Close and reopen the task.",
+      );
+    if (submissionInFlightRef.current)
+      throw new Error("This submission is already being processed.");
+    submissionInFlightRef.current = true;
     setSubmitting(true);
     setMessage(null);
     try {
@@ -169,17 +226,46 @@ export default function ResearchTasksPage() {
         `/api/workflows/tasks/${selectedTask.id}/submissions/upload`,
         formData,
       );
-      await queryClient.invalidateQueries({
-        queryKey: ["student", "workflow-tasks"],
-      });
-      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      setSelectedTask(null);
-      setFile(null);
-      setNote("");
-      setMessage("Requirement submitted for the entire group.");
+      await finishSubmission("Requirement submitted for the entire group.");
     } catch (error: any) {
       setMessage(error?.message || "Unable to submit this requirement.");
+      throw error;
     } finally {
+      submissionInFlightRef.current = false;
+      setSubmitting(false);
+    }
+  };
+
+  const submitDocumentRequirement = async (
+    option: TaskSubmissionOption,
+    idempotencyKey: string,
+  ) => {
+    if (!selectedTask || !data?.project || selectedTask.milestoneOnly)
+      throw new Error("The task submission context is unavailable.");
+    if (submissionInFlightRef.current)
+      throw new Error("This submission is already being processed.");
+    const request = buildDocumentSubmissionRequest(option, {
+      taskId: selectedTask.id,
+      researchId: data.project.id,
+      milestoneId: selectedTask.stage.id,
+      idempotencyKey,
+      note: note.trim() || undefined,
+    });
+    submissionInFlightRef.current = true;
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      await apiClient.post(request.endpoint, request.body);
+      await finishSubmission(
+        option.kind === "GOOGLE_DOC_PDF_SNAPSHOT"
+          ? "Google document frozen and submitted for faculty review."
+          : "Exact document version submitted for faculty review.",
+      );
+    } catch (error: any) {
+      setMessage(error?.message || "Unable to submit this document.");
+      throw error;
+    } finally {
+      submissionInFlightRef.current = false;
       setSubmitting(false);
     }
   };
@@ -225,13 +311,17 @@ export default function ResearchTasksPage() {
   };
 
   const openSubmissionVersion = async (version: any) => {
-    if (!version?.googleDriveFileId) return void setMessage("The stored signed PDF is unavailable.");
+    if (!version?.googleDriveFileId)
+      return void setMessage("The stored signed PDF is unavailable.");
     try {
       const token = localStorage.getItem("advisio_token");
       const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
-      const response = await fetch(`${apiBase}/api/documents/files/${version.googleDriveFileId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
+      const response = await fetch(
+        `${apiBase}/api/documents/files/${version.googleDriveFileId}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        },
+      );
       if (!response.ok) throw new Error("Unable to open the signed PDF.");
       const url = URL.createObjectURL(await response.blob());
       window.open(url, "_blank", "noopener,noreferrer");
@@ -241,8 +331,7 @@ export default function ResearchTasksPage() {
     }
   };
 
-  if (isPending)
-    return <TablePageSkeleton />;
+  if (isPending) return <TablePageSkeleton />;
   if (isError)
     return (
       <div className="m-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
@@ -289,14 +378,23 @@ export default function ResearchTasksPage() {
       {acceptedWorkflowName && (
         <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
           <i className="ti ti-circle-check mt-0.5 text-lg" />
-          <div><strong className="block">Workflow invitation accepted</strong><span>You joined {acceptedWorkflowName}. Its milestones are now available in Tasks & Requirements.</span></div>
+          <div>
+            <strong className="block">Workflow invitation accepted</strong>
+            <span>
+              You joined {acceptedWorkflowName}. Its milestones are now
+              available in Tasks & Requirements.
+            </span>
+          </div>
         </div>
       )}
 
       {invitationDeclined && (
         <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
           <i className="ti ti-info-circle mt-0.5 text-lg" />
-          <span>The workflow invitation was not accepted. You can use the invitation link again while it remains valid.</span>
+          <span>
+            The workflow invitation was not accepted. You can use the invitation
+            link again while it remains valid.
+          </span>
         </div>
       )}
 
@@ -339,10 +437,14 @@ export default function ResearchTasksPage() {
         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">Active workflow</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+                Active workflow
+              </p>
               {activeEnrollment ? (
                 <>
-                  <h2 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">{activeEnrollment.workflow.name}</h2>
+                  <h2 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">
+                    {activeEnrollment.workflow.name}
+                  </h2>
                   <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     {activeEnrollment.workflow.creator
                       ? `Professor: ${`${activeEnrollment.workflow.creator.firstName || ""} ${activeEnrollment.workflow.creator.lastName || ""}`.trim() || activeEnrollment.workflow.creator.email}`
@@ -350,173 +452,278 @@ export default function ResearchTasksPage() {
                   </p>
                 </>
               ) : (
-                <><h2 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">No workflow joined yet</h2><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Use the code or invitation link provided by your professor.</p></>
+                <>
+                  <h2 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">
+                    No workflow joined yet
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Use the code or invitation link provided by your professor.
+                  </p>
+                </>
               )}
             </div>
-            <Tag variant={activeEnrollment ? "success" : "info"}>{activeEnrollment ? "Active" : "Not joined"}</Tag>
+            <Tag variant={activeEnrollment ? "success" : "info"}>
+              {activeEnrollment ? "Active" : "Not joined"}
+            </Tag>
           </div>
           {activeEnrollment && (
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <Info icon="ti-list-check" label="Milestones" value={`${activeEnrollment.workflow.stages?.length || 0} stages`} />
-              <Info icon="ti-calendar-check" label="Joined" value={new Date(activeEnrollment.joinedAt).toLocaleDateString()} />
-              <Info icon="ti-progress" label="Current status" value={project?.workflowInstance?.currentStage?.name || "Awaiting project registration"} />
+              <Info
+                icon="ti-list-check"
+                label="Milestones"
+                value={`${activeEnrollment.workflow.stages?.length || 0} stages`}
+              />
+              <Info
+                icon="ti-calendar-check"
+                label="Joined"
+                value={new Date(activeEnrollment.joinedAt).toLocaleDateString()}
+              />
+              <Info
+                icon="ti-progress"
+                label="Current status"
+                value={
+                  project?.workflowInstance?.currentStage?.name ||
+                  "Awaiting project registration"
+                }
+              />
             </div>
           )}
-          {enrollments.length > 1 && <p className="mt-4 text-xs font-semibold text-slate-500">You have joined {enrollments.length} workflows. The workflow linked to your current project is shown first.</p>}
+          {enrollments.length > 1 && (
+            <p className="mt-4 text-xs font-semibold text-slate-500">
+              You have joined {enrollments.length} workflows. The workflow
+              linked to your current project is shown first.
+            </p>
+          )}
         </div>
 
         <form
           onSubmit={(event) => {
             event.preventDefault();
             const code = workflowCode.trim().toUpperCase();
-            if (code) navigate(`/student/workflows/join/${encodeURIComponent(code)}`);
+            if (code)
+              navigate(`/student/workflows/join/${encodeURIComponent(code)}`);
           }}
           className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6"
         >
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">Join a workflow</p>
-          <h2 className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">Enter professor invitation code</h2>
-          <p className="mt-1 text-xs leading-5 text-slate-500">You will review the invitation before deciding to accept or reject it.</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+            Join a workflow
+          </p>
+          <h2 className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
+            Enter professor invitation code
+          </h2>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            You will review the invitation before deciding to accept or reject
+            it.
+          </p>
           <div className="mt-4 flex gap-2">
-            <input value={workflowCode} onChange={(event) => setWorkflowCode(event.target.value.toUpperCase())} maxLength={32} placeholder="Invitation code" className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 font-mono text-sm font-bold uppercase text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]" />
-            <button type="submit" disabled={!workflowCode.trim()} className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Review</button>
+            <input
+              value={workflowCode}
+              onChange={(event) =>
+                setWorkflowCode(event.target.value.toUpperCase())
+              }
+              maxLength={32}
+              placeholder="Invitation code"
+              className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 font-mono text-sm font-bold uppercase text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
+            />
+            <button
+              type="submit"
+              disabled={!workflowCode.trim()}
+              className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              Review
+            </button>
           </div>
         </form>
       </section>
 
-      <nav role="tablist" aria-label="Tasks and workflow resources" className="flex w-full gap-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-1.5 sm:w-fit">
-        <button type="button" role="tab" aria-selected={activeSection === "requirements"} onClick={() => setActiveSection("requirements")} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition sm:flex-none ${activeSection === "requirements" ? "bg-[var(--color-surface)] text-[var(--color-primary)] font-semibold shadow-xs" : "text-slate-500 hover:text-[#0B3A53] dark:text-slate-400 dark:hover:text-white"}`}>
+      <nav
+        role="tablist"
+        aria-label="Tasks and workflow resources"
+        className="flex w-full gap-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-1.5 sm:w-fit"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeSection === "requirements"}
+          onClick={() => setActiveSection("requirements")}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition sm:flex-none ${activeSection === "requirements" ? "bg-[var(--color-surface)] text-[var(--color-primary)] font-semibold shadow-xs" : "text-slate-500 hover:text-[#0B3A53] dark:text-slate-400 dark:hover:text-white"}`}
+        >
           <i className="ti ti-checklist" /> Requirements
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] dark:bg-white/10">{tasks.length}</span>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] dark:bg-white/10">
+            {tasks.length}
+          </span>
         </button>
-        <button type="button" role="tab" aria-selected={activeSection === "resources"} onClick={() => setActiveSection("resources")} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition sm:flex-none ${activeSection === "resources" ? "bg-[var(--color-surface)] text-[var(--color-primary)] font-semibold shadow-xs" : "text-slate-500 hover:text-[#0B3A53] dark:text-slate-400 dark:hover:text-white"}`}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeSection === "resources"}
+          onClick={() => setActiveSection("resources")}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition sm:flex-none ${activeSection === "resources" ? "bg-[var(--color-surface)] text-[var(--color-primary)] font-semibold shadow-xs" : "text-slate-500 hover:text-[#0B3A53] dark:text-slate-400 dark:hover:text-white"}`}
+        >
           <i className="ti ti-books" /> Guides &amp; Templates
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] dark:bg-white/10">{workflowResources?.resources?.length || 0}</span>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] dark:bg-white/10">
+            {workflowResources?.resources?.length || 0}
+          </span>
         </button>
       </nav>
 
-      {activeSection === "requirements" ? <>
-        <section className="grid gap-4 sm:grid-cols-3">
-          <StatCard label="Total requirements" value={tasks.length} icon="ti-checklist" iconBg="bg-sky-50 dark:bg-sky-950/40" iconColor="text-sky-700 dark:text-sky-300" />
-          <StatCard label="Approved" value={completed} icon="ti-circle-check" iconBg="bg-emerald-50 dark:bg-emerald-950/40" iconColor="text-emerald-700 dark:text-emerald-300" />
-          <StatCard label="Remaining" value={Math.max(0, tasks.length - completed)} icon="ti-clock" iconBg="bg-amber-50 dark:bg-amber-950/40" iconColor="text-amber-700 dark:text-amber-300" />
-        </section>
+      {activeSection === "requirements" ? (
+        <>
+          <section className="grid gap-4 sm:grid-cols-3">
+            <StatCard
+              label="Total requirements"
+              value={tasks.length}
+              icon="ti-checklist"
+              iconBg="bg-sky-50 dark:bg-sky-950/40"
+              iconColor="text-sky-700 dark:text-sky-300"
+            />
+            <StatCard
+              label="Approved"
+              value={completed}
+              icon="ti-circle-check"
+              iconBg="bg-emerald-50 dark:bg-emerald-950/40"
+              iconColor="text-emerald-700 dark:text-emerald-300"
+            />
+            <StatCard
+              label="Remaining"
+              value={Math.max(0, tasks.length - completed)}
+              icon="ti-clock"
+              iconBg="bg-amber-50 dark:bg-amber-950/40"
+              iconColor="text-amber-700 dark:text-amber-300"
+            />
+          </section>
 
-      {!tasks.length ? (
-        <Empty text={activeEnrollment ? "Your professor has not added milestones to this workflow yet." : "Join a professor workflow, then register a project to receive its requirements."} />
-      ) : (
-        <section className="space-y-3.5">
-          {!project && (
-            <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
-              <i className="ti ti-eye mt-0.5 text-lg" />
-              <div>
-                <strong className="block">Milestone preview</strong>
-                <span>You can review the professor&apos;s current milestones now. Register or join a research project before starting tasks or submitting files.</span>
-              </div>
-            </div>
-          )}
-          {tasks.map((task: any) => {
-            const status =
-              task.previewOnly
-                ? "AWAITING_PROJECT"
-                : task.submission?.status ||
-              (task.stage.sequence < currentSequence
-                ? "COMPLETED"
-                : task.locked
-                  ? "LOCKED"
-                  : "IN_PROGRESS");
-            return (
-              <article
-                key={task.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => openTask(task)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ")
-                    openTask(task);
-                }}
-                className={`group cursor-pointer rounded-2xl border p-4 sm:p-5 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)] ${
-                  status === "IN_PROGRESS"
-                    ? "border-[var(--color-primary)] bg-[var(--color-surface)] shadow-xs ring-1 ring-[var(--college-focus-ring)]"
-                    : status === "LOCKED"
-                    ? "border-[var(--color-border)] bg-[var(--color-surface-subtle)] opacity-80"
-                    : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)] hover:border-[var(--color-primary)]"
-                }`}
-              >
-                <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
-                        {task.stage.topic?.title || "Ungrouped milestones"} · Stage {task.stage.sequence}
-                      </p>
-                      {status === "IN_PROGRESS" && (
-                        <span className="inline-flex items-center rounded-full bg-[var(--color-primary-light)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-primary)]">
-                          Active Milestone
-                        </span>
-                      )}
-                      {status === "LOCKED" && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-white/10 px-2 py-0.5 text-[11px] font-medium text-slate-500">
-                          <i className="ti ti-lock text-xs" /> Locked
-                        </span>
-                      )}
-                    </div>
-                    <h2 className="mt-1 text-base font-semibold text-[var(--color-text-primary)] leading-snug">
-                      {task.title}
-                    </h2>
-                    <p className="mt-1 line-clamp-2 text-xs sm:text-sm text-[var(--color-text-secondary)] leading-relaxed">
-                      {task.instructions}
-                    </p>
-                    <div className="mt-2.5 flex flex-wrap gap-2 text-xs font-medium text-[var(--color-text-secondary)]">
-                      <span className="rounded-lg bg-[var(--color-surface-muted)] px-2.5 py-1">
-                        {task.dueDays != null
-                          ? `Due within ${task.dueDays} days`
-                          : "Milestone deadline"}
-                      </span>
-                      {!task.milestoneOnly && (
-                        <span className="rounded-lg bg-[var(--color-surface-muted)] px-2.5 py-1">
-                          {task.allowedFileTypes}
-                        </span>
-                      )}
-                      <span className="rounded-lg bg-[var(--color-primary-light)] px-2.5 py-1 text-[var(--color-primary)]">
-                        Shared with {activeMembers.length || 1} member
-                        {activeMembers.length === 1 ? "" : "s"}
-                      </span>
-                    </div>
-                    {task.submission && (
-                      <p className="mt-2.5 text-xs font-medium text-[var(--color-text-secondary)]">
-                        Submitted by:{" "}
-                        <span className="text-[var(--color-primary)] font-semibold">
-                          {userName(task.submission.submittedByUser)}
-                        </span>{" "}
-                        ·{" "}
-                        {new Date(task.submission.submittedAt).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end">
-                    <Tag
-                      variant={
-                        status === "APPROVED" || status === "COMPLETED"
-                          ? "success"
-                          : status === "REVISION_REQUIRED" ||
-                              status === "REJECTED"
-                            ? "warn"
-                            : "info"
-                      }
-                    >
-                      {status.replace(/_/g, " ")}
-                    </Tag>
-                    <span className="text-xs font-semibold text-[var(--color-primary)] group-hover:underline inline-flex items-center gap-0.5">
-                      View details
-                      <i className="ti ti-chevron-right text-xs transition group-hover:translate-x-0.5" />
+          {!tasks.length ? (
+            <Empty
+              text={
+                activeEnrollment
+                  ? "Your professor has not added milestones to this workflow yet."
+                  : "Join a professor workflow, then register a project to receive its requirements."
+              }
+            />
+          ) : (
+            <section className="space-y-3.5">
+              {!project && (
+                <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+                  <i className="ti ti-eye mt-0.5 text-lg" />
+                  <div>
+                    <strong className="block">Milestone preview</strong>
+                    <span>
+                      You can review the professor&apos;s current milestones
+                      now. Register or join a research project before starting
+                      tasks or submitting files.
                     </span>
                   </div>
                 </div>
-              </article>
-            );
-          })}
-        </section>
+              )}
+              {tasks.map((task: any) => {
+                const status = task.previewOnly
+                  ? "AWAITING_PROJECT"
+                  : task.submission?.status ||
+                    (task.stage.sequence < currentSequence
+                      ? "COMPLETED"
+                      : task.locked
+                        ? "LOCKED"
+                        : "IN_PROGRESS");
+                return (
+                  <article
+                    key={task.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openTask(task)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ")
+                        openTask(task);
+                    }}
+                    className={`group cursor-pointer rounded-2xl border p-4 sm:p-5 transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)] ${
+                      status === "IN_PROGRESS"
+                        ? "border-[var(--color-primary)] bg-[var(--color-surface)] shadow-xs ring-1 ring-[var(--college-focus-ring)]"
+                        : status === "LOCKED"
+                          ? "border-[var(--color-border)] bg-[var(--color-surface-subtle)] opacity-80"
+                          : "border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)] hover:border-[var(--color-primary)]"
+                    }`}
+                  >
+                    <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+                            {task.stage.topic?.title || "Ungrouped milestones"}{" "}
+                            · Stage {task.stage.sequence}
+                          </p>
+                          {status === "IN_PROGRESS" && (
+                            <span className="inline-flex items-center rounded-full bg-[var(--color-primary-light)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-primary)]">
+                              Active Milestone
+                            </span>
+                          )}
+                          {status === "LOCKED" && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-white/10 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                              <i className="ti ti-lock text-xs" /> Locked
+                            </span>
+                          )}
+                        </div>
+                        <h2 className="mt-1 text-base font-semibold text-[var(--color-text-primary)] leading-snug">
+                          {task.title}
+                        </h2>
+                        <p className="mt-1 line-clamp-2 text-xs sm:text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                          {task.instructions}
+                        </p>
+                        <div className="mt-2.5 flex flex-wrap gap-2 text-xs font-medium text-[var(--color-text-secondary)]">
+                          <span className="rounded-lg bg-[var(--color-surface-muted)] px-2.5 py-1">
+                            {task.dueDays != null
+                              ? `Due within ${task.dueDays} days`
+                              : "Milestone deadline"}
+                          </span>
+                          {!task.milestoneOnly && (
+                            <span className="rounded-lg bg-[var(--color-surface-muted)] px-2.5 py-1">
+                              {task.allowedFileTypes}
+                            </span>
+                          )}
+                          <span className="rounded-lg bg-[var(--color-primary-light)] px-2.5 py-1 text-[var(--color-primary)]">
+                            Shared with {activeMembers.length || 1} member
+                            {activeMembers.length === 1 ? "" : "s"}
+                          </span>
+                        </div>
+                        {task.submission && (
+                          <p className="mt-2.5 text-xs font-medium text-[var(--color-text-secondary)]">
+                            Submitted by:{" "}
+                            <span className="text-[var(--color-primary)] font-semibold">
+                              {userName(task.submission.submittedByUser)}
+                            </span>{" "}
+                            ·{" "}
+                            {new Date(
+                              task.submission.submittedAt,
+                            ).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end">
+                        <Tag
+                          variant={
+                            status === "APPROVED" || status === "COMPLETED"
+                              ? "success"
+                              : status === "REVISION_REQUIRED" ||
+                                  status === "REJECTED"
+                                ? "warn"
+                                : "info"
+                          }
+                        >
+                          {status.replace(/_/g, " ")}
+                        </Tag>
+                        <span className="text-xs font-semibold text-[var(--color-primary)] group-hover:underline inline-flex items-center gap-0.5">
+                          View details
+                          <i className="ti ti-chevron-right text-xs transition group-hover:translate-x-0.5" />
+                        </span>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </section>
+          )}
+        </>
+      ) : (
+        <WorkflowResourcesCard workflowId={workflowId} />
       )}
-      </> : <WorkflowResourcesCard workflowId={workflowId} />}
       {selectedTask && (
         <TaskDetails
           task={selectedTask}
@@ -528,7 +735,7 @@ export default function ResearchTasksPage() {
           message={message}
           submitting={submitting}
           starting={starting}
-          onFile={setFile}
+          onFile={selectSubmissionFile}
           onNote={setNote}
           onClose={() => {
             setSelectedTask(null);
@@ -536,7 +743,8 @@ export default function ResearchTasksPage() {
             setMessage(null);
           }}
           onStart={startMilestoneTask}
-          onSubmit={submitRequirement}
+          onSubmitUpload={submitUploadedRequirement}
+          onSubmitDocument={submitDocumentRequirement}
           onOpenSigned={openSubmissionVersion}
         />
       )}
@@ -558,46 +766,144 @@ function TaskDetails({
   onNote,
   onClose,
   onStart,
-  onSubmit,
+  onSubmitUpload,
+  onSubmitDocument,
   onOpenSigned,
 }: any) {
-  const [submissionMode, setSubmissionMode] = useState<"choose" | "upload">(
-    "choose",
+  const [submissionMode, setSubmissionMode] = useState<
+    "choose" | "documents" | "upload"
+  >("choose");
+  const [selectedOptionKey, setSelectedOptionKey] = useState<string | null>(
+    null,
   );
+  const [documentSubmissionKey, setDocumentSubmissionKey] =
+    useState<StableSubmissionKey | null>(null);
+  const [confirmation, setConfirmation] = useState<
+    "documents" | "upload" | null
+  >(null);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
   const currentSequence =
     project?.workflowInstance?.currentStage?.sequence || 0;
-  const status =
-    task.previewOnly
-      ? "AWAITING_PROJECT"
-      : task.submission?.status ||
-    (task.stage.sequence < currentSequence
-      ? "COMPLETED"
-      : task.locked
-        ? "LOCKED"
-        : "IN_PROGRESS");
-  const canSubmit =
+  const status = task.previewOnly
+    ? "AWAITING_PROJECT"
+    : task.submission?.status ||
+      (task.stage.sequence < currentSequence
+        ? "COMPLETED"
+        : task.locked
+          ? "LOCKED"
+          : "IN_PROGRESS");
+  const canLoadSubmissionOptions =
     Boolean(project) &&
     !task.previewOnly &&
     !task.locked &&
     !task.milestoneOnly &&
-    status !== "APPROVED";
+    !task.noDocumentRequired;
+  const submissionOptionsQuery = useQuery({
+    queryKey: ["task-submission-options", project?.id, task.id],
+    queryFn: () =>
+      apiClient.get<TaskSubmissionOptionsResponse>(
+        `/api/workflows/tasks/${task.id}/submission-options?researchId=${encodeURIComponent(project.id)}`,
+      ),
+    enabled: canLoadSubmissionOptions,
+    retry: 1,
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+  const submissionOptions =
+    submissionOptionsQuery.data?.options || EMPTY_SUBMISSION_OPTIONS;
+  const selectedOption = submissionOptions.find(
+    (option) => submissionOptionKey(option) === selectedOptionKey,
+  );
+  const canSubmit =
+    canLoadSubmissionOptions &&
+    submissionOptionsQuery.data?.availability.canSubmit === true;
   const canCreateInDocuments = /DOC|DOCX|HTML|TXT/i.test(
     task.allowedFileTypes || "",
   );
+  const allowedFileTypes =
+    submissionOptionsQuery.data?.task.allowedFileTypes || [];
+  const uploadFileTypes = directUploadFileTypes(allowedFileTypes);
+  const uploadAccept = allowedUploadExtensions(uploadFileTypes).join(",");
+  const canUpload = canSubmit && uploadFileTypes.length > 0;
+
+  useEffect(() => {
+    if (
+      selectedOptionKey &&
+      !submissionOptions.some(
+        (option) => submissionOptionKey(option) === selectedOptionKey,
+      )
+    ) {
+      setSelectedOptionKey(null);
+      setDocumentSubmissionKey(null);
+    }
+  }, [selectedOptionKey, submissionOptions]);
+
+  const chooseDocumentOption = (option: TaskSubmissionOption) => {
+    const scope = submissionOptionKey(option);
+    setSelectedOptionKey(scope);
+    setDocumentSubmissionKey((current) =>
+      resolveStableSubmissionKey(current, scope),
+    );
+    setSubmissionError(null);
+  };
+
+  const confirmDocumentSubmission = async () => {
+    if (!selectedOption || !documentSubmissionKey || submitting) return;
+    setSubmissionError(null);
+    try {
+      await onSubmitDocument(selectedOption, documentSubmissionKey.value);
+    } catch (error: any) {
+      setSubmissionError(error?.message || "Unable to submit this document.");
+    }
+  };
+
+  const openUploadConfirmation = () => {
+    if (!file) return;
+    const compatibility = uploadFileCompatibility(file.name, uploadFileTypes);
+    if (!compatibility.compatible) {
+      setSubmissionError(compatibility.message);
+      return;
+    }
+    setSubmissionError(null);
+    setConfirmation("upload");
+  };
+
+  const confirmUploadSubmission = async () => {
+    if (!file || submitting) return;
+    setSubmissionError(null);
+    try {
+      await onSubmitUpload();
+    } catch (error: any) {
+      setSubmissionError(error?.message || "Unable to submit this file.");
+    }
+  };
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-xs animate-in fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="task-details-title"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget && !submitting) onClose();
       }}
     >
-      <div className="h-full w-full max-w-2xl overflow-y-auto bg-white dark:bg-[var(--color-surface)] p-6 shadow-2xl sm:p-8 animate-in slide-in-from-right duration-200">
+      <div
+        className="h-full w-full max-w-2xl overflow-y-auto bg-[var(--color-surface)] p-6 shadow-2xl sm:p-8 animate-in slide-in-from-right duration-200"
+        tabIndex={-1}
+        autoFocus
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && !confirmation && !submitting) onClose();
+        }}
+      >
         <div className="flex items-start justify-between gap-4 border-b border-[#EEF2F6] dark:border-white/10 pb-5">
           <div>
             <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#C9A227]">
               Milestone {task.stage.sequence}
             </p>
-            <h2 className="mt-1 text-2xl font-black text-[var(--color-text-primary)]">
+            <h2
+              id="task-details-title"
+              className="mt-1 text-2xl font-black text-[var(--color-text-primary)]"
+            >
               {task.title}
             </h2>
             <div className="mt-2">
@@ -615,9 +921,11 @@ function TaskDetails({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            disabled={submitting}
             aria-label="Close task details"
-            className="rounded-xl p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition cursor-pointer"
+            className="cursor-pointer rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-white/5 dark:hover:text-slate-200"
           >
             <i className="ti ti-x text-xl" />
           </button>
@@ -703,7 +1011,25 @@ function TaskDetails({
               const latestVersion = task.submission.document?.versions?.[0];
               const signature = latestVersion?.signedSignature;
               if (!signature) return null;
-              return <div className="mt-3 flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/30 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-extrabold text-emerald-800 dark:text-emerald-200"><i className="ti ti-signature mr-1" />Adviser-signed copy available</p><p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300">Verification: {signature.verificationCode}</p></div><button onClick={() => onOpenSigned(latestVersion)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white">View signed PDF</button></div>;
+              return (
+                <div className="mt-3 flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/30 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-extrabold text-emerald-800 dark:text-emerald-200">
+                      <i className="ti ti-signature mr-1" />
+                      Adviser-signed copy available
+                    </p>
+                    <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300">
+                      Verification: {signature.verificationCode}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => onOpenSigned(latestVersion)}
+                    className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white"
+                  >
+                    View signed PDF
+                  </button>
+                </div>
+              );
             })()}
             {task.submission.note && (
               <p className="mt-3 whitespace-pre-wrap rounded-xl bg-white dark:bg-white/5 p-3 text-xs text-slate-600 dark:text-slate-300">
@@ -796,119 +1122,393 @@ function TaskDetails({
           </section>
         ) : task.noDocumentRequired ? (
           <Notice text="Task started. No document is required for this milestone. Follow the professor’s instructions; completion is handled through the milestone workflow." />
-        ) : status === "APPROVED" ? (
-          <Notice text="This shared group requirement has been approved. No further submission is needed." />
-        ) : submissionMode === "choose" ? (
-          <section className="mt-6 border-t border-[#EEF2F6] dark:border-white/10 pt-6">
-            <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">
-               How would you like to prepare the submission?
-            </h3>
-            <p className="mt-1 text-xs sm:text-sm text-slate-500">
-              Only methods allowed by the professor’s file requirement are
-              shown.
+        ) : submissionOptionsQuery.isPending ? (
+          <section
+            className="mt-6 flex items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]"
+            aria-live="polite"
+          >
+            <i className="ti ti-loader-2 animate-spin text-lg text-[var(--color-primary)]" />
+            Checking the latest submission availability and eligible documents…
+          </section>
+        ) : submissionOptionsQuery.isError ? (
+          <section
+            className="mt-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200"
+            role="alert"
+          >
+            <p className="font-semibold">
+              {submissionOptionsQuery.error?.message ||
+                "Submission options could not be loaded."}
             </p>
-            {message && (
-              <p className="mt-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 p-3 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                {message}
-              </p>
-            )}
-            <div
-              className={`mt-4 grid gap-3 ${canCreateInDocuments ? "sm:grid-cols-2" : ""}`}
+            <button
+              type="button"
+              onClick={() => submissionOptionsQuery.refetch()}
+              className="mt-2 font-bold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
             >
-              {canCreateInDocuments && (
-                <button
-                  onClick={() => {
-                    const context = new URLSearchParams({
-                      projectId: project?.id || "",
-                      milestoneId: task.stage.id,
-                      taskId: task.id,
-                    });
-                    window.location.href = `/student/documents?${context.toString()}`;
-                  }}
-                  className="rounded-xl border-2 border-[var(--color-primary)] bg-white dark:bg-white/5 p-5 text-left transition hover:bg-[var(--color-primary-light)]/30 dark:hover:bg-white/10 cursor-pointer"
-                >
-                  <i className="ti ti-file-text text-2xl text-[var(--color-primary)]" />
-                  <span className="mt-3 block font-extrabold text-[var(--color-text-primary)]">
-                    Create in Documents
-                  </span>
-                  <span className="mt-1 block text-xs text-slate-500">
-                    Write in the workspace and submit directly to this
-                    milestone.
-                  </span>
-                </button>
-              )}
+              Retry
+            </button>
+          </section>
+        ) : !submissionOptionsQuery.data?.availability.canSubmit ? (
+          <section className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+            <p className="font-bold">Submission is not currently available</p>
+            <p className="mt-1 text-xs leading-5">
+              {submissionOptionsQuery.data?.availability.reasons[0]?.message ||
+                "The current task state does not allow another submission."}
+            </p>
+          </section>
+        ) : submissionMode === "choose" ? (
+          <section className="mt-6 border-t border-[var(--color-border)] pt-6">
+            <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">
+              How would you like to submit?
+            </h3>
+            <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)] sm:text-sm">
+              Eligibility is checked against the active project, milestone,
+              required file formats, and current review state.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <button
+                type="button"
+                onClick={() => setSubmissionMode("documents")}
+                disabled={!submissionOptions.length}
+                aria-describedby={
+                  !submissionOptions.length ? "no-document-options" : undefined
+                }
+                className="rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-5 text-left transition hover:bg-[var(--color-primary-light)]/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] disabled:cursor-not-allowed disabled:border-[var(--color-border)] disabled:opacity-60"
+              >
+                <i className="ti ti-folders text-2xl text-[var(--color-primary)]" />
+                <span className="mt-3 block font-extrabold text-[var(--color-text-primary)]">
+                  Choose from Documents
+                </span>
+                <span className="mt-1 block text-xs leading-5 text-[var(--color-text-secondary)]">
+                  {submissionOptions.length
+                    ? `${submissionOptions.length} eligible document option${submissionOptions.length === 1 ? "" : "s"}`
+                    : "No eligible project document is available right now."}
+                </span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setSubmissionMode("upload")}
-                className="rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-primary-light)]/20 dark:bg-white/5 p-5 text-left transition hover:bg-[var(--color-primary-light)]/40 dark:hover:bg-white/10 cursor-pointer"
+                disabled={!canUpload}
+                className="rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-primary-light)]/20 p-5 text-left transition hover:bg-[var(--color-primary-light)]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] disabled:cursor-not-allowed disabled:border-[var(--color-border)] disabled:opacity-60"
               >
                 <i className="ti ti-upload text-2xl text-[var(--color-primary)]" />
                 <span className="mt-3 block font-extrabold text-[var(--color-text-primary)]">
-                  Upload a file
+                  Upload File
                 </span>
-                <span className="mt-1 block text-xs text-slate-500">
-                  Submit an existing {task.allowedFileTypes} file from your
-                  device.
+                <span className="mt-1 block text-xs leading-5 text-[var(--color-text-secondary)]">
+                  {canUpload
+                    ? `Submit an existing ${uploadFileTypes.join(" or ")} file from your device.`
+                    : "This task has no format supported by direct upload."}
                 </span>
               </button>
             </div>
+            {!submissionOptions.length && (
+              <p
+                id="no-document-options"
+                className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-xs leading-5 text-[var(--color-text-secondary)]"
+              >
+                {submissionOptionsQuery.data?.unavailableOptionReasons[0]
+                  ?.message ||
+                  "Upload a compatible file, or prepare a working copy in Documents."}
+              </p>
+            )}
+            {canCreateInDocuments && (
+              <button
+                type="button"
+                onClick={() => {
+                  const context = new URLSearchParams({
+                    projectId: project?.id || "",
+                    milestoneId: task.stage.id,
+                    taskId: task.id,
+                  });
+                  window.location.href = `/student/documents?${context.toString()}`;
+                }}
+                className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-[var(--color-primary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+              >
+                <i className="ti ti-external-link" />
+                Create or manage a working copy in Documents
+              </button>
+            )}
+          </section>
+        ) : submissionMode === "documents" ? (
+          <section className="mt-6 border-t border-[var(--color-border)] pt-6">
+            <SubmissionBackButton onClick={() => setSubmissionMode("choose")} />
+            <h3 className="text-sm font-extrabold text-[var(--color-text-primary)]">
+              Choose an exact document version
+            </h3>
+            <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)]">
+              Only choices approved by the server for this project and task are
+              listed. The submitted copy will be frozen for faculty review.
+            </p>
+            <fieldset className="mt-4 space-y-2.5">
+              <legend className="sr-only">Eligible document versions</legend>
+              {submissionOptions.map((option) => {
+                const optionKey = submissionOptionKey(option);
+                const summary = submissionOptionSummary(option);
+                const selected = selectedOptionKey === optionKey;
+                return (
+                  <label
+                    key={optionKey}
+                    className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition focus-within:ring-2 focus-within:ring-[var(--college-focus-ring)] ${
+                      selected
+                        ? "border-[var(--color-primary)] bg-[var(--color-primary-light)]/30"
+                        : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)]/50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="document-submission-option"
+                      value={optionKey}
+                      checked={selected}
+                      onChange={() => chooseDocumentOption(option)}
+                      className="mt-1 h-4 w-4 accent-[var(--color-primary)]"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-bold text-[var(--color-text-primary)]">
+                          {summary.title}
+                        </span>
+                        <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
+                          {summary.format}
+                        </span>
+                      </span>
+                      <span className="mt-1 block text-xs text-[var(--color-text-secondary)]">
+                        {summary.version} · {summary.fileName}
+                      </span>
+                      {option.kind === "GOOGLE_DOC_PDF_SNAPSHOT" && (
+                        <span className="mt-1 block text-[11px] font-semibold text-[var(--color-primary)]">
+                          Live Google Doc · export permission is verified when
+                          you submit
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
+            <SubmissionNote value={note} onChange={onNote} />
+            {submissionError && <SubmissionError message={submissionError} />}
+            <Button
+              className="mt-4 w-full"
+              size="lg"
+              onClick={() => setConfirmation("documents")}
+              disabled={!selectedOption || !canSubmit || submitting}
+            >
+              Review document submission
+            </Button>
           </section>
         ) : (
-          <section className="mt-6 border-t border-[#EEF2F6] dark:border-white/10 pt-6">
-            <button
-              onClick={() => setSubmissionMode("choose")}
-              className="mb-4 text-xs font-extrabold text-[#0B3A53] dark:text-[#C9A227] cursor-pointer"
-            >
-              <i className="ti ti-arrow-left mr-1" />
-              Choose another method
-            </button>
+          <section className="mt-6 border-t border-[var(--color-border)] pt-6">
+            <SubmissionBackButton onClick={() => setSubmissionMode("choose")} />
             <h3 className="text-sm font-extrabold text-[var(--color-text-primary)]">
               {task.submission
-                ? "Resubmit group requirement"
+                ? "Upload revised group requirement"
                 : "Upload group requirement"}
             </h3>
-            <p className="mt-1 text-xs text-slate-500">
-              Submitting records your name and updates the shared group status.
+            <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)]">
+              The server will verify the file again before creating the
+              immutable submission record.
             </p>
-            <label className="mt-4 flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-slate-300 dark:border-white/20 p-6 text-center hover:border-[#0B3A53] dark:hover:border-[#C9A227]">
-              <i className="ti ti-upload text-3xl text-[#0B3A53] dark:text-[#C9A227]" />
-              <span className="mt-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+            <label className="mt-4 flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-[var(--color-border)] p-6 text-center transition hover:border-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--college-focus-ring)]">
+              <i className="ti ti-upload text-3xl text-[var(--color-primary)]" />
+              <span className="mt-2 break-all text-sm font-bold text-[var(--color-text-primary)]">
                 {file?.name || "Choose requirement file"}
               </span>
-              <span className="mt-1 text-xs text-slate-400">
-                Accepted: {task.allowedFileTypes}
+              <span className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                Accepted: {uploadFileTypes.join(", ")}
               </span>
               <input
                 type="file"
-                className="hidden"
-                onChange={(event) => onFile(event.target.files?.[0] || null)}
+                accept={uploadAccept || undefined}
+                className="sr-only"
+                onChange={(event) => {
+                  onFile(event.target.files?.[0] || null);
+                  setSubmissionError(null);
+                }}
               />
             </label>
-            <textarea
-              value={note}
-              onChange={(event) => onNote(event.target.value)}
-              rows={3}
-              placeholder="Optional note for the professor and adviser"
-              className="mt-4 w-full resize-none rounded-xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#0B1726] p-3 text-xs sm:text-sm text-slate-800 dark:text-slate-100 outline-none focus:border-[#0B3A53]"
-            />
-            {message && (
-              <p className="mt-3 text-xs font-semibold text-rose-600">
-                {message}
-              </p>
-            )}
-            <button
-              onClick={onSubmit}
-              disabled={!file || submitting || !canSubmit}
-              className="mt-4 w-full rounded-xl bg-[#0B3A53] hover:bg-[#072A3D] px-5 py-3 text-sm font-extrabold text-white shadow-xs transition disabled:opacity-50 cursor-pointer"
+            <SubmissionNote value={note} onChange={onNote} />
+            {submissionError && <SubmissionError message={submissionError} />}
+            <Button
+              className="mt-4 w-full"
+              size="lg"
+              onClick={openUploadConfirmation}
+              disabled={!file || submitting || !canUpload}
             >
-              {submitting
-                ? "Submitting…"
-                : task.submission
-                  ? "Resubmit for group"
-                  : "Submit for group"}
-            </button>
+              Review file submission
+            </Button>
           </section>
         )}
+
+        <SubmissionConfirmation
+          mode={confirmation}
+          task={task}
+          file={file}
+          option={selectedOption}
+          submitting={submitting}
+          error={submissionError}
+          onClose={() => {
+            if (!submitting) setConfirmation(null);
+          }}
+          onConfirm={
+            confirmation === "documents"
+              ? confirmDocumentSubmission
+              : confirmUploadSubmission
+          }
+        />
       </div>
+    </div>
+  );
+}
+
+function SubmissionBackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mb-4 inline-flex items-center gap-1 text-xs font-bold text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+    >
+      <i className="ti ti-arrow-left" />
+      Choose another method
+    </button>
+  );
+}
+
+function SubmissionNote({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="mt-4">
+      <label
+        htmlFor="task-submission-note"
+        className="text-xs font-bold text-[var(--color-text-primary)]"
+      >
+        Note for faculty <span className="font-normal">(optional)</span>
+      </label>
+      <textarea
+        id="task-submission-note"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        rows={3}
+        maxLength={2000}
+        placeholder="Add context for the professor and adviser"
+        className="mt-2 w-full resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] sm:text-sm"
+      />
+    </div>
+  );
+}
+
+function SubmissionError({ message }: { message: string }) {
+  return (
+    <p
+      className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200"
+      role="alert"
+    >
+      {message}
+    </p>
+  );
+}
+
+function SubmissionConfirmation({
+  mode,
+  task,
+  file,
+  option,
+  submitting,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  mode: "documents" | "upload" | null;
+  task: any;
+  file: File | null;
+  option?: TaskSubmissionOption;
+  submitting: boolean;
+  error: string | null;
+  onClose: () => void;
+  onConfirm: () => void | Promise<void>;
+}) {
+  const optionSummary = option ? submissionOptionSummary(option) : null;
+  const uploadSummary = file ? uploadSubmissionSummary(file.name) : null;
+  const isDocument = mode === "documents";
+  return (
+    <Modal
+      isOpen={Boolean(mode)}
+      onClose={onClose}
+      title={isDocument ? "Confirm document submission" : "Confirm file upload"}
+      subtitle="Review the exact item before it is sent for faculty review."
+      maxWidth="md"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={submitting}>
+            Go back
+          </Button>
+          <Button
+            onClick={onConfirm}
+            isLoading={submitting}
+            disabled={isDocument ? !option || !optionSummary : !file}
+          >
+            Confirm submission
+          </Button>
+        </>
+      }
+    >
+      <dl className="grid gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 text-sm">
+        <ConfirmationRow
+          label="Document"
+          value={
+            isDocument
+              ? optionSummary?.title || "—"
+              : uploadSummary?.title || "—"
+          }
+        />
+        <ConfirmationRow
+          label="Version"
+          value={
+            isDocument
+              ? optionSummary?.version || "—"
+              : uploadSummary?.version || "—"
+          }
+        />
+        <ConfirmationRow
+          label="Format"
+          value={
+            isDocument
+              ? optionSummary?.format || "—"
+              : uploadSummary?.format || "—"
+          }
+        />
+        <ConfirmationRow
+          label="Destination"
+          value={`${task.stage.name} · ${task.title}`}
+        />
+      </dl>
+      <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+        <i className="ti ti-lock mt-0.5 shrink-0 text-base" />
+        <p>
+          The submitted version will be frozen for faculty review. Later
+          revisions create a new attempt and do not overwrite this submission.
+          {option?.kind === "GOOGLE_DOC_PDF_SNAPSHOT" &&
+            " Advisio will verify Google Drive access and export the live document as PDF when you confirm."}
+        </p>
+      </div>
+      {error && <SubmissionError message={error} />}
+    </Modal>
+  );
+}
+
+function ConfirmationRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid gap-1 sm:grid-cols-[100px_minmax(0,1fr)]">
+      <dt className="text-xs font-semibold text-[var(--color-text-secondary)]">
+        {label}
+      </dt>
+      <dd className="break-words font-bold text-[var(--color-text-primary)]">
+        {value}
+      </dd>
     </div>
   );
 }

@@ -11,7 +11,8 @@ import {
   Clock,
   FileText,
   FolderOpen,
-  Calendar,
+  CalendarClock,
+  CalendarDays,
   MessageSquare,
   Mail,
   Presentation,
@@ -38,8 +39,8 @@ const STUDENT_NAV_SECTIONS: NavSection[] = [
     title: "ACADEMIC ACTIVITIES",
     items: [
       { label: "Defense", href: "/student/defense", icon: Presentation },
-      { label: "Consultations", href: "/student/dashboard?tab=consultations", tabName: "consultations", icon: Calendar },
-      { label: "Calendar", href: "/student/calendar", icon: Calendar },
+      { label: "Consultations", href: "/student/dashboard?tab=consultations", tabName: "consultations", icon: CalendarClock },
+      { label: "Calendar", href: "/student/calendar", icon: CalendarDays },
     ],
   },
   {

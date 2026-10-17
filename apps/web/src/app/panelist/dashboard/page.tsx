@@ -194,7 +194,7 @@ function PanelistDashboardContent() {
                     <>
                       <button
                         onClick={() => handleTabChange("evaluation")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 text-sm font-bold text-white shadow-xs transition"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition dark:text-[var(--college-on-primary-dark)]"
                       >
                         <i className="ti ti-clipboard-check text-base" /> Start Evaluation
                       </button>
