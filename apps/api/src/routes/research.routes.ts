@@ -248,7 +248,7 @@ router.post(
         workspace = await prisma.researchWorkspace.findFirst({
           where: { id: workspaceId, members: { some: { userId: req.user.id, role: "LEADER", leftAt: null } } },
           select: { id: true, name: true, inviteCode: true, participationMode: true, accessMode: true, inviteCodeEnabled: true, collegeId: true, programId: true },
-        }) as typeof workspace;
+        });
         if (!workspace) { res.status(403).json({ error: "Only a workspace leader can register its research project." }); return; }
         participationMode = workspace.participationMode;
         groupName = workspace.participationMode === "GROUP" ? workspace.name : "";

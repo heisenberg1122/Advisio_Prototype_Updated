@@ -23,7 +23,14 @@ import {
   createNotificationsOnce,
   recordTaskSubmissionAttempt,
 } from "../services/research-workflow-integration.service.js";
-import { uploadTaskSubmission } from "../services/task-submission-upload.service.js";
+import {
+  submitStoredTaskVersion,
+  uploadTaskSubmission,
+} from "../services/task-submission-upload.service.js";
+import {
+  getTaskSubmissionOptions,
+  SubmissionIntegrityError,
+} from "../services/submission.service.js";
 
 const router = Router();
 const resourceUpload = multer({
@@ -2176,7 +2183,9 @@ router.post(
         res.status(404).json({ error: "Workflow stage not found" });
         return;
       }
-      if (!(await workflowAccess(currentStage.workflowId, req.user!))?.manages) {
+      if (
+        !(await workflowAccess(currentStage.workflowId, req.user!))?.manages
+      ) {
         res.status(404).json({ error: "Workflow stage not found" });
         return;
       }
@@ -2356,9 +2365,7 @@ router.delete(
         !task ||
         !(await workflowAccess(task.stage.workflowId, req.user!))?.manages
       )
-        return void res
-          .status(404)
-          .json({ error: "Workflow task not found." });
+        return void res.status(404).json({ error: "Workflow task not found." });
       const submissions = await prisma.taskSubmission.count({
         where: { taskId },
       });
@@ -2378,7 +2385,43 @@ router.delete(
   },
 );
 
-// POST /api/workflows/tasks/:taskId/submissions — group links an uploaded document to a valid workflow task.
+// GET /api/workflows/tasks/:taskId/submission-options
+// Returns only eligible project-owned document choices. All POST routes
+// revalidate these policies against current server state.
+router.get(
+  "/tasks/:taskId/submission-options",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const researchId =
+        typeof req.query.researchId === "string"
+          ? req.query.researchId.trim()
+          : "";
+      if (!researchId) {
+        return void res.status(400).json({
+          error: "researchId is required.",
+          code: "RESEARCH_ID_REQUIRED",
+        });
+      }
+      const result = await getTaskSubmissionOptions({
+        user: req.user!,
+        researchId,
+        taskId: req.params.taskId as string,
+      });
+      res.json(result);
+    } catch (error: any) {
+      if (error instanceof SubmissionIntegrityError) {
+        return void res
+          .status(error.statusCode)
+          .json({ error: error.message, code: error.code });
+      }
+      res.status(500).json({
+        error: error?.message || "Failed to load task submission options.",
+      });
+    }
+  },
+);
+
 // One authoritative operation uploads the blob and commits all related
 // submission records. The existing link route below remains backward compatible.
 router.post(
@@ -2388,10 +2431,16 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       if (!req.file)
-        return void res.status(400).json({ error: "Choose a PDF, DOC, or DOCX file." });
+        return void res
+          .status(400)
+          .json({ error: "Choose a PDF, DOC, or DOCX file." });
       const researchId = String(req.body.researchId || "");
-      const clientKey = String(req.body.idempotencyKey || "").trim().slice(0, 100);
-      const title = String(req.body.title || req.file.originalname).trim().slice(0, 255);
+      const clientKey = String(req.body.idempotencyKey || "")
+        .trim()
+        .slice(0, 100);
+      const title = String(req.body.title || req.file.originalname)
+        .trim()
+        .slice(0, 255);
       if (!researchId || !clientKey || !title)
         return void res.status(400).json({
           error: "researchId, idempotencyKey, and title are required.",
@@ -2400,7 +2449,9 @@ router.post(
         req.file.mimetype === "application/pdf" &&
         req.file.buffer.subarray(0, 5).toString() !== "%PDF-"
       )
-        return void res.status(400).json({ error: "The uploaded file is not a valid PDF." });
+        return void res
+          .status(400)
+          .json({ error: "The uploaded file is not a valid PDF." });
 
       const result = await uploadTaskSubmission({
         user: req.user!,
@@ -2435,114 +2486,17 @@ router.post(
         return void res
           .status(400)
           .json({ error: "researchId and documentId are required." });
-      const project = await prisma.researchProject.findFirst({
-        where: {
-          id: researchId,
-          members: {
-            some: {
-              userId: req.user.id,
-              projectRole: { in: ["LEADER", "MEMBER"] },
-              leftAt: null,
-            },
-          },
-        },
-        include: {
-          members: {
-            where: { leftAt: null },
-            select: { userId: true, projectRole: true },
-          },
-          workflowInstance: {
-            include: { workflow: { select: { createdBy: true } } },
-          },
-        },
+      const result = await submitStoredTaskVersion({
+        user: req.user,
+        researchId,
+        taskId,
+        documentId,
+        documentVersionId,
+        note,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent"),
       });
-      if (!project)
-        return void res.status(403).json({
-          error: "You are not an active member of this research group.",
-        });
-      const task = await prisma.workflowTask.findFirst({
-        where: {
-          id: taskId,
-          stage: { workflowId: project.workflowInstance?.workflowId },
-        },
-      });
-      if (!task)
-        return void res
-          .status(400)
-          .json({ error: "This task is not part of the project workflow." });
-      const document = await prisma.document.findFirst({
-        where: { id: documentId, researchId },
-        include: {
-          versions: {
-            orderBy: { versionNumber: "desc" },
-            select: { id: true, manuscriptStatus: true },
-          },
-        },
-      });
-      if (!document)
-        return void res.status(400).json({
-          error: "The uploaded document does not belong to this project.",
-        });
-      if (document.liveDocumentUrl)
-        return void res.status(409).json({
-          error:
-            "Live Google manuscripts must be submitted from Documents so an immutable snapshot and review history are created.",
-        });
-      const version = documentVersionId
-        ? document.versions.find((item) => item.id === documentVersionId)
-        : document.versions[0];
-      if (!version)
-        return void res.status(400).json({
-          error: "Select an exact stored document version for this task.",
-        });
-      const submittedAt = new Date();
-      const submission = await prisma.$transaction(async (tx) => {
-        const recorded = await recordTaskSubmissionAttempt(tx, {
-          researchId,
-          taskId,
-          milestoneId: task.stageId,
-          documentId,
-          documentVersionId: version.id,
-          submittedBy: req.user!.id,
-          submittedAt,
-          note,
-          lifecycleStatus:
-            version.manuscriptStatus || ManuscriptLifecycleStatus.SUBMITTED,
-        });
-        await tx.auditLog.create({
-          data: {
-            userId: req.user!.id,
-            action: "CREATE",
-            entityType: "TaskSubmissionAttempt",
-            entityId: recorded.attempt.id,
-            newValues: {
-              researchId,
-              taskId,
-              documentId,
-              documentVersionId: version.id,
-              attemptNumber: recorded.attempt.attemptNumber,
-            },
-            ipAddress: req.ip,
-            userAgent: req.get("user-agent"),
-          },
-        });
-        return tx.taskSubmission.findUniqueOrThrow({
-          where: { id: recorded.summary.id },
-          include: {
-            document: true,
-            task: true,
-            submittedByUser: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                universityId: true,
-              },
-            },
-            attempts: { orderBy: { attemptNumber: "desc" } },
-          },
-        });
-      });
+      const { project, task, submission } = result;
 
       // Notifications are best-effort and must never roll back a valid group submission.
       const candidateRecipientIds = new Set<string>();
@@ -2555,7 +2509,7 @@ router.post(
           if (member.userId !== req.user!.id)
             candidateRecipientIds.add(member.userId);
         });
-      if (candidateRecipientIds.size) {
+      if (!result.duplicate && candidateRecipientIds.size) {
         try {
           const validRecipients = await prisma.user.findMany({
             where: {
@@ -2574,7 +2528,7 @@ router.post(
                 message: `${project.title}: ${task.title} was submitted for review.`,
                 entityType: "TaskSubmission",
                 entityId: submission.id,
-                actionUrl: `/research/manuscript?projectId=${researchId}&milestoneId=${task.stageId}&taskId=${task.id}&documentId=${documentId}&versionId=${version.id}`,
+                actionUrl: `/research/manuscript?projectId=${researchId}&milestoneId=${task.stageId}&taskId=${task.id}&documentId=${documentId}&versionId=${result.snapshotVersionId}`,
                 deduplicationKey: `task-attempt:${submission.documentVersionId}:submitted:${recipientId}`,
               })),
             );
@@ -2586,11 +2540,12 @@ router.post(
           );
         }
       }
-      res.status(201).json({ submission });
+      res.status(result.duplicate ? 200 : 201).json({ submission });
     } catch (error: any) {
-      res
-        .status(500)
-        .json({ error: error.message || "Failed to submit task requirement" });
+      res.status(error?.statusCode || 500).json({
+        error: error.message || "Failed to submit task requirement",
+        ...(error?.code ? { code: error.code } : {}),
+      });
     }
   },
 );
@@ -2649,6 +2604,10 @@ router.patch(
               id: true,
               isImmutable: true,
               manuscriptStatus: true,
+              reviewerAssignments: {
+                select: { id: true },
+                take: 1,
+              },
             },
           },
         },
@@ -2657,10 +2616,7 @@ router.patch(
         return void res
           .status(404)
           .json({ error: "Task submission not found." });
-      if (
-        existing.documentVersion?.isImmutable ||
-        existing.documentVersion?.manuscriptStatus
-      )
+      if (existing.documentVersion?.reviewerAssignments.length)
         return void res.status(409).json({
           error:
             "This task is synchronized with the formal manuscript review workflow. Submit the assigned exact-version reviewer decision instead.",

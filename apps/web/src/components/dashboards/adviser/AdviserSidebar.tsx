@@ -7,7 +7,8 @@ import {
   LayoutDashboard,
   Users,
   FileSearch,
-  Calendar,
+  CalendarClock,
+  CalendarDays,
   MessageSquare,
   Mail,
   Archive,
@@ -31,8 +32,8 @@ const ADVISER_NAV_SECTIONS: NavSection[] = [
   {
     title: "ACADEMIC ACTIVITIES",
     items: [
-      { label: "Consultations", href: "/adviser/dashboard?tab=consultations", tabName: "consultations", icon: Calendar },
-      { label: "Calendar", href: "/adviser/calendar", icon: Calendar },
+      { label: "Consultations", href: "/adviser/dashboard?tab=consultations", tabName: "consultations", icon: CalendarClock },
+      { label: "Calendar", href: "/adviser/calendar", icon: CalendarDays },
     ],
   },
   {

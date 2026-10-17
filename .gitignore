@@ -42,6 +42,7 @@ yarn-error.log*
 # Uploads & Temp
 apps/api/uploads/*
 !apps/api/uploads/.gitkeep
+/backup_*.sql
 
 # Misc
 coverage/

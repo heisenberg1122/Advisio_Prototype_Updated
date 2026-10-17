@@ -1460,7 +1460,7 @@ function StudentDashboardContent() {
                     ) : !activeProject ? (
                       <button
                         onClick={() => (researchData?.projects?.length ? window.scrollTo({ top: 0, behavior: "smooth" }) : setShowCreateModal(true))}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-6 text-sm font-bold text-white shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98]"
+                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-6 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98] dark:text-[var(--college-on-primary-dark)]"
                       >
                         <i className={`ti ${researchData?.projects?.length ? "ti-folders" : "ti-plus"} text-base font-bold`} /> {researchData?.projects?.length ? "Select Project" : "Register Project"}
                       </button>
@@ -1481,7 +1481,7 @@ function StudentDashboardContent() {
                       <>
                         <button
                           onClick={() => handleTabChange("group")}
-                          className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 text-sm font-bold text-white shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98]"
+                          className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98] dark:text-[var(--college-on-primary-dark)]"
                         >
                           <i className="ti ti-folder-open text-base" /> View My Project
                         </button>

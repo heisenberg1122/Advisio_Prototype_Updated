@@ -25,7 +25,7 @@ describe("Advisio Express API Integration Suite", () => {
   it("serves root service information", async () => {
     const res = await fetch(`${baseUrl}/`);
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
     expect(data.name).toBe("Advisio Research Management API");
     expect(data.status).toBe("running");
   });
@@ -33,7 +33,7 @@ describe("Advisio Express API Integration Suite", () => {
   it("responds to /api/health with health inspection report", async () => {
     const res = await fetch(`${baseUrl}/api/health`);
     expect([200, 503]).toContain(res.status);
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
     expect(data.service).toBe("Advisio Research Management API");
     expect(["healthy", "unhealthy"]).toContain(data.status);
     expect(["connected", "disconnected"]).toContain(data.database);
@@ -42,7 +42,7 @@ describe("Advisio Express API Integration Suite", () => {
   it("checks realtime SSE status endpoint", async () => {
     const res = await fetch(`${baseUrl}/api/realtime/status`);
     expect(res.status).toBe(200);
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
     expect(data.status).toBe("ok");
     expect(data.activeConnections).toBeGreaterThanOrEqual(0);
   });
@@ -53,21 +53,36 @@ describe("Advisio Express API Integration Suite", () => {
     const createChat = await fetch(`${baseUrl}/api/chats`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: "Unauthorized test", participantIds: ["00000000-0000-0000-0000-000000000000"] }),
+      body: JSON.stringify({
+        title: "Unauthorized test",
+        participantIds: ["00000000-0000-0000-0000-000000000000"],
+      }),
     });
     expect(createChat.status).toBe(401);
-    const resMsg = await fetch(`${baseUrl}/api/chats/00000000-0000-0000-0000-000000000000/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: "Unauthorized message" }),
-    });
+    const resMsg = await fetch(
+      `${baseUrl}/api/chats/00000000-0000-0000-0000-000000000000/messages`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "Unauthorized message" }),
+      },
+    );
     expect(resMsg.status).toBe(401);
   });
 
   it("requires authentication before exposing project consultations", async () => {
     const res = await fetch(`${baseUrl}/api/consultations`);
     expect(res.status).toBe(401);
-    const data = await res.json() as any;
+    const data = (await res.json()) as any;
+    expect(data.error).toMatch(/authentication required/i);
+  });
+
+  it("requires authentication before exposing task submission options", async () => {
+    const res = await fetch(
+      `${baseUrl}/api/workflows/tasks/00000000-0000-0000-0000-000000000000/submission-options?researchId=00000000-0000-0000-0000-000000000000`,
+    );
+    expect(res.status).toBe(401);
+    const data = (await res.json()) as any;
     expect(data.error).toMatch(/authentication required/i);
   });
 
@@ -82,7 +97,7 @@ describe("Advisio Express API Integration Suite", () => {
       }),
     });
     expect(resInvalid.status).toBe(400);
-    const errData = await resInvalid.json() as any;
+    const errData = (await resInvalid.json()) as any;
     expect(errData).toHaveProperty("error");
   });
 });

@@ -10,15 +10,12 @@ import {
   ExternalLink,
   FileCheck2,
   FileClock,
-  FileText,
   FolderKanban,
-  History,
   Import,
   Link as LinkIcon,
   MessageSquareText,
   Pencil,
   Plus,
-  Send,
   ShieldCheck,
   Upload,
 } from "lucide-react";
@@ -37,6 +34,8 @@ import {
   DocumentSigningModal,
   type DocumentSigningResult,
 } from "@/components/adviser/AdviserDocumentSigningModal";
+import { ResearchFileManager } from "@/components/documents/ResearchFileManager";
+import { resolveDocumentSelection } from "@/lib/document-workspace";
 
 type WorkflowStage = {
   id: string;
@@ -331,14 +330,6 @@ function extractGoogleId(rawUrl?: string | null) {
   );
 }
 
-function getEmbedUrl(rawUrl: string) {
-  const id = extractGoogleId(rawUrl);
-  if (!id) return rawUrl;
-  return rawUrl.includes("docs.google.com")
-    ? `https://docs.google.com/document/d/${id}/preview`
-    : `https://drive.google.com/file/d/${id}/preview`;
-}
-
 function legacyKey(document: LegacyDocument) {
   return (
     document.id ||
@@ -370,24 +361,6 @@ function formatDate(value?: string | null) {
     day: "numeric",
     year: "numeric",
   }).format(new Date(value));
-}
-
-const lifecycleLabels: Record<ManuscriptLifecycleStatus, string> = {
-  DRAFT: "Draft",
-  SUBMITTED: "Submitted",
-  IN_REVIEW: "In review",
-  REVISION_REQUIRED: "Revision required",
-  APPROVED: "Approved",
-  FINALIZED: "Finalized",
-};
-
-function lifecycleVariant(
-  status: ManuscriptLifecycleStatus,
-): "success" | "warning" | "info" | "neutral" {
-  if (status === "APPROVED" || status === "FINALIZED") return "success";
-  if (status === "REVISION_REQUIRED") return "warning";
-  if (status === "SUBMITTED" || status === "IN_REVIEW") return "info";
-  return "neutral";
 }
 
 function milestoneVariant(
@@ -457,13 +430,6 @@ export default function DocumentWorkspacePage() {
   const [legacyDocuments, setLegacyDocuments] = useState<LegacyDocument[]>([]);
   const [importReceipts, setImportReceipts] = useState<ImportReceipt[]>([]);
   const [importing, setImporting] = useState(false);
-  const [isSubmitOpen, setIsSubmitOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [submissionMilestoneId, setSubmissionMilestoneId] = useState("");
-  const [submissionTaskId, setSubmissionTaskId] = useState("");
-  const [submissionNote, setSubmissionNote] = useState("");
-  const [submissionError, setSubmissionError] = useState("");
-  const [submissionKey, setSubmissionKey] = useState("");
   const [officialCopies, setOfficialCopies] = useState<OfficialCopy[]>([]);
   const [officialEligibleVersions, setOfficialEligibleVersions] = useState<
     OfficialEligibleVersion[]
@@ -483,9 +449,6 @@ export default function DocumentWorkspacePage() {
   const activeProject =
     projects.find((project) => project.id === activeProjectId) || null;
   const stages = activeProject?.workflowInstance?.workflow?.stages || [];
-  const submissionStage = stages.find(
-    (stage) => stage.id === submissionMilestoneId,
-  );
   const selectedDocument =
     documents.find((document) => document.id === selectedDocumentId) || null;
 
@@ -560,12 +523,11 @@ export default function DocumentWorkspacePage() {
       setOfficialPermissions(archive?.permissions || null);
       if (!response && archive) setActiveTab("official");
       setSelectedDocumentId((current) =>
-        documentParam &&
-        response?.documents.some((document) => document.id === documentParam)
-          ? documentParam
-          : response?.documents.some((document) => document.id === current)
-            ? current
-            : response?.documents[0]?.id || "",
+        resolveDocumentSelection(
+          response?.documents || [],
+          documentParam,
+          current,
+        ),
       );
     } catch (error: any) {
       setDocuments([]);
@@ -628,7 +590,14 @@ export default function DocumentWorkspacePage() {
     return () => {
       active = false;
     };
-  }, [documentParam, milestoneParam, projectParam, selectProject, taskParam, versionParam]);
+  }, [
+    documentParam,
+    milestoneParam,
+    projectParam,
+    selectProject,
+    taskParam,
+    versionParam,
+  ]);
 
   useEffect(() => {
     if (!activeProjectId) {
@@ -644,6 +613,16 @@ export default function DocumentWorkspacePage() {
     }
     loadDocuments(activeProjectId);
   }, [activeProjectId]);
+
+  useEffect(() => {
+    if (
+      !loadingDocuments &&
+      activeTab === "official" &&
+      officialPermissions !== null &&
+      !officialPermissions.canView
+    )
+      setActiveTab("workspace");
+  }, [activeTab, loadingDocuments, officialPermissions?.canView]);
 
   useEffect(() => {
     if (!versionParam || loadingDocuments) return;
@@ -1010,61 +989,6 @@ export default function DocumentWorkspacePage() {
     }
   };
 
-  const openSubmission = () => {
-    if (!selectedDocument) return;
-    const contextualStage = stages.find(
-      (stage) =>
-        stage.id === milestoneParam ||
-        stage.tasks?.some((task) => task.id === taskParam),
-    );
-    const milestoneId =
-      selectedDocument.milestoneId || contextualStage?.id || "";
-    const selectedStage = stages.find((stage) => stage.id === milestoneId);
-    const contextualTask = selectedStage?.tasks?.find(
-      (task) => task.id === taskParam,
-    );
-    setSubmissionMilestoneId(milestoneId);
-    setSubmissionTaskId(
-      contextualTask?.id ||
-        (selectedStage?.tasks?.length === 1 ? selectedStage.tasks[0].id : ""),
-    );
-    setSubmissionNote("");
-    setSubmissionError("");
-    setSubmissionKey(crypto.randomUUID());
-    setIsSubmitOpen(true);
-  };
-
-  const submitManuscript = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!selectedDocument || !submissionMilestoneId || !submissionKey) return;
-    setSubmitting(true);
-    setSubmissionError("");
-    try {
-      const response = await apiClient.post<{
-        version: DocumentVersion;
-        duplicate: boolean;
-      }>(`/api/documents/${selectedDocument.id}/submissions`, {
-        milestoneId: submissionMilestoneId,
-        taskId: submissionTaskId || null,
-        idempotencyKey: submissionKey,
-        note: submissionNote.trim() || null,
-      });
-      await loadDocuments(activeProjectId);
-      setIsSubmitOpen(false);
-      showNotice(
-        response.duplicate
-          ? "This submission was already recorded. No duplicate version was created."
-          : `Version ${response.version.versionNumber} was frozen and submitted successfully.`,
-      );
-    } catch (error: any) {
-      setSubmissionError(
-        error.message || "Unable to create the manuscript snapshot.",
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const tabs = [
     {
       id: "workspace",
@@ -1084,12 +1008,16 @@ export default function DocumentWorkspacePage() {
       icon: FileClock,
       badge: workflowMilestones.length,
     },
-    {
-      id: "official",
-      label: "Official Copies",
-      icon: ShieldCheck,
-      badge: officialCopies.length,
-    },
+    ...(officialPermissions?.canView
+      ? [
+          {
+            id: "official",
+            label: "Official Copies",
+            icon: ShieldCheck,
+            badge: officialCopies.length,
+          },
+        ]
+      : []),
   ];
 
   if (loadingProjects) {
@@ -1108,7 +1036,7 @@ export default function DocumentWorkspacePage() {
         variant="banner"
         category="Research workspace"
         title="Documents"
-        subtitle="Keep live working documents, milestone context, reviews, and authorized official copies together."
+        subtitle="Create, organize, and manage your research files."
         actions={
           permissions?.canManageWorkingDocuments ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -1118,7 +1046,7 @@ export default function DocumentWorkspacePage() {
                 onClick={openUploadDialog}
                 disabled={!activeProjectId}
               >
-                Upload file
+                Upload File
               </Button>
               <Button
                 variant="secondary"
@@ -1126,7 +1054,7 @@ export default function DocumentWorkspacePage() {
                 onClick={() => setIsLinkOpen(true)}
                 disabled={!activeProjectId}
               >
-                Link existing
+                Link Existing Document
               </Button>
               <Button
                 icon={<Plus className="h-4 w-4" />}
@@ -1206,8 +1134,8 @@ export default function DocumentWorkspacePage() {
             invalidRequestedProjectId
               ? "The requested project is unavailable or you do not have access to it. Select one of your authorized projects."
               : projects.length
-              ? "Choose the project whose document workspace you want to open. Advisio will not assume a project when you belong to more than one."
-              : "Join or create a research project before linking project-owned documents."
+                ? "Choose the project whose document workspace you want to open. Advisio will not assume a project when you belong to more than one."
+                : "Join or create a research project before linking project-owned documents."
           }
         />
       ) : (
@@ -1259,347 +1187,20 @@ export default function DocumentWorkspacePage() {
                 <ListRowsSkeleton rows={5} />
               </div>
             ) : activeTab === "workspace" ? (
-              <div className="grid min-h-[620px] xl:grid-cols-[360px_minmax(0,1fr)]">
-                <aside className="border-b border-[var(--color-border)] p-4 xl:border-b-0 xl:border-r sm:p-5">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-sm font-semibold text-[var(--color-text-primary)]">
-                      Project documents
-                    </h2>
-                    <Tag variant="neutral">{documents.length}</Tag>
-                  </div>
-                  {documents.length === 0 ? (
-                    <EmptyState
-                      size="sm"
-                      className="p-6"
-                      icon={FileText}
-                      title="No project documents"
-                      description="Create, link, or upload a real project document to begin this workspace."
-                      action={
-                        permissions?.canManageWorkingDocuments ? (
-                          <Button
-                            size="sm"
-                            icon={<Plus className="h-4 w-4" />}
-                            onClick={openCreateDialog}
-                          >
-                            New Google Doc
-                          </Button>
-                        ) : undefined
-                      }
-                    />
-                  ) : (
-                    <div className="space-y-2">
-                      {documents.map((document) => (
-                        <button
-                          key={document.id}
-                          type="button"
-                          onClick={() => setSelectedDocumentId(document.id)}
-                          className={`w-full rounded-xl border p-3 text-left transition ${selectedDocumentId === document.id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)]" : "border-[var(--color-border)] bg-[var(--color-surface-subtle)] hover:border-[var(--color-border-strong)]"}`}
-                        >
-                          <div className="flex items-start gap-3">
-                            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface)] text-[var(--color-primary)]">
-                              {document.liveDocumentUrl ? (
-                                <LinkIcon className="h-4 w-4" />
-                              ) : (
-                                <FileText className="h-4 w-4" />
-                              )}
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-semibold text-[var(--color-text-primary)]">
-                                {document.title}
-                              </span>
-                              <span className="mt-1 block truncate text-xs text-[var(--color-text-secondary)]">
-                                {document.milestone
-                                  ? `${document.milestone.sequence}. ${document.milestone.name}`
-                                  : "No milestone"}
-                              </span>
-                              <span className="mt-2 flex items-center gap-2">
-                                <Tag
-                                  size="xs"
-                                  variant={
-                                    document.liveDocumentUrl
-                                      ? "info"
-                                      : "neutral"
-                                  }
-                                >
-                                  {document.liveDocumentUrl
-                                    ? "Live"
-                                    : `${document.versions.length} version${document.versions.length === 1 ? "" : "s"}`}
-                                </Tag>
-                                <Tag
-                                  size="xs"
-                                  variant={lifecycleVariant(
-                                    document.lifecycleStatus,
-                                  )}
-                                >
-                                  {lifecycleLabels[document.lifecycleStatus]}
-                                </Tag>
-                              </span>
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </aside>
-
-                <section className="min-w-0 bg-[var(--color-surface-subtle)]">
-                  {selectedDocument ? (
-                    <div className="flex h-full min-h-[620px] flex-col">
-                      <div className="flex flex-col gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h2 className="truncate text-base font-semibold text-[var(--color-text-primary)]">
-                              {selectedDocument.title}
-                            </h2>
-                            <Tag
-                              variant={
-                                selectedDocument.liveDocumentUrl
-                                  ? "info"
-                                  : "neutral"
-                              }
-                            >
-                              {selectedDocument.liveDocumentUrl
-                                ? "Live working copy"
-                                : "Stored version"}
-                            </Tag>
-                            <Tag
-                              variant={lifecycleVariant(
-                                selectedDocument.lifecycleStatus,
-                              )}
-                            >
-                              {
-                                lifecycleLabels[
-                                  selectedDocument.lifecycleStatus
-                                ]
-                              }
-                            </Tag>
-                          </div>
-                          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                            Updated {formatDate(selectedDocument.updatedAt)}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          {selectedDocument.liveDocumentUrl &&
-                            permissions?.canManageWorkingDocuments && (
-                              <select
-                                aria-label="Document milestone"
-                                value={selectedDocument.milestoneId || ""}
-                                onChange={(event) =>
-                                  updateMilestone(
-                                    selectedDocument.id,
-                                    event.target.value,
-                                  )
-                                }
-                                className="h-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
-                              >
-                                <option value="">No milestone</option>
-                                {stages.map((stage) => (
-                                  <option key={stage.id} value={stage.id}>
-                                    {stage.sequence}. {stage.name}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                          {selectedDocument.liveDocumentUrl && (
-                            <a
-                              href={selectedDocument.liveDocumentUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs font-bold text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
-                            >
-                              <ExternalLink className="h-4 w-4" /> Open in
-                              Google
-                            </a>
-                          )}
-                          {selectedDocument.liveDocumentUrl &&
-                            permissions?.canManageWorkingDocuments && (
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                icon={<Pencil className="h-4 w-4" />}
-                                onClick={openEditDialog}
-                              >
-                                Edit details
-                              </Button>
-                            )}
-                          {selectedDocument.liveDocumentUrl &&
-                            permissions?.canSubmitManuscript &&
-                            ["DRAFT", "REVISION_REQUIRED"].includes(
-                              selectedDocument.lifecycleStatus,
-                            ) && (
-                              <Button
-                                size="sm"
-                                icon={<Send className="h-4 w-4" />}
-                                onClick={openSubmission}
-                              >
-                                Submit manuscript
-                              </Button>
-                            )}
-                        </div>
-                      </div>
-                      {selectedDocument.liveDocumentUrl ? (
-                        <div className="flex flex-1 flex-col">
-                          <iframe
-                            src={getEmbedUrl(selectedDocument.liveDocumentUrl)}
-                            title={selectedDocument.title}
-                            className="min-h-[540px] w-full flex-1 bg-white"
-                            allow="clipboard-write"
-                          />
-                          <div className="border-t border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-5 sm:p-6">
-                            <div className="mb-3 flex items-center justify-between gap-3">
-                              <div>
-                                <h3 className="text-sm font-extrabold text-[var(--color-text-primary)]">
-                                  Immutable submission history
-                                </h3>
-                                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                                  Frozen PDFs remain unchanged while the Google
-                                  working copy stays editable.
-                                </p>
-                              </div>
-                              <Tag variant="neutral">
-                                {
-                                  selectedDocument.versions.filter(
-                                    (version) => version.isImmutable,
-                                  ).length
-                                }{" "}
-                                versions
-                              </Tag>
-                            </div>
-                            {selectedDocument.versions.some(
-                              (version) => version.isImmutable,
-                            ) ? (
-                              <div className="space-y-3">
-                                {selectedDocument.versions
-                                  .filter((version) => version.isImmutable)
-                                  .map((version) => (
-                                    <div
-                                      key={version.id}
-                                      id={`document-version-${version.id}`}
-                                      className="flex flex-col gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:flex-row sm:items-center sm:justify-between"
-                                    >
-                                      <div className="min-w-0">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                          <p className="truncate text-sm font-bold text-[var(--color-text-primary)]">
-                                            Version {version.versionNumber}
-                                          </p>
-                                          {version.manuscriptStatus && (
-                                            <Tag
-                                              size="xs"
-                                              variant={lifecycleVariant(
-                                                version.manuscriptStatus,
-                                              )}
-                                            >
-                                              {
-                                                lifecycleLabels[
-                                                  version.manuscriptStatus
-                                                ]
-                                              }
-                                            </Tag>
-                                          )}
-                                        </div>
-                                        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                                          {version.milestone
-                                            ? `${version.milestone.sequence}. ${version.milestone.name}`
-                                            : "Milestone unavailable"}
-                                          {" · "}
-                                          {formatDate(
-                                            version.submittedAt ||
-                                              version.uploadedAt,
-                                          )}
-                                          {version.submitter
-                                            ? ` · ${version.submitter.firstName} ${version.submitter.lastName}`
-                                            : ""}
-                                        </p>
-                                        {version.contentChecksum && (
-                                          <p className="mt-1 truncate font-mono text-[10px] text-[var(--color-text-secondary)]">
-                                            SHA-256 {version.contentChecksum}
-                                          </p>
-                                        )}
-                                      </div>
-                                      <Button
-                                        size="sm"
-                                        variant="secondary"
-                                        icon={
-                                          <ExternalLink className="h-4 w-4" />
-                                        }
-                                        onClick={() => openStoredFile(version)}
-                                      >
-                                        Open snapshot
-                                      </Button>
-                                    </div>
-                                  ))}
-                              </div>
-                            ) : (
-                              <p className="rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xs text-[var(--color-text-secondary)]">
-                                No formal manuscript version has been submitted
-                                yet.
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ) : selectedDocument.versions.length ? (
-                        <div className="p-5 sm:p-6">
-                          <div className="space-y-3">
-                            {selectedDocument.versions.map((version) => (
-                              <div
-                                key={version.id}
-                                id={`document-version-${version.id}`}
-                                className="flex flex-col gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:flex-row sm:items-center sm:justify-between"
-                              >
-                                <div>
-                                  <p className="text-sm font-bold text-[var(--color-text-primary)]">
-                                    {version.fileName}
-                                  </p>
-                                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
-                                    Version {version.versionNumber} ·{" "}
-                                    {formatDate(version.uploadedAt)}
-                                  </p>
-                                </div>
-                                {version.webViewLink && (
-                                  <Button
-                                    size="sm"
-                                    variant="secondary"
-                                    icon={<ExternalLink className="h-4 w-4" />}
-                                    onClick={() => openStoredFile(version)}
-                                  >
-                                    Open
-                                  </Button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <EmptyState
-                          className="m-6"
-                          icon={History}
-                          title="No frozen versions"
-                          description="This document does not have a stored or formally submitted version yet."
-                        />
-                      )}
-                    </div>
-                  ) : documents.length === 0 ? (
-                    <div className="flex h-full min-h-[360px] flex-col items-center justify-center p-8 text-center">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-primary-light)] text-[var(--color-primary)] mb-3">
-                        <FileText className="h-6 w-6" />
-                      </div>
-                      <h3 className="text-base font-semibold text-[var(--color-text-primary)]">
-                        Workspace Ready
-                      </h3>
-                      <p className="mt-1 max-w-sm text-xs sm:text-sm text-[var(--color-text-secondary)] leading-relaxed">
-                        Create or link a document from the left panel to begin reviewing drafts, tracking versions, and submitting manuscripts.
-                      </p>
-                    </div>
-                  ) : (
-                    <EmptyState
-                      className="m-6 min-h-[360px]"
-                      icon={FileText}
-                      title="Select a document"
-                      description="Choose a project document to open its live workspace or stored versions."
-                    />
-                  )}
-                </section>
-              </div>
+              <ResearchFileManager
+                documents={documents}
+                selectedDocumentId={selectedDocumentId}
+                onSelectDocument={setSelectedDocumentId}
+                permissions={permissions}
+                stages={stages}
+                projectId={activeProjectId}
+                taskId={taskParam}
+                requestedVersionId={versionParam}
+                onOpenStoredFile={openStoredFile}
+                onUpdateMilestone={updateMilestone}
+                onEditDocument={openEditDialog}
+                onCreateDocument={openCreateDialog}
+              />
             ) : activeTab === "reviews" ? (
               <div className="p-5 sm:p-6">
                 {reviewAssignments.length ? (
@@ -2127,138 +1728,6 @@ export default function DocumentWorkspacePage() {
           </Card>
         </>
       )}
-
-      <Modal
-        isOpen={isSubmitOpen}
-        onClose={() => !submitting && setIsSubmitOpen(false)}
-        title="Submit manuscript"
-        subtitle="Create an immutable PDF snapshot of the current Google document."
-      >
-        <form onSubmit={submitManuscript} className="space-y-4">
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
-            <p className="text-sm font-bold text-[var(--color-text-primary)]">
-              {selectedDocument?.title}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)]">
-              Advisio will verify and export the actual linked Google document.
-              The submitted PDF and its SHA-256 checksum cannot be overwritten;
-              your Google working copy remains editable for future revisions.
-            </p>
-          </div>
-          <div>
-            <label
-              htmlFor="submission-milestone"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
-            >
-              Manuscript milestone
-            </label>
-            <select
-              id="submission-milestone"
-              required
-              value={submissionMilestoneId}
-              onChange={(event) => {
-                const milestoneId = event.target.value;
-                const milestone = stages.find(
-                  (stage) => stage.id === milestoneId,
-                );
-                setSubmissionMilestoneId(milestoneId);
-                setSubmissionTaskId(
-                  milestone?.tasks?.length === 1 ? milestone.tasks[0].id : "",
-                );
-                setSubmissionError("");
-              }}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
-            >
-              <option value="">Select a milestone</option>
-              {stages.map((stage) => (
-                <option key={stage.id} value={stage.id}>
-                  {stage.sequence}. {stage.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          {submissionStage?.tasks?.length ? (
-            <div>
-              <label
-                htmlFor="submission-task"
-                className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
-              >
-                Requirement
-              </label>
-              <select
-                id="submission-task"
-                required
-                value={submissionTaskId}
-                onChange={(event) => {
-                  setSubmissionTaskId(event.target.value);
-                  setSubmissionError("");
-                }}
-                className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
-              >
-                <option value="">
-                  Select the requirement this version satisfies
-                </option>
-                {submissionStage.tasks.map((task) => (
-                  <option key={task.id} value={task.id}>
-                    {task.title}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1.5 text-xs text-[var(--color-text-secondary)]">
-                This links the frozen version to the correct task without
-                changing the live Google document.
-              </p>
-            </div>
-          ) : null}
-          <div>
-            <label
-              htmlFor="submission-note"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
-            >
-              Submission note <span className="font-normal">(optional)</span>
-            </label>
-            <textarea
-              id="submission-note"
-              rows={4}
-              maxLength={2000}
-              value={submissionNote}
-              onChange={(event) => setSubmissionNote(event.target.value)}
-              className="w-full resize-y rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
-              placeholder="Optional context for your adviser or research professor"
-            />
-          </div>
-          {submissionError && (
-            <p
-              role="alert"
-              className="flex items-start gap-2 rounded-lg bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
-            >
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {submissionError}
-            </p>
-          )}
-          <div className="flex justify-end gap-2 border-t border-[var(--color-border)] pt-4">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setIsSubmitOpen(false)}
-              disabled={submitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              icon={<Send className="h-4 w-4" />}
-              isLoading={submitting}
-              disabled={
-                !submissionMilestoneId ||
-                Boolean(submissionStage?.tasks?.length && !submissionTaskId)
-              }
-            >
-              Freeze and submit
-            </Button>
-          </div>
-        </form>
-      </Modal>
 
       <Modal
         isOpen={isCreateOpen}

@@ -2011,6 +2011,76 @@ body {
   border-color: var(--color-primary) !important;
 }
 
+/* Keep legacy primary actions readable after both their background and old
+   navy/gold foreground utilities are remapped to the active college color.
+   The explicit root/body scope intentionally outranks the legacy text-color
+   mapping above, which otherwise makes the label match the button background. */
+:root[data-college-theme] body :is(button[class*="bg-[#FFA400]"],
+  button[class*="bg-[#ffa400]"],
+  button[class*="bg-[#f6a800]"],
+  button[class*="bg-[#F6A800]"],
+  button[class*="bg-[#F5A800]"],
+  button[class*="bg-[#C9A227]"],
+  button[class*="bg-[#c9a227]"],
+  button[class*="bg-[#ffad14]"],
+  a[class*="bg-[#FFA400]"],
+  a[class*="bg-[#ffa400]"],
+  a[class*="bg-[#f6a800]"],
+  a[class*="bg-[#F6A800]"],
+  a[class*="bg-[#F5A800]"],
+  a[class*="bg-[#C9A227]"],
+  a[class*="bg-[#c9a227]"],
+  a[class*="bg-[#ffad14]"],
+  .btn-primary-gold,
+  .btn-accent,
+  .btn-gold) {
+  color: var(--college-on-primary, #ffffff) !important;
+}
+
+:root[data-college-theme] body :is(button[class*="bg-[#FFA400]"],
+  button[class*="bg-[#ffa400]"],
+  button[class*="bg-[#f6a800]"],
+  button[class*="bg-[#F6A800]"],
+  button[class*="bg-[#F5A800]"],
+  button[class*="bg-[#C9A227]"],
+  button[class*="bg-[#c9a227]"],
+  button[class*="bg-[#ffad14]"],
+  a[class*="bg-[#FFA400]"],
+  a[class*="bg-[#ffa400]"],
+  a[class*="bg-[#f6a800]"],
+  a[class*="bg-[#F6A800]"],
+  a[class*="bg-[#F5A800]"],
+  a[class*="bg-[#C9A227]"],
+  a[class*="bg-[#c9a227]"],
+  a[class*="bg-[#ffad14]"],
+  .btn-primary-gold,
+  .btn-accent,
+  .btn-gold) > * {
+  color: inherit !important;
+}
+
+:root.dark[data-college-theme] body :is(button[class*="bg-[#FFA400]"],
+  button[class*="bg-[#ffa400]"],
+  button[class*="bg-[#f6a800]"],
+  button[class*="bg-[#F6A800]"],
+  button[class*="bg-[#F5A800]"],
+  button[class*="bg-[#C9A227]"],
+  button[class*="bg-[#c9a227]"],
+  button[class*="bg-[#ffad14]"],
+  a[class*="bg-[#FFA400]"],
+  a[class*="bg-[#ffa400]"],
+  a[class*="bg-[#f6a800]"],
+  a[class*="bg-[#F6A800]"],
+  a[class*="bg-[#F5A800]"],
+  a[class*="bg-[#C9A227]"],
+  a[class*="bg-[#c9a227]"],
+  a[class*="bg-[#ffad14]"],
+  .btn-primary-gold,
+  .btn-accent,
+  .btn-gold) {
+  color: var(--college-on-primary-dark, #0f172a) !important;
+}
+
 /* Strip line elimination: ensure no decorative border strips on cards or hero surfaces */
 .college-hero-surface::before,
 .college-hero-surface::after {

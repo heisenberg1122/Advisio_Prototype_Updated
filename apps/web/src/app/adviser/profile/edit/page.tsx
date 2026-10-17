@@ -1,11 +1,15 @@
 "use client";
 
-import { ProfileEditForm } from "@/components/profile/ProfileEditForm";
+import React, { Suspense } from "react";
+import { FacultyProfileEditForm } from "@/components/profile/FacultyProfileEditForm";
+import { ProfileSkeleton } from "@/components/ui/Skeleton";
 
 export default function AdviserEditProfilePage() {
   return (
-    <div>
-      <ProfileEditForm />
-    </div>
+    <Suspense fallback={<ProfileSkeleton editing />}>
+      <div>
+        <FacultyProfileEditForm />
+      </div>
+    </Suspense>
   );
 }

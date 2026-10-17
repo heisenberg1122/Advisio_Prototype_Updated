@@ -11,6 +11,14 @@ import {
   createNotificationsOnce,
   recordTaskSubmissionAttempt,
 } from "./research-workflow-integration.service.js";
+import {
+  assertTaskSubmissionLifecycle,
+  authorizeTaskSubmission,
+  isDocumentLifecycleSubmittable,
+  liveGoogleDocumentEligibility,
+  runSubmissionTransaction,
+  SubmissionIntegrityError,
+} from "./submission.service.js";
 
 const SUBMISSION_LOCK_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -26,10 +34,7 @@ export class ManuscriptWorkflowError extends Error {
 }
 
 export function canSubmitFromStatus(status: ManuscriptLifecycleStatus) {
-  return (
-    status === ManuscriptLifecycleStatus.DRAFT ||
-    status === ManuscriptLifecycleStatus.REVISION_REQUIRED
-  );
+  return isDocumentLifecycleSubmittable(status);
 }
 
 export function canTransitionManuscript(
@@ -83,22 +88,6 @@ class ManuscriptLifecycleService {
       );
     }
 
-    const existingByKey = await prisma.documentVersion.findFirst({
-      where: { documentId: options.documentId, submissionKey: key },
-      include: {
-        milestone: { select: { id: true, name: true, sequence: true } },
-        submitter: { select: { id: true, firstName: true, lastName: true } },
-      },
-    });
-    if (existingByKey)
-      return {
-        version: existingByKey,
-        lifecycleStatus:
-          existingByKey.manuscriptStatus ||
-          ManuscriptLifecycleStatus.SUBMITTED,
-        duplicate: true,
-      };
-
     const document = await prisma.document.findUnique({
       where: { id: options.documentId },
       include: {
@@ -135,6 +124,20 @@ class ManuscriptLifecycleService {
         "PROJECT_MEMBERSHIP_REQUIRED",
       );
     }
+    const existingByKey = await prisma.documentVersion.findFirst({
+      where: { documentId: options.documentId, submissionKey: key },
+      include: {
+        milestone: { select: { id: true, name: true, sequence: true } },
+        submitter: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+    if (existingByKey)
+      return {
+        version: existingByKey,
+        lifecycleStatus:
+          existingByKey.manuscriptStatus || ManuscriptLifecycleStatus.SUBMITTED,
+        duplicate: true,
+      };
     if (!document.liveExternalFileId || !document.liveDocumentUrl) {
       throw new ManuscriptWorkflowError(
         "Only a linked live Google document can be formally submitted from this workspace.",
@@ -171,18 +174,45 @@ class ManuscriptLifecycleService {
         "INVALID_MILESTONE",
       );
 
-    let task: { id: string; title: string } | null = null;
+    let task: { id: string; title: string; allowedFileTypes: string } | null =
+      null;
     if (options.taskId) {
-      task = await prisma.workflowTask.findFirst({
-        where: { id: options.taskId, stageId: milestone.id },
-        select: { id: true, title: true },
+      const taskContext = await authorizeTaskSubmission({
+        user: options.user,
+        researchId: document.researchId,
+        taskId: options.taskId,
       });
-      if (!task)
+      if (taskContext.task.stageId !== milestone.id)
         throw new ManuscriptWorkflowError(
           "The selected task does not belong to the manuscript milestone.",
           400,
           "INVALID_TASK",
         );
+      task = {
+        id: taskContext.task.id,
+        title: taskContext.task.title,
+        allowedFileTypes: taskContext.task.allowedFileTypes,
+      };
+      const eligibilityReasons = liveGoogleDocumentEligibility({
+        allowedFileTypes: task.allowedFileTypes,
+        taskMilestoneId: taskContext.task.stageId,
+        documentMilestoneId: document.milestoneId,
+        documentLifecycleStatus: document.lifecycleStatus,
+        liveDocumentUrl: document.liveDocumentUrl,
+        liveExternalFileId: document.liveExternalFileId,
+      });
+      if (eligibilityReasons.length) {
+        const reason = eligibilityReasons[0];
+        throw new SubmissionIntegrityError(
+          reason.message,
+          reason.statusCode,
+          reason.code,
+        );
+      }
+      await assertTaskSubmissionLifecycle(prisma, {
+        researchId: document.researchId,
+        taskId: task.id,
+      });
     } else {
       const configuredTaskCount = await prisma.workflowTask.count({
         where: { stageId: milestone.id },
@@ -236,7 +266,9 @@ class ManuscriptLifecycleService {
           document.liveExternalFileId,
         );
       } catch (error: any) {
-        const googleStatus = Number(error?.response?.status || error?.code || 0);
+        const googleStatus = Number(
+          error?.response?.status || error?.code || 0,
+        );
         if ([401, 403, 404].includes(googleStatus)) throw error;
         const message =
           typeof error?.message === "string"
@@ -278,7 +310,7 @@ class ManuscriptLifecycleService {
       });
       uploadedFileId = uploaded.fileId;
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await runSubmissionTransaction(async (tx) => {
         const locked = await tx.document.findFirst({
           where: {
             id: document.id,
@@ -293,6 +325,12 @@ class ManuscriptLifecycleService {
             409,
             "SUBMISSION_STATE_CHANGED",
           );
+        if (task) {
+          await assertTaskSubmissionLifecycle(tx, {
+            researchId: document.researchId,
+            taskId: task.id,
+          });
+        }
 
         const latest = await tx.documentVersion.findFirst({
           where: { documentId: document.id },
@@ -301,7 +339,11 @@ class ManuscriptLifecycleService {
         });
         const versionNumber = (latest?.versionNumber || 0) + 1;
         await tx.documentVersion.updateMany({
-          where: { documentId: document.id, isImmutable: true, status: "ACTIVE" },
+          where: {
+            documentId: document.id,
+            isImmutable: true,
+            status: "ACTIVE",
+          },
           data: { status: "SUPERSEDED" },
         });
         const submittedAt = new Date();
@@ -329,7 +371,9 @@ class ManuscriptLifecycleService {
           },
           include: {
             milestone: { select: { id: true, name: true, sequence: true } },
-            submitter: { select: { id: true, firstName: true, lastName: true } },
+            submitter: {
+              select: { id: true, firstName: true, lastName: true },
+            },
           },
         });
         await tx.document.update({
@@ -356,7 +400,8 @@ class ManuscriptLifecycleService {
               checksum,
               milestoneId: milestone.id,
               taskId: task?.id || null,
-              sourceModifiedAt: snapshot.sourceModifiedAt?.toISOString() || null,
+              sourceModifiedAt:
+                snapshot.sourceModifiedAt?.toISOString() || null,
             },
           },
         });
@@ -436,11 +481,15 @@ class ManuscriptLifecycleService {
             },
           },
         });
-        projectRecipients?.members.forEach(({ userId }) => recipients.add(userId));
+        projectRecipients?.members.forEach(({ userId }) =>
+          recipients.add(userId),
+        );
         if (projectRecipients?.workflowInstance?.workflow.createdBy)
           recipients.add(projectRecipients.workflowInstance.workflow.createdBy);
         recipients.delete(options.user.id);
-        assignedReviewerIds.forEach((reviewerId) => recipients.delete(reviewerId));
+        assignedReviewerIds.forEach((reviewerId) =>
+          recipients.delete(reviewerId),
+        );
         await createNotificationsOnce(tx, [
           {
             recipientId: options.user.id,
@@ -453,15 +502,15 @@ class ManuscriptLifecycleService {
             deduplicationKey: `manuscript:${version.id}:submitted:${options.user.id}`,
           },
           ...Array.from(recipients).map((recipientId) => ({
-              recipientId,
-              type: "DOCUMENT_UPLOADED",
-              title: "Manuscript submitted",
-              message: `${document.title} version ${versionNumber} was submitted for ${milestone.name}.`,
-              entityType: "DocumentVersion",
-              entityId: version.id,
-              actionUrl: `/research/manuscript?projectId=${document.researchId}&milestoneId=${milestone.id}&documentId=${document.id}&versionId=${version.id}`,
-              deduplicationKey: `manuscript:${version.id}:submitted:${recipientId}`,
-            })),
+            recipientId,
+            type: "DOCUMENT_UPLOADED",
+            title: "Manuscript submitted",
+            message: `${document.title} version ${versionNumber} was submitted for ${milestone.name}.`,
+            entityType: "DocumentVersion",
+            entityId: version.id,
+            actionUrl: `/research/manuscript?projectId=${document.researchId}&milestoneId=${milestone.id}&documentId=${document.id}&versionId=${version.id}`,
+            deduplicationKey: `manuscript:${version.id}:submitted:${recipientId}`,
+          })),
         ]);
         return { version, lifecycleStatus };
       });
@@ -473,7 +522,9 @@ class ManuscriptLifecycleService {
       };
     } catch (error) {
       if (uploadedFileId && !committed) {
-        await googleDriveService.deleteStoredFile(uploadedFileId).catch(() => false);
+        await googleDriveService
+          .deleteStoredFile(uploadedFileId)
+          .catch(() => false);
       }
       throw error;
     } finally {
