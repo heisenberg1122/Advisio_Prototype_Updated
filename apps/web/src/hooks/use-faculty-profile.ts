@@ -3,10 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
-import type {
-  FacultyProfileUpdateInput,
-  ProfileCompletionResult,
-} from "@research-management/validations";
+import type { FacultyProfileUpdateInput, ProfileCompletionResult } from "@research-management/validations";
 
 export interface FacultyProfileData extends FacultyProfileUpdateInput {
   id?: string;
@@ -63,6 +60,19 @@ export interface PublicFacultyProfileResponse {
   };
 }
 
+interface LegacyFacultyProfileData {
+  expertise?: string;
+  specialization?: string;
+  credentials?: string;
+  department?: string;
+  biography?: string;
+}
+
+function optionalString(record: Record<string, unknown>, key: keyof LegacyFacultyProfileData): string | undefined {
+  const value = record[key];
+  return typeof value === "string" ? value : undefined;
+}
+
 export function useFacultyProfile() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -85,7 +95,9 @@ export function useFacultyProfile() {
       }>("/api/faculty-profiles/me", data);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["faculty-profile", "me"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["faculty-profile", "me"],
+      });
       // Notify other components if needed
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("profile-updated"));
@@ -94,7 +106,7 @@ export function useFacultyProfile() {
   });
 
   // Safe localStorage inspection for legacy adviser drafts
-  const getLegacyLocalStorageData = () => {
+  const getLegacyLocalStorageData = (): LegacyFacultyProfileData | null => {
     if (typeof window === "undefined" || !user?.id) return null;
     const dismissedKey = `advisio_profile_legacy_dismissed_${user.id}`;
     if (localStorage.getItem(dismissedKey) === "true") return null;
@@ -104,17 +116,25 @@ export function useFacultyProfile() {
     if (!raw) return null;
 
     try {
-      const parsed = JSON.parse(raw);
+      const parsed: unknown = JSON.parse(raw);
       if (!parsed || typeof parsed !== "object") return null;
+      const record = parsed as Record<string, unknown>;
+      const legacy: LegacyFacultyProfileData = {
+        expertise: optionalString(record, "expertise"),
+        specialization: optionalString(record, "specialization"),
+        credentials: optionalString(record, "credentials"),
+        department: optionalString(record, "department"),
+        biography: optionalString(record, "biography"),
+      };
       // Check if it has any meaningful legacy faculty fields
       const hasContent = Boolean(
-        parsed.expertise?.trim() ||
-        parsed.specialization?.trim() ||
-        parsed.credentials?.trim() ||
-        parsed.department?.trim() ||
-        parsed.biography?.trim()
+        legacy.expertise?.trim() ||
+        legacy.specialization?.trim() ||
+        legacy.credentials?.trim() ||
+        legacy.department?.trim() ||
+        legacy.biography?.trim(),
       );
-      return hasContent ? parsed : null;
+      return hasContent ? legacy : null;
     } catch {
       return null;
     }
@@ -125,7 +145,7 @@ export function useFacultyProfile() {
     localStorage.setItem(`advisio_profile_legacy_dismissed_${user.id}`, "true");
   };
 
-  const convertLegacyData = (legacy: any): Partial<FacultyProfileUpdateInput> => {
+  const convertLegacyData = (legacy: LegacyFacultyProfileData | null): Partial<FacultyProfileUpdateInput> => {
     if (!legacy) return {};
 
     const expertiseList = legacy.expertise

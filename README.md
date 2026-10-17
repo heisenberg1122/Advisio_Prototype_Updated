@@ -282,6 +282,22 @@ The system will start both the frontend and backend servers concurrently:
 
 ---
 
+### Database Integration Tests
+
+`npm test` runs the standard unit suites and does not require PostgreSQL. Database integration suites are opt-in and must use a dedicated PostgreSQL database whose name contains `test`; the runner refuses development or production-style database names.
+
+Create the isolated database once, then provide its URL to the sequential runner:
+
+```powershell
+docker exec advisio-postgres createdb -U advisio_local advisio_integration_test
+$env:INTEGRATION_DATABASE_URL="postgresql://advisio_local:advisio_local_password@127.0.0.1:5433/advisio_integration_test?schema=public"
+npm run test:integration
+```
+
+The runner applies committed migrations and executes the manuscript lifecycle, reviewer assignment, and faculty-profile integration suites sequentially. Each suite creates and removes its own fixtures; it never depends on seeded demo accounts. Set `ALLOW_REMOTE_INTEGRATION_DATABASE=1` only for a deliberately isolated remote CI test database.
+
+---
+
 ## 🔑 Demo Accounts & Test Credentials
 
 The database seed provides ready-to-use accounts for each institutional role:

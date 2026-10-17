@@ -2,13 +2,13 @@ name: Advisio CI Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 jobs:
   validate:
-    name: Lint, Typecheck & Build
+    name: Unit Tests, Lint, Typecheck & Build
     runs-on: ubuntu-latest
 
     strategy:
@@ -27,7 +27,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install Monorepo Dependencies
         run: npm ci
@@ -50,3 +50,50 @@ jobs:
 
       - name: Build All Monorepo Packages
         run: npm run build
+
+  database-integration:
+    name: Sequential Database Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: advisio_integration_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d advisio_integration_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/advisio_integration_test?schema=public"
+      DIRECT_URL: "postgresql://postgres:postgres@127.0.0.1:5432/advisio_integration_test?schema=public"
+      INTEGRATION_DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/advisio_integration_test?schema=public"
+      JWT_SECRET: "ci-secret-jwt-key-for-test-validation"
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: "npm"
+
+      - name: Install Monorepo Dependencies
+        run: npm ci
+
+      - name: Build Required Internal Packages
+        run: |
+          npm run build --workspace=@research-management/database
+          npm run build --workspace=@research-management/auth
+          npm run build --workspace=@research-management/validations
+
+      - name: Run Database Integration Suites Sequentially
+        run: npm run test:integration

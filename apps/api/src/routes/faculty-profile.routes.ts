@@ -5,11 +5,17 @@ import { countActiveAdviseeGroups, capacitySummary } from "../lib/adviser-capaci
 import { getCollegeScope } from "../lib/college-scope.js";
 import {
   facultyProfileUpdateSchema,
+  certificationRecordSchema,
   calculateProfileCompletion,
   type FacultyProfileUpdateInput,
 } from "@research-management/validations";
 
 const router = Router();
+
+function parseStoredProfile(value: unknown): FacultyProfileUpdateInput | null {
+  const parsed = facultyProfileUpdateSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
 
 function sanitizeString(val: string | null | undefined): string | null {
   if (typeof val !== "string") return null;
@@ -19,9 +25,7 @@ function sanitizeString(val: string | null | undefined): string | null {
 
 function sanitizeStringArray(arr: string[] | undefined): string[] {
   if (!Array.isArray(arr)) return [];
-  return arr
-    .map((s) => (typeof s === "string" ? s.replace(/<[^>]*>?/gm, "").trim() : ""))
-    .filter((s) => s.length > 0);
+  return arr.map((s) => (typeof s === "string" ? s.replace(/<[^>]*>?/gm, "").trim() : "")).filter((s) => s.length > 0);
 }
 
 function sanitizeProfileData(input: FacultyProfileUpdateInput) {
@@ -119,7 +123,7 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
       updatedAt: user.adviserCapacitySetAt,
     };
 
-    const completion = calculateProfileCompletion(user.facultyProfile as any);
+    const completion = calculateProfileCompletion(parseStoredProfile(user.facultyProfile));
 
     res.json({
       profile: user.facultyProfile || null,
@@ -152,7 +156,9 @@ router.put("/me", requireAuth, async (req: Request, res: Response) => {
 
     const isAdviser = req.user.roles.includes("ADVISER") || req.user.roles.includes("SYSTEM_ADMIN");
     if (!isAdviser) {
-      res.status(403).json({ error: "Only authorized advisers may edit their professional profile" });
+      res.status(403).json({
+        error: "Only authorized advisers may edit their professional profile",
+      });
       return;
     }
 
@@ -187,7 +193,7 @@ router.put("/me", requireAuth, async (req: Request, res: Response) => {
           action: AuditAction.UPDATE,
           entityType: "FACULTY_PROFILE",
           entityId: req.user!.id,
-          oldValues: existing ? (JSON.parse(JSON.stringify(existing))) : undefined,
+          oldValues: existing ? JSON.parse(JSON.stringify(existing)) : undefined,
           newValues: sanitized,
           ipAddress: req.ip,
           userAgent: req.get("user-agent") || null,
@@ -197,7 +203,7 @@ router.put("/me", requireAuth, async (req: Request, res: Response) => {
       return updated;
     });
 
-    const completion = calculateProfileCompletion(result as any);
+    const completion = calculateProfileCompletion(parseStoredProfile(result));
 
     res.json({
       message: "Professional profile updated successfully",
@@ -261,7 +267,12 @@ router.get("/:userId", requireAuth, async (req: Request, res: Response) => {
     // Privacy Protection: Strip confidential fields (e.g. licenseNumber) from certifications
     const profile = targetUser.facultyProfile;
     const sanitizedCertifications = Array.isArray(profile?.certifications)
-      ? (profile.certifications as any[]).map(({ licenseNumber: _lic, ...cert }) => cert)
+      ? profile.certifications.flatMap((certification) => {
+          const parsed = certificationRecordSchema.safeParse(certification);
+          if (!parsed.success) return [];
+          const { licenseNumber: _licenseNumber, ...publicCertification } = parsed.data;
+          return [publicCertification];
+        })
       : [];
 
     const publicProfile = profile

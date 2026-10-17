@@ -122,13 +122,15 @@ export function FacultyProfileEditForm() {
       setExpertiseKeywords(Array.isArray(profile.expertiseKeywords) ? profile.expertiseKeywords : []);
       setResearchInterests(Array.isArray(profile.researchInterests) ? profile.researchInterests : []);
       setSpecializedTopics(Array.isArray(profile.specializedTopics) ? profile.specializedTopics : []);
-      setSupervisionMethodologies(Array.isArray(profile.supervisionMethodologies) ? profile.supervisionMethodologies : []);
+      setSupervisionMethodologies(
+        Array.isArray(profile.supervisionMethodologies) ? profile.supervisionMethodologies : [],
+      );
       setAcceptedResearchTypes(Array.isArray(profile.acceptedResearchTypes) ? profile.acceptedResearchTypes : []);
-      setEducations(Array.isArray(profile.educations) ? (profile.educations as any) : []);
-      setCertifications(Array.isArray(profile.certifications) ? (profile.certifications as any) : []);
-      setExperiences(Array.isArray(profile.experiences) ? (profile.experiences as any) : []);
-      setPublications(Array.isArray(profile.publications) ? (profile.publications as any) : []);
-      setAwards(Array.isArray(profile.awards) ? (profile.awards as any) : []);
+      setEducations(Array.isArray(profile.educations) ? profile.educations : []);
+      setCertifications(Array.isArray(profile.certifications) ? profile.certifications : []);
+      setExperiences(Array.isArray(profile.experiences) ? profile.experiences : []);
+      setPublications(Array.isArray(profile.publications) ? profile.publications : []);
+      setAwards(Array.isArray(profile.awards) ? profile.awards : []);
       setAdvisingPreferences(profile.advisingPreferences || "");
     }
   }, [profile, profileUser]);
@@ -147,8 +149,9 @@ export function FacultyProfileEditForm() {
         if (converted.specializedTopics?.length) {
           setSpecializedTopics((prev) => Array.from(new Set([...prev, ...(converted.specializedTopics || [])])));
         }
-        if (converted.certifications?.length) {
-          setCertifications((prev) => [...prev, ...(converted.certifications as any[])]);
+        const importedCertifications = converted.certifications;
+        if (importedCertifications?.length) {
+          setCertifications((prev) => [...prev, ...importedCertifications]);
         }
         setIsDirty(true);
         dismissLegacyData();
@@ -175,9 +178,7 @@ export function FacultyProfileEditForm() {
   // Expertise Tag Helpers
   const toggleSpecialty = (item: string) => {
     markDirty();
-    setExpertiseKeywords((prev) =>
-      prev.includes(item) ? prev.filter((k) => k !== item) : [...prev, item]
-    );
+    setExpertiseKeywords((prev) => (prev.includes(item) ? prev.filter((k) => k !== item) : [...prev, item]));
   };
 
   const addCustomSpecialty = () => {
@@ -209,9 +210,7 @@ export function FacultyProfileEditForm() {
 
   const toggleResearchType = (type: string) => {
     markDirty();
-    setAcceptedResearchTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    );
+    setAcceptedResearchTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]));
   };
 
   // Repeatable Education Helpers
@@ -479,7 +478,9 @@ export function FacultyProfileEditForm() {
                 placeholder="e.g. Dr., Prof., Ph.D., PE, MSCS"
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
               />
-              <span className="text-[11px] text-slate-400 mt-1 block">Displayed beside your name (e.g. Dr. Jane Doe)</span>
+              <span className="text-[11px] text-slate-400 mt-1 block">
+                Displayed beside your name (e.g. Dr. Jane Doe)
+              </span>
             </div>
 
             <div>
@@ -499,9 +500,7 @@ export function FacultyProfileEditForm() {
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                Department / Office
-              </label>
+              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Department / Office</label>
               <input
                 type="text"
                 value={department}
@@ -540,9 +539,7 @@ export function FacultyProfileEditForm() {
           </h3>
           <div className="space-y-4">
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                Short Faculty Biography
-              </label>
+              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Short Faculty Biography</label>
               <textarea
                 rows={3}
                 value={biography}
@@ -556,9 +553,7 @@ export function FacultyProfileEditForm() {
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                Teaching Background
-              </label>
+              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Teaching Background</label>
               <textarea
                 rows={2}
                 value={teachingBackground}
@@ -612,19 +607,15 @@ export function FacultyProfileEditForm() {
               <GraduationCap className="h-4 w-4 text-[#C9A227]" />
               3. Educational Background & Degrees
             </h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={addEducation}
-              icon={<Plus className="h-3.5 w-3.5" />}
-            >
+            <Button variant="outline" size="sm" onClick={addEducation} icon={<Plus className="h-3.5 w-3.5" />}>
               Add Degree
             </Button>
           </div>
 
           {educations.length === 0 ? (
             <p className="text-xs text-slate-500 italic py-2">
-              No degrees entered yet. Click "Add Degree" to record your Bachelor's, Master's, or Doctoral qualifications.
+              No degrees entered yet. Click "Add Degree" to record your Bachelor's, Master's, or Doctoral
+              qualifications.
             </p>
           ) : (
             <div className="space-y-4">
@@ -644,9 +635,7 @@ export function FacultyProfileEditForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pr-8">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                        Degree Level
-                      </label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Degree Level</label>
                       <select
                         value={edu.degreeLevel}
                         onChange={(e) => updateEducation(idx, "degreeLevel", e.target.value)}
@@ -661,9 +650,7 @@ export function FacultyProfileEditForm() {
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                        Degree Title
-                      </label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Degree Title</label>
                       <input
                         type="text"
                         value={edu.degreeName}
@@ -687,13 +674,13 @@ export function FacultyProfileEditForm() {
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                        Graduation Year
-                      </label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Graduation Year</label>
                       <input
                         type="number"
                         value={edu.graduationYear || ""}
-                        onChange={(e) => updateEducation(idx, "graduationYear", e.target.value ? Number(e.target.value) : null)}
+                        onChange={(e) =>
+                          updateEducation(idx, "graduationYear", e.target.value ? Number(e.target.value) : null)
+                        }
                         placeholder="e.g. 2018"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
@@ -750,12 +737,7 @@ export function FacultyProfileEditForm() {
               placeholder="Add custom specialty tag..."
               className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={addCustomSpecialty}
-            >
+            <Button type="button" variant="outline" size="sm" onClick={addCustomSpecialty}>
               Add Tag
             </Button>
           </div>
@@ -919,9 +901,7 @@ export function FacultyProfileEditForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pr-8">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                        Type
-                      </label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Type</label>
                       <select
                         value={exp.type}
                         onChange={(e) => updateExperience(idx, "type", e.target.value)}
@@ -964,9 +944,7 @@ export function FacultyProfileEditForm() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
-                        <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                          Start Year
-                        </label>
+                        <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Start Year</label>
                         <input
                           type="text"
                           value={exp.startYear}
@@ -976,9 +954,7 @@ export function FacultyProfileEditForm() {
                         />
                       </div>
                       <div className="flex-1">
-                        <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                          End Year
-                        </label>
+                        <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">End Year</label>
                         <input
                           type="text"
                           disabled={exp.isCurrent}
@@ -1020,9 +996,7 @@ export function FacultyProfileEditForm() {
           </div>
 
           {certifications.length === 0 ? (
-            <p className="text-xs text-slate-500 italic py-2">
-              No certifications added yet.
-            </p>
+            <p className="text-xs text-slate-500 italic py-2">No certifications added yet.</p>
           ) : (
             <div className="space-y-4">
               {certifications.map((cert, idx) => (
@@ -1067,13 +1041,13 @@ export function FacultyProfileEditForm() {
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                        Year Issued
-                      </label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Year Issued</label>
                       <input
                         type="number"
                         value={cert.yearIssued || ""}
-                        onChange={(e) => updateCertification(idx, "yearIssued", e.target.value ? Number(e.target.value) : null)}
+                        onChange={(e) =>
+                          updateCertification(idx, "yearIssued", e.target.value ? Number(e.target.value) : null)
+                        }
                         placeholder="e.g. 2023"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
@@ -1098,9 +1072,7 @@ export function FacultyProfileEditForm() {
           </div>
 
           {publications.length === 0 ? (
-            <p className="text-xs text-slate-500 italic py-2">
-              No publications added yet.
-            </p>
+            <p className="text-xs text-slate-500 italic py-2">No publications added yet.</p>
           ) : (
             <div className="space-y-4">
               {publications.map((pub, idx) => (
@@ -1147,9 +1119,7 @@ export function FacultyProfileEditForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                        Year
-                      </label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Year</label>
                       <input
                         type="text"
                         value={pub.year || ""}
@@ -1191,9 +1161,7 @@ export function FacultyProfileEditForm() {
           </div>
 
           {awards.length === 0 ? (
-            <p className="text-xs text-slate-500 italic py-2">
-              No awards added yet.
-            </p>
+            <p className="text-xs text-slate-500 italic py-2">No awards added yet.</p>
           ) : (
             <div className="space-y-4">
               {awards.map((award, idx) => (
@@ -1212,9 +1180,7 @@ export function FacultyProfileEditForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pr-8">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                        Award Title
-                      </label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Award Title</label>
                       <input
                         type="text"
                         value={award.title}
@@ -1238,9 +1204,7 @@ export function FacultyProfileEditForm() {
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
-                        Year Received
-                      </label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Year Received</label>
                       <input
                         type="text"
                         value={award.year || ""}
@@ -1291,13 +1255,7 @@ export function FacultyProfileEditForm() {
           >
             Cancel
           </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            size="md"
-            isLoading={isUpdating}
-            icon={<Save className="h-4 w-4" />}
-          >
+          <Button type="submit" variant="primary" size="md" isLoading={isUpdating} icon={<Save className="h-4 w-4" />}>
             Save Profile Changes
           </Button>
         </div>

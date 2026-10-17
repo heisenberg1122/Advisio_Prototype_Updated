@@ -10,6 +10,7 @@ import {
   manuscriptLifecycleService,
 } from "./manuscript-lifecycle.service.js";
 import { storageHierarchyService } from "./storage-hierarchy.service.js";
+import { assertIsolatedIntegrationDatabase } from "../test/database-integration.js";
 import { reviewerAssignmentService } from "./reviewer-assignment.service.js";
 import {
   submitStoredTaskVersion,
@@ -57,6 +58,7 @@ databaseDescribe(
     );
 
     beforeAll(async () => {
+      assertIsolatedIntegrationDatabase();
       const college = await prisma.college.create({
         data: { code: `P3${fixtureSuffix}`, name: "Phase 3 Isolated College" },
       });

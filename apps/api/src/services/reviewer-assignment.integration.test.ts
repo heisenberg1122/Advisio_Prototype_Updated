@@ -5,10 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { documentAccessService } from "./document-access.service.js";
 import { googleDriveService } from "./google-drive.service.js";
 import { manuscriptLifecycleService } from "./manuscript-lifecycle.service.js";
-import {
-  ReviewerAssignmentError,
-  reviewerAssignmentService,
-} from "./reviewer-assignment.service.js";
+import { ReviewerAssignmentError, reviewerAssignmentService } from "./reviewer-assignment.service.js";
 import {
   advanceMilestoneIfSatisfied,
   getManuscriptActivity,
@@ -16,9 +13,9 @@ import {
   recordTaskSubmissionAttempt,
 } from "./research-workflow-integration.service.js";
 import { storageHierarchyService } from "./storage-hierarchy.service.js";
+import { assertIsolatedIntegrationDatabase } from "../test/database-integration.js";
 
-const databaseDescribe =
-  process.env.RUN_DATABASE_INTEGRATION_TESTS === "1" ? describe : describe.skip;
+const databaseDescribe = process.env.RUN_DATABASE_INTEGRATION_TESTS === "1" ? describe : describe.skip;
 
 function auth(
   user: { id: string; email: string; universityId: string },
@@ -53,6 +50,7 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
   const v2Pdf = Buffer.from("%PDF-1.4\nPhase 4 revised version two\n%%EOF\n");
 
   beforeAll(async () => {
+    assertIsolatedIntegrationDatabase();
     const college = await prisma.college.create({
       data: { code: `P4${fixtureSuffix}`, name: "Phase 4 Isolated College" },
     });
@@ -70,13 +68,7 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
         endDate: new Date("2098-05-31T00:00:00.000Z"),
       },
     });
-    const roleNames = [
-      "RESEARCHER",
-      "ADVISER",
-      "RESEARCH_COORDINATOR",
-      "PANELIST",
-      "SYSTEM_ADMIN",
-    ] as const;
+    const roleNames = ["RESEARCHER", "ADVISER", "RESEARCH_COORDINATOR", "PANELIST", "SYSTEM_ADMIN"] as const;
     await prisma.role.createMany({
       data: roleNames.map((name) => ({ name })),
       skipDuplicates: true,
@@ -100,7 +92,10 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
       await prisma.userRole.create({
         data: { userId: user.id, roleId: roles.get(role)!.id },
       });
-      return { record: user, authenticated: auth(user, [role], college.id, program.id) };
+      return {
+        record: user,
+        authenticated: auth(user, [role], college.id, program.id),
+      };
     };
     const users = await Promise.all([
       createUser("Student", "RESEARCHER"),
@@ -111,8 +106,9 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
       createUser("Outsider", "RESEARCHER"),
       createUser("Administrator", "SYSTEM_ADMIN"),
     ]);
-    [student, adviser, professor, panelist, replacementPanelist, outsider, administrator] =
-      users.map(({ authenticated }) => authenticated);
+    [student, adviser, professor, panelist, replacementPanelist, outsider, administrator] = users.map(
+      ({ authenticated }) => authenticated,
+    );
 
     const researchType = await prisma.researchType.create({
       data: {
@@ -185,7 +181,11 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
       data: [
         { researchId: project.id, userId: student.id, projectRole: "LEADER" },
         { researchId: project.id, userId: adviser.id, projectRole: "ADVISER" },
-        { researchId: project.id, userId: panelist.id, projectRole: "PANELIST" },
+        {
+          researchId: project.id,
+          userId: panelist.id,
+          projectRole: "PANELIST",
+        },
       ],
     });
     const document = await prisma.document.create({
@@ -195,17 +195,14 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
         documentType: "MANUSCRIPT",
         title: "Phase 4 Research Manuscript",
         currentVersion: 0,
-        liveDocumentUrl:
-          "https://docs.google.com/document/d/phase4-source/edit",
+        liveDocumentUrl: "https://docs.google.com/document/d/phase4-source/edit",
         liveExternalFileId: `phase4-source-${fixtureSuffix}`,
         createdBy: student.id,
       },
     });
     documentId = document.id;
 
-    vi.spyOn(storageHierarchyService, "resolveFolder").mockResolvedValue(
-      "phase4-submissions-folder",
-    );
+    vi.spyOn(storageHierarchyService, "resolveFolder").mockResolvedValue("phase4-submissions-folder");
     vi.spyOn(googleDriveService, "exportImmutablePdf")
       .mockResolvedValueOnce({
         buffer: v1Pdf,
@@ -222,20 +219,18 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
         sourceModifiedAt: new Date("2026-10-13T10:00:00.000Z"),
       });
     let uploadNumber = 0;
-    vi.spyOn(googleDriveService, "uploadFile").mockImplementation(
-      async (options) => {
-        uploadNumber += 1;
-        return {
-          fileId: `phase4-${fixtureSuffix}-snapshot-${uploadNumber}`,
-          fileName: options.fileName,
-          mimeType: options.mimeType,
-          sizeBytes: options.buffer.length,
-          webViewLink: `/api/documents/files/phase4-${fixtureSuffix}-snapshot-${uploadNumber}`,
-          webContentLink: `/api/documents/files/phase4-${fixtureSuffix}-snapshot-${uploadNumber}?download=1`,
-          storagePath: `google-drive://phase4-${fixtureSuffix}-snapshot-${uploadNumber}`,
-        };
-      },
-    );
+    vi.spyOn(googleDriveService, "uploadFile").mockImplementation(async (options) => {
+      uploadNumber += 1;
+      return {
+        fileId: `phase4-${fixtureSuffix}-snapshot-${uploadNumber}`,
+        fileName: options.fileName,
+        mimeType: options.mimeType,
+        sizeBytes: options.buffer.length,
+        webViewLink: `/api/documents/files/phase4-${fixtureSuffix}-snapshot-${uploadNumber}`,
+        webContentLink: `/api/documents/files/phase4-${fixtureSuffix}-snapshot-${uploadNumber}?download=1`,
+        storagePath: `google-drive://phase4-${fixtureSuffix}-snapshot-${uploadNumber}`,
+      };
+    });
     vi.spyOn(googleDriveService, "deleteStoredFile").mockResolvedValue(true);
   });
 
@@ -270,10 +265,7 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
     });
     expect(v1Assignments).toHaveLength(2);
     expect(v1Assignments.every((assignment) => assignment.isRequired)).toBe(true);
-    expect(v1Assignments.map(({ reviewType }) => reviewType).sort()).toEqual([
-      "ADVISER",
-      "COORDINATOR",
-    ]);
+    expect(v1Assignments.map(({ reviewType }) => reviewType).sort()).toEqual(["ADVISER", "COORDINATOR"]);
     expect(
       await prisma.notification.count({
         where: {
@@ -285,9 +277,7 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
     expect(await documentAccessService.canViewVersion(outsider, first.version.id)).toBe(false);
     expect(await documentAccessService.canViewVersion(adviser, first.version.id)).toBe(true);
 
-    const adviserV1 = v1Assignments.find(
-      (assignment) => assignment.reviewerId === adviser.id,
-    )!;
+    const adviserV1 = v1Assignments.find((assignment) => assignment.reviewerId === adviser.id)!;
     await expect(
       reviewerAssignmentService.decide({
         assignmentId: adviserV1.id,
@@ -324,7 +314,10 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
     ).toBe("REVISION_REQUIRED");
     const v1AfterRevision = await prisma.documentVersion.findUniqueOrThrow({
       where: { id: first.version.id },
-      include: { reviewerAssignments: true, reviews: { include: { comments: true } } },
+      include: {
+        reviewerAssignments: true,
+        reviews: { include: { comments: true } },
+      },
     });
     expect(v1AfterRevision.reviewerAssignments).toEqual(
       expect.arrayContaining([
@@ -340,13 +333,8 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
       }),
     ).rejects.toThrow(/submitted manuscript review decisions cannot be changed/i);
 
-    const studentWorkflow = await reviewerAssignmentService.reviewWorkflow(
-      student,
-      documentId,
-    );
-    expect(studentWorkflow.versions[0].reviews[0].overallComment).toContain(
-      "methodology",
-    );
+    const studentWorkflow = await reviewerAssignmentService.reviewWorkflow(student, documentId);
+    expect(studentWorkflow.versions[0].reviews[0].overallComment).toContain("methodology");
     expect(studentWorkflow.versions[0].reviews[0].reviewer).toBeNull();
 
     const second = await manuscriptLifecycleService.submit({
@@ -364,20 +352,14 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
       orderBy: { attemptNumber: "asc" },
     });
     expect(attemptsAfterRevision).toHaveLength(2);
-    expect(attemptsAfterRevision.map(({ attemptNumber }) => attemptNumber)).toEqual([
-      1, 2,
-    ]);
+    expect(attemptsAfterRevision.map(({ attemptNumber }) => attemptNumber)).toEqual([1, 2]);
     expect(attemptsAfterRevision[0].documentVersionId).toBe(first.version.id);
     expect(attemptsAfterRevision[1].documentVersionId).toBe(second.version.id);
-    expect(second.version.contentChecksum).toBe(
-      crypto.createHash("sha256").update(v2Pdf).digest("hex"),
-    );
+    expect(second.version.contentChecksum).toBe(crypto.createHash("sha256").update(v2Pdf).digest("hex"));
     const preservedV1 = await prisma.documentVersion.findUniqueOrThrow({
       where: { id: first.version.id },
     });
-    expect(preservedV1.contentChecksum).toBe(
-      crypto.createHash("sha256").update(v1Pdf).digest("hex"),
-    );
+    expect(preservedV1.contentChecksum).toBe(crypto.createHash("sha256").update(v1Pdf).digest("hex"));
     expect(preservedV1.status).toBe("SUPERSEDED");
 
     await expect(
@@ -453,12 +435,8 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
         status: "ACTIVE",
       },
     });
-    const adviserV2 = v2Assignments.find(
-      (assignment) => assignment.reviewerId === adviser.id,
-    )!;
-    const professorV2 = v2Assignments.find(
-      (assignment) => assignment.reviewerId === professor.id,
-    )!;
+    const adviserV2 = v2Assignments.find((assignment) => assignment.reviewerId === adviser.id)!;
+    const professorV2 = v2Assignments.find((assignment) => assignment.reviewerId === professor.id)!;
     const adviserApproval = await reviewerAssignmentService.decide({
       assignmentId: adviserV2.id,
       recommendation: "APPROVE",
@@ -595,11 +573,7 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
       status: "COMPLETED",
       completionPercent: 100,
     });
-    const studentActivity = await getManuscriptActivity(
-      prisma,
-      projectId,
-      false,
-    );
+    const studentActivity = await getManuscriptActivity(prisma, projectId, false);
     expect(studentActivity).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: "TASK_SUBMISSION" }),
@@ -607,9 +581,10 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
         expect.objectContaining({ type: "REVIEW_DECISION" }),
       ]),
     );
-    expect(
-      studentActivity.find(({ type }) => type === "REVIEW_DECISION")?.actor,
-    ).toEqual({ id: null, name: "Assigned faculty" });
+    expect(studentActivity.find(({ type }) => type === "REVIEW_DECISION")?.actor).toEqual({
+      id: null,
+      name: "Assigned faculty",
+    });
     expect(
       (
         await prisma.reviewerAssignment.findUniqueOrThrow({

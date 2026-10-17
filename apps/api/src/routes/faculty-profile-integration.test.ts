@@ -1,78 +1,269 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import http from "http";
+import crypto from "node:crypto";
+import http from "node:http";
 import jwt from "jsonwebtoken";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { FacultyProfileUpdateInput } from "@research-management/validations";
 import app from "../app.js";
 import { prisma } from "../lib/prisma.js";
+import { assertIsolatedIntegrationDatabase } from "../test/database-integration.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.AUTH_SECRET || "advisio-super-secret-key-change-in-production";
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  process.env.AUTH_SECRET ||
+  "advisio-super-secret-key-change-in-production";
 
-describe("Faculty Profile End-to-End API Persistence Suite", () => {
-  let server: http.Server;
-  let baseUrl: string;
-  let adviserUser: any;
-  let studentUser: any;
-  let adviserToken: string;
-  let studentToken: string;
-  let otherCollegeStudent: any;
-  let otherCollegeToken: string;
+const databaseDescribe =
+  process.env.RUN_DATABASE_INTEGRATION_TESTS === "1" ? describe : describe.skip;
+
+interface FixtureUser {
+  id: string;
+  collegeId: string;
+}
+
+interface FacultyProfileFixture {
+  adviser: FixtureUser;
+  student: FixtureUser;
+  otherCollegeStudent: FixtureUser;
+  userIds: string[];
+  programIds: string[];
+  collegeIds: string[];
+}
+
+interface OwnProfileResponse {
+  profile: { academicTitle?: string | null } | null;
+  user: { id: string };
+  capacity: { availableSlots: number };
+  completion: { percentage: number };
+}
+
+interface UpdateProfileResponse {
+  message: string;
+  profile: {
+    academicTitle: string | null;
+    educations: FacultyProfileUpdateInput["educations"];
+  };
+  completion: { percentage: number };
+}
+
+interface PublicProfileResponse {
+  adviser: {
+    name: string;
+    isVerified: boolean;
+    capacity: { availableSlots: number };
+    profile: {
+      academicTitle: string | null;
+      educations: FacultyProfileUpdateInput["educations"];
+      certifications: Array<{
+        title: string;
+        licenseNumber?: string | null;
+      }>;
+    } | null;
+  };
+}
+
+async function closeServer(server: http.Server | undefined): Promise<void> {
+  if (!server?.listening) return;
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}
+
+databaseDescribe("Faculty Profile End-to-End API Persistence Suite", () => {
+  const fixtureSuffix = crypto.randomUUID().slice(0, 8).toUpperCase();
+  let server: http.Server | undefined;
+  let baseUrl = "";
+  let fixture: FacultyProfileFixture | undefined;
+  let adviserToken = "";
+  let studentToken = "";
+  let otherCollegeToken = "";
 
   beforeAll(async () => {
-    // Locate sample adviser and student from database
-    adviserUser = await prisma.user.findFirst({
-      where: {
-        email: "adviser01@university.edu.ph",
-        roles: { some: { role: { name: "ADVISER" } } },
-      },
+    assertIsolatedIntegrationDatabase();
+
+    fixture = await prisma.$transaction(async (tx) => {
+      const adviserRole = await tx.role.upsert({
+        where: { name: "ADVISER" },
+        update: {},
+        create: { name: "ADVISER", description: "Integration test adviser" },
+      });
+      const researcherRole = await tx.role.upsert({
+        where: { name: "RESEARCHER" },
+        update: {},
+        create: {
+          name: "RESEARCHER",
+          description: "Integration test researcher",
+        },
+      });
+
+      const adviserCollege = await tx.college.create({
+        data: {
+          code: `FPA${fixtureSuffix}`,
+          name: `Faculty Profile Adviser College ${fixtureSuffix}`,
+        },
+      });
+      const otherCollege = await tx.college.create({
+        data: {
+          code: `FPO${fixtureSuffix}`,
+          name: `Faculty Profile Other College ${fixtureSuffix}`,
+        },
+      });
+      const adviserProgram = await tx.program.create({
+        data: {
+          collegeId: adviserCollege.id,
+          code: `FPA${fixtureSuffix}`,
+          name: `Faculty Profile Adviser Program ${fixtureSuffix}`,
+        },
+      });
+      const otherProgram = await tx.program.create({
+        data: {
+          collegeId: otherCollege.id,
+          code: `FPO${fixtureSuffix}`,
+          name: `Faculty Profile Other Program ${fixtureSuffix}`,
+        },
+      });
+
+      const adviser = await tx.user.create({
+        data: {
+          universityId: `FPA-${fixtureSuffix}`,
+          email: `faculty-profile-${fixtureSuffix.toLowerCase()}-adviser@integration.test`,
+          firstName: "Faculty",
+          lastName: "Fixture",
+          status: "ACTIVE",
+          collegeId: adviserCollege.id,
+          programId: adviserProgram.id,
+        },
+      });
+      const student = await tx.user.create({
+        data: {
+          universityId: `FPS-${fixtureSuffix}`,
+          email: `faculty-profile-${fixtureSuffix.toLowerCase()}-student@integration.test`,
+          firstName: "Student",
+          lastName: "Fixture",
+          status: "ACTIVE",
+          collegeId: adviserCollege.id,
+          programId: adviserProgram.id,
+        },
+      });
+      const otherCollegeStudent = await tx.user.create({
+        data: {
+          universityId: `FPO-${fixtureSuffix}`,
+          email: `faculty-profile-${fixtureSuffix.toLowerCase()}-outsider@integration.test`,
+          firstName: "Outsider",
+          lastName: "Fixture",
+          status: "ACTIVE",
+          collegeId: otherCollege.id,
+          programId: otherProgram.id,
+        },
+      });
+
+      await tx.userRole.createMany({
+        data: [
+          { userId: adviser.id, roleId: adviserRole.id },
+          { userId: student.id, roleId: researcherRole.id },
+          { userId: otherCollegeStudent.id, roleId: researcherRole.id },
+        ],
+      });
+
+      return {
+        adviser: { id: adviser.id, collegeId: adviserCollege.id },
+        student: { id: student.id, collegeId: adviserCollege.id },
+        otherCollegeStudent: {
+          id: otherCollegeStudent.id,
+          collegeId: otherCollege.id,
+        },
+        userIds: [adviser.id, student.id, otherCollegeStudent.id],
+        programIds: [adviserProgram.id, otherProgram.id],
+        collegeIds: [adviserCollege.id, otherCollege.id],
+      };
     });
 
-    studentUser = await prisma.user.findFirst({
-      where: {
-        collegeId: adviserUser.collegeId,
-        roles: { some: { role: { name: "RESEARCHER" } } },
-      },
+    adviserToken = jwt.sign({ userId: fixture.adviser.id }, JWT_SECRET, {
+      expiresIn: "1h",
     });
-
-    otherCollegeStudent = await prisma.user.findFirst({
-      where: {
-        collegeId: { not: adviserUser.collegeId },
-        roles: { some: { role: { name: "RESEARCHER" } } },
-      },
+    studentToken = jwt.sign({ userId: fixture.student.id }, JWT_SECRET, {
+      expiresIn: "1h",
     });
+    otherCollegeToken = jwt.sign(
+      { userId: fixture.otherCollegeStudent.id },
+      JWT_SECRET,
+      { expiresIn: "1h" },
+    );
 
-    expect(adviserUser).toBeDefined();
-    expect(studentUser).toBeDefined();
-
-    adviserToken = jwt.sign({ userId: adviserUser.id }, JWT_SECRET, { expiresIn: "1h" });
-    studentToken = jwt.sign({ userId: studentUser.id }, JWT_SECRET, { expiresIn: "1h" });
-    if (otherCollegeStudent) {
-      otherCollegeToken = jwt.sign({ userId: otherCollegeStudent.id }, JWT_SECRET, { expiresIn: "1h" });
-    }
-
-    await new Promise<void>((resolve) => {
-      server = http.createServer(app).listen(0, () => {
-        const port = (server.address() as any).port;
-        baseUrl = `http://localhost:${port}`;
+    await new Promise<void>((resolve, reject) => {
+      const candidate = http.createServer(app);
+      server = candidate;
+      candidate.once("error", reject);
+      candidate.listen(0, () => {
+        const address = candidate.address();
+        if (!address || typeof address === "string") {
+          reject(
+            new Error("Integration test server did not expose a TCP port."),
+          );
+          return;
+        }
+        baseUrl = `http://127.0.0.1:${address.port}`;
         resolve();
       });
     });
   });
 
   afterAll(async () => {
-    await new Promise<void>((resolve) => {
-      server.close(() => resolve());
-    });
+    const teardownErrors: unknown[] = [];
+
+    try {
+      await closeServer(server);
+    } catch (error) {
+      teardownErrors.push(error);
+    }
+
+    if (fixture) {
+      try {
+        await prisma.$transaction([
+          prisma.auditLog.deleteMany({
+            where: { userId: { in: fixture.userIds } },
+          }),
+          prisma.facultyProfile.deleteMany({
+            where: { userId: { in: fixture.userIds } },
+          }),
+          prisma.userRole.deleteMany({
+            where: { userId: { in: fixture.userIds } },
+          }),
+          prisma.user.deleteMany({ where: { id: { in: fixture.userIds } } }),
+          prisma.program.deleteMany({
+            where: { id: { in: fixture.programIds } },
+          }),
+          prisma.college.deleteMany({
+            where: { id: { in: fixture.collegeIds } },
+          }),
+        ]);
+      } catch (error) {
+        teardownErrors.push(error);
+      }
+    }
+
+    try {
+      await prisma.$disconnect();
+    } catch (error) {
+      teardownErrors.push(error);
+    }
+
+    if (teardownErrors.length > 0) {
+      throw new AggregateError(
+        teardownErrors,
+        "Faculty profile integration teardown failed.",
+      );
+    }
   });
 
   it("GET /api/faculty-profiles/me returns profile and completion stats gracefully", async () => {
-    const res = await fetch(`${baseUrl}/api/faculty-profiles/me`, {
+    const response = await fetch(`${baseUrl}/api/faculty-profiles/me`, {
       headers: { Authorization: `Bearer ${adviserToken}` },
     });
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as any;
-    expect(data.user).toBeDefined();
-    expect(data.user.id).toBe(adviserUser.id);
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as OwnProfileResponse;
+    expect(data.user.id).toBe(fixture?.adviser.id);
+    expect(data.profile).toBeNull();
     expect(data.capacity).toBeDefined();
-    expect(data.completion).toBeDefined();
     expect(typeof data.completion.percentage).toBe("number");
   });
 
@@ -81,16 +272,28 @@ describe("Faculty Profile End-to-End API Persistence Suite", () => {
       academicTitle: "Ph.D., PE",
       facultyDesignation: "Associate Professor",
       department: "Information Technology",
-      biography: "Distinguished researcher with 12 years of capstone mentoring experience.",
-      teachingBackground: "Software engineering, distributed computing, and web architectures.",
-      mentoringPhilosophy: "Fostering critical thinking through real-world software delivery.",
-      preferredProjectTypes: "Enterprise systems, AI applied models, and cloud architectures.",
-      expertiseKeywords: ["Web Development", "Software Engineering", "Artificial Intelligence"],
+      biography:
+        "Distinguished researcher with 12 years of capstone mentoring experience.",
+      teachingBackground:
+        "Software engineering, distributed computing, and web architectures.",
+      mentoringPhilosophy:
+        "Fostering critical thinking through real-world software delivery.",
+      preferredProjectTypes:
+        "Enterprise systems, AI applied models, and cloud architectures.",
+      expertiseKeywords: [
+        "Web Development",
+        "Software Engineering",
+        "Artificial Intelligence",
+      ],
       researchInterests: ["Machine Learning", "Educational Technology"],
-      specializedTopics: ["Deep learning in agriculture", "Microservices security"],
+      specializedTopics: [
+        "Deep learning in agriculture",
+        "Microservices security",
+      ],
       supervisionMethodologies: ["Agile/Scrum", "Design Science"],
       acceptedResearchTypes: ["Applied Research", "Experimental Research"],
-      advisingPreferences: "Weekly sprint reviews and bi-weekly formal demos required.",
+      advisingPreferences:
+        "Weekly sprint reviews and bi-weekly formal demos required.",
       educations: [
         {
           id: "edu-test-1",
@@ -138,12 +341,13 @@ describe("Faculty Profile End-to-End API Persistence Suite", () => {
           title: "Outstanding Research Mentor of the Year",
           issuingOrganization: "University of the Assumption",
           year: 2023,
-          description: "Awarded for excellence in undergraduate capstone supervision.",
+          description:
+            "Awarded for excellence in undergraduate capstone supervision.",
         },
       ],
-    };
+    } satisfies FacultyProfileUpdateInput;
 
-    const res = await fetch(`${baseUrl}/api/faculty-profiles/me`, {
+    const response = await fetch(`${baseUrl}/api/faculty-profiles/me`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -152,41 +356,51 @@ describe("Faculty Profile End-to-End API Persistence Suite", () => {
       body: JSON.stringify(payload),
     });
 
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as any;
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as UpdateProfileResponse;
     expect(body.message).toBe("Professional profile updated successfully");
-    expect(body.profile).toBeDefined();
     expect(body.profile.academicTitle).toBe("Ph.D., PE");
     expect(body.profile.educations).toHaveLength(1);
     expect(body.completion.percentage).toBeGreaterThanOrEqual(85);
+
+    const persisted = await prisma.facultyProfile.findUnique({
+      where: { userId: fixture!.adviser.id },
+    });
+    expect(persisted?.academicTitle).toBe("Ph.D., PE");
+    expect(persisted?.supervisionMethodologies).toEqual([
+      "Agile/Scrum",
+      "Design Science",
+    ]);
   });
 
   it("GET /api/faculty-profiles/:userId allows students to view verified adviser CV while stripping sensitive fields", async () => {
-    const res = await fetch(`${baseUrl}/api/faculty-profiles/${adviserUser.id}`, {
-      headers: { Authorization: `Bearer ${studentToken}` },
-    });
+    const response = await fetch(
+      `${baseUrl}/api/faculty-profiles/${fixture!.adviser.id}`,
+      { headers: { Authorization: `Bearer ${studentToken}` } },
+    );
 
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as any;
-    expect(body.adviser).toBeDefined();
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as PublicProfileResponse;
     expect(body.adviser.name).toBeDefined();
     expect(body.adviser.isVerified).toBe(true);
     expect(body.adviser.capacity).toBeDefined();
-    expect(body.adviser.profile).toBeDefined();
-
-    const profile = body.adviser.profile;
-    expect(profile.academicTitle).toBe("Ph.D., PE");
-    expect(profile.educations).toHaveLength(1);
-    expect(profile.educations[0].degreeName).toBe("Ph.D. in Computer Science");
-
-    // Verify privacy protection: licenseNumber must NOT be exposed to students!
-    expect(profile.certifications).toHaveLength(1);
-    expect(profile.certifications[0].title).toBe("AWS Certified Solutions Architect - Professional");
-    expect(profile.certifications[0].licenseNumber).toBeUndefined();
+    expect(body.adviser.profile).not.toBeNull();
+    expect(body.adviser.profile?.academicTitle).toBe("Ph.D., PE");
+    expect(body.adviser.profile?.educations).toHaveLength(1);
+    expect(body.adviser.profile?.educations[0]?.degreeName).toBe(
+      "Ph.D. in Computer Science",
+    );
+    expect(body.adviser.profile?.certifications).toHaveLength(1);
+    expect(body.adviser.profile?.certifications[0]?.title).toBe(
+      "AWS Certified Solutions Architect - Professional",
+    );
+    expect(
+      body.adviser.profile?.certifications[0]?.licenseNumber,
+    ).toBeUndefined();
   });
 
-  it("Denies students from modifying faculty profiles via PUT /api/faculty-profiles/me", async () => {
-    const res = await fetch(`${baseUrl}/api/faculty-profiles/me`, {
+  it("denies students from modifying faculty profiles", async () => {
+    const response = await fetch(`${baseUrl}/api/faculty-profiles/me`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -195,16 +409,16 @@ describe("Faculty Profile End-to-End API Persistence Suite", () => {
       body: JSON.stringify({ biography: "Malicious attempt by student" }),
     });
 
-    expect(res.status).toBe(403);
+    expect(response.status).toBe(403);
   });
 
-  it("Enforces college scoping by denying students from viewing out-of-college advisers", async () => {
-    if (!otherCollegeToken) return;
-    const res = await fetch(`${baseUrl}/api/faculty-profiles/${adviserUser.id}`, {
-      headers: { Authorization: `Bearer ${otherCollegeToken}` },
-    });
-    expect(res.status).toBe(403);
-    const body = (await res.json()) as any;
+  it("enforces college scoping for adviser profile visibility", async () => {
+    const response = await fetch(
+      `${baseUrl}/api/faculty-profiles/${fixture!.adviser.id}`,
+      { headers: { Authorization: `Bearer ${otherCollegeToken}` } },
+    );
+    expect(response.status).toBe(403);
+    const body = (await response.json()) as { error: string };
     expect(body.error).toContain("different college");
   });
 });
