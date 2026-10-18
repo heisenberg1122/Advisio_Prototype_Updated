@@ -114,6 +114,30 @@ afterEach(() => {
 });
 
 describe("audit authorization regressions", () => {
+  it("never provisions a missing account during login", async () => {
+    vi.stubEnv("ALLOW_DEMO_ACCOUNT_PROVISIONING", "true");
+    vi.stubEnv("DEMO_ACCOUNT_PASSWORD", "DevelopmentOnly123!");
+    db.user.findUnique.mockResolvedValue(null);
+    const res = response();
+
+    await handler(
+      auth,
+      "post",
+      "/login",
+    )(
+      {
+        body: {
+          email: "student01@university.edu.ph",
+          password: "DevelopmentOnly123!",
+        },
+      },
+      res,
+    );
+
+    expect(res.statusCode).toBe(401);
+    expect(db.user.create).not.toHaveBeenCalled();
+  });
+
   it.each([
     "admin@example.org",
     "faculty-admin@example.org",
@@ -351,26 +375,42 @@ describe("audit authorization regressions", () => {
     expect(JSON.stringify(scope)).not.toContain("workspace");
   });
 
-  it.each(["RESEARCH_COORDINATOR", "SYSTEM_ADMIN"])("does not expose private calendar entries to %s through a scope shortcut", async (roleName) => {
-    db.calendarEvent.findMany.mockResolvedValue([]);
-    db.consultation.findMany.mockResolvedValue([]);
-    db.defenseSession.findMany.mockResolvedValue([]);
+  it.each(["RESEARCH_COORDINATOR", "SYSTEM_ADMIN"])(
+    "does not expose private calendar entries to %s through a scope shortcut",
+    async (roleName) => {
+      db.calendarEvent.findMany.mockResolvedValue([]);
+      db.consultation.findMany.mockResolvedValue([]);
+      db.defenseSession.findMany.mockResolvedValue([]);
+      const res = response();
+      await handler(
+        calendar,
+        "get",
+        "/calendar",
+      )({ user: user([roleName]), query: {} }, res);
+      expect(res.statusCode).toBe(200);
+      const conditions = db.calendarEvent.findMany.mock.calls[0][0].where.OR;
+      expect(conditions).not.toContainEqual({ collegeId });
+      expect(conditions).toContainEqual({ visibility: "COLLEGE", collegeId });
+    },
+  );
+
+  it("does not let an administrator edit another person's personal entry by ID", async () => {
+    db.calendarEvent.findUnique.mockResolvedValue({
+      id: "private",
+      collegeId,
+      createdBy: "other",
+      visibility: "PARTICIPANTS",
+      cancelledAt: null,
+    });
     const res = response();
     await handler(
       calendar,
-      "get",
-      "/calendar",
-    )({ user: user([roleName]), query: {} }, res);
-    expect(res.statusCode).toBe(200);
-    const conditions = db.calendarEvent.findMany.mock.calls[0][0].where.OR;
-    expect(conditions).not.toContainEqual({ collegeId });
-    expect(conditions).toContainEqual({ visibility: "COLLEGE", collegeId });
-  });
-
-  it("does not let an administrator edit another person's personal entry by ID", async () => {
-    db.calendarEvent.findUnique.mockResolvedValue({ id: "private", collegeId, createdBy: "other", visibility: "PARTICIPANTS", cancelledAt: null });
-    const res = response();
-    await handler(calendar, "patch", "/calendar/:id")({ user: user(["SYSTEM_ADMIN"]), params: { id: "private" }, body: {} }, res);
+      "patch",
+      "/calendar/:id",
+    )(
+      { user: user(["SYSTEM_ADMIN"]), params: { id: "private" }, body: {} },
+      res,
+    );
     expect(res.statusCode).toBe(403);
     expect(db.calendarEvent.update).not.toHaveBeenCalled();
   });

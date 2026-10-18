@@ -35,17 +35,27 @@ import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
 
+// Render terminates HTTPS at its proxy. Trust only that first hop so IP-based
+// rate limits and secure request metadata use the real client address.
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 // Security and standard middlewares
 app.use(helmet());
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (isAllowedOrigin(origin)) return callback(null, true);
-    callback(Object.assign(new Error("Origin is not allowed."), { statusCode: 403 }));
-  },
-  credentials: true,
-}));
-app.use(morgan("dev"));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) return callback(null, true);
+      callback(
+        Object.assign(new Error("Origin is not allowed."), { statusCode: 403 }),
+      );
+    },
+    credentials: true,
+  }),
+);
+app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(express.json());
 app.use(cookieParser());
 

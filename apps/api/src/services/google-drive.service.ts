@@ -7,10 +7,11 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 
 const PROVIDER = "GOOGLE_DRIVE";
-const ROOT_FOLDER_NAME = "ADVISIO_TEST_STORAGE";
+const ROOT_FOLDER_NAME = "ADVISIO_RESEARCH_DOCUMENTS";
 const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 const SERVICE_ACCOUNT_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive";
 const DRIVE_REQUEST_TIMEOUT_MS = 20_000;
+const developmentIntegrationSecret = crypto.randomBytes(48).toString("hex");
 
 export interface DriveUploadOptions {
   fileName: string;
@@ -56,17 +57,23 @@ function oauthConfiguration() {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     redirectUri:
       process.env.GOOGLE_REDIRECT_URI ||
-      "http://localhost:5000/api/integrations/google-drive/callback",
+      (process.env.NODE_ENV === "production"
+        ? ""
+        : "http://localhost:5000/api/integrations/google-drive/callback"),
   };
 }
 
 function integrationSecret(): string {
-  return (
+  const configured =
     process.env.INTEGRATION_ENCRYPTION_KEY ||
     process.env.JWT_SECRET ||
-    process.env.AUTH_SECRET ||
-    "advisio-dev-integration-key-change-in-production"
-  );
+    process.env.AUTH_SECRET;
+  if (process.env.NODE_ENV === "production" && (!configured || configured.length < 32)) {
+    throw new Error(
+      "Production requires an integration encryption key of at least 32 characters.",
+    );
+  }
+  return configured || developmentIntegrationSecret;
 }
 
 function encryptionKey(): Buffer {

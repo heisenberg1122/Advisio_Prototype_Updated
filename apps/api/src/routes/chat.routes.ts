@@ -42,10 +42,7 @@ function isFaculty(roles: string[]) {
 
 async function databaseUser(req: Request) {
   if (!req.user) return null;
-  if (!req.user.id.startsWith("demo-")) {
-    return prisma.user.findUnique({ where: { id: req.user.id }, select: personSelect });
-  }
-  return prisma.user.findUnique({ where: { email: req.user.email }, select: personSelect });
+  return prisma.user.findUnique({ where: { id: req.user.id }, select: personSelect });
 }
 
 async function assignedStudentIds(facultyUserId: string) {

@@ -25,11 +25,6 @@ for (const envPath of possibleEnvPaths) {
   }
 }
 
-// Fallback to local PostgreSQL if not defined
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = "postgresql://postgres:admin@localhost:5432/advisio_local?schema=public";
-}
-
 declare global {
   // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined;

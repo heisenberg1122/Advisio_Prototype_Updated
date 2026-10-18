@@ -19,7 +19,7 @@
 4. [Internal Inbox & Dean Approval Workflow](#-internal-inbox--dean-approval-workflow)
 5. [Secure Document Signatures](#-secure-document-signatures)
 6. [Quickstart & Development Setup](#-quickstart--development-setup)
-7. [Demo Accounts & Test Credentials](#-demo-accounts--test-credentials)
+7. [Development demo accounts](#development-demo-accounts)
 8. [Database Management & Prisma](#-database-management--prisma)
 9. [Environment Variables Guide](#-environment-variables-guide)
 10. [Troubleshooting & FAQ](#-troubleshooting--faq)
@@ -172,12 +172,12 @@ Mappings define a complete bounding box, preferred and minimum font sizes, align
 
 Advisio treats a signature as a final academic or institutional decision—not as a routine document comment. Every signing action requires the signer to review the exact PDF version, position a private PNG signature, confirm the action, and re-enter their password.
 
-| Signer | Intended signing point |
-| :--- | :--- |
-| **Faculty Adviser** | After manuscript review is complete and the document is endorsed for the next workflow gate |
-| **Course Professor / Research Coordinator** | After milestone evidence or defense-readiness requirements have been verified |
-| **Defense Panelist** | After the panelist's final evaluation and recommendation have been submitted and locked |
-| **Dean / Institutional Approver** | After all prerequisite faculty and panel endorsements are complete and the institutional decision is final |
+| Signer                                      | Intended signing point                                                                                     |
+| :------------------------------------------ | :--------------------------------------------------------------------------------------------------------- |
+| **Faculty Adviser**                         | After manuscript review is complete and the document is endorsed for the next workflow gate                |
+| **Course Professor / Research Coordinator** | After milestone evidence or defense-readiness requirements have been verified                              |
+| **Defense Panelist**                        | After the panelist's final evaluation and recommendation have been submitted and locked                    |
+| **Dean / Institutional Approver**           | After all prerequisite faculty and panel endorsements are complete and the institutional decision is final |
 
 Signing never overwrites the uploaded manuscript. The API creates a new PDF version and records the signer, signing time, role-specific verification code, original and signed SHA-256 hashes, placement data, and authentication method. Signed outputs can be countersigned in sequence, preserving the earlier signatures and the full version chain.
 
@@ -298,21 +298,15 @@ The runner applies committed migrations and executes the manuscript lifecycle, r
 
 ---
 
-## 🔑 Demo Accounts & Test Credentials
+## Development demo accounts
 
-The database seed provides ready-to-use accounts for each institutional role:
+The normal `npm run db:seed` command is production-safe and creates reference data only. To create local demo records, set `ALLOW_DEMO_ACCOUNT_PROVISIONING=true` and a unique `DEMO_ACCOUNT_PASSWORD` of at least 12 characters, then run:
 
-| Role                           | Email                            | Default Password | Description                                              |
-| :----------------------------- | :------------------------------- | :--------------- | :------------------------------------------------------- |
-| **System Administrator**       | `admin@advisio.edu.ph`           | `Admin@12345`    | System configuration, colleges, audit logs               |
-| **System Administrator (Alt)** | `superadmin01@university.edu.ph` | `password123`    | Backup Super Admin account                               |
-| **College Dean / Coordinator** | `dean@advisio.edu.ph`            | `password123`    | Institutional milestones, approvals & defense scheduling |
-| **Faculty Adviser**            | `adviser@advisio.edu.ph`         | `Adviser@12345`  | Manuscript reviews, student advising requests            |
-| **Faculty Adviser (Alt)**      | `adviser01@university.edu.ph`    | `password123`    | Faculty adviser demo account                             |
-| **Defense Panelist**           | `panelist01@university.edu.ph`   | `password123`    | Live defense evaluation & rubric scoring                 |
-| **Course Professor**           | `professor01@university.edu.ph`  | `password123`    | Workflow deployment and student progress monitoring      |
-| **Student / Researcher**       | `student@advisio.edu.ph`         | `Student@12345`  | Capstone project leader, tasks, document submissions     |
-| **Student / Researcher (Alt)** | `student01@university.edu.ph`    | `password123`    | Student researcher demo account                          |
+```bash
+npm run db:seed:demo
+```
+
+The development seed is blocked when `NODE_ENV=production`. Do not share demo credentials or run it against staging or production.
 
 ---
 

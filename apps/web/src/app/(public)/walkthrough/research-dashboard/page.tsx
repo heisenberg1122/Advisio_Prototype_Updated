@@ -36,7 +36,7 @@ export default function ResearchDashboardWalkthrough() {
   const activeChapter = chapter === -1 ? chapters.length - 1 : chapter;
   const signingIn = elapsed >= 6.6 && elapsed < 8;
   const dashboardVisible = elapsed >= 8;
-  const emailVisible = elapsed >= 3.2 ? "student01@university.edu.ph" : "";
+  const emailVisible = elapsed >= 3.2 ? "name@university.edu.ph" : "";
   const passwordVisible = elapsed >= 4.7 ? "•••••••••••" : "";
   const restart = () => { setElapsed(0); setPlaying(true); };
   const jumpTo = (start: number) => { setElapsed(start + 0.05); setPlaying(true); };

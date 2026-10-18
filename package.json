@@ -11,6 +11,8 @@
     "build": "turbo run build",
     "db:push": "npm --workspace=@research-management/database run db:push",
     "db:seed": "npm --workspace=@research-management/database run build && npm --workspace=@research-management/database run seed",
+    "db:seed:demo": "npm --workspace=@research-management/database run build && npm --workspace=@research-management/database run seed:demo",
+    "db:bootstrap-admin": "npm --workspace=@research-management/database run build && npm --workspace=@research-management/database run bootstrap:admin",
     "db:demo-themes": "npm --workspace=@research-management/database run demo:themes:seed",
     "db:demo-themes:cleanup": "npm --workspace=@research-management/database run demo:themes:cleanup",
     "lint": "turbo run lint",
@@ -28,5 +30,11 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "packageManager": "npm@10.8.3"
+  "packageManager": "npm@10.8.3",
+  "overrides": {
+    "@prisma/config": {
+      "deepmerge-ts": "8.0.2"
+    },
+    "postcss": "8.5.30"
+  }
 }

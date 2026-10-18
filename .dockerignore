@@ -8,3 +8,7 @@
 **/uploads
 **/*.pgdump
 **/*.log
+**/*.test.ts
+**/*.test.tsx
+packages/database/src/development-seed.ts
+packages/database/src/theme-demo-accounts.ts

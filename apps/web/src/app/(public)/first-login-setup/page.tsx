@@ -281,7 +281,7 @@ function SetupFormContent() {
                   1. Identity Verification & Administrator Oversight
                 </h4>
                 <p className="text-slate-600">
-                  Accounts on Advisio are governed by the institution. Verification and administrative actions are handled by <span className="font-mono text-[#1b4264] font-semibold">admin01@university.edu.ph</span>.
+                  Accounts on Advisio are governed by the institution. Verification and administrative actions are handled by the designated system administrator.
                 </p>
               </div>
 

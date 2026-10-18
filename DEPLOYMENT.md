@@ -1,258 +1,130 @@
-# Advisio Research Management System — Production Deployment Runbook
+# Advisio production deployment
 
-This document provides step-by-step instructions for deploying the Advisio Research Management Platform into staging and production environments.
+The supported production topology is:
 
----
+- Web SPA: Vercel, rooted at `apps/web`
+- API: the existing Render Docker web service, using `apps/api/Dockerfile` from the repository root
+- Database: managed PostgreSQL
+- Documents: Google Drive OAuth, in a dedicated production folder named `ADVISIO_RESEARCH_DOCUMENTS`
 
-## Architecture Overview
+Do not reuse local database URLs, local OAuth redirect URLs, `.env` files, demo users, or the local Google Drive folder in production. Never run `prisma migrate reset`, `prisma db push`, or the development demo seed against staging or production.
 
-```mermaid
-graph TD
-    Client["Browser / Mobile Client"] -->|HTTPS / Port 443| Nginx["Nginx Reverse Proxy (apps/web)"]
-    Nginx -->|Static Assets & SPA Routing| ReactSPA["Vite + React 19 SPA"]
-    Nginx -->|/api/* & SSE Streams| ExpressAPI["Express REST API (apps/api:5000)"]
-    ExpressAPI -->|Prisma ORM| Postgres[("PostgreSQL Database:5432")]
-    ExpressAPI -->|Realtime Stream| SSEManager["SSE Client Event Bus"]
-    ExpressAPI -->|Transactional Emails| ResendAPI["Resend API / SMTP"]
-```
+## 1. Pre-deployment checks
 
----
-
-## 1. System Requirements & Prerequisites
-
-| Requirement | Minimum | Recommended |
-|---|---|---|
-| **Operating System** | Ubuntu 22.04 LTS / Debian 12 / Alpine Linux | Ubuntu 24.04 LTS |
-| **CPU** | 2 vCPU | 4 vCPU |
-| **RAM** | 4 GB | 8 GB |
-| **Disk Storage** | 20 GB SSD | 50 GB NVMe SSD |
-| **Node.js** | v20.18.0+ LTS | v22.x LTS |
-| **Docker & Compose** | Docker 24.x + Compose v2.20+ | Latest stable Docker Engine |
-| **PostgreSQL** | PostgreSQL 15+ | PostgreSQL 16 with `citext` & `pgcrypto` |
-
----
-
-## 2. Environment Variables Configuration
-
-Copy `.env.example` to `.env` in the root directory:
+Use Node 22 and npm 10.8.3, then run from the repository root:
 
 ```bash
-cp .env.example .env
-```
-
-### Production Variable Checklist
-
-| Variable | Description | Example / Recommended Value |
-|---|---|---|
-| `NODE_ENV` | Runtime environment | `production` |
-| `PORT` | API listening port | `5000` |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://advisio_admin:<SECURE_PASSWORD>@postgres:5432/advisio_production?schema=public` |
-| `JWT_SECRET` | Secret key for signing auth tokens (min 32 chars) | `openssl rand -base64 48` |
-| `CORS_ORIGIN` | Allowed web origin for API requests | `https://advisio.youruniversity.edu.ph` |
-| `VITE_API_URL` | API base URL for client build | `https://advisio.youruniversity.edu.ph/api` |
-| `RESEND_API_KEY` | Resend API key for transactional emails | `re_123456789...` (Optional, mock delivery used if blank) |
-| `EMAIL_FROM` | Verified sender email address | `Advisio System <notifications@youruniversity.edu.ph>` |
-
----
-
-## 3. Option A: Single-Command Docker Deployment (Recommended)
-
-The easiest and most reliable way to run Advisio in production is via Docker Compose.
-
-### Step 1: Clone the repository
-```bash
-git clone https://github.com/heisenberg1122/Advisio_Prototype_Updated.git /var/www/advisio
-cd /var/www/advisio
-```
-
-### Step 2: Configure Production Environment
-```bash
-cp .env.example .env
-nano .env   # Fill in production secrets, strong DB passwords, and JWT_SECRET
-```
-
-### Step 3: Launch Containers
-```bash
-docker compose -f docker-compose.prod.yml up -d --build
-```
-
-### Step 4: Run Initial Database Migration & Seeding
-Once the database container is healthy:
-```bash
-# Apply initial Prisma baseline migrations
-docker compose -f docker-compose.prod.yml exec api npx prisma migrate deploy
-
-# Seed default super admin, adviser, and student accounts
-docker compose -f docker-compose.prod.yml exec api npm run seed --workspace=@research-management/database
-```
-
-### Step 5: Verify Containers
-```bash
-docker compose -f docker-compose.prod.yml ps
-```
-All three services (`advisio-postgres`, `advisio-api`, and `advisio-web`) should show status `Up` or `healthy`.
-
----
-
-## 4. Option B: Bare-Metal / Cloud VM Deployment
-
-If deploying without Docker on an Ubuntu/Debian VM:
-
-### Step 1: Install Dependencies
-```bash
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs postgresql postgresql-contrib nginx certbot python3-certbot-nginx
-```
-
-### Step 2: Configure PostgreSQL
-```bash
-sudo -u postgres psql
-```
-```sql
-CREATE DATABASE advisio_production;
-CREATE USER advisio_admin WITH ENCRYPTED PASSWORD 'your_strong_password_here';
-GRANT ALL PRIVILEGES ON DATABASE advisio_production TO advisio_admin;
-\c advisio_production
-CREATE EXTENSION IF NOT EXISTS "citext";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-\q
-```
-
-### Step 3: Install & Build Monorepo
-```bash
-git clone https://github.com/heisenberg1122/Advisio_Prototype_Updated.git /var/www/advisio
-cd /var/www/advisio
 npm ci
-cp .env.example .env
-# Edit .env with your PostgreSQL credentials and secrets
-
-# Generate Prisma client, build all packages, run tests
+npm run lint
+npm run type-check
+npm test
+npx prisma validate --schema=packages/database/prisma/schema.prisma
 npm run build
-npm run test
+npm audit --omit=dev
+docker build -f apps/api/Dockerfile -t advisio-api:release .
 ```
 
-### Step 4: Apply Database Migrations & Seeds
+Database integration tests require the isolated `postgres-test` container and must never target a shared database:
+
+```bash
+docker compose up -d postgres-test
+npm run test:integration
+docker compose stop postgres-test
+```
+
+## 2. Managed PostgreSQL
+
+1. Take and verify a provider snapshot before every production migration.
+2. Set `DATABASE_URL` to the pooled/runtime URL and `DIRECT_URL` to the direct migration URL when the provider offers both.
+3. Review the SQL under `packages/database/prisma/migrations` before applying it.
+4. Apply committed migrations only:
+
 ```bash
 npx prisma migrate deploy --schema=packages/database/prisma/schema.prisma
-npm run seed --workspace=@research-management/database
 ```
 
-### Step 5: Run API Service with PM2
-```bash
-sudo npm install -g pm2
-pm2 start apps/api/dist/index.js --name advisio-api --env production
-pm2 save
-pm2 startup
-```
-
-### Step 6: Configure Nginx Reverse Proxy & Static Host
-Create `/etc/nginx/sites-available/advisio`:
-```nginx
-server {
-    listen 80;
-    server_name advisio.youruniversity.edu.ph;
-
-    root /var/www/advisio/apps/web/dist;
-    index index.html;
-
-    # Static assets with long cache duration
-    location /assets/ {
-        expires 1y;
-        add_header Cache-Control "public, max-age=31536000, immutable";
-        try_files $uri =404;
-    }
-
-    # API Proxy & Server-Sent Events (SSE)
-    location /api/ {
-        proxy_pass http://127.0.0.1:5000/api/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # Crucial for SSE real-time events
-        proxy_set_header Connection '';
-        proxy_buffering off;
-        proxy_cache off;
-        chunked_transfer_encoding off;
-        proxy_read_timeout 86400s;
-    }
-
-    # SPA routing fallback
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
-Enable site and acquire SSL:
-```bash
-sudo ln -s /etc/nginx/sites-available/advisio /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d advisio.youruniversity.edu.ph
-```
-
----
-
-## 5. Seeded Default Accounts
-
-The database seed script initializes the following role accounts for testing and initial platform configuration:
-
-| Role | Email | Default Password | Initial Action Required |
-|---|---|---|---|
-| **System Admin** | `admin@advisio.edu.ph` | `Admin@12345` | Change password immediately upon first login |
-| **Faculty Adviser** | `adviser@advisio.edu.ph` | `Adviser@12345` | Configure department & advising capacity |
-| **Student Researcher**| `student@advisio.edu.ph` | `Student@12345` | Join or register research group |
-
-> [!CAUTION]
-> In a public production environment, change the default passwords immediately using the Admin dashboard or database management tools.
-
----
-
-## 6. Health Checks & Verification
-
-Verify the deployment with these automated health endpoints:
+5. Run the safe idempotent reference seed. It creates or updates roles, permissions, institutional units, and verified programs only; it does not create users, projects, workflows, submissions, documents, or demo records:
 
 ```bash
-# 1. API Health Inspection (Checks database connectivity)
-curl -i https://advisio.youruniversity.edu.ph/api/health
-
-# Expected response:
-# HTTP/1.1 200 OK
-# {"status":"healthy","timestamp":"...","service":"Advisio Research Management API","database":"connected"}
-
-# 2. Real-time SSE Connection Metrics
-curl -i https://advisio.youruniversity.edu.ph/api/realtime/status
-
-# Expected response:
-# HTTP/1.1 200 OK
-# {"status":"ok","activeConnections":0}
+npm run db:seed
 ```
 
----
+6. If the first system administrator does not exist, temporarily set the five `BOOTSTRAP_ADMIN_*` variables from `.env.production.example`, run the following once, and immediately remove the password variable from the service configuration:
 
-## 7. Backup & Recovery Procedures
-
-### Database Backup
 ```bash
-# Automated daily backup script
-pg_dump -U advisio_admin -d advisio_production -F c -b -v -f "/backups/advisio_$(date +\%Y\%m\%d_\%H\%M\%S).dump"
+npm run db:bootstrap-admin
 ```
 
-### Database Restore
+The bootstrap refuses weak passwords, refuses to modify a non-admin account, and is a no-op when the matching system administrator already exists.
+
+## 3. Render API service
+
+Reuse the existing Render service. Configure it as a Docker web service with repository root `.` and Dockerfile path `apps/api/Dockerfile`. The API listens on Render's `PORT`; do not hard-code a public port.
+
+Copy only the Render/server variables from `.env.production.example` into Render. Use the Vercel production origin for both `WEB_URL` and `CORS_ORIGIN`. Keep all demo and self-signup flags `false`.
+
+Set the health check path to:
+
+```text
+/api/health
+```
+
+Deploy the exact reviewed commit, apply migrations, run the safe reference seed, and verify:
+
 ```bash
-pg_restore -U advisio_admin -d advisio_production -v "/backups/advisio_backup_name.dump"
+curl -fsS https://YOUR_RENDER_DOMAIN/api/health
 ```
 
----
+Expected result: HTTP 200 with `status: healthy` and `database: connected`.
 
-## 8. Troubleshooting Common Issues
+The realtime event bus is process-local. Keep the API at one instance until realtime delivery is backed by a shared broker such as Redis; otherwise connected users on different instances may miss events.
 
-1. **502 Bad Gateway on `/api/*`:**
-   - Verify the Express backend is running: `docker compose ps` or `pm2 status`.
-   - Check API logs: `docker compose logs api` or `pm2 logs advisio-api`.
-2. **SSE disconnects after 60 seconds:**
-   - Ensure Nginx configuration includes `proxy_buffering off;` and `proxy_read_timeout 86400s;`.
-3. **Database connection refused:**
-   - Confirm `DATABASE_URL` matches the internal Docker network name (`postgres`) or external database IP.
-   - Ensure PostgreSQL extensions `citext` and `pgcrypto` are installed.
+## 4. Google OAuth and Drive
+
+Create a separate production Drive folder named `ADVISIO_RESEARCH_DOCUMENTS` and place its ID in Render as `GOOGLE_DRIVE_FOLDER_ID`. Do not change the local folder ID in `.env`.
+
+In Google Cloud Console, add the exact production callback:
+
+```text
+https://YOUR_RENDER_DOMAIN/api/integrations/google-drive/callback
+```
+
+Add the exact Vercel production origin to the OAuth client's authorized JavaScript origins. Store the client secret and integration encryption key only in Render. After deployment, connect Drive through an authorized admin account and perform an upload/download smoke test in the production folder.
+
+## 5. Vercel web app
+
+Reuse the existing Vercel project and set its root directory to `apps/web`. The committed `vercel.json` installs from the monorepo root, builds validations and the SPA, applies SPA rewrites, and adds baseline security headers.
+
+Configure these build-time variables in Vercel:
+
+```text
+VITE_API_URL=https://YOUR_RENDER_DOMAIN
+VITE_GOOGLE_SIGN_IN_CLIENT_ID=YOUR_GOOGLE_OAUTH_CLIENT_ID
+VITE_GOOGLE_SIGN_IN_ALLOW_SELF_SIGNUP=false
+VITE_ENABLE_DEMO_ACCOUNTS=false
+```
+
+`VITE_API_URL` is the API origin without a trailing `/api`. Never place database credentials, Google client secrets, JWT secrets, or integration keys in `VITE_*` variables because they are embedded in the public browser bundle.
+
+Deploy a Vercel preview first. Promote to production only after the staging checks below pass and the owner explicitly approves public launch.
+
+## 6. Staging acceptance checklist
+
+- Health endpoint returns healthy/database connected.
+- Login succeeds for an explicitly created staging account; unknown accounts receive a generic error and are not created.
+- Role dashboards and responsive light/dark themes render correctly.
+- Google Sign-In uses the intended OAuth client and approved origins.
+- Google Drive connects to the dedicated production/staging folder; upload and download succeed.
+- Calendar OAuth flow succeeds when enabled.
+- Email sends from the verified production sender.
+- A complete workflow can be created, submitted, reviewed, evaluated, and archived.
+- SSE reconnects after a brief network interruption.
+- CORS rejects an unapproved origin.
+- No demo controls or passwords appear in the production bundle.
+- Logs contain no tokens, passwords, OAuth codes, database URLs, or document contents.
+
+## 7. Rollback
+
+If application checks fail, roll Render and Vercel back to the previous known-good commit. Do not reverse a database migration blindly. Restore the pre-deployment snapshot only after confirming the failed release wrote incompatible data and after preserving any newer legitimate production records.
+
+Public launch remains a separate, explicit approval step.

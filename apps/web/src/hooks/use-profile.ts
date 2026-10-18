@@ -181,8 +181,7 @@ export function useProfile() {
           if (
             parsed &&
             !parsed.name?.includes("Juan Reyes") &&
-            !parsed.name?.includes("Dr. Rachel Lim") &&
-            !parsed.email?.includes("student01@")
+            !parsed.name?.includes("Dr. Rachel Lim")
           ) {
             setProfile(parsed);
           } else {

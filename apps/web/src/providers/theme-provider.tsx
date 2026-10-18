@@ -174,13 +174,11 @@ export function ThemeProvider({
     const serverPreference = serverColorThemePreference?.toUpperCase() || null;
     const resolvedPreference: ColorThemePreference = isSystemAdministrator
       ? 'DEFAULT_ADVISIO'
-      : userId.startsWith('demo-') && isColorThemePreference(stored)
-        ? stored
-        : isColorThemePreference(serverPreference)
-          ? serverPreference
-          : isColorThemePreference(stored)
-            ? stored
-            : 'COLLEGE_PROGRAM';
+      : isColorThemePreference(serverPreference)
+        ? serverPreference
+        : isColorThemePreference(stored)
+          ? stored
+          : 'COLLEGE_PROGRAM';
 
     setColorThemePreferenceState(resolvedPreference);
     localStorage.setItem(getColorThemeStorageKey(userId), resolvedPreference);

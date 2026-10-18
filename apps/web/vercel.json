@@ -4,6 +4,23 @@
   "installCommand": "cd ../.. && npm ci",
   "buildCommand": "cd ../.. && npm run build --workspace=@research-management/validations && npm run build --workspace=web",
   "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
