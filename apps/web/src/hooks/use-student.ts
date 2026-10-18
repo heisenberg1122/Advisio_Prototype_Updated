@@ -1,5 +1,8 @@
 "use client";
 
+import { consultationViewModel, nextConsultation } from "@/lib/consultation-view";
+import { useActiveProject } from "@/providers/active-project-provider";
+
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import type { DefenseEligibility, DefenseRequirement, GradeReport } from "@/types/student";
@@ -22,21 +25,24 @@ export const studentKeys = {
 // Legacy submissions now redirect to Tasks or Documents.
 
 // ── Consultations ──────────────────────────────────────────────
+function useStudentProjectSelection() {
+  const projects = useQuery({ queryKey: ["student-research"], queryFn: () => apiClient.get<{ projects: any[] }>("/api/research") });
+  const selection = useActiveProject(projects.data?.projects || []);
+  return { ...selection, projectLoading: projects.isPending, projectError: projects.error };
+}
+
 export function useConsultations() {
-  return useQuery({
-    queryKey: studentKeys.consultations(),
+  const { projectId, projectLoading, projectError } = useStudentProjectSelection();
+  const query = useQuery({
+    queryKey: [...studentKeys.consultations(), projectId],
+    enabled: Boolean(projectId),
     queryFn: async () => {
-      try {
-        const res = await apiClient.get<{ consultations: any[] }>("/api/consultations");
-        return {
-          list: res.consultations || [],
-          next: res.consultations?.[0] || null,
-        };
-      } catch {
-        return { list: [], next: null };
-      }
+      const res = await apiClient.get<{ consultations: any[] }>("/api/consultations", { params: { researchId: projectId! } });
+      const list = (res.consultations || []).map(consultationViewModel);
+      return { list, next: nextConsultation(list) };
     },
   });
+  return { ...query, isPending: projectLoading || (Boolean(projectId) && query.isPending), error: projectError || query.error, projectId };
 }
 
 // ── Notifications ──────────────────────────────────────────────
@@ -254,17 +260,12 @@ export function useDefense() {
 
 // ── Grades ────────────────────────────────────────────────────
 export function useGrades() {
-  return useQuery<GradeReport>({
-    queryKey: studentKeys.grades(),
-    queryFn: async () => {
-      return {
-        finalGrade: null,
-        gpa: null,
-        status: "pending",
-        panelistScores: [],
-      };
-    },
+  const { projectId, projectLoading, projectError } = useStudentProjectSelection();
+  const query = useQuery<GradeReport>({
+    queryKey: [...studentKeys.grades(), projectId], enabled: Boolean(projectId),
+    queryFn: async () => (await apiClient.get<{ grades: GradeReport }>(`/api/research/${projectId}/grades`)).grades,
   });
+  return { ...query, isPending: projectLoading || (Boolean(projectId) && query.isPending), error: projectError || query.error, projectId };
 }
 
 // ── Optimistic task toggle ─────────────────────────────────────

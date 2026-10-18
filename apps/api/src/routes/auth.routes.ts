@@ -1,3 +1,6 @@
+import { forgotPasswordSchema, resetPasswordSchema } from "@research-management/validations";
+import { requestPasswordRecovery, resetPassword } from "../services/password-recovery.service.js";
+import { recoveryRateLimit } from "../middleware/recovery-rate-limit.js";
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
@@ -18,6 +21,16 @@ import { requireAuth, generateToken } from "../middleware/auth";
 
 const router = Router();
 const googleSignInClient = new OAuth2Client();
+
+router.post("/forgot-password", recoveryRateLimit, validateBody(forgotPasswordSchema), async (req, res) => {
+  try { res.json({ message: await requestPasswordRecovery(req.body.email) }); }
+  catch (error: any) { res.status(error.statusCode || 503).json({ error: error.statusCode ? error.message : "Password recovery is temporarily unavailable." }); }
+});
+
+router.post("/reset-password", recoveryRateLimit, validateBody(resetPasswordSchema), async (req, res) => {
+  try { await resetPassword(req.body.token, req.body.newPassword); res.json({ message: "Your password has been reset. Sign in with your new password." }); }
+  catch (error: any) { res.status(error.statusCode || 503).json({ error: error.statusCode ? error.message : "Password recovery is temporarily unavailable." }); }
+});
 
 // POST /api/auth/register
 router.post("/register", validateBody(registerSchema), async (req: Request, res: Response) => {
@@ -88,51 +101,24 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const isAdmin = normalizedEmail === "admin01@university.edu.ph" || normalizedEmail.includes("admin");
-    const initialStatus = isAdmin ? "ACTIVE" : "PENDING";
+    const initialStatus = "PENDING";
     const onboardingToken = isResearcher ? randomBytes(32).toString("hex") : null;
     const onboardingTokenHash = onboardingToken
       ? createHash("sha256").update(onboardingToken).digest("hex")
       : null;
 
+    const roleName = isResearcher ? "RESEARCHER" : "ADVISER";
+    const targetRole = await prisma.role.findUnique({ where: { name: roleName } });
+    if (!targetRole) return void res.status(503).json({ error: "Registration is temporarily unavailable." });
     const user = await prisma.user.create({
       data: {
-        universityId,
-        email: normalizedEmail,
-        firstName,
-        middleName,
-        lastName,
-        passwordHash,
-        collegeId: resolvedCollegeId,
-        programId: resolvedProgramId,
-        status: initialStatus,
+        universityId, email: normalizedEmail, firstName, middleName, lastName, passwordHash,
+        collegeId: resolvedCollegeId, programId: resolvedProgramId, status: initialStatus,
         onboardingTokenHash,
         onboardingTokenExpiresAt: onboardingToken ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null,
+        roles: { create: { roleId: targetRole.id } },
       },
     });
-
-    // Assign institutional role based on request or email
-    let roleName: any = "RESEARCHER";
-    if (isAdmin) {
-      roleName = "SYSTEM_ADMIN";
-    } else if (role && ["ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "RESEARCHER"].includes(role.toUpperCase())) {
-      roleName = role.toUpperCase();
-    } else if (normalizedEmail.includes("adviser") || normalizedEmail.includes("faculty")) {
-      roleName = "ADVISER";
-    }
-
-    const targetRole = await prisma.role.findFirst({
-      where: { name: roleName },
-    });
-
-    if (targetRole) {
-      await prisma.userRole.create({
-        data: {
-          userId: user.id,
-          roleId: targetRole.id,
-        },
-      });
-    }
 
     if (initialStatus === "PENDING") {
       res.status(201).json({
@@ -153,20 +139,6 @@ router.post("/register", validateBody(registerSchema), async (req: Request, res:
       return;
     }
 
-    const token = generateToken(user.id);
-
-    res.status(201).json({
-      message: "User registered successfully",
-      token,
-      user: {
-        id: user.id,
-        universityId: user.universityId,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        status: user.status,
-      },
-    });
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to register user" });
   }
@@ -368,7 +340,7 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
             include: { roles: { include: { role: true } } },
           });
 
-          const token = generateToken(newUser.id);
+          const token = generateToken(newUser.id, newUser.sessionVersion);
           res.json({
             message: "Login successful (Provisioned)",
             token,
@@ -439,7 +411,7 @@ router.post("/login", validateBody(loginSchema), async (req: Request, res: Respo
       // Non-critical update, ignore
     }
 
-    const token = generateToken(user.id);
+    const token = generateToken(user.id, user.sessionVersion);
 
     res.json({
       message: "Login successful",
@@ -543,7 +515,7 @@ router.post("/google", async (req: Request, res: Response) => {
       await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     }
 
-    const token = generateToken(user.id);
+    const token = generateToken(user.id, user.sessionVersion);
     return void res.json({
       message: "Google sign-in successful",
       token,

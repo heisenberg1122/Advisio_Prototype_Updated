@@ -1,3 +1,4 @@
+import { changeAccountStatus } from "../services/account-status.service.js";
 import { Router, Request, Response, NextFunction } from "express";
 import { prisma, InstitutionalRole, AuditAction } from "../lib/prisma.js";
 import { Permissions } from "@research-management/auth";
@@ -235,77 +236,24 @@ router.get("/:id", requireAuth, requirePermission(Permissions.USER_MANAGE), asyn
 });
 
 // PATCH /api/users/:id/status
-router.patch("/:id/status", requireAuth, requirePermission(Permissions.USER_MANAGE), async (req: Request, res: Response) => {
+router.patch("/:id/status", requireAuth, requirePermission(Permissions.USER_MANAGE), async (req, res) => {
   try {
-    const id = req.params.id as string;
-    const { status } = req.body;
-
-    if (!status || !["ACTIVE", "INACTIVE", "SUSPENDED", "PENDING"].includes(String(status).toUpperCase())) {
-      res.status(400).json({ error: "Invalid status value" });
-      return;
-    }
-
-    const updatedUser = await prisma.user.update({
-      where: { id },
-      data: { status: String(status).toUpperCase() as any },
-      select: {
-        id: true,
-        universityId: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        status: true,
-      },
-    });
-
-    res.json({ message: `User status updated to ${updatedUser.status}`, user: updatedUser });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to update user status" });
-  }
+    const status = String(req.body.status || "").toUpperCase();
+    if (!["ACTIVE", "INACTIVE", "SUSPENDED", "PENDING"].includes(status)) return void res.status(400).json({ error: "Invalid status value" });
+    const user = await changeAccountStatus({ actor: req.user!, userId: String(req.params.id), status: status as any,
+      verificationConfirmed: req.body.verificationConfirmed, verificationNote: req.body.verificationNote,
+      ipAddress: req.ip, userAgent: req.get("user-agent") });
+    res.json({ message: `User status updated to ${user.status}`, user });
+  } catch (error: any) { res.status(error.statusCode || (error.code === "P2034" ? 409 : 500)).json({ error: error.message || "Failed to update user status" }); }
 });
 
-// POST /api/users/:id/approve
-router.post("/:id/approve", requireAuth, requirePermission(Permissions.USER_MANAGE), async (req: Request, res: Response) => {
+router.post("/:id/approve", requireAuth, requirePermission(Permissions.USER_MANAGE), async (req, res) => {
   try {
-    const id = req.params.id as string;
-    const verificationNote = String(req.body.verificationNote || "").trim();
-
-    if (!req.body.verificationConfirmed || verificationNote.length < 10) {
-      res.status(400).json({ error: "Identity and requested roles must be verified, with a verification note of at least 10 characters" });
-      return;
-    }
-
-    const updatedUser = await prisma.$transaction(async (tx) => {
-      const existing = await tx.user.findUnique({
-        where: { id },
-        include: { roles: { include: { role: true } } },
-      });
-      if (!existing) throw new Error("User not found");
-
-      const updated = await tx.user.update({
-        where: { id },
-        data: { status: "ACTIVE" },
-        select: { id: true, universityId: true, email: true, firstName: true, lastName: true, status: true },
-      });
-      await tx.auditLog.create({
-        data: {
-          userId: req.user!.id,
-          action: AuditAction.APPROVE,
-          entityType: "USER_ACCOUNT",
-          entityId: id,
-          oldValues: { status: existing.status },
-          newValues: { status: "ACTIVE", verifiedRoles: existing.roles.map((item) => item.role.name), verificationNote },
-          ipAddress: req.ip,
-          userAgent: req.get("user-agent") || null,
-        },
-      });
-      return updated;
-    });
-
-    res.json({ message: "User account verified and approved successfully", user: updatedUser });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to approve user account" });
-  }
+    const user = await changeAccountStatus({ actor: req.user!, userId: String(req.params.id), status: "ACTIVE",
+      verificationConfirmed: req.body.verificationConfirmed, verificationNote: req.body.verificationNote,
+      ipAddress: req.ip, userAgent: req.get("user-agent") });
+    res.json({ message: "User account verified and approved successfully", user });
+  } catch (error: any) { res.status(error.statusCode || (error.code === "P2034" ? 409 : 500)).json({ error: error.message || "Failed to approve user account" }); }
 });
 
 // PUT /api/users/:id/roles — verified, multi-role assignment
@@ -335,6 +283,7 @@ router.put(
         return;
       }
       const result = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(72401801)`;
         const target = await tx.user.findUnique({ where: { id }, include: { roles: { include: { role: true } } } });
         if (!target) throw new Error("User not found");
         const oldRoleNames = target.roles.map((item) => item.role.name);
@@ -511,6 +460,12 @@ router.delete(
             userAgent: req.get("user-agent") || null,
           },
         });
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(72401801)`;
+        const current = await tx.user.findUnique({ where: { id }, include: { roles: { include: { role: true } } } });
+        if (current?.status === "ACTIVE" && current.roles.some(({ role }) => role.name === "SYSTEM_ADMIN") &&
+          await tx.user.count({ where: { status: "ACTIVE", roles: { some: { role: { name: "SYSTEM_ADMIN" } } } } }) <= 1) {
+          throw Object.assign(new Error("The last active System Administrator cannot be deleted"), { statusCode: 409 });
+        }
         await tx.user.delete({ where: { id } });
       });
 
@@ -520,7 +475,7 @@ router.delete(
         res.status(409).json({ error: "This user owns protected institutional records and cannot be permanently deleted. Suspend the account instead." });
         return;
       }
-      res.status(500).json({ error: error.message || "Failed to delete user" });
+      res.status(error.statusCode || 500).json({ error: error.message || "Failed to delete user" });
     }
   }
 );

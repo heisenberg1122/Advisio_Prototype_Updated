@@ -90,6 +90,7 @@ function StudentDashboardContent() {
   // Project Registration State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
+  const [createWorkflowId, setCreateWorkflowId] = useState("");
   const [createAbstract, setCreateAbstract] = useState("");
   const [createParticipationMode, setCreateParticipationMode] = useState<
     "SOLO" | "GROUP"
@@ -577,7 +578,8 @@ function StudentDashboardContent() {
     e.preventDefault();
     if (!consultTopic) return;
     try {
-      const startDateTime = new Date(`${consultDate || new Date().toISOString().split("T")[0]}T${consultTime || "10:00"}:00`);
+      const startDateTime = new Date(`${consultDate}T${consultTime}:00+08:00`);
+      if (!Number.isFinite(startDateTime.getTime())) throw new Error("Choose a valid consultation date and time.");
       const endDateTime = new Date(startDateTime.getTime() + 3600000);
 
       if (!activeProject?.id) throw new Error("Select a research project first.");
@@ -596,12 +598,12 @@ function StudentDashboardContent() {
       triggerToast(
         result.warning || "Consultation request submitted! Awaiting adviser approval.",
       );
+      setConsultTopic("");
+      setConsultDate("");
+      setConsultTime("");
     } catch (error: any) {
       triggerToast(error?.message || "Unable to save the consultation request.");
     }
-    setConsultTopic("");
-    setConsultDate("");
-    setConsultTime("");
   };
 
   const handleCreateResearch = async (e: React.FormEvent) => {
@@ -614,6 +616,10 @@ function StudentDashboardContent() {
       return;
     }
     if (activeWorkspace && !createTitle.trim()) return;
+    if (createTitle.trim() && !createWorkflowId && workflowEnrollmentData?.enrollments?.length !== 1) {
+      triggerToast("Select a joined research workflow before registering your project.");
+      return;
+    }
     setIsCreatingProject(true);
     try {
       const isCreatingProjectRecord = Boolean(createTitle.trim());
@@ -632,6 +638,7 @@ function StudentDashboardContent() {
           title: createTitle.trim(),
           abstract: createAbstract.trim() || undefined,
           workspaceId: workspace.id,
+          workflowId: createWorkflowId || (workflowEnrollmentData?.enrollments?.length === 1 ? workflowEnrollmentData.enrollments[0].workflowId : undefined),
         });
       }
       queryClient.invalidateQueries({ queryKey: ["student-research"] });
@@ -1078,10 +1085,9 @@ function StudentDashboardContent() {
                     <label className="font-bold text-[var(--color-text-primary)]">Preferred Time *</label>
                     <input
                       required
-                      type="text"
+                      type="time"
                       value={consultTime}
                       onChange={(e) => setConsultTime(e.target.value)}
-                      placeholder="10:00 AM"
                       className="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] text-[var(--color-text-primary)]"
                     />
                   </div>
@@ -2754,6 +2760,13 @@ function StudentDashboardContent() {
                   className="p-3 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-[#ffa400]"
                 />
               </div>
+              {createTitle.trim() && <label className="flex flex-col gap-2 text-sm font-bold text-slate-700">Research workflow
+                <select required value={createWorkflowId || (workflowEnrollmentData?.enrollments?.length === 1 ? workflowEnrollmentData.enrollments[0].workflowId : "")} onChange={(event) => setCreateWorkflowId(event.target.value)} className="rounded-xl border border-slate-300 bg-white p-3 font-normal">
+                  <option value="">Select a joined workflow</option>
+                  {(workflowEnrollmentData?.enrollments || []).map((enrollment: any) => <option key={enrollment.workflowId} value={enrollment.workflowId}>{enrollment.workflow.name}</option>)}
+                </select>
+                {!workflowEnrollmentData?.enrollments?.length && <span className="text-xs font-normal">Join your professor's workflow from Tasks &amp; Requirements before adding a research project.</span>}
+              </label>}
               {!activeWorkspace && <div className="grid gap-4 rounded-xl border border-blue-100 bg-blue-50 p-4 sm:grid-cols-2">
                 <label className="flex flex-col gap-1.5 font-bold text-slate-700">
                   {createParticipationMode === "GROUP" ? "Group name" : "Workspace name"}

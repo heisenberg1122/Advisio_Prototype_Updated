@@ -8,9 +8,11 @@ import { ConsultationSkeleton } from "@/components/consultations/ConsultationSke
 import { PageContainer } from "@/components/ui/PageContainer";
 
 export default function ConsultationsPage() {
-  const { data, isPending } = useConsultations();
+  const { data, isPending, error, projectId } = useConsultations();
 
   if (isPending) return <ConsultationSkeleton />;
+  if (error) return <p role="alert" className="p-6 text-red-700">Unable to load consultations. Please try again.</p>;
+  if (!projectId) return <p className="p-6">Select or register a research project to view consultations.</p>;
   if (!data) return null;
 
   const { list, next } = data;

@@ -100,7 +100,8 @@ class GoogleCalendarService {
         const meetingUrl =
           event.hangoutLink ||
           event.conferenceData?.entryPoints?.find((ep) => ep.entryPointType === "video")?.uri ||
-          `https://meet.google.com/${this.generateDeterministicMeetCode(requestId)}`;
+          "";
+        if (!meetingUrl) throw new Error("Google conference creation is pending or unavailable.");
 
         return {
           eventId: event.id || undefined,
@@ -109,30 +110,13 @@ class GoogleCalendarService {
           conferenceId: event.conferenceData?.conferenceId || undefined,
         };
       } catch (error: any) {
-        console.error("[GoogleCalendarService] API Call failed, creating meeting URL fallback:", error.message);
+        console.error("[GoogleCalendarService] Meeting creation did not complete:", error.message);
+        throw new Error("A Google Meet link could not be created. Try again or provide an existing meeting link.");
       }
     }
-
-    // Direct Google Meet URL resolution when Google Workspace credentials run in sandbox
-    const meetCode = this.generateDeterministicMeetCode(requestId);
-    const meetingUrl = `https://meet.google.com/${meetCode}`;
-
-    return {
-      eventId: `sim-cal-${crypto.randomUUID()}`,
-      meetingUrl,
-      conferenceId: meetCode,
-    };
+    throw new Error("Google Calendar is not configured. Provide an existing meeting link or contact your administrator.");
   }
 
-  private generateDeterministicMeetCode(seed: string): string {
-    const alphabet = "abcdefghijklmnopqrstuvwxyz";
-    const hash = crypto.createHash("sha256").update(seed).digest();
-    let code = "";
-    for (let i = 0; i < 10; i++) {
-      code += alphabet[hash[i] % 26];
-    }
-    return `${code.slice(0, 3)}-${code.slice(3, 7)}-${code.slice(7, 10)}`;
-  }
 }
 
 export const googleCalendarService = new GoogleCalendarService();

@@ -40,7 +40,7 @@ class DocumentService {
 
     let buffer: Buffer;
     let sourceModifiedAt: Date | null = null;
-    if (options.storageProvider === "SUPABASE") {
+    if (options.storagePath.startsWith("supabase://") || (!options.googleDriveFileId && options.storageProvider === "SUPABASE")) {
       buffer = await supabaseStorageService.downloadStoredFile(
         options.storagePath,
       );
@@ -212,7 +212,7 @@ class DocumentService {
             fileName: storageResult.fileName,
             mimeType: storageResult.mimeType,
             fileSize: BigInt(storageResult.sizeBytes),
-            storagePath: storageResult.webViewLink || storageResult.storagePath,
+            storagePath: storageResult.storagePath,
             googleDriveFileId:
               provider === "GOOGLE_DRIVE" ? storageResult.fileId : null,
             uploadedBy: payload.uploadedBy,
@@ -240,8 +240,8 @@ class DocumentService {
           version: {
             ...version,
             fileSize: Number(version.fileSize),
-            webViewLink: storageResult.webViewLink,
-            webContentLink: storageResult.webContentLink,
+            webViewLink: `/api/documents/versions/${version.id}/content`,
+            webContentLink: `/api/documents/versions/${version.id}/content?download=1`,
           },
         };
       });
@@ -333,7 +333,13 @@ class DocumentService {
       );
 
     // 3. Mark previous versions as SUPERSEDED and create new version in PostgreSQL
+    try {
     return await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${payload.documentId}))`;
+      const latest = await tx.document.findUniqueOrThrow({ where: { id: payload.documentId }, select: { currentVersion: true } });
+      const reservedVersionNumber = latest.currentVersion + 1;
+      const reserved = await tx.document.updateMany({ where: { id: payload.documentId, currentVersion: latest.currentVersion }, data: { currentVersion: reservedVersionNumber } });
+      if (!reserved.count) throw Object.assign(new Error("The document changed during upload. Please try again."), { statusCode: 409 });
       await tx.documentVersion.updateMany({
         where: {
           documentId: payload.documentId,
@@ -347,11 +353,11 @@ class DocumentService {
       const newVersion = await tx.documentVersion.create({
         data: {
           documentId: payload.documentId,
-          versionNumber: nextVersionNumber,
+          versionNumber: reservedVersionNumber,
           fileName: storageResult.fileName,
           mimeType: storageResult.mimeType,
           fileSize: BigInt(storageResult.sizeBytes),
-          storagePath: storageResult.webViewLink || storageResult.storagePath,
+          storagePath: storageResult.storagePath,
           googleDriveFileId:
             provider === "GOOGLE_DRIVE" ? storageResult.fileId : null,
           uploadedBy: payload.uploadedBy,
@@ -362,7 +368,7 @@ class DocumentService {
       await tx.document.update({
         where: { id: payload.documentId },
         data: {
-          currentVersion: nextVersionNumber,
+          currentVersion: reservedVersionNumber,
           storageProvider: provider,
           externalFileId: storageResult.fileId,
           updatedAt: new Date(),
@@ -377,7 +383,7 @@ class DocumentService {
           entityId: newVersion.id,
           newValues: {
             documentId: payload.documentId,
-            versionNumber: nextVersionNumber,
+            versionNumber: reservedVersionNumber,
             fileName: newVersion.fileName,
           },
         },
@@ -386,10 +392,15 @@ class DocumentService {
       return {
         ...newVersion,
         fileSize: Number(newVersion.fileSize),
-        webViewLink: storageResult.webViewLink,
-        webContentLink: storageResult.webContentLink,
+        webViewLink: `/api/documents/versions/${newVersion.id}/content`,
+        webContentLink: `/api/documents/versions/${newVersion.id}/content?download=1`,
       };
     });
+    } catch (error: any) {
+      await this.cleanupStoredFile(provider, storageResult);
+      if (["P2002", "P2034"].includes(error.code)) throw Object.assign(new Error("The document changed during upload. Please try again."), { statusCode: 409 });
+      throw error;
+    }
   }
 
   /**
@@ -427,11 +438,7 @@ class DocumentService {
       versions: doc.versions.map((v) => ({
         ...v,
         fileSize: Number(v.fileSize),
-        webViewLink: v.storagePath.startsWith("http")
-          ? v.storagePath
-          : v.googleDriveFileId
-            ? `/api/documents/files/${v.googleDriveFileId}`
-            : undefined,
+        webViewLink: `/api/documents/versions/${v.id}/content`,
       })),
     };
   }

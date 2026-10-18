@@ -23,6 +23,11 @@ export const createResearchSchema = z.object({
     .default("INVITE_ONLY"),
 });
 
+export const registerResearchSchema = createResearchSchema.partial({ researchTypeId: true, programId: true, collegeId: true, academicYearId: true }).extend({
+  workflowId: z.string().uuid("Invalid workflow ID").optional(),
+  workspaceId: z.string().uuid("Invalid workspace ID").optional(),
+});
+
 export const updateResearchSchema = z.object({
   title: z.string().min(5).optional(),
   abstract: z.string().optional(),
@@ -40,7 +45,7 @@ export const updateResearchSchema = z.object({
 });
 
 export const assignMemberSchema = z.object({
-  researchId: z.string().uuid("Invalid research ID"),
+  researchId: z.string().uuid("Invalid research ID").optional(),
   userId: z.string().uuid("Invalid user ID"),
   projectRole: z.enum(["LEADER", "MEMBER", "ADVISER", "PANELIST", "COORDINATOR"]),
 });

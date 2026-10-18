@@ -1,0 +1,91 @@
+import { prisma, Prisma, UserStatus } from "../lib/prisma.js";
+import type { AuthenticatedUser } from "../middleware/auth.js";
+
+export class AccountStatusError extends Error {
+  constructor(
+    message: string,
+    public statusCode = 409,
+  ) {
+    super(message);
+  }
+}
+
+export async function changeAccountStatus(options: {
+  actor: AuthenticatedUser;
+  userId: string;
+  status: UserStatus;
+  verificationConfirmed?: unknown;
+  verificationNote?: unknown;
+  ipAddress?: string;
+  userAgent?: string;
+}) {
+  return prisma.$transaction(
+    async (tx) => {
+      // Serialize changes to the active administrator set, including role edits/deletions.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(72401801)`;
+      const user = await tx.user.findUnique({
+        where: { id: options.userId },
+        include: { roles: { include: { role: true } } },
+      });
+      if (!user) throw new AccountStatusError("User not found", 404);
+      const verificationNote =
+        typeof options.verificationNote === "string"
+          ? options.verificationNote.trim()
+          : "";
+      if (
+        options.status === "ACTIVE" &&
+        user.status !== "ACTIVE" &&
+        (options.verificationConfirmed !== true ||
+          verificationNote.length < 10 ||
+          verificationNote.length > 2000)
+      ) {
+        throw new AccountStatusError(
+          "Verify identity and provide a verification note of 10–2000 characters before activation.",
+          400,
+        );
+      }
+      if (
+        user.status === "ACTIVE" &&
+        options.status !== "ACTIVE" &&
+        user.roles.some(({ role }) => role.name === "SYSTEM_ADMIN")
+      ) {
+        const count = await tx.user.count({
+          where: {
+            status: "ACTIVE",
+            roles: { some: { role: { name: "SYSTEM_ADMIN" } } },
+          },
+        });
+        if (count <= 1)
+          throw new AccountStatusError(
+            "The last active System Administrator cannot be deactivated or suspended.",
+          );
+      }
+      const updated = await tx.user.update({
+        where: { id: user.id },
+        data: { status: options.status },
+        select: {
+          id: true,
+          universityId: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          status: true,
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: options.actor.id,
+          action: options.status === "ACTIVE" ? "APPROVE" : "UPDATE",
+          entityType: "USER_ACCOUNT",
+          entityId: user.id,
+          oldValues: { status: user.status },
+          newValues: { status: options.status, verificationNote },
+          ipAddress: options.ipAddress,
+          userAgent: options.userAgent,
+        },
+      });
+      return updated;
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+}

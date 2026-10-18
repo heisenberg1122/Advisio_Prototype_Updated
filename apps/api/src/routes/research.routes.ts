@@ -1,7 +1,11 @@
+import { removeResearcherMembership, transferResearchLeadership } from "../services/group-membership.service.js";
+import { assignResearchMember } from "../services/member-assignment.service.js";
+import { resolveRegistrationWorkflow } from "../services/registration-workflow.service.js";
+import { jsonSafe } from "../lib/json-response.js";
 import { Router, Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import {
-  createResearchSchema,
+  registerResearchSchema,
   updateResearchSchema,
   assignMemberSchema,
 } from "@research-management/validations";
@@ -21,7 +25,7 @@ function researchScopeWhere(user: AuthenticatedUser) {
 
   const access: any[] = [];
   if (user.roles.includes("RESEARCHER")) {
-    access.push({ OR: [{ createdBy: user.id }, { members: { some: { userId: user.id, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } } } }, { workspace: { is: { members: { some: { userId: user.id, leftAt: null } } } } }] });
+    access.push({ members: { some: { userId: user.id, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } } } });
   }
   if (user.roles.includes("ADVISER")) {
     access.push({ members: { some: { userId: user.id, leftAt: null, projectRole: "ADVISER" } } });
@@ -202,6 +206,7 @@ router.post(
   "/",
   requireAuth,
   requirePermission(Permissions.RESEARCH_CREATE),
+  validateBody(registerResearchSchema),
   async (req: Request, res: Response) => {
     try {
       if (!req.user) {
@@ -280,8 +285,8 @@ router.post(
       if (!academicYearId) {
         const defaultAY =
           (await prisma.academicYear.findFirst({
-            where: { isCurrent: true },
-          })) || (await prisma.academicYear.findFirst());
+            where: { isCurrent: true, isActive: true },
+          })) || (await prisma.academicYear.findFirst({ where: { isActive: true }, orderBy: { startDate: "desc" } }));
         academicYearId = defaultAY?.id;
       }
 
@@ -321,62 +326,21 @@ router.post(
         return;
       }
 
-      let researchType = null;
-      if (researchTypeId) {
-        researchType = await prisma.researchType.findUnique({
-          where: { id: researchTypeId },
-          include: {
-            workflow: {
-              include: {
-                stages: {
-                  where: { category: { not: "Archived" } },
-                  orderBy: { sequence: "asc" },
-                  include: { topic: true, tasks: { orderBy: { sequence: "asc" } } },
-                },
-              },
-            },
-          },
-        });
-      } else {
-        researchType = await prisma.researchType.findFirst({
-          include: {
-            workflow: {
-              include: {
-                stages: {
-                  where: { category: { not: "Archived" } },
-                  orderBy: { sequence: "asc" },
-                  include: {
-                    topic: true,
-                    tasks: { orderBy: { sequence: "asc" } },
-                  },
-                },
-              },
-            },
-          },
-        });
-        if (researchType) {
-          researchTypeId = researchType.id;
-        }
-      }
-
-      if (
-        !researchType ||
-        !researchTypeId ||
-        !collegeId ||
-        !programId ||
-        !academicYearId
-      ) {
-        res.status(400).json({
-          error:
-            "Unable to resolve required academic program, college, or workflow type.",
-        });
-        return;
-      }
-
-      const initialStage = researchType.workflow?.stages[0];
+      if (!collegeId || !programId || !academicYearId) return void res.status(400).json({ error: "Complete your academic program and academic year." });
+      if (req.user.roles.includes("RESEARCHER") && req.user.programId !== programId) return void res.status(403).json({ error: "Register research within your assigned program." });
+      const { researchType, workflow: selectedWorkflow } = await resolveRegistrationWorkflow(req.user, programId,
+        typeof req.body.workflowId === "string" ? req.body.workflowId : undefined, researchTypeId);
+      researchTypeId = researchType.id;
+      const initialStage = selectedWorkflow?.stages[0];
+      if (selectedWorkflow && !initialStage) return void res.status(409).json({ error: "The selected workflow has no active milestones. Contact your professor." });
 
       // Create project in a transaction
       const project = await prisma.$transaction(async (tx) => {
+        if (workspace) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${workspace.id}))`;
+          const workspaceLeader = await tx.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: workspace.id, userId: req.user!.id } } });
+          if (!workspaceLeader || workspaceLeader.leftAt || workspaceLeader.role !== "LEADER") throw Object.assign(new Error("Only the active workspace leader can register this project."), { statusCode: 403 });
+        }
         const newProject = await tx.researchProject.create({
           data: {
             researchTypeId,
@@ -399,12 +363,12 @@ router.post(
         });
 
         // Instantiate workflow if template exists
-        if (researchType.workflow && initialStage) {
+        if (selectedWorkflow && initialStage) {
           const wfInstance = await tx.workflowInstance.create({
             data: {
               researchId: newProject.id,
-              workflowId: researchType.workflow.id,
-              workflowVersion: researchType.workflow.version,
+              workflowId: selectedWorkflow.id,
+              workflowVersion: selectedWorkflow.version,
               currentStageId: initialStage.id,
             },
           });
@@ -419,13 +383,13 @@ router.post(
           await tx.workflowEnrollment.upsert({
             where: {
               workflowId_userId: {
-                workflowId: researchType.workflow.id,
+                workflowId: selectedWorkflow.id,
                 userId: req.user!.id,
               },
             },
             update: { status: "ACTIVE", joinedAt: new Date() },
             create: {
-              workflowId: researchType.workflow.id,
+              workflowId: selectedWorkflow.id,
               userId: req.user!.id,
             },
           });
@@ -446,11 +410,11 @@ router.post(
             data: otherMembers.map(({ userId }) => ({ researchId: newProject.id, userId, projectRole: "MEMBER" as const })),
             skipDuplicates: true,
           });
-          if (researchType.workflow && otherMembers.length) {
+          if (selectedWorkflow && otherMembers.length) {
             for (const { userId } of otherMembers) await tx.workflowEnrollment.upsert({
-              where: { workflowId_userId: { workflowId: researchType.workflow.id, userId } },
+              where: { workflowId_userId: { workflowId: selectedWorkflow.id, userId } },
               update: { status: "ACTIVE", joinedAt: new Date() },
-              create: { workflowId: researchType.workflow.id, userId },
+              create: { workflowId: selectedWorkflow.id, userId },
             });
           }
         }
@@ -489,7 +453,7 @@ router.post(
       res.status(201).json({ project: fullProject });
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || (error.code === "P2034" ? 409 : 500))
         .json({ error: error.message || "Failed to create research project" });
     }
   },
@@ -633,7 +597,7 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
       return;
     }
 
-    res.json({ project });
+    res.json(jsonSafe({ project }));
   } catch (error: any) {
     res
       .status(500)
@@ -850,7 +814,7 @@ router.patch(
         where: { id },
         data: { groupName: groupName || null },
       });
-      res.json({ project });
+      res.json(jsonSafe({ project }));
     } catch (error: any) {
       res
         .status(500)
@@ -1593,86 +1557,18 @@ router.patch(
   },
 );
 
-router.post(
-  "/:id/transfer-leadership",
-  requireAuth,
-  async (req: Request, res: Response) => {
-    try {
-      if (!req.user)
-        return void res.status(401).json({ error: "Unauthorized" });
-      const researchId = req.params.id as string;
-      const targetUserId = String(req.body.userId || "");
-      const members = await prisma.researchMember.findMany({
-        where: {
-          researchId,
-          leftAt: null,
-          projectRole: { in: ["LEADER", "MEMBER"] },
-        },
-      });
-      const currentLeader = members.find(
-        (member) =>
-          member.userId === req.user!.id && member.projectRole === "LEADER",
-      );
-      const target = members.find(
-        (member) =>
-          member.userId === targetUserId && member.projectRole === "MEMBER",
-      );
-      if (!currentLeader)
-        return void res
-          .status(403)
-          .json({ error: "Only the current leader may transfer leadership." });
-      if (!target)
-        return void res
-          .status(400)
-          .json({ error: "Select an active group member to become leader." });
-      await prisma.$transaction([
-        prisma.researchMember.update({
-          where: { id: currentLeader.id },
-          data: { projectRole: "MEMBER" },
-        }),
-        prisma.researchMember.update({
-          where: { id: target.id },
-          data: { projectRole: "LEADER" },
-        }),
-      ]);
-      res.json({ success: true });
-    } catch (error: any) {
-      res
-        .status(500)
-        .json({ error: error.message || "Failed to transfer leadership" });
-    }
-  },
-);
-
-router.post("/:id/leave", requireAuth, async (req: Request, res: Response) => {
+router.post("/:id/transfer-leadership", requireAuth, async (req, res) => {
   try {
-    if (!req.user) return void res.status(401).json({ error: "Unauthorized" });
-    const membership = await prisma.researchMember.findFirst({
-      where: {
-        researchId: req.params.id as string,
-        userId: req.user.id,
-        leftAt: null,
-        projectRole: { in: ["LEADER", "MEMBER"] },
-      },
-    });
-    if (!membership)
-      return void res
-        .status(404)
-        .json({ error: "Active group membership not found." });
-    if (membership.projectRole === "LEADER")
-      return void res.status(409).json({
-        error: "Transfer leadership before leaving, or disband the group.",
-      });
-    await prisma.researchMember.update({
-      where: { id: membership.id },
-      data: { leftAt: new Date() },
-    });
+    await transferResearchLeadership(String(req.params.id), req.user!.id, String(req.body.userId || ""));
     res.json({ success: true });
-  } catch (error: any) {
-    res
-      .status(500)
-      .json({ error: error.message || "Failed to leave research group" });
-  }
+  } catch (error: any) { res.status(error.statusCode || (error.code === "P2034" ? 409 : 500)).json({ error: error.message }); }
+});
+
+router.post("/:id/leave", requireAuth, async (req, res) => {
+  try {
+    await removeResearcherMembership(String(req.params.id), req.user!.id);
+    res.json({ success: true });
+  } catch (error: any) { res.status(error.statusCode || (error.code === "P2034" ? 409 : 500)).json({ error: error.message }); }
 });
 
 router.post(
@@ -1719,50 +1615,12 @@ router.post(
   },
 );
 
-router.delete(
-  "/:id/members/:memberId",
-  requireAuth,
-  async (req: Request, res: Response) => {
-    try {
-      if (!req.user)
-        return void res.status(401).json({ error: "Unauthorized" });
-      const researchId = req.params.id as string;
-      const leader = await prisma.researchMember.findFirst({
-        where: {
-          researchId,
-          userId: req.user.id,
-          projectRole: "LEADER",
-          leftAt: null,
-        },
-      });
-      if (!leader)
-        return void res
-          .status(403)
-          .json({ error: "Only the current leader may remove group members." });
-      const member = await prisma.researchMember.findFirst({
-        where: {
-          id: req.params.memberId as string,
-          researchId,
-          projectRole: "MEMBER",
-          leftAt: null,
-        },
-      });
-      if (!member)
-        return void res
-          .status(404)
-          .json({ error: "Active group member not found." });
-      await prisma.researchMember.update({
-        where: { id: member.id },
-        data: { leftAt: new Date() },
-      });
-      res.json({ success: true });
-    } catch (error: any) {
-      res
-        .status(500)
-        .json({ error: error.message || "Failed to remove group member" });
-    }
-  },
-);
+router.delete("/:id/members/:memberId", requireAuth, async (req, res) => {
+  try {
+    await removeResearcherMembership(String(req.params.id), req.user!.id, String(req.params.memberId));
+    res.json({ success: true });
+  } catch (error: any) { res.status(error.statusCode || (error.code === "P2034" ? 409 : 500)).json({ error: error.message }); }
+});
 
 // POST /api/research/:id/members
 router.post(
@@ -1775,26 +1633,12 @@ router.post(
       const id = req.params.id as string;
       const { userId, projectRole } = req.body;
 
-      const member = await prisma.researchMember.upsert({
-        where: {
-          researchId_userId_projectRole: {
-            researchId: id,
-            userId,
-            projectRole,
-          },
-        },
-        update: { projectRole },
-        create: {
-          researchId: id,
-          userId,
-          projectRole,
-        },
-      });
+      const member = await assignResearchMember(req.user!, id, userId, projectRole);
 
       res.status(201).json({ member });
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || (error.code === "P2034" ? 409 : 500))
         .json({ error: error.message || "Failed to assign project member" });
     }
   },

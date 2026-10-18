@@ -1,6 +1,7 @@
 import "./config/env.js";
 import express from "express";
 import cors from "cors";
+import { isAllowedOrigin } from "./lib/security-config.js";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
@@ -37,30 +38,13 @@ const app = express();
 // Security and standard middlewares
 app.use(helmet());
 
-const configuredOrigins = (process.env.CORS_ORIGIN || "")
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like server-to-server, mobile apps, or curl)
-      if (!origin) return callback(null, true);
-      if (
-        configuredOrigins.length === 0 ||
-        configuredOrigins.includes(origin) ||
-        configuredOrigins.includes("*") ||
-        origin.endsWith(".vercel.app") ||
-        origin.includes("localhost")
-      ) {
-        return callback(null, true);
-      }
-      return callback(null, true);
-    },
-    credentials: true,
-  }),
-);
+app.use(cors({
+  origin: (origin, callback) => {
+    if (isAllowedOrigin(origin)) return callback(null, true);
+    callback(Object.assign(new Error("Origin is not allowed."), { statusCode: 403 }));
+  },
+  credentials: true,
+}));
 app.use(morgan("dev"));
 app.use(express.json());
 app.use(cookieParser());

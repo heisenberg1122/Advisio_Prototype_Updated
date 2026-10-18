@@ -84,9 +84,11 @@ export function serializeConsultation(consultation: any) {
     groupName: consultation.research?.title || "Research Group",
     topic: consultation.title,
     title: consultation.title,
+    adviser: consultation.research?.members?.map((member: any) => `${member.user.firstName} ${member.user.lastName}`.trim()).join(", ") || "Assigned faculty",
     description: consultation.description,
-    date: new Date(consultation.scheduledStart).toISOString().split("T")[0],
-    time: new Date(consultation.scheduledStart).toLocaleTimeString([], {
+    date: new Date(consultation.scheduledStart).toLocaleDateString("en-CA", { timeZone: "Asia/Manila" }),
+    time: new Date(consultation.scheduledStart).toLocaleTimeString("en-PH", {
+      timeZone: "Asia/Manila",
       hour: "2-digit",
       minute: "2-digit",
     }),
@@ -105,7 +107,7 @@ export function serializeConsultation(consultation: any) {
 }
 
 export const consultationInclude = {
-  research: { select: { title: true } },
+  research: { select: { title: true, members: { where: { projectRole: "ADVISER" as const, leftAt: null }, select: { user: { select: { firstName: true, lastName: true } } } } } },
   participants: {
     include: {
       user: { select: { id: true, firstName: true, lastName: true, email: true } },

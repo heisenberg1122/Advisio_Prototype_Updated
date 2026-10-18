@@ -24,6 +24,7 @@ RUN npx prisma generate --schema=packages/database/prisma/schema.prisma
 RUN npm run build --workspace=@research-management/database
 RUN npm run build --workspace=@research-management/auth
 RUN npm run build --workspace=@research-management/validations
+RUN npm run build --workspace=@research-management/email
 RUN npm run build --workspace=api
 
 EXPOSE 5000

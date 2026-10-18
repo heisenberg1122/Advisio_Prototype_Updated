@@ -165,6 +165,7 @@ export function AppRoutes() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/researcher-onboarding" element={<ResearcherOnboardingPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ForgotPasswordPage />} />
         <Route path="/first-login-setup" element={<FirstTimeSetupPage />} />
         <Route path="/google-onboarding" element={<GoogleOnboardingPage />} />
 

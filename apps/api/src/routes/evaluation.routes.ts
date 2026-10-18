@@ -1,3 +1,4 @@
+import { getReleasedGradeReport } from "../services/grade-report.service.js";
 import { Router, Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import { evaluationTemplateSchema } from "@research-management/validations";
@@ -144,6 +145,11 @@ router.get("/research/:researchId/evaluations", requireAuth, async (req: Request
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to fetch evaluations" });
   }
+});
+
+router.get("/research/:researchId/grades", requireAuth, async (req, res) => {
+  try { res.json({ grades: await getReleasedGradeReport(req.user!, String(req.params.researchId)) }); }
+  catch (error: any) { res.status(error.statusCode || 500).json({ error: error.message || "Unable to load grades." }); }
 });
 
 export default router;

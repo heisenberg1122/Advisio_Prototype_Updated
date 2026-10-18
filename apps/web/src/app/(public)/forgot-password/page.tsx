@@ -1,87 +1,144 @@
-"use client";
-
-import React, { useState } from "react";
-import Link from "next/link";
+import { useState, type FormEvent } from "react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { apiClient } from "@/lib/api-client";
 
 export default function ForgotPasswordPage() {
+  const location = useLocation();
+  const [params] = useSearchParams();
+  const isReset = location.pathname === "/reset-password";
+  const token = params.get("token") || "";
   const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitted(true);
-  };
-
+  const [password, setPassword] = useState("");
+  const [confirmation, setConfirmation] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setError("");
+    if (isReset && password !== confirmation) {
+      setError("Passwords must match.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await apiClient.post<{ message: string }>(
+        isReset ? "/api/auth/reset-password" : "/api/auth/forgot-password",
+        isReset ? { token, newPassword: password } : { email },
+      );
+      setMessage(result.message);
+      setPassword("");
+      setConfirmation("");
+    } catch (error: any) {
+      setError(
+        error.message ||
+          "Unable to complete password recovery. Please try again.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-slate-800 font-sans">
-      <div className="w-full max-w-[420px] bg-white rounded-2xl border border-slate-200 p-8 shadow-lg flex flex-col gap-6 animate-fade-in-up">
-        
-        {/* Brand Header */}
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-md">
-            <i className="ti ti-school text-sm text-white" />
-          </div>
-          <span className="font-extrabold text-[16px] tracking-tight text-slate-900">ADVISIO</span>
-        </div>
-
-        {!submitted ? (
-          <>
-            <div>
-              <h1 className="text-[22px] font-bold text-slate-900">Reset Password</h1>
-              <p className="mt-1 text-[13px] text-slate-500 leading-relaxed">
-                Enter your university email address below. If your account is registered, we'll send a secure password reset link to your inbox.
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label htmlFor="email" className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  University Email Address
-                </label>
-                <input 
-                  id="email"
-                  type="email" 
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g. username@university.edu.ph"
-                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2.5 text-[13.5px] text-slate-900 focus:outline-none focus:border-blue-600 transition placeholder:text-slate-400"
-                />
-              </div>
-
-              <button 
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-[13.5px] font-bold shadow-md shadow-blue-600/10 active:scale-[0.98] transition cursor-pointer"
-              >
-                Send Reset Link
-              </button>
-            </form>
-          </>
-        ) : (
-          <div className="flex flex-col gap-4 text-center py-4">
-            <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200">
-              <i className="ti ti-mail-check text-xl" />
-            </div>
-            <div>
-              <h3 className="text-[16px] font-bold text-slate-900">Reset Link Dispatched</h3>
-              <p className="text-[13px] text-slate-500 mt-2 px-2 leading-relaxed">
-                A password reset notification has been sent to <strong>{email}</strong>. Please check your inbox or spam folder.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Back Link */}
-        <div className="border-t border-slate-100 pt-4 text-center">
-          <Link 
-            href="/login" 
-            className="text-[13px] font-semibold text-blue-600 hover:underline transition flex items-center justify-center gap-1.5"
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6 text-slate-800">
+      <section className="w-full max-w-md space-y-5 rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
+        <p className="font-extrabold text-blue-700">ADVISIO</p>
+        <h1 className="text-2xl font-bold">
+          {isReset ? "Choose a new password" : "Reset your password"}
+        </h1>
+        {message ? (
+          <p
+            role="status"
+            className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800"
           >
-            <i className="ti ti-arrow-left" /> Back to Sign In
+            {message}
+          </p>
+        ) : (
+          <>
+            <p className="text-sm text-slate-600">
+              {isReset
+                ? "Your reset link can be used once and expires after 30 minutes."
+                : "Enter your account email to request a secure reset link."}
+            </p>
+            {isReset && !token ? (
+              <p role="alert" className="text-sm text-red-700">
+                This reset link is invalid. Request a new link from the password
+                recovery page.
+              </p>
+            ) : (
+              <form onSubmit={submit} className="space-y-4">
+                {isReset ? (
+                  <>
+                    <label className="block text-sm font-semibold">
+                      New password
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        minLength={8}
+                        maxLength={72}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="mt-2 w-full rounded-lg border border-slate-300 p-3"
+                      />
+                    </label>
+                    <label className="block text-sm font-semibold">
+                      Confirm new password
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        required
+                        minLength={8}
+                        maxLength={72}
+                        value={confirmation}
+                        onChange={(e) => setConfirmation(e.target.value)}
+                        className="mt-2 w-full rounded-lg border border-slate-300 p-3"
+                      />
+                    </label>
+                  </>
+                ) : (
+                  <label className="block text-sm font-semibold">
+                    Account email
+                    <input
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="mt-2 w-full rounded-lg border border-slate-300 p-3"
+                    />
+                  </label>
+                )}
+                {error && (
+                  <p role="alert" className="text-sm text-red-700">
+                    {error}
+                  </p>
+                )}
+                <button
+                  disabled={busy}
+                  className="w-full rounded-lg bg-blue-700 p-3 font-bold text-white disabled:opacity-50"
+                >
+                  {busy
+                    ? "Please wait…"
+                    : isReset
+                      ? "Reset password"
+                      : "Request reset link"}
+                </button>
+              </form>
+            )}
+          </>
+        )}
+        {isReset && (
+          <Link
+            to="/forgot-password"
+            className="block text-sm text-blue-700 underline"
+          >
+            Request a new reset link
           </Link>
-        </div>
-
-      </div>
-    </div>
+        )}
+        <Link to="/login" className="block text-sm font-semibold text-blue-700">
+          Back to sign in
+        </Link>
+      </section>
+    </main>
   );
 }

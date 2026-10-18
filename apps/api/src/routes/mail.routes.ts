@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { asyncHandler } from "../middleware/async-handler.js";
 import multer from "multer";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -291,5 +292,10 @@ router.get("/attachments/:id", requireAuth, async (req, res) => {
   res.setHeader("Content-Disposition", `${disposition}; filename="${attachment.fileName.replace(/"/g, "")}"`);
   res.send(Buffer.from(attachment.fileData));
 });
+
+for (const layer of router.stack) {
+  if (!layer.route) continue;
+  for (const entry of layer.route.stack) entry.handle = asyncHandler(entry.handle);
+}
 
 export default router;

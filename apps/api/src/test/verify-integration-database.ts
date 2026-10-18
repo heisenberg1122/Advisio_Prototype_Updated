@@ -20,6 +20,7 @@ async function countKnownFixtureRoots(): Promise<Record<string, number>> {
             },
           },
           { name: { startsWith: "Faculty Profile Adviser College " } },
+          { name: { startsWith: "Audit Security " } },
           { name: { startsWith: "Faculty Profile Other College " } },
         ],
       },
@@ -33,13 +34,14 @@ async function countKnownFixtureRoots(): Promise<Record<string, number>> {
             },
           },
           { name: { startsWith: "Faculty Profile Adviser Program " } },
+          { name: { startsWith: "Audit Security " } },
           { name: { startsWith: "Faculty Profile Other Program " } },
         ],
       },
     }),
     prisma.academicYear.count({
       where: {
-        OR: [{ name: { startsWith: "P3-" } }, { name: { startsWith: "P4-" } }],
+        OR: [{ name: { startsWith: "P3-" } }, { name: { startsWith: "P4-" } }, { name: { startsWith: "AS-" } }],
       },
     }),
     prisma.user.count({
@@ -55,6 +57,7 @@ async function countKnownFixtureRoots(): Promise<Record<string, number>> {
         OR: [
           { code: { startsWith: "P3-MANUSCRIPT-" } },
           { code: { startsWith: "P4-MANUSCRIPT-" } },
+          { code: { startsWith: "AS-" } },
         ],
       },
     }),

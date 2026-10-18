@@ -6,9 +6,11 @@ import { PanelistScoresCard } from "@/components/grading/PanelistScoresCard";
 import { GradesSkeleton } from "@/components/grading/GradesSkeleton";
 
 export default function GradesPage() {
-  const { data: grades, isPending } = useGrades();
+  const { data: grades, isPending, error, projectId } = useGrades();
 
   if (isPending) return <GradesSkeleton />;
+  if (error) return <p role="alert" className="p-6 text-red-700">Unable to load grades. Please try again.</p>;
+  if (!projectId) return <p className="p-6">Select or register a research project to view its grades.</p>;
   if (!grades) return null;
 
   const isReleased = grades.status === "released";

@@ -595,6 +595,21 @@ router.post(
   },
 );
 
+// Provider-neutral, authorization-scoped version preview/download.
+router.get("/documents/versions/:versionId/content", requireAuth, async (req, res) => {
+  try {
+    const version = await prisma.documentVersion.findUnique({ where: { id: String(req.params.versionId) }, include: { document: { select: { storageProvider: true } } } });
+    if (!version || !(await documentAccessService.canViewVersion(req.user!, version.id))) return void res.status(404).json({ error: "Document version not found." });
+    const { buffer } = await documentService.readStoredVersionFile({ storageProvider: version.googleDriveFileId ? "GOOGLE_DRIVE" : "SUPABASE", storagePath: version.storagePath, googleDriveFileId: version.googleDriveFileId, expectedSize: version.fileSize });
+    if (req.query.download === "1") await prisma.auditLog.create({ data: { userId: req.user!.id, action: "DOWNLOAD", entityType: "DocumentVersion", entityId: version.id, ipAddress: req.ip, userAgent: req.get("user-agent") } });
+    const inline = req.query.download !== "1" && version.mimeType === "application/pdf";
+    res.type(version.mimeType);
+    res.setHeader("Content-Disposition", `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(version.fileName)}`);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.send(buffer);
+  } catch (error: any) { res.status(error.statusCode || 500).json({ error: "The document could not be opened. Please try again." }); }
+});
+
 // GET /api/documents/files/:fileId — authenticated preview/download for Drive or local fallback files.
 router.get(
   "/documents/files/:fileId",
@@ -856,9 +871,7 @@ router.get(
             reviewer: redactReviewerIdentity ? null : assignment.reviewer,
           })),
           fileSize: Number(v.fileSize),
-          webViewLink: v.googleDriveFileId
-            ? `/api/documents/files/${v.googleDriveFileId}`
-            : undefined,
+          webViewLink: `/api/documents/versions/${v.id}/content`,
         })),
       }));
 
@@ -1509,7 +1522,7 @@ router.post(
       res.status(201).json({ version: newVersion });
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({ error: error.message || "Failed to create document version" });
     }
   },

@@ -1,9 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { resolveJwtSecret } from "../lib/security-config.js";
 import { prisma } from "../lib/prisma.js";
 import { getPermissionsForRoles, InstitutionalRole } from "@research-management/auth";
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.AUTH_SECRET || "advisio-dev-secret-key-change-in-production";
+const JWT_SECRET = resolveJwtSecret();
 
 export interface AuthenticatedUser {
   id: string;
@@ -45,21 +46,9 @@ export async function requireAuth(
       return;
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as { userId: string; sessionVersion?: number; purpose?: string };
 
-    if (decoded.userId && decoded.userId.startsWith("demo-")) {
-      req.user = {
-        id: decoded.userId,
-        email: "student@advisio.edu.ph",
-        universityId: "UA-2026-DEMO",
-        firstName: "Student",
-        lastName: "Researcher",
-        roles: ["RESEARCHER"],
-        permissions: ["research.view", "research.create", "consultation.view", "consultation.request", "calendar.view"],
-      };
-      next();
-      return;
-    }
+    if (typeof decoded.userId !== "string" || (decoded.purpose && decoded.purpose !== "session")) throw new jwt.JsonWebTokenError("Invalid session");
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
@@ -80,7 +69,7 @@ export async function requireAuth(
       },
     });
 
-    if (!user || user.status !== "ACTIVE") {
+    if (!user || user.status !== "ACTIVE" || (decoded.sessionVersion || 0) !== user.sessionVersion) {
       res.status(401).json({ error: "User not found or inactive" });
       return;
     }
@@ -108,6 +97,10 @@ export async function requireAuth(
 
     next();
   } catch (error) {
+    if (!(error instanceof jwt.JsonWebTokenError) && !(error instanceof jwt.TokenExpiredError)) {
+      res.status(503).json({ error: "Authentication service is temporarily unavailable." });
+      return;
+    }
     res.status(401).json({ error: "Invalid or expired authentication token" });
   }
 }
@@ -128,21 +121,9 @@ export async function optionalAuth(
     }
 
     if (token) {
-      const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+      const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as { userId: string; sessionVersion?: number; purpose?: string };
 
-      if (decoded.userId && decoded.userId.startsWith("demo-")) {
-        req.user = {
-          id: decoded.userId,
-          email: "student@advisio.edu.ph",
-          universityId: "UA-2026-DEMO",
-          firstName: "Student",
-          lastName: "Researcher",
-          roles: ["RESEARCHER"],
-          permissions: ["research.view", "research.create", "consultation.view", "consultation.request", "calendar.view"],
-        };
-        next();
-        return;
-      }
+      if (typeof decoded.userId !== "string" || (decoded.purpose && decoded.purpose !== "session")) throw new jwt.JsonWebTokenError("Invalid session");
 
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
@@ -163,7 +144,7 @@ export async function optionalAuth(
         },
       });
 
-      if (user && user.status === "ACTIVE") {
+      if (user && user.status === "ACTIVE" && (decoded.sessionVersion || 0) === user.sessionVersion) {
         const roles = user.roles.map((ur) => ur.role.name as InstitutionalRole);
         const permissionSet = new Set<string>(getPermissionsForRoles(roles));
 
@@ -194,7 +175,7 @@ export async function optionalAuth(
   next();
 }
 
-export function generateToken(userId: string): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+export function generateToken(userId: string, sessionVersion = 0): string {
+  return jwt.sign({ userId, sessionVersion, purpose: "session" }, JWT_SECRET, { expiresIn: "7d" });
 }
 

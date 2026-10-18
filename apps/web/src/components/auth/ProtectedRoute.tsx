@@ -9,13 +9,20 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, isLoading, isAuthenticated } = useAuth();
+  const { user, isLoading, isAuthenticated, sessionError, retrySession, logout } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
     return <AppShellSkeleton pathname={location.pathname} />;
   }
 
+  if (sessionError) {
+    return <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6"><section className="max-w-md space-y-4 rounded-2xl border bg-white p-6 text-slate-800">
+      <h1 className="text-xl font-bold">Unable to load your session</h1><p role="alert">{sessionError}</p>
+      <button onClick={retrySession} className="rounded-lg bg-blue-700 px-4 py-2 text-white">Try again</button>
+      <button onClick={logout} className="ml-3 rounded-lg border px-4 py-2">Sign out</button>
+    </section></main>;
+  }
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }

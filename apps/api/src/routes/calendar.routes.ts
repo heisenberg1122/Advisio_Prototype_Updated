@@ -1,3 +1,4 @@
+import { getCollegeScope } from "../lib/college-scope.js";
 import { Router, Request, Response } from "express";
 import { Permissions } from "@research-management/auth";
 import { prisma } from "../lib/prisma.js";
@@ -37,11 +38,12 @@ function isPanelistOnly(req: Request) {
     !req.user!.roles.some((role) => SCOPE_MANAGER_ROLES.has(role) || role === "ADVISER");
 }
 
-function canEditEvent(req: Request, event: { createdBy: string; collegeId?: string | null }) {
+function canEditEvent(req: Request, event: { createdBy: string; collegeId?: string | null; visibility?: string }) {
+  if (event.visibility === "PARTICIPANTS" && event.createdBy !== req.user!.id) return false;
+  const scope = getCollegeScope(req.user!);
   const managesScope = hasPermission(req, Permissions.CALENDAR_MANAGE) &&
-    (req.user!.roles.includes("SYSTEM_ADMIN") || !req.user!.collegeId || event.collegeId === req.user!.collegeId);
-  return managesScope ||
-    (event.createdBy === req.user!.id && hasPermission(req, Permissions.CALENDAR_EDIT_OWN));
+    (scope.kind === "institution" || (scope.kind === "college" && scope.collegeId === event.collegeId));
+  return managesScope || (event.createdBy === req.user!.id && hasPermission(req, Permissions.CALENDAR_EDIT_OWN));
 }
 
 function stringList(value: unknown) {
@@ -160,11 +162,12 @@ router.get("/calendar", requireAuth, requirePermission(Permissions.CALENDAR_VIEW
       if (user.collegeId) directAudience.push({ visibility: "COLLEGE", collegeId: user.collegeId });
       if (user.programId) directAudience.push({ visibility: "PROGRAM", programId: user.programId });
     }
-    if (scopeManager && user.collegeId) directAudience.push({ collegeId: user.collegeId });
+    // Institution-wide visibility covers public scopes; personal entries still require direct access.
+    if (getCollegeScope(user).kind === "institution") directAudience.push({ visibility: { in: ["INSTITUTION", "COLLEGE", "PROGRAM"] } });
 
     const [customEvents, consultations, defenses] = await Promise.all([
       prisma.calendarEvent.findMany({
-        where: systemAdmin ? overlap : { ...overlap, OR: directAudience },
+        where: { ...overlap, OR: directAudience },
         include: {
           creator: { select: { id: true, firstName: true, lastName: true } },
           program: { select: { id: true, code: true, name: true } },

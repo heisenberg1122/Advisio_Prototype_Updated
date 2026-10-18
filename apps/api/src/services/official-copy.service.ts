@@ -1,3 +1,4 @@
+import { storeArtifact, deleteArtifact } from "./artifact-storage.service.js";
 import crypto from "node:crypto";
 import { Prisma } from "@research-management/database";
 import { prisma } from "../lib/prisma.js";
@@ -243,9 +244,7 @@ class OfficialCopyService {
               signature.signedById === user.id && signature.status === "ACTIVE",
           ),
         fileSize: Number(copy.fileSize),
-        fileUrl: copy.googleDriveFileId
-          ? `/api/official-copies/files/${copy.googleDriveFileId}`
-          : null,
+        fileUrl: `/api/official-copies/files/${copy.googleDriveFileId || copy.id}`,
         sourceVersion: {
           ...copy.sourceVersion,
           reviewerAssignments: copy.sourceVersion.reviewerAssignments.map(
@@ -258,9 +257,7 @@ class OfficialCopyService {
         signatures: copy.signatures.map((signature) => ({
           ...signature,
           fileSize: Number(signature.fileSize),
-          fileUrl: signature.googleDriveFileId
-            ? `/api/official-copies/files/${signature.googleDriveFileId}`
-            : null,
+          fileUrl: `/api/official-copies/files/${signature.googleDriveFileId || signature.id}`,
           mechanism: "ACCOUNT_AUTHENTICATED_VISUAL_SIGNATURE",
         })),
       })),
@@ -342,7 +339,7 @@ class OfficialCopyService {
         "SOURCE_INTEGRITY_MISMATCH",
       );
 
-    const folderId = await storageHierarchyService.resolveFolder({
+    const folderId = process.env.STORAGE_PROVIDER?.toUpperCase() === "SUPABASE" ? undefined : await storageHierarchyService.resolveFolder({
       researchId: source.document.researchId,
       bucket: "OFFICIAL",
       stageId: source.milestoneId,
@@ -352,7 +349,7 @@ class OfficialCopyService {
       .replace(/[^a-zA-Z0-9._ -]/g, "-")
       .slice(0, 205);
     const fileName = `${baseName || "manuscript"}-official-v${source.versionNumber}.pdf`;
-    const stored = await googleDriveService.uploadFile({
+    const stored = await storeArtifact({
       fileName,
       mimeType: "application/pdf",
       buffer: original,
@@ -366,7 +363,7 @@ class OfficialCopyService {
         advisioLifecycle: "OFFICIAL_ARCHIVE",
         advisioChecksum: checksum,
       },
-    });
+    }, source.document.researchId);
     const finalizedAt = new Date();
     const verificationCode = `OFF-${crypto.randomBytes(10).toString("hex").toUpperCase()}`;
     try {
@@ -416,7 +413,8 @@ class OfficialCopyService {
               mimeType: "application/pdf",
               fileSize: BigInt(stored.sizeBytes),
               storagePath: stored.storagePath,
-              googleDriveFileId: stored.fileId,
+              storageProvider: stored.provider,
+              googleDriveFileId: stored.googleDriveFileId,
               checksum,
               verificationCode,
               activeSlot: source.documentId,
@@ -488,11 +486,11 @@ class OfficialCopyService {
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       );
-      if (copy.googleDriveFileId !== stored.fileId)
-        await googleDriveService.deleteStoredFile(stored.fileId).catch(() => false);
-      return { copy, duplicate: copy.googleDriveFileId !== stored.fileId };
+      if (copy.storagePath !== stored.storagePath)
+        await deleteArtifact(stored).catch(() => false);
+      return { copy, duplicate: copy.storagePath !== stored.storagePath };
     } catch (error) {
-      await googleDriveService.deleteStoredFile(stored.fileId).catch(() => false);
+      await deleteArtifact(stored).catch(() => false);
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
@@ -570,13 +568,13 @@ class OfficialCopyService {
       placements: options.placements,
       signedAt,
     });
-    const folderId = await storageHierarchyService.resolveFolder({
+    const folderId = process.env.STORAGE_PROVIDER?.toUpperCase() === "SUPABASE" ? undefined : await storageHierarchyService.resolveFolder({
       researchId: copy.researchId,
       bucket: "OFFICIAL",
     });
     const fileName = `${copy.fileName.replace(/\.pdf$/i, "")}-signed-${options.user.id.slice(0, 8)}.pdf`;
     const signedFileHash = sha256(signedBuffer);
-    const stored = await googleDriveService.uploadFile({
+    const stored = await storeArtifact({
       fileName,
       mimeType: "application/pdf",
       buffer: signedBuffer,
@@ -590,7 +588,7 @@ class OfficialCopyService {
         advisioLifecycle: "OFFICIAL_VISUAL_SIGNATURE",
         advisioChecksum: signedFileHash,
       },
-    });
+    }, copy.researchId);
     const verificationCode = `SIG-${crypto.randomBytes(10).toString("hex").toUpperCase()}`;
     try {
       const signature = await prisma.$transaction(async (tx) => {
@@ -612,7 +610,7 @@ class OfficialCopyService {
             fileName: stored.fileName,
             fileSize: BigInt(stored.sizeBytes),
             storagePath: stored.storagePath,
-            googleDriveFileId: stored.fileId,
+            googleDriveFileId: stored.googleDriveFileId,
             sourceFileHash: copy.checksum,
             signedFileHash,
             signatureProfileHash: signatureProfile.fileHash,
@@ -680,7 +678,7 @@ class OfficialCopyService {
         },
       };
     } catch (error) {
-      await googleDriveService.deleteStoredFile(stored.fileId).catch(() => false);
+      await deleteArtifact(stored).catch(() => false);
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === "P2002"
@@ -710,7 +708,7 @@ class OfficialCopyService {
 
   async resolveArtifact(user: AuthenticatedUser, fileId: string) {
     const copy = await prisma.officialCopy.findFirst({
-      where: { googleDriveFileId: fileId },
+      where: { OR: [{ googleDriveFileId: fileId }, ...(/^[0-9a-f-]{36}$/i.test(fileId) ? [{ id: fileId }] : [])] },
     });
     const signature = copy
       ? null

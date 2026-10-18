@@ -28,6 +28,7 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
           },
         },
         projects: {
+          where: { members: { some: { userId: req.user!.id, leftAt: null } } },
           select: { id: true, title: true, status: true, updatedAt: true },
           orderBy: { updatedAt: "desc" },
         },
@@ -146,8 +147,7 @@ router.get(
       }
       const scope = getCollegeScope(req.user!);
       if (
-        (scope.kind === "college" && scope.collegeId !== workspace.collegeId) ||
-        (req.user!.programId && req.user!.programId !== workspace.programId)
+        scope.kind === "unassigned" || req.user!.collegeId !== workspace.collegeId || req.user!.programId !== workspace.programId
       ) {
         res
           .status(403)
@@ -176,6 +176,7 @@ router.get(
 
 router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
   try {
+    if (!req.user!.roles.includes("RESEARCHER")) return void res.status(403).json({ error: "Researcher access is required." });
     const workspace = await prisma.researchWorkspace.findFirst({
       where: {
         inviteCode: String(req.params.code).toUpperCase(),
@@ -191,29 +192,28 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
     }
     const scope = getCollegeScope(req.user!);
     if (
-      (scope.kind === "college" && scope.collegeId !== workspace.collegeId) ||
-      (req.user!.programId && req.user!.programId !== workspace.programId)
+      scope.kind === "unassigned" || req.user!.collegeId !== workspace.collegeId || req.user!.programId !== workspace.programId
     ) {
       res
         .status(403)
         .json({ error: "This workspace is outside your academic program." });
       return;
     }
-    const member = await prisma.workspaceMember.upsert({
-      where: {
-        workspaceId_userId: { workspaceId: workspace.id, userId: req.user!.id },
-      },
-      update: { leftAt: null },
-      create: {
-        workspaceId: workspace.id,
-        userId: req.user!.id,
-        role: "MEMBER",
-      },
+    const member = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${workspace.id}))`;
+      const current = await tx.researchWorkspace.findUnique({ where: { id: workspace.id } });
+      if (!current?.inviteCodeEnabled || current.inviteCode !== String(req.params.code).toUpperCase()) throw Object.assign(new Error("This workspace invitation is no longer active."), { statusCode: 409 });
+      const projects = await tx.researchProject.count({ where: { workspaceId: workspace.id, status: { not: "ARCHIVED" } } });
+      if (projects) throw Object.assign(new Error("This workspace has a registered project. Ask its leader for the current project invitation code."), { statusCode: 409 });
+      return tx.workspaceMember.upsert({
+        where: { workspaceId_userId: { workspaceId: workspace.id, userId: req.user!.id } },
+        update: { leftAt: null }, create: { workspaceId: workspace.id, userId: req.user!.id, role: "MEMBER" },
+      });
     });
     res.json({ member, workspace: { id: workspace.id, name: workspace.name } });
   } catch (error: any) {
     res
-      .status(500)
+      .status(error.statusCode || 500)
       .json({ error: error.message || "Failed to join workspace" });
   }
 });

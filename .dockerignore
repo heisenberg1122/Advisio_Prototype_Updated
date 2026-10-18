@@ -1,0 +1,10 @@
+.git
+**/node_modules
+**/.turbo
+**/dist
+**/.next
+**/.env
+**/.env.*
+**/uploads
+**/*.pgdump
+**/*.log

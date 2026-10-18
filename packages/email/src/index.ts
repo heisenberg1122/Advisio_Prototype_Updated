@@ -1,10 +1,10 @@
-export * from "./client";
-export * from "./templates/welcome";
-export * from "./templates/defense";
+export * from "./client.js";
+export * from "./templates/welcome.js";
+export * from "./templates/defense.js";
 
-import { sendEmail, SendEmailResult } from "./client";
-import { renderWelcomeEmail, WelcomeEmailProps } from "./templates/welcome";
-import { renderDefenseScheduledEmail, DefenseScheduledEmailProps } from "./templates/defense";
+import { sendEmail, SendEmailResult } from "./client.js";
+import { renderWelcomeEmail, WelcomeEmailProps } from "./templates/welcome.js";
+import { renderDefenseScheduledEmail, DefenseScheduledEmailProps } from "./templates/defense.js";
 
 export async function sendWelcomeNotification(props: WelcomeEmailProps): Promise<SendEmailResult> {
   const rendered = renderWelcomeEmail(props);

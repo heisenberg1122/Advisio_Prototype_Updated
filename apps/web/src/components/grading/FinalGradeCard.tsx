@@ -10,7 +10,7 @@ export function FinalGradeCard({ finalGrade, isReleased }: FinalGradeCardProps) 
     <Card className="mb-4">
       <div className="text-center py-6">
         <div className="text-[13px] text-[var(--color-text-secondary)] mb-1">
-          Final grade
+          Released panel average
         </div>
         {isReleased && finalGrade ? (
           <div

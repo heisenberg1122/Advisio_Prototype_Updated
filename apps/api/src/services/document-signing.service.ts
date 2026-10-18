@@ -1,3 +1,4 @@
+import { documentService } from "./document.service.js";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -97,26 +98,13 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
 }
 
 export async function loadVersionFile(version: {
-  googleDriveFileId: string | null;
-  storagePath: string;
+  googleDriveFileId: string | null; storagePath: string; fileSize?: bigint | number;
 }): Promise<Buffer> {
-  const fileId = version.googleDriveFileId;
-  if (!fileId)
-    throw new Error(
-      "This document version does not have a readable stored PDF.",
-    );
-
-  if (!fileId.startsWith("gdrive-")) {
-    const response = await googleDriveService.getFileStream(fileId);
-    return streamToBuffer(response.data);
-  }
-
-  const uploadDir = path.resolve(process.cwd(), "uploads");
-  const diskName = fs.existsSync(uploadDir)
-    ? fs.readdirSync(uploadDir).find((name) => name.startsWith(`${fileId}-`))
-    : undefined;
-  if (!diskName) throw new Error("The stored PDF is unavailable.");
-  return fs.readFileSync(path.join(uploadDir, diskName));
+  const { buffer } = await documentService.readStoredVersionFile({
+    storageProvider: version.googleDriveFileId ? "GOOGLE_DRIVE" : "SUPABASE",
+    storagePath: version.storagePath, googleDriveFileId: version.googleDriveFileId, expectedSize: version.fileSize,
+  });
+  return buffer;
 }
 
 export function validateSignaturePlacement(value: SignaturePlacement) {
@@ -329,30 +317,11 @@ export class DocumentSigningService {
     const nextVersionNumber = source.document.currentVersion + 1;
     const baseName = source.fileName.replace(/\.pdf$/i, "");
     const fileName = `${baseName}-signed-v${nextVersionNumber}.pdf`;
-    const destinationFolderId =
-      source.document.documentType === "DEAN_DEFENSE_APPROVAL"
-        ? await storageHierarchyService.resolveDeanApprovalsFolder(
-            source.document.researchId,
-            { id: options.signerId, name: signerName },
-          )
-        : await storageHierarchyService.resolveFolder({
-            researchId: source.document.researchId,
-            bucket: "SUBMISSIONS",
-          });
-    const stored = await googleDriveService.uploadFile({
-      fileName,
-      mimeType: "application/pdf",
-      buffer: signedBuffer,
-      folderId: destinationFolderId,
-      description: `Advisio signed document: ${source.document.title}`,
-      appProperties: {
-        advisioManaged: "true",
-        advisioResearchId: source.document.researchId,
-        advisioDocumentId: source.document.id,
-        advisioSignerId: options.signerId,
-        advisioLifecycle: "SIGNED",
-        advisioChecksum: sha256(signedBuffer),
-      },
+    const { provider, storageResult: stored } = await documentService.storeDocumentFile({
+      researchId: source.document.researchId, title: source.document.title,
+      documentType: source.document.documentType, fileName, mimeType: "application/pdf",
+      fileBuffer: signedBuffer, uploadedBy: options.signerId,
+      ...(source.document.documentType === "DEAN_DEFENSE_APPROVAL" ? { deanRecipient: { id: options.signerId, name: signerName } } : {}),
     });
     const rolePrefix =
       signatureAccess.signerRole === "ADVISER"
@@ -366,7 +335,11 @@ export class DocumentSigningService {
               : "DEAN";
     const verificationCode = `${rolePrefix}-${crypto.randomBytes(6).toString("hex").toUpperCase()}`;
 
-    return prisma.$transaction(async (tx) => {
+    try {
+    return await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${source.documentId}))`;
+      const current = await tx.document.findUniqueOrThrow({ where: { id: source.documentId }, select: { currentVersion: true } });
+      if (current.currentVersion !== source.document.currentVersion) throw new Error("The document changed during signing. Review the current version and try again.");
       await tx.documentVersion.updateMany({
         where: { documentId: source.documentId, status: "ACTIVE" },
         data: { status: "SUPERSEDED" },
@@ -378,8 +351,8 @@ export class DocumentSigningService {
           fileName: stored.fileName,
           mimeType: "application/pdf",
           fileSize: BigInt(stored.sizeBytes),
-          storagePath: stored.webViewLink || stored.storagePath,
-          googleDriveFileId: stored.fileId,
+          storagePath: stored.storagePath,
+          googleDriveFileId: provider === "GOOGLE_DRIVE" ? stored.fileId : null,
           uploadedBy: options.signerId,
           status: "ACTIVE",
         },
@@ -389,6 +362,7 @@ export class DocumentSigningService {
         data: {
           currentVersion: nextVersionNumber,
           externalFileId: stored.fileId,
+          storageProvider: provider,
         },
       });
       const documentSignature = await tx.documentSignature.create({
@@ -503,10 +477,14 @@ export class DocumentSigningService {
         version: {
           ...signedVersion,
           fileSize: Number(signedVersion.fileSize),
-          webViewLink: stored.webViewLink,
+          webViewLink: `/api/documents/versions/${signedVersion.id}/content`,
         },
       };
     });
+    } catch (error) {
+      await documentService.cleanupStoredFile(provider, stored);
+      throw error;
+    }
   }
 }
 

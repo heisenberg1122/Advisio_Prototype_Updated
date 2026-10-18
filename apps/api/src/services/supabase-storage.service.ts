@@ -51,6 +51,8 @@ class SupabaseStorageService {
     if (!this.client) return null;
 
     try {
+      const { data: bucket, error: bucketError } = await this.client.getBucket(this.bucketName);
+      if (bucketError || !bucket || bucket.public) throw new Error("Confidential documents require a private Supabase bucket and backend storage credentials.");
       const fileId = crypto.randomUUID();
       const safeName = options.fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
       const filePath = options.folder
@@ -69,19 +71,13 @@ class SupabaseStorageService {
         return null;
       }
 
-      const { data: publicUrlData } = this.client
-        .from(this.bucketName)
-        .getPublicUrl(filePath);
-
-      const publicUrl = publicUrlData.publicUrl;
-
       return {
         fileId,
         fileName: options.fileName,
         mimeType: options.mimeType,
         sizeBytes: options.buffer.length,
-        webViewLink: publicUrl,
-        webContentLink: publicUrl,
+        webViewLink: "",
+        webContentLink: "",
         storagePath: `supabase://${this.bucketName}/${filePath}`,
       };
     } catch (err: any) {

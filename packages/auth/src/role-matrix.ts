@@ -41,6 +41,7 @@ export const ROLE_PERMISSIONS_MATRIX: Record<InstitutionalRole, Permission[]> = 
     Permissions.CALENDAR_AVAILABILITY_MANAGE,
   ],
   [InstitutionalRoles.RESEARCH_COORDINATOR]: [
+    Permissions.WORKFLOW_CREATE,
     Permissions.RESEARCH_VIEW,
     Permissions.RESEARCH_CREATE,
     Permissions.RESEARCH_ASSIGN,
