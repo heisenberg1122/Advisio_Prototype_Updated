@@ -23,6 +23,8 @@
     "seed": "node --env-file-if-exists=../../.env dist/seed.js",
     "seed:demo": "node --env-file=../../.env dist/development-seed.js",
     "bootstrap:admin": "node --env-file-if-exists=../../.env dist/bootstrap-admin.js",
+    "panel-demo": "node --env-file-if-exists=../../.env dist/panel-demo.js",
+    "test:panel-demo": "node scripts/verify-panel-demo-safety.mjs",
     "demo:themes:seed": "tsc && node --env-file=../../.env dist/theme-demo-accounts.js seed",
     "demo:themes:cleanup": "tsc && node --env-file=../../.env dist/theme-demo-accounts.js cleanup"
   },

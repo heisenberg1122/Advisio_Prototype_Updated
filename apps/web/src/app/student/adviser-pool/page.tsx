@@ -210,11 +210,6 @@ export default function AdviserPoolPage() {
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-400">
                         <i className="ti ti-rosette-discount-check" /> Verified
                       </span>
-                      {adviser.email === "adviser01@university.edu.ph" && (
-                        <span className="rounded-full bg-blue-50 dark:bg-blue-950/30 px-2 py-0.5 text-[10px] font-extrabold text-blue-700 dark:text-blue-300">
-                          Demo adviser
-                        </span>
-                      )}
                     </div>
                     {adviser.facultyProfile?.facultyDesignation ? (
                       <p className="mt-0.5 text-xs font-semibold text-[#C9A227]">

@@ -622,21 +622,48 @@ router.post(
   async (req: Request, res: Response) => {
     try {
       const { name, startDate, endDate, isCurrent, isActive } = req.body;
-      if (isCurrent)
-        await prisma.academicYear.updateMany({
-          where: { isCurrent: true },
-          data: { isCurrent: false },
+      const result = await prisma.$transaction(async (tx) => {
+        const existing = await tx.academicYear.findUnique({
+          where: { name },
+          select: { id: true },
         });
-      const academicYear = await prisma.academicYear.create({
-        data: {
-          name,
+        if (isCurrent) {
+          await tx.academicYear.updateMany({
+            where: { isCurrent: true, ...(existing && { id: { not: existing.id } }) },
+            data: { isCurrent: false },
+          });
+        }
+        const data = {
           startDate: new Date(startDate),
           endDate: new Date(endDate),
           isCurrent,
           isActive,
-        },
+        };
+        const academicYear = existing
+          ? await tx.academicYear.update({ where: { id: existing.id }, data })
+          : await tx.academicYear.create({ data: { name, ...data } });
+        await tx.auditLog.create({
+          data: {
+            userId: req.user!.id,
+            action: existing ? AuditAction.UPDATE : AuditAction.CREATE,
+            entityType: "AcademicYear",
+            entityId: academicYear.id,
+            newValues: {
+              name: academicYear.name,
+              startDate: academicYear.startDate,
+              endDate: academicYear.endDate,
+              isCurrent: academicYear.isCurrent,
+              isActive: academicYear.isActive,
+            },
+            ...auditContext(req),
+          },
+        });
+        return { academicYear, created: !existing };
       });
-      res.status(201).json({ academicYear });
+      res.status(result.created ? 201 : 200).json({
+        academicYear: result.academicYear,
+        created: result.created,
+      });
     } catch (error: any) {
       res
         .status(500)

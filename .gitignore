@@ -17,6 +17,7 @@ build/
 .env.production
 !.env.example
 !.env.production.example
+.panel-demo/
 
 # Turbo cache
 .turbo/

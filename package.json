@@ -13,6 +13,8 @@
     "db:seed": "npm --workspace=@research-management/database run build && npm --workspace=@research-management/database run seed",
     "db:seed:demo": "npm --workspace=@research-management/database run build && npm --workspace=@research-management/database run seed:demo",
     "db:bootstrap-admin": "npm --workspace=@research-management/database run build && npm --workspace=@research-management/database run bootstrap:admin",
+    "db:panel-demo": "npm --workspace=@research-management/database run build && npm --workspace=@research-management/database run panel-demo --",
+    "test:panel-demo": "npm --workspace=@research-management/database run build && npm --workspace=@research-management/database run test:panel-demo",
     "db:demo-themes": "npm --workspace=@research-management/database run demo:themes:seed",
     "db:demo-themes:cleanup": "npm --workspace=@research-management/database run demo:themes:cleanup",
     "lint": "turbo run lint",
