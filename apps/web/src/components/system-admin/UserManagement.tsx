@@ -40,11 +40,11 @@ const statusTone: Record<User["status"], string> = {
 
 type Dialog = { type: "approve" | "roles" | "college" | "delete"; user: User } | null;
 
-export function UserManagement() {
+export function UserManagement({ initialStatus = "ALL" }: { initialStatus?: string }) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState(["ACTIVE", "PENDING", "SUSPENDED", "INACTIVE"].includes(initialStatus) ? initialStatus : "ALL");
   const [dialog, setDialog] = useState<Dialog>(null);
   const [selectedRoles, setSelectedRoles] = useState<RoleName[]>([]);
   const [selectedCollegeId, setSelectedCollegeId] = useState("");
@@ -95,7 +95,10 @@ export function UserManagement() {
   };
 
   const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["system-users"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["system-users"] }),
+      queryClient.invalidateQueries({ queryKey: ["system-admin-overview"] }),
+    ]);
   };
 
   const handleApprove = async () => {

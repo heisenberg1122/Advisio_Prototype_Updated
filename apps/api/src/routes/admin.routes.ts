@@ -5,8 +5,10 @@ import { prisma, UserStatus, CertificateType, CertificateStatus } from "../lib/p
 import { Permissions } from "@research-management/auth";
 import { requireAuth } from "../middleware/auth";
 import { requirePermission } from "../middleware/rbac";
+import adminOverviewRoutes from "./admin-overview.routes.js";
 
 const router = Router();
+router.use(adminOverviewRoutes);
 
 // GET /api/admin/metrics
 router.get("/admin/metrics", requireAuth, requirePermission(Permissions.USER_MANAGE), async (_req: Request, res: Response) => {

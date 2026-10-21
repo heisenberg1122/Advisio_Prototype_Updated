@@ -1,0 +1,42 @@
+/* Animate only on entry, with a fully visible chart for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .admin-registration-chart .admin-chart-line {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+
+  .admin-registration-chart .admin-chart-area,
+  .admin-registration-chart .admin-chart-point {
+    opacity: 0;
+  }
+
+  .admin-registration-chart.is-visible .admin-chart-line {
+    animation: admin-chart-draw 1.5s ease-in-out both;
+  }
+
+  .admin-registration-chart.is-visible .admin-chart-area {
+    animation: admin-chart-area-in 600ms ease-out 1s both;
+  }
+
+  .admin-registration-chart.is-visible .admin-chart-point {
+    animation: admin-chart-point-in 300ms ease-out 1.3s both;
+  }
+}
+
+@keyframes admin-chart-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes admin-chart-area-in {
+  to {
+    opacity: 0.055;
+  }
+}
+
+@keyframes admin-chart-point-in {
+  to {
+    opacity: 1;
+  }
+}
