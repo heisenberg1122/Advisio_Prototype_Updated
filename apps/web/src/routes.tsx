@@ -36,6 +36,9 @@ const StudentSettingsPage = lazy(() => import("./app/student/settings/page"));
 
 const AdviserLayout = lazy(() => import("./app/adviser/layout"));
 const AdviserDashboardPage = lazy(() => import("./app/adviser/dashboard/page"));
+const AdviserResearchGroupWorkspacePage = lazy(
+  () => import("./app/adviser/advisees/[researchId]/page"),
+);
 const AdviserProfilePage = lazy(() => import("./app/adviser/profile/page"));
 const AdviserProfileEditPage = lazy(
   () => import("./app/adviser/profile/edit/page"),
@@ -372,6 +375,16 @@ export function AppRoutes() {
             <ProtectedRoute allowedRoles={["ADVISER"]}>
               <AdviserLayout>
                 <StudentSettingsPage />
+              </AdviserLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/adviser/advisees/:researchId"
+          element={
+            <ProtectedRoute allowedRoles={["ADVISER", "SYSTEM_ADMIN"]}>
+              <AdviserLayout>
+                <AdviserResearchGroupWorkspacePage />
               </AdviserLayout>
             </ProtectedRoute>
           }

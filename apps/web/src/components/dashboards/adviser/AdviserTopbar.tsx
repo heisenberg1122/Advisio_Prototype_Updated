@@ -34,6 +34,8 @@ export function AdviserTopbar() {
   const title =
     pathname === "/adviser/dashboard"
       ? TAB_TITLES[currentTab] || "Adviser Dashboard"
+      : pathname.startsWith("/adviser/advisees/")
+        ? "Research Group Workspace"
       : PAGE_TITLES[pathname] || "Adviser Dashboard";
 
   return (

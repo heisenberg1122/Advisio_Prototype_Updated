@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { AppSidebar, NavSection } from "@/components/layout/AppSidebar";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import {
@@ -47,12 +47,21 @@ const ADVISER_NAV_SECTIONS: NavSection[] = [
 
 export function AdviserSidebar() {
   const { collapsed, toggle } = useSidebarCollapsed();
+  const pathname = usePathname() || "";
+  const navSections = ADVISER_NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.map((item) =>
+      item.tabName === "advisees" && pathname.startsWith("/adviser/advisees/")
+        ? { ...item, active: true }
+        : item,
+    ),
+  }));
 
   return (
     <AppSidebar
       roleTitle="Faculty Adviser"
       roleBadge="ADVISER PORTAL"
-      navSections={ADVISER_NAV_SECTIONS}
+      navSections={navSections}
       collapsed={collapsed}
       onToggleCollapse={toggle}
       settingsHref="/adviser/settings"

@@ -8,6 +8,7 @@ import {
   ExternalLink,
   FileSearch,
   FileText,
+  Layers3,
   MessageSquareText,
   RefreshCw,
   ShieldCheck,
@@ -21,6 +22,8 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { ListRowsSkeleton } from "@/components/ui/Skeleton";
 import { Tag } from "@/components/ui/Tag";
 import { apiClient } from "@/lib/api-client";
+import { assignmentDisplayState } from "@/lib/review-assignment-display";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 
 type Recommendation = "APPROVE" | "MINOR_REVISION" | "MAJOR_REVISION" | "REJECT";
@@ -47,6 +50,7 @@ type Assignment = {
   reviewer?: { id: string; firstName: string; lastName: string; email?: string } | null;
   review?: {
     id: string;
+    status: "DRAFT" | "SUBMITTED" | "RETURNED";
     recommendation?: Recommendation | null;
     overallComment?: string | null;
     submittedAt?: string | null;
@@ -84,14 +88,16 @@ const recommendationLabels: Record<Recommendation, string> = {
 
 function dateLabel(value?: string | null) {
   if (!value) return "Not available";
-  return new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Not available";
+  return new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }
+
+const readableStatus = (value: string) =>
+  value.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 function statusVariant(status: Assignment["status"]) {
   if (status === "COMPLETED") return "success" as const;
@@ -100,7 +106,11 @@ function statusVariant(status: Assignment["status"]) {
   return "neutral" as const;
 }
 
-export function ManuscriptReviewWorkspace() {
+interface ManuscriptReviewWorkspaceProps {
+  presentation?: "default" | "adviser";
+}
+
+export function ManuscriptReviewWorkspace({ presentation = "default" }: ManuscriptReviewWorkspaceProps) {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const contextualAssignmentId = searchParams.get("assignmentId");
@@ -130,6 +140,7 @@ export function ManuscriptReviewWorkspace() {
   const [managementRequired, setManagementRequired] = useState(true);
   const [managing, setManaging] = useState(false);
   const isCoordinator = Boolean(user?.roles.includes("RESEARCH_COORDINATOR"));
+  const isAdviserPresentation = presentation === "adviser";
 
   const loadAssignments = useCallback(async () => {
     setLoading(true);
@@ -156,6 +167,10 @@ export function ManuscriptReviewWorkspace() {
   );
   const history = useMemo(
     () => assignments.filter((assignment) => assignment.status !== "ACTIVE"),
+    [assignments],
+  );
+  const completedCount = useMemo(
+    () => assignments.filter((assignment) => assignment.status === "COMPLETED").length,
     [assignments],
   );
   const selectedWorkflowVersion = reviewWorkflow?.versions.find(
@@ -391,11 +406,11 @@ export function ManuscriptReviewWorkspace() {
           </div>
         </div>
 
-        {assignment.review && (
+        {assignment.review?.status === "SUBMITTED" && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
             <div className="flex items-center gap-2 text-sm font-bold text-emerald-800 dark:text-emerald-300">
               <CheckCircle2 className="h-4 w-4" />
-              {assignment.review.recommendation?.replace(/_/g, " ") || "Decision submitted"}
+              {assignment.review.recommendation ? readableStatus(assignment.review.recommendation) : "Decision submitted"}
             </div>
             {assignment.review.overallComment && (
               <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-950/80 dark:text-emerald-100/80">
@@ -433,7 +448,7 @@ export function ManuscriptReviewWorkspace() {
               icon={<MessageSquareText className="h-4 w-4" />}
               onClick={() => void openDecision(assignment)}
             >
-              Review and decide
+              {assignment.review?.status === "DRAFT" ? "Continue review" : "Review and decide"}
             </Button>
           )}
         </div>
@@ -441,25 +456,170 @@ export function ManuscriptReviewWorkspace() {
     </Card>
   );
 
+  const adviserPendingCard = (assignment: Assignment) => {
+    const state = assignmentDisplayState(assignment);
+    const canDecide = assignment.status === "ACTIVE" && assignment.review?.status !== "SUBMITTED";
+    return (
+      <article key={assignment.id} className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)]">
+        <div className="p-5 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--color-text-secondary)]">
+                <Tag size="xs" variant={state.variant} dot>{state.label}</Tag>
+                <span>{readableStatus(assignment.reviewType)} review</span>
+                <span aria-hidden="true">·</span>
+                <span>{assignment.isRequired ? "Required assignment" : "Optional assignment"}</span>
+              </div>
+              <h3 className="mt-3 text-lg font-black leading-snug text-[var(--color-text-primary)] sm:text-xl">{assignment.document.title}</h3>
+              <p className="mt-1.5 text-sm font-medium text-[var(--color-text-secondary)]">{assignment.research.groupName || assignment.research.title}</p>
+            </div>
+            <div className="shrink-0 rounded-xl bg-[var(--color-primary-light)] px-3.5 py-2 text-center text-[var(--color-primary)]">
+              <span className="block text-[10px] font-bold uppercase tracking-wider">Version</span>
+              <span className="text-xl font-black leading-none">{assignment.documentVersion.versionNumber}</span>
+            </div>
+          </div>
+
+          <dl className="mt-5 grid gap-x-6 gap-y-3 border-y border-[var(--color-border-subtle)] py-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <dt className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Milestone</dt>
+              <dd className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{assignment.documentVersion.milestone?.name || "General manuscript"}</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Submitted</dt>
+              <dd className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{dateLabel(assignment.documentVersion.submittedAt)}</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Assignment status</dt>
+              <dd className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{readableStatus(assignment.status)}</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Review status</dt>
+              <dd className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{assignment.review ? readableStatus(assignment.review.status) : "Not started"}</dd>
+            </div>
+          </dl>
+
+          <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-[var(--color-text-primary)]">{state.label}</p>
+              <p className="mt-0.5 text-xs leading-5 text-[var(--color-text-secondary)]">{state.description}</p>
+              <p className="mt-1 truncate text-[11px] text-[var(--color-text-muted)]" title={assignment.documentVersion.fileName}>Frozen file: {assignment.documentVersion.fileName}</p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {canDecide && (
+                <Button size="md" icon={<MessageSquareText className="h-4 w-4" />} onClick={() => void openDecision(assignment)}>
+                  {assignment.review?.status === "DRAFT" ? "Continue review" : "Review and decide"}
+                </Button>
+              )}
+              <Button variant="secondary" size="md" icon={<ExternalLink className="h-4 w-4" />} isLoading={openingId === assignment.id} onClick={() => void openSnapshot(assignment)}>
+                Open frozen version
+              </Button>
+            </div>
+          </div>
+        </div>
+      </article>
+    );
+  };
+
+  const adviserHistoryRow = (assignment: Assignment) => {
+    const state = assignmentDisplayState(assignment);
+    const review = assignment.review;
+    return (
+      <article key={assignment.id} className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Tag size="xs" variant={state.variant} dot>{state.label}</Tag>
+              <span className="text-xs font-semibold text-[var(--color-text-secondary)]">Version {assignment.documentVersion.versionNumber}</span>
+              <span className="text-xs text-[var(--color-text-muted)]">{readableStatus(assignment.reviewType)} review</span>
+            </div>
+            <h3 className="mt-2 truncate text-base font-bold text-[var(--color-text-primary)]">{assignment.document.title}</h3>
+            <p className="mt-1 truncate text-xs text-[var(--color-text-secondary)]">
+              {assignment.research.groupName || assignment.research.title} · {assignment.documentVersion.milestone?.name || "General manuscript"} · {dateLabel(assignment.completedAt || review?.submittedAt || assignment.assignedAt)}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button variant="secondary" size="sm" icon={<ExternalLink className="h-4 w-4" />} isLoading={openingId === assignment.id} onClick={() => void openSnapshot(assignment)}>
+              Open frozen version
+            </Button>
+          </div>
+        </div>
+
+        <details className="mt-3 border-t border-[var(--color-border-subtle)] pt-3">
+          <summary className="cursor-pointer text-xs font-bold text-[var(--color-primary)]">View complete review details</summary>
+          <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+            <div><p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Assignment</p><p className="mt-1 font-semibold text-[var(--color-text-primary)]">{readableStatus(assignment.status)}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Review</p><p className="mt-1 font-semibold text-[var(--color-text-primary)]">{review ? readableStatus(review.status) : "No review recorded"}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Decision</p><p className="mt-1 font-semibold text-[var(--color-text-primary)]">{review?.recommendation ? readableStatus(review.recommendation) : "No decision recorded"}</p></div>
+            <div><p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Submitted</p><p className="mt-1 font-semibold text-[var(--color-text-primary)]">{dateLabel(review?.submittedAt)}</p></div>
+          </div>
+          {(state.description || review?.overallComment) && (
+            <div className="mt-3 rounded-xl bg-[var(--color-surface-subtle)] p-3 text-xs leading-5 text-[var(--color-text-secondary)]">
+              {review?.overallComment || state.description}
+            </div>
+          )}
+          {review?.comments.length ? (
+            <div className="mt-3 space-y-2">
+              {review.comments.map((comment) => (
+                <div key={comment.id} className="rounded-xl bg-[var(--color-surface-subtle)] p-3 text-xs text-[var(--color-text-secondary)]">
+                  {(comment.locationData?.section || comment.locationData?.page) && <p className="mb-1 font-bold text-[var(--color-text-primary)]">{[comment.locationData.section, comment.locationData.page ? `Page ${comment.locationData.page}` : ""].filter(Boolean).join(" · ")}</p>}
+                  {comment.comment}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </details>
+      </article>
+    );
+  };
+
   return (
-    <PageContainer>
-      <PageHeader
-        title="Manuscript Reviews"
-        subtitle="Review the exact frozen version assigned to you. Decisions are permanent, version-scoped, and visible in the research workflow."
-        category="Research workspace"
-        badge={`${active.length} pending`}
-        actions={
-          <Button
-            variant="secondary"
-            size="sm"
-            icon={<RefreshCw className="h-4 w-4" />}
-            onClick={() => void loadAssignments()}
-            isLoading={loading}
-          >
-            Refresh
-          </Button>
-        }
-      />
+    <PageContainer maxWidth={isAdviserPresentation ? "full" : "default"} className={cn(isAdviserPresentation && "max-w-[1800px] gap-5 px-0 py-0 lg:py-0")}>
+      {isAdviserPresentation ? (
+        <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B3A53] via-[#0E4968] to-[#072A3D] p-5 text-white shadow-lg sm:p-6 lg:p-7">
+          <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-[#C9A227]/20 blur-3xl" />
+          <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-3xl">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#E4C864]">Global review center</p>
+              <h1 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">Manuscript Reviews</h1>
+              <p className="mt-2 text-sm leading-6 text-white/75">Review exact frozen manuscript versions assigned to you across all research groups. Decisions remain permanent and version-scoped.</p>
+            </div>
+            <Button variant="secondary" size="sm" className="border-white/20 bg-white/10 text-white hover:bg-white/20" icon={<RefreshCw className="h-4 w-4" />} onClick={() => void loadAssignments()} isLoading={loading}>
+              Refresh assignments
+            </Button>
+          </div>
+        </header>
+      ) : (
+        <PageHeader
+          title="Manuscript Reviews"
+          subtitle="Review the exact frozen version assigned to you. Decisions are permanent, version-scoped, and visible in the research workflow."
+          category="Research workspace"
+          badge={`${active.length} pending`}
+          actions={
+            <Button variant="secondary" size="sm" icon={<RefreshCw className="h-4 w-4" />} onClick={() => void loadAssignments()} isLoading={loading}>
+              Refresh
+            </Button>
+          }
+        />
+      )}
+
+      {isAdviserPresentation && !loading && (
+        <section aria-label="Review assignment summary" className="grid gap-3 sm:grid-cols-3">
+          {[
+            { label: "Pending assignments", value: active.length, detail: "Active assignments requiring attention", icon: Clock3, tone: "text-[#C58A18] bg-[#FEF7EA] dark:bg-[#C58A18]/15" },
+            { label: "Completed reviews", value: completedCount, detail: "Version-scoped decisions submitted", icon: CheckCircle2, tone: "text-[#2E7D5B] bg-[#EAF5EE] dark:bg-[#2E7D5B]/15" },
+            { label: "Total assignments", value: assignments.length, detail: "Including retained audit history", icon: Layers3, tone: "text-[var(--color-primary)] bg-[var(--color-primary-light)]" },
+          ].map((stat) => (
+            <div key={stat.label} className="flex items-center gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3.5">
+              <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl", stat.tone)}><stat.icon className="h-5 w-5" /></span>
+              <span className="min-w-0">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">{stat.label}</span>
+                <span className="mt-0.5 block text-xl font-black text-[var(--color-text-primary)]">{stat.value}</span>
+                <span className="block truncate text-xs text-[var(--color-text-secondary)]">{stat.detail}</span>
+              </span>
+            </div>
+          ))}
+        </section>
+      )}
 
       {error && !selected && (
         <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">
@@ -476,18 +636,18 @@ export function ManuscriptReviewWorkspace() {
         <ListRowsSkeleton rows={4} />
       ) : (
         <>
-          <section className="space-y-4" aria-labelledby="pending-review-heading">
-            <div className="flex items-center justify-between">
+          <section className={cn("space-y-4", isAdviserPresentation && "rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 sm:p-5")} aria-labelledby="pending-review-heading">
+            <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 id="pending-review-heading" className="flex items-center gap-2 text-lg font-black text-[var(--color-text-primary)]">
+                <h2 id="pending-review-heading" className="flex items-center gap-2 text-xl font-black text-[var(--color-text-primary)]">
                   <Clock3 className="h-5 w-5 text-[var(--color-primary)]" /> Pending reviews
                 </h2>
                 <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Only active assignments for your account can be decided.</p>
               </div>
-              <Tag variant={active.length ? "warning" : "success"}>{active.length}</Tag>
+              {!isAdviserPresentation && <Tag variant={active.length ? "warning" : "success"}>{active.length}</Tag>}
             </div>
             {active.length ? (
-              <div className="grid gap-4 xl:grid-cols-2">{active.map((item) => assignmentCard(item, true))}</div>
+              <div className={cn("grid gap-4", !isAdviserPresentation && "xl:grid-cols-2")}>{active.map((item) => isAdviserPresentation ? adviserPendingCard(item) : assignmentCard(item, true))}</div>
             ) : (
               <EmptyState
                 icon={ShieldCheck}
@@ -497,15 +657,15 @@ export function ManuscriptReviewWorkspace() {
             )}
           </section>
 
-          <section className="space-y-4" aria-labelledby="review-history-heading">
+          <section className={cn("space-y-4", isAdviserPresentation && "rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5")} aria-labelledby="review-history-heading">
             <div>
-              <h2 id="review-history-heading" className="flex items-center gap-2 text-lg font-black text-[var(--color-text-primary)]">
+              <h2 id="review-history-heading" className="flex items-center gap-2 text-xl font-black text-[var(--color-text-primary)]">
                 <FileSearch className="h-5 w-5 text-[var(--color-primary)]" /> Review history
               </h2>
               <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Completed, revoked, reassigned, and superseded assignments remain auditable.</p>
             </div>
             {history.length ? (
-              <div className="grid gap-4 xl:grid-cols-2">{history.map((item) => assignmentCard(item, false))}</div>
+              <div className={cn("grid gap-3", !isAdviserPresentation && "gap-4 xl:grid-cols-2")}>{history.map((item) => isAdviserPresentation ? adviserHistoryRow(item) : assignmentCard(item, false))}</div>
             ) : (
               <EmptyState icon={FileSearch} title="No previous decisions" description="Your completed reviews will remain available here." />
             )}

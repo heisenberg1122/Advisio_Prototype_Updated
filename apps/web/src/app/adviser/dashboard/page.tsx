@@ -5,7 +5,7 @@ import { useTheme } from "@/providers/theme-provider";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { CardsPageSkeleton, DashboardSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
-import { CourseCard } from "@/components/ui/CourseCard";
+import { AdviserResearchGroupCard } from "@/components/adviser/AdviserResearchGroupCard";
 import { AdviserGroupChats } from "@/components/dashboards/adviser/AdviserGroupChats";
 import { getStoredMeetingSession, saveMeetingSession, DEFAULT_SHARED_MEET_URL } from "@/lib/meeting-store";
 import { GoogleMeetConnectModal } from "@/components/consultations/GoogleMeetConnectModal";
@@ -40,6 +40,7 @@ function AdviserDashboardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const activeTab = searchParams.get("tab") || "overview";
+  const contextualResearchId = searchParams.get("researchId") || "";
   const { isDark, toggleTheme } = useTheme();
 
   // Synchronized Floating Google Meet Conference Session State
@@ -241,7 +242,7 @@ function AdviserDashboardContent() {
   const [advisees, setAdvisees] = useState<any[]>([]);
 
   useEffect(() => {
-    if (researchData?.projects && researchData.projects.length > 0) {
+    if (researchData?.projects) {
       setAdvisees(
         researchData.projects
           .filter((p: any) => p.members?.some((member: any) => member.projectRole === "ADVISER" && member.user?.id === user?.id && !member.leftAt))
@@ -252,6 +253,7 @@ function AdviserDashboardContent() {
               Boolean(p.workflowInstance?.completedAt),
             );
             const taskSubmissions = new Map((p.taskSubmissions || []).map((submission: any) => [submission.taskId, submission]));
+            const milestoneProgress = milestoneProgressByProject[p.id] || [];
             const tasks = stages.flatMap((stage: any) => (stage.tasks || []).map((task: any) => ({
               ...task,
               stageName: stage.name,
@@ -260,13 +262,20 @@ function AdviserDashboardContent() {
             })));
             return {
               id: p.id,
-              groupName: p.title?.substring(0, 24) || "Research Group",
+              groupName: p.groupName || "Research Group",
               projectTitle: p.title,
-              leader: p.members?.find((m: any) => m.projectRole === "LEADER")?.user?.firstName || "Group Leader",
+              leader: (() => {
+                const leader = p.members?.find((m: any) => m.projectRole === "LEADER" && !m.leftAt)?.user;
+                return leader ? `${leader.firstName || ""} ${leader.lastName || ""}`.trim() : "Group Leader";
+              })(),
               status: p.status?.toLowerCase() || "active",
               progress,
               currentStage: p.workflowInstance?.currentStage?.name || "Not started",
               tasks,
+              pendingTasks: milestoneProgress.reduce(
+                (count: number, milestone: any) => count + (milestone.tasks || []).filter((task: any) => task.isRequired && task.status !== "APPROVED").length,
+                0,
+              ),
               abstract: p.abstract || "No abstract has been provided.",
               members: (p.members || []).filter((member: any) => member.projectRole !== "ADVISER" && !member.leftAt),
               adviserSince: p.members?.find((member: any) => member.projectRole === "ADVISER" && member.user?.id === user?.id && !member.leftAt)?.joinedAt,
@@ -275,6 +284,11 @@ function AdviserDashboardContent() {
       );
     }
   }, [milestoneProgressByProject, researchData, user?.id]);
+
+  useEffect(() => {
+    if (!contextualResearchId || !advisees.some((advisee) => advisee.id === contextualResearchId)) return;
+    setConsultGroupId(contextualResearchId);
+  }, [advisees, contextualResearchId]);
 
   const [selectedAdvisee, setSelectedAdvisee] = useState<any | null>(null);
   const [showWithdrawalForm, setShowWithdrawalForm] = useState(false);
@@ -511,7 +525,7 @@ function AdviserDashboardContent() {
 
   if (researchLoading) {
     if (activeTab === "overview") return <DashboardSkeleton />;
-    if (["consultations", "history"].includes(activeTab)) return <CardsPageSkeleton />;
+    if (["advisees", "consultations", "history"].includes(activeTab)) return <CardsPageSkeleton />;
     if (activeTab === "chat") return <ListPageSkeleton />;
     return <TablePageSkeleton />;
   }
@@ -668,25 +682,17 @@ function AdviserDashboardContent() {
                   {advisees.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                       {advisees.slice(0, 3).map((adv) => (
-                        <CourseCard
+                        <AdviserResearchGroupCard
                           key={adv.id}
                           title={adv.projectTitle || "Research Study"}
-                          code={adv.groupName}
-                          subtitle={`Stage: ${adv.currentStage}`}
-                          instructor={`Group Lead: ${adv.leader}`}
-                          statusBadge={
-                            <Tag variant={adv.status === "active" ? "success" : "info"}>
-                              {adv.status.toUpperCase()}
-                            </Tag>
-                          }
+                          groupName={adv.groupName}
+                          status={adv.status}
+                          currentStage={adv.currentStage}
                           progress={adv.progress}
-                          description="Active capstone research group monitored under University of the Assumption guidelines."
-                          actions={[
-                            { label: "Reviews", onClick: () => handleTabChange("reviews") },
-                            { label: "Progress", onClick: () => handleTabChange("progress") },
-                            { label: "Consult", onClick: () => handleTabChange("consultations") },
-                            { label: "Messages", onClick: () => handleTabChange("group-chats") },
-                          ]}
+                          memberCount={adv.members.length}
+                          pendingTasks={adv.pendingTasks}
+                          leader={adv.leader}
+                          href={`/adviser/advisees/${adv.id}`}
                         />
                       ))}
                     </div>
@@ -987,36 +993,17 @@ function AdviserDashboardContent() {
                 {advisees.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {advisees.map((adv) => (
-                      <CourseCard
+                      <AdviserResearchGroupCard
                         key={adv.id}
                         title={adv.projectTitle || "Research Study"}
-                        code={adv.groupName}
-                        subtitle={`Stage: ${adv.currentStage}`}
-                        instructor={`Group Lead: ${adv.leader}`}
-                        statusBadge={
-                          <Tag variant={adv.status === "active" ? "success" : "info"}>
-                            {adv.status.toUpperCase()}
-                          </Tag>
-                        }
+                        groupName={adv.groupName}
+                        status={adv.status}
+                        currentStage={adv.currentStage}
                         progress={adv.progress}
-                        description={`Active capstone research group monitored under University of the Assumption guidelines.`}
-                        actions={[
-                          {
-                            label: "Review Submissions",
-                            onClick: () => handleTabChange("reviews"),
-                          },
-                          {
-                            label: "Schedule Consultation",
-                            onClick: () => {
-                              setConsultGroupId(adv.id);
-                              setShowScheduleModal(true);
-                            },
-                          },
-                          {
-                            label: "Chat",
-                            onClick: () => handleTabChange("chat"),
-                          },
-                        ]}
+                        memberCount={adv.members.length}
+                        pendingTasks={adv.pendingTasks}
+                        leader={adv.leader}
+                        href={`/adviser/advisees/${adv.id}`}
                       />
                     ))}
                   </div>
