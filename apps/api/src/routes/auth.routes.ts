@@ -19,6 +19,7 @@ import {
   type AppearancePreference,
   type ColorThemePreference,
 } from "../lib/prisma.js";
+import { researchInterestsForProgram } from "@research-management/database";
 import {
   effectiveColorThemePreference,
   parseColorThemePreference,
@@ -42,13 +43,11 @@ router.post(
     try {
       res.json({ message: await requestPasswordRecovery(req.body.email) });
     } catch (error: any) {
-      res
-        .status(error.statusCode || 503)
-        .json({
-          error: error.statusCode
-            ? error.message
-            : "Password recovery is temporarily unavailable.",
-        });
+      res.status(error.statusCode || 503).json({
+        error: error.statusCode
+          ? error.message
+          : "Password recovery is temporarily unavailable.",
+      });
     }
   },
 );
@@ -65,13 +64,11 @@ router.post(
           "Your password has been reset. Sign in with your new password.",
       });
     } catch (error: any) {
-      res
-        .status(error.statusCode || 503)
-        .json({
-          error: error.statusCode
-            ? error.message
-            : "Password recovery is temporarily unavailable.",
-        });
+      res.status(error.statusCode || 503).json({
+        error: error.statusCode
+          ? error.message
+          : "Password recovery is temporarily unavailable.",
+      });
     }
   },
 );
@@ -138,11 +135,9 @@ router.post(
           !selectedProgram ||
           (collegeId && collegeId !== selectedProgram.collegeId)
         ) {
-          res
-            .status(400)
-            .json({
-              error: "The selected program is not available for that college.",
-            });
+          res.status(400).json({
+            error: "The selected program is not available for that college.",
+          });
           return;
         }
 
@@ -225,7 +220,9 @@ router.post(
         return;
       }
     } catch {
-      res.status(500).json({ error: "Registration is temporarily unavailable." });
+      res
+        .status(500)
+        .json({ error: "Registration is temporarily unavailable." });
     }
   },
 );
@@ -259,12 +256,10 @@ router.post(
       });
 
       if (!user) {
-        res
-          .status(401)
-          .json({
-            error:
-              "This onboarding link is invalid or has expired. Please register again or contact the administrator.",
-          });
+        res.status(401).json({
+          error:
+            "This onboarding link is invalid or has expired. Please register again or contact the administrator.",
+        });
         return;
       }
 
@@ -272,12 +267,10 @@ router.post(
         (user.programId && user.programId !== programId) ||
         (user.collegeId && user.collegeId !== collegeId)
       ) {
-        res
-          .status(400)
-          .json({
-            error:
-              "Your verified registration program cannot be changed during onboarding.",
-          });
+        res.status(400).json({
+          error:
+            "Your verified registration program cannot be changed during onboarding.",
+        });
         return;
       }
 
@@ -298,18 +291,31 @@ router.post(
       ]);
 
       if (!program) {
-        res
-          .status(400)
-          .json({
-            error:
-              "The selected program does not belong to the selected college.",
-          });
+        res.status(400).json({
+          error:
+            "The selected program does not belong to the selected college.",
+        });
         return;
       }
       if (!academicYear) {
         res
           .status(400)
           .json({ error: "The selected academic year is unavailable." });
+        return;
+      }
+
+      const allowedInterests = new Set(
+        researchInterestsForProgram(program.code),
+      );
+      if (
+        profile.interests.some(
+          (interest: string) => !allowedInterests.has(interest),
+        )
+      ) {
+        res.status(400).json({
+          error:
+            "Choose research interests available for your verified program.",
+        });
         return;
       }
 
@@ -346,7 +352,9 @@ router.post(
         status: "SUBMITTED",
       });
     } catch {
-      res.status(500).json({ error: "Researcher onboarding is temporarily unavailable." });
+      res
+        .status(500)
+        .json({ error: "Researcher onboarding is temporarily unavailable." });
     }
   },
 );
@@ -475,11 +483,9 @@ router.post("/google", async (req: Request, res: Response) => {
       .verifyIdToken({ idToken, audience: clientId })
       .catch(() => null);
     if (!ticket) {
-      return void res
-        .status(401)
-        .json({
-          error: "Google sign-in could not be verified. Please try again.",
-        });
+      return void res.status(401).json({
+        error: "Google sign-in could not be verified. Please try again.",
+      });
     }
     const identity = ticket.getPayload();
     if (!identity?.sub || !identity.email || identity.email_verified !== true) {
@@ -586,18 +592,14 @@ router.post("/google", async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     if (error?.code === "P2002") {
-      return void res
-        .status(409)
-        .json({
-          error: "An account already exists for this Google identity or email.",
-        });
+      return void res.status(409).json({
+        error: "An account already exists for this Google identity or email.",
+      });
     }
     console.error("Google sign-in failed.");
-    return void res
-      .status(500)
-      .json({
-        error: "Google sign-in is temporarily unavailable. Please try again.",
-      });
+    return void res.status(500).json({
+      error: "Google sign-in is temporarily unavailable. Please try again.",
+    });
   }
 });
 
@@ -629,26 +631,20 @@ router.patch(
         !account.googleSubject ||
         !account.roles.some((item) => item.role.name === "RESEARCHER")
       ) {
-        return void res
-          .status(403)
-          .json({
-            error:
-              "This setup is available to new Google researcher accounts only.",
-          });
+        return void res.status(403).json({
+          error:
+            "This setup is available to new Google researcher accounts only.",
+        });
       }
       if (account.collegeId && account.collegeId !== collegeId) {
-        return void res
-          .status(403)
-          .json({
-            error: "Your account already has a different department assigned.",
-          });
+        return void res.status(403).json({
+          error: "Your account already has a different department assigned.",
+        });
       }
       if (account.programId && account.programId !== programId) {
-        return void res
-          .status(403)
-          .json({
-            error: "Your account already has a different course assigned.",
-          });
+        return void res.status(403).json({
+          error: "Your account already has a different course assigned.",
+        });
       }
 
       const program = await prisma.program.findFirst({
@@ -661,11 +657,9 @@ router.patch(
         select: { id: true },
       });
       if (!program)
-        return void res
-          .status(400)
-          .json({
-            error: "Choose an active course within the selected department.",
-          });
+        return void res.status(400).json({
+          error: "Choose an active course within the selected department.",
+        });
 
       await prisma.user.update({
         where: { id: account.id },
@@ -674,11 +668,9 @@ router.patch(
       return void res.json({ message: "Academic profile saved." });
     } catch {
       console.error("Google researcher academic setup failed.");
-      return void res
-        .status(500)
-        .json({
-          error: "Could not save your academic profile. Please try again.",
-        });
+      return void res.status(500).json({
+        error: "Could not save your academic profile. Please try again.",
+      });
     }
   },
 );
@@ -729,7 +721,9 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
       },
     });
   } catch {
-    res.status(500).json({ error: "The user profile is temporarily unavailable." });
+    res
+      .status(500)
+      .json({ error: "The user profile is temporarily unavailable." });
   }
 });
 
@@ -814,7 +808,9 @@ router.patch(
         ),
       });
     } catch {
-      res.status(500).json({ error: "Could not save the appearance preference." });
+      res
+        .status(500)
+        .json({ error: "Could not save the appearance preference." });
     }
   },
 );

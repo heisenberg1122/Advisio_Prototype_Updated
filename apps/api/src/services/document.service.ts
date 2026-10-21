@@ -5,6 +5,7 @@ import { storageHierarchyService } from "./storage-hierarchy.service.js";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { localStorageService } from "./local-storage.service.js";
 
 export interface CreateDocumentPayload {
   researchId: string;
@@ -40,7 +41,11 @@ class DocumentService {
 
     let buffer: Buffer;
     let sourceModifiedAt: Date | null = null;
-    if (options.storagePath.startsWith("supabase://") || (!options.googleDriveFileId && options.storageProvider === "SUPABASE")) {
+    if (options.storageProvider === "LOCAL") {
+      if (process.env.STORAGE_PROVIDER !== "LOCAL")
+        throw new Error("Local document storage is disabled for this process.");
+      buffer = await localStorageService.readStoredFile(options.storagePath);
+    } else if (options.storagePath.startsWith("supabase://") || (!options.googleDriveFileId && options.storageProvider === "SUPABASE")) {
       buffer = await supabaseStorageService.downloadStoredFile(
         options.storagePath,
       );
@@ -105,6 +110,15 @@ class DocumentService {
     let provider = (
       process.env.STORAGE_PROVIDER || "GOOGLE_DRIVE"
     ).toUpperCase();
+
+    if (provider === "LOCAL") {
+      storageResult = await localStorageService.uploadFile({
+        fileName: payload.fileName,
+        mimeType: payload.mimeType,
+        buffer: payload.fileBuffer,
+        folder: payload.researchId,
+      });
+    }
 
     if (provider === "SUPABASE" && supabaseStorageService.isConfigured()) {
       storageResult = await supabaseStorageService.uploadFile({
@@ -173,6 +187,11 @@ class DocumentService {
           storageResult.storagePath,
         );
       }
+      if (provider === "LOCAL") {
+        return await localStorageService.deleteStoredFile(
+          storageResult.storagePath,
+        );
+      }
     } catch (error) {
       console.error(
         "Unable to clean up an uncommitted document upload:",
@@ -199,7 +218,8 @@ class DocumentService {
             documentType: payload.documentType,
             currentVersion: 1,
             storageProvider: provider,
-            externalFileId: storageResult.fileId,
+            externalFileId:
+              provider === "LOCAL" ? null : storageResult.fileId,
             createdBy: payload.uploadedBy,
           },
         });
@@ -277,6 +297,15 @@ class DocumentService {
     let provider = (
       process.env.STORAGE_PROVIDER || "GOOGLE_DRIVE"
     ).toUpperCase();
+
+    if (provider === "LOCAL") {
+      storageResult = await localStorageService.uploadFile({
+        fileName: payload.fileName,
+        mimeType: payload.mimeType,
+        buffer: payload.fileBuffer,
+        folder: existingDoc.researchId,
+      });
+    }
 
     if (provider === "SUPABASE" && supabaseStorageService.isConfigured()) {
       storageResult = await supabaseStorageService.uploadFile({
@@ -370,7 +399,8 @@ class DocumentService {
         data: {
           currentVersion: reservedVersionNumber,
           storageProvider: provider,
-          externalFileId: storageResult.fileId,
+          externalFileId:
+            provider === "LOCAL" ? null : storageResult.fileId,
           updatedAt: new Date(),
         },
       });

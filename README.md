@@ -300,6 +300,8 @@ The runner applies committed migrations and executes the manuscript lifecycle, r
 
 ## Development demo accounts
 
+For the fully isolated, all-role local environment backed by `advisio_demo_local` on port `5435`, see [`LOCAL_DEMO.md`](LOCAL_DEMO.md). It provides guarded initialize, verify, reset, cleanup, and `dev:demo` commands without using Google Drive or the normal local database.
+
 The normal `npm run db:seed` command is production-safe and creates reference data only. To create local demo records, set `ALLOW_DEMO_ACCOUNT_PROVISIONING=true` and a unique `DEMO_ACCOUNT_PASSWORD` of at least 12 characters, then run:
 
 ```bash

@@ -1,6 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { programCatalogKey, upsertVerifiedPrograms, VERIFIED_PROGRAMS } from "./program-catalog.js";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const prisma = new PrismaClient();
 const DEMO_EMAIL_PREFIX = "theme-demo.";
@@ -26,13 +28,13 @@ function requiredDemoPassword() {
   return password;
 }
 
-const demoEmail = (collegeCode: string, programCode: string) =>
+export const demoEmail = (collegeCode: string, programCode: string) =>
   `${DEMO_EMAIL_PREFIX}${collegeCode.toLowerCase()}.${programCode.toLowerCase().replace(/[^a-z0-9]/g, "")}@university.edu.ph`;
 
-const demoUniversityId = (collegeCode: string, programCode: string) =>
+export const demoUniversityId = (collegeCode: string, programCode: string) =>
   `${DEMO_ID_PREFIX}${collegeCode}-${programCode}`.slice(0, 50);
 
-async function seedThemeDemoAccounts() {
+export async function seedThemeDemoAccounts() {
   const demoPassword = requiredDemoPassword();
   const demoPasswordHash = await bcrypt.hash(demoPassword, 12);
   const researcherRole = await prisma.role.findUnique({ where: { name: "RESEARCHER" } });
@@ -90,7 +92,7 @@ async function seedThemeDemoAccounts() {
   console.log("Remove only these accounts later with: npm run db:demo-themes:cleanup");
 }
 
-async function cleanupThemeDemoAccounts() {
+export async function cleanupThemeDemoAccounts() {
   const result = await prisma.user.deleteMany({
     where: {
       OR: [
@@ -103,19 +105,24 @@ async function cleanupThemeDemoAccounts() {
   console.log("Verified college and program catalog entries were preserved.");
 }
 
-const mode = process.argv[2];
-const operation = mode === "cleanup" ? cleanupThemeDemoAccounts : mode === "seed" ? seedThemeDemoAccounts : null;
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === path.resolve(fileURLToPath(import.meta.url))
+) {
+  const mode = process.argv[2];
+  const operation = mode === "cleanup" ? cleanupThemeDemoAccounts : mode === "seed" ? seedThemeDemoAccounts : null;
 
-if (!operation) {
-  console.error("Usage: theme-demo-accounts.js <seed|cleanup>");
-  process.exitCode = 1;
-} else {
-  operation()
-    .catch((error) => {
-      console.error("Theme demo account operation failed:", error);
-      process.exitCode = 1;
-    })
-    .finally(async () => {
-      await prisma.$disconnect();
-    });
+  if (!operation) {
+    console.error("Usage: theme-demo-accounts.js <seed|cleanup>");
+    process.exitCode = 1;
+  } else {
+    operation()
+      .catch((error) => {
+        console.error("Theme demo account operation failed:", error);
+        process.exitCode = 1;
+      })
+      .finally(async () => {
+        await prisma.$disconnect();
+      });
+  }
 }

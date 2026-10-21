@@ -7,6 +7,7 @@ import { Prisma, prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { googleDriveService } from "../services/google-drive.service.js";
 import { storageHierarchyService } from "../services/storage-hierarchy.service.js";
+import { localStorageService } from "../services/local-storage.service.js";
 
 const router = Router();
 const upload = multer({
@@ -173,25 +174,35 @@ router.post("/research/:researchId/group-files", requireAuth, upload.array("file
     const blocked = files.find((file) => BLOCKED_EXTENSIONS.has(file.originalname.split(".").pop()?.toLowerCase() || ""));
     if (blocked) return void res.status(400).json({ error: `${blocked.originalname} is not an allowed file type.` });
 
-    const destinationFolderId = await storageHierarchyService.resolveFolder({ researchId, bucket: "WORKING" });
+    const useLocalStorage = process.env.STORAGE_PROVIDER === "LOCAL";
+    const destinationFolderId = useLocalStorage
+      ? undefined
+      : await storageHierarchyService.resolveFolder({ researchId, bucket: "WORKING" });
     const created = [];
     for (const file of files) {
-      const stored = await googleDriveService.uploadFile({
-        fileName: file.originalname,
-        mimeType: file.mimetype || "application/octet-stream",
-        buffer: file.buffer,
-        folderId: destinationFolderId,
-        description: `Advisio group file: ${file.originalname}`,
-        appProperties: {
-          advisioManaged: "true", advisioResearchId: researchId,
-          advisioUploaderId: req.user!.id, advisioLifecycle: "GROUP_FILE",
-          advisioChecksum: crypto.createHash("sha256").update(file.buffer).digest("hex"),
-        },
-      });
+      const stored = useLocalStorage
+        ? await localStorageService.uploadFile({
+            fileName: file.originalname,
+            mimeType: file.mimetype || "application/octet-stream",
+            buffer: file.buffer,
+            folder: researchId,
+          })
+        : await googleDriveService.uploadFile({
+            fileName: file.originalname,
+            mimeType: file.mimetype || "application/octet-stream",
+            buffer: file.buffer,
+            folderId: destinationFolderId,
+            description: `Advisio group file: ${file.originalname}`,
+            appProperties: {
+              advisioManaged: "true", advisioResearchId: researchId,
+              advisioUploaderId: req.user!.id, advisioLifecycle: "GROUP_FILE",
+              advisioChecksum: crypto.createHash("sha256").update(file.buffer).digest("hex"),
+            },
+          });
       const record = await prisma.groupFile.create({
         data: {
           researchId, folderId, name: cleanName(file.originalname), originalName: file.originalname,
-          mimeType: stored.mimeType, fileSize: BigInt(stored.sizeBytes), storageProvider: "GOOGLE_DRIVE",
+          mimeType: stored.mimeType, fileSize: BigInt(stored.sizeBytes), storageProvider: useLocalStorage ? "LOCAL" : "GOOGLE_DRIVE",
           externalFileId: stored.fileId, storagePath: stored.storagePath,
           description: req.body.description ? String(req.body.description).trim().slice(0, 1000) : null,
           milestoneId: req.body.milestoneId || null, uploadedBy: req.user!.id,
@@ -212,6 +223,11 @@ router.get("/group-files/:fileId/content", requireAuth, async (req, res) => {
     if (!file || !(await membership(file.researchId, req.user!.id))) return void res.status(404).json({ error: "File not found." });
     res.type(file.mimeType);
     res.setHeader("Content-Disposition", `${req.query.download === "1" ? "attachment" : "inline"}; filename="${file.name.replace(/"/g, "")}"`);
+    if (file.storageProvider === "LOCAL") {
+      const bytes = await localStorageService.readStoredFile(file.storagePath);
+      res.send(bytes);
+      return;
+    }
     if (!file.externalFileId.startsWith("gdrive-")) {
       const stream = await googleDriveService.getFileStream(file.externalFileId);
       stream.data.pipe(res);

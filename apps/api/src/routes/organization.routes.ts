@@ -12,6 +12,7 @@ import {
   programUpdateSchema,
 } from "@research-management/validations";
 import { Permissions } from "@research-management/auth";
+import { researchInterestsForProgram } from "@research-management/database";
 import { validateBody } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth";
 import { requirePermission } from "../middleware/rbac";
@@ -30,6 +31,13 @@ function normalizedCode(value: string | null | undefined) {
 function normalizedText(value: string | null | undefined) {
   const text = value?.trim();
   return text || null;
+}
+
+function withResearchInterests<T extends { code: string }>(program: T) {
+  return {
+    ...program,
+    researchInterests: [...researchInterestsForProgram(program.code)],
+  };
 }
 
 async function verifyPassword(userId: string, password: string) {
@@ -68,7 +76,12 @@ router.get("/colleges", async (_req: Request, res: Response) => {
       },
       orderBy: { name: "asc" },
     });
-    res.json({ colleges });
+    res.json({
+      colleges: colleges.map((college) => ({
+        ...college,
+        programs: college.programs.map(withResearchInterests),
+      })),
+    });
   } catch (error: any) {
     res
       .status(500)
@@ -92,7 +105,7 @@ router.get("/programs", async (req: Request, res: Response) => {
       },
       orderBy: { name: "asc" },
     });
-    res.json({ programs });
+    res.json({ programs: programs.map(withResearchInterests) });
   } catch (error: any) {
     res
       .status(500)
@@ -130,11 +143,9 @@ router.get(
       });
       res.json({ colleges });
     } catch (error: any) {
-      res
-        .status(500)
-        .json({
-          error: error.message || "Failed to fetch the academic structure",
-        });
+      res.status(500).json({
+        error: error.message || "Failed to fetch the academic structure",
+      });
     }
   },
 );
@@ -211,12 +222,10 @@ router.patch(
       if (!existing)
         return void res.status(404).json({ error: "College not found." });
       if (isActive === false && existing._count.programs > 0)
-        return void res
-          .status(409)
-          .json({
-            error:
-              "Archive or move the college's active programs before archiving this college.",
-          });
+        return void res.status(409).json({
+          error:
+            "Archive or move the college's active programs before archiving this college.",
+        });
 
       const data = {
         ...(code !== undefined && { code: code.trim().toUpperCase() }),
@@ -396,12 +405,10 @@ router.patch(
           0,
         );
         if (dependencyCount > 0)
-          return void res
-            .status(409)
-            .json({
-              error:
-                "This program cannot be moved because it already has related records.",
-            });
+          return void res.status(409).json({
+            error:
+              "This program cannot be moved because it already has related records.",
+          });
         const college = await prisma.college.findFirst({
           where: { id: collegeId, isActive: true },
           select: { id: true },
@@ -417,12 +424,9 @@ router.patch(
           select: { id: true },
         });
         if (!parentCollege)
-          return void res
-            .status(409)
-            .json({
-              error:
-                "Restore the parent college before restoring this program.",
-            });
+          return void res.status(409).json({
+            error: "Restore the parent college before restoring this program.",
+          });
       }
 
       const data = {
@@ -629,7 +633,10 @@ router.post(
         });
         if (isCurrent) {
           await tx.academicYear.updateMany({
-            where: { isCurrent: true, ...(existing && { id: { not: existing.id } }) },
+            where: {
+              isCurrent: true,
+              ...(existing && { id: { not: existing.id } }),
+            },
             data: { isCurrent: false },
           });
         }

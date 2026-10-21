@@ -4,6 +4,7 @@ import { googleDriveService } from "./google-drive.service.js";
 import { documentService } from "./document.service.js";
 import { loadVersionFile } from "./document-signing.service.js";
 import { storeArtifact, deleteArtifact } from "./artifact-storage.service.js";
+import { localStorageService } from "./local-storage.service.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -114,5 +115,42 @@ describe("provider-neutral confidential storage", () => {
     expect(stored.googleDriveFileId).toBeNull();
     await deleteArtifact(stored);
     expect(cleanup).toHaveBeenCalledWith("supabase://manuscripts/file");
+  });
+  it("uses explicit local storage without inventing a Google Drive identifier", async () => {
+    vi.stubEnv("STORAGE_PROVIDER", "LOCAL");
+    const bytes = Buffer.from("%PDF-local-demo");
+    vi.spyOn(localStorageService, "uploadFile").mockResolvedValue({
+      fileId: "local-unit-test",
+      fileName: "local.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: bytes.length,
+      storagePath: "C:\\isolated\\local.pdf",
+      webViewLink: "",
+      webContentLink: "",
+    });
+    vi.spyOn(localStorageService, "readStoredFile").mockResolvedValue(bytes);
+    const cleanup = vi
+      .spyOn(localStorageService, "deleteStoredFile")
+      .mockResolvedValue(true);
+
+    const stored = await storeArtifact(
+      {
+        fileName: "local.pdf",
+        mimeType: "application/pdf",
+        buffer: bytes,
+      },
+      "project",
+    );
+    expect(stored.provider).toBe("LOCAL");
+    expect(stored.googleDriveFileId).toBeNull();
+    expect(
+      await documentService.readStoredVersionFile({
+        storageProvider: "LOCAL",
+        storagePath: stored.storagePath,
+        expectedSize: bytes.length,
+      }),
+    ).toEqual({ buffer: bytes, sourceModifiedAt: null });
+    await deleteArtifact(stored);
+    expect(cleanup).toHaveBeenCalledWith(stored.storagePath);
   });
 });

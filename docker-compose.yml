@@ -35,6 +35,27 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres-demo:
+    image: postgres:16-alpine
+    container_name: advisio-postgres-demo
+    restart: unless-stopped
+    profiles: ["demo"]
+    environment:
+      POSTGRES_USER: advisio_demo_local
+      POSTGRES_PASSWORD: advisio_demo_local_password
+      POSTGRES_DB: advisio_demo_local
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_demo_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U advisio_demo_local -d advisio_demo_local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   postgres_data:
   postgres_test_data:
+  postgres_demo_data:

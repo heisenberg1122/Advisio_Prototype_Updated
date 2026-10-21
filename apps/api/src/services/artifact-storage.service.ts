@@ -3,6 +3,7 @@ import {
   type DriveUploadOptions,
 } from "./google-drive.service.js";
 import { supabaseStorageService } from "./supabase-storage.service.js";
+import { localStorageService } from "./local-storage.service.js";
 
 export async function storeArtifact(
   options: DriveUploadOptions,
@@ -12,7 +13,9 @@ export async function storeArtifact(
     process.env.STORAGE_PROVIDER || "GOOGLE_DRIVE"
   ).toUpperCase();
   const stored =
-    provider === "SUPABASE"
+    provider === "LOCAL"
+      ? await localStorageService.uploadFile({ ...options, folder: researchId })
+      : provider === "SUPABASE"
       ? await supabaseStorageService.uploadFile({
           fileName: options.fileName,
           mimeType: options.mimeType,
@@ -38,7 +41,9 @@ export async function deleteArtifact(stored: {
   fileId: string;
   storagePath: string;
 }) {
-  return stored.provider === "SUPABASE"
+  return stored.provider === "LOCAL"
+    ? localStorageService.deleteStoredFile(stored.storagePath)
+    : stored.provider === "SUPABASE"
     ? supabaseStorageService.deleteStoredFile(stored.storagePath)
     : googleDriveService.deleteStoredFile(stored.fileId);
 }
