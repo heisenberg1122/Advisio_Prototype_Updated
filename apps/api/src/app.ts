@@ -56,6 +56,12 @@ app.use(
   }),
 );
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
+// PNG data URLs need room for base64; keep other JSON endpoints at the default limit.
+app.use([
+  "/api/documents/versions/:versionId/sign",
+  "/api/mail/attachments/:id/sign",
+  "/api/official-copies/:officialCopyId/sign",
+], express.json({ limit: "3mb" }));
 app.use(express.json());
 app.use(cookieParser());
 

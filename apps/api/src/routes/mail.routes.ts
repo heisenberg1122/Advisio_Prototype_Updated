@@ -5,8 +5,8 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { loadVersionFile } from "../services/document-signing.service.js";
+import { resolveSigningImage, saveSigningImage } from "../services/signature-image.service.js";
+import { createVisuallySignedPdf, loadVersionFile } from "../services/document-signing.service.js";
 
 const router = Router();
 const attachments = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 5 } });
@@ -194,20 +194,19 @@ router.delete("/drafts/:messageId", requireAuth, async (req, res) => {
 router.post("/attachments/:id/sign", requireAuth, async (req, res) => {
   try {
     if (!req.user!.roles.some((role) => SIGNER_ROLES.has(role))) return void res.status(403).json({ error: "Your role cannot sign message attachments." });
-    const { password, confirmation, placements } = req.body || {};
+    const { password, confirmation, placements, signatureImage, saveSignature } = req.body || {};
     if (confirmation !== true) return void res.status(400).json({ error: "Signing confirmation is required." });
     if (!password || typeof password !== "string") return void res.status(400).json({ error: "Enter your password to confirm signing." });
     const normalizedPlacements = Array.isArray(placements) ? placements as Placement[] : [];
     if (!normalizedPlacements.length || normalizedPlacements.length > 10) return void res.status(400).json({ error: "Add between one and ten signature placements." });
     normalizedPlacements.forEach(validatePlacement);
 
-    const [attachment, account, signature, signer] = await Promise.all([
+    const [attachment, account, signer] = await Promise.all([
       prisma.mailAttachment.findFirst({
         where: { id: req.params.id as string, message: { isDraft: false, sentAt: { not: null }, thread: { participants: { some: { userId: req.user!.id } } } } },
         include: { message: { include: { thread: { include: { participants: true } } } }, signedCopies: { where: { signedById: req.user!.id }, select: { id: true } } },
       }),
       prisma.user.findUnique({ where: { id: req.user!.id }, select: { passwordHash: true } }),
-      prisma.userSignature.findUnique({ where: { userId: req.user!.id } }),
       prisma.user.findUnique({ where: { id: req.user!.id }, select: person }),
     ]);
     if (!attachment) return void res.status(404).json({ error: "Message attachment not found." });
@@ -215,37 +214,20 @@ router.post("/attachments/:id/sign", requireAuth, async (req, res) => {
     if (attachment.sourceAttachmentId || attachment.signedById) return void res.status(409).json({ error: "A signed copy cannot be signed again from the message context." });
     if (attachment.signedCopies.length) return void res.status(409).json({ error: "You have already signed this exact attachment." });
     if (!account?.passwordHash || !(await bcrypt.compare(password, account.passwordHash))) return void res.status(401).json({ error: "Your password could not be verified." });
-    if (!signature) return void res.status(400).json({ error: "Create or upload your signature before signing a document." });
+    const signature = await resolveSigningImage(req.user!.id, { signatureImage, saveSignature });
     if (!signer) return void res.status(404).json({ error: "Signer account not found." });
 
     const original = Buffer.from(attachment.fileData);
-    const pdf = await PDFDocument.load(original, { updateMetadata: false });
-    const signatureImage = await pdf.embedPng(signature.imageData);
-    const font = await pdf.embedFont(StandardFonts.Helvetica);
     const signerName = [signer.firstName, signer.middleName, signer.lastName].filter(Boolean).join(" ");
     const signedAt = new Date();
-    const signedDate = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Manila" }).format(signedAt);
-    for (const placement of normalizedPlacements) {
-      const page = pdf.getPages()[placement.pageNumber - 1];
-      if (!page) return void res.status(400).json({ error: `PDF page ${placement.pageNumber} does not exist.` });
-      const pageSize = page.getSize();
-      const width = placement.width * pageSize.width;
-      const height = placement.height * pageSize.height;
-      const x = placement.x * pageSize.width;
-      const y = pageSize.height - placement.y * pageSize.height - height;
-      page.drawImage(signatureImage, { x, y, width, height });
-      const details = [placement.includeName === false ? null : signerName, placement.includeDate === false ? null : `Signed ${signedDate}`].filter(Boolean) as string[];
-      details.forEach((line, index) => page.drawText(line, { x, y: Math.max(4, y - 10 - index * 9), size: 7, font, color: rgb(0.12, 0.18, 0.25), maxWidth: Math.max(width, 120) }));
-    }
-    pdf.setProducer("Advisio Research Management System");
-    pdf.setModificationDate(signedAt);
-    const signedBuffer = Buffer.from(await pdf.save());
+    const signedBuffer = await createVisuallySignedPdf({ original, signatureImage: signature.imageData, signerName, signedAt, placements: normalizedPlacements });
     const originalFileHash = crypto.createHash("sha256").update(original).digest("hex");
     const signedFileHash = crypto.createHash("sha256").update(signedBuffer).digest("hex");
     const verificationCode = `MAIL-PROF-${crypto.randomBytes(6).toString("hex").toUpperCase()}`;
     const signedName = `${attachment.fileName.replace(/\.pdf$/i, "")}-signed.pdf`;
 
     const created = await prisma.$transaction(async (tx) => {
+      await saveSigningImage(tx, req.user!.id, signature);
       const message = await tx.mailMessage.create({
         data: {
           threadId: attachment.message.threadId,
@@ -257,7 +239,7 @@ router.post("/attachments/:id/sign", requireAuth, async (req, res) => {
         include: { attachments: { select: attachmentView } },
       });
       await tx.mailThread.update({ where: { id: attachment.message.threadId }, data: { updatedAt: signedAt } });
-      await tx.auditLog.create({ data: { userId: req.user!.id, action: "SIGN", entityType: "MailAttachment", entityId: message.attachments[0].id, oldValues: { sourceAttachmentId: attachment.id, originalFileHash }, newValues: { signedAttachmentId: message.attachments[0].id, signedFileHash, verificationCode }, ipAddress: req.ip, userAgent: req.get("user-agent") || null } });
+      await tx.auditLog.create({ data: { userId: req.user!.id, action: "SIGN", entityType: "MailAttachment", entityId: message.attachments[0].id, oldValues: { sourceAttachmentId: attachment.id, originalFileHash }, newValues: { signedAttachmentId: message.attachments[0].id, signedFileHash, verificationCode, signatureProfileHash: signature.fileHash }, ipAddress: req.ip, userAgent: req.get("user-agent") || null } });
       const recipients = attachment.message.thread.participants.filter((item) => item.userId !== req.user!.id);
       if (recipients.length) await tx.notification.createMany({ data: recipients.map((item) => ({ recipientId: item.userId, type: "DOCUMENT_REVIEWED" as const, title: "Message attachment signed", message: `${signerName} signed ${attachment.fileName}. The signed copy is available in your conversation.`, entityType: "MailThread", entityId: attachment.message.threadId })) });
       return message.attachments[0];

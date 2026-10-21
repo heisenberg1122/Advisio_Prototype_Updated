@@ -1,3 +1,4 @@
+import { SignatureImageError } from "../services/signature-image.service.js";
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma.js";
@@ -11,6 +12,7 @@ import {
 const router = Router();
 
 function respondError(res: any, error: unknown) {
+  if (error instanceof SignatureImageError) return res.status(400).json({ error: error.message });
   if (error instanceof OfficialCopyError)
     return res
       .status(error.statusCode)
@@ -60,7 +62,7 @@ router.post(
   requireAuth,
   async (req, res) => {
     try {
-      const { password, confirmation, placements } = req.body || {};
+      const { password, confirmation, placements, signatureImage, saveSignature } = req.body || {};
       if (confirmation !== true)
         throw new OfficialCopyError("Signing confirmation is required.");
       if (!password || typeof password !== "string")
@@ -82,6 +84,8 @@ router.post(
         officialCopyId: req.params.officialCopyId as string,
         user: req.user!,
         placements: Array.isArray(placements) ? placements : [],
+        signatureImage,
+        saveSignature,
         ipAddress: req.ip,
         userAgent: req.get("user-agent"),
       });

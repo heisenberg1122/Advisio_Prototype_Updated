@@ -1,3 +1,4 @@
+import { resolveSigningImage, saveSigningImage, type SignatureImageInput } from "./signature-image.service.js";
 import { storeArtifact, deleteArtifact } from "./artifact-storage.service.js";
 import crypto from "node:crypto";
 import { Prisma } from "@research-management/database";
@@ -505,7 +506,7 @@ class OfficialCopyService {
     }
   }
 
-  async sign(options: {
+  async sign(options: SignatureImageInput & {
     officialCopyId: string;
     user: AuthenticatedUser;
     placements: SignaturePlacement[];
@@ -534,21 +535,17 @@ class OfficialCopyService {
         409,
         "OFFICIAL_COPY_NOT_ACTIVE",
       );
-    if (copy.signatures[0])
-      return { signature: copy.signatures[0], duplicate: true };
+    if (copy.signatures[0]) {
+      const signature = copy.signatures[0];
+      return { signature, duplicate: true, version: { id: signature.id, fileName: signature.fileName, googleDriveFileId: signature.googleDriveFileId } };
+    }
     const [signatureProfile, signer] = await Promise.all([
-      prisma.userSignature.findUnique({ where: { userId: options.user.id } }),
+      resolveSigningImage(options.user.id, options),
       prisma.user.findUnique({
         where: { id: options.user.id },
         select: { firstName: true, middleName: true, lastName: true },
       }),
     ]);
-    if (!signatureProfile)
-      throw new OfficialCopyError(
-        "Create or upload your signature before signing this official copy.",
-        409,
-        "SIGNATURE_PROFILE_REQUIRED",
-      );
     if (!signer) throw new OfficialCopyError("Signer account not found.", 404);
     const original = await loadVersionFile(copy);
     if (sha256(original) !== copy.checksum)
@@ -602,6 +599,7 @@ class OfficialCopyService {
             409,
             "CONCURRENT_SIGNING_CONFLICT",
           );
+        await saveSigningImage(tx, options.user.id, signatureProfile);
         const created = await tx.officialCopySignature.create({
           data: {
             officialCopyId: copy.id,
@@ -713,7 +711,7 @@ class OfficialCopyService {
     const signature = copy
       ? null
       : await prisma.officialCopySignature.findFirst({
-          where: { googleDriveFileId: fileId },
+          where: { OR: [{ googleDriveFileId: fileId }, ...(/^[0-9a-f-]{36}$/i.test(fileId) ? [{ id: fileId }] : [])] },
           include: { officialCopy: true },
         });
     const researchId = copy?.researchId || signature?.officialCopy.researchId;

@@ -1689,7 +1689,7 @@ router.post(
         return void res
           .status(403)
           .json({ error: "Your role cannot sign documents." });
-      const { password, confirmation, placements } = req.body || {};
+      const { password, confirmation, placements, signatureImage, saveSignature } = req.body || {};
       if (confirmation !== true)
         return void res
           .status(400)
@@ -1717,6 +1717,8 @@ router.post(
         signerCollegeId: req.user.collegeId,
         signerProgramId: req.user.programId,
         placements: Array.isArray(placements) ? placements : [],
+        signatureImage,
+        saveSignature,
         ipAddress: req.ip,
         userAgent: req.get("user-agent"),
       });

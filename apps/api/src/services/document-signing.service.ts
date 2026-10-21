@@ -1,8 +1,9 @@
+import { resolveSigningImage, saveSigningImage, type SignatureImageInput } from "./signature-image.service.js";
 import { documentService } from "./document.service.js";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import { prisma } from "../lib/prisma.js";
 import { googleDriveService } from "./google-drive.service.js";
 import { storageHierarchyService } from "./storage-hierarchy.service.js";
@@ -154,12 +155,28 @@ export async function createVisuallySignedPdf(options: {
     const page = pdf.getPages()[placement.pageNumber - 1];
     if (!page)
       throw new Error(`PDF page ${placement.pageNumber} does not exist.`);
-    const { width: pageWidth, height: pageHeight } = page.getSize();
+    const crop = page.getCropBox();
+    const rotation = ((page.getRotation().angle % 360) + 360) % 360;
+    const pageWidth = rotation === 90 || rotation === 270 ? crop.height : crop.width;
+    const pageHeight = rotation === 90 || rotation === 270 ? crop.width : crop.height;
+    // Match PDF.js's displayed crop box, including rotated/scanned PDFs.
+    const toPage = (x: number, y: number) => {
+      if (rotation === 90) return { x: crop.x + crop.width - y, y: crop.y + x };
+      if (rotation === 180) return { x: crop.x + crop.width - x, y: crop.y + crop.height - y };
+      if (rotation === 270) return { x: crop.x + y, y: crop.y + crop.height - x };
+      return { x: crop.x + x, y: crop.y + y };
+    };
     const width = placement.width * pageWidth;
     const height = placement.height * pageHeight;
     const x = placement.x * pageWidth;
     const y = pageHeight - placement.y * pageHeight - height;
-    page.drawImage(signatureImage, { x, y, width, height });
+    const scale = Math.min(width / signatureImage.width, height / signatureImage.height);
+    const fittedWidth = signatureImage.width * scale;
+    const fittedHeight = signatureImage.height * scale;
+    page.drawImage(signatureImage, {
+      ...toPage(x + (width - fittedWidth) / 2, y + (height - fittedHeight) / 2),
+      width: fittedWidth, height: fittedHeight, rotate: degrees(rotation),
+    });
 
     const detailLines = [
       placement.includeName === false ? null : options.signerName,
@@ -167,8 +184,8 @@ export async function createVisuallySignedPdf(options: {
     ].filter(Boolean) as string[];
     detailLines.forEach((line, index) => {
       page.drawText(line, {
-        x,
-        y: Math.max(4, y - 10 - index * 9),
+        ...toPage(x, Math.max(4, y - 10 - index * 9)),
+        rotate: degrees(rotation),
         size: 7,
         font,
         color: rgb(0.12, 0.18, 0.25),
@@ -183,7 +200,7 @@ export async function createVisuallySignedPdf(options: {
 }
 
 export class DocumentSigningService {
-  async sign(options: {
+  async sign(options: SignatureImageInput & {
     sourceVersionId: string;
     signerId: string;
     signerRoles: string[];
@@ -288,13 +305,7 @@ export class DocumentSigningService {
         "Panelists can sign only after submitting and locking their final evaluation.",
       );
 
-    const signature = await prisma.userSignature.findUnique({
-      where: { userId: options.signerId },
-    });
-    if (!signature)
-      throw new Error(
-        "Create or upload your signature before signing a document.",
-      );
+    const signature = await resolveSigningImage(options.signerId, options);
 
     const adviser = await prisma.user.findUnique({
       where: { id: options.signerId },
@@ -365,6 +376,7 @@ export class DocumentSigningService {
           storageProvider: provider,
         },
       });
+      await saveSigningImage(tx, options.signerId, signature);
       const documentSignature = await tx.documentSignature.create({
         data: {
           sourceVersionId: source.id,
@@ -448,6 +460,7 @@ export class DocumentSigningService {
             verificationCode,
             originalFileHash: documentSignature.originalFileHash,
             signedFileHash: documentSignature.signedFileHash,
+            signatureProfileHash: signature.fileHash,
           },
           ipAddress: options.ipAddress,
           userAgent: options.userAgent,
