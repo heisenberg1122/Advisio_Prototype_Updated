@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { DocumentPreviewSkeleton } from "@/components/ui/Skeleton";
+import { apiClient } from "@/lib/api-client";
 
 type DocumentVersion = {
   id: string;
@@ -35,30 +36,18 @@ export function SubmissionDocumentPreview({
   useEffect(() => {
     let active = true;
     let objectUrl = "";
+    setPreviewUrl("");
     if (!version?.googleDriveFileId) {
-      setPreviewUrl("");
+      setLoading(false);
       setError("This version does not have an available stored file.");
       return;
     }
     setLoading(true);
     setError("");
-    const token = localStorage.getItem("advisio_token");
-    fetch(`/api/documents/files/${version.googleDriveFileId}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          const detail = await response.json().catch(() => ({}));
-          const message =
-            typeof detail.error === "string"
-              ? detail.error
-              : typeof detail.message === "string"
-                ? detail.message
-                : "The document could not be loaded.";
-          throw new Error(message);
-        }
-        return response.blob();
-      })
+    apiClient.file(
+      `/api/documents/files/${encodeURIComponent(version.googleDriveFileId)}`,
+      { expectedMimeType: version.mimeType },
+    )
       .then((blob) => {
         if (!active) return;
         objectUrl = URL.createObjectURL(blob);
@@ -75,7 +64,7 @@ export function SubmissionDocumentPreview({
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [version?.googleDriveFileId]);
+  }, [version?.googleDriveFileId, version?.mimeType]);
 
   const mimeType = version?.mimeType || "";
   const canEmbed =

@@ -72,15 +72,27 @@ export const apiClient = {
     request<T>(url, { method: "DELETE", ...options }),
   upload: <T>(url: string, body: FormData, options?: RequestOptions) =>
     request<T>(url, { method: "POST", body, ...options }),
-  file: async (url: string) => {
+  file: async (url: string, options: { expectedMimeType?: string } = {}) => {
     const token = typeof window !== "undefined" ? localStorage.getItem("advisio_token") : null;
-    const response = await fetch(`${API_BASE_URL}${url}`, {
+    const response = await fetch(url.startsWith("http") ? url : `${API_BASE_URL}${url}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
-      throw new ApiError(data.error || "The file could not be opened.", response.status, data.details);
+      throw new ApiError(data.error || data.message || "The file could not be opened.", response.status, data.details);
     }
-    return response.blob();
+    const blob = await response.blob();
+    const expectedType = options.expectedMimeType?.split(";")[0].trim().toLowerCase();
+    const actualType = blob.type.split(";")[0].trim().toLowerCase();
+    if (expectedType && actualType !== expectedType) {
+      throw new ApiError(
+        "The document could not be loaded because the server returned an unexpected file type. Please try again or contact support.",
+        response.status,
+      );
+    }
+    if (!blob.size) {
+      throw new ApiError("The document could not be loaded because the file is empty.", response.status);
+    }
+    return blob;
   },
 };
