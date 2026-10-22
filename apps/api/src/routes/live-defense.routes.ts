@@ -3,9 +3,16 @@ import { Router, Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { canAccessCollege, getCollegeScope } from "../lib/college-scope.js";
+import { jsonSafe } from "../lib/json-response.js";
 import { defensePacketService } from "../services/defense-packet.service.js";
 import { createNotificationsOnce } from "../services/research-workflow-integration.service.js";
 import { hasDefenseFacilitatorAccess } from "../services/defense-manuscript.service.js";
+import {
+  currentPanelInvitation,
+  EvaluationScoreError,
+  liveDefenseConflictScope,
+  normalizeEvaluationScores,
+} from "../services/defense-session-policy.js";
 
 const router = Router();
 const RECOMMENDATIONS = new Set([
@@ -45,6 +52,14 @@ const sessionInclude = {
   research: {
     include: {
       researchType: true,
+      program: { select: { id: true, code: true, name: true } },
+      college: { select: { id: true, code: true, name: true } },
+      academicYear: { select: { id: true, name: true } },
+      workflowInstance: {
+        select: {
+          currentStage: { select: { id: true, name: true, sequence: true } },
+        },
+      },
       members: {
         where: { leftAt: null },
         include: {
@@ -105,6 +120,23 @@ const sessionInclude = {
     },
     orderBy: { createdAt: "asc" as const },
   },
+  manuscriptReviews: {
+    select: {
+      id: true,
+      panelistId: true,
+      reviewedAt: true,
+      updatedAt: true,
+    },
+  },
+  recommendations: {
+    select: {
+      id: true,
+      panelistId: true,
+      status: true,
+      submittedAt: true,
+      updatedAt: true,
+    },
+  },
   invitations: {
     include: {
       invitee: {
@@ -125,6 +157,7 @@ const sessionInclude = {
       status: true,
       manuscriptVersionId: true,
       publishedAt: true,
+      reviewDeadline: true,
       mappingVersion: true,
       manuscriptVersion: {
         select: {
@@ -134,6 +167,8 @@ const sessionInclude = {
           mimeType: true,
           manuscriptStatus: true,
           isImmutable: true,
+          contentChecksum: true,
+          submittedAt: true,
           milestone: { select: { id: true, name: true, sequence: true } },
           document: { select: { id: true, title: true, researchId: true } },
         },
@@ -152,6 +187,54 @@ const eventInclude = {
     ],
   },
 };
+
+function panelistDeliveryMode(session: any) {
+  const venue = session.venue || session.defenseEvent?.venue;
+  const meetingUrl = session.meetingUrl || session.defenseEvent?.meetingUrl;
+  if (venue && meetingUrl) return "HYBRID";
+  if (meetingUrl) return "ONLINE";
+  if (venue) return "ON_SITE";
+  return "TO_BE_ANNOUNCED";
+}
+
+function scopeSessionForPanelist(session: any, userId: string) {
+  const invitation = currentPanelInvitation(session.invitations, userId);
+  const accepted = invitation?.status === "ACCEPTED";
+  return {
+    ...session,
+    deliveryMode: panelistDeliveryMode(session),
+    meetingUrl: accepted ? session.meetingUrl : null,
+    defenseEvent: session.defenseEvent
+      ? {
+          ...session.defenseEvent,
+          meetingUrl: accepted ? session.defenseEvent.meetingUrl : null,
+        }
+      : null,
+    invitations: session.invitations.filter(
+      (item: any) => item.inviteeId === userId,
+    ),
+    evaluations: session.evaluations.filter(
+      (item: any) => item.evaluatorId === userId,
+    ),
+    manuscriptReviews: session.manuscriptReviews.filter(
+      (item: any) => item.panelistId === userId,
+    ),
+    recommendations: session.recommendations.filter(
+      (item: any) => item.panelistId === userId,
+    ),
+    research: { ...session.research, documents: [] },
+    packet: accepted
+      ? session.packet
+      : session.packet
+        ? {
+            id: session.packet.id,
+            status: session.packet.status,
+            publishedAt: session.packet.publishedAt,
+            reviewDeadline: session.packet.reviewDeadline,
+          }
+        : null,
+  };
+}
 
 const participantSelect = {
   id: true,
@@ -627,12 +710,15 @@ router.patch(
             where: {
               id: { not: session.id },
               status: { in: ["LIVE", "DELIBERATION"] },
+              ...liveDefenseConflictScope(session),
             },
             select: { id: true },
           });
           if (active)
             throw new Error(
-              "Complete or release the current live defense before calling another group.",
+              session.defenseEventId
+                ? "Complete or release the live defense for this event or research project before calling another group."
+                : "Complete or release the live defense for this research project before calling another group.",
             );
           for (const invitation of session.invitations) {
             await tx.researchMember.upsert({
@@ -767,9 +853,6 @@ router.get(
                             status: { not: "REMOVED" as const },
                           },
                         },
-                        ...(scope.kind === "college" && {
-                          research: { collegeId: scope.collegeId },
-                        }),
                       },
                     ]
                   : []),
@@ -818,6 +901,110 @@ router.get(
       res
         .status(500)
         .json({ error: error.message || "Failed to load defense management." });
+    }
+  },
+);
+
+router.get(
+  "/panelist/dashboard-summary",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.user!.roles.includes("PANELIST")) {
+        return void res
+          .status(403)
+          .json({ error: "Panelist access is required." });
+      }
+      const now = new Date();
+      const sessions = await prisma.defenseSession.findMany({
+        where: {
+          invitations: {
+            some: {
+              inviteeId: req.user!.id,
+              role: { in: ["PANELIST", "PANEL_CHAIR"] },
+              status: { not: "REMOVED" },
+            },
+          },
+        },
+        include: {
+          ...sessionInclude,
+          manuscriptReviews: { where: { panelistId: req.user!.id } },
+          recommendations: { where: { panelistId: req.user!.id } },
+        },
+        orderBy: [{ scheduledStart: "asc" }, { createdAt: "desc" }],
+      });
+
+      const scopedSessions = sessions.map((session) =>
+        scopeSessionForPanelist(session, req.user!.id),
+      );
+      const accepted = scopedSessions.filter(
+        (session) => session.invitations[0]?.status === "ACCEPTED",
+      );
+      const assignedProjects = Array.from(
+        new Map(
+          accepted.map((session) => [
+            session.research.id,
+            {
+              ...session.research,
+              defenseSessionId: session.id,
+              defenseStatus: session.status,
+              invitationStatus: session.invitations[0]?.status,
+              scheduledStart: session.scheduledStart,
+              packetStatus: session.packet?.status || null,
+            },
+          ]),
+        ).values(),
+      );
+      const pendingReviews = accepted.filter(
+        (session) =>
+          session.packet?.status === "PUBLISHED" &&
+          !session.manuscriptReviews[0]?.reviewedAt,
+      );
+      const pendingEvaluations = accepted.filter(
+        (session) =>
+          session.status === "LIVE" &&
+          session.evaluations[0]?.status !== "LOCKED",
+      );
+      const completedEvaluations = accepted.filter(
+        (session) => session.evaluations[0]?.status === "LOCKED",
+      );
+      const upcomingSessions = accepted.filter(
+        (session) =>
+          Boolean(session.scheduledStart && session.scheduledStart >= now) &&
+          !["COMPLETED", "CANCELLED"].includes(session.status),
+      );
+      const archives = accepted.filter(
+        (session) => session.status === "COMPLETED",
+      );
+
+      res.json({
+        sessions: scopedSessions,
+        assignedProjects,
+        pendingReviews,
+        pendingEvaluations,
+        completedEvaluations,
+        upcomingSessions,
+        archives,
+        counts: {
+          assignedProjects: assignedProjects.length,
+          pendingInvitations: scopedSessions.filter((session) =>
+            ["PENDING", "RECONFIRMATION_REQUIRED"].includes(
+              session.invitations[0]?.status || "",
+            ),
+          ).length,
+          upcomingDefenses: upcomingSessions.filter(
+            (session) => session.status === "SCHEDULED",
+          ).length,
+          rescheduling: accepted.filter(
+            (session) => session.status === "NEEDS_RESCHEDULING",
+          ).length,
+          archivedDefenses: archives.length,
+        },
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message || "Failed to load the panelist dashboard.",
+      });
     }
   },
 );
@@ -1388,9 +1575,11 @@ router.get(
       const session = await prisma.defenseSession.findFirst({
         where: {
           status: { in: ["LIVE", "DELIBERATION"] },
-          ...(scope.kind === "college" && {
-            research: { collegeId: scope.collegeId },
-          }),
+          ...(scope.kind === "college" &&
+            !isPanelist && {
+              research: { collegeId: scope.collegeId },
+            }),
+          ...(req.query.sessionId && { id: String(req.query.sessionId) }),
           ...(participantScope.length && { OR: participantScope }),
         },
         include: sessionInclude,
@@ -1399,6 +1588,12 @@ router.get(
       if (session && isPanelist) {
         session.evaluations = session.evaluations.filter(
           (item) => item.evaluatorId === req.user!.id,
+        );
+        session.manuscriptReviews = session.manuscriptReviews.filter(
+          (item) => item.panelistId === req.user!.id,
+        );
+        session.recommendations = session.recommendations.filter(
+          (item) => item.panelistId === req.user!.id,
         );
         session.research.documents = [];
       }
@@ -1460,11 +1655,16 @@ router.post(
             "Publish an eligible approved manuscript packet before starting the defense.",
         });
       const existing = await prisma.defenseSession.findFirst({
-        where: { status: { in: ["LIVE", "DELIBERATION"] } },
+        where: {
+          status: { in: ["LIVE", "DELIBERATION"] },
+          ...liveDefenseConflictScope(scheduled),
+        },
       });
       if (existing) {
         res.status(409).json({
-          error: "Another defense session is already live.",
+          error: scheduled.defenseEventId
+            ? "Another defense for this event or research project is already live."
+            : "Another defense for this research project is already live.",
           sessionId: existing.id,
         });
         return;
@@ -1546,12 +1746,6 @@ router.put(
         res.status(409).json({ error: "This defense session is not live." });
         return;
       }
-      if (!canAccessCollege(req.user!, session.research.collegeId)) {
-        res.status(404).json({
-          error: "Defense session was not found in your college scope.",
-        });
-        return;
-      }
       if (!session.invitations.length) {
         res
           .status(403)
@@ -1590,47 +1784,26 @@ router.put(
         return;
       }
 
-      const scoreByCriterion = new Map(
-        submittedScores.map((item: any) => [
-          String(item.criterionId),
-          Number(item.score),
-        ]),
-      );
-      const normalizedScores = template.criteria.map((criterion) => ({
-        criterionId: criterion.id,
-        criterion: criterion.criterion,
-        score: scoreByCriterion.get(criterion.id),
-        maxScore: Number(criterion.maxScore),
-        comment: String(
-          submittedScores.find(
-            (item: any) => String(item.criterionId) === criterion.id,
-          )?.comment || "",
-        ).trim(),
-      }));
-      const invalid = normalizedScores.some(
-        (item) =>
-          !Number.isFinite(item.score) ||
-          Number(item.score) < 0 ||
-          Number(item.score) > item.maxScore,
-      );
-      if (
-        invalid ||
-        (final && normalizedScores.length !== submittedScores.length)
-      ) {
-        res.status(400).json({
-          error:
-            "Every rubric criterion requires a score within its allowed range.",
-        });
-        return;
+      let normalizedScores: Array<Record<string, unknown>>;
+      let totalScore: number;
+      try {
+        const normalized = normalizeEvaluationScores(
+          template.criteria,
+          submittedScores,
+          final,
+        );
+        normalizedScores = normalized.criteriaScores;
+        totalScore = normalized.totalScore;
+      } catch (error) {
+        if (error instanceof EvaluationScoreError) {
+          return void res.status(400).json({ error: error.message });
+        }
+        throw error;
       }
       if (!RECOMMENDATIONS.has(recommendation)) {
         res.status(400).json({ error: "Select a valid recommendation." });
         return;
       }
-      const totalScore = normalizedScores.reduce(
-        (sum, item) => sum + Number(item.score),
-        0,
-      );
       if (totalScore > Number(template.totalScore)) {
         res
           .status(400)
@@ -1689,12 +1862,14 @@ router.put(
       const evaluation = existing
         ? await prisma.evaluation.update({ where: { id: existing.id }, data })
         : await prisma.evaluation.create({ data });
-      res.json({
-        evaluation,
-        generatedVersion,
-        locked: final,
-        calculatedTotal: totalScore,
-      });
+      res.json(
+        jsonSafe({
+          evaluation,
+          generatedVersion,
+          locked: final,
+          calculatedTotal: totalScore,
+        }),
+      );
     } catch (error: any) {
       res.status(500).json({
         error: error.message || "Failed to save the live evaluation.",
@@ -1812,6 +1987,16 @@ router.post(
           where: { id: session.researchId },
           data: { status: researchStatus },
         });
+        await notifyResearchGroup(
+          tx,
+          session.researchId,
+          "DEFENSE_CONFIRMED",
+          "Official defense result released",
+          `The official defense decision for ${session.research.title} is ${decision
+            .replace(/_/g, " ")
+            .toLowerCase()}.`,
+          session.id,
+        );
         if (revisionsRequired) {
           const sourceVersion = publishedPacket.manuscriptVersion;
           const documentUpdated = await tx.document.updateMany({
@@ -1940,7 +2125,18 @@ router.get(
         res.status(404).json({ error: "Defense session was not found." });
         return;
       }
-      if (!canAccessCollege(req.user!, session.research.collegeId)) {
+      const userInvitation = session.invitations.find(
+        (invitation) => invitation.inviteeId === req.user!.id,
+      );
+      const crossCollegePanelInvitation = currentPanelInvitation(
+        session.invitations,
+        req.user!.id,
+      );
+      const inCollegeScope = canAccessCollege(
+        req.user!,
+        session.research.collegeId,
+      );
+      if (!inCollegeScope && !crossCollegePanelInvitation) {
         res.status(404).json({
           error: "Defense session was not found in your college scope.",
         });
@@ -1948,12 +2144,10 @@ router.get(
       }
       const isInstitutionWide =
         getCollegeScope(req.user!).kind === "institution";
-      const isFacilitator = req.user!.roles.includes("RESEARCH_COORDINATOR");
+      const isFacilitator =
+        inCollegeScope && hasDefenseFacilitatorAccess(req.user!);
       const isMember = session.research.members.some(
         (member) => member.userId === req.user!.id,
-      );
-      const userInvitation = session.invitations.find(
-        (invitation) => invitation.inviteeId === req.user!.id,
       );
       const isInvited = Boolean(
         userInvitation && userInvitation.status !== "REMOVED",
@@ -1965,10 +2159,9 @@ router.get(
       if (req.user!.roles.includes("RESEARCHER") && isMember) {
         session.evaluations = [];
       } else if (!isInstitutionWide && !isFacilitator && isInvited) {
-        session.evaluations = session.evaluations.filter(
-          (evaluation) => evaluation.evaluatorId === req.user!.id,
-        );
-        session.research.documents = [];
+        return void res.json({
+          session: scopeSessionForPanelist(session, req.user!.id),
+        });
       }
       res.json({ session });
     } catch (error: any) {

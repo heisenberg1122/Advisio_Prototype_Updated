@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   Archive,
@@ -374,6 +374,8 @@ function milestoneVariant(
 
 export default function DocumentWorkspacePage() {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const isPanelistPortal = pathname.startsWith("/panelist/");
   const milestoneParam = searchParams.get("milestoneId");
   const taskParam = searchParams.get("taskId");
   const documentParam = searchParams.get("documentId");
@@ -1034,9 +1036,15 @@ export default function DocumentWorkspacePage() {
     <PageContainer>
       <PageHeader
         variant="banner"
-        category="Research workspace"
-        title="Documents"
-        subtitle="Create, organize, and manage your research files."
+        category={
+          isPanelistPortal ? "Authorized defense archive" : "Research workspace"
+        }
+        title={isPanelistPortal ? "Panel Documents" : "Documents"}
+        subtitle={
+          isPanelistPortal
+            ? "View official copies and records available through your accepted panel assignments."
+            : "Create, organize, and manage your research files."
+        }
         actions={
           permissions?.canManageWorkingDocuments ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -1115,9 +1123,9 @@ export default function DocumentWorkspacePage() {
             </select>
           </div>
           <p className="max-w-lg text-xs leading-5 text-[var(--color-text-secondary)]">
-            Live Google documents remain editable in Google. A linked document
-            is not a frozen submission; current required deliverables still go
-            through Tasks.
+            {isPanelistPortal
+              ? "Access is limited to projects with a current authorized panel assignment. Defense packets remain version-scoped and frozen."
+              : "Live Google documents remain editable in Google. A linked document is not a frozen submission; current required deliverables still go through Tasks."}
           </p>
         </div>
       </Card>
@@ -1135,7 +1143,9 @@ export default function DocumentWorkspacePage() {
               ? "The requested project is unavailable or you do not have access to it. Select one of your authorized projects."
               : projects.length
                 ? "Choose the project whose document workspace you want to open. Advisio will not assume a project when you belong to more than one."
-                : "Join or create a research project before linking project-owned documents."
+                : isPanelistPortal
+                  ? "Accepted panel assignments with authorized project records will appear here."
+                  : "Join or create a research project before linking project-owned documents."
           }
         />
       ) : (

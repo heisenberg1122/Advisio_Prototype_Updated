@@ -6,9 +6,18 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const prisma = new PrismaClient();
+const repositoryRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../../..",
+);
 const PANEL_EMAIL_DOMAIN = "panel-demo.invalid";
 const APPLICATION_NAME = "advisio-panel-demo";
 const STAGING_DATABASE_NAME = "advisio_staging";
+const REVIEWED_STUDENT_UNIVERSITY_IDS = ["2023001846", "2023001847"] as const;
+const REVIEWED_EXISTING_USERS_FORMAT =
+  "advisio-panel-demo-existing-users-v1" as const;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const REQUIRED_ROLE_NAMES: InstitutionalRole[] = [
   "RESEARCHER",
   "ADVISER",
@@ -43,6 +52,25 @@ type DatabaseIdentity = {
   applicationName: string;
   isReplica: boolean;
 };
+type ReviewedExistingUser = {
+  id: string;
+  universityId: string;
+  email: string;
+  status: string;
+  roles: InstitutionalRole[];
+};
+type ReviewedExistingUsersFile = {
+  format: typeof REVIEWED_EXISTING_USERS_FORMAT;
+  target: { databaseName: string; host: string; schema: string };
+  users: ReviewedExistingUser[];
+};
+type ExistingStagingUser = {
+  id: string;
+  email: string;
+  universityId: string;
+  status: string;
+  roles: Array<{ role: { name: InstitutionalRole } }>;
+};
 type VerifiedContext = {
   marker: string;
   dryRun: boolean;
@@ -50,6 +78,7 @@ type VerifiedContext = {
   college: { id: string; code: string };
   program: { id: string; code: string };
   systemAdministrator: { id: string; email: string };
+  reviewedExistingUsers: number;
 };
 
 const accountDefinitions: Array<{
@@ -123,13 +152,17 @@ function requiredFrom(environment: NodeJS.ProcessEnv, name: string): string {
   return value;
 }
 
+function privateFilePath(value: string): string {
+  return path.isAbsolute(value) ? value : path.resolve(repositoryRoot, value);
+}
+
 function markerFromEnvironment(
   environment: NodeJS.ProcessEnv = process.env,
 ): string {
   const marker = requiredFrom(environment, "PANEL_DEMO_RUN_ID").toUpperCase();
-  if (!/^PANEL-DEMO-[A-Z0-9-]{8,70}$/.test(marker))
+  if (!/^PANEL-DEMO-[A-Z0-9-]{8,38}$/.test(marker))
     throw new Error(
-      "PANEL_DEMO_RUN_ID must use the form PANEL-DEMO-<unique-run-id>.",
+      "PANEL_DEMO_RUN_ID must use the form PANEL-DEMO-<unique-run-id> and leave room for unique account suffixes.",
     );
   return marker;
 }
@@ -139,6 +172,17 @@ function accountEmail(marker: string, key: string): string {
 }
 function accountUniversityId(marker: string, suffix: string): string {
   return `${marker}-${suffix}`.slice(0, 50);
+}
+function panelAccountUniversityIds(marker: string): string[] {
+  return accountDefinitions.map((account) =>
+    accountUniversityId(marker, account.universitySuffix),
+  );
+}
+function panelWorkflowName(marker: string): string {
+  return `${marker} Capstone Workflow`;
+}
+function panelResearchTypeCode(marker: string): string {
+  return `${marker}-CAPSTONE`.slice(0, 50);
 }
 
 function targetFromUrl(value: string, label: string) {
@@ -173,6 +217,114 @@ function sameTarget(
     left.databaseName === right.databaseName &&
     left.schema === right.schema
   );
+}
+
+function sortedRoles(roles: InstitutionalRole[]): InstitutionalRole[] {
+  return [...roles].sort();
+}
+
+function sameRoles(left: InstitutionalRole[], right: InstitutionalRole[]) {
+  const leftSorted = sortedRoles(left);
+  const rightSorted = sortedRoles(right);
+  return (
+    leftSorted.length === rightSorted.length &&
+    leftSorted.every((role, index) => role === rightSorted[index])
+  );
+}
+
+function expectedReviewedStudentIds() {
+  return [...REVIEWED_STUDENT_UNIVERSITY_IDS].sort();
+}
+
+export function validateReviewedExistingUsers(
+  existingUsers: ExistingStagingUser[],
+  reviewed: ReviewedExistingUsersFile,
+  target: { databaseName: string; host: string; schema: string },
+): void {
+  if (
+    reviewed.format !== REVIEWED_EXISTING_USERS_FORMAT ||
+    reviewed.target.databaseName !== target.databaseName ||
+    reviewed.target.host.toLowerCase() !== target.host.toLowerCase() ||
+    reviewed.target.schema !== target.schema
+  )
+    throw new Error(
+      "The reviewed existing-user allowlist does not target this exact staging database host, name, and schema.",
+    );
+  if (!Array.isArray(reviewed.users) || reviewed.users.length !== 2)
+    throw new Error(
+      "The reviewed existing-user allowlist must contain exactly the two approved staging Student accounts.",
+    );
+  const allowlistedIds = reviewed.users.map((user) => user.universityId).sort();
+  if (
+    allowlistedIds.length !== expectedReviewedStudentIds().length ||
+    allowlistedIds.some(
+      (universityId, index) =>
+        universityId !== expectedReviewedStudentIds()[index],
+    )
+  )
+    throw new Error(
+      "The reviewed existing-user allowlist contains an unapproved university ID.",
+    );
+  const seenIds = new Set<string>();
+  for (const user of reviewed.users) {
+    if (
+      !UUID_PATTERN.test(user.id) ||
+      !user.email ||
+      user.email !== user.email.toLowerCase() ||
+      user.status !== "PENDING" ||
+      !sameRoles(user.roles, ["RESEARCHER"])
+    )
+      throw new Error(
+        "Each reviewed existing-user allowlist entry must use the exact UUID, lowercase email, PENDING status, and only the RESEARCHER role.",
+      );
+    if (seenIds.has(user.id))
+      throw new Error(
+        "The reviewed existing-user allowlist contains a duplicate UUID.",
+      );
+    seenIds.add(user.id);
+  }
+  if (existingUsers.length !== reviewed.users.length)
+    throw new Error(
+      "Unexpected user records are present; refusing to mix panel data with an unreviewed staging database.",
+    );
+  for (const user of existingUsers) {
+    const expected = reviewed.users.find((item) => item.id === user.id);
+    const actualRoles = user.roles.map((assignment) => assignment.role.name);
+    if (
+      !expected ||
+      user.email !== expected.email ||
+      user.universityId !== expected.universityId ||
+      user.status !== expected.status ||
+      !sameRoles(actualRoles, expected.roles)
+    )
+      throw new Error(
+        "Unexpected user records are present; refusing to mix panel data with an unreviewed staging database.",
+      );
+  }
+}
+
+async function readReviewedExistingUsers(
+  environment: NodeJS.ProcessEnv,
+  target: { databaseName: string; host: string; schema: string },
+): Promise<ReviewedExistingUsersFile> {
+  const file = privateFilePath(
+    requiredFrom(environment, "PANEL_DEMO_EXISTING_USER_ALLOWLIST_FILE"),
+  );
+  let parsed: ReviewedExistingUsersFile;
+  try {
+    parsed = JSON.parse(
+      await fs.readFile(file, "utf8"),
+    ) as ReviewedExistingUsersFile;
+  } catch {
+    throw new Error(
+      "PANEL_DEMO_EXISTING_USER_ALLOWLIST_FILE must point to a readable valid JSON allowlist.",
+    );
+  }
+  if (!parsed || typeof parsed !== "object")
+    throw new Error(
+      "The reviewed existing-user allowlist must be a JSON object.",
+    );
+  return parsed;
 }
 
 export async function verifyPanelDemoTarget(
@@ -280,6 +432,7 @@ export async function verifyPanelDemoTarget(
         id: true,
         email: true,
         universityId: true,
+        status: true,
         roles: { select: { role: { select: { name: true } } } },
       },
     }),
@@ -321,20 +474,31 @@ export async function verifyPanelDemoTarget(
       "PANEL_DEMO_ADMIN_EMAIL must identify the existing bootstrapped SYSTEM_ADMIN account.",
     );
   const markerUsers = users.filter((user: any) =>
-    user.universityId.startsWith(marker),
+    panelAccountUniversityIds(marker).includes(user.universityId),
   );
-  const unexpectedUsers = users.filter(
+  const existingNonPanelUsers = users.filter(
     (user: any) => user.id !== administrator.id && !markerUsers.includes(user),
   );
-  if (unexpectedUsers.length)
-    throw new Error(
-      "Unexpected user records are present; refusing to mix panel data with an unreviewed staging database.",
-    );
+  if (existingNonPanelUsers.length) {
+    const reviewed = await readReviewedExistingUsers(environment, {
+      databaseName: expectedName,
+      host: expectedHost,
+      schema: "public",
+    });
+    validateReviewedExistingUsers(existingNonPanelUsers, reviewed, {
+      databaseName: expectedName,
+      host: expectedHost,
+      schema: "public",
+    });
+  }
   if (
     projects.some((project: any) => project.groupName !== marker) ||
-    workflows.some((workflow: any) => !workflow.name.startsWith(marker)) ||
+    workflows.some(
+      (workflow: any) => workflow.name !== panelWorkflowName(marker),
+    ) ||
     researchTypes.some(
-      (researchType: any) => !researchType.code.startsWith(marker),
+      (researchType: any) =>
+        researchType.code !== panelResearchTypeCode(marker),
     )
   )
     throw new Error(
@@ -347,6 +511,7 @@ export async function verifyPanelDemoTarget(
     college: colleges.find((college: any) => college.code === "CIT")!,
     program,
     systemAdministrator: { id: administrator.id, email: administrator.email },
+    reviewedExistingUsers: existingNonPanelUsers.length,
   };
 }
 
@@ -361,7 +526,7 @@ function isStrongPassword(password: string) {
 }
 
 async function readCredentials(marker: string): Promise<CredentialFile> {
-  const file = path.resolve(
+  const file = privateFilePath(
     requiredFrom(process.env, "PANEL_DEMO_CREDENTIALS_FILE"),
   );
   const parsed = JSON.parse(await fs.readFile(file, "utf8")) as CredentialFile;
@@ -389,7 +554,7 @@ async function readCredentials(marker: string): Promise<CredentialFile> {
 
 async function generateCredentials(): Promise<void> {
   const marker = markerFromEnvironment();
-  const file = path.resolve(
+  const file = privateFilePath(
     requiredFrom(process.env, "PANEL_DEMO_CREDENTIALS_FILE"),
   );
   const credentials = accountDefinitions.map((account) => ({
@@ -427,7 +592,9 @@ async function createPanelDemo(context: VerifiedContext): Promise<void> {
   const roleId = new Map(roles.map((role) => [role.name, role.id]));
   if (
     await prisma.user.count({
-      where: { universityId: { startsWith: context.marker } },
+      where: {
+        universityId: { in: panelAccountUniversityIds(context.marker) },
+      },
     })
   )
     throw new Error(
@@ -500,7 +667,7 @@ async function createPanelDemo(context: VerifiedContext): Promise<void> {
       const researchType = await tx.researchType.create({
         data: {
           programId: context.program.id,
-          code: `${context.marker}-CAPSTONE`.slice(0, 50),
+          code: panelResearchTypeCode(context.marker),
           name: `${context.marker} Fictional Capstone`,
           description:
             "Isolated fictional capstone configuration for a panel demonstration.",
@@ -509,7 +676,7 @@ async function createPanelDemo(context: VerifiedContext): Promise<void> {
       const workflow = await tx.workflow.create({
         data: {
           researchTypeId: researchType.id,
-          name: `${context.marker} Capstone Workflow`,
+          name: panelWorkflowName(context.marker),
           description:
             "Staging-only workflow. Documents are uploaded through the authorized application workflow.",
           version: 1,
@@ -749,7 +916,7 @@ async function inspectPanelDemo(context: VerifiedContext): Promise<void> {
     },
   });
   const users = await prisma.user.count({
-    where: { universityId: { startsWith: context.marker } },
+    where: { universityId: { in: panelAccountUniversityIds(context.marker) } },
   });
   const readyForDocumentWorkflow = project
     ? project.documents.length > 0
@@ -788,7 +955,7 @@ async function inspectPanelDemo(context: VerifiedContext): Promise<void> {
 async function verifyPanelDemo(context: VerifiedContext): Promise<void> {
   const credentials = await readCredentials(context.marker);
   const users = await prisma.user.findMany({
-    where: { universityId: { startsWith: context.marker } },
+    where: { universityId: { in: panelAccountUniversityIds(context.marker) } },
     select: {
       id: true,
       universityId: true,
@@ -845,17 +1012,18 @@ async function verifyPanelDemo(context: VerifiedContext): Promise<void> {
   );
 }
 
-async function cleanupPanelDemo(context: VerifiedContext): Promise<void> {
-  if (
-    process.env.PANEL_DEMO_CLEANUP_CONFIRMATION !== `DELETE:${context.marker}`
-  )
+export function assertPanelDemoCleanupEligible(
+  project: {
+    groupName: string | null;
+    documents: unknown[];
+    officialCopies: unknown[];
+  } | null,
+  marker: string,
+): void {
+  if (project && project.groupName !== marker)
     throw new Error(
-      "Set PANEL_DEMO_CLEANUP_CONFIRMATION=DELETE:<PANEL_DEMO_RUN_ID> to authorize cleanup.",
+      "Refusing cleanup because the project marker does not match.",
     );
-  const project = await prisma.researchProject.findFirst({
-    where: { groupName: context.marker },
-    include: { documents: true, officialCopies: true },
-  });
   if (project?.officialCopies.length)
     throw new Error(
       "Refusing cleanup because this panel project has official archive records.",
@@ -864,6 +1032,25 @@ async function cleanupPanelDemo(context: VerifiedContext): Promise<void> {
     throw new Error(
       "Refusing cleanup while panel documents exist. Remove fictional files through the authorized staging document workflow first, then rerun cleanup.",
     );
+}
+
+async function cleanupPanelDemo(context: VerifiedContext): Promise<void> {
+  if (
+    process.env.PANEL_DEMO_CLEANUP_CONFIRMATION !== `DELETE:${context.marker}`
+  )
+    throw new Error(
+      "Set PANEL_DEMO_CLEANUP_CONFIRMATION=DELETE:<PANEL_DEMO_RUN_ID> to authorize cleanup.",
+    );
+  const projects = await prisma.researchProject.findMany({
+    where: { groupName: context.marker },
+    include: { documents: true, officialCopies: true },
+  });
+  if (projects.length > 1)
+    throw new Error(
+      "Refusing cleanup because multiple projects share the panel-demo marker.",
+    );
+  const project = projects[0] ?? null;
+  assertPanelDemoCleanupEligible(project, context.marker);
   if (context.dryRun) {
     console.log(
       `Dry run passed: ${context.marker} contains no documents and is eligible for bounded cleanup.`,
@@ -871,7 +1058,7 @@ async function cleanupPanelDemo(context: VerifiedContext): Promise<void> {
     return;
   }
   const users = await prisma.user.findMany({
-    where: { universityId: { startsWith: context.marker } },
+    where: { universityId: { in: panelAccountUniversityIds(context.marker) } },
     select: { id: true },
   });
   const userIds = users.map((user) => user.id);
@@ -888,12 +1075,12 @@ async function cleanupPanelDemo(context: VerifiedContext): Promise<void> {
         await tx.researchProject.delete({ where: { id: project.id } });
       }
       const workflows = await tx.workflow.findMany({
-        where: { name: { startsWith: context.marker } },
+        where: { name: panelWorkflowName(context.marker) },
         select: { id: true },
       });
       const workflowIds = workflows.map((workflow) => workflow.id);
       const researchTypes = await tx.researchType.findMany({
-        where: { code: { startsWith: context.marker } },
+        where: { code: panelResearchTypeCode(context.marker) },
         select: { id: true },
       });
       if (researchTypes.length)
@@ -907,18 +1094,16 @@ async function cleanupPanelDemo(context: VerifiedContext): Promise<void> {
         await tx.researchType.deleteMany({
           where: { id: { in: researchTypes.map((item) => item.id) } },
         });
-      if (userIds.length) {
-        await tx.auditLog.deleteMany({
-          where: {
-            OR: [
-              { userId: { in: userIds } },
-              {
-                entityType: "PanelDemoDataset",
-                ...(project && { entityId: project.id }),
-              },
-            ],
-          },
+      const auditLogFilters: Array<Record<string, unknown>> = [];
+      if (userIds.length) auditLogFilters.push({ userId: { in: userIds } });
+      if (project)
+        auditLogFilters.push({
+          entityType: "PanelDemoDataset",
+          entityId: project.id,
         });
+      if (auditLogFilters.length)
+        await tx.auditLog.deleteMany({ where: { OR: auditLogFilters } });
+      if (userIds.length) {
         await tx.facultyProfile.deleteMany({
           where: { userId: { in: userIds } },
         });
@@ -929,7 +1114,7 @@ async function cleanupPanelDemo(context: VerifiedContext): Promise<void> {
     { timeout: 30_000 },
   );
   const remaining = await prisma.user.count({
-    where: { universityId: { startsWith: context.marker } },
+    where: { universityId: { in: panelAccountUniversityIds(context.marker) } },
   });
   if (remaining)
     throw new Error(

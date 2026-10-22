@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { verifyPanelDemoTarget } from "../dist/panel-demo.js";
+import {
+  assertPanelDemoCleanupEligible,
+  validateReviewedExistingUsers,
+  verifyPanelDemoTarget,
+} from "../dist/panel-demo.js";
 
 const marker = "PANEL-DEMO-UNIT-20261020";
 const url = new URL("postgresql://127.0.0.1:5432/advisio_staging");
@@ -84,6 +88,99 @@ function client(overrides = {}) {
 const accepted = await verifyPanelDemoTarget(client(), environment());
 assert.equal(accepted.academicYear.name, "2026-2027");
 
+const reviewedTarget = {
+  databaseName: "advisio_staging",
+  host: "staging.example.invalid",
+  schema: "public",
+};
+const reviewedStudents = [
+  {
+    id: "4ddc0668-d7c7-4baf-a69d-1a0a1be3c9fa",
+    email: "student-1846@example.invalid",
+    universityId: "2023001846",
+    status: "PENDING",
+    roles: [{ role: { name: "RESEARCHER" } }],
+  },
+  {
+    id: "7d6d3061-5c2a-4cf4-9917-02dd36248247",
+    email: "student-1847@example.invalid",
+    universityId: "2023001847",
+    status: "PENDING",
+    roles: [{ role: { name: "RESEARCHER" } }],
+  },
+];
+const reviewedAllowlist = {
+  format: "advisio-panel-demo-existing-users-v1",
+  target: reviewedTarget,
+  users: reviewedStudents.map((user) => ({
+    id: user.id,
+    email: user.email,
+    universityId: user.universityId,
+    status: user.status,
+    roles: ["RESEARCHER"],
+  })),
+};
+validateReviewedExistingUsers(
+  reviewedStudents,
+  reviewedAllowlist,
+  reviewedTarget,
+);
+await assert.rejects(
+  async () =>
+    validateReviewedExistingUsers(
+      [
+        ...reviewedStudents,
+        {
+          id: "f05ef4f1-2114-40fb-8a0a-64894ee87ba0",
+          email: "unreviewed@example.invalid",
+          universityId: "2023999999",
+          status: "PENDING",
+          roles: [{ role: { name: "RESEARCHER" } }],
+        },
+      ],
+      reviewedAllowlist,
+      reviewedTarget,
+    ),
+  /Unexpected user records/,
+);
+await assert.rejects(
+  async () =>
+    validateReviewedExistingUsers(
+      [
+        {
+          ...reviewedStudents[0],
+          status: "ACTIVE",
+        },
+        reviewedStudents[1],
+      ],
+      reviewedAllowlist,
+      reviewedTarget,
+    ),
+  /Unexpected user records/,
+);
+assert.throws(
+  () =>
+    assertPanelDemoCleanupEligible(
+      { groupName: marker, documents: [], officialCopies: [{}] },
+      marker,
+    ),
+  /official archive/,
+);
+assert.throws(
+  () =>
+    assertPanelDemoCleanupEligible(
+      { groupName: "PANEL-DEMO-OTHER", documents: [], officialCopies: [] },
+      marker,
+    ),
+  /marker does not match/,
+);
+assert.doesNotThrow(() =>
+  assertPanelDemoCleanupEligible(
+    { groupName: marker, documents: [], officialCopies: [] },
+    marker,
+  ),
+);
+
 await assert.rejects(
   () =>
     verifyPanelDemoTarget(client(), environment({ NODE_ENV: "production" })),
@@ -114,7 +211,7 @@ await assert.rejects(
       }),
       environment(),
     ),
-  /Unexpected user/,
+  /PANEL_DEMO_EXISTING_USER_ALLOWLIST_FILE is required/,
 );
 
 console.log("Panel-demo safety guard unit checks passed.");

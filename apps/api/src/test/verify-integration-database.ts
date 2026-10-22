@@ -22,6 +22,7 @@ async function countKnownFixtureRoots(): Promise<Record<string, number>> {
           { name: { startsWith: "Faculty Profile Adviser College " } },
           { name: { startsWith: "Audit Security " } },
           { name: { startsWith: "Faculty Profile Other College " } },
+          { name: { startsWith: "Defense E2E College " } },
         ],
       },
     }),
@@ -36,12 +37,18 @@ async function countKnownFixtureRoots(): Promise<Record<string, number>> {
           { name: { startsWith: "Faculty Profile Adviser Program " } },
           { name: { startsWith: "Audit Security " } },
           { name: { startsWith: "Faculty Profile Other Program " } },
+          { name: { startsWith: "Defense E2E Program " } },
         ],
       },
     }),
     prisma.academicYear.count({
       where: {
-        OR: [{ name: { startsWith: "P3-" } }, { name: { startsWith: "P4-" } }, { name: { startsWith: "AS-" } }],
+        OR: [
+          { name: { startsWith: "P3-" } },
+          { name: { startsWith: "P4-" } },
+          { name: { startsWith: "AS-" } },
+          { name: { startsWith: "DE-" } },
+        ],
       },
     }),
     prisma.user.count({
@@ -58,28 +65,39 @@ async function countKnownFixtureRoots(): Promise<Record<string, number>> {
           { code: { startsWith: "P3-MANUSCRIPT-" } },
           { code: { startsWith: "P4-MANUSCRIPT-" } },
           { code: { startsWith: "AS-" } },
+          { code: { startsWith: "DE-" } },
         ],
       },
     }),
     prisma.workflow.count({
       where: {
-        name: {
-          in: [
-            "Phase 3 Verification Workflow",
-            "Phase 4 Verification Workflow",
-          ],
-        },
+        OR: [
+          {
+            name: {
+              in: [
+                "Phase 3 Verification Workflow",
+                "Phase 4 Verification Workflow",
+              ],
+            },
+          },
+          { name: { startsWith: "Defense E2E Workflow " } },
+        ],
       },
     }),
     prisma.researchProject.count({
       where: {
-        title: {
-          in: [
-            "Isolated immutable manuscript verification",
-            "Separate project eligibility boundary",
-            "Phase 4 isolated review verification",
-          ],
-        },
+        OR: [
+          {
+            title: {
+              in: [
+                "Isolated immutable manuscript verification",
+                "Separate project eligibility boundary",
+                "Phase 4 isolated review verification",
+              ],
+            },
+          },
+          { title: { contains: "Defense E2E" } },
+        ],
       },
     }),
   ]);

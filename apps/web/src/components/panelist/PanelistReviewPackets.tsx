@@ -2,9 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
-import { DocumentPreviewSkeleton, ListPageSkeleton } from "@/components/ui/Skeleton";
+import {
+  DocumentPreviewSkeleton,
+  ListPageSkeleton,
+} from "@/components/ui/Skeleton";
 
 const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 const fileUrl = (fileId?: string | null, download = false) =>
@@ -15,6 +19,14 @@ const authHeaders = () => {
   const token = localStorage.getItem("advisio_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
+const formatDateTime = (value?: string | null) =>
+  value
+    ? new Intl.DateTimeFormat("en-PH", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "Asia/Manila",
+      }).format(new Date(value))
+    : "Not specified";
 
 type Annotation = {
   id: string;
@@ -31,13 +43,15 @@ type ChecklistItem = {
 
 export function PanelistReviewPackets() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const requestedSessionId = searchParams.get("sessionId") || "";
   const { data, isLoading, error } = useQuery({
     queryKey: ["defense-review-packets"],
     queryFn: () =>
       apiClient.get<{ sessions: any[] }>("/api/defense-review-packets"),
   });
-  const sessions = data?.sessions || [];
-  const [selectedId, setSelectedId] = useState("");
+  const sessions = useMemo(() => data?.sessions || [], [data?.sessions]);
+  const [selectedId, setSelectedId] = useState(requestedSessionId);
   const selected =
     sessions.find((item: any) => item.id === selectedId) || sessions[0] || null;
   const { data: detail, isLoading: detailLoading } = useQuery({
@@ -70,6 +84,15 @@ export function PanelistReviewPackets() {
   const [signing, setSigning] = useState<any | null>(null);
   const [recommendationPreviewUrl, setRecommendationPreviewUrl] = useState("");
   const [layoutReport, setLayoutReport] = useState<any>(null);
+
+  useEffect(() => {
+    if (
+      requestedSessionId &&
+      sessions.some((item: any) => item.id === requestedSessionId)
+    ) {
+      setSelectedId(requestedSessionId);
+    }
+  }, [requestedSessionId, sessions]);
 
   useEffect(() => {
     if (recommendationPreviewUrl) URL.revokeObjectURL(recommendationPreviewUrl);
@@ -276,15 +299,15 @@ export function PanelistReviewPackets() {
     return <ListPageSkeleton rows={4} className="p-0 sm:p-0 lg:p-0" />;
   if (error)
     return (
-      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm font-bold text-rose-700">
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
         Unable to load defense packets.
       </div>
     );
   if (!sessions.length)
     return (
-      <div className="rounded-2xl border border-dashed bg-white p-10 text-center">
+      <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
         <i className="ti ti-file-search text-4xl text-slate-300" />
-        <h3 className="mt-3 font-extrabold text-[#173f63]">
+        <h3 className="mt-3 font-extrabold text-[var(--color-text-primary)]">
           No manuscript is ready for review
         </h3>
         <p className="mt-1 text-sm text-slate-500">
@@ -310,12 +333,12 @@ export function PanelistReviewPackets() {
         />
       )}
       <div className="grid min-h-[720px] gap-4 xl:grid-cols-[290px_1fr]">
-        <aside className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <aside className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-card-soft)]">
           <div className="px-2 py-3">
             <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#d98d00]">
               Ready for review
             </p>
-            <h2 className="mt-1 text-lg font-black text-[#102f49]">
+            <h2 className="mt-1 text-lg font-black text-[var(--color-text-primary)]">
               Defense packets
             </h2>
           </div>
@@ -327,9 +350,9 @@ export function PanelistReviewPackets() {
                   setSelectedId(session.id);
                   setTab("manuscript");
                 }}
-                className={`w-full rounded-xl border p-3 text-left ${session.id === selected.id ? "border-[#f6a800] bg-amber-50" : "border-slate-200 hover:bg-slate-50"}`}
+                className={`w-full rounded-xl border p-3 text-left ${session.id === selected.id ? "border-[#f6a800] bg-amber-50 dark:bg-amber-500/10" : "border-[var(--color-border)] hover:bg-[var(--color-surface-subtle)]"}`}
               >
-                <p className="line-clamp-2 text-sm font-extrabold text-[#173f63]">
+                <p className="line-clamp-2 text-sm font-extrabold text-[var(--color-text-primary)]">
                   {session.research.title}
                 </p>
                 <p className="mt-1 text-[11px] text-slate-500">
@@ -337,7 +360,7 @@ export function PanelistReviewPackets() {
                 </p>
                 <p className="mt-2 text-[10px] font-bold text-slate-400">
                   {session.scheduledStart
-                    ? new Date(session.scheduledStart).toLocaleString()
+                    ? formatDateTime(session.scheduledStart)
                     : "Schedule pending"}
                 </p>
               </button>
@@ -367,11 +390,11 @@ export function PanelistReviewPackets() {
           </div>
         </aside>
 
-        <main className="min-w-0 rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <header className="border-b p-5">
+        <main className="min-w-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-[var(--shadow-card-soft)] dark:[&_h3]:text-white dark:[&_input]:border-white/10 dark:[&_input]:bg-[#101b2b] dark:[&_select]:border-white/10 dark:[&_select]:bg-[#101b2b] dark:[&_textarea]:border-white/10 dark:[&_textarea]:bg-[#101b2b]">
+          <header className="border-b border-[var(--color-border)] p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="text-xl font-black text-[#102f49]">
+                <h2 className="text-xl font-black text-[var(--color-text-primary)]">
                   {selected.research.title}
                 </h2>
                 <p className="mt-1 text-xs text-slate-500">
@@ -379,7 +402,7 @@ export function PanelistReviewPackets() {
                   {detail?.packet?.manuscriptVersion?.versionNumber} · Review
                   deadline{" "}
                   {detail?.packet?.reviewDeadline
-                    ? new Date(detail.packet.reviewDeadline).toLocaleString()
+                    ? formatDateTime(detail.packet.reviewDeadline)
                     : "not specified"}
                 </p>
               </div>
@@ -401,7 +424,7 @@ export function PanelistReviewPackets() {
                 <button
                   key={id}
                   onClick={() => setTab(id)}
-                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-extrabold ${tab === id ? "bg-[#173f63] text-white" : "text-slate-500 hover:bg-slate-100"}`}
+                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-extrabold ${tab === id ? "bg-[var(--color-primary)] text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]" : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"}`}
                 >
                   {label}
                 </button>
@@ -469,7 +492,7 @@ export function PanelistReviewPackets() {
                   {detail?.downloads?.[0] && (
                     <p className="mt-2 text-[9px] text-slate-400">
                       Last downloaded{" "}
-                      {new Date(detail.downloads[0].createdAt).toLocaleString()}
+                      {formatDateTime(detail.downloads[0].createdAt)}
                     </p>
                   )}
                 </div>

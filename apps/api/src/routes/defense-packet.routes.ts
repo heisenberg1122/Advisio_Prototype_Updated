@@ -71,10 +71,10 @@ async function access(sessionId: string, user: NonNullable<Request["user"]>) {
       invitations: true,
     },
   });
-  if (!session || !canAccessCollege(user, session.research.collegeId))
-    return null;
-  const facilitator = hasDefenseFacilitatorAccess(user);
-  const projectMember = session.research.members.length > 0;
+  if (!session) return null;
+  const inCollegeScope = canAccessCollege(user, session.research.collegeId);
+  const facilitator = inCollegeScope && hasDefenseFacilitatorAccess(user);
+  const projectMember = inCollegeScope && session.research.members.length > 0;
   const invitation = session.invitations.find(
     (item) =>
       item.inviteeId === user.id &&
@@ -243,9 +243,9 @@ router.get(
     try {
       const allowed = await access(req.params.id as string, req.user!);
       if (!allowed?.facilitator && !allowed?.projectMember)
-        return void res
-          .status(403)
-          .json({ error: "Defense packet history is not available to this account." });
+        return void res.status(403).json({
+          error: "Defense packet history is not available to this account.",
+        });
       const packet = await prisma.defensePacket.findUnique({
         where: { defenseSessionId: allowed.session.id },
         select: { id: true },

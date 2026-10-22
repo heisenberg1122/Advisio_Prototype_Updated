@@ -2109,7 +2109,7 @@ function StudentDashboardContent() {
               </div>
             ),
             group: (
-              <div className="flex flex-col gap-5">
+              <div className="student-projects-readable flex flex-col gap-5">
                 <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-xs">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>

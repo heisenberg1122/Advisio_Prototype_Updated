@@ -1829,7 +1829,7 @@ body {
 }
 
 /* Soft colored status containers in dark mode */
-.dark [class*="bg-blue-50"] {
+.dark :is([class*="bg-blue-50"], [class*="bg-blue-100"], [class*="bg-blue-200"]) {
   background-color: rgba(56, 189, 248, 0.12) !important;
 }
 
@@ -1842,7 +1842,7 @@ body {
   color: #7dd3fc !important;
 }
 
-.dark [class*="bg-emerald-50"] {
+.dark :is([class*="bg-emerald-50"], [class*="bg-emerald-100"], [class*="bg-emerald-200"]) {
   background-color: rgba(74, 222, 128, 0.12) !important;
 }
 
@@ -1855,7 +1855,7 @@ body {
   color: #86efac !important;
 }
 
-.dark [class*="bg-amber-50"] {
+.dark :is([class*="bg-amber-50"], [class*="bg-amber-100"], [class*="bg-amber-200"]) {
   background-color: rgba(251, 191, 36, 0.12) !important;
 }
 
@@ -1868,7 +1868,7 @@ body {
   color: #fde047 !important;
 }
 
-.dark [class*="bg-rose-50"] {
+.dark :is([class*="bg-rose-50"], [class*="bg-rose-100"], [class*="bg-rose-200"]) {
   background-color: rgba(248, 113, 113, 0.12) !important;
 }
 
@@ -1916,6 +1916,26 @@ body {
 .dark input::placeholder,
 .dark textarea::placeholder {
   color: var(--color-text-muted) !important;
+}
+
+/* Project workspace: increase the size and contrast of supporting copy. */
+.student-projects-readable p[class~="text-xs"],
+.student-projects-readable label[class~="text-xs"] {
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.student-projects-readable p[class~="text-[11px]"] {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.student-projects-readable button[class~="text-xs"] {
+  font-size: 0.8125rem;
+}
+
+.dark .student-projects-readable p:is([class*="text-slate-500"], [class*="text-slate-400"]) {
+  color: var(--color-text-secondary) !important;
 }
 
 /* ─── Institutional College Button & Accent Overrides ─────────── */

@@ -27,8 +27,9 @@ const PAGES: Record<string, string> = {
 export function PanelistTopbar() {
   const pathname = usePathname() || "";
   const tab = useSearchParams().get("tab") || "overview";
-  const title =
-    pathname === "/panelist/dashboard"
+  const title = pathname.startsWith("/panelist/defenses/")
+    ? "Defense Session Workspace"
+    : pathname === "/panelist/dashboard"
       ? TITLES[tab] || "Panelist Dashboard"
       : PAGES[pathname] || "Panelist Dashboard";
 

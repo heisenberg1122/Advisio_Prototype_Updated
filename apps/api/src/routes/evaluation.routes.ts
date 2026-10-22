@@ -11,27 +11,33 @@ import { canAccessCollege } from "../lib/college-scope.js";
 const router = Router();
 
 // GET /api/evaluation-templates
-router.get("/evaluation-templates", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { researchTypeId } = req.query;
+router.get(
+  "/evaluation-templates",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const { researchTypeId } = req.query;
 
-    const templates = await prisma.evaluationTemplate.findMany({
-      where: {
-        ...(researchTypeId && { researchTypeId: String(researchTypeId) }),
-      },
-      include: {
-        criteria: {
-          orderBy: { sequence: "asc" },
+      const templates = await prisma.evaluationTemplate.findMany({
+        where: {
+          ...(researchTypeId && { researchTypeId: String(researchTypeId) }),
         },
-      },
-      orderBy: [{ version: "desc" }, { updatedAt: "desc" }],
-    });
+        include: {
+          criteria: {
+            orderBy: { sequence: "asc" },
+          },
+        },
+        orderBy: [{ version: "desc" }, { updatedAt: "desc" }],
+      });
 
-    res.json({ templates });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to fetch evaluation templates" });
-  }
-});
+      res.json({ templates });
+    } catch (error: any) {
+      res.status(500).json({
+        error: error.message || "Failed to fetch evaluation templates",
+      });
+    }
+  },
+);
 
 // POST /api/evaluation-templates
 router.post(
@@ -68,9 +74,11 @@ router.post(
 
       res.status(201).json({ template });
     } catch (error: any) {
-      res.status(500).json({ error: error.message || "Failed to create evaluation template" });
+      res.status(500).json({
+        error: error.message || "Failed to create evaluation template",
+      });
     }
-  }
+  },
 );
 
 // Retired: defense evaluations must be bound to an assigned live session so that
@@ -83,73 +91,99 @@ router.post("/evaluations", requireAuth, (_req: Request, res: Response) => {
 });
 
 // GET /api/research/:researchId/evaluations
-router.get("/research/:researchId/evaluations", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const researchId = req.params.researchId as string;
-    const research = await prisma.researchProject.findUnique({
-      where: { id: researchId },
-      select: {
-        collegeId: true,
-        members: {
-          where: { userId: req.user!.id, leftAt: null },
-          select: { projectRole: true },
+router.get(
+  "/research/:researchId/evaluations",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const researchId = req.params.researchId as string;
+      const research = await prisma.researchProject.findUnique({
+        where: { id: researchId },
+        select: {
+          collegeId: true,
+          members: {
+            where: { userId: req.user!.id, leftAt: null },
+            select: { projectRole: true },
+          },
+          defenseSessions: {
+            where: {
+              invitations: {
+                some: {
+                  inviteeId: req.user!.id,
+                  status: { not: "REMOVED" },
+                  role: { in: ["PANELIST", "PANEL_CHAIR"] },
+                },
+              },
+            },
+            select: { id: true },
+            take: 1,
+          },
         },
-        defenseSessions: {
-          where: {
-            invitations: {
-              some: {
-                inviteeId: req.user!.id,
-                status: { not: "REMOVED" },
+      });
+      const explicitlyInvited = Boolean(research?.defenseSessions.length);
+      if (
+        !research ||
+        (!canAccessCollege(req.user!, research.collegeId) && !explicitlyInvited)
+      ) {
+        return void res
+          .status(404)
+          .json({ error: "Research evaluations were not found." });
+      }
+      const facilitator = req.user!.roles.some((role) =>
+        ["RESEARCH_COORDINATOR", "RPO", "SYSTEM_ADMIN"].includes(role),
+      );
+      const assignedPanelist =
+        req.user!.roles.includes("PANELIST") &&
+        (research.members.some((member) => member.projectRole === "PANELIST") ||
+          research.defenseSessions.length > 0);
+      if (!facilitator && !assignedPanelist) {
+        return void res
+          .status(403)
+          .json({ error: "You do not have access to these evaluations." });
+      }
+
+      const evaluations = await prisma.evaluation.findMany({
+        where: {
+          researchId,
+          ...(!facilitator && { evaluatorId: req.user!.id }),
+        },
+        include: {
+          template: {
+            include: {
+              criteria: {
+                orderBy: { sequence: "asc" },
               },
             },
           },
-          select: { id: true },
-          take: 1,
-        },
-      },
-    });
-    if (!research || !canAccessCollege(req.user!, research.collegeId)) {
-      return void res.status(404).json({ error: "Research evaluations were not found." });
-    }
-    const facilitator = req.user!.roles.some((role) =>
-      ["RESEARCH_COORDINATOR", "RPO", "SYSTEM_ADMIN"].includes(role),
-    );
-    const assignedPanelist =
-      research.members.some((member) => member.projectRole === "PANELIST") ||
-      research.defenseSessions.length > 0;
-    if (!facilitator && !assignedPanelist) {
-      return void res.status(403).json({ error: "You do not have access to these evaluations." });
-    }
-
-    const evaluations = await prisma.evaluation.findMany({
-      where: {
-        researchId,
-        ...(!facilitator && { evaluatorId: req.user!.id }),
-      },
-      include: {
-        template: {
-          include: {
-            criteria: {
-              orderBy: { sequence: "asc" },
-            },
+          evaluator: {
+            select: { firstName: true, lastName: true, email: true },
           },
         },
-        evaluator: {
-          select: { firstName: true, lastName: true, email: true },
-        },
-      },
-      orderBy: { submittedAt: "desc" },
-    });
+        orderBy: { submittedAt: "desc" },
+      });
 
-    res.json({ evaluations });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to fetch evaluations" });
-  }
-});
+      res.json({ evaluations });
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({ error: error.message || "Failed to fetch evaluations" });
+    }
+  },
+);
 
 router.get("/research/:researchId/grades", requireAuth, async (req, res) => {
-  try { res.json({ grades: await getReleasedGradeReport(req.user!, String(req.params.researchId)) }); }
-  catch (error: any) { res.status(error.statusCode || 500).json({ error: error.message || "Unable to load grades." }); }
+  try {
+    res.json({
+      grades: await getReleasedGradeReport(
+        req.user!,
+        String(req.params.researchId),
+      ),
+    });
+  } catch (error: any) {
+    res
+      .status(error.statusCode || 500)
+      .json({ error: error.message || "Unable to load grades." });
+  }
 });
 
 export default router;

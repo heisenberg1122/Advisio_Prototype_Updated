@@ -24,9 +24,44 @@ Do not run this against production. Before any write, the command requires:
 
 The one-time process must use `NODE_ENV=staging`; the running Render API remains `NODE_ENV=production` with all demo flags false.
 
+## Reviewed existing staging Students
+
+The tool does not generally permit pre-existing users. The only supported exception is an exact, private allowlist for the two separately reviewed Student records `2023001846` and `2023001847`. It is required whenever those accounts are present.
+
+After a read-only audit has supplied their actual PostgreSQL UUIDs and current email addresses, create this Git-ignored file locally (for example `.panel-demo\advisio-staging-reviewed-users.json`). Do not commit it, do not place a database URL in it, and do not add any other user.
+
+```json
+{
+  "format": "advisio-panel-demo-existing-users-v1",
+  "target": {
+    "databaseName": "advisio_staging",
+    "host": "<exact-staging-host>",
+    "schema": "public"
+  },
+  "users": [
+    {
+      "id": "<actual-UUID-for-2023001846>",
+      "universityId": "2023001846",
+      "email": "<actual-lowercase-email>",
+      "status": "PENDING",
+      "roles": ["RESEARCHER"]
+    },
+    {
+      "id": "<actual-UUID-for-2023001847>",
+      "universityId": "2023001847",
+      "email": "<actual-lowercase-email>",
+      "status": "PENDING",
+      "roles": ["RESEARCHER"]
+    }
+  ]
+}
+```
+
+At preflight, every listed field is compared with the live database. A missing file, an extra account, duplicate UUID, different host/database/schema, or any changed UUID, email, status, or role causes a refusal. The script only reads this file; it never changes these Students or the separate bootstrapped system administrator.
+
 ## Private credentials
 
-Choose a new marker such as `PANEL-DEMO-2026-11-ABC12345`. Generate credentials locally into a Git-ignored file:
+Choose a new marker such as `PANEL-DEMO-2026-11-ABC12345` (the unique portion is limited to 38 characters so generated account IDs remain distinct). Generate credentials locally into a Git-ignored file:
 
 ```powershell
 $env:PANEL_DEMO_RUN_ID = "PANEL-DEMO-2026-11-ABC12345"
@@ -53,6 +88,7 @@ $env:DIRECT_URL = $panelDemoUrl
 $env:PANEL_DEMO_ADMIN_EMAIL = "<existing-bootstrap-admin-email>"
 $env:ALLOW_DEMO_ACCOUNT_PROVISIONING = "false"
 $env:ALLOW_THEME_DEMO_ACCOUNTS = "false"
+$env:PANEL_DEMO_EXISTING_USER_ALLOWLIST_FILE = ".panel-demo\advisio-staging-reviewed-users.json"
 $env:PANEL_DEMO_CREDENTIALS_FILE = ".panel-demo\panel-demo-2026-11.json"
 ```
 
@@ -73,7 +109,7 @@ npm run db:panel-demo -- verify
 npm run db:panel-demo -- inspect
 ```
 
-The guard compares `DATABASE_URL`, `DIRECT_URL`, and `PANEL_DEMO_DATABASE_URL`; validates their host, database, user, public schema, and `application_name`; queries the live PostgreSQL identity; permits only the declared bootstrap admin and the exact marked dataset; and refuses any unrelated user, project, workflow, or research type.
+The guard compares `DATABASE_URL`, `DIRECT_URL`, and `PANEL_DEMO_DATABASE_URL`; validates their host, database, user, public schema, and `application_name`; queries the live PostgreSQL identity; permits only the declared bootstrap admin, the two exact reviewed Students, and the exact marked dataset; and refuses any other user, project, workflow, or research type.
 
 ## Academic Year configuration when preflight fails
 
@@ -106,4 +142,4 @@ $env:PANEL_DEMO_CLEANUP_CONFIRMATION = "DELETE:PANEL-DEMO-2026-11-ABC12345"
 npm run db:panel-demo -- cleanup
 ```
 
-Cleanup is bounded to the exact marker, deletes the project/workflow/users in dependency order, preserves the administrator and reference catalog, and verifies no marked accounts remain.
+Cleanup is bounded to the exact marker and exact seven generated account identities, deletes the project/workflow/users in dependency order, preserves the reviewed Students, administrator, and reference catalog, and verifies no marked accounts remain.
