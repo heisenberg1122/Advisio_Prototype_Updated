@@ -58,6 +58,13 @@ enum InstitutionalRole {
   SYSTEM_ADMIN
 }
 
+enum MailRecipientType {
+  SENDER
+  TO
+  CC
+  BCC
+}
+
 enum ProjectRole {
   LEADER
   MEMBER
@@ -1417,16 +1424,20 @@ model MailThread {
 }
 
 model MailParticipant {
-  threadId String    @map("thread_id") @db.Uuid
-  userId   String    @map("user_id") @db.Uuid
-  readAt   DateTime? @map("read_at")
-  joinedAt DateTime  @default(now()) @map("joined_at")
+  threadId     String            @map("thread_id") @db.Uuid
+  userId       String            @map("user_id") @db.Uuid
+  recipientType MailRecipientType @default(TO) @map("recipient_type")
+  readAt       DateTime?         @map("read_at")
+  archivedAt   DateTime?         @map("archived_at")
+  trashedAt    DateTime?         @map("trashed_at")
+  joinedAt     DateTime          @default(now()) @map("joined_at")
 
   thread MailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
   user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([threadId, userId])
   @@index([userId, readAt])
+  @@index([userId, trashedAt, archivedAt])
   @@map("mail_participants")
 }
 
