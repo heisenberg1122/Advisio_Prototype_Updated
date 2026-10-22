@@ -24,6 +24,13 @@ npm audit --omit=dev
 docker build -f apps/api/Dockerfile -t advisio-api:release .
 ```
 
+The production Docker context intentionally excludes all demo-only database
+entry points (`development-seed.ts`, `local-demo.ts`, `panel-demo.ts`, and
+`theme-demo-accounts.ts`). They remain available in the repository for local
+development, but are neither compiled into nor runnable from the API image.
+This also keeps the local demo module graph complete: production must exclude
+both `local-demo.ts` and its `theme-demo-accounts.ts` dependency together.
+
 Database integration tests require the isolated `postgres-test` container and must never target a shared database:
 
 ```bash
@@ -76,6 +83,11 @@ curl -fsS https://YOUR_RENDER_DOMAIN/api/health
 ```
 
 Expected result: HTTP 200 with `status: healthy` and `database: connected`.
+
+Also verify the authenticated System Admin overview through the same API
+origin. `GET /api/admin/overview` must return HTTP 200 for a `SYSTEM_ADMIN`
+session and HTTP 403 for other roles; do not make this endpoint public to work
+around frontend configuration errors.
 
 The realtime event bus is process-local. Keep the API at one instance until realtime delivery is backed by a shared broker such as Redis; otherwise connected users on different instances may miss events.
 

@@ -44,7 +44,7 @@ router.get(
         prisma.college.count({ where: { isActive: true } }),
         prisma.researchProject.count(),
         prisma.$queryRaw<{ date: string; count: number }[]>`
-        SELECT to_char(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD') AS date,
+        SELECT to_char(created_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD') AS date,
                count(*)::int AS count
         FROM users WHERE created_at >= ${start} AND created_at < ${end}
         GROUP BY 1 ORDER BY 1`,

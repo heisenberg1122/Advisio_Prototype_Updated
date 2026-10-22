@@ -10,5 +10,11 @@
 **/*.log
 **/*.test.ts
 **/*.test.tsx
+
+# Demo-only database entry points are intentionally omitted from production
+# images. Keep local-demo.ts and its theme account helper together so the
+# production TypeScript build never receives an incomplete module graph.
 packages/database/src/development-seed.ts
+packages/database/src/local-demo.ts
+packages/database/src/panel-demo.ts
 packages/database/src/theme-demo-accounts.ts
