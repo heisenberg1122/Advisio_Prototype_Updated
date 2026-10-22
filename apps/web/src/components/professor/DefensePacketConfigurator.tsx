@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { SubmittedPdfEvaluations } from "./SubmittedPdfEvaluations";
 
 type Mapping = {
   key: string;
@@ -170,11 +171,15 @@ export function DefensePacketConfigurator({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [publicationReason, setPublicationReason] = useState("");
+  const [evaluationMode, setEvaluationMode] = useState("RUBRIC");
+  const [signatureRequired, setSignatureRequired] = useState(false);
   const publishedPacket = data?.packet?.status === "PUBLISHED";
 
   useEffect(() => {
     const packet = data?.packet;
     if (!packet) return;
+    setEvaluationMode(packet.evaluationMode || "RUBRIC");
+    setSignatureRequired(packet.evaluationSignatureRequired || false);
     setManuscriptVersionId(packet.manuscriptVersionId || "");
     setSimilarityReportVersionId(packet.similarityReportVersionId || "");
     setRecommendationTemplateVersionId(
@@ -218,7 +223,23 @@ export function DefensePacketConfigurator({
     setSaving(true);
     setError("");
     try {
+      if (publish && publishedPacket && evaluationMode === "PDF") {
+        await apiClient.put(
+          `/api/defense-sessions/${session.id}/pdf-evaluation/settings`,
+          {
+            sourceVersionId: evaluationTemplateVersionId,
+            signatureRequired,
+            expectedMappingVersion: data.packet.mappingVersion,
+          },
+        );
+        onSaved(
+          "PDF evaluation published. Each panelist can complete a private copy.",
+        );
+        return;
+      }
       await apiClient.put(`/api/defense-sessions/${session.id}/review-packet`, {
+        evaluationMode,
+        evaluationSignatureRequired: signatureRequired,
         manuscriptVersionId,
         similarityReportVersionId: similarityReportVersionId || null,
         recommendationTemplateVersionId:
@@ -264,7 +285,10 @@ export function DefensePacketConfigurator({
       const body = await response.json();
       if (!response.ok)
         throw new Error(body.error || "Unable to upload the PDF.");
-      setUploadedVersions((current) => [body.version, ...current]);
+      setUploadedVersions((current) => [
+        { ...body.version, title: body.version.document?.title || file.name },
+        ...current,
+      ]);
       if (kind === "SIMILARITY_REPORT")
         setSimilarityReportVersionId(body.version.id);
       if (kind === "RECOMMENDATION_TEMPLATE")
@@ -511,6 +535,46 @@ export function DefensePacketConfigurator({
           </button>
         </header>
         <div className="space-y-5 p-5">
+          <section className="rounded-xl border p-4 space-y-3">
+            <label className="block text-sm font-bold">
+              Evaluation method
+              <select
+                aria-label="Evaluation method"
+                value={evaluationMode}
+                onChange={(e) => setEvaluationMode(e.target.value)}
+                className="mt-2 block w-full rounded-lg border bg-[var(--color-surface)] p-3"
+              >
+                <option value="RUBRIC">
+                  Scored rubric with PDF field mapping
+                </option>
+                <option value="PDF">
+                  Complete the evaluation PDF directly
+                </option>
+              </select>
+            </label>
+            {evaluationMode === "PDF" && (
+              <>
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  Upload your department’s form below. Panelists mark ratings,
+                  enter text, add comments, and submit their own PDF. No
+                  question setup is needed. Visual ratings are not calculated
+                  grades.
+                </p>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={signatureRequired}
+                    onChange={(e) => setSignatureRequired(e.target.checked)}
+                  />
+                  Require the panelist’s signature before submission
+                </label>
+                <p className="text-xs text-[var(--color-text-secondary)]">
+                  The form and signature requirement are fixed once a panelist
+                  saves a draft.
+                </p>
+              </>
+            )}
+          </section>
           <section className="grid gap-4 rounded-xl border p-4 md:grid-cols-2">
             <label className="text-xs font-bold text-slate-600">
               Eligible manuscript PDF
@@ -666,13 +730,16 @@ export function DefensePacketConfigurator({
               setItems={setRecommendationMappings}
             />
           )}
-          {evaluationTemplateVersionId && (
+          {evaluationTemplateVersionId && evaluationMode !== "PDF" && (
             <MappingEditor
               title="Evaluation PDF field mapping"
               keys={evaluationKeys}
               items={evaluationMappings}
               setItems={setEvaluationMappings}
             />
+          )}
+          {data?.packet?.evaluationMode === "PDF" && (
+            <SubmittedPdfEvaluations sessionId={session.id} />
           )}
           {error && (
             <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">
@@ -698,15 +765,19 @@ export function DefensePacketConfigurator({
             disabled={
               saving ||
               !manuscriptVersionId ||
-              readinessError ||
-              (publishedPacket && publicationReason.trim().length < 10)
+              (evaluationMode === "PDF"
+                ? !evaluationTemplateVersionId
+                : readinessError ||
+                  (publishedPacket && publicationReason.trim().length < 10))
             }
             onClick={() => save(true)}
             className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 py-2.5 text-sm font-extrabold text-white transition disabled:opacity-50"
           >
-            {publishedPacket
-              ? "Publish approved update"
-              : "Publish to panelists"}
+            {publishedPacket && evaluationMode === "PDF"
+              ? "Publish PDF evaluation"
+              : publishedPacket
+                ? "Publish approved update"
+                : "Publish to panelists"}
           </button>
         </footer>
       </div>

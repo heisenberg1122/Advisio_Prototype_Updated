@@ -1,10 +1,13 @@
 import { Router, Request, Response } from "express";
+import { PDFDocument } from "pdf-lib";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { canAccessCollege } from "../lib/college-scope.js";
 import { defensePacketService } from "../services/defense-packet.service.js";
 import { googleDriveService } from "../services/google-drive.service.js";
 import { storageHierarchyService } from "../services/storage-hierarchy.service.js";
+import { localStorageService } from "../services/local-storage.service.js";
+import { documentService } from "../services/document.service.js";
 import { createNotificationsOnce } from "../services/research-workflow-integration.service.js";
 import {
   defenseManuscriptService,
@@ -294,9 +297,27 @@ router.put(
           .status(400)
           .json({ error: "Select the eligible manuscript version." });
       const publish = req.body.publish === true;
+      const evaluationMode =
+        req.body.evaluationMode === "PDF" ? "PDF" : "RUBRIC";
+      if (evaluationMode === "PDF" && !req.body.evaluationTemplateVersionId)
+        return void res
+          .status(400)
+          .json({ error: "Upload an evaluation PDF before publishing." });
       const existingPacket = await prisma.defensePacket.findUnique({
         where: { defenseSessionId: allowed.session.id },
       });
+      if (
+        existingPacket &&
+        (await prisma.pdfEvaluation.count({
+          where: { defenseSessionId: allowed.session.id },
+        }))
+      )
+        return void res
+          .status(409)
+          .json({
+            error:
+              "The packet is fixed after PDF evaluation drafts have started.",
+          });
       const publicationReason = String(req.body.publicationReason || "").trim();
       validateDefensePacketMutation({
         existingStatus: existingPacket?.status,
@@ -334,6 +355,8 @@ router.put(
           mimeType: true,
           googleDriveFileId: true,
           storagePath: true,
+          fileSize: true,
+          document: { select: { storageProvider: true } },
         },
       });
       if (versions.length !== new Set(ids).size)
@@ -362,6 +385,7 @@ router.put(
       if (
         publish &&
         req.body.evaluationTemplateVersionId &&
+        evaluationMode !== "PDF" &&
         !evaluationFieldMappings.length
       )
         return void res.status(400).json({
@@ -379,12 +403,22 @@ router.put(
             recommendationFieldMappings,
           )
         : null;
-      const evaluationPreflight = evaluationTemplate
-        ? await defensePacketService.preflight(
-            evaluationTemplate,
-            evaluationFieldMappings,
-          )
-        : null;
+      if (evaluationTemplate && evaluationMode === "PDF") {
+        const { buffer } = await documentService.readStoredVersionFile({
+          storageProvider: evaluationTemplate.document.storageProvider,
+          storagePath: evaluationTemplate.storagePath,
+          googleDriveFileId: evaluationTemplate.googleDriveFileId,
+          expectedSize: evaluationTemplate.fileSize,
+        });
+        await PDFDocument.load(buffer);
+      }
+      const evaluationPreflight =
+        evaluationTemplate && evaluationMode !== "PDF"
+          ? await defensePacketService.preflight(
+              evaluationTemplate,
+              evaluationFieldMappings,
+            )
+          : null;
       const preflightReport = {
         recommendation: recommendationPreflight,
         evaluation: evaluationPreflight,
@@ -416,10 +450,25 @@ router.put(
         publishedById: req.user!.id,
         preflightReport: preflightReport as any,
         engineVersion: "2.0",
+        evaluationMode,
+        evaluationSignatureRequired:
+          req.body.evaluationSignatureRequired === true,
         status: publish ? ("PUBLISHED" as const) : ("DRAFT" as const),
         publishedAt,
       };
       const packet = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM defense_sessions WHERE id = ${allowed.session.id}::uuid FOR UPDATE`;
+        if (
+          await tx.pdfEvaluation.count({
+            where: { defenseSessionId: allowed.session.id },
+          })
+        )
+          throw Object.assign(
+            new Error(
+              "The packet is fixed after PDF evaluation drafts have started.",
+            ),
+            { statusCode: 409 },
+          );
         let saved;
         if (existingPacket) {
           const updated = await tx.defensePacket.updateMany({
@@ -595,24 +644,34 @@ router.post(
         researchId: allowed.session.researchId,
         bucket: "SUBMISSIONS",
       });
-      const stored = await googleDriveService.uploadFile({
-        fileName: req.file.originalname,
-        mimeType: "application/pdf",
-        buffer: req.file.buffer,
-        folderId,
-        description: `${title} for ${allowed.session.research.title}`,
-        appProperties: {
-          advisioManaged: "true",
-          advisioResearchId: allowed.session.researchId,
-          advisioDefenseSessionId: allowed.session.id,
-          advisioLifecycle: kind,
-        },
-      });
+      const stored =
+        process.env.STORAGE_PROVIDER === "LOCAL"
+          ? await localStorageService.uploadFile({
+              fileName: req.file.originalname,
+              mimeType: "application/pdf",
+              buffer: req.file.buffer,
+              folder: allowed.session.researchId,
+            })
+          : await googleDriveService.uploadFile({
+              fileName: req.file.originalname,
+              mimeType: "application/pdf",
+              buffer: req.file.buffer,
+              folderId,
+              description: `${title} for ${allowed.session.research.title}`,
+              appProperties: {
+                advisioManaged: "true",
+                advisioResearchId: allowed.session.researchId,
+                advisioDefenseSessionId: allowed.session.id,
+                advisioLifecycle: kind,
+              },
+            });
       const document = await prisma.document.create({
         data: {
           researchId: allowed.session.researchId,
           documentType: kind,
           title,
+          storageProvider:
+            process.env.STORAGE_PROVIDER === "LOCAL" ? "LOCAL" : "GOOGLE_DRIVE",
           createdBy: req.user!.id,
         },
       });
@@ -623,8 +682,12 @@ router.post(
           fileName: stored.fileName,
           mimeType: "application/pdf",
           fileSize: BigInt(stored.sizeBytes),
-          storagePath: stored.webViewLink || stored.storagePath,
-          googleDriveFileId: stored.fileId,
+          storagePath:
+            process.env.STORAGE_PROVIDER === "LOCAL"
+              ? stored.storagePath
+              : stored.webViewLink || stored.storagePath,
+          googleDriveFileId:
+            process.env.STORAGE_PROVIDER === "LOCAL" ? null : stored.fileId,
           uploadedBy: req.user!.id,
         },
         select: versionSelect,

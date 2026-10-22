@@ -139,7 +139,11 @@ export default function PanelistDefenseWorkspacePage() {
   const invitation = session?.invitations?.find(
     (item: any) => item.inviteeId === user?.id,
   );
-  const evaluation = session?.evaluations?.[0];
+  const pdfEvaluation =
+    session?.packet?.evaluationMode === "PDF"
+      ? session?.pdfEvaluations?.[0]
+      : null;
+  const evaluation = pdfEvaluation || session?.evaluations?.[0];
   const review = session?.manuscriptReviews?.[0];
   const recommendation = session?.recommendations?.[0];
   const packet = session?.packet;
@@ -169,12 +173,12 @@ export default function PanelistDefenseWorkspacePage() {
         label: "Defense session started",
         at: session.startedAt,
       },
-      evaluation?.submittedAt && {
+      (evaluation?.submittedAt || evaluation?.lockedAt) && {
         label:
           evaluation.status === "LOCKED"
             ? "Final evaluation locked"
             : "Evaluation submitted",
-        at: evaluation.submittedAt,
+        at: evaluation.submittedAt || evaluation.lockedAt,
       },
       session.releasedAt && {
         label: "Official result released",
@@ -628,7 +632,31 @@ export default function PanelistDefenseWorkspacePage() {
               </Tag>
             )}
           </CardHeader>
-          {evaluation ? (
+          {session.packet?.evaluationMode === "PDF" ? (
+            <div className="rounded-xl bg-[var(--color-surface-subtle)] p-4">
+              <p className="text-sm font-semibold">
+                {pdfEvaluation?.status === "LOCKED"
+                  ? "PDF evaluation submitted and locked"
+                  : pdfEvaluation
+                    ? "Your private PDF evaluation draft"
+                    : "Your PDF evaluation has not been started"}
+              </p>
+              <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                Mark your department’s original form directly. Visual ratings
+                are not calculated grades.
+              </p>
+              <Button
+                className="mt-3"
+                onClick={() =>
+                  router.push(
+                    `/panelist/dashboard?tab=evaluation&sessionId=${session.id}`,
+                  )
+                }
+              >
+                Open PDF evaluation
+              </Button>
+            </div>
+          ) : evaluation ? (
             <div className="rounded-xl bg-[var(--color-surface-subtle)] p-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>

@@ -13,6 +13,7 @@ import {
 import { useAuth } from "@/providers/auth-provider";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 import { PanelistReviewPackets } from "@/components/panelist/PanelistReviewPackets";
+import { PdfEvaluationWorkspace } from "@/components/panelist/PdfEvaluationWorkspace";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
 
 const TZ = "Asia/Manila";
@@ -105,6 +106,18 @@ function PanelistDashboardContent() {
   const documents = dashboardData?.pendingReviews || [];
   const evaluations = dashboardData?.pendingEvaluations || [];
   const archives = dashboardData?.archives || [];
+  const completedPdfEvaluations = dashboardData?.completedPdfEvaluations || [];
+  const evaluationSession = requestedSessionId
+    ? liveSession?.id === requestedSessionId
+      ? liveSession
+      : dashboardData?.sessions?.find(
+          (item: any) => item.id === requestedSessionId,
+        )
+    : liveSession;
+  const pdfEvaluationSession =
+    evaluationSession?.packet?.evaluationMode === "PDF"
+      ? evaluationSession
+      : null;
   const gradesSubmitted = useMemo(
     () =>
       (dashboardData?.completedEvaluations || []).map((session: any) => ({
@@ -503,7 +516,9 @@ function PanelistDashboardContent() {
                       },
                       {
                         label: "Completed Evaluations",
-                        value: gradesSubmitted.length,
+                        value:
+                          gradesSubmitted.length +
+                          completedPdfEvaluations.length,
                         suffix: "submitted",
                         icon: "ti-circle-check",
                         tone: "bg-blue-50 text-[#0B3A53] dark:bg-white/10 dark:text-white",
@@ -1001,7 +1016,12 @@ function PanelistDashboardContent() {
               documents: <PanelistReviewPackets />,
               evaluation: (
                 <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-4">
-                  {!liveSession ? (
+                  {pdfEvaluationSession ? (
+                    <PdfEvaluationWorkspace
+                      key={pdfEvaluationSession.id}
+                      sessionId={pdfEvaluationSession.id}
+                    />
+                  ) : !liveSession ? (
                     <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
                       <i className="ti ti-broadcast-off text-4xl text-slate-300" />
                       <h3 className="mt-3 text-lg font-extrabold text-[var(--color-text-primary)]">
@@ -1270,11 +1290,31 @@ function PanelistDashboardContent() {
                         <Tag variant="success">{g.status}</Tag>
                       </div>
                     ))}
-                    {gradesSubmitted.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-400">
-                        No locked evaluations yet.
-                      </div>
-                    )}
+                    {completedPdfEvaluations.map((session: any) => (
+                      <button
+                        key={session.id}
+                        className="rounded-xl border p-4 text-left"
+                        onClick={() =>
+                          router.push(
+                            `/panelist/dashboard?tab=evaluation&sessionId=${session.id}`,
+                          )
+                        }
+                      >
+                        <strong className="block">
+                          {session.research.title}
+                        </strong>
+                        <span className="text-sm text-[var(--color-text-secondary)]">
+                          PDF evaluation submitted and locked · Open completed
+                          copy
+                        </span>
+                      </button>
+                    ))}
+                    {gradesSubmitted.length === 0 &&
+                      completedPdfEvaluations.length === 0 && (
+                        <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-400">
+                          No locked evaluations yet.
+                        </div>
+                      )}
                   </div>
                 </div>
               ),
@@ -1309,9 +1349,10 @@ function PanelistDashboardContent() {
                                   : "Pending authorized release"}
                               </span>
                               <span className="mt-1 block text-[11px] text-slate-500 dark:text-slate-400">
-                                Your score:{" "}
-                                {evaluation?.totalScore ?? "Not recorded"} ·
-                                Recommendation form:{" "}
+                                {session.packet?.evaluationMode === "PDF"
+                                  ? `PDF evaluation: ${readable(session.pdfEvaluations?.[0]?.status, "Not submitted")}`
+                                  : `Your score: ${evaluation?.totalScore ?? "Not recorded"}`}{" "}
+                                · Recommendation form:{" "}
                                 {readable(
                                   recommendation?.status,
                                   "Not submitted",

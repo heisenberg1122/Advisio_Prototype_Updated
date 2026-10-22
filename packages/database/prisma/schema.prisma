@@ -573,6 +573,7 @@ model User {
   defensePacketsPublished   DefensePacket[]            @relation("DefensePacketPublisher")
   manuscriptReviews         PanelistManuscriptReview[]
   panelRecommendations      PanelistRecommendation[]
+  pdfEvaluations            PdfEvaluation[]
   chatGroupsCreated         ChatGroup[]                @relation("ChatGroupCreator")
   chatParticipations        ChatParticipant[]          @relation("ChatParticipantUser")
   chatInvitationsSent       ChatParticipant[]          @relation("ChatParticipantInviter")
@@ -1237,6 +1238,7 @@ model DocumentVersion {
   packetRecommendationTemplates DefensePacket[]          @relation("DefensePacketRecommendationTemplate")
   packetEvaluationTemplates     DefensePacket[]          @relation("DefensePacketEvaluationTemplate")
   generatedRecommendations      PanelistRecommendation[] @relation("GeneratedRecommendationVersion")
+  pdfEvaluations                PdfEvaluation[]
   submitter                     User?                    @relation("DocumentVersionSubmitter", fields: [submittedBy], references: [id], onDelete: Restrict)
   milestone                     WorkflowStage?           @relation("DocumentVersionMilestone", fields: [milestoneId], references: [id], onDelete: SetNull)
   manuscriptStatusEvents        ManuscriptStatusEvent[]
@@ -1770,6 +1772,8 @@ model DefensePacket {
   evaluationFieldMappings         Json                @default("[]") @map("evaluation_field_mappings")
   mappingVersion                  Int                 @default(1) @map("mapping_version")
   engineVersion                   String              @default("2.0") @map("engine_version") @db.VarChar(20)
+  evaluationMode                  String              @default("RUBRIC") @map("evaluation_mode") @db.VarChar(20)
+  evaluationSignatureRequired     Boolean             @default(false) @map("evaluation_signature_required")
   preflightReport                 Json?               @map("preflight_report")
   status                          DefensePacketStatus @default(DRAFT)
   reviewDeadline                  DateTime?           @map("review_deadline")
@@ -1866,12 +1870,43 @@ model DefenseSession {
   packet            DefensePacket?
   manuscriptReviews PanelistManuscriptReview[]
   recommendations   PanelistRecommendation[]
+  pdfEvaluations    PdfEvaluation[]
 
   @@index([researchId, status])
   @@index([status, startedAt])
   @@index([createdBy])
   @@index([defenseEventId, queuePosition])
   @@map("defense_sessions")
+}
+
+// Each reviewer owns a separate source snapshot and editable annotation draft.
+// Final PDF bytes are retained with the exact revision and checksum submitted.
+model PdfEvaluation {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  defenseSessionId  String           @map("defense_session_id") @db.Uuid
+  panelistId        String           @map("panelist_id") @db.Uuid
+  sourceVersionId   String           @map("source_version_id") @db.Uuid
+  sourceData        Bytes            @map("source_data")
+  sourceChecksum    String           @map("source_checksum") @db.VarChar(64)
+  annotations       Json             @default("[]")
+  revision          Int              @default(1)
+  status            EvaluationStatus @default(DRAFT)
+  signatureData     Bytes?           @map("signature_data")
+  signaturePlacement Json?           @map("signature_placement")
+  signedAt          DateTime?        @map("signed_at")
+  previewHash       String?          @map("preview_hash") @db.VarChar(64)
+  finalData         Bytes?           @map("final_data")
+  integrityHash     String?          @map("integrity_hash") @db.VarChar(64)
+  lockedAt          DateTime?        @map("locked_at")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  defenseSession DefenseSession @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
+  panelist User @relation(fields: [panelistId], references: [id], onDelete: Restrict)
+  sourceVersion DocumentVersion @relation(fields: [sourceVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([defenseSessionId, panelistId])
+  @@map("pdf_evaluations")
 }
 
 model DefenseEvent {

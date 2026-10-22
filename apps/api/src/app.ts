@@ -28,6 +28,7 @@ import calendarRoutes from "./routes/calendar.routes";
 import groupFileRoutes from "./routes/group-file.routes";
 import mailRoutes from "./routes/mail.routes";
 import defensePacketRoutes from "./routes/defense-packet.routes";
+import pdfEvaluationRoutes from "./routes/pdf-evaluation.routes";
 import reviewerAssignmentRoutes from "./routes/reviewer-assignment.routes";
 import officialCopyRoutes from "./routes/official-copy.routes";
 import facultyProfileRoutes from "./routes/faculty-profile.routes";
@@ -57,11 +58,16 @@ app.use(
 );
 app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 // PNG data URLs need room for base64; keep other JSON endpoints at the default limit.
-app.use([
-  "/api/documents/versions/:versionId/sign",
-  "/api/mail/attachments/:id/sign",
-  "/api/official-copies/:officialCopyId/sign",
-], express.json({ limit: "3mb" }));
+app.use(
+  [
+    "/api/documents/versions/:versionId/sign",
+    "/api/mail/attachments/:id/sign",
+    "/api/official-copies/:officialCopyId/sign",
+    "/api/defense-sessions/:id/pdf-evaluation/sign",
+    "/api/defense-sessions/:id/pdf-evaluation",
+  ],
+  express.json({ limit: "3mb" }),
+);
 app.use(express.json());
 app.use(cookieParser());
 
@@ -88,6 +94,7 @@ app.use("/api", calendarRoutes);
 app.use("/api", groupFileRoutes);
 app.use("/api/mail", mailRoutes);
 app.use("/api", defensePacketRoutes);
+app.use("/api", pdfEvaluationRoutes);
 app.use("/api", reviewerAssignmentRoutes);
 app.use("/api", officialCopyRoutes);
 app.use("/api/faculty-profiles", facultyProfileRoutes);

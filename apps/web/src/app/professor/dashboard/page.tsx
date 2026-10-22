@@ -3542,14 +3542,14 @@ function ProfessorDashboardContent() {
                         </h2>
                         <p className="mt-1 text-sm text-slate-600">
                           {
-                            liveDefense.evaluations.filter(
+                            (liveDefense.packet?.evaluationMode === "PDF" ? liveDefense.pdfEvaluations || [] : liveDefense.evaluations).filter(
                               (item: any) => item.status === "LOCKED",
                             ).length
                           }{" "}
                           of{" "}
                           {
-                            liveDefense.research.members.filter(
-                              (item: any) => item.projectRole === "PANELIST",
+                            liveDefense.invitations.filter(
+                              (item: any) => item.status === "ACCEPTED" && ["PANELIST", "PANEL_CHAIR"].includes(item.role),
                             ).length
                           }{" "}
                           panelists submitted their final evaluation.

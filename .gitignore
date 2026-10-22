@@ -46,6 +46,7 @@ yarn-error.log*
 apps/api/uploads/*
 !apps/api/uploads/.gitkeep
 /backup_*.sql
+/tmp/pdfs/
 
 # Misc
 coverage/

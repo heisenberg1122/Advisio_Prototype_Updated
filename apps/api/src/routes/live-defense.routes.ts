@@ -37,6 +37,16 @@ function requireFacilitator(req: Request, res: Response, next: NextFunction) {
 }
 
 const sessionInclude = {
+  pdfEvaluations: {
+    select: {
+      id: true,
+      panelistId: true,
+      status: true,
+      lockedAt: true,
+      signedAt: true,
+      updatedAt: true,
+    },
+  },
   defenseEvent: {
     select: {
       id: true,
@@ -159,6 +169,9 @@ const sessionInclude = {
       publishedAt: true,
       reviewDeadline: true,
       mappingVersion: true,
+      evaluationMode: true,
+      evaluationSignatureRequired: true,
+      evaluationTemplateVersionId: true,
       manuscriptVersion: {
         select: {
           id: true,
@@ -215,6 +228,9 @@ function scopeSessionForPanelist(session: any, userId: string) {
     ),
     evaluations: session.evaluations.filter(
       (item: any) => item.evaluatorId === userId,
+    ),
+    pdfEvaluations: (session.pdfEvaluations || []).filter(
+      (item: any) => item.panelistId === userId,
     ),
     manuscriptReviews: session.manuscriptReviews.filter(
       (item: any) => item.panelistId === userId,
@@ -963,10 +979,17 @@ router.get(
       const pendingEvaluations = accepted.filter(
         (session) =>
           session.status === "LIVE" &&
-          session.evaluations[0]?.status !== "LOCKED",
+          (session.packet?.evaluationMode === "PDF"
+            ? session.pdfEvaluations?.[0]?.status !== "LOCKED"
+            : session.evaluations[0]?.status !== "LOCKED"),
       );
       const completedEvaluations = accepted.filter(
         (session) => session.evaluations[0]?.status === "LOCKED",
+      );
+      const completedPdfEvaluations = accepted.filter(
+        (session) =>
+          session.packet?.evaluationMode === "PDF" &&
+          session.pdfEvaluations?.[0]?.status === "LOCKED",
       );
       const upcomingSessions = accepted.filter(
         (session) =>
@@ -983,6 +1006,7 @@ router.get(
         pendingReviews,
         pendingEvaluations,
         completedEvaluations,
+        completedPdfEvaluations,
         upcomingSessions,
         archives,
         counts: {
@@ -1586,6 +1610,9 @@ router.get(
         orderBy: { startedAt: "desc" },
       });
       if (session && isPanelist) {
+        session.pdfEvaluations = session.pdfEvaluations.filter(
+          (item) => item.panelistId === req.user!.id,
+        );
         session.evaluations = session.evaluations.filter(
           (item) => item.evaluatorId === req.user!.id,
         );
@@ -1757,6 +1784,19 @@ router.put(
           error: "The official defense manuscript packet is not published.",
         });
         return;
+      }
+
+      const evaluationPacket = await prisma.defensePacket.findUnique({
+        where: { defenseSessionId: session.id },
+        select: { evaluationMode: true },
+      });
+      if (evaluationPacket?.evaluationMode === "PDF") {
+        return void res
+          .status(409)
+          .json({
+            error:
+              "This defense uses PDF evaluation. Open its PDF workspace to submit.",
+          });
       }
 
       const templateId = String(req.body.templateId || "");
@@ -1938,10 +1978,19 @@ router.post(
         });
       }
       const publishedPacket = session.packet;
+      const pdfSubmissions =
+        session.packet?.evaluationMode === "PDF"
+          ? await prisma.pdfEvaluation.findMany({
+              where: { defenseSessionId: session.id, status: "LOCKED" },
+              select: { panelistId: true },
+            })
+          : [];
       const lockedEvaluatorIds = new Set(
-        session.evaluations
-          .filter((item) => item.status === "LOCKED")
-          .map((item) => item.evaluatorId),
+        session.packet?.evaluationMode === "PDF"
+          ? pdfSubmissions.map((item) => item.panelistId)
+          : session.evaluations
+              .filter((item) => item.status === "LOCKED")
+              .map((item) => item.evaluatorId),
       );
       if (!session.invitations.length) {
         return void res.status(409).json({
@@ -2158,6 +2207,7 @@ router.get(
       }
       if (req.user!.roles.includes("RESEARCHER") && isMember) {
         session.evaluations = [];
+        session.pdfEvaluations = [];
       } else if (!isInstitutionWide && !isFacilitator && isInvited) {
         return void res.json({
           session: scopeSessionForPanelist(session, req.user!.id),
