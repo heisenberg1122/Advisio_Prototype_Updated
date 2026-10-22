@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
+import { PacketManuscriptWorkspace } from "./PacketManuscriptWorkspace";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 import {
   DocumentPreviewSkeleton,
@@ -145,8 +146,8 @@ export function PanelistReviewPackets() {
   const publishedManuscript = detail?.packet?.manuscriptVersion || null;
   const progress = useMemo(
     () => [
-      { label: "Manuscript opened", done: Boolean(previewUrl) },
-      { label: "Review saved", done: Boolean(detail?.review) },
+      { label: "Manuscript available", done: Boolean(publishedManuscript) },
+      { label: "Review saved", done: Boolean(detail?.review || selected?.packetDocumentReviews?.length) },
       {
         label: "Recommendation generated",
         done: detail?.recommendation?.status === "LOCKED",
@@ -440,117 +441,127 @@ export function PanelistReviewPackets() {
           {detailLoading ? (
             <DocumentPreviewSkeleton className="min-h-[590px]" />
           ) : tab === "manuscript" ? (
-            <div className="grid gap-4 p-4 lg:grid-cols-[1fr_250px]">
-              <section className="min-h-[590px] overflow-hidden rounded-xl border bg-slate-800">
-                {previewUrl ? (
-                  <iframe
-                    title="Defense manuscript PDF"
-                    src={`${previewUrl}#page=${pageNumber}&view=FitH`}
-                    className="h-[650px] w-full bg-white"
-                  />
-                ) : (
-                  <DocumentPreviewSkeleton className="h-[590px] min-h-0" />
-                )}
-              </section>
-              <aside className="space-y-4">
-                <div className="rounded-xl border p-4">
-                  <h3 className="text-sm font-extrabold text-[#173f63]">
-                    Published manuscript
-                  </h3>
-                  <div className="mt-3 space-y-2">
-                    {publishedManuscript && (
+            !previewVersion || previewVersion.id === publishedManuscript?.id ? (
+              <PacketManuscriptWorkspace
+                key={selected.id}
+                sessionId={selected.id}
+              />
+            ) : (
+              <div className="grid gap-4 p-4 lg:grid-cols-[1fr_250px]">
+                <section className="min-h-[590px] overflow-hidden rounded-xl border bg-slate-800">
+                  {previewUrl ? (
+                    <iframe
+                      title="Defense manuscript PDF"
+                      src={`${previewUrl}#page=${pageNumber}&view=FitH`}
+                      className="h-[650px] w-full bg-white"
+                    />
+                  ) : (
+                    <DocumentPreviewSkeleton className="h-[590px] min-h-0" />
+                  )}
+                </section>
+                <aside className="space-y-4">
+                  <div className="rounded-xl border p-4">
+                    <h3 className="text-sm font-extrabold text-[#173f63]">
+                      Published manuscript
+                    </h3>
+                    <div className="mt-3 space-y-2">
+                      {publishedManuscript && (
+                        <button
+                          key={publishedManuscript.id}
+                          onClick={() =>
+                            setPreviewVersion({
+                              ...publishedManuscript,
+                              document:
+                                detail.packet.manuscriptVersion.document,
+                            })
+                          }
+                          className={`w-full rounded-lg border p-2 text-left text-xs ${previewVersion?.id === publishedManuscript.id ? "border-[#f6a800] bg-amber-50" : "border-slate-200"}`}
+                        >
+                          <span className="font-bold">
+                            Version {publishedManuscript.versionNumber}
+                          </span>
+                          <span className="ml-2 text-[9px] font-extrabold text-emerald-600">
+                            PUBLISHED FOR DEFENSE
+                          </span>
+                          <span className="mt-1 block truncate text-[10px] text-slate-400">
+                            {publishedManuscript.fileName}
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                    {previewVersion?.googleDriveFileId && (
                       <button
-                        key={publishedManuscript.id}
-                        onClick={() =>
-                          setPreviewVersion({
-                            ...publishedManuscript,
-                            document: detail.packet.manuscriptVersion.document,
-                          })
-                        }
-                        className={`w-full rounded-lg border p-2 text-left text-xs ${previewVersion?.id === publishedManuscript.id ? "border-[#f6a800] bg-amber-50" : "border-slate-200"}`}
+                        onClick={() => downloadVersion(previewVersion)}
+                        className="mt-3 block rounded-lg bg-[#173f63] px-3 py-2 text-center text-xs font-extrabold text-white"
                       >
-                        <span className="font-bold">
-                          Version {publishedManuscript.versionNumber}
-                        </span>
-                        <span className="ml-2 text-[9px] font-extrabold text-emerald-600">
-                          PUBLISHED FOR DEFENSE
-                        </span>
-                        <span className="mt-1 block truncate text-[10px] text-slate-400">
-                          {publishedManuscript.fileName}
-                        </span>
+                        Download selected PDF
                       </button>
                     )}
+                    {detail?.downloads?.[0] && (
+                      <p className="mt-2 text-[9px] text-slate-400">
+                        Last downloaded{" "}
+                        {formatDateTime(detail.downloads[0].createdAt)}
+                      </p>
+                    )}
                   </div>
-                  {previewVersion?.googleDriveFileId && (
+                  <div className="rounded-xl border p-4">
+                    <h3 className="text-sm font-extrabold text-[#173f63]">
+                      Page comment
+                    </h3>
+                    <label className="mt-3 block text-[10px] font-bold text-slate-500">
+                      Page number
+                      <input
+                        type="number"
+                        min="1"
+                        value={pageNumber}
+                        onChange={(event) =>
+                          setPageNumber(Math.max(1, Number(event.target.value)))
+                        }
+                        className="mt-1 w-full rounded-lg border p-2 text-sm"
+                      />
+                    </label>
+                    <textarea
+                      value={annotationText}
+                      onChange={(event) =>
+                        setAnnotationText(event.target.value)
+                      }
+                      placeholder="Add a page-specific observation…"
+                      className="mt-3 min-h-24 w-full rounded-lg border p-2 text-xs"
+                    />
                     <button
-                      onClick={() => downloadVersion(previewVersion)}
-                      className="mt-3 block rounded-lg bg-[#173f63] px-3 py-2 text-center text-xs font-extrabold text-white"
+                      disabled={!annotationText.trim()}
+                      onClick={() => {
+                        setAnnotations((items) => [
+                          ...items,
+                          {
+                            id: crypto.randomUUID(),
+                            pageNumber,
+                            comment: annotationText.trim(),
+                            createdAt: new Date().toISOString(),
+                          },
+                        ]);
+                        setAnnotationText("");
+                        setTab("notes");
+                      }}
+                      className="mt-2 w-full rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-3 py-2 text-xs font-extrabold text-white transition disabled:opacity-50"
                     >
-                      Download selected PDF
+                      Add page comment
+                    </button>
+                  </div>
+                  {detail?.packet?.similarityReport?.googleDriveFileId && (
+                    <button
+                      onClick={() =>
+                        setPreviewVersion(detail.packet.similarityReport)
+                      }
+                      className="w-full rounded-xl border border-violet-200 bg-violet-50 p-4 text-left text-xs font-extrabold text-violet-700"
+                    >
+                      <i className="ti ti-fingerprint mr-2" />
+                      Open similarity report
                     </button>
                   )}
-                  {detail?.downloads?.[0] && (
-                    <p className="mt-2 text-[9px] text-slate-400">
-                      Last downloaded{" "}
-                      {formatDateTime(detail.downloads[0].createdAt)}
-                    </p>
-                  )}
-                </div>
-                <div className="rounded-xl border p-4">
-                  <h3 className="text-sm font-extrabold text-[#173f63]">
-                    Page comment
-                  </h3>
-                  <label className="mt-3 block text-[10px] font-bold text-slate-500">
-                    Page number
-                    <input
-                      type="number"
-                      min="1"
-                      value={pageNumber}
-                      onChange={(event) =>
-                        setPageNumber(Math.max(1, Number(event.target.value)))
-                      }
-                      className="mt-1 w-full rounded-lg border p-2 text-sm"
-                    />
-                  </label>
-                  <textarea
-                    value={annotationText}
-                    onChange={(event) => setAnnotationText(event.target.value)}
-                    placeholder="Add a page-specific observation…"
-                    className="mt-3 min-h-24 w-full rounded-lg border p-2 text-xs"
-                  />
-                  <button
-                    disabled={!annotationText.trim()}
-                    onClick={() => {
-                      setAnnotations((items) => [
-                        ...items,
-                        {
-                          id: crypto.randomUUID(),
-                          pageNumber,
-                          comment: annotationText.trim(),
-                          createdAt: new Date().toISOString(),
-                        },
-                      ]);
-                      setAnnotationText("");
-                      setTab("notes");
-                    }}
-                    className="mt-2 w-full rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-3 py-2 text-xs font-extrabold text-white transition disabled:opacity-50"
-                  >
-                    Add page comment
-                  </button>
-                </div>
-                {detail?.packet?.similarityReport?.googleDriveFileId && (
-                  <button
-                    onClick={() =>
-                      setPreviewVersion(detail.packet.similarityReport)
-                    }
-                    className="w-full rounded-xl border border-violet-200 bg-violet-50 p-4 text-left text-xs font-extrabold text-violet-700"
-                  >
-                    <i className="ti ti-fingerprint mr-2" />
-                    Open similarity report
-                  </button>
-                )}
-              </aside>
-            </div>
+                </aside>
+              </div>
+            )
           ) : tab === "notes" ? (
             <div className="grid gap-5 p-5 lg:grid-cols-2">
               <section>

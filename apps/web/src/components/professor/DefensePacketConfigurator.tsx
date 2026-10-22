@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SubmittedPdfEvaluations } from "./SubmittedPdfEvaluations";
+import { SharedManuscriptFeedback } from "@/components/documents/SharedManuscriptFeedback";
 
 type Mapping = {
   key: string;
@@ -741,6 +742,7 @@ export function DefensePacketConfigurator({
           {data?.packet?.evaluationMode === "PDF" && (
             <SubmittedPdfEvaluations sessionId={session.id} />
           )}
+          <SharedManuscriptFeedback sessionId={session.id}/>
           {error && (
             <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">
               {error}

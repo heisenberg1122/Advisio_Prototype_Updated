@@ -11,6 +11,24 @@ import {
   type PDFDocumentProxy,
 } from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import {
+  MousePointer2,
+  Check,
+  Circle,
+  X,
+  Type,
+  Highlighter,
+  MessageSquare,
+  PenTool,
+  Undo2,
+  Redo2,
+  Trash2,
+  Settings2,
+  Maximize2,
+  Minimize2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { SignaturePad } from "@/components/adviser/SignaturePad";
 import { PdfDocumentPreview } from "@/components/documents/PdfDocumentPreview";
@@ -48,14 +66,30 @@ type Detail = {
   editable: boolean;
   signatureRequired: boolean;
   researchTitle: string;
+  currentVersion?: boolean;
 };
 const styleButton =
   "rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm font-semibold disabled:opacity-40";
 const primary = styleButton + " bg-[var(--color-primary)] text-white";
 const clone = (marks: Mark[]) => marks.map((m) => ({ ...m }));
 
-export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
-  const base = `/api/defense-sessions/${sessionId}/pdf-evaluation`;
+export function PdfEvaluationWorkspace({
+  sessionId,
+  manuscriptVersionId,
+  onShared,
+  onDraftSaved,
+  readOnly = false,
+}: {
+  sessionId: string;
+  manuscriptVersionId?: string;
+  onShared?: () => void;
+  onDraftSaved?: () => void;
+  readOnly?: boolean;
+}) {
+  const manuscript = Boolean(manuscriptVersionId);
+  const base = manuscript
+    ? `/api/defense-sessions/${sessionId}/manuscript-annotations/${manuscriptVersionId}`
+    : `/api/defense-sessions/${sessionId}/pdf-evaluation`;
   const [detail, setDetail] = useState<Detail | null>(null);
   const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null);
   const [page, setPage] = useState(1),
@@ -74,6 +108,11 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
   const [undo, setUndo] = useState<Mark[][]>([]),
     [redo, setRedo] = useState<Mark[][]>([]);
   const [text, setText] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [fitPage, setFitPage] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(760);
+  const viewport = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<{
       url: string;
       hash: string;
@@ -88,8 +127,7 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
     [saveSignature, setSaveSignature] = useState(false),
     [password, setPassword] = useState("");
   const canvas = useRef<HTMLCanvasElement>(null),
-    surface = useRef<HTMLDivElement>(null),
-    host = useRef<HTMLDivElement>(null);
+    surface = useRef<HTMLDivElement>(null);
   const [available, setAvailable] = useState(760);
   const inFlight = useRef(false);
   const drag = useRef<{
@@ -103,7 +141,8 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
   const current = useRef({ marks, detail, dirty });
   current.current = { marks, detail, dirty };
   const locked = detail?.evaluation?.status === "LOCKED";
-  const editable = Boolean(detail?.editable && !locked && !busy);
+  const editable = Boolean(detail?.editable && !readOnly && !locked && !busy);
+  const canShare = manuscript && detail?.editable && !readOnly;
 
   useEffect(() => {
     let active = true;
@@ -112,7 +151,7 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
     setLoading(true);
     setError("");
     Promise.all([
-      apiClient.get<Detail>(base),
+      apiClient.get<Detail & { review?: Evaluation }>(base),
       apiClient.file(`${base}/source`, { expectedMimeType: "application/pdf" }),
     ])
       .then(async ([data, blob]) => {
@@ -122,8 +161,15 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
           await loadingTask.destroy();
           return;
         }
-        setDetail(data);
-        setMarks(data.evaluation?.annotations || []);
+        const normalized = manuscript
+          ? {
+              ...data,
+              evaluation: data.review || null,
+              signatureRequired: false,
+            }
+          : data;
+        setDetail(normalized);
+        setMarks(normalized.evaluation?.annotations || []);
         setPdf(loaded);
         setDirty(false);
         setSignatureBox(data.evaluation?.signaturePlacement || null);
@@ -138,16 +184,35 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
       active = false;
       loadingTask?.destroy();
     };
-  }, [base]);
+  }, [base, manuscript]);
   useEffect(() => {
-    if (!host.current) return;
-    const observer = new ResizeObserver((entries) =>
-      setAvailable(Math.max(280, entries[0].contentRect.width - 32)),
-    );
-    observer.observe(host.current);
+    if (!viewport.current) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setAvailable(Math.max(1, entry.contentRect.width));
+      setViewportHeight(entry.contentRect.height);
+    });
+    observer.observe(viewport.current);
     return () => observer.disconnect();
   }, [loading]);
-  const displayWidth = Math.min(available, 850) * zoom;
+  useEffect(() => {
+    if (!expanded) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !signOpen && !preview) setExpanded(false);
+    };
+    window.addEventListener("keydown", escape);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", escape);
+    };
+  }, [expanded, signOpen, preview]);
+  const displayWidth = fitPage
+    ? Math.min(
+        available,
+        (Math.max(1, viewportHeight) * size.width) / size.height,
+      )
+    : available * zoom;
   useEffect(() => {
     if (!pdf || !canvas.current) return;
     let cancelled = false;
@@ -287,28 +352,33 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
     setBusy(true);
     setError("");
     try {
-      const result = await apiClient.put<{ evaluation: Evaluation }>(base, {
+      const response = await apiClient.put<{
+        evaluation: Evaluation;
+        review?: Evaluation;
+      }>(base, {
         revision: state.detail.evaluation?.revision || 0,
         sourceVersionId: state.detail.template.id,
         annotations: state.marks,
       });
+      const result = manuscript ? { evaluation: response.review! } : response;
       setDetail((d) => (d ? { ...d, evaluation: result.evaluation } : d));
       setDirty(false);
       setNotice("Draft saved privately.");
+      if (manuscript) onDraftSaved?.();
       return result.evaluation;
     } finally {
       inFlight.current = false;
       setBusy(false);
     }
-  }, [base]);
+  }, [base, manuscript, onDraftSaved]);
   useEffect(() => {
-    if (!dirty || busy || !detail?.editable) return;
+    if (!dirty || busy || !detail?.editable || readOnly) return;
     const timer = setTimeout(
       () => save().catch((e) => setError(e.message)),
       2500,
     );
     return () => clearTimeout(timer);
-  }, [marks, dirty, busy, detail?.editable, save]);
+  }, [marks, dirty, busy, detail?.editable, readOnly, save]);
   const action = async (fn: () => Promise<void>) => {
     setError("");
     try {
@@ -384,6 +454,7 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
       height,
     };
     if (tool === "signature") {
+      if (manuscript) return;
       setSignatureBox(box);
       setSelected("signature");
       setTool("select");
@@ -507,33 +578,49 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
   if (loading)
     return (
       <div className="rounded-2xl border p-8" role="status">
-        Loading your evaluation PDF…
+        {manuscript
+          ? "Loading your manuscript review…"
+          : "Loading your evaluation PDF…"}
       </div>
     );
   if (!detail || !pdf)
     return (
       <div className="rounded-xl border p-6 text-rose-600" role="alert">
-        {error || "The PDF evaluation could not be opened."}
+        {error ||
+          (manuscript
+            ? "The manuscript review could not be opened."
+            : "The PDF evaluation could not be opened.")}
       </div>
     );
   return (
-    <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
+    <section
+      className={
+        expanded
+          ? "fixed inset-2 z-50 flex flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
+          : "rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden"
+      }
+    >
       <header className="border-b border-[var(--color-border)] p-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-emerald-600">
-            PDF evaluation · Your personal copy
+            {manuscript
+              ? "Manuscript review · Private draft"
+              : "PDF evaluation · Your personal copy"}
           </p>
           <h2 className="mt-1 text-xl font-bold">{detail.researchTitle}</h2>
           <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
             {detail.template.fileName}
           </p>
           <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-            {locked
-              ? "Final submission is locked."
-              : "Mark ratings directly on the form. Comments are included on additional pages in the completed PDF."}{" "}
-            {detail.signatureRequired
-              ? "Signature required."
-              : "Signature optional."}
+            {manuscript
+              ? `Annotate the published manuscript. Your notes stay private until you share feedback.${readOnly || detail.currentVersion === false ? " This is an earlier manuscript version; its review is read-only." : ""}`
+              : locked
+                ? "Final submission is locked."
+                : "Mark ratings directly on the form. Comments are included on additional pages in the completed PDF."}{" "}
+            {!manuscript &&
+              (detail.signatureRequired
+                ? "Signature required."
+                : "Signature optional.")}
           </p>
         </div>
         <span
@@ -548,7 +635,9 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
                 ? "Submitted and locked"
                 : detail.evaluation
                   ? "Draft saved"
-                  : "Blank evaluation"}
+                  : manuscript
+                    ? "Blank manuscript review"
+                    : "Blank evaluation"}
         </span>
       </header>
       {error && (
@@ -564,216 +653,290 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
           {notice}
         </p>
       )}
-      <div className="grid md:grid-cols-[210px_minmax(0,1fr)]">
-        <aside className="border-r border-[var(--color-border)] p-4 space-y-4">
-          <fieldset disabled={!editable} className="space-y-3">
-            <legend className="mb-2 text-sm font-bold">Annotation tools</legend>
-            <div className="grid grid-cols-2 gap-2">
+      <div className={expanded ? "relative min-h-0 flex-1" : "relative"}>
+        {panelOpen && (
+          <aside
+            aria-label="Annotation details"
+            className="absolute right-3 top-28 z-20 max-h-[min(65vh,620px)] w-[calc(100%_-_24px)] max-w-[300px] overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xl space-y-4"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-sm font-bold">Annotation details</h3>
+              <button
+                type="button"
+                aria-label="Close annotation details"
+                title="Close annotation details"
+                onClick={() => setPanelOpen(false)}
+                className="rounded-lg p-2 hover:bg-slate-500/10"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <fieldset disabled={!editable} className="space-y-3">
+              <p className="text-xs text-[var(--color-text-secondary)]">
+                Choose a tool, then click the PDF. Select a mark to move it;
+                drag its corner to resize. Press Delete or Backspace to remove
+                the selected mark.
+              </p>
+              <label className="block text-xs font-bold">
+                Text or comment
+                <textarea
+                  aria-label="Text or comment"
+                  rows={3}
+                  maxLength={4000}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  className="mt-2 w-full rounded border bg-[var(--color-surface)] p-2 text-sm"
+                />
+              </label>
+              {selectedMark && (
+                <div className="rounded-lg border p-3 space-y-2">
+                  <p className="text-sm font-bold">
+                    Selected {selectedMark.type}
+                  </p>
+                  {["text", "comment"].includes(selectedMark.type) && (
+                    <textarea
+                      aria-label="Edit selected annotation"
+                      rows={3}
+                      value={selectedMark.text || ""}
+                      onChange={(e) =>
+                        change(
+                          marks.map((m) =>
+                            m.id === selected
+                              ? { ...m, text: e.target.value }
+                              : m,
+                          ),
+                        )
+                      }
+                      className="w-full rounded border bg-[var(--color-surface)] p-2 text-sm"
+                    />
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["x", "y", "width", "height"] as const).map((key) => (
+                      <label key={key} className="text-xs">
+                        {key} (%)
+                        <input
+                          aria-label={`Annotation ${key} percent`}
+                          type="number"
+                          min={key === "width" || key === "height" ? 1 : 0}
+                          max="100"
+                          step="0.5"
+                          value={Math.round(selectedMark[key] * 1000) / 10}
+                          onChange={(e) => {
+                            const value = Number(e.target.value) / 100;
+                            const updated = { ...selectedMark, [key]: value };
+                            if (
+                              updated.x >= 0 &&
+                              updated.y >= 0 &&
+                              updated.width >= 0.005 &&
+                              updated.height >= 0.005 &&
+                              updated.x + updated.width <= 1 &&
+                              updated.y + updated.height <= 1
+                            )
+                              change(
+                                marks.map((m) =>
+                                  m.id === selected ? updated : m,
+                                ),
+                              );
+                          }}
+                          className="mt-1 w-full rounded border bg-[var(--color-surface)] p-1"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {signatureBox && (
+                <button
+                  className={styleButton}
+                  onClick={() => setSignOpen(true)}
+                >
+                  {detail.evaluation?.signedAt
+                    ? "Confirm signature again"
+                    : "Confirm signature placement"}
+                </button>
+              )}
+            </fieldset>
+            <div className="border-t pt-3">
+              <h3 className="text-sm font-bold">Comments</h3>
+              {marks.filter((m) => m.type === "comment").length === 0 && (
+                <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                  No comments yet.
+                </p>
+              )}
+              {marks
+                .filter((m) => m.type === "comment")
+                .sort((a, b) => a.page - b.page)
+                .map((m, i) => (
+                  <button
+                    key={m.id}
+                    onClick={() => {
+                      setPage(m.page);
+                      setSelected(m.id);
+                      setTool("select");
+                    }}
+                    className="mt-2 block w-full rounded border p-2 text-left text-xs"
+                  >
+                    {i + 1}. Page {m.page}: {m.text}
+                  </button>
+                ))}
+            </div>
+          </aside>
+        )}
+        <div className={expanded ? "flex h-full min-w-0 flex-col" : "min-w-0"}>
+          <div className="flex shrink-0 justify-center bg-slate-200/60 px-2 pt-3 pb-2">
+            <div
+              role="toolbar"
+              aria-label="Annotation tools"
+              className="flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl border border-white/10 bg-slate-800 p-1.5 text-slate-200 shadow-lg"
+            >
               {(
                 [
-                  ["select", "Select / move"],
-                  ["check", "Checkmark"],
-                  ["circle", "Circle"],
-                  ["cross", "Cross"],
-                  ["text", "Text"],
-                  ["highlight", "Highlight"],
-                  ["comment", "Comment"],
-                  ["signature", "Signature"],
+                  ["select", "Select / move", MousePointer2],
+                  ["check", "Checkmark", Check],
+                  ["circle", "Circle", Circle],
+                  ["cross", "Cross", X],
+                  ["text", "Text", Type],
+                  ["highlight", "Highlight", Highlighter],
+                  ["comment", "Comment", MessageSquare],
+                  ["signature", "Signature", PenTool],
                 ] as const
-              ).map(([id, label]) => (
+              )
+                .filter(([id]) => !manuscript || id !== "signature")
+                .map(([id, label, Icon]) => (
+                  <button
+                    type="button"
+                    key={id}
+                    aria-label={label}
+                    title={label}
+                    aria-pressed={tool === id}
+                    disabled={!editable}
+                    onClick={() => {
+                      setTool(id);
+                      setSelected(null);
+                      setError("");
+                      if (id === "text" || id === "comment") setPanelOpen(true);
+                    }}
+                    className={`shrink-0 rounded-xl p-2.5 transition-colors disabled:opacity-35 ${tool === id ? "bg-sky-500 text-white" : "hover:bg-white/10"}`}
+                  >
+                    <Icon size={18} aria-hidden="true" />
+                  </button>
+                ))}
+              <span className="mx-1 h-6 shrink-0 border-l border-white/20" />
+              {(
+                [
+                  ["Undo", Undo2, undoChange, !editable || !undo.length],
+                  ["Redo", Redo2, redoChange, !editable || !redo.length],
+                  [
+                    "Delete selected",
+                    Trash2,
+                    deleteSelected,
+                    !canDeleteSelected,
+                  ],
+                ] as const
+              ).map(([label, Icon, action, disabled]) => (
                 <button
-                  key={id}
-                  aria-pressed={tool === id}
-                  onClick={() => {
-                    setTool(id);
-                    setSelected(null);
-                    setError("");
-                  }}
-                  className={
-                    styleButton +
-                    (tool === id ? " bg-[var(--color-primary)] text-white" : "")
+                  type="button"
+                  key={label}
+                  aria-label={label}
+                  title={
+                    label === "Delete selected"
+                      ? "Delete selected (Delete / Backspace)"
+                      : label
                   }
+                  aria-keyshortcuts={
+                    label === "Delete selected" ? "Delete Backspace" : undefined
+                  }
+                  disabled={disabled}
+                  onClick={action}
+                  className="shrink-0 rounded-xl p-2.5 hover:bg-white/10 disabled:opacity-35"
                 >
-                  {label}
+                  <Icon size={18} aria-hidden="true" />
                 </button>
               ))}
-            </div>
-            <p className="text-xs text-[var(--color-text-secondary)]">
-              Choose a tool, then click the PDF. Select a mark to move it; drag
-              its corner to resize. Press Delete or Backspace to remove the
-              selected mark.
-            </p>
-            <label className="block text-xs font-bold">
-              Text or comment
-              <textarea
-                aria-label="Text or comment"
-                rows={3}
-                maxLength={4000}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                className="mt-2 w-full rounded border bg-[var(--color-surface)] p-2 text-sm"
-              />
-            </label>
-            <div className="flex flex-wrap gap-2">
+              <span className="mx-1 h-6 shrink-0 border-l border-white/20" />
               <button
-                className={styleButton}
-                disabled={!undo.length}
-                onClick={undoChange}
+                type="button"
+                aria-label="Annotation details and comments"
+                title="Annotation details and comments"
+                aria-expanded={panelOpen}
+                onClick={() => setPanelOpen(!panelOpen)}
+                className={`shrink-0 rounded-xl p-2.5 ${panelOpen ? "bg-white/20" : "hover:bg-white/10"}`}
               >
-                Undo
+                <Settings2 size={18} aria-hidden="true" />
               </button>
               <button
-                className={styleButton}
-                disabled={!redo.length}
-                onClick={redoChange}
+                type="button"
+                aria-label={expanded ? "Exit expanded view" : "Expand PDF view"}
+                title={
+                  expanded ? "Exit expanded view (Esc)" : "Expand PDF view"
+                }
+                onClick={() => setExpanded(!expanded)}
+                className="shrink-0 rounded-xl p-2.5 hover:bg-white/10"
               >
-                Redo
-              </button>
-              <button
-                className={styleButton}
-                disabled={!canDeleteSelected}
-                onClick={deleteSelected}
-                aria-keyshortcuts="Delete Backspace"
-                title="Remove the selected mark or signature box (Delete / Backspace)"
-              >
-                Delete selected
-              </button>
-            </div>
-            {selectedMark && (
-              <div className="rounded-lg border p-3 space-y-2">
-                <p className="text-sm font-bold">
-                  Selected {selectedMark.type}
-                </p>
-                {["text", "comment"].includes(selectedMark.type) && (
-                  <textarea
-                    aria-label="Edit selected annotation"
-                    rows={3}
-                    value={selectedMark.text || ""}
-                    onChange={(e) =>
-                      change(
-                        marks.map((m) =>
-                          m.id === selected
-                            ? { ...m, text: e.target.value }
-                            : m,
-                        ),
-                      )
-                    }
-                    className="w-full rounded border bg-[var(--color-surface)] p-2 text-sm"
-                  />
+                {expanded ? (
+                  <Minimize2 size={18} aria-hidden="true" />
+                ) : (
+                  <Maximize2 size={18} aria-hidden="true" />
                 )}
-                <div className="grid grid-cols-2 gap-2">
-                  {(["x", "y", "width", "height"] as const).map((key) => (
-                    <label key={key} className="text-xs">
-                      {key} (%)
-                      <input
-                        aria-label={`Annotation ${key} percent`}
-                        type="number"
-                        min={key === "width" || key === "height" ? 1 : 0}
-                        max="100"
-                        step="0.5"
-                        value={Math.round(selectedMark[key] * 1000) / 10}
-                        onChange={(e) => {
-                          const value = Number(e.target.value) / 100;
-                          const updated = { ...selectedMark, [key]: value };
-                          if (
-                            updated.x >= 0 &&
-                            updated.y >= 0 &&
-                            updated.width >= 0.005 &&
-                            updated.height >= 0.005 &&
-                            updated.x + updated.width <= 1 &&
-                            updated.y + updated.height <= 1
-                          )
-                            change(
-                              marks.map((m) =>
-                                m.id === selected ? updated : m,
-                              ),
-                            );
-                        }}
-                        className="mt-1 w-full rounded border bg-[var(--color-surface)] p-1"
-                      />
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-            {signatureBox && (
-              <button className={styleButton} onClick={() => setSignOpen(true)}>
-                {detail.evaluation?.signedAt
-                  ? "Confirm signature again"
-                  : "Confirm signature placement"}
               </button>
-            )}
-          </fieldset>
-          <div className="border-t pt-3">
-            <h3 className="text-sm font-bold">Comments</h3>
-            {marks.filter((m) => m.type === "comment").length === 0 && (
-              <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-                No comments yet.
-              </p>
-            )}
-            {marks
-              .filter((m) => m.type === "comment")
-              .sort((a, b) => a.page - b.page)
-              .map((m, i) => (
-                <button
-                  key={m.id}
-                  onClick={() => {
-                    setPage(m.page);
-                    setSelected(m.id);
-                    setTool("select");
-                  }}
-                  className="mt-2 block w-full rounded border p-2 text-left text-xs"
-                >
-                  {i + 1}. Page {m.page}: {m.text}
-                </button>
-              ))}
+            </div>
           </div>
-        </aside>
-        <div className="min-w-0" ref={host}>
           <nav
             aria-label="PDF page controls"
-            className="sticky top-0 z-10 flex flex-wrap items-center justify-center gap-3 border-b bg-[var(--color-surface)] p-3"
+            className="flex shrink-0 flex-wrap items-center justify-center gap-3 bg-slate-200/60 px-3 pb-3"
           >
             <button
               className={styleButton}
+              aria-label="Previous page"
+              title="Previous page"
               disabled={page <= 1}
               onClick={() => {
                 setPage((p) => p - 1);
                 setSelected(null);
               }}
             >
-              Previous page
+              <ChevronLeft size={16} aria-hidden="true" />
             </button>
             <span className="text-sm">
               Page {page} of {pdf.numPages}
             </span>
             <button
               className={styleButton}
+              aria-label="Next page"
+              title="Next page"
               disabled={page >= pdf.numPages}
               onClick={() => {
                 setPage((p) => p + 1);
                 setSelected(null);
               }}
             >
-              Next page
+              <ChevronRight size={16} aria-hidden="true" />
             </button>
             <label className="text-sm">
               Zoom{" "}
               <select
                 aria-label="PDF zoom"
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
+                value={fitPage ? "page" : zoom}
+                onChange={(e) => {
+                  setFitPage(e.target.value === "page");
+                  if (e.target.value !== "page")
+                    setZoom(Number(e.target.value));
+                }}
                 className="rounded border bg-[var(--color-surface)] p-2"
               >
+                <option value="page">Fit page</option>
                 {[0.75, 1, 1.25, 1.5, 2].map((v) => (
                   <option key={v} value={v}>
-                    {v * 100}%
+                    {v === 1 ? "Fit width" : `${v * 100}%`}
                   </option>
                 ))}
               </select>
             </label>
           </nav>
-          <div className="overflow-auto bg-slate-200/60 p-4 max-h-[850px]">
+          <div
+            ref={viewport}
+            className={`overflow-auto bg-slate-200/60 p-4 ${expanded ? "min-h-0 flex-1" : "h-[min(78vh,850px)] min-h-[280px]"}`}
+          >
             <div
               ref={surface}
               data-testid="evaluation-pdf-page"
@@ -971,11 +1134,13 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
           </div>
         </div>
       </div>
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t p-4">
+      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t p-4">
         <p className="text-xs text-[var(--color-text-secondary)]">
-          {locked
-            ? "Your final PDF is available for download."
-            : "Your draft is private. The professor sees it only after final submission."}
+          {manuscript
+            ? "Drafts are private. Sharing publishes a fixed copy to the professor and active research group members."
+            : locked
+              ? "Your final PDF is available for download."
+              : "Your draft is private. The professor sees it only after final submission."}
         </p>
         <div className="flex gap-2">
           {locked ? (
@@ -1015,11 +1180,17 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
                 Save draft
               </button>
               <button
-                disabled={!editable || !marks.length}
+                disabled={
+                  busy ||
+                  (!editable && !(manuscript && detail.evaluation)) ||
+                  !marks.length
+                }
                 className={primary}
                 onClick={() => action(previewDraft)}
               >
-                Preview completed PDF
+                {manuscript
+                  ? "Preview annotated manuscript"
+                  : "Preview completed PDF"}
               </button>
             </>
           )}
@@ -1116,15 +1287,21 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Preview completed evaluation"
+          aria-label={
+            manuscript
+              ? "Preview manuscript feedback"
+              : "Preview completed evaluation"
+          }
           className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-3"
         >
           <div className="flex h-[94vh] w-full max-w-6xl flex-col rounded-xl bg-[var(--color-surface)] p-4 gap-3">
             <div className="flex items-center justify-between gap-3">
               <h3 className="font-bold">
-                {preview.final
-                  ? "Final submitted evaluation"
-                  : "Review your completed evaluation"}
+                {manuscript
+                  ? "Review feedback before sharing"
+                  : preview.final
+                    ? "Final submitted evaluation"
+                    : "Review your completed evaluation"}
               </h3>
               <button
                 disabled={busy}
@@ -1135,15 +1312,16 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
               </button>
             </div>
             <PdfDocumentPreview url={preview.url} />
-            {!preview.final && (
+            {!preview.final && (!manuscript || canShare) && (
               <label className="flex gap-2 text-sm">
                 <input
                   type="checkbox"
                   checked={confirmed}
                   onChange={(e) => setConfirmed(e.target.checked)}
                 />
-                I reviewed all pages and confirm this evaluation is ready for
-                final submission.
+                {manuscript
+                  ? "I reviewed this copy and want to share all its annotations with the professor and active research group members."
+                  : "I reviewed all pages and confirm this evaluation is ready for final submission."}
               </label>
             )}
             {!preview.final &&
@@ -1161,16 +1339,18 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
             <div className="flex justify-end gap-2">
               <a
                 download={
-                  preview.final
-                    ? "completed-evaluation.pdf"
-                    : "draft-evaluation.pdf"
+                  manuscript
+                    ? "annotated-manuscript.pdf"
+                    : preview.final
+                      ? "completed-evaluation.pdf"
+                      : "draft-evaluation.pdf"
                 }
                 href={preview.url}
                 className={styleButton}
               >
                 Download PDF
               </a>
-              {!preview.final && (
+              {!preview.final && (!manuscript || canShare) && (
                 <button
                   disabled={
                     busy ||
@@ -1182,33 +1362,40 @@ export function PdfEvaluationWorkspace({ sessionId }: { sessionId: string }) {
                     action(async () => {
                       setBusy(true);
                       try {
-                        const result = await apiClient.post<{
+                        const response = await apiClient.post<{
                           evaluation: Evaluation;
-                        }>(`${base}/submit`, {
+                          review?: Evaluation;
+                        }>(`${base}/${manuscript ? "share" : "submit"}`, {
                           revision: detail.evaluation!.revision,
                           previewHash: preview.hash,
                           confirmed: true,
                         });
+                        const result = manuscript
+                          ? { evaluation: response.review! }
+                          : response;
                         setDetail((d) =>
                           d
                             ? {
                                 ...d,
                                 evaluation: result.evaluation,
-                                editable: false,
+                                editable: manuscript ? d.editable : false,
                               }
                             : d,
                         );
                         setPreview(null);
                         setNotice(
-                          "Evaluation submitted and permanently locked.",
+                          manuscript
+                            ? "Feedback shared. Further edits remain private until you share again."
+                            : "Evaluation submitted and permanently locked.",
                         );
+                        if (manuscript) onShared?.();
                       } finally {
                         setBusy(false);
                       }
                     })
                   }
                 >
-                  Submit final &amp; lock
+                  {manuscript ? "Share feedback" : "Submit final & lock"}
                 </button>
               )}
             </div>

@@ -29,6 +29,7 @@ import groupFileRoutes from "./routes/group-file.routes";
 import mailRoutes from "./routes/mail.routes";
 import defensePacketRoutes from "./routes/defense-packet.routes";
 import pdfEvaluationRoutes from "./routes/pdf-evaluation.routes";
+import manuscriptAnnotationRoutes from "./routes/manuscript-annotation.routes";
 import reviewerAssignmentRoutes from "./routes/reviewer-assignment.routes";
 import officialCopyRoutes from "./routes/official-copy.routes";
 import facultyProfileRoutes from "./routes/faculty-profile.routes";
@@ -65,6 +66,7 @@ app.use(
     "/api/official-copies/:officialCopyId/sign",
     "/api/defense-sessions/:id/pdf-evaluation/sign",
     "/api/defense-sessions/:id/pdf-evaluation",
+    "/api/defense-sessions/:id/manuscript-annotations/:versionId",
   ],
   express.json({ limit: "3mb" }),
 );
@@ -95,6 +97,7 @@ app.use("/api", groupFileRoutes);
 app.use("/api/mail", mailRoutes);
 app.use("/api", defensePacketRoutes);
 app.use("/api", pdfEvaluationRoutes);
+app.use("/api", manuscriptAnnotationRoutes);
 app.use("/api", reviewerAssignmentRoutes);
 app.use("/api", officialCopyRoutes);
 app.use("/api/faculty-profiles", facultyProfileRoutes);

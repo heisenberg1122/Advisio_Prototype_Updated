@@ -574,6 +574,7 @@ model User {
   manuscriptReviews         PanelistManuscriptReview[]
   panelRecommendations      PanelistRecommendation[]
   pdfEvaluations            PdfEvaluation[]
+  packetDocumentReviews     PacketDocumentReview[]
   chatGroupsCreated         ChatGroup[]                @relation("ChatGroupCreator")
   chatParticipations        ChatParticipant[]          @relation("ChatParticipantUser")
   chatInvitationsSent       ChatParticipant[]          @relation("ChatParticipantInviter")
@@ -1239,6 +1240,7 @@ model DocumentVersion {
   packetEvaluationTemplates     DefensePacket[]          @relation("DefensePacketEvaluationTemplate")
   generatedRecommendations      PanelistRecommendation[] @relation("GeneratedRecommendationVersion")
   pdfEvaluations                PdfEvaluation[]
+  packetDocumentReviews         PacketDocumentReview[]
   submitter                     User?                    @relation("DocumentVersionSubmitter", fields: [submittedBy], references: [id], onDelete: Restrict)
   milestone                     WorkflowStage?           @relation("DocumentVersionMilestone", fields: [milestoneId], references: [id], onDelete: SetNull)
   manuscriptStatusEvents        ManuscriptStatusEvent[]
@@ -1871,6 +1873,7 @@ model DefenseSession {
   manuscriptReviews PanelistManuscriptReview[]
   recommendations   PanelistRecommendation[]
   pdfEvaluations    PdfEvaluation[]
+  packetDocumentReviews PacketDocumentReview[]
 
   @@index([researchId, status])
   @@index([status, startedAt])
@@ -1907,6 +1910,38 @@ model PdfEvaluation {
 
   @@unique([defenseSessionId, panelistId])
   @@map("pdf_evaluations")
+}
+
+model PacketDocumentReview {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  defenseSessionId String   @map("defense_session_id") @db.Uuid
+  panelistId       String   @map("panelist_id") @db.Uuid
+  sourceVersionId  String   @map("source_version_id") @db.Uuid
+  sourceData       Bytes    @map("source_data")
+  sourceChecksum   String   @map("source_checksum") @db.VarChar(64)
+  annotations      Json     @default("[]")
+  revision         Int      @default(1)
+  previewHash      String?  @map("preview_hash") @db.VarChar(64)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  defenseSession DefenseSession @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
+  panelist User @relation(fields: [panelistId], references: [id], onDelete: Restrict)
+  sourceVersion DocumentVersion @relation(fields: [sourceVersionId], references: [id], onDelete: Restrict)
+  publications PacketReviewPublication[]
+  @@unique([defenseSessionId, panelistId, sourceVersionId], map: "packet_reviews_session_panelist_version_key")
+  @@map("packet_document_reviews")
+}
+
+model PacketReviewPublication {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reviewId      String   @map("review_id") @db.Uuid
+  revision      Int
+  pdfData       Bytes    @map("pdf_data")
+  integrityHash String   @map("integrity_hash") @db.VarChar(64)
+  publishedAt   DateTime @default(now()) @map("published_at")
+  review PacketDocumentReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  @@unique([reviewId, revision])
+  @@map("packet_review_publications")
 }
 
 model DefenseEvent {
