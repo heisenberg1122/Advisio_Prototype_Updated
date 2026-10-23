@@ -20,6 +20,7 @@ import { AppSidebar, NavSection } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
 import { AppWorkspaceFrame } from "@/components/layout/AppWorkspaceFrame";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
+import { useAuth } from "@/providers/auth-provider";
 
 const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
@@ -72,6 +73,42 @@ const PAGE_TITLES: Record<string, string> = {
 
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const { collapsed, toggle } = useSidebarCollapsed();
+  const { user } = useAuth();
+  const roles = user?.roles || [];
+  const isEthicsOnly = roles.includes("REB") && !roles.some((role) =>
+    ["RPO", "VPAA", "SYSTEM_ADMIN"].includes(role),
+  );
+  const isVpaa = roles.includes("VPAA") && !roles.includes("RPO");
+  const canViewOfficialCopies = roles.some((role) => ["RPO", "VPAA"].includes(role));
+  const navSections: NavSection[] = isEthicsOnly
+    ? [
+        {
+          title: "HOME",
+          items: [
+            { label: "Overview", href: "/admin/dashboard", tabName: "overview", icon: LayoutDashboard },
+          ],
+        },
+        {
+          title: "ETHICS REVIEW",
+          items: [
+            { label: "Manuscript Reviews", href: "/admin/reviews", icon: FileSearch },
+            { label: "Review Calendar", href: "/admin/calendar", icon: CalendarDays },
+          ],
+        },
+        {
+          title: "COMMUNICATION",
+          items: [
+            { label: "Messages", href: "/admin/dashboard?tab=messages", tabName: "messages", icon: MessageSquare },
+            { label: "Inbox", href: "/admin/inbox", icon: Mail },
+          ],
+        },
+      ]
+    : ADMIN_NAV_SECTIONS.map((section) => ({
+        ...section,
+        items: section.items.filter(
+          (item) => item.href !== "/admin/documents?tab=official" || canViewOfficialCopies,
+        ),
+      }));
   const activeTab = useSearchParams().get("tab") || "overview";
   const pathname = usePathname() || "";
   const pageTitle =
@@ -91,7 +128,11 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           ? "Manuscript Reviews"
         : pathname === "/admin/documents"
           ? "Official Copies"
-          : PAGE_TITLES[activeTab] || "Dean Dashboard";
+          : activeTab === "overview" && isEthicsOnly
+            ? "Research Ethics Board"
+            : activeTab === "overview" && isVpaa
+              ? "Institutional Research Dashboard"
+              : PAGE_TITLES[activeTab] || "Dean Dashboard";
 
   return (
     <AppWorkspaceFrame
@@ -100,9 +141,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       padSecondaryPages
       sidebar={
         <AppSidebar
-          roleTitle="Dean’s Office"
-          roleBadge="DEAN PORTAL"
-          navSections={ADMIN_NAV_SECTIONS}
+          roleTitle={isEthicsOnly ? "Research Ethics Board" : isVpaa ? "Office of the VPAA" : "Dean / RPO Office"}
+          roleBadge={isEthicsOnly ? "REB PORTAL" : isVpaa ? "VPAA PORTAL" : "DEAN / RPO PORTAL"}
+          navSections={navSections}
           collapsed={collapsed}
           onToggleCollapse={toggle}
           settingsHref="/admin/settings"

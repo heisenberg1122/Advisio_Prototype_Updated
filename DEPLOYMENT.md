@@ -50,6 +50,20 @@ docker compose stop postgres-test
 npx prisma migrate deploy --schema=packages/database/prisma/schema.prisma
 ```
 
+For the 2026-10-24 release candidate, verify the target's status before deploying. A database behind the Inbox/PDF work must apply these migrations in the committed order:
+
+1. `20261022010000_mail_workspace_state`
+2. `20261023010000_pdf_evaluation_workspace`
+3. `20261023020000_packet_manuscript_annotations`
+
+```bash
+npx prisma migrate status --schema=packages/database/prisma/schema.prisma
+npx prisma migrate deploy --schema=packages/database/prisma/schema.prisma
+npx prisma migrate status --schema=packages/database/prisma/schema.prisma
+```
+
+The two PDF migrations are additive and do not rewrite existing manuscripts or evaluations. Run them before starting the new API. The packet-column alteration can briefly lock `defense_packets`, and the new PDF byte columns require database storage headroom. Keep the pre-migration snapshot until staging UAT is complete. Prefer application rollback with the additive schema left in place; never drop the new tables or columns after they contain review data without an approved snapshot-restoration plan.
+
 5. Run the safe idempotent reference seed. It creates or updates roles, permissions, institutional units, and verified programs only; it does not create users, projects, workflows, submissions, documents, or demo records:
 
 ```bash
@@ -134,6 +148,8 @@ Deploy a Vercel preview first. Promote to production only after the staging chec
 - CORS rejects an unapproved origin.
 - No demo controls or passwords appear in the production bundle.
 - Logs contain no tokens, passwords, OAuth codes, database URLs, or document contents.
+
+The complete eight-role UAT matrix, Git synchronization procedure, environment preflight, migration evidence, and approval gates are recorded in [`docs/release-candidate-2026-10-24.md`](docs/release-candidate-2026-10-24.md).
 
 ## 7. Rollback
 

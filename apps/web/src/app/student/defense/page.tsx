@@ -31,7 +31,7 @@ export default function DefensePage() {
   const { data: packetData } = useQuery({
     queryKey: ["student-defense-packet", selectedSession?.id],
     queryFn: () => apiClient.get<{ packet: any }>(`/api/defense-sessions/${selectedSession.id}/review-packet`),
-    enabled: Boolean(selectedSession?.id),
+    enabled: Boolean(selectedSession?.id && selectedSession?.packet?.status === "PUBLISHED"),
     retry: false,
   });
   const { data: packetHistoryData } = useQuery({

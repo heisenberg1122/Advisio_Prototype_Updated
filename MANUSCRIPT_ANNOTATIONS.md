@@ -16,6 +16,8 @@ The manuscript version selector retains the panelist's earlier reviews. If the p
 
 Apply the `20261023020000_packet_manuscript_annotations` migration and regenerate Prisma before starting the updated API. It adds separate private review and immutable publication tables. No existing evaluations or manuscript versions are rewritten. The workspace inherits the annotation renderer's 20 MB / 500-page limits and standard Latin text font.
 
+This migration follows `20261023010000_pdf_evaluation_workspace` in the committed order and depends on the existing defense-session, user, and document-version schema. It creates only new tables, indexes, foreign keys, and an update guard, so older application code remains compatible. Roll back the application before considering schema recovery; dropping these tables after reviewers have used them would permanently remove private drafts and published feedback unless a verified database snapshot is restored.
+
 ```powershell
 npm --workspace=api run type-check
 npm --workspace=web run type-check

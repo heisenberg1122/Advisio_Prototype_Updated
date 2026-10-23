@@ -11,12 +11,14 @@ Advisio provides dedicated, role-tailored dashboards and workspace environments 
 
 | Route | Role | Description |
 |---|---|---|
-| `/student/*` | **Researcher / Student** | Research group workspace, manuscript submission, milestone progress, and consultation requests. |
-| `/adviser/*` | **Faculty Adviser** | Advisee tracking, inline document reviews, commenting, consultation scheduling, and milestone approvals. |
-| `/panelist/*` | **Defense Panelist** | Defense session schedule, manuscript evaluation, digital scoring sheets, and grading records. |
-| `/professor/*` | **Course Professor** | Blank-canvas task builder, project progress monitoring, progression deployment, and milestone locking. |
-| `/admin/*` | **Institutional Admin** | User account management, defense panel assignments, deadline calendar, and completion certificate generation. |
-| `/system-admin/*` | **System Administrator** | College/program onboarding, global RBAC matrix oversight, audit logs, and maintenance. |
+| `/student/*` | **Researcher** | Onboarding, research group and adviser requests, project workspace, tasks, versioned documents, consultations, and defense results. |
+| `/adviser/*` | **Adviser** | My Advisees, adviser requests, document review and endorsement, consultations, milestone approvals, and official copies. |
+| `/professor/*` | **Research Coordinator** | Workflow authoring, participant/project monitoring, submissions, panel assignments, defenses, and result release. |
+| `/panelist/*` | **Panelist** | Defense Center, manuscript annotation, rubric or PDF evaluation, recommendations, signatures, and results. |
+| `/admin/*` | **Dean / RPO** | College-scoped research oversight, adviser capacity, approvals, signatures, official copies, and reports. |
+| `/admin/*` | **REB** | Ethics review workspace, review calendar, Inbox, Messages, and notifications without Dean-management controls. |
+| `/admin/*` | **VPAA** | Institution-wide oversight, academic approvals, official copies, and reporting. |
+| `/system-admin/*` | **System Administrator** | Account and program administration, global RBAC, integrations, audit logs, backups, and maintenance. |
 
 ---
 

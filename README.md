@@ -15,14 +15,15 @@
 
 1. [System Architecture & Monorepo Structure](#-system-architecture--monorepo-structure)
 2. [Key Features](#-key-features)
-3. [Researcher Workflow Invitations & Monitoring](#-researcher-workflow-invitations--monitoring)
-4. [Internal Inbox & Dean Approval Workflow](#-internal-inbox--dean-approval-workflow)
-5. [Secure Document Signatures](#-secure-document-signatures)
-6. [Quickstart & Development Setup](#-quickstart--development-setup)
-7. [Development demo accounts](#development-demo-accounts)
-8. [Database Management & Prisma](#-database-management--prisma)
-9. [Environment Variables Guide](#-environment-variables-guide)
-10. [Troubleshooting & FAQ](#-troubleshooting--faq)
+3. [Institutional Roles](#-institutional-roles)
+4. [Researcher Workflow Invitations & Monitoring](#-researcher-workflow-invitations--monitoring)
+5. [Internal Inbox & Dean Approval Workflow](#-internal-inbox--dean-approval-workflow)
+6. [Secure Document Signatures](#-secure-document-signatures)
+7. [Quickstart & Development Setup](#-quickstart--development-setup)
+8. [Development demo accounts](#development-demo-accounts)
+9. [Database Management & Prisma](#-database-management--prisma)
+10. [Environment Variables Guide](#-environment-variables-guide)
+11. [Troubleshooting & FAQ](#-troubleshooting--faq)
 
 ---
 
@@ -67,7 +68,7 @@ Advisio_Prototype_Updated/
 
 ## ✨ Key Features
 
-- 🎓 **Multi-Role Portals**: Dedicated workspaces for **Students/Researchers**, **Faculty Advisers**, **Defense Panelists**, **Research Coordinators / Deans**, and **System Administrators**.
+- 🎓 **Eight Institutional Roles**: Dedicated, permission-scoped experiences for **Researchers**, **Advisers**, **Research Coordinators**, **Panelists**, **Dean/RPO**, **REB**, **VPAA**, and **System Administrators**.
 - 📊 **Interactive Gantt Chart & Task Board**: Milestone-based task breakdown, progress tracking, and deliverables management.
 - 👨‍🏫 **Adviser Pool & Request System**: Filter advisers by specialization and slot availability, submit advising proposals, and track request status in real-time.
 - ⚖️ **Live Defense & Rubric Scoring**: Panel defense scheduling, live scoring matrices, deliberation comments, and institutional grading.
@@ -81,6 +82,25 @@ Advisio_Prototype_Updated/
 - 📨 **Dean Defense Approval Requests**: Professors can send a defense-approval PDF directly to the correct dean, with the recipient's name shown before submission and each dean seeing only requests addressed to them.
 - ☁️ **Pluggable Document Storage**: Google Drive integration, optional Supabase storage, and a configurable local fallback.
 - 🏛️ **College & Department Customization**: Manage colleges (CIT, etc.), academic programs (BSIT, BSCS, etc.), dynamic forms, and institutional workflow stages.
+
+---
+
+## 🧭 Institutional Roles
+
+| Role | Primary responsibilities |
+| :--- | :--- |
+| **Researcher** | Verified onboarding, research groups, adviser requests, project workspace, tasks, documents, consultations, defense status, Inbox, and Messages |
+| **Adviser** | My Advisees, adviser requests, manuscript review and endorsement, consultations, milestone approval, and official copies |
+| **Research Coordinator** | Workflow and milestone authoring, participant/project monitoring, submission review, panel assignment, defense scheduling, and result release |
+| **Panelist** | Defense Center, published manuscript review, annotations, rubric/PDF evaluation, recommendations, signatures, and results |
+| **Dean / RPO** | College-scoped oversight, adviser capacity, academic approvals, signatures, official copies, and reports |
+| **REB** | Ethics manuscript review, review calendar, institutional communication, and notifications |
+| **VPAA** | Institution-wide oversight, academic approvals, official copies, and reporting |
+| **System Administrator** | Accounts, roles, permissions, colleges/programs, integrations, audit logs, backups, and system configuration |
+
+Inbox is formal role-scoped correspondence with folders, drafts, threads, replies, and attachments. Project **Messages** remain a separate collaboration channel. Defense scheduling supports online, on-site, and hybrid sessions. Released results and signed or published academic outputs are preserved as immutable versions rather than overwriting their sources.
+
+The current release-candidate evidence, migration order, Git synchronization procedure, staging checklist, and rollback plan are maintained in [`docs/release-candidate-2026-10-24.md`](docs/release-candidate-2026-10-24.md).
 
 ---
 
@@ -254,15 +274,15 @@ npm run build
 
 ---
 
-### 6. Run Database Migrations & Seed Sample Data
+### 6. Run Database Migrations & Seed Reference Data
 
-Populate the database with institutional roles, demo users, sample research projects, workflows, defense sessions, and announcements:
+Apply committed migrations, then create or update the institutional roles, permissions, colleges/schools, and verified program catalog. The standard seed does not create demo accounts or research records.
 
 ```bash
 # From the repository root, apply committed migrations in a deployed environment
 npx prisma migrate deploy --schema packages/database/prisma/schema.prisma
 
-# Seed sample data
+# Seed idempotent institutional reference data
 npm run db:seed
 ```
 
@@ -284,17 +304,21 @@ The system will start both the frontend and backend servers concurrently:
 
 ### Database Integration Tests
 
-`npm test` runs the standard unit suites and does not require PostgreSQL. Database integration suites are opt-in and must use a dedicated PostgreSQL database whose name contains `test`; the runner refuses development or production-style database names.
+`npm test` runs the standard unit suites and does not require PostgreSQL. Database integration suites are opt-in and accept only the dedicated local `advisio_test` database with the required application-name marker.
 
-Create the isolated database once, then provide its URL to the sequential runner:
+Start the isolated test service, set the explicit safety flags, and run the sequential suite:
 
 ```powershell
-docker exec advisio-postgres createdb -U advisio_local advisio_integration_test
-$env:INTEGRATION_DATABASE_URL="postgresql://advisio_local:advisio_local_password@127.0.0.1:5433/advisio_integration_test?schema=public"
+docker compose up -d postgres-test
+$env:NODE_ENV="test"
+$env:RUN_DATABASE_INTEGRATION_TESTS="1"
+$env:INTEGRATION_DATABASE_EXPECTED_NAME="advisio_test"
+$env:INTEGRATION_DATABASE_URL="postgresql://advisio_test:advisio_test_password@127.0.0.1:5434/advisio_test?schema=public&application_name=advisio-integration-tests"
 npm run test:integration
+docker compose stop postgres-test
 ```
 
-The runner applies committed migrations and executes the manuscript lifecycle, reviewer assignment, and faculty-profile integration suites sequentially. Each suite creates and removes its own fixtures; it never depends on seeded demo accounts. Set `ALLOW_REMOTE_INTEGRATION_DATABASE=1` only for a deliberately isolated remote CI test database.
+The runner validates the live database identity, applies committed migrations, executes the manuscript lifecycle, reviewer assignment, defense, Inbox, remediation, and faculty-profile suites sequentially, and verifies cleanup. Each suite creates and removes exact disposable fixtures; it never depends on seeded demo accounts. Set `ALLOW_REMOTE_INTEGRATION_DATABASE=1` only for a deliberately isolated remote CI test database.
 
 ---
 
@@ -314,18 +338,23 @@ The development seed is blocked when `NODE_ENV=production`. Do not share demo cr
 
 ## 🛠 Database Management & Prisma
 
-Useful commands when working with the database:
+Use migration history rather than schema pushing for any persistent environment:
 
 ```bash
 # View and edit database records in Prisma Studio GUI
 cd packages/database
 npx prisma studio
 
-# Reset and re-seed the entire database from scratch
-npx prisma db push --force-reset
-npm run db:push
+# Return to the repository root, inspect migration status, then apply committed migrations
+cd ../..
+npx prisma migrate status --schema=packages/database/prisma/schema.prisma
+npx prisma migrate deploy --schema=packages/database/prisma/schema.prisma
+
+# Seed idempotent institutional reference data only
 npm run db:seed
 ```
+
+Never run `prisma migrate reset`, `prisma db push --force-reset`, or the development demo seed against a shared, staging, or production database. Use the guarded commands in [`LOCAL_DEMO.md`](LOCAL_DEMO.md) only for the isolated `advisio_demo_local` fixture environment.
 
 ---
 

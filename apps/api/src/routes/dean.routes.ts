@@ -31,11 +31,14 @@ router.get(
         typeof req.query.collegeId === "string"
           ? req.query.collegeId
           : undefined;
-      const collegeId = req.user!.roles.includes("SYSTEM_ADMIN")
+      const hasInstitutionWideScope = req.user!.roles.some((role) =>
+        ["SYSTEM_ADMIN", "VPAA"].includes(role),
+      );
+      const collegeId = hasInstitutionWideScope
         ? requestedCollegeId || req.user!.collegeId || undefined
         : req.user!.collegeId || undefined;
 
-      if (!collegeId) {
+      if (!collegeId && !hasInstitutionWideScope) {
         res
           .status(400)
           .json({ error: "This dean account is not assigned to a college." });
@@ -54,12 +57,18 @@ router.get(
 
       const [college, programs, academicYears, users, projects, adviserUsers, adviserCandidates] =
         await Promise.all([
-          prisma.college.findUnique({
-            where: { id: collegeId },
-            select: { id: true, code: true, name: true },
-          }),
+          collegeId
+            ? prisma.college.findUnique({
+                where: { id: collegeId },
+                select: { id: true, code: true, name: true },
+              })
+            : Promise.resolve({
+                id: "institution-wide",
+                code: "ALL",
+                name: "Institution-wide",
+              }),
           prisma.program.findMany({
-            where: { collegeId, isActive: true },
+            where: { ...(collegeId && { collegeId }), isActive: true },
             orderBy: { name: "asc" },
           }),
           prisma.academicYear.findMany({
@@ -68,7 +77,7 @@ router.get(
           }),
           prisma.user.findMany({
             where: {
-              collegeId,
+              ...(collegeId && { collegeId }),
               ...(programId && { programId }),
               roles: { some: { role: { name: "RESEARCHER" } } },
             },
@@ -84,7 +93,7 @@ router.get(
           }),
           prisma.researchProject.findMany({
             where: {
-              collegeId,
+              ...(collegeId && { collegeId }),
               ...(programId && { programId }),
               ...(academicYearId && { academicYearId }),
             },
@@ -111,7 +120,7 @@ router.get(
           }),
           prisma.user.findMany({
             where: {
-              collegeId,
+              ...(collegeId && { collegeId }),
               status: "ACTIVE",
               ...(programId && { programId }),
               roles: { some: { role: { name: "ADVISER" } } },
@@ -141,7 +150,7 @@ router.get(
           }),
           prisma.user.findMany({
             where: {
-              collegeId,
+              ...(collegeId && { collegeId }),
               status: "ACTIVE",
               id: { not: req.user!.id },
               roles: {

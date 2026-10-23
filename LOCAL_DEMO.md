@@ -86,3 +86,5 @@ The seed includes three fictional BSIT, BSTM, and BSHM projects with seven-stage
 Seeded PDFs are ordinary mutable local fixture files. Their `storageProvider` is `LOCAL`, all Google Drive IDs are null, and no document version is marked immutable.
 
 The active program accounts exercise all 20 verified program assignments and their existing themes. System Administrator always uses Default Advisio branding. The three onboarding records include program-relevant stored interests for approval-queue testing, but those records are not evidence that the public onboarding selector is dynamically program-aware.
+
+The verified database count is nine institutional units: COA, CEA, CHTM, CNP, SAS, SBPA, SOE, SHS, and CIT. Eight units currently have verified higher-education theme-group mappings; SHS remains a valid institutional reference record but has no verified degree-program theme and therefore uses the default Advisio theme. This intentionally reconciles the nine college/school records with eight verified institutional theme groups.

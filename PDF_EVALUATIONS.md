@@ -18,6 +18,8 @@ PDF evaluations count toward defense completion, but visual ratings do not creat
 
 Apply the committed `20261023010000_pdf_evaluation_workspace` Prisma migration and regenerate the Prisma client before starting the updated API. The migration adds packet settings and a separate PDF evaluation table. Source snapshots, drafts, signature bytes, and final PDFs are stored in the database; uploaded templates continue to use the configured document storage provider. Templates are limited to 20 MB and 500 pages.
 
+The migration follows `20261022010000_mail_workspace_state` and precedes `20261023020000_packet_manuscript_annotations`. It is backward-compatible and additive: existing packet rows receive `RUBRIC` and `false` defaults, and no existing evaluation or document bytes are rewritten. The `defense_packets` alteration takes a table lock, so staging must use a controlled migration window even though PostgreSQL 16 normally applies constant defaults without a full table rewrite. Roll back the application first; dropping the new table or columns after use would destroy PDF evaluation data.
+
 Unit checks:
 
 ```powershell

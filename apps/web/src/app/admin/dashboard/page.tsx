@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Suspense, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -153,6 +154,9 @@ function EmptyState({ title, detail }: { title: string; detail: string }) {
 function DeanDashboardContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const roles = user?.roles || [];
+  const isInstitutionWide = roles.includes("VPAA") && !roles.some((role) => ["RPO", "SYSTEM_ADMIN"].includes(role));
+  const canManageCollege = !isInstitutionWide;
   const queryClient = useQueryClient();
   const activeView = searchParams.get("tab") || "overview";
   const [programId, setProgramId] = useState("all");
@@ -254,8 +258,10 @@ function DeanDashboardContent() {
         {activeView === "overview" && (
           <DashboardWelcome
             firstName={user?.firstName}
-            fallbackName="Dean"
-            summary="Here's an overview of research progress, programs, and academic activity across your college."
+            fallbackName={isInstitutionWide ? "VPAA" : "Dean"}
+            summary={isInstitutionWide
+              ? "Here's an institution-wide overview of research progress, programs, and academic activity."
+              : "Here's an overview of research progress, programs, and academic activity across your college."}
           />
         )}
         {activeView !== "messages" && (
@@ -421,7 +427,9 @@ function DeanDashboardContent() {
               <article className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Needs Dean Attention</h2>
+                    <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
+                      {isInstitutionWide ? "Needs Institutional Attention" : "Needs Dean Attention"}
+                    </h2>
                     <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">Priority bottlenecks and overdue research milestones.</p>
                   </div>
                   <Pill tone={data.attention.length ? "red" : "green"}>{data.attention.length} items</Pill>
@@ -532,6 +540,7 @@ function DeanDashboardContent() {
             projects={filteredProjects}
             updateStatus={(id, status) => updateStatus.mutate({ id, status })}
             updating={updateStatus.isPending}
+            canManage={canManageCollege}
           />
         )}
 
@@ -544,6 +553,7 @@ function DeanDashboardContent() {
             saving={saveAdviser.isPending || removeAdviser.isPending}
             onSave={(payload) => saveAdviser.mutateAsync(payload)}
             onRemove={(id) => removeAdviser.mutateAsync(id)}
+            canManage={canManageCollege}
           />
         )}
 
@@ -567,6 +577,7 @@ function AdviserWorkloadView({
   saving,
   onSave,
   onRemove,
+  canManage,
 }: {
   advisers: Adviser[];
   candidates: AdviserCandidate[];
@@ -574,6 +585,7 @@ function AdviserWorkloadView({
   saving: boolean;
   onSave: (payload: { mode: "add" | "edit"; id?: string; userId?: string; programId: string; maxAdviseeGroups: number; isAcceptingAdvisees: boolean; note?: string }) => Promise<unknown>;
   onRemove: (id: string) => Promise<unknown>;
+  canManage: boolean;
 }) {
   const [mode, setMode] = useState<"add" | "edit" | null>(null);
   const [selected, setSelected] = useState<Adviser | null>(null);
@@ -636,19 +648,23 @@ function AdviserWorkloadView({
           <div>
             <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Adviser Directory & Workload</h2>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-              Assign advisers to a program, manage capacity, and control availability.
+              {canManage
+                ? "Assign advisers to a program, manage capacity, and control availability."
+                : "Review adviser assignments, capacity, and availability across the institution."}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={openAdd}
-            disabled={!candidates.length}
-            title={candidates.length ? "Add an adviser" : "No eligible faculty accounts are available"}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 py-2.5 text-sm font-extrabold text-white shadow-xs transition hover:bg-[#0E4968] disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <Plus className="h-4 w-4" />
-            Add adviser
-          </button>
+          {canManage ? (
+            <button
+              type="button"
+              onClick={openAdd}
+              disabled={!candidates.length}
+              title={candidates.length ? "Add an adviser" : "No eligible faculty accounts are available"}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 py-2.5 text-sm font-extrabold text-white shadow-xs transition hover:bg-[#0E4968] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <Plus className="h-4 w-4" />
+              Add adviser
+            </button>
+          ) : null}
         </div>
 
         {error && !mode && (
@@ -713,14 +729,14 @@ function AdviserWorkloadView({
                   <span className="text-xs text-slate-500 dark:text-slate-400">
                     {adviser.availableSlots} {adviser.availableSlots === 1 ? "slot" : "slots"} available
                   </span>
-                  <div className="flex gap-1.5">
+                  {canManage ? <div className="flex gap-1.5">
                     <button type="button" onClick={() => openEdit(adviser)} className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-[#0B3A53] transition hover:border-[#C9A227] hover:bg-slate-50 dark:border-white/15 dark:text-sky-300 dark:hover:bg-white/5" aria-label={`Edit ${adviser.name}`}>
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button type="button" disabled={saving} onClick={() => void remove(adviser)} className="grid h-9 w-9 place-items-center rounded-xl border border-rose-200 text-rose-600 transition hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900/50 dark:text-rose-400 dark:hover:bg-rose-950/30" aria-label={`Remove ${adviser.name}`}>
                       <Trash2 className="h-4 w-4" />
                     </button>
-                  </div>
+                  </div> : null}
                 </div>
               </article>
             );
@@ -733,7 +749,7 @@ function AdviserWorkloadView({
         </div>
       </div>
 
-      {mode && (
+      {canManage && mode && (
         <div
           className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4 backdrop-blur-xs"
           role="dialog"
@@ -880,6 +896,7 @@ function RegistryView({
   projects,
   updateStatus,
   updating,
+  canManage,
 }: {
   activeView: string;
   search: string;
@@ -890,6 +907,7 @@ function RegistryView({
   projects: Project[];
   updateStatus: (id: string, status: string) => void;
   updating: boolean;
+  canManage: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
@@ -939,7 +957,7 @@ function RegistryView({
           <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500 font-extrabold dark:bg-white/[0.02] dark:text-slate-400">
               <tr>
-                {["Student", "Program", "Research group", "Adviser", "Stage", "Progress", "Account", "Action"].map((heading) => (
+                {["Student", "Program", "Research group", "Adviser", "Stage", "Progress", "Account", ...(canManage ? ["Action"] : [])].map((heading) => (
                   <th key={heading} className="px-5 py-3 font-extrabold">
                     {heading}
                   </th>
@@ -971,7 +989,7 @@ function RegistryView({
                       {student.accountStatus}
                     </Pill>
                   </td>
-                  <td className="px-5 py-4">
+                  {canManage ? <td className="px-5 py-4">
                     {student.accountStatus === "PENDING" ? (
                       <button
                         disabled={updating}
@@ -989,7 +1007,7 @@ function RegistryView({
                         Suspend
                       </button>
                     ) : null}
-                  </td>
+                  </td> : null}
                 </tr>
               ))}
             </tbody>
@@ -1049,12 +1067,80 @@ function RegistryView({
   );
 }
 
+function EthicsDashboardContent() {
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const activeView = searchParams.get("tab") || "overview";
+
+  if (activeView === "messages") {
+    return <FacultyGroupChats />;
+  }
+
+  const workspaces = [
+    {
+      title: "Ethics Review Queue",
+      detail: "Review assigned manuscripts, record ethics findings, and return revision decisions.",
+      href: "/admin/reviews",
+      icon: ShieldAlert,
+    },
+    {
+      title: "Research Communication",
+      detail: "Coordinate securely with researchers, advisers, and institutional reviewers.",
+      href: "/admin/inbox",
+      icon: BookOpen,
+    },
+    {
+      title: "Review Calendar",
+      detail: "Track ethics review dates, institutional deadlines, and scheduled defenses.",
+      href: "/admin/calendar",
+      icon: CheckCircle2,
+    },
+  ];
+
+  return (
+    <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      <DashboardWelcome
+        firstName={user?.firstName}
+        fallbackName="Reviewer"
+        summary="Your ethics workspace keeps manuscript review, institutional communication, and scheduled decisions in one place."
+      />
+      <section className="grid gap-4 md:grid-cols-3">
+        {workspaces.map((workspace) => (
+          <Link
+            key={workspace.title}
+            href={workspace.href}
+            className="group rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs transition hover:-translate-y-0.5 hover:border-[#0B3A53]/30 hover:shadow-md dark:border-white/10 dark:bg-[#101b2b]"
+          >
+            <span className="grid h-12 w-12 place-items-center rounded-xl bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">
+              <workspace.icon className="h-6 w-6" />
+            </span>
+            <h2 className="mt-5 text-lg font-black text-slate-900 dark:text-white">{workspace.title}</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{workspace.detail}</p>
+            <span className="mt-5 inline-flex items-center gap-2 text-xs font-extrabold text-[#0B3A53] dark:text-[#C9A227]">
+              Open workspace <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+        ))}
+      </section>
+    </div>
+  );
+}
+
+function AdministrativeDashboardContent() {
+  const { user } = useAuth();
+  const roles = user?.roles || [];
+  const isEthicsOnly = roles.includes("REB") && !roles.some((role) =>
+    ["RPO", "VPAA", "SYSTEM_ADMIN"].includes(role),
+  );
+  return isEthicsOnly ? <EthicsDashboardContent /> : <DeanDashboardContent />;
+}
+
 export default function AdminDashboardPage() {
   return (
     <Suspense
       fallback={<DashboardSkeleton />}
     >
-      <DeanDashboardContent />
+      <AdministrativeDashboardContent />
     </Suspense>
   );
 }
