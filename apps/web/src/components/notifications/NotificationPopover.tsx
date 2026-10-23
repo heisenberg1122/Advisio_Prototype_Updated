@@ -63,9 +63,9 @@ export function NotificationPopover({ viewAllHref, compact = false }: Notificati
           compact ? "h-8 w-8 rounded-full" : "h-10 w-10 rounded-xl border border-slate-200"
         )}
       >
-        <i className={cn("ti ti-bell", compact ? "text-[22px]" : "text-xl")} />
+        <i className={cn("ti ti-bell", compact ? "text-[19px]" : "text-xl")} />
         {unreadCount > 0 && (
-          <span className="absolute right-1.5 top-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-black leading-none text-white ring-2 ring-white">
+          <span className={cn("pointer-events-none absolute flex items-center justify-center rounded-full bg-rose-500 px-1 font-semibold leading-none text-white shadow-xs ring-1.5 ring-white dark:ring-slate-900", compact ? "-top-0.5 -right-0.5 h-3.5 min-w-3.5 text-[8.5px]" : "top-1 right-1 h-3.5 min-w-3.5 text-[9px]")}>
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
