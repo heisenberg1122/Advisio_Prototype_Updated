@@ -87,10 +87,10 @@ export function AdviserFacultyProfileView() {
           <div className="flex items-start gap-3">
             <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-sm font-extrabold text-amber-900 dark:text-amber-200">
+              <h4 className="text-lg font-extrabold text-amber-900 dark:text-amber-200">
                 Draft Profile Details Found On This Device
               </h4>
-              <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+              <p className="text-base text-amber-700 dark:text-amber-300 mt-0.5">
                 We detected earlier profile information stored locally in your browser. Would you like to review and save it to your official faculty profile?
               </p>
             </div>
@@ -103,7 +103,7 @@ export function AdviserFacultyProfileView() {
                 dismissLegacyData();
                 setLegacyData(null);
               }}
-              className="text-xs"
+              className="text-sm"
             >
               Dismiss
             </Button>
@@ -111,7 +111,7 @@ export function AdviserFacultyProfileView() {
               variant="primary"
               size="sm"
               onClick={() => router.push("/adviser/profile/edit?importLegacy=true")}
-              className="text-xs bg-amber-600 hover:bg-amber-700 text-white border-amber-600"
+              className="text-sm bg-amber-600 hover:bg-amber-700 text-white border-amber-600"
             >
               Review & Import
             </Button>
@@ -142,11 +142,11 @@ export function AdviserFacultyProfileView() {
             {/* Suggestions */}
             {suggestions.length > 0 && (
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-bold text-slate-400">Suggested additions:</span>
+                <span className="text-xs font-bold text-slate-400">Suggested additions:</span>
                 {suggestions.slice(0, 3).map((suggestion, idx) => (
                   <span
                     key={idx}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 px-2.5 py-0.5 rounded-lg border border-slate-200 dark:border-white/10"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-white/5 px-2.5 py-0.5 rounded-lg border border-slate-200 dark:border-white/10"
                   >
                     <Info className="h-3 w-3 text-[#C9A227]" />
                     {suggestion}
@@ -154,7 +154,7 @@ export function AdviserFacultyProfileView() {
                 ))}
               </div>
             )}
-            <p className="mt-2 text-[11px] text-slate-400 italic">
+            <p className="mt-2 text-sm text-slate-400 italic">
               Note: Profile completion is for student guidance only. Your verified adviser status and ability to receive research group requests are not restricted.
             </p>
           </div>
@@ -200,7 +200,7 @@ export function AdviserFacultyProfileView() {
               <h2 className="text-xl sm:text-2xl font-extrabold text-[#17212B] dark:text-white">
                 {academicTitle ? `${academicTitle} ${fullName}` : fullName}
               </h2>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2.5 py-0.5 text-xs font-extrabold text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
                 <CheckCircle2 className="h-3.5 w-3.5" /> Verified Adviser
               </span>
             </div>
@@ -238,7 +238,7 @@ export function AdviserFacultyProfileView() {
                 }}
               />
             </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-500">
+            <div className="flex items-center justify-between text-xs text-slate-500">
               <span>{capacity.adviseeCount} active groups</span>
               <span>Max: {capacity.maxAdviseeGroups}</span>
             </div>
@@ -252,13 +252,13 @@ export function AdviserFacultyProfileView() {
         <div className="lg:col-span-2 flex flex-col gap-6">
           {/* Professional Summary & Biography */}
           <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-sm flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
               <BookOpen className="h-4 w-4 text-[#C9A227]" />
               Professional Summary & Mentoring Philosophy
             </h3>
             <div className="space-y-4 text-xs sm:text-[13px] leading-relaxed">
               <div>
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block mb-1">
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
                   Faculty Biography
                 </span>
                 <p className="text-slate-800 dark:text-slate-200 whitespace-pre-line">
@@ -268,7 +268,7 @@ export function AdviserFacultyProfileView() {
 
               {profile?.teachingBackground && (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block mb-1">
+                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
                     Teaching Background
                   </span>
                   <p className="text-slate-700 dark:text-slate-300 whitespace-pre-line">
@@ -279,7 +279,7 @@ export function AdviserFacultyProfileView() {
 
               {profile?.mentoringPhilosophy && (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block mb-1">
+                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
                     Research Mentoring Philosophy
                   </span>
                   <p className="text-slate-700 dark:text-slate-300 italic border-l-2 border-[#C9A227] pl-3 py-1">
@@ -290,7 +290,7 @@ export function AdviserFacultyProfileView() {
 
               {profile?.preferredProjectTypes && (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block mb-1">
+                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
                     Preferred Types of Research Projects
                   </span>
                   <p className="text-slate-700 dark:text-slate-300">
@@ -303,7 +303,7 @@ export function AdviserFacultyProfileView() {
 
           {/* Academic Qualifications */}
           <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-sm flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
               <GraduationCap className="h-4 w-4 text-[#C9A227]" />
               Academic Qualifications & Degrees
             </h3>
@@ -320,12 +320,12 @@ export function AdviserFacultyProfileView() {
                           {edu.degreeName}
                         </span>
                         {edu.graduationYear && (
-                          <span className="text-[11px] font-bold text-slate-400">
+                          <span className="text-xs font-bold text-slate-400">
                             ({edu.graduationYear})
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                      <p className="text-base text-slate-600 dark:text-slate-300 mt-0.5">
                         {edu.fieldOfStudy} · <span className="font-semibold">{edu.institution}</span>
                       </p>
                     </div>
@@ -333,7 +333,7 @@ export function AdviserFacultyProfileView() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-500 italic py-2">
+              <p className="text-sm text-slate-500 italic py-2">
                 No academic degrees entered yet.
               </p>
             )}
@@ -341,7 +341,7 @@ export function AdviserFacultyProfileView() {
 
           {/* Professional & Academic Experience */}
           <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-sm flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
               <Briefcase className="h-4 w-4 text-[#C9A227]" />
               Professional & Academic Experience
             </h3>
@@ -355,11 +355,11 @@ export function AdviserFacultyProfileView() {
                           <span className="text-xs sm:text-[13px] font-extrabold text-slate-900 dark:text-white">
                             {exp.title}
                           </span>
-                          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300">
+                          <span className="text-xs font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-slate-300">
                             {exp.type}
                           </span>
                         </div>
-                        <p className="text-xs font-medium text-slate-600 dark:text-slate-300 mt-0.5">
+                        <p className="text-base font-medium text-slate-600 dark:text-slate-300 mt-0.5">
                           {exp.organization}
                         </p>
                       </div>
@@ -368,7 +368,7 @@ export function AdviserFacultyProfileView() {
                       </span>
                     </div>
                     {exp.description && (
-                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
+                      <p className="text-base text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
                         {exp.description}
                       </p>
                     )}
@@ -376,7 +376,7 @@ export function AdviserFacultyProfileView() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-500 italic py-2">
+              <p className="text-sm text-slate-500 italic py-2">
                 No teaching or industry positions added yet.
               </p>
             )}
@@ -385,7 +385,7 @@ export function AdviserFacultyProfileView() {
           {/* Publications & Research Contributions */}
           {publications.length > 0 && (
             <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-              <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-sm flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+              <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
                 <FileText className="h-4 w-4 text-[#C9A227]" />
                 Publications & Conference Presentations
               </h3>
@@ -407,7 +407,7 @@ export function AdviserFacultyProfileView() {
                         href={pub.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0B3A53] dark:text-[#C9A227] mt-1.5 hover:underline"
+                        className="inline-flex items-center gap-1 text-sm font-bold text-[#0B3A53] dark:text-[#C9A227] mt-1.5 hover:underline"
                       >
                         <ExternalLink className="h-3 w-3" />
                         View Publication
@@ -424,7 +424,7 @@ export function AdviserFacultyProfileView() {
         <div className="flex flex-col gap-6">
           {/* Areas of Expertise */}
           <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-3">
-            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-sm flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
               <Award className="h-4 w-4 text-[#C9A227]" />
               Areas of Expertise
             </h3>
@@ -440,20 +440,20 @@ export function AdviserFacultyProfileView() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-500 italic">No expertise specialties selected yet.</p>
+              <p className="text-sm text-slate-500 italic">No expertise specialties selected yet.</p>
             )}
           </Card>
 
           {/* Research Interests & Topics */}
           <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-3">
-            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-sm flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+            <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
               <Lightbulb className="h-4 w-4 text-[#C9A227]" />
               Research Interests & Topics
             </h3>
             <div className="space-y-3 text-xs">
               {researchInterests.length > 0 && (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block mb-1">
+                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
                     Preferred Research Fields
                   </span>
                   <div className="flex flex-wrap gap-1">
@@ -466,7 +466,7 @@ export function AdviserFacultyProfileView() {
 
               {specializedTopics.length > 0 && (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block mb-1">
+                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
                     Specialized Thesis Topics
                   </span>
                   <ul className="list-disc list-inside space-y-1 text-slate-700 dark:text-slate-300">
@@ -479,7 +479,7 @@ export function AdviserFacultyProfileView() {
 
               {profile?.supervisionMethodologies?.length ? (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block mb-1">
+                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
                     Technologies & Methodologies Supervised
                   </span>
                   <p className="text-slate-700 dark:text-slate-300">
@@ -490,7 +490,7 @@ export function AdviserFacultyProfileView() {
 
               {profile?.acceptedResearchTypes?.length ? (
                 <div>
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-[10px] block mb-1">
+                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs block mb-1">
                     Accepted Research Types
                   </span>
                   <p className="text-slate-700 dark:text-slate-300">
@@ -500,7 +500,7 @@ export function AdviserFacultyProfileView() {
               ) : null}
 
               {!researchInterests.length && !specializedTopics.length && (
-                <p className="text-xs text-slate-500 italic">No specific research topics defined yet.</p>
+                <p className="text-sm text-slate-500 italic">No specific research topics defined yet.</p>
               )}
             </div>
           </Card>
@@ -508,7 +508,7 @@ export function AdviserFacultyProfileView() {
           {/* Certifications & Licenses */}
           {certifications.length > 0 && (
             <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-3">
-              <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-sm flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+              <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
                 <CheckCircle2 className="h-4 w-4 text-[#C9A227]" />
                 Certifications & Licenses
               </h3>
@@ -528,7 +528,7 @@ export function AdviserFacultyProfileView() {
           {/* Awards & Achievements */}
           {awards.length > 0 && (
             <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-3">
-              <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-sm flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+              <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
                 <Award className="h-4 w-4 text-[#C9A227]" />
                 Awards & Achievements
               </h3>
@@ -548,11 +548,11 @@ export function AdviserFacultyProfileView() {
           {/* Advising Preferences */}
           {profile?.advisingPreferences && (
             <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-3">
-              <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-sm flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+              <h3 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
                 <Building2 className="h-4 w-4 text-[#C9A227]" />
                 Advising Preferences & Guidelines
               </h3>
-              <p className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed">
+              <p className="text-base text-slate-700 dark:text-slate-300 whitespace-pre-line leading-relaxed">
                 {profile.advisingPreferences}
               </p>
             </Card>
@@ -572,16 +572,16 @@ export function AdviserFacultyProfileView() {
           <div className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 flex items-center gap-3">
             <Avatar initials={initials} name={fullName} size="lg" colorVariant="accent" />
             <div>
-              <p className="font-extrabold text-sm text-slate-900 dark:text-white">
+              <p className="font-extrabold text-base text-slate-900 dark:text-white">
                 {academicTitle ? `${academicTitle} ${fullName}` : fullName}
               </p>
-              <p className="text-xs text-[#C9A227] font-bold">{facultyDesignation} · {department}</p>
-              <p className="text-[11px] text-slate-500">{profileUser?.email}</p>
+              <p className="text-base text-[#C9A227] font-bold">{facultyDesignation} · {department}</p>
+              <p className="text-base text-slate-500">{profileUser?.email}</p>
             </div>
           </div>
 
           <div>
-            <h4 className="font-extrabold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] mb-1">
+            <h4 className="font-extrabold text-slate-900 dark:text-white uppercase tracking-wider text-lg mb-1">
               Biography
             </h4>
             <p className="leading-relaxed">
@@ -591,7 +591,7 @@ export function AdviserFacultyProfileView() {
 
           {educations.length > 0 && (
             <div>
-              <h4 className="font-extrabold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] mb-1.5">
+              <h4 className="font-extrabold text-slate-900 dark:text-white uppercase tracking-wider text-lg mb-1.5">
                 Academic Qualifications
               </h4>
               <ul className="space-y-1">
@@ -607,12 +607,12 @@ export function AdviserFacultyProfileView() {
 
           {expertiseKeywords.length > 0 && (
             <div>
-              <h4 className="font-extrabold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] mb-1.5">
+              <h4 className="font-extrabold text-slate-900 dark:text-white uppercase tracking-wider text-lg mb-1.5">
                 Specialties
               </h4>
               <div className="flex flex-wrap gap-1">
                 {expertiseKeywords.map((kw, idx) => (
-                  <span key={idx} className="px-2 py-0.5 rounded text-[11px] bg-slate-100 dark:bg-white/10 font-semibold">
+                  <span key={idx} className="px-2 py-0.5 rounded text-xs bg-slate-100 dark:bg-white/10 font-semibold">
                     {kw}
                   </span>
                 ))}

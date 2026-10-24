@@ -70,11 +70,11 @@ export function StatCard({
       )}
 
       <div className="min-w-0 flex-1">
-        <span className="block text-xs font-semibold text-[var(--color-text-secondary)] truncate">
+        <span className="block text-sm font-semibold text-[var(--color-text-secondary)] truncate">
           {label}
         </span>
         <div className="mt-0.5 flex items-baseline gap-2">
-          <span className="block text-sm sm:text-base font-bold text-[var(--color-text-primary)] truncate">
+          <span className="block min-w-0 break-words text-lg sm:text-xl font-bold text-[var(--color-text-primary)]">
             {value}
           </span>
           {trend && (
@@ -94,7 +94,7 @@ export function StatCard({
           )}
         </div>
         {(description || trend?.label) && (
-          <p className="mt-0.5 text-xs text-[var(--color-text-muted)] truncate">
+          <p className="mt-0.5 text-sm text-[var(--color-text-muted)] truncate">
             {trend?.label || description}
           </p>
         )}

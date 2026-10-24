@@ -107,28 +107,28 @@ export function WorkflowDeadlineTracker({
       <div className="border-b border-slate-200 p-5 lg:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">Delivery schedule</p>
+            <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">Delivery schedule</p>
             <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">Deadline tracker</h2>
-            <p className="mt-1 text-sm text-slate-500">Monitor active requirements and projected dates for upcoming milestones.</p>
+            <p className="mt-1 text-base text-slate-500">Monitor active requirements and projected dates for upcoming milestones.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <label className="text-xs font-bold text-slate-500">
+            <label className="text-sm font-bold text-slate-500">
               Sort by
-              <select value={sort} onChange={(event) => onSortChange(event.target.value as DeadlineSort)} className="ml-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+              <select value={sort} onChange={(event) => onSortChange(event.target.value as DeadlineSort)} className="ml-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-base font-bold text-slate-700">
                 <option value="DUE_SOON">Due soon</option>
                 <option value="MOST_OVERDUE">Most overdue</option>
                 <option value="GROUP">Research group A–Z</option>
                 <option value="MILESTONE">Milestone order</option>
               </select>
             </label>
-            <button type="button" onClick={onSendReminders} disabled={reminderSaving || selectedKeys.length === 0} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-xs font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-40">
+            <button type="button" onClick={onSendReminders} disabled={reminderSaving || selectedKeys.length === 0} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-40">
               <i className="ti ti-bell mr-1.5" />{reminderSaving ? "Sending…" : `Send reminders${selectedKeys.length ? ` (${selectedKeys.length})` : ""}`}
             </button>
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
           {(["UPCOMING", "OVERDUE", "NO_DEADLINE", "ALL"] as const).map((value) => (
-            <button key={value} type="button" onClick={() => onFilterChange(value)} className={`rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${filter === value ? "bg-[#173f63] text-white" : "border border-slate-200 bg-white text-slate-600 hover:border-[#f6a800]"}`}>
+            <button key={value} type="button" onClick={() => onFilterChange(value)} className={`rounded-xl px-3.5 py-2 text-sm font-extrabold transition ${filter === value ? "bg-[#173f63] text-white" : "border border-slate-200 bg-white text-slate-600 hover:border-[#f6a800]"}`}>
               {value === "UPCOMING" ? "Upcoming" : value === "OVERDUE" ? "Overdue" : value === "NO_DEADLINE" ? "No deadline" : "All"} ({counts[value]})
             </button>
           ))}
@@ -139,7 +139,7 @@ export function WorkflowDeadlineTracker({
         <div className="flex min-h-72 flex-col items-center justify-center p-8 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-slate-500"><i className="ti ti-calendar-check text-2xl" /></span>
           <h3 className="mt-3 font-extrabold text-[#102f49]">No deadlines in this view</h3>
-          <p className="mt-1 text-sm text-slate-500">Try another workflow or deadline filter.</p>
+          <p className="mt-1 text-base text-slate-500">Try another workflow or deadline filter.</p>
         </div>
       ) : (
         <div className="overflow-x-auto">

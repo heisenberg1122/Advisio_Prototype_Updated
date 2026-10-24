@@ -128,7 +128,7 @@ export default function AdviserPoolPage() {
 
       {assigned && (
         <section className="rounded-2xl border border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/70 dark:bg-emerald-950/20 p-5 shadow-xs">
-          <p className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">Assigned adviser</p>
+          <p className="text-sm font-extrabold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">Assigned adviser</p>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
             <div
               role="button"
@@ -149,14 +149,14 @@ export default function AdviserPoolPage() {
                   {assigned.name}
                   <span className="text-xs font-normal text-slate-400 opacity-0 group-hover:opacity-100 transition">(View CV)</span>
                 </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{assigned.college} · {assigned.email}</p>
+                <p className="text-base text-slate-500 dark:text-slate-400">{assigned.college} · {assigned.email}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setProfileModalAdviser(assigned)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold rounded-lg border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 transition cursor-pointer"
               >
                 <i className="ti ti-id" /> View Profile
               </button>
@@ -170,7 +170,7 @@ export default function AdviserPoolPage() {
         <div className="flex items-end justify-between">
           <div>
             <h2 className="text-lg font-extrabold text-[#17212B] dark:text-white">Available verified advisers</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Active institutional accounts with the Adviser role, including the demo adviser.</p>
+            <p className="text-base text-slate-500 dark:text-slate-400">Active institutional accounts with the Adviser role, including the demo adviser.</p>
           </div>
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg bg-slate-100 dark:bg-white/5 px-2.5 py-1">
             {available.length} verified
@@ -207,17 +207,17 @@ export default function AdviserPoolPage() {
                       <h3 className="font-extrabold text-[#17212B] dark:text-white group-hover:text-[#0B3A53] dark:group-hover:text-[#FFA400] transition">
                         {adviser.name}
                       </h3>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 dark:text-emerald-400">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
                         <i className="ti ti-rosette-discount-check" /> Verified
                       </span>
                     </div>
                     {adviser.facultyProfile?.facultyDesignation ? (
-                      <p className="mt-0.5 text-xs font-semibold text-[#C9A227]">
+                      <p className="mt-0.5 text-base font-semibold text-[#C9A227]">
                         {adviser.facultyProfile.facultyDesignation}
                       </p>
                     ) : null}
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{adviser.college}</p>
-                    <p className="mt-0.5 truncate text-xs text-slate-400 dark:text-slate-500">{adviser.email}</p>
+                    <p className="mt-1 text-base text-slate-500 dark:text-slate-400">{adviser.college}</p>
+                    <p className="mt-0.5 truncate text-sm text-slate-400 dark:text-slate-500">{adviser.email}</p>
                   </div>
                 </div>
 
@@ -228,13 +228,13 @@ export default function AdviserPoolPage() {
                       {adviser.facultyProfile.expertiseKeywords.slice(0, 3).map((keyword: string, idx: number) => (
                         <span
                           key={idx}
-                          className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/10"
+                          className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/10"
                         >
                           {keyword}
                         </span>
                       ))}
                       {adviser.facultyProfile.expertiseKeywords.length > 3 && (
-                        <span className="text-[10px] font-medium text-slate-400 self-center">
+                        <span className="text-xs font-medium text-slate-400 self-center">
                           +{adviser.facultyProfile.expertiseKeywords.length - 3} more
                         </span>
                       )}
@@ -275,7 +275,7 @@ export default function AdviserPoolPage() {
                     e.stopPropagation();
                     setProfileModalAdviser(adviser);
                   }}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0B3A53] dark:text-[#C9A227] hover:underline cursor-pointer focus:outline-none"
+                  className="inline-flex items-center gap-1.5 text-sm font-bold text-[#0B3A53] dark:text-[#C9A227] hover:underline cursor-pointer focus:outline-none"
                 >
                   <i className="ti ti-id" /> View Profile
                 </button>
@@ -299,7 +299,7 @@ export default function AdviserPoolPage() {
                       openRequest(adviser);
                     }}
                     disabled={!project || Boolean(assigned)}
-                    className="inline-flex h-10 items-center justify-center rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white px-5 text-xs font-bold shadow-xs transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                    className="inline-flex h-10 items-center justify-center rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white px-5 text-sm font-bold shadow-xs transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                   >
                     Request adviser
                   </button>
@@ -311,7 +311,7 @@ export default function AdviserPoolPage() {
             <div className="col-span-full rounded-2xl border-2 border-dashed border-[#DDE3E8] dark:border-white/10 bg-white/60 dark:bg-[#101b2b]/60 p-10 text-center flex flex-col items-center justify-center gap-2">
               <i className="ti ti-users text-4xl text-slate-300 dark:text-slate-600 mb-1" />
               <p className="font-extrabold text-[#17212B] dark:text-white">No advisers available</p>
-              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">No verified advisers are currently available for requests.</p>
+              <p className="text-base text-slate-500 dark:text-slate-400">No verified advisers are currently available for requests.</p>
             </div>
           )}
         </div>
@@ -330,11 +330,11 @@ export default function AdviserPoolPage() {
           <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white dark:bg-[#101b2b] p-6 sm:p-7 shadow-2xl border border-[#EEF2F6] dark:border-white/10">
             <div className="flex items-start justify-between border-b border-[#EEF2F6] dark:border-white/10 pb-4">
               <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#C9A227]">Formal Request</p>
+                <p className="text-sm font-extrabold uppercase tracking-widest text-[#C9A227]">Formal Request</p>
                 <h2 id="adviser-request-title" className="text-xl font-extrabold text-[#17212B] dark:text-white">
                   Request {selectedAdviser.name}
                 </h2>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                   Choose how you want to submit the formal request.
                 </p>
               </div>
@@ -350,7 +350,7 @@ export default function AdviserPoolPage() {
             <div className="mt-5 grid grid-cols-2 rounded-xl bg-slate-100 dark:bg-white/5 p-1 border border-[#EEF2F6] dark:border-white/10">
               <button
                 onClick={() => setRequestMethod("details")}
-                className={`rounded-lg px-3 py-2 text-xs font-extrabold transition cursor-pointer ${
+                className={`rounded-lg px-3 py-2 text-sm font-extrabold transition cursor-pointer ${
                   requestMethod === "details"
                     ? "bg-white dark:bg-[#101b2b] text-[#0B3A53] dark:text-[#C9A227] shadow-xs"
                     : "text-slate-500 dark:text-slate-400 hover:text-slate-800"
@@ -361,7 +361,7 @@ export default function AdviserPoolPage() {
               </button>
               <button
                 onClick={() => setRequestMethod("pdf")}
-                className={`rounded-lg px-3 py-2 text-xs font-extrabold transition cursor-pointer ${
+                className={`rounded-lg px-3 py-2 text-sm font-extrabold transition cursor-pointer ${
                   requestMethod === "pdf"
                     ? "bg-white dark:bg-[#101b2b] text-[#0B3A53] dark:text-[#C9A227] shadow-xs"
                     : "text-slate-500 dark:text-slate-400 hover:text-slate-800"
@@ -374,13 +374,13 @@ export default function AdviserPoolPage() {
 
             {requestMethod === "details" ? (
               <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Project details</p>
+                <p className="text-sm font-extrabold uppercase tracking-widest text-slate-400">Project details</p>
                 <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
                   <div><dt className="font-bold text-slate-500">Project</dt><dd className="mt-1 font-extrabold text-[#17212B] dark:text-white">{project?.title}</dd></div>
                   <div><dt className="font-bold text-slate-500">Group</dt><dd className="mt-1 font-extrabold text-[#17212B] dark:text-white">{project?.groupName || (project?.participationMode === "SOLO" ? "Solo research project" : "Research group")}</dd></div>
                   <div className="sm:col-span-2"><dt className="font-bold text-slate-500">Researchers</dt><dd className="mt-1 text-slate-700 dark:text-slate-300">{activeResearchers.map((member: any) => `${member.user?.firstName || ""} ${member.user?.lastName || ""}`.trim()).filter(Boolean).join(", ")}</dd></div>
                 </dl>
-                <p className="mt-3 text-[11px] text-slate-500">These verified project details are included automatically and cannot be changed in the request.</p>
+                <p className="mt-3 text-base text-slate-500">These verified project details are included automatically and cannot be changed in the request.</p>
               </div>
             ) : (
               <label className="mt-5 flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed border-slate-300 dark:border-white/20 bg-slate-50/50 dark:bg-white/5 p-7 text-center transition hover:border-[#0B3A53] dark:hover:border-[#C9A227]">
@@ -407,7 +407,7 @@ export default function AdviserPoolPage() {
               </label>
             )}
 
-            <label className="mt-4 block text-xs font-bold text-slate-700 dark:text-slate-300">
+            <label className="mt-4 block text-sm font-bold text-slate-700 dark:text-slate-300">
               Message to adviser <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
               <textarea
                 value={requestNote}
@@ -415,23 +415,23 @@ export default function AdviserPoolPage() {
                 maxLength={1000}
                 rows={3}
                 placeholder="Explain why this adviser is a good match for your research."
-                className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#0B1726] p-3 text-xs sm:text-sm text-slate-800 dark:text-slate-100 outline-none focus:border-[#0B3A53] dark:focus:border-[#C9A227]"
+                className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 dark:border-white/20 bg-white dark:bg-[#0B1726] p-3 text-base text-slate-800 dark:text-slate-100 outline-none focus:border-[#0B3A53] dark:focus:border-[#C9A227]"
               />
             </label>
 
-            {message && <p className="mt-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 p-3 text-xs font-semibold text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900">{message}</p>}
+            {message && <p className="mt-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 p-3 text-base font-semibold text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900">{message}</p>}
 
             <div className="mt-6 flex justify-end gap-2.5 border-t border-[#EEF2F6] dark:border-white/10 pt-4">
               <button
                 onClick={closeRequest}
-                className="rounded-xl border border-slate-300 dark:border-white/15 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer"
+                className="rounded-xl border border-slate-300 dark:border-white/15 px-4 py-2.5 text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={() => applyMutation.mutate()}
                 disabled={applyMutation.isPending}
-                className="rounded-xl bg-[#0B3A53] hover:bg-[#072A3D] text-white px-5 py-2.5 text-xs font-extrabold shadow-xs transition disabled:opacity-60 cursor-pointer"
+                className="rounded-xl bg-[#0B3A53] hover:bg-[#072A3D] text-white px-5 py-2.5 text-sm font-extrabold shadow-xs transition disabled:opacity-60 cursor-pointer"
               >
                 {applyMutation.isPending ? "Submitting…" : "Submit adviser request"}
               </button>

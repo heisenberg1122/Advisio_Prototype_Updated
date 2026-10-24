@@ -317,10 +317,10 @@ export function DefensePacketConfigurator({
     <section className="rounded-xl border p-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-extrabold text-[var(--color-text-primary)]">
+          <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
             {title}
           </h3>
-          <p className="mt-1 text-[10px] text-slate-500">
+          <p className="mt-1 text-base text-slate-500">
             Coordinates use 0–1 values from the top-left of the PDF page.
           </p>
         </div>
@@ -329,7 +329,7 @@ export function DefensePacketConfigurator({
           onClick={() =>
             setItems((current) => [...current, newMapping(keys[0])])
           }
-          className="rounded-lg border px-3 py-2 text-xs font-bold"
+          className="rounded-lg border px-3 py-2 text-sm font-bold"
         >
           Add field
         </button>
@@ -366,7 +366,7 @@ export function DefensePacketConfigurator({
                     : "SHRINK",
                 })
               }
-              className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs text-[var(--color-text-primary)]"
+              className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-base text-[var(--color-text-primary)]"
             >
               {keys.map((key) => (
                 <option key={key} value={key}>
@@ -383,7 +383,7 @@ export function DefensePacketConfigurator({
               ["preferredFontSize", "Font"],
               ["minimumFontSize", "Min"],
             ].map(([key, label]) => (
-              <label key={key} className="text-[9px] font-bold text-slate-400">
+              <label key={key} className="text-sm font-bold text-slate-400">
                 {label}
                 <input
                   type="number"
@@ -396,7 +396,7 @@ export function DefensePacketConfigurator({
                       [key]: Number(event.target.value),
                     })
                   }
-                  className="mt-1 w-full rounded border p-1 text-xs text-slate-700"
+                  className="mt-1 w-full rounded border p-1 text-base text-slate-700"
                 />
               </label>
             ))}
@@ -412,7 +412,7 @@ export function DefensePacketConfigurator({
               <i className="ti ti-trash" />
             </button>
             <div className="md:col-span-full grid gap-3 md:grid-cols-4">
-              <label className="flex items-center gap-2 text-[10px] text-slate-500">
+              <label className="flex items-center gap-2 text-sm text-slate-500">
                 <input
                   type="checkbox"
                   checked={item.multiline}
@@ -424,7 +424,7 @@ export function DefensePacketConfigurator({
                 />
                 Wrap long text into multiple lines
               </label>
-              <label className="text-[10px] font-bold text-slate-500">
+              <label className="text-sm font-bold text-slate-500">
                 Overflow
                 <select
                   value={item.overflowPolicy}
@@ -443,7 +443,7 @@ export function DefensePacketConfigurator({
                   <option value="REJECT">Reject overflow</option>
                 </select>
               </label>
-              <label className="text-[10px] font-bold text-slate-500">
+              <label className="text-sm font-bold text-slate-500">
                 Alignment
                 <select
                   value={item.alignment}
@@ -459,7 +459,7 @@ export function DefensePacketConfigurator({
                   <option value="RIGHT">Right</option>
                 </select>
               </label>
-              <label className="flex items-center gap-2 text-[10px] text-slate-500">
+              <label className="flex items-center gap-2 text-sm text-slate-500">
                 <input
                   type="checkbox"
                   checked={item.required}
@@ -518,13 +518,13 @@ export function DefensePacketConfigurator({
       <div className="max-h-[94vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-2xl">
         <header className="sticky top-0 z-10 flex items-start justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] p-5">
           <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#d98d00]">
+            <p className="text-sm font-extrabold uppercase tracking-[.16em] text-[#d98d00]">
               Professor publishing
             </p>
             <h2 className="mt-1 text-xl font-black text-[var(--color-text-primary)]">
               Configure defense review packet
             </h2>
-            <p className="mt-1 max-w-3xl text-xs text-slate-500">
+            <p className="mt-1 max-w-3xl text-base text-slate-500">
               {session.research?.title}
             </p>
           </div>
@@ -555,7 +555,7 @@ export function DefensePacketConfigurator({
             </label>
             {evaluationMode === "PDF" && (
               <>
-                <p className="text-sm text-[var(--color-text-secondary)]">
+                <p className="text-base text-[var(--color-text-secondary)]">
                   Upload your department’s form below. Panelists mark ratings,
                   enter text, add comments, and submit their own PDF. No
                   question setup is needed. Visual ratings are not calculated
@@ -569,7 +569,7 @@ export function DefensePacketConfigurator({
                   />
                   Require the panelist’s signature before submission
                 </label>
-                <p className="text-xs text-[var(--color-text-secondary)]">
+                <p className="text-base text-[var(--color-text-secondary)]">
                   The form and signature requirement are fixed once a panelist
                   saves a draft.
                 </p>
@@ -577,7 +577,7 @@ export function DefensePacketConfigurator({
             )}
           </section>
           <section className="grid gap-4 rounded-xl border p-4 md:grid-cols-2">
-            <label className="text-xs font-bold text-slate-600">
+            <label className="text-sm font-bold text-slate-600">
               Eligible manuscript PDF
               <select
                 value={manuscriptVersionId}
@@ -592,20 +592,20 @@ export function DefensePacketConfigurator({
                 ))}
               </select>
               {!manuscriptVersions.length && !readinessError && (
-                <span className="mt-2 block text-[11px] font-normal text-amber-700">
+                <span className="mt-2 block text-xs font-normal text-amber-700">
                   No manuscript currently satisfies the exact-version approval,
                   institutional approval, milestone, and panel acceptance
                   checks.
                 </span>
               )}
               {readinessError && (
-                <span className="mt-2 block text-[11px] font-normal text-rose-700">
+                <span className="mt-2 block text-xs font-normal text-rose-700">
                   Manuscript readiness could not be verified. Refresh before
                   publishing.
                 </span>
               )}
             </label>
-            <label className="text-xs font-bold text-slate-600">
+            <label className="text-sm font-bold text-slate-600">
               Optional similarity report
               <select
                 value={similarityReportVersionId}
@@ -621,7 +621,7 @@ export function DefensePacketConfigurator({
                   </option>
                 ))}
               </select>
-              <span className="mt-2 block text-[10px] font-normal text-slate-400">
+              <span className="mt-2 block text-xs font-normal text-slate-400">
                 Or upload a new similarity PDF
               </span>
               <input
@@ -631,10 +631,10 @@ export function DefensePacketConfigurator({
                 onChange={(event) =>
                   uploadPacketFile(event.target.files?.[0], "SIMILARITY_REPORT")
                 }
-                className="mt-1 block w-full text-[10px] font-normal"
+                className="mt-1 block w-full text-base font-normal"
               />
             </label>
-            <label className="text-xs font-bold text-slate-600">
+            <label className="text-sm font-bold text-slate-600">
               Recommendation PDF template
               <select
                 value={recommendationTemplateVersionId}
@@ -650,7 +650,7 @@ export function DefensePacketConfigurator({
                   </option>
                 ))}
               </select>
-              <span className="mt-2 block text-[10px] font-normal text-slate-400">
+              <span className="mt-2 block text-xs font-normal text-slate-400">
                 Or upload the professor’s template
               </span>
               <input
@@ -663,10 +663,10 @@ export function DefensePacketConfigurator({
                     "RECOMMENDATION_TEMPLATE",
                   )
                 }
-                className="mt-1 block w-full text-[10px] font-normal"
+                className="mt-1 block w-full text-base font-normal"
               />
             </label>
-            <label className="text-xs font-bold text-slate-600">
+            <label className="text-sm font-bold text-slate-600">
               Evaluation PDF template
               <select
                 value={evaluationTemplateVersionId}
@@ -682,7 +682,7 @@ export function DefensePacketConfigurator({
                   </option>
                 ))}
               </select>
-              <span className="mt-2 block text-[10px] font-normal text-slate-400">
+              <span className="mt-2 block text-xs font-normal text-slate-400">
                 Or upload the professor’s rubric PDF
               </span>
               <input
@@ -695,10 +695,10 @@ export function DefensePacketConfigurator({
                     "EVALUATION_TEMPLATE",
                   )
                 }
-                className="mt-1 block w-full text-[10px] font-normal"
+                className="mt-1 block w-full text-base font-normal"
               />
             </label>
-            <label className="text-xs font-bold text-slate-600 md:col-span-2">
+            <label className="text-sm font-bold text-slate-600 md:col-span-2">
               Panelist review deadline
               <input
                 type="datetime-local"
@@ -708,7 +708,7 @@ export function DefensePacketConfigurator({
               />
             </label>
             {publishedPacket && (
-              <label className="text-xs font-bold text-slate-600 md:col-span-2">
+              <label className="text-sm font-bold text-slate-600 md:col-span-2">
                 Approved replacement reason
                 <textarea
                   value={publicationReason}
@@ -716,7 +716,7 @@ export function DefensePacketConfigurator({
                   placeholder="Explain why the already-published defense packet must be updated."
                   className="mt-2 min-h-24 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 font-normal text-[var(--color-text-primary)]"
                 />
-                <span className="mt-1 block text-[10px] font-normal text-slate-500">
+                <span className="mt-1 block text-xs font-normal text-slate-500">
                   The original manuscript version and publication details remain
                   in the audit history.
                 </span>
@@ -744,7 +744,7 @@ export function DefensePacketConfigurator({
           )}
           <SharedManuscriptFeedback sessionId={session.id}/>
           {error && (
-            <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">
+            <p className="rounded-xl bg-rose-50 p-3 text-base font-bold text-rose-700">
               {error}
             </p>
           )}

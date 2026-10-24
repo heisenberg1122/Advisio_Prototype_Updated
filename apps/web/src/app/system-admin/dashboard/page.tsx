@@ -55,10 +55,10 @@ function SystemAdminDashboardContent() {
           if (activeTab === "backups") {
             return (
               <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs p-6 flex flex-col gap-4 dark:border-white/10 dark:bg-[#101b2b]">
-                <h3 className="font-black text-slate-900 dark:text-white text-base">
+                <h3 className="font-black text-slate-900 dark:text-white text-lg">
                   Backup & Restore Management
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                <p className="text-base text-slate-500 dark:text-slate-400 font-medium">
                   Initiate database snapshots or restore historical state
                   records.
                 </p>
@@ -77,7 +77,7 @@ function SystemAdminDashboardContent() {
                   </div>
                   <button
                     disabled
-                    className="px-5 py-2.5 bg-slate-200 text-slate-500 dark:bg-white/10 dark:text-slate-400 font-extrabold text-xs rounded-xl cursor-not-allowed"
+                    className="px-5 py-2.5 bg-slate-200 text-slate-500 dark:bg-white/10 dark:text-slate-400 font-extrabold text-sm rounded-xl cursor-not-allowed"
                   >
                     Automated snapshots running
                   </button>
@@ -89,17 +89,17 @@ function SystemAdminDashboardContent() {
           if (activeTab === "roles") {
             return (
               <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs p-6 flex flex-col gap-4 dark:border-white/10 dark:bg-[#101b2b]">
-                <h3 className="font-black text-slate-900 dark:text-white text-base">
+                <h3 className="font-black text-slate-900 dark:text-white text-lg">
                   Global Role Permission Matrix
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                <p className="text-base text-slate-500 dark:text-slate-400 font-medium">
                   Active role capabilities for Student, Adviser, Professor,
                   Panelist, Dean, and Administrator accounts.
                 </p>
                 <div className="overflow-x-auto mt-2">
-                  <table className="w-full min-w-[720px] border-collapse text-left text-xs">
+                  <table className="w-full min-w-[720px] border-collapse text-left text-sm">
                     <thead>
-                      <tr className="border-b border-slate-200 dark:border-white/10 text-slate-400 font-black uppercase text-[10px] tracking-wider">
+                      <tr className="border-b border-slate-200 dark:border-white/10 text-slate-400 font-black uppercase text-xs tracking-wider">
                         <th className="py-3 px-4">Role Profile</th>
                         <th className="py-3 px-4">Workspace Read</th>
                         <th className="py-3 px-4">Manuscript Write</th>
@@ -199,10 +199,10 @@ function SystemAdminDashboardContent() {
           if (activeTab === "config") {
             return (
               <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs p-6 flex flex-col gap-4 dark:border-white/10 dark:bg-[#101b2b]">
-                <h3 className="font-black text-slate-900 dark:text-white text-base">
+                <h3 className="font-black text-slate-900 dark:text-white text-lg">
                   System Parameter Configuration
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                <p className="text-base text-slate-500 dark:text-slate-400 font-medium">
                   Manage global database pooling, cache lifetime, and platform
                   status.
                 </p>
@@ -243,10 +243,10 @@ function SystemAdminDashboardContent() {
           if (activeTab === "settings") {
             return (
               <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs p-6 flex flex-col gap-4 dark:border-white/10 dark:bg-[#101b2b]">
-                <h3 className="font-black text-slate-900 dark:text-white text-base">
+                <h3 className="font-black text-slate-900 dark:text-white text-lg">
                   Portal Settings
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                <p className="text-base text-slate-500 dark:text-slate-400 font-medium">
                   Manage notification channels and administrative preferences.
                 </p>
                 <div className="bg-slate-50/70 dark:bg-white/[0.02] p-5 border border-slate-200/80 dark:border-white/10 rounded-2xl flex flex-col gap-4">
@@ -314,7 +314,7 @@ function SystemAdminDashboardContent() {
                           key={id}
                           type="button"
                           onClick={() => setTheme(id)}
-                          className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-xs font-bold transition ${theme === id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"}`}
+                          className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-bold transition ${theme === id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-300"}`}
                         >
                           <Icon className="h-4 w-4" />
                           {label}

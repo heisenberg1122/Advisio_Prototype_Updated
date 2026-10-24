@@ -82,8 +82,8 @@ function PersonCard({ member }: { member: any }) {
         <p className="truncate text-sm font-extrabold text-[var(--color-text-primary)]">
           {fullName(member.user)}
         </p>
-        <p className="truncate text-xs text-slate-500">{member.user?.email}</p>
-        <span className="mt-1.5 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+        <p className="truncate text-sm text-slate-500">{member.user?.email}</p>
+        <span className="mt-1.5 inline-flex rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
           {titleCase(member.projectRole)}
         </span>
       </div>
@@ -160,7 +160,7 @@ export function DefenseSessionStatusModal({
       <div className="max-h-[94vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-2xl">
         <header className="sticky top-0 z-10 flex items-start justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] p-5">
           <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#d98d00]">
+            <p className="text-sm font-extrabold uppercase tracking-[.16em] text-[#d98d00]">
               Defense session status
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -171,12 +171,12 @@ export function DefenseSessionStatusModal({
                 {session.research?.title || "Research group"}
               </h2>
               <span
-                className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${currentSessionStatus.tone}`}
+                className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${currentSessionStatus.tone}`}
               >
                 {currentSessionStatus.label}
               </span>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-base text-slate-500">
               {event?.code ? `${event.code} · ` : ""}
               Queue {session.queuePosition || 1}
             </p>
@@ -194,26 +194,26 @@ export function DefenseSessionStatusModal({
         <div className="space-y-5 p-5">
           <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <p className="text-sm font-bold uppercase tracking-wider text-slate-400">
                 Schedule
               </p>
-              <p className="mt-1 text-sm font-bold text-[var(--color-text-primary)]">
+              <p className="mt-1 text-base font-bold text-[var(--color-text-primary)]">
                 {session.scheduledStart
                   ? new Date(session.scheduledStart).toLocaleString()
                   : "Not scheduled"}
               </p>
             </div>
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <p className="text-sm font-bold uppercase tracking-wider text-slate-400">
                 Venue
               </p>
-              <p className="mt-1 text-sm font-bold text-[var(--color-text-primary)]">
+              <p className="mt-1 text-base font-bold text-[var(--color-text-primary)]">
                 {session.venue ||
                   (session.meetingUrl ? "Online defense" : "Not set")}
               </p>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+              <p className="text-sm font-bold uppercase tracking-wider text-emerald-700">
                 Accepted
               </p>
               <p className="mt-1 text-xl font-extrabold text-emerald-800">
@@ -222,7 +222,7 @@ export function DefenseSessionStatusModal({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                <p className="text-[10px] font-bold uppercase text-amber-700">
+                <p className="text-sm font-bold uppercase text-amber-700">
                   Pending
                 </p>
                 <p className="mt-1 text-xl font-extrabold text-amber-800">
@@ -230,7 +230,7 @@ export function DefenseSessionStatusModal({
                 </p>
               </div>
               <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
-                <p className="text-[10px] font-bold uppercase text-rose-700">
+                <p className="text-sm font-bold uppercase text-rose-700">
                   Declined
                 </p>
                 <p className="mt-1 text-xl font-extrabold text-rose-800">
@@ -246,7 +246,7 @@ export function DefenseSessionStatusModal({
                 <h3 className="font-extrabold text-[var(--color-text-primary)]">
                   Defense panel
                 </h3>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <p className="mt-0.5 text-base text-slate-500">
                   Invitation roles and current responses for this session.
                 </p>
               </div>
@@ -272,10 +272,10 @@ export function DefenseSessionStatusModal({
                           <p className="truncate text-sm font-extrabold text-[var(--color-text-primary)]">
                             {fullName(invitation.invitee)}
                           </p>
-                          <p className="truncate text-xs text-slate-500">
+                          <p className="truncate text-sm text-slate-500">
                             {invitation.invitee?.email}
                           </p>
-                          <p className="mt-1 text-[10px] font-extrabold uppercase tracking-wider text-[#173f63]">
+                          <p className="mt-1 text-sm font-extrabold uppercase tracking-wider text-[#173f63]">
                             {titleCase(invitation.role)}
                             {invitation.isRequired === false
                               ? " · Optional"
@@ -283,20 +283,20 @@ export function DefenseSessionStatusModal({
                           </p>
                         </div>
                         <span
-                          className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-extrabold ${status.tone}`}
+                          className={`shrink-0 rounded-full px-2 py-1 text-xs font-extrabold ${status.tone}`}
                         >
                           <i className={`ti ${status.icon} mr-1`} />
                           {status.label}
                         </span>
                       </div>
                       {invitation.respondedAt && (
-                        <p className="mt-2 text-[10px] text-slate-400">
+                        <p className="mt-2 text-base text-slate-400">
                           Responded{" "}
                           {new Date(invitation.respondedAt).toLocaleString()}
                         </p>
                       )}
                       {invitation.responseNote && (
-                        <p className="mt-2 rounded-lg bg-[var(--color-surface)] p-2 text-xs text-[var(--color-text-secondary)]">
+                        <p className="mt-2 rounded-lg bg-[var(--color-surface)] p-2 text-base text-[var(--color-text-secondary)]">
                           <strong>Response:</strong> {invitation.responseNote}
                         </p>
                       )}
@@ -305,7 +305,7 @@ export function DefenseSessionStatusModal({
                 })}
               </div>
             ) : (
-              <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+              <p className="mt-4 rounded-xl bg-slate-50 p-4 text-base text-slate-500">
                 No panel participants are assigned to this session.
               </p>
             )}
@@ -328,7 +328,7 @@ export function DefenseSessionStatusModal({
                   ))}
                 </div>
               ) : (
-                <p className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+                <p className="mt-3 rounded-xl bg-slate-50 p-4 text-base text-slate-500">
                   No active researchers are assigned.
                 </p>
               )}
@@ -350,7 +350,7 @@ export function DefenseSessionStatusModal({
                   ))}
                 </div>
               ) : (
-                <p className="mt-3 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+                <p className="mt-3 rounded-xl bg-slate-50 p-4 text-base text-slate-500">
                   This research group has no active adviser assigned.
                 </p>
               )}

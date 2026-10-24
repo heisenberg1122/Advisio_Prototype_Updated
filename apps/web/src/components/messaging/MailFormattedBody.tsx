@@ -17,7 +17,7 @@ function InlineText({ value }: { value: string }) {
 export function MailFormattedBody({ body }: { body: string }) {
   const lines = body.split("\n");
   return (
-    <div className="space-y-1 whitespace-pre-wrap break-words text-sm leading-6">
+    <div className="space-y-1 whitespace-pre-wrap break-words text-base leading-6">
       {lines.map((line, index) =>
         line.startsWith("- ") ? (
           <div key={index} className="flex gap-2 pl-2">

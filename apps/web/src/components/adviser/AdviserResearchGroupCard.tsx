@@ -53,11 +53,11 @@ export function AdviserResearchGroupCard({
         <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-[#C9A227]/20 blur-2xl" />
         <div className="pointer-events-none absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#C9A227] via-[#E4C864] to-transparent" />
         <div className="relative flex items-start justify-between gap-3">
-          <span className="max-w-[70%] truncate rounded-full border border-white/15 bg-black/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/90">
+          <span className="max-w-[70%] truncate rounded-full border border-white/15 bg-black/20 px-2.5 py-1 text-xs font-black uppercase tracking-[0.14em] text-white/90">
             {groupName}
           </span>
           <span className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider",
+            "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold uppercase tracking-wider",
             active
               ? "border-emerald-300/30 bg-emerald-400/15 text-emerald-100"
               : "border-white/20 bg-white/10 text-white/90",
@@ -70,14 +70,14 @@ export function AdviserResearchGroupCard({
           <h3 className="line-clamp-2 text-lg font-bold leading-snug tracking-tight text-white group-hover:underline group-hover:decoration-[#E4C864] group-hover:underline-offset-4">
             {title}
           </h3>
-          <p className="mt-2 truncate text-xs font-medium text-white/75">Group lead: {leader}</p>
+          <p className="mt-2 truncate text-sm font-medium text-white/75">Group lead: {leader}</p>
         </div>
       </div>
 
       <div className="flex flex-1 flex-col p-5">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Current research stage</p>
-          <p className="mt-1 line-clamp-1 text-sm font-semibold text-[var(--color-text-primary)]">{currentStage}</p>
+          <p className="text-sm font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Current research stage</p>
+          <p className="mt-1 line-clamp-1 text-base font-semibold text-[var(--color-text-primary)]">{currentStage}</p>
         </div>
 
         <div className="mt-4">
@@ -94,11 +94,11 @@ export function AdviserResearchGroupCard({
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <span className="flex items-center gap-2 rounded-xl bg-[var(--color-surface-subtle)] px-3 py-2.5 text-xs text-[var(--color-text-secondary)]">
+          <span className="flex items-center gap-2 rounded-xl bg-[var(--color-surface-subtle)] px-3 py-2.5 text-sm text-[var(--color-text-secondary)]">
             <Users className="h-4 w-4 shrink-0 text-[var(--color-primary)]" />
             <span><strong className="text-[var(--color-text-primary)]">{memberCount}</strong> members</span>
           </span>
-          <span className="flex items-center gap-2 rounded-xl bg-[var(--color-surface-subtle)] px-3 py-2.5 text-xs text-[var(--color-text-secondary)]">
+          <span className="flex items-center gap-2 rounded-xl bg-[var(--color-surface-subtle)] px-3 py-2.5 text-sm text-[var(--color-text-secondary)]">
             {pendingTasks ? <ClipboardList className="h-4 w-4 shrink-0 text-[#C58A18]" /> : <CheckCircle2 className="h-4 w-4 shrink-0 text-[#2E7D5B]" />}
             <span><strong className="text-[var(--color-text-primary)]">{pendingTasks}</strong> pending</span>
           </span>

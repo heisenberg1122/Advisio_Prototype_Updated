@@ -109,14 +109,14 @@ export function Modal({
           <div>
             <h3
               id={titleId}
-              className="text-base sm:text-lg font-black text-[var(--color-text-primary)] leading-snug"
+              className="text-lg font-black text-[var(--color-text-primary)] leading-snug"
             >
               {title}
             </h3>
             {subtitle && (
               <p
                 id={subtitleId}
-                className="mt-1 text-xs text-[var(--color-text-secondary)]"
+                className="mt-1 text-base text-[var(--color-text-secondary)]"
               >
                 {subtitle}
               </p>

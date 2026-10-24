@@ -492,13 +492,13 @@ export default function UniversalCalendar() {
               <CalendarDays size={24} />
             </span>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[.24em] text-[var(--color-primary)]">
+              <p className="text-sm font-black uppercase tracking-[.24em] text-[var(--color-primary)]">
                 Universal Calendar
               </p>
               <h1 className="mt-1.5 text-2xl font-black tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
                 Your Advisio schedule
               </h1>
-              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-[var(--color-text-secondary)]">
+              <p className="mt-1.5 max-w-2xl text-base leading-6 text-[var(--color-text-secondary)]">
                 Review deadlines, defenses, consultations, and availability in
                 one shared calendar.
               </p>
@@ -506,7 +506,7 @@ export default function UniversalCalendar() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 px-4 py-3 text-xs font-semibold text-[var(--color-text-secondary)] shadow-[var(--shadow-card)] backdrop-blur">
-              <span className="mb-0.5 block text-[9px] font-black uppercase tracking-widest text-[var(--color-primary)]">
+              <span className="mb-0.5 block text-xs font-black uppercase tracking-widest text-[var(--color-primary)]">
                 Your calendar scope
               </span>
               {isPanelist
@@ -518,7 +518,7 @@ export default function UniversalCalendar() {
             {canSchedule && (
               <button
                 onClick={() => openComposer(new Date())}
-                className="college-focus inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 text-xs font-black text-[var(--college-on-primary)] shadow-sm transition hover:bg-[var(--color-primary-dark)] focus-visible:outline-none dark:text-[var(--college-on-primary-dark)]"
+                className="college-focus inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 text-sm font-black text-[var(--college-on-primary)] shadow-sm transition hover:bg-[var(--color-primary-dark)] focus-visible:outline-none dark:text-[var(--college-on-primary-dark)]"
               >
                 <Plus size={16} />
                 New entry
@@ -536,13 +536,13 @@ export default function UniversalCalendar() {
                 <CalendarDays size={20} />
               </span>
               <div>
-                <h2 className="text-base font-black text-[var(--color-text-primary)]">
+                <h2 className="text-lg font-black text-[var(--color-text-primary)]">
                   {cursor.toLocaleDateString("en-PH", {
                     month: "long",
                     year: "numeric",
                   })}
                 </h2>
-                <p className="text-[11px] font-semibold text-slate-400">
+                <p className="text-base font-semibold text-slate-400">
                   Philippine Time
                   {canSchedule ? " · Select any date to add an entry" : ""}
                 </p>
@@ -562,7 +562,7 @@ export default function UniversalCalendar() {
               </button>
               <button
                 onClick={() => setCursor(new Date())}
-                className="h-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 text-xs font-black text-[var(--color-text-primary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)]"
+                className="h-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 text-sm font-black text-[var(--color-text-primary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)]"
               >
                 Today
               </button>
@@ -580,7 +580,7 @@ export default function UniversalCalendar() {
             </div>
           </div>
           <div className="flex items-center gap-4 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 py-3 sm:px-5">
-            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-slate-400">
               Event types
             </span>
             <div className="flex items-center gap-4">
@@ -596,7 +596,7 @@ export default function UniversalCalendar() {
               ).map((type) => (
                 <span
                   key={type}
-                  className="flex shrink-0 items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-300"
+                  className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300"
                 >
                   <span
                     className={`h-2 w-2 rounded-full ${LEGEND_DOTS[type]}`}
@@ -629,10 +629,10 @@ export default function UniversalCalendar() {
             <div className="grid min-h-[420px] place-items-center p-8 text-center">
               <div>
                 <CalendarDays className="mx-auto text-rose-300" size={30} />
-                <p className="mt-3 text-sm font-bold text-rose-600">
+                <p className="mt-3 text-base font-bold text-rose-600">
                   The calendar could not be loaded.
                 </p>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-base text-slate-400">
                   Refresh the page to try again.
                 </p>
               </div>
@@ -666,7 +666,7 @@ export default function UniversalCalendar() {
                       >
                         {day.getDate()}
                       </span>
-                      <span className="hidden text-[8px] font-black uppercase tracking-wide text-[var(--color-primary)] group-hover:sm:inline">
+                      <span className="hidden text-xs font-black uppercase tracking-wide text-[var(--color-primary)] group-hover:sm:inline">
                         View
                       </span>
                     </div>
@@ -678,7 +678,7 @@ export default function UniversalCalendar() {
                         />
                       ))}
                       {dayEvents.length > 0 && (
-                        <span className="ml-auto text-[9px] font-black text-slate-400">
+                        <span className="ml-auto text-xs font-black text-slate-400">
                           {dayEvents.length}
                         </span>
                       )}
@@ -691,7 +691,7 @@ export default function UniversalCalendar() {
                             event.stopPropagation();
                             setSelectedEvent(calendarEvent);
                           }}
-                          className={`block w-full truncate rounded-md border px-2 py-1 text-left text-[11px] font-medium transition hover:brightness-95 ${COLORS[calendarEvent.type] || COLORS.OTHER}`}
+                          className={`block w-full truncate rounded-md border px-2 py-1 text-left text-sm font-medium transition hover:brightness-95 ${COLORS[calendarEvent.type] || COLORS.OTHER}`}
                         >
                           {calendarEvent.allDay
                             ? ""
@@ -705,7 +705,7 @@ export default function UniversalCalendar() {
                             event.stopPropagation();
                             setSelectedDay(day);
                           }}
-                          className="px-1 text-xs font-semibold text-slate-500 hover:text-[var(--color-primary)] dark:text-slate-400"
+                          className="px-1 text-sm font-semibold text-slate-500 hover:text-[var(--color-primary)] dark:text-slate-400"
                         >
                           +{dayEvents.length - 3} more
                         </button>
@@ -721,7 +721,7 @@ export default function UniversalCalendar() {
         <aside className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-5 xl:sticky xl:top-5">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[.18em] text-[var(--color-primary)]">
+              <p className="text-sm font-black uppercase tracking-[.18em] text-[var(--color-primary)]">
                 Coming up
               </p>
               <h2 className="mt-1 text-lg font-black text-[var(--color-text-primary)]">
@@ -732,7 +732,7 @@ export default function UniversalCalendar() {
               {upcoming.length}
             </span>
           </div>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-base text-slate-400">
             Your next assigned dates in this calendar view.
           </p>
           <div className="mt-4 space-y-2.5">
@@ -745,7 +745,7 @@ export default function UniversalCalendar() {
                 >
                   <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--color-primary-light)] text-center text-[var(--color-primary)]">
                     <span>
-                      <span className="block text-[8px] font-black uppercase leading-none">
+                      <span className="block text-xs font-black uppercase leading-none">
                         {new Date(calendarEvent.startsAt).toLocaleDateString(
                           "en-PH",
                           { timeZone: TZ, month: "short" },
@@ -769,7 +769,7 @@ export default function UniversalCalendar() {
                         className="mt-0.5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[var(--color-primary)]"
                       />
                     </span>
-                    <span className="mt-1 block text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                    <span className="mt-1 block text-sm font-semibold text-slate-500 dark:text-slate-400">
                       {prettyType(calendarEvent.type)} ·{" "}
                       {calendarEvent.allDay
                         ? "All day"
@@ -786,10 +786,10 @@ export default function UniversalCalendar() {
                 <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--color-primary-light)] text-[var(--color-primary)]">
                   <CalendarDays size={24} />
                 </span>
-                <p className="mt-4 text-sm font-bold text-[var(--color-text-primary)]">
+                <p className="mt-4 text-base font-bold text-[var(--color-text-primary)]">
                   No upcoming events
                 </p>
-                <p className="mt-1 max-w-48 text-xs leading-5 text-[var(--color-text-secondary)]">
+                <p className="mt-1 max-w-48 text-base leading-5 text-[var(--color-text-secondary)]">
                   Your schedule is clear for this calendar view.
                 </p>
               </div>
@@ -892,7 +892,7 @@ function DayOverviewDialog({
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-primary)]">
+            <p className="text-sm font-black uppercase tracking-widest text-[var(--color-primary)]">
               Day overview
             </p>
             <h2
@@ -923,7 +923,7 @@ function DayOverviewDialog({
                 className="flex w-full items-center gap-3 rounded-xl border border-[var(--color-border)] p-3 text-left transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)]/45"
               >
                 <span
-                  className={`rounded-lg border px-2 py-1 text-[9px] font-black ${COLORS[calendarEvent.type] || COLORS.OTHER}`}
+                  className={`rounded-lg border px-2 py-1 text-sm font-black ${COLORS[calendarEvent.type] || COLORS.OTHER}`}
                 >
                   {prettyType(calendarEvent.type)}
                 </span>
@@ -931,7 +931,7 @@ function DayOverviewDialog({
                   <strong className="block truncate text-sm text-[var(--color-text-primary)]">
                     {calendarEvent.title}
                   </strong>
-                  <span className="mt-0.5 block text-xs text-slate-500">
+                  <span className="mt-0.5 block text-sm text-slate-500">
                     {calendarEvent.allDay
                       ? "All day"
                       : `${timeText(calendarEvent.startsAt)}–${timeText(calendarEvent.endsAt)}`}
@@ -943,10 +943,10 @@ function DayOverviewDialog({
           ) : (
             <div className="rounded-xl bg-slate-50 p-8 text-center dark:bg-white/5">
               <CalendarDays className="mx-auto text-slate-300" />
-              <p className="mt-3 text-sm font-bold text-slate-600 dark:text-slate-300">
+              <p className="mt-3 text-base font-bold text-slate-600 dark:text-slate-300">
                 No events scheduled
               </p>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-base text-slate-400">
                 This date is currently clear.
               </p>
             </div>
@@ -957,7 +957,7 @@ function DayOverviewDialog({
             {options.canCreate && (
               <button
                 onClick={onCreateEvent}
-                className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-xs font-black text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]"
+                className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-black text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]"
               >
                 <Plus size={15} />
                 Add event
@@ -966,7 +966,7 @@ function DayOverviewDialog({
             {options.canManageAvailability && (
               <button
                 onClick={onCreateAvailability}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-black text-slate-700 dark:border-white/15 dark:text-slate-200"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-black text-slate-700 dark:border-white/15 dark:text-slate-200"
               >
                 <Clock3 size={15} />
                 Set availability
@@ -1008,12 +1008,12 @@ function EventDetailsDialog({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <span
-                className={`inline-flex rounded-lg border px-2 py-1 text-[9px] font-black ${COLORS[event.type] || COLORS.OTHER}`}
+                className={`inline-flex rounded-lg border px-2 py-1 text-xs font-black ${COLORS[event.type] || COLORS.OTHER}`}
               >
                 {prettyType(event.type)}
               </span>
               {defenseStatus(event) && (
-                <span className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-2 py-1 text-[9px] font-black text-[var(--color-text-secondary)]">
+                <span className="inline-flex rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-2 py-1 text-xs font-black text-[var(--color-text-secondary)]">
                   {defenseStatus(event)}
                 </span>
               )}
@@ -1022,7 +1022,7 @@ function EventDetailsDialog({
               {event.title}
             </h2>
             {event.creator && (
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-base text-slate-400">
                 Added by {event.creator.name}
               </p>
             )}
@@ -1035,7 +1035,7 @@ function EventDetailsDialog({
           </button>
         </div>
         {event.description && (
-          <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-600 dark:text-slate-300">
+          <p className="mt-4 whitespace-pre-wrap text-base leading-6 text-slate-600 dark:text-slate-300">
             {event.description}
           </p>
         )}
@@ -1089,16 +1089,16 @@ function EventDetailsDialog({
         </div>
         {event.privateNotes && (
           <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-3">
-            <p className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+            <p className="text-sm font-black uppercase tracking-wider text-amber-800">
               Private administrative note
             </p>
-            <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-amber-900">
+            <p className="mt-1 whitespace-pre-wrap text-base leading-5 text-amber-900">
               {event.privateNotes}
             </p>
           </div>
         )}
         {cancelError && (
-          <p className="mt-4 rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700">
+          <p className="mt-4 rounded-xl bg-rose-50 p-3 text-base font-bold text-rose-700">
             {cancelError}
           </p>
         )}
@@ -1106,7 +1106,7 @@ function EventDetailsDialog({
           {event.actionUrl && (
             <a
               href={event.actionUrl}
-              className="inline-flex rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-xs font-black text-[var(--college-on-primary)] hover:bg-[var(--color-primary-dark)] dark:text-[var(--college-on-primary-dark)]"
+              className="inline-flex rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-black text-[var(--college-on-primary)] hover:bg-[var(--color-primary-dark)] dark:text-[var(--college-on-primary-dark)]"
             >
               Open defense workspace
             </a>
@@ -1116,7 +1116,7 @@ function EventDetailsDialog({
               href={event.meetingUrl}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex rounded-xl border border-[var(--color-primary)]/30 px-4 py-2.5 text-xs font-black text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
+              className="inline-flex rounded-xl border border-[var(--color-primary)]/30 px-4 py-2.5 text-sm font-black text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
             >
               Join online meeting
             </a>
@@ -1124,7 +1124,7 @@ function EventDetailsDialog({
           {event.canEdit && event.source === "CALENDAR" && (
             <button
               onClick={onEdit}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-black text-slate-700 dark:border-white/15 dark:text-slate-200"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-black text-slate-700 dark:border-white/15 dark:text-slate-200"
             >
               <Pencil size={14} />
               Edit
@@ -1134,7 +1134,7 @@ function EventDetailsDialog({
             <button
               onClick={onCancel}
               disabled={cancelling}
-              className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-2.5 text-xs font-black text-rose-700 disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-xl border border-rose-200 px-4 py-2.5 text-sm font-black text-rose-700 disabled:opacity-50"
             >
               <Trash2 size={14} />
               {cancelling ? "Cancelling…" : "Cancel entry"}
@@ -1195,7 +1195,7 @@ function CalendarComposer({
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-[var(--color-primary)]">
+            <p className="text-sm font-black uppercase tracking-widest text-[var(--color-primary)]">
               {editing ? "Edit calendar entry" : "New calendar entry"}
             </p>
             <h2 className="mt-1 text-xl font-black text-[var(--color-text-primary)]">
@@ -1207,13 +1207,13 @@ function CalendarComposer({
           <button
             type="button"
             onClick={onClose}
-            className="text-xs font-bold text-slate-400"
+            className="text-sm font-bold text-slate-400"
           >
             Close
           </button>
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
-          <label className="text-xs font-bold">
+          <label className="text-sm font-bold">
             Entry type
             <select
               value={form.type}
@@ -1235,7 +1235,7 @@ function CalendarComposer({
               ))}
             </select>
           </label>
-          <label className="text-xs font-bold">
+          <label className="text-sm font-bold">
             Visibility
             <select
               value={form.visibility}
@@ -1253,7 +1253,7 @@ function CalendarComposer({
             </select>
           </label>
           {isAvailability ? (
-            <label className="sm:col-span-2 text-xs font-bold">
+            <label className="sm:col-span-2 text-sm font-bold">
               Availability status
               <select
                 value={form.availabilityStatus}
@@ -1273,7 +1273,7 @@ function CalendarComposer({
               </select>
             </label>
           ) : (
-            <label className="sm:col-span-2 text-xs font-bold">
+            <label className="sm:col-span-2 text-sm font-bold">
               Title
               <input
                 required
@@ -1283,7 +1283,7 @@ function CalendarComposer({
               />
             </label>
           )}
-          <label className="sm:col-span-2 flex items-center gap-2 rounded-xl bg-slate-50 p-3 text-xs font-bold dark:bg-white/5">
+          <label className="sm:col-span-2 flex items-center gap-2 rounded-xl bg-slate-50 p-3 text-sm font-bold dark:bg-white/5">
             <input
               type="checkbox"
               checked={form.allDay}
@@ -1291,7 +1291,7 @@ function CalendarComposer({
             />
             All-day entry
           </label>
-          <label className="text-xs font-bold">
+          <label className="text-sm font-bold">
             Starts
             <input
               required
@@ -1301,7 +1301,7 @@ function CalendarComposer({
               className="mt-1.5 w-full rounded-xl border border-slate-200 bg-transparent px-3 py-2.5 dark:border-white/10"
             />
           </label>
-          <label className="text-xs font-bold">
+          <label className="text-sm font-bold">
             {form.allDay ? "Ends on" : "Ends"}
             <input
               required
@@ -1312,7 +1312,7 @@ function CalendarComposer({
             />
           </label>
           {!isAvailability && (
-            <label className="sm:col-span-2 text-xs font-bold">
+            <label className="sm:col-span-2 text-sm font-bold">
               Location or meeting details
               <input
                 value={form.location}
@@ -1321,7 +1321,7 @@ function CalendarComposer({
               />
             </label>
           )}
-          <label className="sm:col-span-2 text-xs font-bold">
+          <label className="sm:col-span-2 text-sm font-bold">
             {isAvailability ? "Public message" : "Description"}
             <textarea
               rows={3}
@@ -1338,7 +1338,7 @@ function CalendarComposer({
             />
           </label>
           {isAvailability && (
-            <label className="sm:col-span-2 text-xs font-bold">
+            <label className="sm:col-span-2 text-sm font-bold">
               Private administrative note{" "}
               <span className="font-normal text-slate-400">
                 (only you and authorized calendar managers)
@@ -1354,7 +1354,7 @@ function CalendarComposer({
             </label>
           )}
           {isAvailability && (
-            <label className="sm:col-span-2 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-900">
+            <label className="sm:col-span-2 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-900">
               <input
                 className="mt-0.5"
                 type="checkbox"
@@ -1402,7 +1402,7 @@ function CalendarComposer({
             <div className="flex gap-2">
               <ShieldAlert className="shrink-0 text-amber-700" size={18} />
               <div>
-                <p className="text-xs font-black text-amber-900">
+                <p className="text-base font-black text-amber-900">
                   Availability conflict detected
                 </p>
                 <ul className="mt-2 space-y-1 text-xs text-amber-900">
@@ -1414,7 +1414,7 @@ function CalendarComposer({
                     </li>
                   ))}
                 </ul>
-                <label className="mt-3 flex items-start gap-2 text-xs font-bold text-amber-900">
+                <label className="mt-3 flex items-start gap-2 text-sm font-bold text-amber-900">
                   <input
                     className="mt-0.5"
                     type="checkbox"
@@ -1430,7 +1430,7 @@ function CalendarComposer({
           </div>
         )}
         {error && (
-          <p className="mt-4 rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700">
+          <p className="mt-4 rounded-xl bg-rose-50 p-3 text-base font-bold text-rose-700">
             {error}
           </p>
         )}
@@ -1438,7 +1438,7 @@ function CalendarComposer({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-xs font-bold"
+            className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold"
           >
             Cancel
           </button>
@@ -1446,7 +1446,7 @@ function CalendarComposer({
             disabled={
               saving || (conflicts.length > 0 && !conflictsAcknowledged)
             }
-            className="rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-xs font-black text-[var(--college-on-primary)] disabled:opacity-50 dark:text-[var(--college-on-primary-dark)]"
+            className="rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-black text-[var(--college-on-primary)] disabled:opacity-50 dark:text-[var(--college-on-primary-dark)]"
           >
             {saving
               ? "Saving…"
@@ -1483,7 +1483,7 @@ function SelectionList({
           items.map((item) => (
             <label
               key={item.id}
-              className="flex cursor-pointer items-start gap-2 rounded-lg p-2 text-xs hover:bg-slate-50 dark:hover:bg-white/5"
+              className="flex cursor-pointer items-start gap-2 rounded-lg p-2 text-sm hover:bg-slate-50 dark:hover:bg-white/5"
             >
               <input
                 type="checkbox"
@@ -1502,13 +1502,13 @@ function SelectionList({
                   {item.label}
                 </span>
                 {item.meta && (
-                  <span className="text-[9px] text-slate-400">{item.meta}</span>
+                  <span className="text-xs text-slate-400">{item.meta}</span>
                 )}
               </span>
             </label>
           ))
         ) : (
-          <p className="p-3 text-center text-[10px] text-slate-400">
+          <p className="p-3 text-center text-base text-slate-400">
             No available options
           </p>
         )}

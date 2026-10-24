@@ -29,7 +29,7 @@ export function ThemeToggle({ className, showLabel = false }: ThemeToggleProps) 
         <i className="ti ti-moon text-base" aria-hidden="true" />
       )}
       {showLabel && (
-        <span className="ml-2 text-xs font-semibold">
+        <span className="ml-2 text-sm font-semibold">
           {isDark ? 'Light Mode' : 'Dark Mode'}
         </span>
       )}

@@ -34,9 +34,9 @@ const variantStyles: Record<NonNullable<ButtonProps["variant"]>, string> = {
 };
 
 const sizeStyles: Record<NonNullable<ButtonProps["size"]>, string> = {
-  sm: "h-9 px-3.5 text-xs rounded-xl gap-1.5 font-semibold",
-  md: "h-10 px-4 text-sm rounded-xl gap-2 font-semibold",
-  lg: "h-11 px-5 text-sm sm:text-base rounded-xl gap-2.5 font-semibold",
+  sm: "min-h-9 px-3.5 py-2 text-sm rounded-xl gap-1.5 font-semibold",
+  md: "min-h-10 px-4 py-2 text-sm rounded-xl gap-2 font-semibold",
+  lg: "min-h-11 px-5 py-2.5 text-base rounded-xl gap-2.5 font-semibold",
   icon: "h-10 w-10 p-0 rounded-xl justify-center",
 };
 
@@ -72,7 +72,7 @@ export function Button({
         icon && <span className="shrink-0">{icon}</span>
       )}
 
-      {children && <span className="truncate">{children}</span>}
+      {children && <span className="min-w-0 break-words">{children}</span>}
 
       {!isLoading && iconRight && <span className="shrink-0">{iconRight}</span>}
     </button>

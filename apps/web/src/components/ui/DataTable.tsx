@@ -21,7 +21,7 @@ export function DataTable({ children, className, ...props }: DataTableProps) {
       )}
       {...props}
     >
-      <table className="w-full text-left border-collapse text-xs sm:text-sm">
+      <table className="w-full text-left border-collapse text-sm">
         {children}
       </table>
     </div>
@@ -32,7 +32,7 @@ export function TableHead({ children, className }: { children: ReactNode; classN
   return (
     <thead
       className={cn(
-        "bg-[var(--color-surface-subtle)] border-b border-[var(--color-border)] text-[11px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none",
+        "bg-[var(--color-surface-subtle)] border-b border-[var(--color-border)] text-sm font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400 select-none",
         className
       )}
     >

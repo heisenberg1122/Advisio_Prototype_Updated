@@ -55,7 +55,7 @@ export function PageHeader({
             {title}
           </h1>
           {subtitle && (
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)] max-w-2xl leading-relaxed">
+            <p className="mt-1 text-base text-[var(--color-text-secondary)] max-w-2xl leading-relaxed">
               {subtitle}
             </p>
           )}
@@ -97,7 +97,7 @@ export function PageHeader({
             {title}
           </h1>
           {subtitle && (
-            <p className="mt-1 text-sm text-[var(--color-text-secondary)] max-w-2xl leading-relaxed">
+            <p className="mt-1 text-base text-[var(--color-text-secondary)] max-w-2xl leading-relaxed">
               {subtitle}
             </p>
           )}
@@ -140,7 +140,7 @@ export function PageHeader({
             {title}
           </h1>
           {subtitle && (
-            <p className="mt-1.5 max-w-2xl text-sm text-[var(--color-text-secondary)] leading-relaxed">
+            <p className="mt-1.5 max-w-2xl text-base text-[var(--color-text-secondary)] leading-relaxed">
               {subtitle}
             </p>
           )}

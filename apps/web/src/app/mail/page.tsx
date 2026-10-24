@@ -371,7 +371,7 @@ export default function MailInboxPage() {
                 >
                   <item.icon className="h-4 w-4" />
                   <span>{item.label}</span>
-                  {count ? <span className="ml-auto rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-[10px] font-black text-white">{count}</span> : null}
+                  {count ? <span className="ml-auto rounded-full bg-[var(--color-primary)] px-2 py-0.5 text-xs font-black text-white">{count}</span> : null}
                 </button>
               );
             })}
@@ -387,8 +387,8 @@ export default function MailInboxPage() {
             ) : null}
           </nav>
           <div className="mt-6 hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 md:block">
-            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[var(--color-text-muted)]">Formal correspondence</p>
-            <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)]">Inbox is separate from project group chats and uses authorized academic contacts only.</p>
+            <p className="text-sm font-black uppercase tracking-[0.15em] text-[var(--color-text-muted)]">Formal correspondence</p>
+            <p className="mt-1 text-base leading-5 text-[var(--color-text-secondary)]">Inbox is separate from project group chats and uses authorized academic contacts only.</p>
           </div>
         </aside>
 

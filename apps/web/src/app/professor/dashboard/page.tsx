@@ -1075,7 +1075,7 @@ function ProfessorDashboardContent() {
           </span>
           <i className="ti ti-chevron-right mt-1 text-slate-400" />
         </span>
-        <span className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-slate-500">
+        <span className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-slate-500">
           <span>
             {milestone.submissionMode === "INDIVIDUAL"
               ? "Individual researcher"
@@ -1537,7 +1537,7 @@ function ProfessorDashboardContent() {
             </h2>
             <p
               id="remove-monitoring-item-description"
-              className="mt-2 text-sm leading-6 text-slate-600"
+              className="mt-2 text-base leading-6 text-slate-600"
             >
               {monitoringPendingRemoval.kind === "researcher"
                 ? `This will revoke the researcher's access to ${monitoringPendingRemoval.workflowName || "this workflow"}. Their project membership and submitted academic records will not be deleted. The reason and enrollment details will be saved in audit history.`
@@ -1559,7 +1559,7 @@ function ProfessorDashboardContent() {
               rows={4}
               autoFocus
               placeholder="Explain why this item is being removed…"
-              className="mt-2 w-full resize-none rounded-xl border border-slate-300 px-3.5 py-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#173f63] focus:ring-2 focus:ring-[#173f63]/10"
+              className="mt-2 w-full resize-none rounded-xl border border-slate-300 px-3.5 py-3 text-base text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#173f63] focus:ring-2 focus:ring-[#173f63]/10"
             />
             <div className="mt-1 flex justify-between text-xs text-slate-400">
               <span>Minimum 5 characters</span>
@@ -1657,10 +1657,10 @@ function ProfessorDashboardContent() {
                   className="flex items-start justify-between rounded-xl border border-slate-200 p-3"
                 >
                   <div>
-                    <p className="text-sm font-bold text-[#102f49]">
+                    <p className="text-base font-bold text-[#102f49]">
                       {requirement.title}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
+                    <p className="mt-0.5 text-base text-slate-500">
                       {requirement.allowedFileTypes || "PDF,DOCX"} ·{" "}
                       {requirement.dueDays != null
                         ? `${requirement.dueDays} days`
@@ -1678,7 +1678,7 @@ function ProfessorDashboardContent() {
                 </div>
               ))}
               <div className="space-y-3 rounded-xl bg-slate-50 p-4">
-                <p className="text-sm font-extrabold text-[#102f49]">
+                <p className="text-base font-extrabold text-[#102f49]">
                   Add another requirement
                 </p>
                 <input
@@ -1688,7 +1688,7 @@ function ProfessorDashboardContent() {
                     setNewRequirementTitle(event.target.value)
                   }
                   placeholder="e.g. Chapter 1 PDF"
-                  className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                 />
                 <textarea
                   value={newRequirementInstructions}
@@ -1697,7 +1697,7 @@ function ProfessorDashboardContent() {
                   }
                   rows={2}
                   placeholder="Short instructions (optional)"
-                  className="w-full resize-none rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+                  className="w-full resize-none rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                 />
                 <div className="grid gap-2 sm:grid-cols-2">
                   <input
@@ -1709,7 +1709,7 @@ function ProfessorDashboardContent() {
                       setNewRequirementDueDays(event.target.value)
                     }
                     placeholder="Target days"
-                    className="rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+                    className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                   />
                   <input
                     value={newRequirementFileTypes}
@@ -1717,7 +1717,7 @@ function ProfessorDashboardContent() {
                       setNewRequirementFileTypes(event.target.value)
                     }
                     placeholder="PDF,DOCX"
-                    className="rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+                    className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                   />
                 </div>
                 <button
@@ -1753,7 +1753,7 @@ function ProfessorDashboardContent() {
           <aside className="ml-auto flex h-full w-full max-w-[520px] flex-col bg-white shadow-2xl">
             <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
               <div>
-                <p className="text-xs font-bold text-[#d98d00]">
+                <p className="text-base font-bold text-[#d98d00]">
                   Milestone details
                 </p>
                 <h2
@@ -1762,7 +1762,7 @@ function ProfessorDashboardContent() {
                 >
                   Edit milestone
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-base text-slate-500">
                   Keep the essentials simple. Optional rules stay out of the
                   way.
                 </p>
@@ -1782,7 +1782,7 @@ function ProfessorDashboardContent() {
                   <h3 className="font-extrabold text-[#102f49]">
                     Basic details
                   </h3>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-base text-slate-500">
                     The information students will see.
                   </p>
                 </div>
@@ -1797,7 +1797,7 @@ function ProfessorDashboardContent() {
                       setMilestoneSaveStatus("idle");
                     }}
                     maxLength={150}
-                    className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-semibold text-[#102f49] outline-none focus:border-[#173f63]"
+                    className="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base font-semibold text-[#102f49] outline-none focus:border-[#173f63]"
                   />
                 </div>
                 <div>
@@ -1813,7 +1813,7 @@ function ProfessorDashboardContent() {
                     maxLength={4000}
                     rows={5}
                     placeholder="Explain what students need to complete."
-                    className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 px-3.5 py-3 text-sm leading-6 text-slate-700 outline-none focus:border-[#173f63]"
+                    className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 px-3.5 py-3 text-base leading-6 text-slate-700 outline-none focus:border-[#173f63]"
                   />
                 </div>
                 <div>
@@ -1831,7 +1831,7 @@ function ProfessorDashboardContent() {
                         setMilestoneSaveStatus("idle");
                       }}
                       placeholder="No target"
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 pr-14 text-sm outline-none focus:border-[#173f63]"
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 pr-14 text-base outline-none focus:border-[#173f63]"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
                       days
@@ -1848,7 +1848,7 @@ function ProfessorDashboardContent() {
                       setMilestoneEditSubmissionMode(event.target.value);
                       setMilestoneSaveStatus("idle");
                     }}
-                    className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm"
+                    className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-base"
                   >
                     <option value="INDIVIDUAL">Individual researcher</option>
                     <option value="GROUP">Research group</option>
@@ -1883,7 +1883,7 @@ function ProfessorDashboardContent() {
                         <h3 className="font-extrabold text-[#102f49]">
                           Student submissions
                         </h3>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-base text-slate-500">
                           Files or documents required for this milestone.
                         </p>
                       </div>
@@ -1898,10 +1898,10 @@ function ProfessorDashboardContent() {
                           className="flex items-start justify-between rounded-xl border border-slate-200 p-3"
                         >
                           <div>
-                            <p className="text-sm font-bold text-[#102f49]">
+                            <p className="text-base font-bold text-[#102f49]">
                               {requirement.title}
                             </p>
-                            <p className="mt-0.5 text-xs text-slate-500">
+                            <p className="mt-0.5 text-base text-slate-500">
                               {requirement.allowedFileTypes} ·{" "}
                               {requirement.dueDays != null
                                 ? `${requirement.dueDays} days`
@@ -1925,7 +1925,7 @@ function ProfessorDashboardContent() {
                       onSubmit={handleCreateRequirement}
                       className="mt-4 space-y-3 rounded-xl bg-slate-50 p-4"
                     >
-                      <p className="text-sm font-extrabold text-[#102f49]">
+                      <p className="text-base font-extrabold text-[#102f49]">
                         Add a submission
                       </p>
                       <input
@@ -1933,7 +1933,7 @@ function ProfessorDashboardContent() {
                         value={newRequirementTitle}
                         onChange={(e) => setNewRequirementTitle(e.target.value)}
                         placeholder="e.g. Chapter 1 PDF"
-                        className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+                        className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                       />
                       <textarea
                         value={newRequirementInstructions}
@@ -1942,7 +1942,7 @@ function ProfessorDashboardContent() {
                         }
                         rows={2}
                         placeholder="Short instructions (optional)"
-                        className="w-full resize-none rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+                        className="w-full resize-none rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <input
@@ -1954,7 +1954,7 @@ function ProfessorDashboardContent() {
                             setNewRequirementDueDays(e.target.value)
                           }
                           placeholder="Due in days"
-                          className="rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+                          className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                         />
                         <input
                           value={newRequirementFileTypes}
@@ -1962,7 +1962,7 @@ function ProfessorDashboardContent() {
                             setNewRequirementFileTypes(e.target.value)
                           }
                           placeholder="PDF,DOCX"
-                          className="rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+                          className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                         />
                       </div>
                       <button
@@ -1974,7 +1974,7 @@ function ProfessorDashboardContent() {
                     </form>
                   </>
                 ) : (
-                  <p className="mt-3 rounded-xl bg-blue-50 p-4 text-sm text-blue-800">
+                  <p className="mt-3 rounded-xl bg-blue-50 p-4 text-base text-blue-800">
                     This milestone is instruction or approval based. Researchers
                     will not be asked for a document.
                   </p>
@@ -1992,7 +1992,7 @@ function ProfessorDashboardContent() {
                     <span className="block font-extrabold text-[#102f49]">
                       Advanced settings
                     </span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-sm text-slate-500">
                       Type and access controls
                     </span>
                   </span>
@@ -2011,7 +2011,7 @@ function ProfessorDashboardContent() {
                         setMilestoneEditCategory(event.target.value);
                         setMilestoneSaveStatus("idle");
                       }}
-                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm"
+                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-base"
                     >
                       <option value="Milestone">Standard milestone</option>
                       <option value="Compliance">Compliance requirement</option>
@@ -2087,7 +2087,7 @@ function ProfessorDashboardContent() {
             </h2>
             <p
               id="delete-milestone-description"
-              className="mt-2 text-sm leading-6 text-slate-600"
+              className="mt-2 text-base leading-6 text-slate-600"
             >
               If this milestone is unused, it will be permanently deleted. If
               groups or submission history already depend on it, the milestone
@@ -2132,7 +2132,7 @@ function ProfessorDashboardContent() {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-[#d98d00]">
+                <p className="text-sm font-bold uppercase tracking-wider text-[#d98d00]">
                   New workflow
                 </p>
                 <h2
@@ -2141,7 +2141,7 @@ function ProfessorDashboardContent() {
                 >
                   Create your workflow
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-base text-slate-500">
                   Start with an empty draft for your assigned department.
                 </p>
               </div>
@@ -2176,11 +2176,11 @@ function ProfessorDashboardContent() {
                   onChange={(event) => setNewWorkflowName(event.target.value)}
                   maxLength={150}
                   placeholder="e.g. BSIT Capstone Workflow 2026"
-                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
+                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
                   autoFocus
                   required
                 />
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-base text-slate-400">
                   The name must be unique within your department or program.
                 </p>
               </div>
@@ -2199,7 +2199,7 @@ function ProfessorDashboardContent() {
                     onChange={(event) =>
                       setNewWorkflowResearchTypeId(event.target.value)
                     }
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-base"
                   >
                     {availableResearchTypes.map((researchType: any) => (
                       <option key={researchType.id} value={researchType.id}>
@@ -2226,19 +2226,19 @@ function ProfessorDashboardContent() {
                   }
                   rows={3}
                   placeholder="Briefly describe when this workflow should be used."
-                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
+                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
                 />
               </div>
             </div>
 
             {!user?.program?.id && (
-              <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-base text-amber-800">
                 Your account must be assigned to a department or program before
                 creating a workflow.
               </p>
             )}
             {user?.program?.id && availableResearchTypes.length === 0 && (
-              <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-base text-amber-800">
                 No active research type is configured for your department. Ask
                 the System Administrator to configure one first.
               </p>
@@ -2286,7 +2286,7 @@ function ProfessorDashboardContent() {
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-[#C58A18]">
+                <p className="text-sm font-bold uppercase tracking-wider text-[#C58A18]">
                   Workflow topic
                 </p>
                 <h2
@@ -2295,7 +2295,7 @@ function ProfessorDashboardContent() {
                 >
                   {editingTopic ? "Edit topic" : "Create a topic"}
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-base text-slate-500">
                   Group related milestones under a phase such as Title Defense
                   or Final Defense.
                 </p>
@@ -2323,7 +2323,7 @@ function ProfessorDashboardContent() {
                   value={topicTitle}
                   onChange={(event) => setTopicTitle(event.target.value)}
                   placeholder="e.g. Title Defense"
-                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
+                  className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
                 />
               </label>
               <label className="block">
@@ -2337,7 +2337,7 @@ function ProfessorDashboardContent() {
                   value={topicDescription}
                   onChange={(event) => setTopicDescription(event.target.value)}
                   placeholder="Explain what this phase covers."
-                  className="w-full resize-none rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
+                  className="w-full resize-none rounded-xl border border-slate-300 px-3.5 py-2.5 text-base outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
                 />
               </label>
             </div>
@@ -2416,7 +2416,7 @@ function ProfessorDashboardContent() {
           <aside className="ml-auto flex h-full w-full max-w-[500px] flex-col bg-white shadow-2xl">
             <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
               <div>
-                <p className="text-xs font-bold text-[#d98d00]">
+                <p className="text-base font-bold text-[#d98d00]">
                   New milestone
                 </p>
                 <h2
@@ -2425,7 +2425,7 @@ function ProfessorDashboardContent() {
                 >
                   What should students do next?
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-base text-slate-500">
                   Choose a starting point, then fill in the essentials.
                 </p>
               </div>
@@ -2508,7 +2508,7 @@ function ProfessorDashboardContent() {
                     <select
                       value={selectedWorkflowId}
                       onChange={(e) => setSelectedWorkflowId(e.target.value)}
-                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                     >
                       {workflows.map((workflow) => (
                         <option key={workflow.id} value={workflow.id}>
@@ -2526,7 +2526,7 @@ function ProfessorDashboardContent() {
                       value={newMilestoneTitle}
                       onChange={(e) => setNewMilestoneTitle(e.target.value)}
                       placeholder="e.g. Chapter 1 submission"
-                      className="mt-1.5 w-full rounded-xl border border-slate-300 p-2.5 text-sm"
+                      className="mt-1.5 w-full rounded-xl border border-slate-300 p-2.5 text-base"
                     />
                   </div>
                   <div>
@@ -2541,7 +2541,7 @@ function ProfessorDashboardContent() {
                         value={deadlineDays}
                         onChange={(e) => setDeadlineDays(e.target.value)}
                         placeholder="e.g. 14"
-                        className="w-full rounded-xl border border-slate-300 p-2.5 pr-14 text-sm"
+                        className="w-full rounded-xl border border-slate-300 p-2.5 pr-14 text-base"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
                         days
@@ -2557,7 +2557,7 @@ function ProfessorDashboardContent() {
                       onChange={(event) =>
                         setNewMilestoneSubmissionMode(event.target.value)
                       }
-                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                     >
                       <option value="INDIVIDUAL">Individual researcher</option>
                       <option value="GROUP">Research group</option>
@@ -2595,7 +2595,7 @@ function ProfessorDashboardContent() {
                       <span className="block font-extrabold text-[#102f49]">
                         Advanced settings
                       </span>
-                      <span className="text-xs text-slate-500">
+                      <span className="text-sm text-slate-500">
                         Most professors can leave these unchanged.
                       </span>
                     </span>
@@ -2611,7 +2611,7 @@ function ProfessorDashboardContent() {
                       <select
                         value={newMilestoneScope}
                         onChange={(e) => setNewMilestoneScope(e.target.value)}
-                        className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+                        className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                       >
                         <option value="Milestone">Standard milestone</option>
                         <option value="Compliance">
@@ -2659,7 +2659,7 @@ function ProfessorDashboardContent() {
           <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-[#d98d00]">
+                <p className="text-sm font-bold uppercase tracking-wider text-[#d98d00]">
                   Research project
                 </p>
                 <h2
@@ -2680,42 +2680,42 @@ function ProfessorDashboardContent() {
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs text-slate-500">Status</p>
+                <p className="text-base text-slate-500">Status</p>
                 <p className="mt-1 font-bold text-[#102f49]">
                   {selectedProject.status}
                 </p>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs text-slate-500">Current stage</p>
+                <p className="text-base text-slate-500">Current stage</p>
                 <p className="mt-1 font-bold text-[#102f49]">
                   {selectedProject.currentStage?.name || "Not started"}
                 </p>
               </div>
               <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs text-slate-500">Progress</p>
+                <p className="text-base text-slate-500">Progress</p>
                 <p className="mt-1 font-bold text-[#102f49]">
                   {selectedProject.progress}%
                 </p>
               </div>
             </div>
             <div className="mt-5 rounded-xl border border-slate-200 p-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              <p className="text-sm font-bold uppercase tracking-wide text-slate-500">
                 Project description
               </p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+              <p className="mt-2 whitespace-pre-wrap text-base leading-6 text-slate-600">
                 {selectedProject.abstract ||
                   "No project description has been added yet."}
               </p>
             </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs text-slate-500">Research type</p>
+                <p className="text-base text-slate-500">Research type</p>
                 <p className="mt-1 font-bold text-[#102f49]">
                   {selectedProject.researchType?.name || "Not specified"}
                 </p>
               </div>
               <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs text-slate-500">Program</p>
+                <p className="text-base text-slate-500">Program</p>
                 <p className="mt-1 font-bold text-[#102f49]">
                   {selectedProject.program?.code ||
                     selectedProject.program?.name ||
@@ -2723,7 +2723,7 @@ function ProfessorDashboardContent() {
                 </p>
               </div>
               <div className="rounded-xl border border-slate-200 p-4">
-                <p className="text-xs text-slate-500">Academic year</p>
+                <p className="text-base text-slate-500">Academic year</p>
                 <p className="mt-1 font-bold text-[#102f49]">
                   {selectedProject.academicYear?.name || "Not specified"}
                 </p>
@@ -2737,12 +2737,12 @@ function ProfessorDashboardContent() {
                     {selectedProject.adviser.firstName}{" "}
                     {selectedProject.adviser.lastName}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-base text-slate-500">
                     {selectedProject.adviser.email}
                   </p>
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">
+                <p className="text-base text-slate-500">
                   No adviser has been assigned yet.
                 </p>
               )}
@@ -2761,7 +2761,7 @@ function ProfessorDashboardContent() {
                       <p className="font-bold text-[#102f49]">
                         {member.user.firstName} {member.user.lastName}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-base text-slate-500">
                         {member.user.email}
                       </p>
                     </div>
@@ -2775,7 +2775,7 @@ function ProfessorDashboardContent() {
                   </div>
                 ))
               ) : (
-                <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+                <p className="rounded-xl bg-slate-50 p-4 text-base text-slate-500">
                   No researchers have been assigned.
                 </p>
               )}
@@ -2815,7 +2815,7 @@ function ProfessorDashboardContent() {
                         <p className="font-bold text-[#102f49]">
                           {submission.task?.title}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-base text-slate-500">
                           {submission.document?.title} ·{" "}
                           {submission.status.replace(/_/g, " ")}
                         </p>
@@ -2832,7 +2832,7 @@ function ProfessorDashboardContent() {
                           setSelectedProject(null);
                           handleTabChange("submissions");
                         }}
-                        className="rounded-lg bg-[#173f63] px-3 py-1.5 text-xs font-extrabold text-white"
+                        className="rounded-lg bg-[#173f63] px-3 py-1.5 text-sm font-extrabold text-white"
                       >
                         Review
                       </button>
@@ -2840,7 +2840,7 @@ function ProfessorDashboardContent() {
                   </div>
                 ))
               ) : (
-                <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+                <p className="rounded-xl bg-slate-50 p-4 text-base text-slate-500">
                   No task submissions yet.
                 </p>
               )}
@@ -2889,13 +2889,13 @@ function ProfessorDashboardContent() {
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
+                      <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
                         Recent activity
                       </p>
                       <h2 className="mt-1 text-lg font-extrabold text-[#102f49]">
                         College and system updates
                       </h2>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-base text-slate-500">
                         Official notices are labeled by source so you can
                         quickly distinguish department and system messages.
                       </p>
@@ -2918,7 +2918,7 @@ function ProfessorDashboardContent() {
                           <span
                             className={`h-2.5 w-2.5 rounded-full ${announcement.source === "SYSTEM_ADMIN" ? "bg-violet-500" : announcement.source === "DEAN" ? "bg-blue-500" : "bg-emerald-500"}`}
                           />
-                          <span className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+                          <span className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
                             {announcement.source === "SYSTEM_ADMIN"
                               ? "System Admin"
                               : announcement.source === "DEAN"
@@ -2926,10 +2926,10 @@ function ProfessorDashboardContent() {
                                 : "Professor"}
                           </span>
                         </div>
-                        <h3 className="mt-2 truncate text-sm font-extrabold text-[#102f49]">
+                        <h3 className="mt-2 truncate text-lg font-extrabold text-[#102f49]">
                           {announcement.title}
                         </h3>
-                        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-600">
+                        <p className="mt-1 line-clamp-2 text-base leading-5 text-slate-600">
                           {announcement.message}
                         </p>
                       </article>
@@ -2988,7 +2988,7 @@ function ProfessorDashboardContent() {
                         <i className={`ti ${item.icon}`} />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                        <span className="block text-sm font-semibold text-slate-500 dark:text-slate-400">
                           {item.label}
                         </span>
                         <span className="mt-0.5 block text-2xl font-black text-[#0B3A53] dark:text-white truncate">
@@ -3007,17 +3007,17 @@ function ProfessorDashboardContent() {
                   <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-base sm:text-lg font-bold text-[#17212B] dark:text-white">
+                        <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
                           Research Monitoring Overview
                         </h3>
-                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        <p className="mt-0.5 text-base text-slate-500 dark:text-slate-400">
                           Live monitoring stream of active student research
                           groups.
                         </p>
                       </div>
                       <button
                         onClick={() => handleTabChange("tracking")}
-                        className="flex items-center gap-1 text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
+                        className="flex items-center gap-1 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
                       >
                         View all <i className="ti ti-chevron-right text-xs" />
                       </button>
@@ -3034,7 +3034,7 @@ function ProfessorDashboardContent() {
                               <span className="font-bold text-sm text-[#17212B] dark:text-white">
                                 {p.group}
                               </span>
-                              <span className="text-xs font-bold text-[#0B3A53] dark:text-[#C9A227]">
+                              <span className="text-sm font-bold text-[#0B3A53] dark:text-[#C9A227]">
                                 {p.progress}%
                               </span>
                             </span>
@@ -3051,10 +3051,10 @@ function ProfessorDashboardContent() {
                           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#C9A227]">
                             <i className="ti ti-users-group text-2xl" />
                           </span>
-                          <p className="mt-3 font-bold text-sm text-[#17212B] dark:text-white">
+                          <p className="mt-3 font-bold text-base text-[#17212B] dark:text-white">
                             No active groups yet
                           </p>
-                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                             Research groups will appear here once registered.
                           </p>
                         </div>
@@ -3065,16 +3065,16 @@ function ProfessorDashboardContent() {
                   <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
                     <div className="flex items-start justify-between mb-4">
                       <div>
-                        <h3 className="text-base sm:text-lg font-bold text-[#17212B] dark:text-white">
+                        <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
                           Needs your attention
                         </h3>
-                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        <p className="mt-0.5 text-base text-slate-500 dark:text-slate-400">
                           Recent student work waiting for instructor review.
                         </p>
                       </div>
                       <button
                         onClick={() => handleTabChange("submissions")}
-                        className="flex items-center gap-1 text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
+                        className="flex items-center gap-1 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
                       >
                         View queue <i className="ti ti-chevron-right text-xs" />
                       </button>
@@ -3098,11 +3098,11 @@ function ProfessorDashboardContent() {
                               <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">
                                 {item.task?.title}
                               </span>
-                              <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                              <span className="block truncate text-sm text-slate-500 dark:text-slate-400">
                                 {item.projectTitle}
                               </span>
                             </span>
-                            <span className="shrink-0 rounded-full bg-[#C9A227]/20 px-2.5 py-1 text-[11px] font-bold text-[#8A6A0B] dark:text-[#C9A227]">
+                            <span className="shrink-0 rounded-full bg-[#C9A227]/20 px-2.5 py-1 text-xs font-bold text-[#8A6A0B] dark:text-[#C9A227]">
                               Review
                             </span>
                           </button>
@@ -3112,10 +3112,10 @@ function ProfessorDashboardContent() {
                           <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
                             <i className="ti ti-circle-check text-lg" />
                           </span>
-                          <p className="text-sm font-bold text-[#17212B] dark:text-white">
+                          <p className="text-base font-bold text-[#17212B] dark:text-white">
                             You’re all caught up
                           </p>
-                          <p className="text-xs text-slate-400">
+                          <p className="text-base text-slate-400">
                             New submissions will appear here.
                           </p>
                         </div>
@@ -3126,7 +3126,7 @@ function ProfessorDashboardContent() {
 
                 {/* Quick Actions */}
                 <section className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
-                  <h3 className="mb-4 text-base font-bold text-[#17212B] dark:text-white">
+                  <h3 className="mb-4 text-lg font-bold text-[#17212B] dark:text-white">
                     Quick Actions
                   </h3>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -3160,7 +3160,7 @@ function ProfessorDashboardContent() {
                         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0B3A53]/10 dark:bg-white/10 text-lg text-[#0B3A53] dark:text-[#C9A227]">
                           <i className={`ti ${action.icon}`} />
                         </span>
-                        <span className="text-xs font-bold text-[#17212B] dark:text-white">
+                        <span className="text-sm font-bold text-[#17212B] dark:text-white">
                           {action.label}
                         </span>
                       </button>
@@ -3178,7 +3178,7 @@ function ProfessorDashboardContent() {
                       <i className="ti ti-users" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">
+                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">
                         Students Monitored
                       </span>
                       <span className="text-[18px] font-extrabold text-[#1b4264]">
@@ -3192,7 +3192,7 @@ function ProfessorDashboardContent() {
                       <i className="ti ti-folders" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">
+                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">
                         Active Projects
                       </span>
                       <span className="text-[18px] font-extrabold text-[#1b4264]">
@@ -3206,7 +3206,7 @@ function ProfessorDashboardContent() {
                       <i className="ti ti-plus" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">
+                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">
                         Custom Milestones
                       </span>
                       <span className="text-[18px] font-extrabold text-[#1b4264]">
@@ -3220,7 +3220,7 @@ function ProfessorDashboardContent() {
                       <i className="ti ti-lock" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">
+                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">
                         Locked Tasks
                       </span>
                       <span className="text-[18px] font-extrabold text-[#1b4264]">
@@ -3233,7 +3233,7 @@ function ProfessorDashboardContent() {
                 {/* Quick summaries */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                    <h3 className="font-extrabold text-[#1b4264] text-[14px]">
+                    <h3 className="font-extrabold text-[#1b4264] text-lg">
                       Student Groups Progress Tracking
                     </h3>
                     <div className="flex flex-col gap-3.5">
@@ -3262,7 +3262,7 @@ function ProfessorDashboardContent() {
                   </div>
 
                   <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                    <h3 className="font-extrabold text-[#1b4264] text-[14px]">
+                    <h3 className="font-extrabold text-[#1b4264] text-lg">
                       Active Blank-Canvas Task Builder
                     </h3>
                     <form
@@ -3292,18 +3292,18 @@ function ProfessorDashboardContent() {
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
+                      <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
                         Announcement feed
                       </p>
                       <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">
                         Official updates
                       </h2>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-base text-slate-500">
                         Global announcements and notices for your college
                         department.
                       </p>
                     </div>
-                    <div className="hidden flex-wrap gap-3 text-[10px] font-bold text-slate-500 sm:flex">
+                    <div className="hidden flex-wrap gap-3 text-xs font-bold text-slate-500 sm:flex">
                       <span>
                         <i className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-blue-500" />
                         Dean / Admin
@@ -3328,7 +3328,7 @@ function ProfessorDashboardContent() {
                           <span
                             className={`h-3 w-3 rounded-full ${announcement.source === "SYSTEM_ADMIN" ? "bg-violet-500" : announcement.source === "DEAN" ? "bg-blue-500" : "bg-emerald-500"}`}
                           />
-                          <span className="text-[10px] font-extrabold uppercase tracking-wide text-slate-500">
+                          <span className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
                             {announcement.source === "SYSTEM_ADMIN"
                               ? "System Administrator"
                               : announcement.source === "DEAN"
@@ -3336,27 +3336,27 @@ function ProfessorDashboardContent() {
                                 : "Professor"}
                           </span>
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${announcement.severity === "CRITICAL" ? "bg-rose-100 text-rose-700" : announcement.severity === "WARNING" ? "bg-amber-100 text-amber-800" : "bg-blue-50 text-blue-700"}`}
+                            className={`rounded-full px-2 py-0.5 text-xs font-extrabold ${announcement.severity === "CRITICAL" ? "bg-rose-100 text-rose-700" : announcement.severity === "WARNING" ? "bg-amber-100 text-amber-800" : "bg-blue-50 text-blue-700"}`}
                           >
                             {announcement.severity}
                           </span>
                           {announcement.audienceCollege ? (
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600">
                               {announcement.audienceCollege.code}
                             </span>
                           ) : (
-                            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-bold text-violet-700">
+                            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-bold text-violet-700">
                               All colleges
                             </span>
                           )}
                         </div>
-                        <h3 className="mt-3 text-base font-extrabold text-[#102f49]">
+                        <h3 className="mt-3 text-lg font-extrabold text-[#102f49]">
                           {announcement.title}
                         </h3>
-                        <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                        <p className="mt-1 whitespace-pre-wrap text-base leading-6 text-slate-600">
                           {announcement.message}
                         </p>
-                        <p className="mt-3 text-xs text-slate-400">
+                        <p className="mt-3 text-base text-slate-400">
                           {announcement.creator.firstName}{" "}
                           {announcement.creator.lastName} ·{" "}
                           {new Date(announcement.publishedAt).toLocaleString()}
@@ -3369,7 +3369,7 @@ function ProfessorDashboardContent() {
                         <p className="mt-2 font-bold text-[#102f49]">
                           No current announcements
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-base text-slate-500">
                           New college and system notices will appear here.
                         </p>
                       </div>
@@ -3377,13 +3377,13 @@ function ProfessorDashboardContent() {
                   </div>
                 </section>
                 <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
-                  <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-700">
+                  <p className="text-sm font-extrabold uppercase tracking-wider text-emerald-700">
                     Your college only
                   </p>
                   <h2 className="mt-1 text-lg font-extrabold text-[#102f49]">
                     Post an announcement
                   </h2>
-                  <p className="mt-1 text-sm leading-5 text-slate-500">
+                  <p className="mt-1 text-base leading-5 text-slate-500">
                     This will only be visible to active accounts assigned to
                     your college department.
                   </p>
@@ -3402,7 +3402,7 @@ function ProfessorDashboardContent() {
                           setAnnouncementTitle(event.target.value)
                         }
                         placeholder="e.g. Capstone consultation schedule"
-                        className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal"
+                        className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base font-normal"
                       />
                     </label>
                     <label className="block text-sm font-bold text-slate-700">
@@ -3417,7 +3417,7 @@ function ProfessorDashboardContent() {
                           setAnnouncementMessage(event.target.value)
                         }
                         placeholder="Write the announcement details…"
-                        className="mt-1.5 w-full resize-y rounded-xl border border-slate-300 p-3 text-sm font-normal leading-6"
+                        className="mt-1.5 w-full resize-y rounded-xl border border-slate-300 p-3 text-base font-normal leading-6"
                       />
                     </label>
                     <div className="grid grid-cols-2 gap-3">
@@ -3428,7 +3428,7 @@ function ProfessorDashboardContent() {
                           onChange={(event) =>
                             setAnnouncementCategory(event.target.value)
                           }
-                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm font-normal"
+                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base font-normal"
                         >
                           <option value="GENERAL">General</option>
                           <option value="UPDATE">Update</option>
@@ -3442,7 +3442,7 @@ function ProfessorDashboardContent() {
                           onChange={(event) =>
                             setAnnouncementSeverity(event.target.value)
                           }
-                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm font-normal"
+                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base font-normal"
                         >
                           <option value="INFO">Information</option>
                           <option value="WARNING">Important</option>
@@ -3461,7 +3461,7 @@ function ProfessorDashboardContent() {
                         onChange={(event) =>
                           setAnnouncementExpiresAt(event.target.value)
                         }
-                        className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal"
+                        className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base font-normal"
                       />
                     </label>
                     <button
@@ -3486,13 +3486,13 @@ function ProfessorDashboardContent() {
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
+                      <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
                         Defense coordination
                       </p>
                       <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">
                         Defense Management
                       </h2>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-base text-slate-500">
                         Build multi-group defense events, confirm the panel, and
                         control the live queue.
                       </p>
@@ -3522,7 +3522,7 @@ function ProfessorDashboardContent() {
                     </div>
                   </div>
                   {!eligibleDefenseGroups.length && (
-                    <p className="mt-4 rounded-xl bg-blue-50 p-3 text-xs text-blue-800">
+                    <p className="mt-4 rounded-xl bg-blue-50 p-3 text-base text-blue-800">
                       <i className="ti ti-info-circle mr-1" />A group becomes
                       schedulable after every required workflow milestone is
                       completed and its Dean approval request is signed.
@@ -3533,14 +3533,14 @@ function ProfessorDashboardContent() {
                   <section className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
                     <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
                       <div>
-                        <p className="text-xs font-extrabold uppercase tracking-wider text-emerald-700">
+                        <p className="text-sm font-extrabold uppercase tracking-wider text-emerald-700">
                           <span className="mr-2 inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500" />
                           Live defense control
                         </p>
                         <h2 className="mt-2 text-xl font-extrabold text-[#102f49]">
                           {liveDefense.research.title}
                         </h2>
-                        <p className="mt-1 text-sm text-slate-600">
+                        <p className="mt-1 text-base text-slate-600">
                           {
                             (liveDefense.packet?.evaluationMode === "PDF" ? liveDefense.pdfEvaluations || [] : liveDefense.evaluations).filter(
                               (item: any) => item.status === "LOCKED",
@@ -3556,7 +3556,7 @@ function ProfessorDashboardContent() {
                         </p>
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-slate-600">
+                        <label className="text-sm font-bold text-slate-600">
                           Official decision
                           <select
                             value={officialDecision}
@@ -3578,7 +3578,7 @@ function ProfessorDashboardContent() {
                         {(officialDecision ===
                           "APPROVED_WITH_MINOR_REVISIONS" ||
                           officialDecision === "MAJOR_REVISIONS_REQUIRED") && (
-                          <label className="mt-2 block text-xs font-bold text-slate-600">
+                          <label className="mt-2 block text-sm font-bold text-slate-600">
                             Required manuscript revisions
                             <textarea
                               value={revisionInstructions}
@@ -3612,7 +3612,7 @@ function ProfessorDashboardContent() {
                 {defenseLoadError && (
                   <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
                     <p className="font-extrabold"><i className="ti ti-alert-circle mr-1.5" />Defense status could not be loaded</p>
-                    <p className="mt-1 text-xs">{(defenseLoadError as Error).message || "Refresh the page or check the API connection."}</p>
+                    <p className="mt-1 text-base">{(defenseLoadError as Error).message || "Refresh the page or check the API connection."}</p>
                   </div>
                 )}
                 <section className="grid gap-4 sm:grid-cols-3">
@@ -3652,7 +3652,7 @@ function ProfessorDashboardContent() {
                         <i className={`ti ${item.icon} text-2xl`} />
                       </span>
                       <div>
-                        <p className="text-xs text-slate-500">{item.label}</p>
+                        <p className="text-base text-slate-500">{item.label}</p>
                         <p className="mt-0.5 text-xl font-extrabold text-[#102f49]">
                           {item.value}
                         </p>
@@ -3671,14 +3671,14 @@ function ProfessorDashboardContent() {
                           <h3 className="text-lg font-extrabold text-[#102f49]">
                             {defenseEvent.code}
                           </h3>
-                          <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-extrabold text-blue-700">
+                          <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-extrabold text-blue-700">
                             {defenseEvent.defenseType.replace(/_/g, " ")}
                           </span>
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-extrabold text-slate-700">
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-700">
                             {defenseEvent.status.replace(/_/g, " ")}
                           </span>
                         </div>
-                        <p className="mt-1 text-sm text-slate-600">
+                        <p className="mt-1 text-base text-slate-600">
                           <i className="ti ti-calendar-event mr-1.5" />
                           {new Date(defenseEvent.scheduledStart).toLocaleString()} – {new Date(defenseEvent.scheduledEnd).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           {defenseEvent.venue ? ` · ${defenseEvent.venue}` : ""}
@@ -3703,7 +3703,7 @@ function ProfessorDashboardContent() {
                               </span>
                               <div className="min-w-0">
                                 <p className="truncate font-extrabold text-[#102f49]">{session.research.title}</p>
-                                <p className="mt-0.5 text-xs text-slate-500">
+                                <p className="mt-0.5 text-base text-slate-500">
                                   {new Date(session.scheduledStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {accepted}/{required} confirmed · {session.queueStatus.replace(/_/g, " ")}
                                 </p>
                               </div>
@@ -3717,7 +3717,7 @@ function ProfessorDashboardContent() {
                                     event: defenseEvent,
                                   })
                                 }
-                                className="rounded-lg border border-[#173f63] bg-white px-3 py-2 text-xs font-extrabold text-[#173f63]"
+                                className="rounded-lg border border-[#173f63] bg-white px-3 py-2 text-sm font-extrabold text-[#173f63]"
                               >
                                 <i className="ti ti-users-group mr-1.5" />
                                 View status
@@ -3725,7 +3725,7 @@ function ProfessorDashboardContent() {
                               <button
                                 type="button"
                                 onClick={() => setPacketSession(session)}
-                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-extrabold text-[#173f63]"
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-extrabold text-[#173f63]"
                               >
                                 Review packet
                               </button>
@@ -3734,7 +3734,7 @@ function ProfessorDashboardContent() {
                                   type="button"
                                   disabled={defenseActionPending}
                                   onClick={() => updateDefenseQueue(defenseEvent.id, session.id, "PREPARE")}
-                                  className="rounded-lg border border-[#f6a800] bg-amber-50 px-3 py-2 text-xs font-extrabold text-[#7a5200] disabled:opacity-50"
+                                  className="rounded-lg border border-[#f6a800] bg-amber-50 px-3 py-2 text-sm font-extrabold text-[#7a5200] disabled:opacity-50"
                                 >
                                   Prepare next
                                 </button>
@@ -3744,7 +3744,7 @@ function ProfessorDashboardContent() {
                                   type="button"
                                   disabled={defenseActionPending}
                                   onClick={() => updateDefenseQueue(defenseEvent.id, session.id, "CALL")}
-                                  className="rounded-lg bg-[#173f63] px-3 py-2 text-xs font-extrabold text-white disabled:opacity-50"
+                                  className="rounded-lg bg-[#173f63] px-3 py-2 text-sm font-extrabold text-white disabled:opacity-50"
                                 >
                                   Call group
                                 </button>
@@ -3776,12 +3776,12 @@ function ProfessorDashboardContent() {
                                 {session.research?.title}
                               </h3>
                               <span
-                                className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${session.status === "SCHEDULED" ? "bg-emerald-100 text-emerald-800" : session.status === "NEEDS_RESCHEDULING" ? "bg-rose-100 text-rose-800" : session.status === "LIVE" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}
+                                className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${session.status === "SCHEDULED" ? "bg-emerald-100 text-emerald-800" : session.status === "NEEDS_RESCHEDULING" ? "bg-rose-100 text-rose-800" : session.status === "LIVE" ? "bg-blue-100 text-blue-800" : "bg-amber-100 text-amber-800"}`}
                               >
                                 {session.status.replace(/_/g, " ")}
                               </span>
                             </div>
-                            <p className="mt-2 text-sm text-slate-600">
+                            <p className="mt-2 text-base text-slate-600">
                               <i className="ti ti-calendar mr-1.5" />
                               {session.scheduledStart
                                 ? new Date(
@@ -3794,7 +3794,7 @@ function ProfessorDashboardContent() {
                                   ? " · Online"
                                   : ""}
                             </p>
-                            <p className="mt-1 text-xs text-slate-500">
+                            <p className="mt-1 text-base text-slate-500">
                               {accepted} of {activeInvitations.length} invited
                               participants accepted
                             </p>
@@ -3850,16 +3850,16 @@ function ProfessorDashboardContent() {
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div>
-                                  <p className="text-sm font-bold text-[#102f49]">
+                                  <p className="text-base font-bold text-[#102f49]">
                                     {invitation.invitee.firstName}{" "}
                                     {invitation.invitee.lastName}
                                   </p>
-                                  <p className="text-xs text-slate-500">
+                                  <p className="text-base text-slate-500">
                                     {invitation.role.replace(/_/g, " ")}
                                   </p>
                                 </div>
                                 <span
-                                  className={`rounded-full px-2 py-1 text-[10px] font-extrabold ${invitation.status === "ACCEPTED" ? "bg-emerald-100 text-emerald-800" : invitation.status === "DECLINED" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}
+                                  className={`rounded-full px-2 py-1 text-xs font-extrabold ${invitation.status === "ACCEPTED" ? "bg-emerald-100 text-emerald-800" : invitation.status === "DECLINED" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"}`}
                                 >
                                   {invitation.status.replace(/_/g, " ")}
                                 </span>
@@ -3910,7 +3910,7 @@ function ProfessorDashboardContent() {
                       <h3 className="mt-3 font-extrabold text-[#102f49]">
                         No defense requests yet
                       </h3>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-base text-slate-500">
                         Eligible groups can be scheduled once all workflow
                         requirements are complete.
                       </p>
@@ -3933,7 +3933,7 @@ function ProfessorDashboardContent() {
                     <aside className="ml-auto flex h-full w-full max-w-[560px] flex-col bg-white shadow-2xl">
                       <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
                         <div>
-                          <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
+                          <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
                             {reschedulingSession
                               ? "Updated invitation"
                               : "New defense event"}
@@ -3946,7 +3946,7 @@ function ProfessorDashboardContent() {
                               ? "Reschedule defense"
                               : "Create defense event"}
                           </h2>
-                          <p className="mt-1 text-sm text-slate-500">
+                          <p className="mt-1 text-base text-slate-500">
                             {reschedulingSession
                               ? "Changing the schedule asks every participant to confirm again."
                               : "Choose one or more ready groups. Their time slots are divided evenly across the event."}
@@ -3984,7 +3984,7 @@ function ProfessorDashboardContent() {
                                   </label>
                                 ))}
                               </div>
-                              <p className="mt-1.5 text-xs text-slate-500">{defenseProjectIds.length} selected</p>
+                              <p className="mt-1.5 text-base text-slate-500">{defenseProjectIds.length} selected</p>
                             </fieldset>
                           )}
                           {!reschedulingSession && (
@@ -3993,7 +3993,7 @@ function ProfessorDashboardContent() {
                               <select
                                 value={defenseType}
                                 onChange={(event) => setDefenseType(event.target.value)}
-                                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm"
+                                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base"
                               >
                                 <option value="PROPOSAL_DEFENSE">Proposal defense</option>
                                 <option value="PRE_ORAL_DEFENSE">Pre-oral defense</option>
@@ -4011,7 +4011,7 @@ function ProfessorDashboardContent() {
                                 onChange={(event) =>
                                   setDefenseDate(event.target.value)
                                 }
-                                className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm"
+                                className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base"
                               />
                             </label>
                             <label className="text-sm font-bold text-slate-700">
@@ -4023,7 +4023,7 @@ function ProfessorDashboardContent() {
                                 onChange={(event) =>
                                   setDefenseStartTime(event.target.value)
                                 }
-                                className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm"
+                                className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base"
                               />
                             </label>
                             <label className="text-sm font-bold text-slate-700">
@@ -4035,7 +4035,7 @@ function ProfessorDashboardContent() {
                                 onChange={(event) =>
                                   setDefenseEndTime(event.target.value)
                                 }
-                                className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm"
+                                className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base"
                               />
                             </label>
                           </div>
@@ -4047,7 +4047,7 @@ function ProfessorDashboardContent() {
                                 setDefenseVenue(event.target.value)
                               }
                               placeholder="e.g. Research Room 204"
-                              className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm"
+                              className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base"
                             />
                           </label>
                           <label className="block text-sm font-bold text-slate-700">
@@ -4062,7 +4062,7 @@ function ProfessorDashboardContent() {
                                 setDefenseMeetingUrl(event.target.value)
                               }
                               placeholder="https://meet.google.com/..."
-                              className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm"
+                              className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base"
                             />
                           </label>
                           {!reschedulingSession && (
@@ -4071,7 +4071,7 @@ function ProfessorDashboardContent() {
                                 <h3 className="font-extrabold text-[#102f49]">
                                   Defense panel
                                 </h3>
-                                <p className="text-xs text-slate-500">
+                                <p className="text-base text-slate-500">
                                   Every required participant must accept before
                                   confirmation.
                                 </p>
@@ -4084,7 +4084,7 @@ function ProfessorDashboardContent() {
                                   onChange={(event) =>
                                     setDefenseChairId(event.target.value)
                                   }
-                                  className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm"
+                                  className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base"
                                 >
                                   <option value="">Select chair</option>
                                   {defenseCandidates.map((person) => (
@@ -4146,7 +4146,7 @@ function ProfessorDashboardContent() {
                               }
                               rows={4}
                               placeholder="Preparation instructions for the group and panel…"
-                              className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm"
+                              className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-base"
                             />
                           </label>
                         </div>
@@ -4191,7 +4191,7 @@ function ProfessorDashboardContent() {
                     aria-labelledby="replace-panelist-title"
                   >
                     <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-                      <p className="text-xs font-extrabold uppercase tracking-wider text-rose-600">
+                      <p className="text-sm font-extrabold uppercase tracking-wider text-rose-600">
                         Unavailable participant
                       </p>
                       <h2
@@ -4201,7 +4201,7 @@ function ProfessorDashboardContent() {
                         Replace {replacementInvitation.invitee.firstName}{" "}
                         {replacementInvitation.invitee.lastName}
                       </h2>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-base text-slate-500">
                         The schedule stays unchanged, so participants who
                         already accepted will not need to reconfirm.
                       </p>
@@ -4212,7 +4212,7 @@ function ProfessorDashboardContent() {
                           onChange={(event) =>
                             setReplacementUserId(event.target.value)
                           }
-                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm"
+                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base"
                         >
                           <option value="">Select participant</option>
                           {defenseCandidates
@@ -4270,13 +4270,13 @@ function ProfessorDashboardContent() {
                   <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
+                        <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
                           {selectedSubmission.projectTitle}
                         </p>
                         <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">
                           {selectedSubmission.task?.title}
                         </h2>
-                        <p className="mt-1 text-sm text-slate-500">
+                        <p className="mt-1 text-base text-slate-500">
                           Submitted by{" "}
                           {selectedSubmission.submittedByUser?.firstName}{" "}
                           {selectedSubmission.submittedByUser?.lastName} ·{" "}
@@ -4302,19 +4302,19 @@ function ProfessorDashboardContent() {
                       />
                       <div className="mt-5 grid gap-4 sm:grid-cols-2">
                         <div className="rounded-xl border border-slate-200 p-4">
-                          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                          <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
                             Student note
                           </p>
-                          <p className="mt-2 text-sm leading-6 text-slate-700">
+                          <p className="mt-2 text-base leading-6 text-slate-700">
                             {selectedSubmission.note ||
                               "No note was included with this submission."}
                           </p>
                         </div>
                         <div className="rounded-xl border border-slate-200 p-4">
-                          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                          <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
                             Requirement
                           </p>
-                          <p className="mt-2 text-sm leading-6 text-slate-700">
+                          <p className="mt-2 text-base leading-6 text-slate-700">
                             {selectedSubmission.task?.instructions ||
                               "No additional instructions were provided."}
                           </p>
@@ -4323,13 +4323,13 @@ function ProfessorDashboardContent() {
                     </div>
                   </section>
                   <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
+                    <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
                       Your decision
                     </p>
                     <h3 className="mt-1 text-lg font-extrabold text-[#102f49]">
                       Review submission
                     </h3>
-                    <p className="mt-1 text-sm leading-5 text-slate-500">
+                    <p className="mt-1 text-base leading-5 text-slate-500">
                       Approve work that meets the requirement, or explain
                       exactly what the group should revise.
                     </p>
@@ -4342,11 +4342,11 @@ function ProfessorDashboardContent() {
                         }
                         rows={7}
                         placeholder="Add helpful, specific feedback for the group…"
-                        className="mt-2 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm font-normal leading-6 outline-none focus:border-[#173f63]"
+                        className="mt-2 w-full resize-none rounded-xl border border-slate-300 p-3 text-base font-normal leading-6 outline-none focus:border-[#173f63]"
                       />
                     </label>
                     {selectedSubmission.reviewNote && (
-                      <p className="mt-2 text-xs text-slate-500">
+                      <p className="mt-2 text-base text-slate-500">
                         Last saved feedback: {selectedSubmission.reviewNote}
                       </p>
                     )}
@@ -4380,7 +4380,7 @@ function ProfessorDashboardContent() {
                         Request revision
                       </button>
                     </div>
-                    <p className="mt-4 rounded-xl bg-blue-50 p-3 text-xs leading-5 text-blue-800">
+                    <p className="mt-4 rounded-xl bg-blue-50 p-3 text-base leading-5 text-blue-800">
                       <i className="ti ti-info-circle mr-1" />
                       Approving every required submission in the group’s current
                       milestone automatically advances its workflow.
@@ -4393,19 +4393,19 @@ function ProfessorDashboardContent() {
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
+                      <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
                         Professor workspace
                       </p>
                       <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">
                         Student submissions
                       </h2>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-base text-slate-500">
                         Review submitted work and monitor requirement deadlines
                         from one place.
                       </p>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2 lg:w-[620px]">
-                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <label className="text-sm font-bold uppercase tracking-wider text-slate-500">
                         Workflow
                         <select
                           value={submissionWorkflowId}
@@ -4414,7 +4414,7 @@ function ProfessorDashboardContent() {
                               workflowId: event.target.value,
                             })
                           }
-                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold normal-case tracking-normal text-[#102f49]"
+                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-semibold normal-case tracking-normal text-[#102f49]"
                         >
                           <option value="ALL">All workflows</option>
                           {workflows.map((workflow) => (
@@ -4424,7 +4424,7 @@ function ProfessorDashboardContent() {
                           ))}
                         </select>
                       </label>
-                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      <label className="text-sm font-bold uppercase tracking-wider text-slate-500">
                         Search
                         <span className="relative mt-1.5 block">
                           <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -4434,7 +4434,7 @@ function ProfessorDashboardContent() {
                               setSubmissionSearch(event.target.value)
                             }
                             placeholder="Requirement or research group"
-                            className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-3 text-sm font-normal normal-case tracking-normal outline-none focus:border-[#173f63]"
+                            className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-3 text-base font-normal normal-case tracking-normal outline-none focus:border-[#173f63]"
                           />
                         </span>
                       </label>
@@ -4489,13 +4489,13 @@ function ProfessorDashboardContent() {
                     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                         <div>
-                          <p className="text-xs font-extrabold uppercase tracking-wider text-[#d98d00]">
+                          <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
                             Review queue
                           </p>
                           <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">
                             Student submissions
                           </h2>
-                          <p className="mt-1 text-sm text-slate-500">
+                          <p className="mt-1 text-base text-slate-500">
                             Review deliverables, give feedback, and keep groups
                             moving.
                           </p>
@@ -4517,20 +4517,20 @@ function ProfessorDashboardContent() {
                               key={filter.id}
                               type="button"
                               onClick={() => setSubmissionFilter(filter.id)}
-                              className={`rounded-xl px-3.5 py-2 text-xs font-extrabold transition ${submissionFilter === filter.id ? "bg-[#173f63] text-white" : "border border-slate-200 bg-white text-slate-600 hover:border-[#f6a800]"}`}
+                              className={`rounded-xl px-3.5 py-2 text-sm font-extrabold transition ${submissionFilter === filter.id ? "bg-[#173f63] text-white" : "border border-slate-200 bg-white text-slate-600 hover:border-[#f6a800]"}`}
                             >
                               {filter.label}
                             </button>
                           ))}
                         </div>
-                        <label className="text-xs font-bold text-slate-500">
+                        <label className="text-sm font-bold text-slate-500">
                           Sort by
                           <select
                             value={submissionSort}
                             onChange={(event) =>
                               setSubmissionSort(event.target.value)
                             }
-                            className="ml-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700"
+                            className="ml-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-base font-bold text-slate-700"
                           >
                             <option value="OLDEST_REVIEW">
                               Oldest awaiting review
@@ -4561,7 +4561,7 @@ function ProfessorDashboardContent() {
                               <span className="block truncate font-extrabold text-[#102f49]">
                                 {submission.task?.title}
                               </span>
-                              <span className="mt-1 block truncate text-xs text-slate-500">
+                              <span className="mt-1 block truncate text-sm text-slate-500">
                                 {submission.document?.title} ·{" "}
                                 {submission.submittedByUser?.firstName}{" "}
                                 {submission.submittedByUser?.lastName}
@@ -4570,13 +4570,13 @@ function ProfessorDashboardContent() {
                             <span className="truncate text-sm font-semibold text-slate-700">
                               {submission.projectTitle}
                             </span>
-                            <span className="text-xs text-slate-500">
+                            <span className="text-sm text-slate-500">
                               {new Date(
                                 submission.submittedAt,
                               ).toLocaleDateString()}
                             </span>
                             <span
-                              className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-extrabold ${submission.status === "APPROVED" ? "bg-emerald-100 text-emerald-800" : submission.status === "REVISION_REQUIRED" ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"}`}
+                              className={`w-fit rounded-full px-2.5 py-1 text-xs font-extrabold ${submission.status === "APPROVED" ? "bg-emerald-100 text-emerald-800" : submission.status === "REVISION_REQUIRED" ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"}`}
                             >
                               {submission.status.replace(/_/g, " ")}
                             </span>
@@ -4590,7 +4590,7 @@ function ProfessorDashboardContent() {
                             <h3 className="mt-3 font-extrabold text-[#102f49]">
                               No submissions in this view
                             </h3>
-                            <p className="mt-1 text-sm text-slate-500">
+                            <p className="mt-1 text-base text-slate-500">
                               Try another filter or check back after students
                               submit work.
                             </p>
@@ -4605,10 +4605,10 @@ function ProfessorDashboardContent() {
             monitoring: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <div>
-                  <h3 className="font-extrabold text-[#1b4264] text-[16px]">
+                  <h3 className="font-extrabold text-[#1b4264] text-lg">
                     Research Projects
                   </h3>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-base text-slate-500">
                     View and manage the registered research projects across your
                     workflows.
                   </p>
@@ -4624,7 +4624,7 @@ function ProfessorDashboardContent() {
                       }
                       placeholder="Search project, adviser, research type, or program…"
                       aria-label="Search research projects"
-                      className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#173f63] focus:ring-2 focus:ring-[#173f63]/10"
+                      className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-base text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#173f63] focus:ring-2 focus:ring-[#173f63]/10"
                     />
                     {monitoringSearch && (
                       <button
@@ -4687,16 +4687,16 @@ function ProfessorDashboardContent() {
                                   {enrollment.user.firstName}{" "}
                                   {enrollment.user.lastName}
                                 </p>
-                                <p className="text-xs text-slate-500">
+                                <p className="text-base text-slate-500">
                                   {enrollment.user.universityId ||
                                     enrollment.user.email}
                                 </p>
                               </div>
                               <div>
-                                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                                <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
                                   Workflow
                                 </p>
-                                <p className="mt-1 text-sm font-semibold text-slate-700">
+                                <p className="mt-1 text-base font-semibold text-slate-700">
                                   {enrollment.workflow.name}
                                 </p>
                               </div>
@@ -4717,7 +4717,7 @@ function ProfessorDashboardContent() {
                                     workflowName: enrollment.workflow.name,
                                   })
                                 }
-                                className="inline-flex items-center justify-center rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-50"
+                                className="inline-flex items-center justify-center rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50"
                               >
                                 <i className="ti ti-trash mr-1.5" />
                                 Remove
@@ -4730,7 +4730,7 @@ function ProfessorDashboardContent() {
                           <p className="font-bold text-[#173f63]">
                             No accepted researchers yet
                           </p>
-                          <p className="mt-1 text-sm text-slate-500">
+                          <p className="mt-1 text-base text-slate-500">
                             Researchers appear here after they accept a workflow
                             invitation.
                           </p>
@@ -4797,7 +4797,7 @@ function ProfessorDashboardContent() {
                             <span className="font-bold text-[#1b4264] block">
                               {p.group}
                             </span>
-                            <span className="text-[11px] text-slate-500">
+                            <span className="text-sm text-slate-500">
                               {p.researchers.length === 1
                                 ? "Individual"
                                 : `${p.researchers.length} researchers`}{" "}
@@ -4816,7 +4816,7 @@ function ProfessorDashboardContent() {
                                   name: p.title,
                                 })
                               }
-                              className="inline-flex items-center rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-50"
+                              className="inline-flex items-center rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50"
                             >
                               <i className="ti ti-trash mr-1.5" />
                               Remove
@@ -4890,7 +4890,7 @@ function ProfessorDashboardContent() {
                             : "No workflow selected"}
                         </span>
                       </div>
-                      <p className="mt-1 text-sm text-slate-500">
+                      <p className="mt-1 text-base text-slate-500">
                         Organize the workflow structure, milestones, and shared
                         academic resources.
                       </p>
@@ -4926,7 +4926,7 @@ function ProfessorDashboardContent() {
                                 <strong className="block text-sm text-[#102f49]">
                                   Topic
                                 </strong>
-                                <span className="mt-0.5 block text-xs text-slate-500">
+                                <span className="mt-0.5 block text-sm text-slate-500">
                                   Group milestones by defense or phase
                                 </span>
                               </span>
@@ -4970,7 +4970,7 @@ function ProfessorDashboardContent() {
                                   <strong className="block text-sm text-[#102f49]">
                                     {label}
                                   </strong>
-                                  <span className="mt-0.5 block text-xs text-slate-500">
+                                  <span className="mt-0.5 block text-sm text-slate-500">
                                     {description}
                                   </span>
                                 </span>
@@ -4991,7 +4991,7 @@ function ProfessorDashboardContent() {
                                 <strong className="block text-sm text-[#102f49]">
                                   Guide or template
                                 </strong>
-                                <span className="mt-0.5 block text-xs text-slate-500">
+                                <span className="mt-0.5 block text-sm text-slate-500">
                                   Share a reusable workflow resource
                                 </span>
                               </span>
@@ -5011,7 +5011,7 @@ function ProfessorDashboardContent() {
                         setSelectedWorkflowId(event.target.value);
                         setWorkflowInvitation(null);
                       }}
-                      className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-[#102f49] sm:max-w-md"
+                      className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-base font-semibold text-[#102f49] sm:max-w-md"
                     >
                       {!workflows.length && (
                         <option value="">No workflow created yet</option>
@@ -5109,13 +5109,13 @@ function ProfessorDashboardContent() {
                     className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]"
                   >
                     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
-                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#C58A18]">
+                      <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-[#C58A18]">
                         Selected workflow
                       </p>
                       <h3 className="mt-2 text-xl font-black text-[#102f49]">
                         {selectedWorkflow?.name || "Create your first workflow"}
                       </h3>
-                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+                      <p className="mt-2 max-w-3xl text-base leading-6 text-slate-500">
                         {selectedWorkflow?.description ||
                           "Build a reusable research process, share official guides, and invite researchers when it is ready."}
                       </p>
@@ -5214,7 +5214,7 @@ function ProfessorDashboardContent() {
                         <h3 className="font-extrabold text-[#102f49]">
                           Whole-workflow resources
                         </h3>
-                        <p className="mt-1 text-xs leading-5 text-slate-600">
+                        <p className="mt-1 text-base leading-5 text-slate-600">
                           Guides and templates are shared with every enrolled
                           researcher and are not tied to individual milestones.
                         </p>
@@ -5286,7 +5286,7 @@ function ProfessorDashboardContent() {
                               <h3 className="text-lg font-extrabold text-[#102f49]">
                                 Milestone order
                               </h3>
-                              <p className="mt-0.5 text-sm text-slate-500">
+                              <p className="mt-0.5 text-base text-slate-500">
                                 Select a milestone to edit its details and
                                 student submissions.
                               </p>
@@ -5312,7 +5312,7 @@ function ProfessorDashboardContent() {
                                     <h4 className="font-extrabold text-[#102f49]">
                                       Ungrouped milestones
                                     </h4>
-                                    <p className="text-xs text-slate-500">
+                                    <p className="text-base text-slate-500">
                                       Open a milestone to assign it to a topic.
                                     </p>
                                   </div>
@@ -5346,11 +5346,11 @@ function ProfessorDashboardContent() {
                                             {topic.title}
                                           </h4>
                                           {topic.description && (
-                                            <p className="mt-0.5 text-xs text-slate-500">
+                                            <p className="mt-0.5 text-base text-slate-500">
                                               {topic.description}
                                             </p>
                                           )}
-                                          <span className="mt-1 block text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                                          <span className="mt-1 block text-xs font-bold uppercase tracking-wide text-slate-400">
                                             {topicMilestones.length} milestone
                                             {topicMilestones.length === 1
                                               ? ""
@@ -5416,7 +5416,7 @@ function ProfessorDashboardContent() {
                                               topic.id,
                                             )
                                           }
-                                          className="ml-1 rounded-xl bg-white px-3 py-2 text-xs font-extrabold text-[#173f63] shadow-sm ring-1 ring-slate-200 hover:ring-[#173f63]"
+                                          className="ml-1 rounded-xl bg-white px-3 py-2 text-sm font-extrabold text-[#173f63] shadow-sm ring-1 ring-slate-200 hover:ring-[#173f63]"
                                         >
                                           <i className="ti ti-plus mr-1" />
                                           Milestone
@@ -5460,7 +5460,7 @@ function ProfessorDashboardContent() {
                                       ? "Start your research process"
                                       : "Create your first workflow"}
                                   </h4>
-                                  <p className="mt-1 text-sm text-slate-500">
+                                  <p className="mt-1 text-base text-slate-500">
                                     {workflows.length
                                       ? "Create the first topic that will organize this workflow."
                                       : "Create an empty department workflow before adding milestones."}
@@ -5547,7 +5547,7 @@ function ProfessorDashboardContent() {
                                 <h3 className="font-extrabold text-[#102f49]">
                                   Keep it simple
                                 </h3>
-                                <p className="mt-1 text-xs leading-5 text-slate-600">
+                                <p className="mt-1 text-base leading-5 text-slate-600">
                                   Professors only need a name and target
                                   duration. Submission requirements and advanced
                                   rules can be added later.
@@ -5564,10 +5564,10 @@ function ProfessorDashboardContent() {
             ),
             deployment: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">
+                <h3 className="font-extrabold text-[#1b4264] text-lg">
                   Master Progression Deployment
                 </h3>
-                <p className="text-[11px] text-slate-400 font-bold">
+                <p className="text-base text-slate-400 font-bold">
                   Deploy research phases to specific program curricula and
                   calendar schemas.
                 </p>
@@ -5583,10 +5583,10 @@ function ProfessorDashboardContent() {
             ),
             locking: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">
+                <h3 className="font-extrabold text-[#1b4264] text-lg">
                   Task-Locking & Milestone Constraints
                 </h3>
-                <p className="text-[11px] text-slate-400 font-bold">
+                <p className="text-base text-slate-400 font-bold">
                   Enforce strict research sequence constraints by locking tasks
                   until pre-requisite indicators are met.
                 </p>
@@ -5601,7 +5601,7 @@ function ProfessorDashboardContent() {
                           {workflow.name}
                         </span>
                         {workflowMilestones.length === 0 ? (
-                          <div className="text-[11px] text-slate-400 italic pl-1">
+                          <div className="text-xs text-slate-400 italic pl-1">
                             No milestones configured under this workflow.
                           </div>
                         ) : (
@@ -5614,7 +5614,7 @@ function ProfessorDashboardContent() {
                                 <span className="font-bold text-[#1b4264] block">
                                   {m.title}
                                 </span>
-                                <span className="text-[10px] text-slate-400 block mt-0.5">
+                                <span className="text-xs text-slate-400 block mt-0.5">
                                   Scope: {m.scope} · Status:{" "}
                                   <strong>
                                     {m.locked ? "Locked" : "Unlocked"}
@@ -5625,7 +5625,7 @@ function ProfessorDashboardContent() {
                                 onClick={() =>
                                   handleToggleTaskLock(m.id, m.locked)
                                 }
-                                className={`px-3 py-1 font-bold text-[11px] rounded border cursor-pointer transition ${
+                                className={`px-3 py-1 font-bold text-sm rounded border cursor-pointer transition ${
                                   m.locked
                                     ? "bg-[#ffa400] text-[#1b4264] border-[#ffa400]"
                                     : "bg-white border-slate-300 text-[#1b4264] hover:bg-slate-50"
@@ -5644,10 +5644,10 @@ function ProfessorDashboardContent() {
             ),
             workflow: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">
+                <h3 className="font-extrabold text-[#1b4264] text-lg">
                   Research Workflow Management
                 </h3>
-                <p className="text-[11px] text-slate-400 font-bold">
+                <p className="text-base text-slate-400 font-bold">
                   Review and update stages in the institutional capstone
                   workflow pipeline.
                 </p>
@@ -5672,10 +5672,10 @@ function ProfessorDashboardContent() {
             ),
             tracking: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">
+                <h3 className="font-extrabold text-[#1b4264] text-lg">
                   Student Group Progress Tracking
                 </h3>
-                <p className="text-[11px] text-slate-400 font-bold">
+                <p className="text-base text-slate-400 font-bold">
                   Track overall progress rates, metrics overlays, and visual
                   completion trackers.
                 </p>
@@ -5706,10 +5706,10 @@ function ProfessorDashboardContent() {
             ),
             completion: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">
+                <h3 className="font-extrabold text-[#1b4264] text-lg">
                   Project Completion Monitoring
                 </h3>
-                <p className="text-[11px] text-slate-400 font-bold">
+                <p className="text-base text-slate-400 font-bold">
                   Review groups cleared for graduation and final document
                   archive repository indices.
                 </p>
@@ -5722,10 +5722,10 @@ function ProfessorDashboardContent() {
                     libraries
                   </div>
                   <div className="h-px bg-slate-200 my-1" />
-                  <div className="text-[11px] text-slate-500 font-medium">
+                  <div className="text-xs text-slate-500 font-medium">
                     1. Virtual Class VR Lab — Alex Ramos (Released)
                   </div>
-                  <div className="text-[11px] text-slate-500 font-medium">
+                  <div className="text-xs text-slate-500 font-medium">
                     2. Secure Decentralized Grading — Sarah Jenkins (Released)
                   </div>
                 </div>
@@ -5733,10 +5733,10 @@ function ProfessorDashboardContent() {
             ),
             settings: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">
+                <h3 className="font-extrabold text-[#1b4264] text-lg">
                   Portal Settings
                 </h3>
-                <p className="text-[11px] text-slate-400 font-bold">
+                <p className="text-base text-slate-400 font-bold">
                   Manage your notification channels, authentication credentials,
                   and user preferences.
                 </p>
@@ -5746,7 +5746,7 @@ function ProfessorDashboardContent() {
                       <span className="font-bold text-[#1b4264] block">
                         Email Notifications
                       </span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-xs text-slate-400">
                         Receive system notifications via email address.
                       </span>
                     </div>
@@ -5761,7 +5761,7 @@ function ProfessorDashboardContent() {
                       <span className="font-bold text-[#1b4264] block">
                         Dark Mode
                       </span>
-                      <span className="text-[10px] text-slate-400">
+                      <span className="text-xs text-slate-400">
                         Switch platform styling theme to night vision.
                       </span>
                     </div>

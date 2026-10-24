@@ -78,8 +78,8 @@ export function MailThreadList({
       <div className="shrink-0 space-y-3 border-b border-[var(--color-border)] p-4">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--color-primary)]">Academic correspondence</p>
-            <h1 className="mt-0.5 text-xl font-bold text-[var(--color-text-primary)]">{title}</h1>
+            <p className="text-sm font-black uppercase tracking-[0.18em] text-[var(--color-primary)]">Academic correspondence</p>
+            <h1 className="mt-0.5 text-2xl font-bold text-[var(--color-text-primary)]">{title}</h1>
           </div>
           <span className="text-xs font-semibold text-[var(--color-text-muted)]">
             {pagination?.total ?? 0} {pagination?.total === 1 ? "thread" : "threads"}
@@ -92,7 +92,7 @@ export function MailThreadList({
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
             placeholder="Search sender, subject, or message"
-            className="min-w-0 flex-1 bg-transparent text-sm text-[var(--color-text-primary)] outline-none"
+            className="min-w-0 flex-1 bg-transparent text-base text-[var(--color-text-primary)] outline-none"
           />
         </label>
         {folder !== "drafts" ? (
@@ -103,7 +103,7 @@ export function MailThreadList({
                 type="button"
                 aria-pressed={filter === item}
                 onClick={() => onFilterChange(item)}
-                className={`${filter === item ? "bg-[var(--color-primary)] text-white" : "border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]"} rounded-full px-3 py-1.5 text-[11px] font-bold capitalize`}
+                className={`${filter === item ? "bg-[var(--color-primary)] text-white" : "border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]"} rounded-full px-3 py-1.5 text-sm font-bold capitalize`}
               >
                 {item}
               </button>
@@ -126,8 +126,8 @@ export function MailThreadList({
           <div className="grid h-full min-h-64 place-items-center p-8 text-center">
             <div>
               <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]"><Inbox className="h-7 w-7" /></span>
-              <p className="mt-4 text-sm font-bold text-[var(--color-text-secondary)]">No matching messages</p>
-              <p className="mt-1 max-w-56 text-xs leading-5 text-[var(--color-text-muted)]">
+              <p className="mt-4 text-base font-bold text-[var(--color-text-secondary)]">No matching messages</p>
+              <p className="mt-1 max-w-56 text-base leading-5 text-[var(--color-text-muted)]">
                 {query || filter !== "all" ? "Try clearing the search or changing the filter." : `Your ${title.toLowerCase()} is currently empty.`}
               </p>
             </div>
@@ -154,14 +154,14 @@ export function MailThreadList({
                       <span className={`${thread.unread ? "font-black text-[var(--color-text-primary)]" : "font-semibold text-[var(--color-text-secondary)]"} min-w-0 flex-1 truncate text-sm`}>
                         {identity.label}
                       </span>
-                      <time className={`${thread.unread ? "font-bold text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"} shrink-0 text-[10px]`}>
+                      <time className={`${thread.unread ? "font-bold text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"} shrink-0 text-xs`}>
                         {formatMailDate(latest?.sentAt || latest?.createdAt || thread.updatedAt, true)}
                       </time>
                     </span>
-                    <span className={`${thread.unread ? "font-bold text-[var(--color-text-primary)]" : "font-semibold text-[var(--color-text-secondary)]"} mt-1 block truncate text-xs`}>
+                    <span className={`${thread.unread ? "font-bold text-[var(--color-text-primary)]" : "font-semibold text-[var(--color-text-secondary)]"} mt-1 block truncate text-sm`}>
                       {thread.subject || "(no subject)"}
                     </span>
-                    <span className="mt-1 flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+                    <span className="mt-1 flex items-center gap-1.5 text-sm text-[var(--color-text-muted)]">
                       <span className="min-w-0 flex-1 truncate">{latest?.body || "Empty draft"}</span>
                       {latest?.attachments?.length ? <Paperclip className="h-3.5 w-3.5 shrink-0" aria-label="Has attachments" /> : null}
                       {thread.unread ? <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--color-primary)]" aria-label="Unread" /> : null}

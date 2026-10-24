@@ -227,22 +227,22 @@ export function GoogleDriveIntegration({
               <HardDrive className="h-5 w-5" />
             </span>
             <div>
-              <h3 className="text-base font-black text-slate-900 dark:text-white">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
                 Google Drive Storage
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-base text-slate-500 dark:text-slate-400">
                 Institutional document storage
               </p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-[11px] font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">
+          <span className="inline-flex items-center gap-2 rounded-full bg-slate-50 px-3 py-1 text-xs font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">
             <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
             {meta.label}
           </span>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-3 text-xs">
           <div className="rounded-xl bg-slate-50 p-3 dark:bg-white/[0.03]">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
               Connected account
             </span>
             <span className="mt-1 block truncate font-bold text-slate-800 dark:text-white">
@@ -250,7 +250,7 @@ export function GoogleDriveIntegration({
             </span>
           </div>
           <div className="rounded-xl bg-slate-50 p-3 dark:bg-white/[0.03]">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
               Managed storage
             </span>
             <span className="mt-1 block font-bold text-slate-800 dark:text-white">
@@ -260,12 +260,12 @@ export function GoogleDriveIntegration({
           </div>
         </div>
         <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-white/5">
-          <span className="text-[11px] text-slate-400">
+          <span className="text-xs text-slate-400">
             Checked {dateLabel(data.lastCheckedAt)}
           </span>
           <button
             onClick={onManage}
-            className="text-xs font-black text-[#0B3A53] hover:underline dark:text-[#C9A227]"
+            className="text-sm font-black text-[#0B3A53] hover:underline dark:text-[#C9A227]"
           >
             Manage integration
           </button>
@@ -307,12 +307,12 @@ export function GoogleDriveIntegration({
                 <h2 className="text-lg font-black text-slate-900 dark:text-white">
                   Google Drive
                 </h2>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-black text-slate-700 dark:bg-white/5 dark:text-slate-200">
                   <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
                   {meta.label}
                 </span>
               </div>
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                 Universal document storage managed by Advisio.
               </p>
             </div>
@@ -321,7 +321,7 @@ export function GoogleDriveIntegration({
             <button
               disabled={!data.oauthConfigured || busy}
               onClick={() => connect.mutate()}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#C9A227] dark:text-[#0B3A53]"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-[#C9A227] dark:text-[#0B3A53]"
             >
               {connect.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -338,7 +338,7 @@ export function GoogleDriveIntegration({
                   ? connect.mutate()
                   : setConfirmSwitch(true)
               }
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-xs font-black text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/5"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-black text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/5"
             >
               <RefreshCw className="h-4 w-4" />
               {data.status === "ACTION_REQUIRED"
@@ -354,8 +354,8 @@ export function GoogleDriveIntegration({
               <div className="flex items-start gap-3">
                 <StatusIcon className="mt-0.5 h-5 w-5 shrink-0" />
                 <div>
-                  <p className="text-sm font-black">{meta.label}</p>
-                  <p className="mt-1 text-xs opacity-80">
+                  <p className="text-base font-black">{meta.label}</p>
+                  <p className="mt-1 text-base opacity-80">
                     {data.error?.message ||
                       (data.connected
                         ? "Authentication and storage-folder access are available."
@@ -404,10 +404,10 @@ export function GoogleDriveIntegration({
             </div>
           </div>
           <aside className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 dark:border-white/10 dark:bg-white/[0.02]">
-            <h3 className="text-sm font-black text-slate-900 dark:text-white">
+            <h3 className="text-lg font-black text-slate-900 dark:text-white">
               Connection controls
             </h3>
-            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-base leading-5 text-slate-500 dark:text-slate-400">
               Only System Administrators can change the institution-level
               storage connection.
             </p>
@@ -415,7 +415,7 @@ export function GoogleDriveIntegration({
               <button
                 disabled={!data.connected || busy}
                 onClick={() => health.mutate()}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#C9A227] px-4 py-2.5 text-xs font-black text-[#0B3A53] disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#C9A227] px-4 py-2.5 text-sm font-black text-[#0B3A53] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {health.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -429,7 +429,7 @@ export function GoogleDriveIntegration({
                   href={`https://drive.google.com/drive/folders/${data.rootFolder.id}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"
                 >
                   <ExternalLink className="h-4 w-4" />
                   Open storage folder
@@ -438,7 +438,7 @@ export function GoogleDriveIntegration({
               <button
                 disabled={!data.connected || busy}
                 onClick={() => setConfirmDisconnect(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-rose-500/10"
+                className="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-rose-500/10"
               >
                 <Unplug className="h-4 w-4" />
                 Disconnect
@@ -465,21 +465,21 @@ export function GoogleDriveIntegration({
             >
               Disconnect Google Drive?
             </h3>
-            <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            <p className="mt-2 text-base leading-5 text-slate-500 dark:text-slate-400">
               New uploads will stop until an administrator reconnects storage.
               Existing Google Drive files will not be deleted.
             </p>
             <div className="mt-6 flex justify-end gap-2">
               <button
                 onClick={() => setConfirmDisconnect(false)}
-                className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-black text-slate-700 dark:border-white/10 dark:text-slate-200"
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-black text-slate-700 dark:border-white/10 dark:text-slate-200"
               >
                 Cancel
               </button>
               <button
                 disabled={disconnect.isPending}
                 onClick={() => disconnect.mutate()}
-                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-black text-white disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50"
               >
                 {disconnect.isPending && (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -507,7 +507,7 @@ export function GoogleDriveIntegration({
             >
               Reconnect or change account?
             </h3>
-            <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            <p className="mt-2 text-base leading-5 text-slate-500 dark:text-slate-400">
               Choose the same account to refresh access. Choosing a different
               account moves new uploads to that account; existing files remain
               in the current Google Drive and are not migrated automatically.
@@ -515,7 +515,7 @@ export function GoogleDriveIntegration({
             <div className="mt-6 flex justify-end gap-2">
               <button
                 onClick={() => setConfirmSwitch(false)}
-                className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-black text-slate-700 dark:border-white/10 dark:text-slate-200"
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-black text-slate-700 dark:border-white/10 dark:text-slate-200"
               >
                 Cancel
               </button>
@@ -525,7 +525,7 @@ export function GoogleDriveIntegration({
                   setConfirmSwitch(false);
                   connect.mutate();
                 }}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#0B3A53] px-4 py-2.5 text-xs font-black text-white disabled:opacity-50 dark:bg-[#C9A227] dark:text-[#0B3A53]"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#0B3A53] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50 dark:bg-[#C9A227] dark:text-[#0B3A53]"
               >
                 <LogIn className="h-4 w-4" />
                 Continue to Google
@@ -555,13 +555,13 @@ function Info({
         <Icon className="h-4 w-4" />
       </span>
       <span className="min-w-0">
-        <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">
+        <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
           {label}
         </span>
         <span className="mt-1 block truncate text-xs font-black text-slate-900 dark:text-white">
           {value}
         </span>
-        <span className="mt-0.5 block text-[10px] text-slate-400">
+        <span className="mt-0.5 block text-xs text-slate-400">
           {secondary}
         </span>
       </span>

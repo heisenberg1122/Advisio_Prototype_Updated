@@ -145,7 +145,7 @@ function LoadError({ retry }: { retry: () => void }) {
   return (
     <div role="alert" className={`${panel} p-6`}>
       <h2 className="font-bold">Overview unavailable</h2>
-      <p className={`mt-2 text-sm ${muted}`}>
+      <p className={`mt-2 text-base ${muted}`}>
         The latest records could not be loaded. Try refreshing the overview.
       </p>
       <button
@@ -166,10 +166,10 @@ function ActivityList({ events }: { events: Overview["activity"] }) {
         className={`flex min-h-40 flex-col items-center justify-center gap-2 text-center ${muted}`}
       >
         <ShieldCheck size={24} />
-        <p className="text-sm font-semibold">
+        <p className="text-base font-semibold">
           No administrative events recorded yet
         </p>
-        <p className="max-w-sm text-xs">
+        <p className="max-w-sm text-base">
           Recorded account and institutional changes will appear here.
         </p>
       </div>
@@ -184,14 +184,14 @@ function ActivityList({ events }: { events: Overview["activity"] }) {
             <ShieldCheck size={16} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold capitalize">
+            <p className="text-base font-semibold capitalize">
               {words(event.entityType)} · {words(event.action)}
             </p>
-            <p className={`mt-1 break-words text-xs ${muted}`}>{event.actor}</p>
+            <p className={`mt-1 break-words text-base ${muted}`}>{event.actor}</p>
           </div>
           <time
             dateTime={event.createdAt}
-            className={`mt-1 shrink-0 text-right text-[11px] ${muted}`}
+            className={`mt-1 shrink-0 text-right text-xs ${muted}`}
           >
             {stamp(event.createdAt)}
           </time>
@@ -207,8 +207,8 @@ export function AdminAuditActivity() {
   if (!query.data) return <LoadError retry={() => void query.refetch()} />;
   return (
     <section className={`${panel} p-6`}>
-      <h1 className="text-lg font-bold">Administrative audit events</h1>
-      <p className={`mt-1 text-xs ${muted}`}>
+      <h1 className="text-2xl font-bold">Administrative audit events</h1>
+      <p className={`mt-1 text-base ${muted}`}>
         The six latest recorded account and institutional changes. Times are in
         Philippine Time.
       </p>
@@ -236,15 +236,15 @@ function RegistrationChart({ data }: { data: Overview["registrations"] }) {
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 id="registrations-heading" className="text-sm font-bold">
+          <h2 id="registrations-heading" className="text-lg font-bold">
             Account registrations
           </h2>
-          <p className={`mt-1 text-xs ${muted}`}>
+          <p className={`mt-1 text-base ${muted}`}>
             New accounts per day · Philippine Time
           </p>
         </div>
         <span
-          className={`rounded-lg bg-slate-50 px-2.5 py-1 text-[11px] font-semibold dark:bg-white/5 ${muted}`}
+          className={`rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-semibold dark:bg-white/5 ${muted}`}
         >
           Last 30 days
         </span>
@@ -351,7 +351,7 @@ function RegistrationChart({ data }: { data: Overview["registrations"] }) {
           ))}
       </svg>
       {data.total === 0 && (
-        <p className={`text-center text-xs ${muted}`}>
+        <p className={`text-center text-base ${muted}`}>
           No new accounts in this period.
         </p>
       )}
@@ -432,19 +432,19 @@ export function SystemAdminOverview() {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p
-            className={`mb-2 text-[10px] font-bold uppercase tracking-[0.18em] ${ink}`}
+            className={`mb-2 text-sm font-bold uppercase tracking-[0.18em] ${ink}`}
           >
             Advisio administration
           </p>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             System overview
           </h1>
-          <p className={`mt-2 text-sm ${muted}`}>
+          <p className={`mt-2 text-base ${muted}`}>
             Institutional adoption, account access, and administrative activity.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`text-[11px] ${muted}`}>
+          <span className={`text-xs ${muted}`}>
             Updated {stamp(data.generatedAt)} PHT
           </span>
           <button
@@ -461,7 +461,7 @@ export function SystemAdminOverview() {
       {query.isError && (
         <p
           role="alert"
-          className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"
+          className="rounded-xl bg-amber-50 p-3 text-base text-amber-800 dark:bg-amber-500/10 dark:text-amber-200"
         >
           Refresh failed. Showing the last successfully loaded overview.
         </p>
@@ -480,13 +480,13 @@ export function SystemAdminOverview() {
                   <ArrowUpRight size={16} className="text-slate-400" />
                 )}
               </div>
-              <p className={`mt-5 text-xs font-medium ${muted}`}>
+              <p className={`mt-5 text-base font-medium ${muted}`}>
                 {metric.label}
               </p>
               <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">
                 <CountUp value={metric.value} />
               </p>
-              <p className={`mt-3 text-[11px] ${muted}`}>{metric.note}</p>
+              <p className={`mt-3 text-base ${muted}`}>{metric.note}</p>
             </>
           );
           return metric.href ? (
@@ -512,10 +512,10 @@ export function SystemAdminOverview() {
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 id="colleges-heading" className="text-sm font-bold">
+              <h2 id="colleges-heading" className="text-lg font-bold">
                 Research projects by college
               </h2>
-              <p className={`mt-1 text-xs ${muted}`}>
+              <p className={`mt-1 text-base ${muted}`}>
                 Institutional distribution · all time
               </p>
             </div>
@@ -550,13 +550,13 @@ export function SystemAdminOverview() {
                 </div>
               ))
             ) : (
-              <p className={`py-12 text-center text-sm ${muted}`}>
+              <p className={`py-12 text-center text-base ${muted}`}>
                 No colleges configured yet.
               </p>
             )}
           </div>
           <p
-            className={`mt-5 border-t border-slate-100 pt-3 text-[11px] dark:border-white/5 ${muted}`}
+            className={`mt-5 border-t border-slate-100 pt-3 text-base dark:border-white/5 ${muted}`}
           >
             Includes every project status and active or inactive colleges.
           </p>
@@ -568,7 +568,7 @@ export function SystemAdminOverview() {
           aria-labelledby="attention-heading"
         >
           <div className="flex items-center justify-between">
-            <h2 id="attention-heading" className="text-sm font-bold">
+            <h2 id="attention-heading" className="text-lg font-bold">
               Needs attention
             </h2>
             <Clock3 size={17} className={ink} />
@@ -587,12 +587,12 @@ export function SystemAdminOverview() {
                 />
               )}
               <div>
-                <p className="text-sm font-semibold">
+                <p className="text-base font-semibold">
                   {data.metrics.pendingAccounts
                     ? `${number(data.metrics.pendingAccounts)} accounts awaiting approval`
                     : "Account approvals are up to date"}
                 </p>
-                <p className={`mt-1 text-xs leading-5 ${muted}`}>
+                <p className={`mt-1 text-base leading-5 ${muted}`}>
                   {data.metrics.pendingAccounts
                     ? "Verify institutional details before granting access to Advisio."
                     : "There are no pending account requests to review."}
@@ -600,7 +600,7 @@ export function SystemAdminOverview() {
                 {data.metrics.pendingAccounts > 0 && (
                   <Link
                     to="/system-admin/dashboard?tab=users&status=PENDING"
-                    className={`mt-3 inline-flex items-center gap-1.5 text-xs font-bold ${ink}`}
+                    className={`mt-3 inline-flex items-center gap-1.5 text-sm font-bold ${ink}`}
                   >
                     Review accounts <ArrowRight size={13} />
                   </Link>
@@ -623,16 +623,16 @@ export function SystemAdminOverview() {
         >
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 id="activity-heading" className="text-sm font-bold">
+              <h2 id="activity-heading" className="text-lg font-bold">
                 Recent administrative activity
               </h2>
-              <p className={`mt-1 text-xs ${muted}`}>
+              <p className={`mt-1 text-base ${muted}`}>
                 Latest recorded changes · Philippine Time
               </p>
             </div>
             <Link
               to="/system-admin/dashboard?tab=logs"
-              className={`shrink-0 text-xs font-semibold ${ink}`}
+              className={`shrink-0 text-sm font-semibold ${ink}`}
             >
               View events <ArrowRight size={13} className="ml-1 inline" />
             </Link>

@@ -74,7 +74,7 @@ export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
               );
             }}
             className={cn(
-              "group relative flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-150 select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--college-focus-ring)]",
+              "group relative flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-all duration-150 select-none cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--college-focus-ring)]",
               isActive
                 ? "text-[var(--color-primary)] border-b-2 border-b-[var(--color-primary)] font-semibold"
                 : "text-slate-500 dark:text-slate-400 hover:text-[var(--color-primary)] border-b-2 border-b-transparent hover:border-b-[var(--color-primary)] font-medium",

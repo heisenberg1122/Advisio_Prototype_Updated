@@ -198,10 +198,10 @@ export function ResearchFileManager({
           <div className="flex items-start gap-2.5">
             <LinkIcon className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-primary)]" />
             <div>
-              <p className="text-xs font-bold text-[var(--color-text-primary)]">
+              <p className="text-base font-bold text-[var(--color-text-primary)]">
                 Opened from a task
               </p>
-              <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+              <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
                 Manage the working file here, then return to Tasks when you are
                 ready to submit an eligible version.
               </p>
@@ -209,7 +209,7 @@ export function ResearchFileManager({
           </div>
           <a
             href={taskReturnHref(projectId, taskId)}
-            className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-primary)] px-3 text-xs font-bold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+            className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-primary)] px-3 text-sm font-bold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
           >
             Return to task
           </a>
@@ -226,7 +226,7 @@ export function ResearchFileManager({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search documents by name"
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] pl-10 pr-3 text-sm text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] pl-10 pr-3 text-base text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
             />
           </label>
           <div
@@ -245,7 +245,7 @@ export function ResearchFileManager({
                 type="button"
                 aria-pressed={filter === value}
                 onClick={() => setFilter(value)}
-                className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] ${filter === value ? "bg-[var(--color-surface)] text-[var(--color-primary)] shadow-sm" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"}`}
+                className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] ${filter === value ? "bg-[var(--color-surface)] text-[var(--color-primary)] shadow-sm" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"}`}
               >
                 {label}
               </button>
@@ -258,7 +258,7 @@ export function ResearchFileManager({
               onChange={(event) =>
                 setSort(event.target.value as DocumentWorkspaceSort)
               }
-              className="h-11 w-full appearance-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-8 text-xs font-bold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] lg:w-48"
+              className="h-11 w-full appearance-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-8 text-base font-bold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] lg:w-48"
             >
               <option value="MODIFIED_DESC">Last modified</option>
               <option value="MODIFIED_ASC">Oldest modified</option>
@@ -276,7 +276,7 @@ export function ResearchFileManager({
 
       <div className="grid xl:grid-cols-[minmax(440px,0.9fr)_minmax(520px,1.1fr)]">
         <section className="min-w-0 border-b border-[var(--color-border)] xl:border-b-0 xl:border-r">
-          <div className="grid grid-cols-[minmax(0,1fr)_88px_112px_36px] gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 py-2.5 text-[10px] font-extrabold uppercase tracking-wider text-[var(--color-text-secondary)] sm:grid-cols-[minmax(0,1fr)_110px_130px_44px] sm:px-5">
+          <div className="grid grid-cols-[minmax(0,1fr)_88px_112px_36px] gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider text-[var(--color-text-secondary)] sm:grid-cols-[minmax(0,1fr)_110px_130px_44px] sm:px-5">
             <span>Name</span>
             <span>Type</span>
             <span>Modified</span>
@@ -310,7 +310,7 @@ export function ResearchFileManager({
                         <span className="block truncate text-sm font-semibold text-[var(--color-text-primary)]">
                           {document.title}
                         </span>
-                        <span className="mt-0.5 block truncate text-[11px] text-[var(--color-text-secondary)]">
+                        <span className="mt-0.5 block truncate text-sm text-[var(--color-text-secondary)]">
                           {document.milestone
                             ? `${document.milestone.sequence}. ${document.milestone.name}`
                             : latest?.fileName || "Project file"}
@@ -353,7 +353,7 @@ export function ResearchFileManager({
               <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
-                    <h2 className="truncate text-base font-extrabold text-[var(--color-text-primary)]">
+                    <h2 className="truncate text-lg font-extrabold text-[var(--color-text-primary)]">
                       {selectedDocument.title}
                     </h2>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -375,7 +375,7 @@ export function ResearchFileManager({
                         href={selectedDocument.liveDocumentUrl || "#"}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs font-bold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-bold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
                       >
                         <ExternalLink className="h-3.5 w-3.5" /> Open in Google
                       </a>
@@ -431,7 +431,7 @@ export function ResearchFileManager({
                               event.target.value,
                             )
                           }
-                          className="h-9 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-xs font-semibold outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+                          className="h-9 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-base font-semibold outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
                         >
                           <option value="">No milestone</option>
                           {stages.map((stage) => (
@@ -458,11 +458,11 @@ export function ResearchFileManager({
                   <div>
                     <h3
                       id="document-preview-title"
-                      className="text-sm font-extrabold text-[var(--color-text-primary)]"
+                      className="text-lg font-extrabold text-[var(--color-text-primary)]"
                     >
                       Preview
                     </h3>
-                    <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+                    <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
                       {previewKind === "GOOGLE_DOC"
                         ? "Live preview; editing continues in Google Docs."
                         : latestVersion?.fileName || "Latest available version"}
@@ -497,12 +497,12 @@ export function ResearchFileManager({
                   ) : (
                     <div className="flex min-h-52 flex-col items-center justify-center p-6 text-center">
                       <FileText className="h-8 w-8 text-[var(--color-primary)]" />
-                      <p className="mt-3 text-sm font-bold text-[var(--color-text-primary)]">
+                      <p className="mt-3 text-base font-bold text-[var(--color-text-primary)]">
                         {previewError
                           ? "Preview unavailable"
                           : "Preview is not supported for this file type"}
                       </p>
-                      <p className="mt-1 max-w-sm text-xs leading-5 text-[var(--color-text-secondary)]">
+                      <p className="mt-1 max-w-sm text-base leading-5 text-[var(--color-text-secondary)]">
                         {previewError ||
                           "Open or download the stored version using its authorized file action."}
                       </p>
@@ -529,11 +529,11 @@ export function ResearchFileManager({
                   <div>
                     <h3
                       id="document-version-history-title"
-                      className="text-sm font-extrabold text-[var(--color-text-primary)]"
+                      className="text-lg font-extrabold text-[var(--color-text-primary)]"
                     >
                       Version history
                     </h3>
-                    <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+                    <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
                       Submitted snapshots are read-only and remain preserved.
                     </p>
                   </div>
@@ -565,7 +565,7 @@ export function ResearchFileManager({
                             </span>
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
-                                <p className="truncate text-xs font-bold text-[var(--color-text-primary)]">
+                                <p className="truncate text-sm font-bold text-[var(--color-text-primary)]">
                                   Version {version.versionNumber} ·{" "}
                                   {version.fileName}
                                 </p>
@@ -575,7 +575,7 @@ export function ResearchFileManager({
                                   </Tag>
                                 )}
                               </div>
-                              <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">
+                              <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                                 {displayDate(
                                   version.submittedAt || version.uploadedAt,
                                 )}
@@ -598,7 +598,7 @@ export function ResearchFileManager({
                       ))}
                   </div>
                 ) : (
-                  <p className="mt-4 rounded-xl border border-dashed border-[var(--color-border)] p-4 text-xs text-[var(--color-text-secondary)]">
+                  <p className="mt-4 rounded-xl border border-dashed border-[var(--color-border)] p-4 text-base text-[var(--color-text-secondary)]">
                     This live working document has no frozen versions yet.
                     Submit eligible requirements from Tasks.
                   </p>

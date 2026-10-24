@@ -7,10 +7,10 @@ export function BookSlotCard() {
   return (
     <Card className="flex min-h-[220px] flex-col justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-none">
       <div>
-        <CardTitle icon="ti-calendar-plus" className="mb-3 text-base text-[var(--color-text-primary)]">
+        <CardTitle icon="ti-calendar-plus" className="mb-3 text-lg text-[var(--color-text-primary)]">
           Request a consultation
         </CardTitle>
-        <p className="mb-4 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="mb-4 text-base leading-relaxed text-[var(--color-text-secondary)]">
           Request a meeting with your assigned faculty. Your adviser will review and confirm the schedule.
         </p>
       </div>

@@ -48,8 +48,8 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
     return (
       <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-10 text-center">
         <i className="ti ti-timeline-event text-3xl text-[var(--color-text-muted)]" />
-        <p className="mt-2 text-sm font-semibold text-[var(--color-text-primary)]">No workflow timeline available</p>
-        <p className="mt-1 text-xs sm:text-sm text-[var(--color-text-secondary)]">A professor must deploy workflow milestones before a Gantt timeline can be generated.</p>
+        <p className="mt-2 text-base font-semibold text-[var(--color-text-primary)]">No workflow timeline available</p>
+        <p className="mt-1 text-base text-[var(--color-text-secondary)]">A professor must deploy workflow milestones before a Gantt timeline can be generated.</p>
       </div>
     );
   }
@@ -58,8 +58,8 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
     <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)]" aria-label="Project Gantt timeline">
       <div className="flex flex-col gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Project Gantt Timeline</h3>
-          <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">Dates are calculated from the professor-managed workflow and milestone durations.</p>
+          <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Project Gantt Timeline</h3>
+          <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">Dates are calculated from the professor-managed workflow and milestone durations.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="h-2 w-32 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
@@ -85,7 +85,7 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
           <div className="relative">
             {todayOffset >= 0 && todayOffset <= chartWidth && (
               <div className="pointer-events-none absolute bottom-0 top-0 z-10 w-px bg-rose-500" style={{ left: LABEL_WIDTH + todayOffset }}>
-                <span className="absolute -top-5 -translate-x-1/2 rounded bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-xs">TODAY</span>
+                <span className="absolute -top-5 -translate-x-1/2 rounded bg-rose-500 px-1.5 py-0.5 text-xs font-bold text-white shadow-xs">TODAY</span>
               </div>
             )}
             {stages.map((stage) => {
@@ -105,14 +105,14 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
                   <div className="sticky left-0 z-20 flex items-center gap-2 border-r border-[var(--color-border)] bg-[var(--color-surface)] px-4" style={{ width: LABEL_WIDTH }}>
                     <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotColor}`} />
                     <div className="min-w-0">
-                      <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">{stage.topic?.title || "Ungrouped"}</p>
-                      <p className="truncate text-xs font-semibold text-[var(--color-text-primary)]" title={`${stage.sequence}. ${stage.name}`}>{stage.sequence}. {stage.name}</p>
-                      <p className="mt-0.5 text-[11px] text-[var(--color-text-secondary)]">{stage.durationDays} days{stage.requiresApproval ? " · Approval gate" : ""}</p>
+                      <p className="truncate text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">{stage.topic?.title || "Ungrouped"}</p>
+                      <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]" title={`${stage.sequence}. ${stage.name}`}>{stage.sequence}. {stage.name}</p>
+                      <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">{stage.durationDays} days{stage.requiresApproval ? " · Approval gate" : ""}</p>
                     </div>
                   </div>
                   <div className="relative bg-[linear-gradient(to_right,var(--color-border-subtle)_1px,transparent_1px)] bg-[size:84px_100%]" style={{ width: chartWidth }}>
                     <div
-                      className={`absolute top-4 flex h-7 items-center rounded-lg px-2 text-[11px] transition ${barClasses}`}
+                      className={`absolute top-4 flex h-7 items-center rounded-lg px-2 text-xs transition ${barClasses}`}
                       style={{ left, width }}
                       title={`${formatDate(stage.startDate)} – ${formatDate(stage.endDate)}`}
                     >
@@ -136,10 +136,10 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
             <div key={stage.id} className="flex items-start gap-3 p-4">
               <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${dotColor}`} />
               <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-wide text-[var(--color-text-muted)]">{stage.topic?.title || "Ungrouped milestones"}</p>
-                <p className="text-sm font-bold text-[var(--color-text-primary)]">{stage.sequence}. {stage.name}</p>
-                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{formatDate(stage.startDate)} – {formatDate(stage.endDate)} · {stage.durationDays} days</p>
-                <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">{stage.status}{stage.requiresApproval ? " · Adviser approval required" : ""}</p>
+                <p className="text-sm font-extrabold uppercase tracking-wide text-[var(--color-text-muted)]">{stage.topic?.title || "Ungrouped milestones"}</p>
+                <p className="text-base font-bold text-[var(--color-text-primary)]">{stage.sequence}. {stage.name}</p>
+                <p className="mt-1 text-base text-[var(--color-text-secondary)]">{formatDate(stage.startDate)} – {formatDate(stage.endDate)} · {stage.durationDays} days</p>
+                <p className="mt-1 text-sm font-bold uppercase tracking-wide text-[var(--color-text-muted)]">{stage.status}{stage.requiresApproval ? " · Adviser approval required" : ""}</p>
               </div>
             </div>
           );

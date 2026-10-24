@@ -378,7 +378,7 @@ function PanelistDashboardContent() {
             <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs font-extrabold uppercase tracking-wider text-rose-600">
+                  <p className="text-sm font-extrabold uppercase tracking-wider text-rose-600">
                     Availability response
                   </p>
                   <h2
@@ -387,7 +387,7 @@ function PanelistDashboardContent() {
                   >
                     Cannot attend this schedule?
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-base text-slate-500">
                     Your reason is shared with the professor, not the research
                     group.
                   </p>
@@ -408,7 +408,7 @@ function PanelistDashboardContent() {
                   onChange={(event) => setDeclineReason(event.target.value)}
                   rows={4}
                   placeholder="Explain why you are unavailable…"
-                  className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm font-normal"
+                  className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-base font-normal"
                 />
               </label>
               <label className="mt-4 block text-sm font-bold text-slate-700">
@@ -420,7 +420,7 @@ function PanelistDashboardContent() {
                   onChange={(event) =>
                     setSuggestedAvailability(event.target.value)
                   }
-                  className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal"
+                  className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base font-normal"
                 />
               </label>
               <div className="mt-5 flex justify-end gap-2">
@@ -544,7 +544,7 @@ function PanelistDashboardContent() {
                           <i className={`ti ${item.icon}`} />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">
+                          <span className="block text-sm font-semibold text-slate-500 dark:text-slate-400">
                             {item.label}
                           </span>
                           <span className="mt-0.5 block text-2xl font-black text-[#0B3A53] dark:text-white truncate">
@@ -561,17 +561,17 @@ function PanelistDashboardContent() {
                   <section className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
                     <div className="mb-4 flex items-center justify-between gap-4">
                       <div>
-                        <h3 className="text-base font-bold text-[#17212B] dark:text-white sm:text-lg">
+                        <h3 className="text-lg font-bold text-[#17212B] dark:text-white sm:text-lg">
                           Assigned Research Projects
                         </h3>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                           Research work currently available within your panel
                           assignment scope.
                         </p>
                       </div>
                       <button
                         onClick={() => handleTabChange("documents")}
-                        className="shrink-0 text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
+                        className="shrink-0 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
                       >
                         Review manuscripts <i className="ti ti-chevron-right" />
                       </button>
@@ -608,7 +608,7 @@ function PanelistDashboardContent() {
                             <span className="mt-3 block truncate text-sm font-bold text-[#17212B] dark:text-white">
                               {project.title || "Untitled research project"}
                             </span>
-                            <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">
+                            <span className="mt-1 block truncate text-sm text-slate-500 dark:text-slate-400">
                               {project.workflowInstance?.currentStage?.name ||
                                 "Research review"}{" "}
                               · {readable(project.defenseStatus)}
@@ -619,10 +619,10 @@ function PanelistDashboardContent() {
                     ) : (
                       <div className="flex min-h-32 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 px-4 text-center dark:border-white/10">
                         <i className="ti ti-flask-off text-2xl text-slate-300" />
-                        <p className="mt-2 text-sm font-bold text-[#17212B] dark:text-white">
+                        <p className="mt-2 text-base font-bold text-[#17212B] dark:text-white">
                           No assigned research projects
                         </p>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-base text-slate-400">
                           Projects will appear here when a defense panel is
                           assigned.
                         </p>
@@ -635,16 +635,16 @@ function PanelistDashboardContent() {
                     <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
                       <div className="flex items-center justify-between mb-4">
                         <div>
-                          <h3 className="text-base sm:text-lg font-bold text-[#17212B] dark:text-white">
+                          <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
                             Upcoming Defenses
                           </h3>
-                          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          <p className="mt-0.5 text-base text-slate-500 dark:text-slate-400">
                             Your assigned oral defense panel schedule.
                           </p>
                         </div>
                         <button
                           onClick={() => handleTabChange("schedule")}
-                          className="flex items-center gap-1 text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
+                          className="flex items-center gap-1 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
                         >
                           View schedule{" "}
                           <i className="ti ti-chevron-right text-xs" />
@@ -667,7 +667,7 @@ function PanelistDashboardContent() {
                                 <span className="block truncate font-bold text-sm text-[#17212B] dark:text-white">
                                   {s.title}
                                 </span>
-                                <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">
+                                <span className="mt-0.5 block text-sm text-slate-500 dark:text-slate-400">
                                   {s.date} · {s.time} · {attendanceMode(s)}
                                 </span>
                               </span>
@@ -679,10 +679,10 @@ function PanelistDashboardContent() {
                             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#C9A227]">
                               <i className="ti ti-calendar-time text-2xl" />
                             </span>
-                            <p className="mt-3 font-bold text-sm text-[#17212B] dark:text-white">
+                            <p className="mt-3 font-bold text-base text-[#17212B] dark:text-white">
                               No defenses scheduled
                             </p>
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                               New panel assignments will appear here.
                             </p>
                           </div>
@@ -691,10 +691,10 @@ function PanelistDashboardContent() {
                     </article>
 
                     <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
-                      <h3 className="text-base sm:text-lg font-bold text-[#17212B] dark:text-white">
+                      <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
                         Evaluation Queue
                       </h3>
-                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 mb-4">
+                      <p className="mt-0.5 text-base text-slate-500 dark:text-slate-400 mb-4">
                         Research groups waiting for your evaluation score.
                       </p>
                       <div className="space-y-3">
@@ -718,7 +718,7 @@ function PanelistDashboardContent() {
                                     `/panelist/dashboard?tab=evaluation&sessionId=${e.id}`,
                                   )
                                 }
-                                className="ml-3 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2 text-xs font-bold text-white shadow-xs transition"
+                                className="ml-3 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2 text-sm font-bold text-white shadow-xs transition"
                               >
                                 Evaluate
                               </button>
@@ -729,10 +729,10 @@ function PanelistDashboardContent() {
                             <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
                               <i className="ti ti-circle-check text-lg" />
                             </span>
-                            <p className="font-bold text-sm text-[#17212B] dark:text-white">
+                            <p className="font-bold text-base text-[#17212B] dark:text-white">
                               You’re all caught up
                             </p>
-                            <p className="mt-1 text-xs text-slate-400">
+                            <p className="mt-1 text-base text-slate-400">
                               New evaluation sheets will appear here.
                             </p>
                           </div>
@@ -744,10 +744,10 @@ function PanelistDashboardContent() {
                   {/* Recent Activity & Quick Actions */}
                   <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_.85fr]">
                     <article className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
-                      <h3 className="text-base font-bold text-[#17212B] dark:text-white">
+                      <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
                         Recent Evaluation Activity
                       </h3>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                         Your latest completed evaluations and available
                         manuscripts.
                       </p>
@@ -765,7 +765,7 @@ function PanelistDashboardContent() {
                               <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">
                                 {grade.title}
                               </span>
-                              <span className="block text-xs text-slate-500 dark:text-slate-400">
+                              <span className="block text-sm text-slate-500 dark:text-slate-400">
                                 Evaluation submitted · {grade.score} points
                               </span>
                             </span>
@@ -785,7 +785,7 @@ function PanelistDashboardContent() {
                                 <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">
                                   {document.research.title}
                                 </span>
-                                <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                                <span className="block truncate text-sm text-slate-500 dark:text-slate-400">
                                   Defense packet · awaiting completed review
                                 </span>
                               </span>
@@ -795,10 +795,10 @@ function PanelistDashboardContent() {
                           documents.length === 0 && (
                             <div className="flex min-h-32 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 px-4 text-center dark:border-white/10">
                               <i className="ti ti-history text-2xl text-slate-300" />
-                              <p className="mt-2 text-sm font-bold text-[#17212B] dark:text-white">
+                              <p className="mt-2 text-base font-bold text-[#17212B] dark:text-white">
                                 No recent evaluation activity
                               </p>
-                              <p className="text-xs text-slate-400">
+                              <p className="text-base text-slate-400">
                                 Completed evaluations and manuscript reviews
                                 will appear here.
                               </p>
@@ -808,7 +808,7 @@ function PanelistDashboardContent() {
                     </article>
 
                     <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
-                      <h3 className="mb-4 text-base font-bold text-[#17212B] dark:text-white">
+                      <h3 className="mb-4 text-lg font-bold text-[#17212B] dark:text-white">
                         Quick Actions
                       </h3>
                       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -842,7 +842,7 @@ function PanelistDashboardContent() {
                             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0B3A53]/10 dark:bg-white/10 text-lg text-[#0B3A53] dark:text-[#C9A227]">
                               <i className={`ti ${action.icon}`} />
                             </span>
-                            <span className="text-xs font-bold text-[#17212B] dark:text-white">
+                            <span className="text-sm font-bold text-[#17212B] dark:text-white">
                               {action.label}
                             </span>
                           </button>
@@ -854,10 +854,10 @@ function PanelistDashboardContent() {
               ),
               schedule: (
                 <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-6">
-                  <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">
+                  <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
                     Defense Schedule Management
                   </h3>
-                  <p className="text-xs text-[var(--color-text-secondary)]">
+                  <p className="text-base text-[var(--color-text-secondary)]">
                     Review invitations, distinguish tentative and confirmed
                     sessions, and open the workspace for each assigned defense.
                   </p>
@@ -888,7 +888,7 @@ function PanelistDashboardContent() {
                         key={String(label)}
                         className={`rounded-xl p-3 ${tone}`}
                       >
-                        <span className="block text-[10px] font-extrabold uppercase tracking-wider">
+                        <span className="block text-xs font-extrabold uppercase tracking-wider">
                           {label}
                         </span>
                         <strong className="mt-1 block text-xl">{value}</strong>
@@ -911,7 +911,7 @@ function PanelistDashboardContent() {
                                 {s.date} at {s.time} · {attendanceMode(s)}
                                 {s.venue ? ` · ${s.venue}` : ""}
                               </span>
-                              <span className="mt-1 block text-[11px] font-semibold text-[var(--color-text-muted)]">
+                              <span className="mt-1 block text-xs font-semibold text-[var(--color-text-muted)]">
                                 Invited as {readable(s.myInvitation?.role)} ·{" "}
                                 {readable(s.myInvitation?.status)}
                               </span>
@@ -931,13 +931,13 @@ function PanelistDashboardContent() {
                             </Tag>
                           </div>
                           {s.status === "PENDING_ACKNOWLEDGEMENT" && (
-                            <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+                            <p className="mt-3 rounded-lg bg-amber-50 p-2 text-base text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
                               Tentative schedule · waiting for all required
                               panel responses.
                             </p>
                           )}
                           {s.status === "SCHEDULED" && (
-                            <p className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
+                            <p className="mt-3 rounded-lg bg-emerald-50 p-2 text-base text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
                               Confirmed schedule · all required participants
                               accepted.
                             </p>
@@ -956,7 +956,7 @@ function PanelistDashboardContent() {
                                     )
                                   }
                                   disabled={invitationSaving}
-                                  className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-extrabold text-white disabled:opacity-50"
+                                  className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-extrabold text-white disabled:opacity-50"
                                 >
                                   <i className="ti ti-check mr-1" />
                                   Accept invitation
@@ -968,7 +968,7 @@ function PanelistDashboardContent() {
                                     setDeclineReason("");
                                     setSuggestedAvailability("");
                                   }}
-                                  className="rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-extrabold text-rose-700"
+                                  className="rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm font-extrabold text-rose-700"
                                 >
                                   <i className="ti ti-x mr-1" />
                                   I’m unavailable
@@ -981,7 +981,7 @@ function PanelistDashboardContent() {
                               onClick={() =>
                                 router.push(`/panelist/defenses/${s.id}`)
                               }
-                              className="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-bold text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]"
+                              className="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-sm font-bold text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]"
                             >
                               Open defense workspace
                             </button>
@@ -990,14 +990,14 @@ function PanelistDashboardContent() {
                                 href={s.meetingUrl || s.defenseEvent.meetingUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs font-bold text-[var(--color-primary)]"
+                                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-bold text-[var(--color-primary)]"
                               >
                                 Join meeting
                               </a>
                             )}
                           </div>
                           {s.myInvitation?.status === "DECLINED" && (
-                            <p className="mt-3 rounded-lg bg-rose-50 p-2 text-xs font-bold text-rose-800">
+                            <p className="mt-3 rounded-lg bg-rose-50 p-2 text-base font-bold text-rose-800">
                               <i className="ti ti-calendar-exclamation mr-1" />
                               You declined this schedule. The professor has been
                               notified.
@@ -1027,12 +1027,12 @@ function PanelistDashboardContent() {
                       <h3 className="mt-3 text-lg font-extrabold text-[var(--color-text-primary)]">
                         No live defense session
                       </h3>
-                      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                      <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                         The scoring sheet will unlock automatically when the
                         professor starts your assigned defense.
                       </p>
                       {liveError && (
-                        <p className="mt-3 text-xs font-bold text-rose-600">
+                        <p className="mt-3 text-base font-bold text-rose-600">
                           Unable to verify the active session. Refresh or
                           contact the session facilitator.
                         </p>
@@ -1050,7 +1050,7 @@ function PanelistDashboardContent() {
                             <h2 className="mt-2 text-xl font-extrabold text-[#102f49] dark:text-white">
                               {liveSession.research.title}
                             </h2>
-                            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                            <p className="mt-1 text-base text-slate-600 dark:text-slate-300">
                               {liveSession.research.researchType?.name ||
                                 "Research defense"}
                               {liveSession.venue
@@ -1075,7 +1075,7 @@ function PanelistDashboardContent() {
                           <h3 className="mt-3 text-xl font-extrabold text-[var(--color-text-primary)]">
                             Final evaluation locked
                           </h3>
-                          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+                          <p className="mt-2 text-base text-[var(--color-text-secondary)]">
                             Submitted{" "}
                             {formatDateTime(
                               liveSession.evaluations[0].lockedAt,
@@ -1098,7 +1098,7 @@ function PanelistDashboardContent() {
                                 )}
                               </strong>
                             </div>
-                            <div className="mt-3 break-all text-[10px] text-[var(--color-text-muted)]">
+                            <div className="mt-3 break-all text-xs text-[var(--color-text-muted)]">
                               Integrity hash:{" "}
                               {liveSession.evaluations[0].integrityHash}
                             </div>
@@ -1111,7 +1111,7 @@ function PanelistDashboardContent() {
                               <h3 className="text-lg font-extrabold text-[#1b4264]">
                                 {activeTemplate.name}
                               </h3>
-                              <p className="mt-1 text-sm text-slate-500">
+                              <p className="mt-1 text-base text-slate-500">
                                 Rubric version {activeTemplate.version}.
                                 Incomplete drafts can be saved; final submission
                                 requires every score and is permanently locked.
@@ -1136,7 +1136,7 @@ function PanelistDashboardContent() {
                                       {index + 1}. {criterion.criterion}
                                     </label>
                                     {criterion.description && (
-                                      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                                      <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                                         {criterion.description}
                                       </p>
                                     )}
@@ -1152,13 +1152,13 @@ function PanelistDashboardContent() {
                                         setEvaluationDirty(true);
                                       }}
                                       placeholder="Optional criterion comment"
-                                      className="mt-3 min-h-16 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
+                                      className="mt-3 min-h-16 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 text-base text-[var(--color-text-primary)] outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
                                     />
                                   </div>
                                   <div>
                                     <label
                                       htmlFor={`score-${criterion.id}`}
-                                      className="text-xs font-bold text-[var(--color-text-secondary)]"
+                                      className="text-sm font-bold text-[var(--color-text-secondary)]"
                                     >
                                       Score (max {Number(criterion.maxScore)})
                                     </label>
@@ -1262,10 +1262,10 @@ function PanelistDashboardContent() {
               ),
               grades: (
                 <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-6">
-                  <h3 className="font-extrabold text-[#1b4264] text-[16px]">
+                  <h3 className="font-extrabold text-[#1b4264] text-lg">
                     Grades & Recommendations
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-bold">
+                  <p className="text-base text-slate-400 font-bold">
                     Monitor submitted grades, final marks, and panel consensus
                     records.
                   </p>
@@ -1279,7 +1279,7 @@ function PanelistDashboardContent() {
                           <span className="font-bold text-[#1b4264] block">
                             {g.title}
                           </span>
-                          <span className="text-[10px] text-slate-400 font-mono">
+                          <span className="text-xs text-slate-400 font-mono">
                             Score: {g.score}
                             {g.maximum ? ` / ${g.maximum}` : ""} ·{" "}
                             {String(
@@ -1320,10 +1320,10 @@ function PanelistDashboardContent() {
               ),
               history: (
                 <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-6">
-                  <h3 className="font-extrabold text-[#1b4264] text-[16px]">
+                  <h3 className="font-extrabold text-[#1b4264] text-lg">
                     Defense Archives
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-bold">
+                  <p className="text-base text-slate-400 font-bold">
                     Completed panel assignments with your evaluation and
                     recommendation records.
                   </p>
@@ -1341,14 +1341,14 @@ function PanelistDashboardContent() {
                               <strong className="block text-[#1b4264] dark:text-white">
                                 {session.research.title}
                               </strong>
-                              <span className="mt-1 block text-[11px] text-slate-500 dark:text-slate-400">
+                              <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
                                 Completed {formatDateTime(session.endedAt)} ·
                                 Official decision:{" "}
                                 {session.releasedAt
                                   ? readable(session.decision)
                                   : "Pending authorized release"}
                               </span>
-                              <span className="mt-1 block text-[11px] text-slate-500 dark:text-slate-400">
+                              <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
                                 {session.packet?.evaluationMode === "PDF"
                                   ? `PDF evaluation: ${readable(session.pdfEvaluations?.[0]?.status, "Not submitted")}`
                                   : `Your score: ${evaluation?.totalScore ?? "Not recorded"}`}{" "}

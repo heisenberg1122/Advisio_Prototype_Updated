@@ -374,12 +374,12 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
             <Tag variant="neutral">{assignment.reviewType.replace(/_/g, " ")}</Tag>
           </div>
           <CardTitle icon={FileText}>{assignment.document.title}</CardTitle>
-          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+          <p className="mt-1 text-base text-[var(--color-text-secondary)]">
             {assignment.research.groupName || assignment.research.title}
           </p>
         </div>
         <div className="rounded-xl bg-[var(--color-primary-light)] px-3 py-2 text-center text-[var(--color-primary)]">
-          <span className="block text-[10px] font-bold uppercase tracking-wide">Version</span>
+          <span className="block text-xs font-bold uppercase tracking-wide">Version</span>
           <span className="text-lg font-black">{assignment.documentVersion.versionNumber}</span>
         </div>
       </CardHeader>
@@ -413,7 +413,7 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
               {assignment.review.recommendation ? readableStatus(assignment.review.recommendation) : "Decision submitted"}
             </div>
             {assignment.review.overallComment && (
-              <p className="mt-2 whitespace-pre-wrap text-sm text-emerald-950/80 dark:text-emerald-100/80">
+              <p className="mt-2 whitespace-pre-wrap text-base text-emerald-950/80 dark:text-emerald-100/80">
                 {assignment.review.overallComment}
               </p>
             )}
@@ -471,38 +471,38 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
                 <span>{assignment.isRequired ? "Required assignment" : "Optional assignment"}</span>
               </div>
               <h3 className="mt-3 text-lg font-black leading-snug text-[var(--color-text-primary)] sm:text-xl">{assignment.document.title}</h3>
-              <p className="mt-1.5 text-sm font-medium text-[var(--color-text-secondary)]">{assignment.research.groupName || assignment.research.title}</p>
+              <p className="mt-1.5 text-base font-medium text-[var(--color-text-secondary)]">{assignment.research.groupName || assignment.research.title}</p>
             </div>
             <div className="shrink-0 rounded-xl bg-[var(--color-primary-light)] px-3.5 py-2 text-center text-[var(--color-primary)]">
-              <span className="block text-[10px] font-bold uppercase tracking-wider">Version</span>
+              <span className="block text-xs font-bold uppercase tracking-wider">Version</span>
               <span className="text-xl font-black leading-none">{assignment.documentVersion.versionNumber}</span>
             </div>
           </div>
 
           <dl className="mt-5 grid gap-x-6 gap-y-3 border-y border-[var(--color-border-subtle)] py-4 sm:grid-cols-2 xl:grid-cols-4">
             <div>
-              <dt className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Milestone</dt>
+              <dt className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Milestone</dt>
               <dd className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{assignment.documentVersion.milestone?.name || "General manuscript"}</dd>
             </div>
             <div>
-              <dt className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Submitted</dt>
+              <dt className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Submitted</dt>
               <dd className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{dateLabel(assignment.documentVersion.submittedAt)}</dd>
             </div>
             <div>
-              <dt className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Assignment status</dt>
+              <dt className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Assignment status</dt>
               <dd className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{readableStatus(assignment.status)}</dd>
             </div>
             <div>
-              <dt className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Review status</dt>
+              <dt className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Review status</dt>
               <dd className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{assignment.review ? readableStatus(assignment.review.status) : "Not started"}</dd>
             </div>
           </dl>
 
           <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
-              <p className="text-sm font-bold text-[var(--color-text-primary)]">{state.label}</p>
-              <p className="mt-0.5 text-xs leading-5 text-[var(--color-text-secondary)]">{state.description}</p>
-              <p className="mt-1 truncate text-[11px] text-[var(--color-text-muted)]" title={assignment.documentVersion.fileName}>Frozen file: {assignment.documentVersion.fileName}</p>
+              <p className="text-base font-bold text-[var(--color-text-primary)]">{state.label}</p>
+              <p className="mt-0.5 text-base leading-5 text-[var(--color-text-secondary)]">{state.description}</p>
+              <p className="mt-1 truncate text-sm text-[var(--color-text-muted)]" title={assignment.documentVersion.fileName}>Frozen file: {assignment.documentVersion.fileName}</p>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               {canDecide && (
@@ -532,8 +532,8 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
               <span className="text-xs font-semibold text-[var(--color-text-secondary)]">Version {assignment.documentVersion.versionNumber}</span>
               <span className="text-xs text-[var(--color-text-muted)]">{readableStatus(assignment.reviewType)} review</span>
             </div>
-            <h3 className="mt-2 truncate text-base font-bold text-[var(--color-text-primary)]">{assignment.document.title}</h3>
-            <p className="mt-1 truncate text-xs text-[var(--color-text-secondary)]">
+            <h3 className="mt-2 truncate text-lg font-bold text-[var(--color-text-primary)]">{assignment.document.title}</h3>
+            <p className="mt-1 truncate text-sm text-[var(--color-text-secondary)]">
               {assignment.research.groupName || assignment.research.title} · {assignment.documentVersion.milestone?.name || "General manuscript"} · {dateLabel(assignment.completedAt || review?.submittedAt || assignment.assignedAt)}
             </p>
           </div>
@@ -547,10 +547,10 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
         <details className="mt-3 border-t border-[var(--color-border-subtle)] pt-3">
           <summary className="cursor-pointer text-xs font-bold text-[var(--color-primary)]">View complete review details</summary>
           <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
-            <div><p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Assignment</p><p className="mt-1 font-semibold text-[var(--color-text-primary)]">{readableStatus(assignment.status)}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Review</p><p className="mt-1 font-semibold text-[var(--color-text-primary)]">{review ? readableStatus(review.status) : "No review recorded"}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Decision</p><p className="mt-1 font-semibold text-[var(--color-text-primary)]">{review?.recommendation ? readableStatus(review.recommendation) : "No decision recorded"}</p></div>
-            <div><p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Submitted</p><p className="mt-1 font-semibold text-[var(--color-text-primary)]">{dateLabel(review?.submittedAt)}</p></div>
+            <div><p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Assignment</p><p className="mt-1 font-semibold text-[var(--color-text-primary)]">{readableStatus(assignment.status)}</p></div>
+            <div><p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Review</p><p className="mt-1 font-semibold text-[var(--color-text-primary)]">{review ? readableStatus(review.status) : "No review recorded"}</p></div>
+            <div><p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Decision</p><p className="mt-1 font-semibold text-[var(--color-text-primary)]">{review?.recommendation ? readableStatus(review.recommendation) : "No decision recorded"}</p></div>
+            <div><p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Submitted</p><p className="mt-1 font-semibold text-[var(--color-text-primary)]">{dateLabel(review?.submittedAt)}</p></div>
           </div>
           {(state.description || review?.overallComment) && (
             <div className="mt-3 rounded-xl bg-[var(--color-surface-subtle)] p-3 text-xs leading-5 text-[var(--color-text-secondary)]">
@@ -579,9 +579,9 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
           <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-[#C9A227]/20 blur-3xl" />
           <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="max-w-3xl">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#E4C864]">Global review center</p>
+              <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#E4C864]">Global review center</p>
               <h1 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">Manuscript Reviews</h1>
-              <p className="mt-2 text-sm leading-6 text-white/75">Review exact frozen manuscript versions assigned to you across all research groups. Decisions remain permanent and version-scoped.</p>
+              <p className="mt-2 text-base leading-6 text-white/75">Review exact frozen manuscript versions assigned to you across all research groups. Decisions remain permanent and version-scoped.</p>
             </div>
             <Button variant="secondary" size="sm" className="border-white/20 bg-white/10 text-white hover:bg-white/20" icon={<RefreshCw className="h-4 w-4" />} onClick={() => void loadAssignments()} isLoading={loading}>
               Refresh assignments
@@ -612,7 +612,7 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
             <div key={stat.label} className="flex items-center gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3.5">
               <span className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl", stat.tone)}><stat.icon className="h-5 w-5" /></span>
               <span className="min-w-0">
-                <span className="block text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">{stat.label}</span>
+                <span className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">{stat.label}</span>
                 <span className="mt-0.5 block text-xl font-black text-[var(--color-text-primary)]">{stat.value}</span>
                 <span className="block truncate text-xs text-[var(--color-text-secondary)]">{stat.detail}</span>
               </span>
@@ -642,7 +642,7 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
                 <h2 id="pending-review-heading" className="flex items-center gap-2 text-xl font-black text-[var(--color-text-primary)]">
                   <Clock3 className="h-5 w-5 text-[var(--color-primary)]" /> Pending reviews
                 </h2>
-                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Only active assignments for your account can be decided.</p>
+                <p className="mt-1 text-base text-[var(--color-text-secondary)]">Only active assignments for your account can be decided.</p>
               </div>
               {!isAdviserPresentation && <Tag variant={active.length ? "warning" : "success"}>{active.length}</Tag>}
             </div>
@@ -662,7 +662,7 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
               <h2 id="review-history-heading" className="flex items-center gap-2 text-xl font-black text-[var(--color-text-primary)]">
                 <FileSearch className="h-5 w-5 text-[var(--color-primary)]" /> Review history
               </h2>
-              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Completed, revoked, reassigned, and superseded assignments remain auditable.</p>
+              <p className="mt-1 text-base text-[var(--color-text-secondary)]">Completed, revoked, reassigned, and superseded assignments remain auditable.</p>
             </div>
             {history.length ? (
               <div className={cn("grid gap-3", !isAdviserPresentation && "gap-4 xl:grid-cols-2")}>{history.map((item) => isAdviserPresentation ? adviserHistoryRow(item) : assignmentCard(item, false))}</div>
@@ -696,7 +696,7 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
               id="review-recommendation"
               value={recommendation}
               onChange={(event) => setRecommendation(event.target.value as Recommendation)}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text-primary)] outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-base text-[var(--color-text-primary)] outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)]"
             >
               {(Object.keys(recommendationLabels) as Recommendation[]).map((value) => (
                 <option key={value} value={value}>{recommendationLabels[value]}</option>
@@ -713,18 +713,18 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
               value={overallComment}
               onChange={(event) => setOverallComment(event.target.value)}
               placeholder="Summarize your decision and give actionable guidance."
-              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm text-[var(--color-text-primary)] outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base text-[var(--color-text-primary)] outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)]"
             />
           </div>
           <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
-            <p className="mb-3 text-sm font-bold text-[var(--color-text-primary)]">Optional page or section comment</p>
+            <p className="mb-3 text-base font-bold text-[var(--color-text-primary)]">Optional page or section comment</p>
             <div className="mb-3 grid gap-3 sm:grid-cols-[1fr_120px]">
               <input
                 aria-label="Section or chapter"
                 value={detailSection}
                 onChange={(event) => setDetailSection(event.target.value)}
                 placeholder="Section or chapter"
-                className="h-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text-primary)] outline-none"
+                className="h-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-base text-[var(--color-text-primary)] outline-none"
               />
               <input
                 aria-label="Page number"
@@ -733,7 +733,7 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
                 value={detailPage}
                 onChange={(event) => setDetailPage(event.target.value)}
                 placeholder="Page"
-                className="h-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text-primary)] outline-none"
+                className="h-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-base text-[var(--color-text-primary)] outline-none"
               />
             </div>
             <textarea
@@ -742,15 +742,15 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
               value={detailComment}
               onChange={(event) => setDetailComment(event.target.value)}
               placeholder="Add a precise comment tied to this location."
-              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm text-[var(--color-text-primary)] outline-none"
+              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base text-[var(--color-text-primary)] outline-none"
             />
           </div>
           <div className="rounded-xl border border-[var(--color-border)] p-4">
-            <p className="text-sm font-bold text-[var(--color-text-primary)]">
+            <p className="text-base font-bold text-[var(--color-text-primary)]">
               Previous versions and decisions
             </p>
             {historyLoading ? (
-              <p className="mt-3 text-xs text-[var(--color-text-secondary)]">
+              <p className="mt-3 text-base text-[var(--color-text-secondary)]">
                 Loading review history…
               </p>
             ) : reviewWorkflow?.versions.some((version) =>
@@ -797,7 +797,7 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
                 )}
               </div>
             ) : (
-              <p className="mt-3 text-xs text-[var(--color-text-secondary)]">
+              <p className="mt-3 text-base text-[var(--color-text-secondary)]">
                 No earlier faculty decisions are recorded for this manuscript.
               </p>
             )}
@@ -806,10 +806,10 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-bold text-[var(--color-text-primary)]">
+                  <p className="text-base font-bold text-[var(--color-text-primary)]">
                     Reviewer assignments
                   </p>
-                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                  <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                     Only eligible project-scoped faculty appear in this list.
                   </p>
                 </div>
@@ -877,7 +877,7 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
 
               {managementAction && (
                 <div className="mt-4 space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                  <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--color-primary)]">
+                  <p className="text-sm font-extrabold uppercase tracking-wide text-[var(--color-primary)]">
                     {managementAction === "ASSIGN"
                       ? "New assignment"
                       : managementAction === "REASSIGN"
@@ -889,7 +889,7 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
                       aria-label="Eligible reviewer"
                       value={candidateKey}
                       onChange={(event) => setCandidateKey(event.target.value)}
-                      className="h-10 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text-primary)] outline-none"
+                      className="h-10 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-base text-[var(--color-text-primary)] outline-none"
                     >
                       <option value="">Select an eligible reviewer</option>
                       {availableCandidates.map((candidate) => (
@@ -903,7 +903,7 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
                     </select>
                   )}
                   {managementAction === "ASSIGN" ? (
-                    <label className="flex items-center gap-2 text-xs font-semibold text-[var(--color-text-secondary)]">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-secondary)]">
                       <input
                         type="checkbox"
                         checked={managementRequired}
@@ -918,7 +918,7 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
                       value={managementReason}
                       onChange={(event) => setManagementReason(event.target.value)}
                       placeholder="Reason for this assignment change"
-                      className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm text-[var(--color-text-primary)] outline-none"
+                      className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base text-[var(--color-text-primary)] outline-none"
                     />
                   )}
                   <div className="flex justify-end gap-2">
@@ -946,7 +946,7 @@ export function ManuscriptReviewWorkspace({ presentation = "default" }: Manuscri
               )}
             </div>
           )}
-          <p className="text-xs leading-5 text-[var(--color-text-secondary)]">
+          <p className="text-base leading-5 text-[var(--color-text-secondary)]">
             This decision is recorded against the exact submitted snapshot and cannot be edited afterward. A revision request requires the researchers to submit a new version.
           </p>
         </div>

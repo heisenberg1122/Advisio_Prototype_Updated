@@ -260,7 +260,7 @@ export function AppTopbar({
                 setIsSearchOpen(true);
                 onSearch?.(e.target.value);
               }}
-              className="w-full bg-transparent text-xs text-[var(--color-text-primary)] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none outline-none"
+              className="w-full bg-transparent text-base text-[var(--color-text-primary)] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none outline-none"
               aria-label="Search navigation and topics"
             />
             {searchQuery ? (
@@ -306,11 +306,11 @@ export function AppTopbar({
                           <ItemIcon className="h-4 w-4" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-bold text-[#17212B] dark:text-white truncate">
+                          <p className="text-sm font-bold text-[#17212B] dark:text-white truncate">
                             {item.label}
                           </p>
                           {item.subtitle && (
-                            <p className="truncate text-xs text-slate-400 dark:text-slate-500">
+                            <p className="truncate text-sm text-slate-400 dark:text-slate-500">
                               {item.subtitle}
                             </p>
                           )}
@@ -382,7 +382,7 @@ export function AppTopbar({
                   <p className="truncate text-sm font-bold text-[#17212B] dark:text-white">
                     {displayName}
                   </p>
-                  <p className="truncate text-xs text-slate-400 dark:text-slate-400">
+                  <p className="truncate text-sm text-slate-400 dark:text-slate-400">
                     {userEmail}
                   </p>
                   <span className="mt-1 inline-flex items-center rounded-full border border-[var(--color-primary)]/30 bg-[var(--color-primary-light)] px-2 py-0.5 text-xs font-extrabold uppercase tracking-wide text-[var(--color-primary)]">
@@ -397,7 +397,7 @@ export function AppTopbar({
                 <button
                   type="button"
                   onClick={toggleTheme}
-                  className="w-full flex items-center justify-between p-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] cursor-pointer"
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] cursor-pointer"
                 >
                   <span className="flex items-center gap-2.5">
                     {isDark ? (
@@ -426,7 +426,7 @@ export function AppTopbar({
                 <Link
                   href={profileHref}
                   onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                  className="flex items-center gap-2.5 p-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
                 >
                   <User className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                   <span>My Profile</span>
@@ -436,7 +436,7 @@ export function AppTopbar({
                 <Link
                   href={settingsHref}
                   onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                  className="flex items-center gap-2.5 p-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
                 >
                   <Settings className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                   <span>Account Settings</span>
@@ -459,7 +459,7 @@ export function AppTopbar({
                     setIsProfileOpen(false);
                     logout();
                   }}
-                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-rose-400/50 cursor-pointer"
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl text-sm font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-rose-400/50 cursor-pointer"
                 >
                   <LogOut className="h-4 w-4" />
                   <span>Sign Out</span>

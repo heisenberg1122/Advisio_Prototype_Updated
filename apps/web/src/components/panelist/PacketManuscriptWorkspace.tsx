@@ -67,7 +67,7 @@ export function PacketManuscriptWorkspace({
           </select>
         </label>
         {selected.id !== data.currentVersion.id && (
-          <p className="mt-2 text-sm text-amber-600">
+          <p className="mt-2 text-base text-amber-600">
             A newer manuscript is published. This earlier review is preserved as
             read-only history.
           </p>

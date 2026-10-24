@@ -126,7 +126,7 @@ function Pill({ children, tone = "slate" }: { children: React.ReactNode; tone?: 
     green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
     red: "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300",
   };
-  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${tones[tone]}`}>{children}</span>;
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${tones[tone]}`}>{children}</span>;
 }
 
 function ProgressBar({ value, compact = false }: { value: number; compact?: boolean }) {
@@ -146,7 +146,7 @@ function EmptyState({ title, detail }: { title: string; detail: string }) {
     <div className="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 dark:border-white/10 bg-slate-50/60 dark:bg-white/[0.02] px-6 text-center">
       <CheckCircle2 className="h-9 w-9 text-emerald-500" />
       <p className="mt-3 font-bold text-slate-800 dark:text-white">{title}</p>
-      <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">{detail}</p>
+      <p className="mt-1 max-w-sm text-base text-slate-500 dark:text-slate-400">{detail}</p>
     </div>
   );
 }
@@ -232,7 +232,7 @@ function DeanDashboardContent() {
       <div className="mx-auto mt-10 max-w-xl rounded-2xl border border-rose-200 dark:border-rose-900/40 bg-white dark:bg-[#101b2b] p-7 text-center shadow-xs">
         <ShieldAlert className="mx-auto h-10 w-10 text-rose-500" />
         <h2 className="mt-3 text-lg font-extrabold text-slate-900 dark:text-white">Dashboard unavailable</h2>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+        <p className="mt-2 text-base text-slate-500 dark:text-slate-400">
           {dashboard.error instanceof Error ? dashboard.error.message : "We could not load your college data."}
         </p>
         <button
@@ -271,7 +271,7 @@ function DeanDashboardContent() {
                 <select
                   value={academicYearId}
                   onChange={(e) => setAcademicYearId(e.target.value)}
-                  className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-4 pr-10 text-xs font-bold text-slate-700 shadow-xs outline-none focus:border-[#C9A227] dark:border-white/10 dark:bg-white/5 dark:text-white sm:w-auto sm:min-w-44"
+                  className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-4 pr-10 text-base font-bold text-slate-700 shadow-xs outline-none focus:border-[#C9A227] dark:border-white/10 dark:bg-white/5 dark:text-white sm:w-auto sm:min-w-44"
                 >
                   <option value="all">All academic years</option>
                   {data.scope.academicYears.map((year) => (
@@ -289,7 +289,7 @@ function DeanDashboardContent() {
                 <select
                   value={programId}
                   onChange={(e) => setProgramId(e.target.value)}
-                  className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-4 pr-10 text-xs font-bold text-slate-700 shadow-xs outline-none focus:border-[#C9A227] dark:border-white/10 dark:bg-white/5 dark:text-white sm:w-auto sm:min-w-56"
+                  className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-4 pr-10 text-base font-bold text-slate-700 shadow-xs outline-none focus:border-[#C9A227] dark:border-white/10 dark:bg-white/5 dark:text-white sm:w-auto sm:min-w-56"
                 >
                   <option value="all">All programs</option>
                   {data.scope.programs.map((program) => (
@@ -347,7 +347,7 @@ function DeanDashboardContent() {
                       <metric.icon className="h-6 w-6" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 block truncate">
+                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-400 block truncate">
                         {metric.label}
                       </span>
                       <div className="mt-1 flex items-baseline gap-1.5">
@@ -361,7 +361,7 @@ function DeanDashboardContent() {
                     </div>
                   </div>
                   <div className="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-white/5 pt-2.5">
-                    <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">Live college tally</span>
+                    <span className="text-xs font-medium text-slate-400 dark:text-slate-500">Live college tally</span>
                     <ArrowRight className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600 transition-transform group-hover:translate-x-0.5" />
                   </div>
                 </div>
@@ -374,7 +374,7 @@ function DeanDashboardContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Research Program Overview</h2>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    <p className="mt-1 text-base text-slate-500 dark:text-slate-400 font-medium">
                       Research participation and average workflow completion across departments.
                     </p>
                   </div>
@@ -401,7 +401,7 @@ function DeanDashboardContent() {
 
               <article className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
                 <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Research Pipeline</h2>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">Groups distributed by active workflow milestone.</p>
+                <p className="mt-1 text-base text-slate-500 dark:text-slate-400 font-medium">Groups distributed by active workflow milestone.</p>
                 <div className="mt-6 space-y-4">
                   {data.stageDistribution.map((item) => (
                     <div key={item.stage}>
@@ -430,7 +430,7 @@ function DeanDashboardContent() {
                     <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
                       {isInstitutionWide ? "Needs Institutional Attention" : "Needs Dean Attention"}
                     </h2>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">Priority bottlenecks and overdue research milestones.</p>
+                    <p className="mt-1 text-base text-slate-500 dark:text-slate-400 font-medium">Priority bottlenecks and overdue research milestones.</p>
                   </div>
                   <Pill tone={data.attention.length ? "red" : "green"}>{data.attention.length} items</Pill>
                 </div>
@@ -445,7 +445,7 @@ function DeanDashboardContent() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-extrabold text-slate-900 dark:text-white">{project.title}</p>
-                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        <p className="mt-0.5 text-base text-slate-500 dark:text-slate-400">
                           {project.program.code} · {project.riskReason}
                         </p>
                       </div>
@@ -460,8 +460,8 @@ function DeanDashboardContent() {
 
               <article className="rounded-2xl bg-gradient-to-br from-[#0B3A53] to-[#072A3D] p-6 text-white shadow-xl shadow-[#0B3A53]/10 border border-white/10">
                 <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-black uppercase tracking-[.18em] text-[#F4D03F]">Decision Queue</p>
-                  <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-[10px] font-bold text-slate-200">Pending Actions</span>
+                  <p className="text-sm font-black uppercase tracking-[.18em] text-[#F4D03F]">Decision Queue</p>
+                  <span className="rounded-full bg-white/10 px-2.5 py-0.5 text-xs font-bold text-slate-200">Pending Actions</span>
                 </div>
                 <h2 className="mt-2 text-2xl font-black">What needs action today</h2>
                 <div className="mt-6 space-y-3">
@@ -488,9 +488,9 @@ function DeanDashboardContent() {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Recent Research Activity</h2>
-                    <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">Latest project updates recorded within your college scope.</p>
+                    <p className="mt-1 text-base font-medium text-slate-500 dark:text-slate-400">Latest project updates recorded within your college scope.</p>
                   </div>
-                  <a href="/admin/dashboard?tab=research" className="shrink-0 text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]">View projects <ArrowRight className="ml-1 inline h-3.5 w-3.5" /></a>
+                  <a href="/admin/dashboard?tab=research" className="shrink-0 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]">View projects <ArrowRight className="ml-1 inline h-3.5 w-3.5" /></a>
                 </div>
                 <div className="mt-5 space-y-3">
                   {data.projects.slice(0, 4).map((project) => (
@@ -498,7 +498,7 @@ function DeanDashboardContent() {
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><BookOpen className="h-4 w-4" /></span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-extrabold text-slate-900 dark:text-white">{project.title}</span>
-                        <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{project.program.code} · {project.stage} · {project.progress}% complete</span>
+                        <span className="block truncate text-sm text-slate-500 dark:text-slate-400">{project.program.code} · {project.stage} · {project.progress}% complete</span>
                       </span>
                       <Pill tone={project.risk === "high" ? "red" : project.risk === "medium" ? "gold" : "green"}>{project.risk}</Pill>
                     </a>
@@ -509,7 +509,7 @@ function DeanDashboardContent() {
 
               <article className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
                 <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Quick Actions</h2>
-                <p className="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">Open the college workspaces you use most often.</p>
+                <p className="mt-1 text-base font-medium text-slate-500 dark:text-slate-400">Open the college workspaces you use most often.</p>
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   {[
                     { label: "Research students", href: "/admin/dashboard?tab=students", icon: UserRound },
@@ -519,7 +519,7 @@ function DeanDashboardContent() {
                   ].map((action) => (
                     <a key={action.label} href={action.href} className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 transition hover:border-[#0B3A53]/30 hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/[0.02]">
                       <action.icon className="h-5 w-5 text-[#0B3A53] dark:text-[#C9A227]" />
-                      <span className="mt-3 block text-xs font-bold text-slate-900 dark:text-white">{action.label}</span>
+                      <span className="mt-3 block text-sm font-bold text-slate-900 dark:text-white">{action.label}</span>
                     </a>
                   ))}
                 </div>
@@ -647,7 +647,7 @@ function AdviserWorkloadView({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Adviser Directory & Workload</h2>
-            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
               {canManage
                 ? "Assign advisers to a program, manage capacity, and control availability."
                 : "Review adviser assignments, capacity, and availability across the institution."}
@@ -668,7 +668,7 @@ function AdviserWorkloadView({
         </div>
 
         {error && !mode && (
-          <p className="rounded-xl bg-rose-50 p-3 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>
+          <p className="rounded-xl bg-rose-50 p-3 text-base font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>
         )}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -691,8 +691,8 @@ function AdviserWorkloadView({
                   </span>
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate font-extrabold text-slate-900 dark:text-white">{adviser.name}</h3>
-                    <p className="truncate text-xs text-slate-400 dark:text-slate-500">{adviser.email}</p>
-                    <p className="mt-1 truncate text-[11px] font-bold text-[#0B3A53] dark:text-sky-300">
+                    <p className="truncate text-sm text-slate-400 dark:text-slate-500">{adviser.email}</p>
+                    <p className="mt-1 truncate text-sm font-bold text-[#0B3A53] dark:text-sky-300">
                       {adviser.program ? adviser.program.code + " · " + adviser.program.name : "No program assigned"}
                     </p>
                   </div>
@@ -710,11 +710,11 @@ function AdviserWorkloadView({
                         / {adviser.maxAdviseeGroups}
                       </span>
                     </p>
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Active advisee groups</p>
+                    <p className="text-base font-semibold text-slate-500 dark:text-slate-400">Active advisee groups</p>
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-black text-rose-600 dark:text-rose-400">{adviser.attention}</p>
-                    <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">need attention</p>
+                    <p className="text-base font-semibold text-slate-400 dark:text-slate-500">need attention</p>
                   </div>
                 </div>
 
@@ -759,11 +759,11 @@ function AdviserWorkloadView({
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl dark:border dark:border-white/10 dark:bg-[#101b2b]">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-extrabold uppercase tracking-wider text-[#C9A227]">Adviser management</p>
+                <p className="text-sm font-extrabold uppercase tracking-wider text-[#C9A227]">Adviser management</p>
                 <h2 id="adviser-editor-title" className="mt-1 text-xl font-black text-slate-900 dark:text-white">
                   {mode === "add" ? "Add adviser" : "Edit " + selected?.name}
                 </h2>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                   {mode === "add" ? "Assign an eligible faculty account to a program." : "Currently advising " + (selected?.groups || 0) + " active groups."}
                 </p>
               </div>
@@ -786,7 +786,7 @@ function AdviserWorkloadView({
                     const candidate = candidates.find((item) => item.id === event.target.value);
                     if (candidate?.program?.id) setSelectedProgramId(candidate.program.id);
                   }}
-                  className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#C9A227] dark:border-white/15 dark:bg-[#101b2b] dark:text-white"
+                  className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base outline-none focus:border-[#C9A227] dark:border-white/15 dark:bg-[#101b2b] dark:text-white"
                 >
                   <option value="">Choose faculty</option>
                   {candidates.map((candidate) => (
@@ -801,7 +801,7 @@ function AdviserWorkloadView({
               <select
                 value={selectedProgramId}
                 onChange={(event) => setSelectedProgramId(event.target.value)}
-                className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm outline-none focus:border-[#C9A227] dark:border-white/15 dark:bg-[#101b2b] dark:text-white"
+                className="mt-2 h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base outline-none focus:border-[#C9A227] dark:border-white/15 dark:bg-[#101b2b] dark:text-white"
               >
                 <option value="">Choose program</option>
                 {programs.map((program) => (
@@ -826,7 +826,7 @@ function AdviserWorkloadView({
               />
             </label>
             {mode === "edit" && selected && maximum < selected.groups && (
-              <p className="mt-2 rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+              <p className="mt-2 rounded-xl bg-amber-50 p-3 text-base font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
                 This is below the current workload. Existing assignments stay in place, but no new group can be accepted until the count falls below the limit.
               </p>
             )}
@@ -855,12 +855,12 @@ function AdviserWorkloadView({
                   value={note}
                   onChange={(event) => setNote(event.target.value)}
                   placeholder="Required for the audit record (minimum 10 characters)"
-                  className="mt-2 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-[#C9A227] dark:border-white/15 dark:bg-white/5 dark:text-white"
+                  className="mt-2 w-full resize-none rounded-xl border border-slate-300 p-3 text-base font-normal outline-none focus:border-[#C9A227] dark:border-white/15 dark:bg-white/5 dark:text-white"
                 />
               </label>
             )}
             {error && (
-              <p className="mt-3 rounded-xl bg-rose-50 p-3 text-xs font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
+              <p className="mt-3 rounded-xl bg-rose-50 p-3 text-base font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
                 {error}
               </p>
             )}
@@ -920,7 +920,7 @@ function RegistryView({
               ? "Research Progress and Risk"
               : "Research Group Registry"}
           </h2>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">
+          <p className="mt-1 text-base text-slate-500 dark:text-slate-400 font-medium">
             Showing records within the selected college, program, and academic year.
           </p>
         </div>
@@ -931,7 +931,7 @@ function RegistryView({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search records…"
-              className="h-10 w-64 rounded-xl border border-slate-200 bg-slate-50/70 pl-9 pr-3 text-sm outline-none focus:border-[#0B3A53] dark:border-white/10 dark:bg-white/5 dark:text-white"
+              className="h-10 w-64 rounded-xl border border-slate-200 bg-slate-50/70 pl-9 pr-3 text-base outline-none focus:border-[#0B3A53] dark:border-white/10 dark:bg-white/5 dark:text-white"
             />
           </label>
           {activeView !== "students" && (
@@ -940,7 +940,7 @@ function RegistryView({
               <select
                 value={riskFilter}
                 onChange={(e) => setRiskFilter(e.target.value)}
-                className="h-10 appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-8 text-sm font-semibold dark:border-white/10 dark:bg-[#101b2b] dark:text-white"
+                className="h-10 appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-8 text-base font-semibold dark:border-white/10 dark:bg-[#101b2b] dark:text-white"
               >
                 <option value="all">All risks</option>
                 <option value="high">High risk</option>
@@ -955,7 +955,7 @@ function RegistryView({
       {activeView === "students" ? (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-left text-sm">
-            <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500 font-extrabold dark:bg-white/[0.02] dark:text-slate-400">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 font-extrabold dark:bg-white/[0.02] dark:text-slate-400">
               <tr>
                 {["Student", "Program", "Research group", "Adviser", "Stage", "Progress", "Account", ...(canManage ? ["Action"] : [])].map((heading) => (
                   <th key={heading} className="px-5 py-3 font-extrabold">
@@ -969,7 +969,7 @@ function RegistryView({
                 <tr key={student.id} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
                   <td className="px-5 py-4">
                     <p className="font-extrabold text-slate-900 dark:text-white">{student.name}</p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500">
+                    <p className="text-base text-slate-400 dark:text-slate-500">
                       {student.universityId} · {student.email}
                     </p>
                   </td>
@@ -994,7 +994,7 @@ function RegistryView({
                       <button
                         disabled={updating}
                         onClick={() => updateStatus(student.id, "ACTIVE")}
-                        className="rounded-lg bg-[#C9A227] px-3 py-1.5 text-xs font-extrabold text-[#0B3A53] hover:brightness-105 disabled:opacity-50"
+                        className="rounded-lg bg-[#C9A227] px-3 py-1.5 text-sm font-extrabold text-[#0B3A53] hover:brightness-105 disabled:opacity-50"
                       >
                         Approve
                       </button>
@@ -1002,7 +1002,7 @@ function RegistryView({
                       <button
                         disabled={updating}
                         onClick={() => updateStatus(student.id, "SUSPENDED")}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5 disabled:opacity-50"
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5 disabled:opacity-50"
                       >
                         Suspend
                       </button>
@@ -1021,7 +1021,7 @@ function RegistryView({
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-sm">
-            <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500 font-extrabold dark:bg-white/[0.02] dark:text-slate-400">
+            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 font-extrabold dark:bg-white/[0.02] dark:text-slate-400">
               <tr>
                 {["Research project", "Program", "Students", "Adviser", "Current stage", "Progress", "Risk"].map((heading) => (
                   <th key={heading} className="px-5 py-3 font-extrabold">
@@ -1035,7 +1035,7 @@ function RegistryView({
                 <tr key={project.id} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
                   <td className="max-w-xs px-5 py-4">
                     <p className="truncate font-extrabold text-slate-900 dark:text-white">{project.title}</p>
-                    <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{project.researchType}</p>
+                    <p className="mt-1 text-base text-slate-400 dark:text-slate-500">{project.researchType}</p>
                   </td>
                   <td className="px-5 py-4 font-bold text-slate-700 dark:text-slate-300">{project.program.code}</td>
                   <td className="px-5 py-4 text-slate-700 dark:text-slate-300">{project.students.length}</td>
@@ -1047,10 +1047,10 @@ function RegistryView({
                     <ProgressBar value={project.progress} compact />
                   </td>
                   <td className="px-5 py-4">
-                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-extrabold capitalize ${riskTone[project.risk]}`}>
+                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-extrabold capitalize ${riskTone[project.risk]}`}>
                       {project.risk}
                     </span>
-                    <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">{project.riskReason}</p>
+                    <p className="mt-1 text-base text-slate-400 dark:text-slate-500">{project.riskReason}</p>
                   </td>
                 </tr>
               ))}
@@ -1115,8 +1115,8 @@ function EthicsDashboardContent() {
               <workspace.icon className="h-6 w-6" />
             </span>
             <h2 className="mt-5 text-lg font-black text-slate-900 dark:text-white">{workspace.title}</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{workspace.detail}</p>
-            <span className="mt-5 inline-flex items-center gap-2 text-xs font-extrabold text-[#0B3A53] dark:text-[#C9A227]">
+            <p className="mt-2 text-base leading-6 text-slate-500 dark:text-slate-400">{workspace.detail}</p>
+            <span className="mt-5 inline-flex items-center gap-2 text-sm font-extrabold text-[#0B3A53] dark:text-[#C9A227]">
               Open workspace <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
             </span>
           </Link>

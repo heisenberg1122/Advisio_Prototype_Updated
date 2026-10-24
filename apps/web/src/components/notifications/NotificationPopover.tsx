@@ -65,7 +65,7 @@ export function NotificationPopover({ viewAllHref, compact = false }: Notificati
       >
         <i className={cn("ti ti-bell", compact ? "text-[19px]" : "text-xl")} />
         {unreadCount > 0 && (
-          <span className={cn("pointer-events-none absolute flex items-center justify-center rounded-full bg-rose-500 px-1 font-semibold leading-none text-white shadow-xs ring-1.5 ring-white dark:ring-slate-900", compact ? "-top-0.5 -right-0.5 h-3.5 min-w-3.5 text-[8.5px]" : "top-1 right-1 h-3.5 min-w-3.5 text-[9px]")}>
+          <span className={cn("pointer-events-none absolute flex items-center justify-center rounded-full bg-rose-500 px-1 font-semibold leading-none text-white shadow-xs ring-1.5 ring-white dark:ring-slate-900", compact ? "-top-0.5 -right-0.5 h-3.5 min-w-3.5 text-xs" : "top-1 right-1 h-3.5 min-w-3.5 text-xs")}>
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -79,13 +79,13 @@ export function NotificationPopover({ viewAllHref, compact = false }: Notificati
         >
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <div>
-              <p className="text-sm font-extrabold text-[#102f49]">Notifications</p>
-              <p className="mt-0.5 text-[10px] font-semibold text-slate-400">
+              <p className="text-base font-extrabold text-[#102f49]">Notifications</p>
+              <p className="mt-0.5 text-base font-semibold text-slate-400">
                 {unreadCount > 0 ? `${unreadCount} unread update${unreadCount === 1 ? "" : "s"}` : "You're all caught up"}
               </p>
             </div>
             {unreadCount > 0 && (
-              <button type="button" onClick={markAllAsRead} className="text-[10px] font-extrabold text-[#1b4264] hover:text-[#f0a000]">
+              <button type="button" onClick={markAllAsRead} className="text-sm font-extrabold text-[#1b4264] hover:text-[#f0a000]">
                 Mark all read
               </button>
             )}
@@ -112,9 +112,9 @@ export function NotificationPopover({ viewAllHref, compact = false }: Notificati
                       <i className={cn("ti text-lg", styles.icon)} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[12px] font-extrabold text-[#173f63]">{notification.title}</span>
-                      <span className="mt-0.5 line-clamp-2 block text-[11px] font-medium leading-4 text-slate-500">{notification.message}</span>
-                      <span className="mt-1 block text-[9px] font-bold text-slate-400">{notification.time}</span>
+                      <span className="block truncate text-sm font-extrabold text-[#173f63]">{notification.title}</span>
+                      <span className="mt-0.5 line-clamp-2 block text-sm font-medium leading-4 text-slate-500">{notification.message}</span>
+                      <span className="mt-1 block text-sm font-bold text-slate-400">{notification.time}</span>
                     </span>
                   </button>
                 );
@@ -122,8 +122,8 @@ export function NotificationPopover({ viewAllHref, compact = false }: Notificati
             ) : (
               <div className="flex flex-col items-center px-5 py-8 text-center">
                 <span className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-400"><i className="ti ti-bell-off text-xl" /></span>
-                <p className="mt-3 text-xs font-bold text-slate-500">No notifications yet</p>
-                <p className="mt-1 text-[10px] text-slate-400">New updates will appear here.</p>
+                <p className="mt-3 text-base font-bold text-slate-500">No notifications yet</p>
+                <p className="mt-1 text-base text-slate-400">New updates will appear here.</p>
               </div>
             )}
           </div>
@@ -131,7 +131,7 @@ export function NotificationPopover({ viewAllHref, compact = false }: Notificati
           <Link
             href={viewAllHref}
             onClick={() => setOpen(false)}
-            className="flex items-center justify-center gap-1.5 border-t border-slate-100 bg-slate-50/70 px-4 py-3 text-[11px] font-extrabold text-[#1b4264] transition hover:bg-slate-100"
+            className="flex items-center justify-center gap-1.5 border-t border-slate-100 bg-slate-50/70 px-4 py-3 text-sm font-extrabold text-[#1b4264] transition hover:bg-slate-100"
           >
             View all notifications <i className="ti ti-arrow-right text-sm" />
           </Link>

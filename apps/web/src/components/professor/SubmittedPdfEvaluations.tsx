@@ -41,13 +41,13 @@ export function SubmittedPdfEvaluations({ sessionId }: { sessionId: string }) {
   return (
     <section className="rounded-xl border p-4">
       <h3 className="font-bold">Submitted PDF evaluations</h3>
-      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+      <p className="mt-1 text-base text-[var(--color-text-secondary)]">
         Panelist drafts are private. Only final submissions appear here.
       </p>
       {error && <p role="alert">Unable to load submissions.</p>}
       {errorMessage && <p role="alert">{errorMessage}</p>}
       {!data?.evaluations.length && (
-        <p className="mt-3 text-sm">No PDF evaluations submitted yet.</p>
+        <p className="mt-3 text-base">No PDF evaluations submitted yet.</p>
       )}
       {data?.evaluations.map((item) => (
         <div

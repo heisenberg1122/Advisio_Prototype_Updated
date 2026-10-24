@@ -68,15 +68,15 @@ export function ResearchProjectsOnboarding({
             <i className={`ti ${content.icon} text-2xl`} />
           </span>
           <h3 className="mt-4 text-xl font-black text-[#102f49]">{content.title}</h3>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{content.description}</p>
+          <p className="mt-2 max-w-2xl text-base leading-6 text-slate-600">{content.description}</p>
 
           {hasWorkflow && workflows.length > 1 && (
-            <label className="mt-5 block max-w-md text-xs font-extrabold uppercase tracking-wider text-slate-500">
+            <label className="mt-5 block max-w-md text-sm font-extrabold uppercase tracking-wider text-slate-500">
               Continue setup for
               <select
                 value={selectedWorkflow?.id || ""}
                 onChange={(event) => onSelectWorkflow(event.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold normal-case tracking-normal text-[#102f49]"
+                className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-base font-semibold normal-case tracking-normal text-[#102f49]"
               >
                 {workflows.map((workflow) => (
                   <option key={workflow.id} value={workflow.id}>{workflow.name}</option>
@@ -96,7 +96,7 @@ export function ResearchProjectsOnboarding({
         </div>
 
         <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Project setup</p>
+          <p className="text-sm font-extrabold uppercase tracking-wider text-slate-400">Project setup</p>
           <ol className="mt-4 space-y-4">
             {steps.map((step, index) => {
               const complete = index < currentStep;
@@ -114,7 +114,7 @@ export function ResearchProjectsOnboarding({
               );
             })}
           </ol>
-          <p className="mt-5 rounded-xl bg-blue-50 p-3 text-xs leading-5 text-blue-800">
+          <p className="mt-5 rounded-xl bg-blue-50 p-3 text-base leading-5 text-blue-800">
             <i className="ti ti-info-circle mr-1.5" />
             Participants are workflow enrollments. Research Projects appear after an enrolled researcher registers a study.
           </p>

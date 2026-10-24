@@ -84,14 +84,14 @@ export default function JoinResearchGroupPage() {
         <h1 className="mt-4 text-center text-2xl font-black text-[#17212B] dark:text-white">
           Join a research group
         </h1>
-        <p className="mt-2 text-center text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
+        <p className="mt-2 text-center text-base text-slate-500 dark:text-slate-400 sm:text-base">
           Enter the code from the group leader, review the project, then confirm
           whether you want to join.
         </p>
 
         {!preview ? (
           <form onSubmit={reviewGroup} className="mt-6">
-            <label className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+            <label className="text-sm font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">
               Research group code
             </label>
             <input
@@ -119,17 +119,17 @@ export default function JoinResearchGroupPage() {
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-white/5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#C58A18]">
+                  <p className="text-sm font-extrabold uppercase tracking-widest text-[#C58A18]">
                     {previewKind === "workspace" ? "Workspace preview" : "Group preview"}
                   </p>
                   <h2 className="mt-1 text-lg font-black text-[#17212B] dark:text-white">
                     {preview.groupName || "Research group"}
                   </h2>
-                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                  <p className="mt-1 text-base text-slate-600 dark:text-slate-300">
                     {previewKind === "workspace" ? `${preview.projectCount || 0} research projects` : preview.title}
                   </p>
                 </div>
-                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-extrabold text-blue-800">
+                <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-extrabold text-blue-800">
                   {preview.accessMode === "PUBLIC_APPROVAL"
                     ? "Leader approval required"
                     : preview.accessMode === "PUBLIC_OPEN"
@@ -192,7 +192,7 @@ export default function JoinResearchGroupPage() {
 
         {message && (
           <p
-            className={`mt-4 rounded-xl border p-3 text-xs font-semibold sm:text-sm ${
+            className={`mt-4 rounded-xl border p-3 text-base font-semibold sm:text-base ${
               success
                 ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
                 : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"
@@ -204,7 +204,7 @@ export default function JoinResearchGroupPage() {
         <button
           type="button"
           onClick={() => router.push("/student/dashboard?tab=group")}
-          className="mt-3 w-full rounded-xl px-5 py-2.5 text-xs font-bold text-slate-500 transition hover:text-slate-800 dark:hover:text-slate-200 sm:text-sm"
+          className="mt-3 w-full rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 transition hover:text-slate-800 dark:hover:text-slate-200 sm:text-sm"
         >
           Back to My Projects
         </button>

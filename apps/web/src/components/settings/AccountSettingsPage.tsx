@@ -243,9 +243,9 @@ export default function AccountSettingsPage() {
       )}
 
       <div>
-        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--color-primary)]">My account</p>
+        <p className="text-sm font-extrabold uppercase tracking-[0.14em] text-[var(--color-primary)]">My account</p>
         <h1 className="mt-1 text-2xl font-extrabold text-[#17212B] dark:text-white">Account Settings</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Manage personal preferences for your Advisio account.</p>
+        <p className="mt-1 text-base text-slate-500 dark:text-slate-400">Manage personal preferences for your Advisio account.</p>
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-[260px_1fr]">
@@ -253,7 +253,7 @@ export default function AccountSettingsPage() {
           {categories.map(({ id, label, description, icon: Icon }) => (
             <button key={id} type="button" onClick={() => setActiveTab(id)} className={cn("flex min-w-52 items-center gap-3 rounded-xl border p-3 text-left transition", activeTab === id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]" : "border-[var(--color-border)] bg-[var(--color-surface)] text-slate-700 hover:bg-[var(--color-primary-light)] dark:text-slate-200")}>
               <span className={cn("grid h-9 w-9 place-items-center rounded-lg", activeTab === id ? "bg-white/15" : "bg-slate-100 dark:bg-white/10")}><Icon className="h-4 w-4" /></span>
-              <span><strong className="block text-sm">{label}</strong><span className={cn("text-[11px]", activeTab === id ? "text-slate-200" : "text-slate-400")}>{description}</span></span>
+              <span><strong className="block text-sm">{label}</strong><span className={cn("text-sm", activeTab === id ? "text-slate-200" : "text-slate-400")}>{description}</span></span>
             </button>
           ))}
         </nav>
@@ -278,22 +278,22 @@ export default function AccountSettingsPage() {
                   </div>
                   <div className="min-w-0 flex-1 text-center sm:text-left">
                     <p className="truncate text-lg font-extrabold text-slate-900 dark:text-white">{accountName || profile.name}</p>
-                    <p className="mt-1 text-sm font-semibold text-[#9A6A00] dark:text-[#C9A227]">{ROLE_LABELS[primaryRole] || primaryRole.replace(/_/g, " ")}</p>
-                    <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{user?.email || profile.email}</p>
+                    <p className="mt-1 text-base font-semibold text-[#9A6A00] dark:text-[#C9A227]">{ROLE_LABELS[primaryRole] || primaryRole.replace(/_/g, " ")}</p>
+                    <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{user?.email || profile.email}</p>
                     {editingAccount && (
                       <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
-                        <button type="button" onClick={() => photoInputRef.current?.click()} disabled={photoBusy} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200"><Camera className="h-3.5 w-3.5" />{photoBusy ? "Preparing photo…" : photoUrl ? "Change photo" : "Add photo"}</button>
-                        {photoUrl && <button type="button" onClick={() => setPhotoUrl("")} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-50 dark:hover:bg-rose-500/10"><Trash2 className="h-3.5 w-3.5" />Remove</button>}
+                        <button type="button" onClick={() => photoInputRef.current?.click()} disabled={photoBusy} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200"><Camera className="h-3.5 w-3.5" />{photoBusy ? "Preparing photo…" : photoUrl ? "Change photo" : "Add photo"}</button>
+                        {photoUrl && <button type="button" onClick={() => setPhotoUrl("")} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50 dark:hover:bg-rose-500/10"><Trash2 className="h-3.5 w-3.5" />Remove</button>}
                       </div>
                     )}
-                    {editingAccount && <p className="mt-2 text-[10px] text-slate-400">PNG, JPEG, or WebP · Maximum 5 MB</p>}
+                    {editingAccount && <p className="mt-2 text-base text-slate-400">PNG, JPEG, or WebP · Maximum 5 MB</p>}
                   </div>
                 </section>
 
-                {accountError && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">{accountError}</p>}
+                {accountError && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-base font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">{accountError}</p>}
 
                 <div>
-                  <div className="mb-3 flex items-center gap-2"><Pencil className="h-4 w-4 text-[#C9A227]" /><h3 className="text-sm font-extrabold text-slate-800 dark:text-white">Editable profile information</h3></div>
+                  <div className="mb-3 flex items-center gap-2"><Pencil className="h-4 w-4 text-[#C9A227]" /><h3 className="text-lg font-extrabold text-slate-800 dark:text-white">Editable profile information</h3></div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <EditableField label="Full name" value={accountName} placeholder="Enter your full name" editing={editingAccount} onChange={setAccountName} />
                     <EditableField label="Contact number" value={contactNumber} placeholder="Add your contact number" editing={editingAccount} onChange={setContactNumber} icon={<Phone className="h-4 w-4" />} />
@@ -301,7 +301,7 @@ export default function AccountSettingsPage() {
                 </div>
 
                 <div>
-                  <div className="mb-3 flex items-center gap-2"><Shield className="h-4 w-4 text-emerald-600" /><h3 className="text-sm font-extrabold text-slate-800 dark:text-white">Verified institutional information</h3></div>
+                  <div className="mb-3 flex items-center gap-2"><Shield className="h-4 w-4 text-emerald-600" /><h3 className="text-lg font-extrabold text-slate-800 dark:text-white">Verified institutional information</h3></div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <ReadOnlyField label="University ID" value={user?.universityId || "Not available"} />
                     <ReadOnlyField label="Institutional email" value={user?.email || "Not available"} />
@@ -341,8 +341,8 @@ export default function AccountSettingsPage() {
               <CardContent className="space-y-6">
                 <section aria-labelledby="color-theme-heading">
                   <div className="mb-3">
-                    <h3 id="color-theme-heading" className="text-sm font-extrabold text-slate-800 dark:text-white">Color theme</h3>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    <h3 id="color-theme-heading" className="text-lg font-extrabold text-slate-800 dark:text-white">Color theme</h3>
+                    <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                       {isSystemAdministrator
                         ? "System Administrators always use the original University of the Assumption-inspired Advisio theme."
                         : "Use your assigned academic identity or restore the original Advisio palette."}
@@ -363,7 +363,7 @@ export default function AccountSettingsPage() {
                       <span className="h-12 w-12 shrink-0 rounded-xl border border-black/10 shadow-sm" style={{ backgroundColor: COLLEGE_THEMES.default.referenceColor }} aria-hidden="true" />
                       <span className="min-w-0 pr-6">
                         <strong className="block text-sm text-slate-800 dark:text-white">Default Advisio Theme</strong>
-                        <span className="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">Original University of the Assumption-inspired palette.</span>
+                        <span className="mt-1 block text-sm leading-5 text-slate-500 dark:text-slate-400">Original University of the Assumption-inspired palette.</span>
                       </span>
                       {colorThemePreference === "DEFAULT_ADVISIO" && <Check className="absolute right-3 top-3 h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />}
                     </button>
@@ -383,7 +383,7 @@ export default function AccountSettingsPage() {
                       <span className="h-12 w-12 shrink-0 rounded-xl border border-black/10 shadow-sm" style={{ backgroundColor: assignedCollegeTheme.referenceColor }} aria-hidden="true" />
                       <span className="min-w-0 pr-6">
                         <strong className="block text-sm text-slate-800 dark:text-white">College / Program Theme</strong>
-                        <span className="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">
+                        <span className="mt-1 block text-sm leading-5 text-slate-500 dark:text-slate-400">
                           {assignedCollegeTheme.key === "default" ? "No college or program theme is assigned." : assignedCollegeTheme.name}
                         </span>
                       </span>
@@ -392,14 +392,14 @@ export default function AccountSettingsPage() {
                   </div>
                   <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
                     <span className="h-8 w-8 shrink-0 rounded-lg border border-black/10" style={{ backgroundColor: collegeTheme.referenceColor }} aria-hidden="true" />
-                    <p className="min-w-0 text-xs text-slate-500 dark:text-slate-400">Currently using <strong className="text-slate-800 dark:text-white">{collegeTheme.name}</strong>.</p>
+                    <p className="min-w-0 text-base text-slate-500 dark:text-slate-400">Currently using <strong className="text-slate-800 dark:text-white">{collegeTheme.name}</strong>.</p>
                   </div>
                 </section>
 
                 <section aria-labelledby="display-mode-heading">
                   <div className="mb-3">
-                    <h3 id="display-mode-heading" className="text-sm font-extrabold text-slate-800 dark:text-white">Display mode</h3>
-                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Choose Light, Dark, or follow your device setting.</p>
+                    <h3 id="display-mode-heading" className="text-lg font-extrabold text-slate-800 dark:text-white">Display mode</h3>
+                    <p className="mt-1 text-base text-slate-500 dark:text-slate-400">Choose Light, Dark, or follow your device setting.</p>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-3">
                     {([{ id: "light", label: "Light", icon: Sun }, { id: "dark", label: "Dark", icon: Moon }, { id: "system", label: "System", icon: Laptop }] as const).map(({ id, label, icon: Icon }) => (
@@ -429,7 +429,7 @@ export default function AccountSettingsPage() {
 }
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5"><span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">{label}</span><p className="mt-1 break-words text-sm font-bold text-slate-800 dark:text-slate-100">{value}</p></div>;
+  return <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5"><span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">{label}</span><p className="mt-1 break-words text-base font-bold text-slate-800 dark:text-slate-100">{value}</p></div>;
 }
 
 function EditableField({ label, value, placeholder, editing, onChange, icon }: {
@@ -446,14 +446,14 @@ function EditableField({ label, value, placeholder, editing, onChange, icon }: {
 
   return (
     <label className="block">
-      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
+      <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
       <span className="relative mt-1.5 block">
         {icon && <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">{icon}</span>}
         <input
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className={cn("h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] dark:border-white/15 dark:bg-white/5 dark:text-white", icon && "pl-10")}
+          className={cn("h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] dark:border-white/15 dark:bg-white/5 dark:text-white", icon && "pl-10")}
         />
       </span>
     </label>

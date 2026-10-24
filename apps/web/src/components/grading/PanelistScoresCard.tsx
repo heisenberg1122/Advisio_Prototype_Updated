@@ -23,7 +23,7 @@ export function PanelistScoresCard({ scores, isReleased }: PanelistScoresCardPro
               <div>
                 <div className="text-[13px]">{ps.panelistName}</div>
                 {ps.remarks && (
-                  <div className="text-[11px] text-[var(--color-text-tertiary)] mt-0.5">
+                  <div className="text-xs text-[var(--color-text-tertiary)] mt-0.5">
                     {ps.remarks}
                   </div>
                 )}

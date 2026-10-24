@@ -1099,7 +1099,7 @@ export default function DocumentWorkspacePage() {
           <div className="w-full max-w-xl">
             <label
               htmlFor="research-project"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-secondary)]"
+              className="mb-1.5 block text-sm font-bold text-[var(--color-text-secondary)]"
             >
               Research project
             </label>
@@ -1107,7 +1107,7 @@ export default function DocumentWorkspacePage() {
               id="research-project"
               value={activeProjectId}
               onChange={(event) => selectProject(event.target.value || null)}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
             >
               <option value="">
                 {projects.length > 1
@@ -1122,7 +1122,7 @@ export default function DocumentWorkspacePage() {
               ))}
             </select>
           </div>
-          <p className="max-w-lg text-xs leading-5 text-[var(--color-text-secondary)]">
+          <p className="max-w-lg text-base leading-5 text-[var(--color-text-secondary)]">
             {isPanelistPortal
               ? "Access is limited to projects with a current authorized panel assignment. Defense packets remain version-scoped and frozen."
               : "Live Google documents remain editable in Google. A linked document is not a frozen submission; current required deliverables still go through Tasks."}
@@ -1159,10 +1159,10 @@ export default function DocumentWorkspacePage() {
                       <Import className="h-5 w-5" />
                     </span>
                     <div>
-                      <h2 className="text-sm font-extrabold text-[var(--color-text-primary)]">
+                      <h2 className="text-lg font-extrabold text-[var(--color-text-primary)]">
                         Import browser-linked documents
                       </h2>
-                      <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)]">
+                      <p className="mt-1 text-base leading-5 text-[var(--color-text-secondary)]">
                         {importableLegacyDocuments.length} valid browser record
                         {importableLegacyDocuments.length === 1 ? "" : "s"} can
                         be copied into{" "}
@@ -1223,10 +1223,10 @@ export default function DocumentWorkspacePage() {
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <p className="text-sm font-extrabold text-[var(--color-text-primary)]">
+                              <p className="text-base font-extrabold text-[var(--color-text-primary)]">
                                 {document.title} · v{version.versionNumber}
                               </p>
-                              <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                              <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                                 {assignment.reviewType.replace(/_/g, " ")}{" "}
                                 review
                                 {assignment.isRequired
@@ -1247,7 +1247,7 @@ export default function DocumentWorkspacePage() {
                             </Tag>
                           </div>
                           {assignment.review?.overallComment && (
-                            <p className="mt-3 text-sm leading-6 text-[var(--color-text-secondary)]">
+                            <p className="mt-3 text-base leading-6 text-[var(--color-text-secondary)]">
                               {assignment.review.overallComment}
                             </p>
                           )}
@@ -1258,7 +1258,7 @@ export default function DocumentWorkspacePage() {
                             >
                               {(comment.locationData?.section ||
                                 comment.locationData?.page) && (
-                                <p className="mb-1 text-xs font-bold text-[var(--color-text-primary)]">
+                                <p className="mb-1 text-base font-bold text-[var(--color-text-primary)]">
                                   {[
                                     comment.locationData.section,
                                     comment.locationData.page
@@ -1272,7 +1272,7 @@ export default function DocumentWorkspacePage() {
                               {comment.comment}
                             </div>
                           ))}
-                          <p className="mt-3 text-xs text-[var(--color-text-secondary)]">
+                          <p className="mt-3 text-base text-[var(--color-text-secondary)]">
                             {assignment.review?.recommendation
                               ? `Decision: ${assignment.review.recommendation.replace(/_/g, " ")} · `
                               : ""}
@@ -1315,10 +1315,10 @@ export default function DocumentWorkspacePage() {
                                   {milestone.sequence}
                                 </span>
                                 <div className="min-w-0">
-                                  <h3 className="truncate text-sm font-extrabold text-[var(--color-text-primary)]">
+                                  <h3 className="truncate text-lg font-extrabold text-[var(--color-text-primary)]">
                                     {milestone.name}
                                   </h3>
-                                  <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+                                  <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
                                     {milestone.completedRequirements} of{" "}
                                     {milestone.totalRequirements} mandatory
                                     requirements complete
@@ -1344,13 +1344,13 @@ export default function DocumentWorkspacePage() {
                                 <a
                                   key={task.id}
                                   href={`/student/tasks?projectId=${activeProjectId}&taskId=${task.id}`}
-                                  className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-xs transition hover:border-[var(--color-primary)]"
+                                  className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm transition hover:border-[var(--color-primary)]"
                                 >
                                   <span className="min-w-0 truncate font-semibold text-[var(--color-text-primary)]">
                                     {task.title}
                                     {!task.isRequired ? " (optional)" : ""}
                                   </span>
-                                  <span className="shrink-0 text-[11px] font-bold text-[var(--color-text-secondary)]">
+                                  <span className="shrink-0 text-sm font-bold text-[var(--color-text-secondary)]">
                                     {task.status?.replace(/_/g, " ") ||
                                       "NOT STARTED"}
                                     {task.attempts.length
@@ -1366,14 +1366,14 @@ export default function DocumentWorkspacePage() {
                                     setSelectedDocumentId(document.id);
                                     setActiveTab("workspace");
                                   }}
-                                  className="block w-full truncate rounded-lg px-3 py-2 text-left text-xs font-semibold text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
+                                  className="block w-full truncate rounded-lg px-3 py-2 text-left text-sm font-semibold text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
                                 >
                                   Open {document.title}
                                 </button>
                               ))}
                               {!milestone.tasks.length &&
                                 !stageDocuments.length && (
-                                  <p className="text-xs text-[var(--color-text-secondary)]">
+                                  <p className="text-base text-[var(--color-text-secondary)]">
                                     No configured tasks or linked documents.
                                   </p>
                                 )}
@@ -1386,17 +1386,17 @@ export default function DocumentWorkspacePage() {
                     <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 sm:p-5">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <h3 className="text-sm font-extrabold text-[var(--color-text-primary)]">
+                          <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
                             Research activity
                           </h3>
-                          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                          <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                             Document, review, and milestone events from the
                             project record.
                           </p>
                         </div>
                         <a
                           href={`/student/dashboard?tab=milestones&projectId=${activeProjectId}`}
-                          className="text-xs font-bold text-[var(--color-primary)] hover:underline"
+                          className="text-sm font-bold text-[var(--color-primary)] hover:underline"
                         >
                           Open project timeline
                         </a>
@@ -1407,13 +1407,13 @@ export default function DocumentWorkspacePage() {
                             <li key={event.id} className="flex gap-3">
                               <span className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--color-primary)] ring-4 ring-[var(--color-primary-light)]" />
                               <div className="min-w-0 border-b border-[var(--color-border)] pb-3 last:border-0">
-                                <p className="text-sm font-bold text-[var(--color-text-primary)]">
+                                <p className="text-base font-bold text-[var(--color-text-primary)]">
                                   {event.title}
                                 </p>
-                                <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+                                <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
                                   {event.description}
                                 </p>
-                                <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">
+                                <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                                   {event.actor?.name
                                     ? `${event.actor.name} · `
                                     : ""}
@@ -1424,7 +1424,7 @@ export default function DocumentWorkspacePage() {
                           ))}
                         </ol>
                       ) : (
-                        <p className="mt-4 rounded-lg border border-dashed border-[var(--color-border)] p-4 text-xs text-[var(--color-text-secondary)]">
+                        <p className="mt-4 rounded-lg border border-dashed border-[var(--color-border)] p-4 text-base text-[var(--color-text-secondary)]">
                           No manuscript activity has been recorded for this
                           project yet.
                         </p>
@@ -1447,10 +1447,10 @@ export default function DocumentWorkspacePage() {
                       <div className="flex items-start gap-3">
                         <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" />
                         <div className="min-w-0 flex-1">
-                          <h3 className="text-sm font-extrabold text-amber-950 dark:text-amber-100">
+                          <h3 className="text-lg font-extrabold text-amber-950 dark:text-amber-100">
                             Approved versions awaiting finalization
                           </h3>
-                          <p className="mt-1 text-xs leading-5 text-amber-800 dark:text-amber-200">
+                          <p className="mt-1 text-base leading-5 text-amber-800 dark:text-amber-200">
                             Finalization archives the exact approved PDF without
                             replacing its submitted version or changing defense
                             history.
@@ -1462,10 +1462,10 @@ export default function DocumentWorkspacePage() {
                                 className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-white/80 p-3 dark:border-amber-500/20 dark:bg-slate-950/20 sm:flex-row sm:items-center sm:justify-between"
                               >
                                 <div>
-                                  <p className="text-sm font-bold text-[var(--color-text-primary)]">
+                                  <p className="text-base font-bold text-[var(--color-text-primary)]">
                                     {version.document.title}
                                   </p>
-                                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                                  <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                                     Approved immutable version{" "}
                                     {version.versionNumber}
                                     {version.milestone?.name
@@ -1528,7 +1528,7 @@ export default function DocumentWorkspacePage() {
                             </span>
                             <div>
                               <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-extrabold text-[var(--color-text-primary)]">
+                                <p className="text-base font-extrabold text-[var(--color-text-primary)]">
                                   {document.title}
                                 </p>
                                 <Tag
@@ -1544,20 +1544,20 @@ export default function DocumentWorkspacePage() {
                                   {copy.status}
                                 </Tag>
                               </div>
-                              <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                              <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                                 Finalized by {copy.finalizedBy.firstName}{" "}
                                 {copy.finalizedBy.lastName} ·{" "}
                                 {formatDate(copy.finalizedAt)} · Source version{" "}
                                 {copy.sourceVersion.versionNumber}
                               </p>
-                              <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">
+                              <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                                 Verification code: {copy.verificationCode}
                               </p>
-                              <p className="mt-1 break-all font-mono text-[10px] text-[var(--color-text-secondary)]">
+                              <p className="mt-1 break-all font-mono text-sm text-[var(--color-text-secondary)]">
                                 SHA-256 {copy.checksum}
                               </p>
                               {latestSignature && (
-                                <p className="mt-2 text-[11px] text-[var(--color-text-secondary)]">
+                                <p className="mt-2 text-base text-[var(--color-text-secondary)]">
                                   Visually signed by{" "}
                                   {latestSignature.signedBy.firstName}{" "}
                                   {latestSignature.signedBy.lastName} ·{" "}
@@ -1566,7 +1566,7 @@ export default function DocumentWorkspacePage() {
                                 </p>
                               )}
                               {copy.revocationReason && (
-                                <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
+                                <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-base text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
                                   Revoked: {copy.revocationReason}
                                 </p>
                               )}
@@ -1622,7 +1622,7 @@ export default function DocumentWorkspacePage() {
                           </div>
                           <div className="grid basis-full gap-4 border-t border-[var(--color-border)] pt-4 lg:grid-cols-2">
                             <section>
-                              <h4 className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                              <h4 className="text-lg font-extrabold uppercase tracking-wide text-[var(--color-text-secondary)]">
                                 Academic approval history
                               </h4>
                               <div className="mt-2 space-y-2">
@@ -1632,7 +1632,7 @@ export default function DocumentWorkspacePage() {
                                       key={assignment.id}
                                       className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
                                     >
-                                      <p className="text-xs font-bold text-[var(--color-text-primary)]">
+                                      <p className="text-base font-bold text-[var(--color-text-primary)]">
                                         {assignment.reviewType.replace(
                                           /_/g,
                                           " ",
@@ -1641,7 +1641,7 @@ export default function DocumentWorkspacePage() {
                                         {assignment.review?.recommendation ||
                                           assignment.status}
                                       </p>
-                                      <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">
+                                      <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                                         {assignment.reviewer
                                           ? `${assignment.reviewer.firstName} ${assignment.reviewer.lastName}`
                                           : "Assigned faculty"}
@@ -1655,7 +1655,7 @@ export default function DocumentWorkspacePage() {
                               </div>
                             </section>
                             <section>
-                              <h4 className="text-[11px] font-extrabold uppercase tracking-wide text-[var(--color-text-secondary)]">
+                              <h4 className="text-lg font-extrabold uppercase tracking-wide text-[var(--color-text-secondary)]">
                                 Signed archival artifacts
                               </h4>
                               {copy.signatures.length ? (
@@ -1665,7 +1665,7 @@ export default function DocumentWorkspacePage() {
                                       key={signature.id}
                                       className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
                                     >
-                                      <p className="text-xs font-bold text-[var(--color-text-primary)]">
+                                      <p className="text-base font-bold text-[var(--color-text-primary)]">
                                         {signature.signedBy.firstName}{" "}
                                         {signature.signedBy.lastName} ·{" "}
                                         {signature.signerRole.replace(
@@ -1673,11 +1673,11 @@ export default function DocumentWorkspacePage() {
                                           " ",
                                         )}
                                       </p>
-                                      <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">
+                                      <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                                         {formatDate(signature.signedAt)} ·{" "}
                                         {signature.verificationCode}
                                       </p>
-                                      <p className="mt-1 text-[10px] leading-4 text-[var(--color-text-secondary)]">
+                                      <p className="mt-1 text-base leading-4 text-[var(--color-text-secondary)]">
                                         Account-authenticated visual signature;
                                         not a cryptographic digital signature.
                                       </p>
@@ -1714,7 +1714,7 @@ export default function DocumentWorkspacePage() {
                                   ))}
                                 </div>
                               ) : (
-                                <p className="mt-2 text-xs leading-5 text-[var(--color-text-secondary)]">
+                                <p className="mt-2 text-base leading-5 text-[var(--color-text-secondary)]">
                                   No visual signature artifact has been
                                   generated. The original official PDF remains
                                   unchanged.
@@ -1754,7 +1754,7 @@ export default function DocumentWorkspacePage() {
           <div>
             <label
               htmlFor="create-document-title"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
+              className="mb-1.5 block text-sm font-bold text-[var(--color-text-primary)]"
             >
               Document title
             </label>
@@ -1769,14 +1769,14 @@ export default function DocumentWorkspacePage() {
                 setCreateTitle(event.target.value);
                 setCreateError("");
               }}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
               placeholder="Research manuscript"
             />
           </div>
           <div>
             <label
               htmlFor="create-document-milestone"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
+              className="mb-1.5 block text-sm font-bold text-[var(--color-text-primary)]"
             >
               Milestone
             </label>
@@ -1784,7 +1784,7 @@ export default function DocumentWorkspacePage() {
               id="create-document-milestone"
               value={createMilestoneId}
               onChange={(event) => setCreateMilestoneId(event.target.value)}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
             >
               <option value="">No milestone</option>
               {stages.map((stage) => (
@@ -1797,7 +1797,7 @@ export default function DocumentWorkspacePage() {
           {createError && (
             <p
               role="alert"
-              className="flex items-start gap-2 rounded-lg bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
+              className="flex items-start gap-2 rounded-lg bg-rose-50 p-3 text-base text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
             >
               <AlertCircle className="h-4 w-4 shrink-0" /> {createError}
             </p>
@@ -1832,7 +1832,7 @@ export default function DocumentWorkspacePage() {
           <div>
             <label
               htmlFor="upload-document-title"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
+              className="mb-1.5 block text-sm font-bold text-[var(--color-text-primary)]"
             >
               Document title
             </label>
@@ -1844,14 +1844,14 @@ export default function DocumentWorkspacePage() {
               autoFocus
               value={uploadTitle}
               onChange={(event) => setUploadTitle(event.target.value)}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
               placeholder="Supporting document"
             />
           </div>
           <div>
             <label
               htmlFor="upload-document-file"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
+              className="mb-1.5 block text-sm font-bold text-[var(--color-text-primary)]"
             >
               File
             </label>
@@ -1864,16 +1864,16 @@ export default function DocumentWorkspacePage() {
                 setUploadFile(event.target.files?.[0] || null);
                 setUploadError("");
               }}
-              className="block w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm text-[var(--color-text-primary)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-light)] file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-[var(--color-primary)]"
+              className="block w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-base text-[var(--color-text-primary)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-primary-light)] file:px-3 file:py-1.5 file:text-base file:font-bold file:text-[var(--color-primary)]"
             />
-            <p className="mt-1.5 text-xs text-[var(--color-text-secondary)]">
+            <p className="mt-1.5 text-base text-[var(--color-text-secondary)]">
               Maximum file size: 50 MB.
             </p>
           </div>
           <div>
             <label
               htmlFor="upload-document-milestone"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
+              className="mb-1.5 block text-sm font-bold text-[var(--color-text-primary)]"
             >
               Milestone
             </label>
@@ -1881,7 +1881,7 @@ export default function DocumentWorkspacePage() {
               id="upload-document-milestone"
               value={uploadMilestoneId}
               onChange={(event) => setUploadMilestoneId(event.target.value)}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
             >
               <option value="">No milestone</option>
               {stages.map((stage) => (
@@ -1894,7 +1894,7 @@ export default function DocumentWorkspacePage() {
           {uploadError && (
             <p
               role="alert"
-              className="flex items-start gap-2 rounded-lg bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
+              className="flex items-start gap-2 rounded-lg bg-rose-50 p-3 text-base text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
             >
               <AlertCircle className="h-4 w-4 shrink-0" /> {uploadError}
             </p>
@@ -1930,7 +1930,7 @@ export default function DocumentWorkspacePage() {
           <div>
             <label
               htmlFor="edit-document-title"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
+              className="mb-1.5 block text-sm font-bold text-[var(--color-text-primary)]"
             >
               Document title
             </label>
@@ -1942,13 +1942,13 @@ export default function DocumentWorkspacePage() {
               autoFocus
               value={editTitle}
               onChange={(event) => setEditTitle(event.target.value)}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
             />
           </div>
           <div>
             <label
               htmlFor="edit-document-url"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
+              className="mb-1.5 block text-sm font-bold text-[var(--color-text-primary)]"
             >
               Google Docs or Drive link
             </label>
@@ -1958,13 +1958,13 @@ export default function DocumentWorkspacePage() {
               type="url"
               value={editUrl}
               onChange={(event) => setEditUrl(event.target.value)}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
             />
           </div>
           <div>
             <label
               htmlFor="edit-document-milestone"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
+              className="mb-1.5 block text-sm font-bold text-[var(--color-text-primary)]"
             >
               Milestone
             </label>
@@ -1972,7 +1972,7 @@ export default function DocumentWorkspacePage() {
               id="edit-document-milestone"
               value={editMilestoneId}
               onChange={(event) => setEditMilestoneId(event.target.value)}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
             >
               <option value="">No milestone</option>
               {stages.map((stage) => (
@@ -1985,7 +1985,7 @@ export default function DocumentWorkspacePage() {
           {editError && (
             <p
               role="alert"
-              className="flex items-start gap-2 rounded-lg bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
+              className="flex items-start gap-2 rounded-lg bg-rose-50 p-3 text-base text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
             >
               <AlertCircle className="h-4 w-4 shrink-0" /> {editError}
             </p>
@@ -2020,7 +2020,7 @@ export default function DocumentWorkspacePage() {
           <div>
             <label
               htmlFor="document-title"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
+              className="mb-1.5 block text-sm font-bold text-[var(--color-text-primary)]"
             >
               Document title
             </label>
@@ -2031,14 +2031,14 @@ export default function DocumentWorkspacePage() {
               maxLength={255}
               value={linkTitle}
               onChange={(event) => setLinkTitle(event.target.value)}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
               placeholder="Research manuscript"
             />
           </div>
           <div>
             <label
               htmlFor="document-url"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
+              className="mb-1.5 block text-sm font-bold text-[var(--color-text-primary)]"
             >
               Google Docs or Drive link
             </label>
@@ -2051,14 +2051,14 @@ export default function DocumentWorkspacePage() {
                 setLinkUrl(event.target.value);
                 setLinkError("");
               }}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
               placeholder="https://docs.google.com/document/d/.../edit"
             />
           </div>
           <div>
             <label
               htmlFor="document-milestone"
-              className="mb-1.5 block text-xs font-bold text-[var(--color-text-primary)]"
+              className="mb-1.5 block text-sm font-bold text-[var(--color-text-primary)]"
             >
               Milestone
             </label>
@@ -2066,7 +2066,7 @@ export default function DocumentWorkspacePage() {
               id="document-milestone"
               value={linkMilestoneId}
               onChange={(event) => setLinkMilestoneId(event.target.value)}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
+              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
             >
               <option value="">No milestone</option>
               {stages.map((stage) => (
@@ -2079,7 +2079,7 @@ export default function DocumentWorkspacePage() {
           {linkError && (
             <p
               role="alert"
-              className="flex items-start gap-2 rounded-lg bg-rose-50 p-3 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
+              className="flex items-start gap-2 rounded-lg bg-rose-50 p-3 text-base text-rose-700 dark:bg-rose-500/10 dark:text-rose-300"
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {linkError}
@@ -2120,7 +2120,7 @@ export default function DocumentWorkspacePage() {
             corrected approved version must be finalized as a separate official
             copy.
           </div>
-          <label className="block text-xs font-bold text-[var(--color-text-primary)]">
+          <label className="block text-sm font-bold text-[var(--color-text-primary)]">
             Revocation reason
             <textarea
               required
@@ -2129,7 +2129,7 @@ export default function DocumentWorkspacePage() {
               rows={4}
               value={revocationReason}
               onChange={(event) => setRevocationReason(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3 text-sm text-[var(--color-text-primary)] outline-none focus:border-rose-500"
+              className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3 text-base text-[var(--color-text-primary)] outline-none focus:border-rose-500"
               placeholder="Explain why this archival copy must no longer be treated as active."
             />
           </label>

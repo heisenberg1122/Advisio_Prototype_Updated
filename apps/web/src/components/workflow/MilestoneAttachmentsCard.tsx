@@ -277,7 +277,7 @@ export function MilestoneAttachmentsCard({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="font-extrabold text-[#102f49]">Attached</h3>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-base text-slate-500">
             Share references researchers may need to complete this milestone.
           </p>
         </div>
@@ -314,7 +314,7 @@ export function MilestoneAttachmentsCard({
                   <span className="block truncate text-sm font-extrabold text-[#102f49]">
                     {attachment.title}
                   </span>
-                  <span className="mt-0.5 block truncate text-xs text-slate-400">
+                  <span className="mt-0.5 block truncate text-sm text-slate-400">
                     {attachment.type === "GUIDE"
                       ? `Guide template · ${displayFile || "Shared material"}`
                       : attachment.type === "LINK"
@@ -349,10 +349,10 @@ export function MilestoneAttachmentsCard({
             className="rounded-xl border border-slate-200 p-3 text-left transition hover:border-[#173f63]/40 hover:bg-blue-50/50 disabled:opacity-50"
           >
             <i className={`ti ${choice.icon} text-xl text-[#173f63]`} />
-            <span className="mt-2 block text-xs font-extrabold text-[#102f49]">
+            <span className="mt-2 block text-sm font-extrabold text-[#102f49]">
               {choice.label}
             </span>
-            <span className="mt-0.5 block text-[11px] leading-4 text-slate-400">
+            <span className="mt-0.5 block text-sm leading-4 text-slate-400">
               {choice.help}
             </span>
           </button>
@@ -374,11 +374,11 @@ export function MilestoneAttachmentsCard({
 
       {picker === "guide" && (
         <div className="mt-3 rounded-xl bg-slate-50 p-4">
-          <p className="text-sm font-extrabold text-[#102f49]">
+          <p className="text-base font-extrabold text-[#102f49]">
             Materials from the guide library
           </p>
           {guides.length === 0 ? (
-            <p className="mt-2 text-xs leading-5 text-slate-500">
+            <p className="mt-2 text-base leading-5 text-slate-500">
               No guide templates are available yet. Add one from Guides &amp;
               templates first.
             </p>
@@ -399,10 +399,10 @@ export function MilestoneAttachmentsCard({
                 >
                   <i className="ti ti-file-description text-lg text-[#173f63]" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-xs font-bold text-slate-700">
+                    <span className="block truncate text-sm font-bold text-slate-700">
                       {guide.title}
                     </span>
-                    <span className="block truncate text-[11px] text-slate-400">
+                    <span className="block truncate text-sm text-slate-400">
                       {guide.fileName}
                     </span>
                   </span>
@@ -416,20 +416,20 @@ export function MilestoneAttachmentsCard({
 
       {picker === "link" && (
         <div className="mt-3 space-y-2 rounded-xl bg-slate-50 p-4">
-          <p className="text-sm font-extrabold text-[#102f49]">Add a link</p>
+          <p className="text-base font-extrabold text-[#102f49]">Add a link</p>
           <input
             value={linkTitle}
             onChange={(event) => setLinkTitle(event.target.value)}
             maxLength={180}
             placeholder="Link title (optional)"
-            className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+            className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base"
           />
           <input
             value={linkUrl}
             onChange={(event) => setLinkUrl(event.target.value)}
             type="url"
             placeholder="https://…"
-            className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-sm"
+            className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base"
           />
           <button
             type="button"
@@ -443,16 +443,16 @@ export function MilestoneAttachmentsCard({
       )}
 
       {stageId && isLoading && (
-        <p className="mt-3 text-xs text-slate-400">
+        <p className="mt-3 text-base text-slate-400">
           Loading attached materials…
         </p>
       )}
       {notice && (
-        <p className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+        <p className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-base font-bold text-rose-700">
           {notice}
         </p>
       )}
-      <p className="mt-3 text-[11px] text-slate-400">
+      <p className="mt-3 text-base text-slate-400">
         Maximum upload size: 10 MB. Potentially unsafe executable files are not
         accepted.
       </p>

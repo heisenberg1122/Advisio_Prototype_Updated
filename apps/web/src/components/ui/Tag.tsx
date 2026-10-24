@@ -38,7 +38,7 @@ const dotColors: Record<string, string> = {
 };
 
 const sizeStyles = {
-  xs: "text-[11px] px-2 py-0.5 gap-1",
+  xs: "text-xs px-2 py-0.5 gap-1",
   sm: "text-xs px-2.5 py-0.5 gap-1.5",
   md: "text-xs sm:text-[13px] px-3 py-1 gap-1.5",
 };
@@ -92,7 +92,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 leading-none",
+        "inline-flex items-center justify-center text-xs font-bold px-2 py-0.5 rounded-full shrink-0 leading-none",
         variant === "primary" && "bg-[#0B3A53] text-white",
         variant === "accent" && "bg-[#C9A227] text-[#072A3D]",
         variant === "danger" && "bg-[#C94A4A] text-white",

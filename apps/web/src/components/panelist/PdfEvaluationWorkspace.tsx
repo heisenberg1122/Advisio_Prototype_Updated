@@ -602,16 +602,16 @@ export function PdfEvaluationWorkspace({
     >
       <header className="border-b border-[var(--color-border)] p-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-emerald-600">
+          <p className="text-sm font-bold uppercase tracking-widest text-emerald-600">
             {manuscript
               ? "Manuscript review · Private draft"
               : "PDF evaluation · Your personal copy"}
           </p>
           <h2 className="mt-1 text-xl font-bold">{detail.researchTitle}</h2>
-          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+          <p className="mt-1 text-base text-[var(--color-text-secondary)]">
             {detail.template.fileName}
           </p>
-          <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+          <p className="mt-2 text-base text-[var(--color-text-secondary)]">
             {manuscript
               ? `Annotate the published manuscript. Your notes stay private until you share feedback.${readOnly || detail.currentVersion === false ? " This is an earlier manuscript version; its review is read-only." : ""}`
               : locked
@@ -643,13 +643,13 @@ export function PdfEvaluationWorkspace({
       {error && (
         <p
           role="alert"
-          className="m-4 rounded-lg bg-rose-500/10 p-3 text-sm text-rose-600"
+          className="m-4 rounded-lg bg-rose-500/10 p-3 text-base text-rose-600"
         >
           {error}
         </p>
       )}
       {notice && (
-        <p role="status" className="mx-4 mt-3 text-sm text-emerald-600">
+        <p role="status" className="mx-4 mt-3 text-base text-emerald-600">
           {notice}
         </p>
       )}
@@ -660,7 +660,7 @@ export function PdfEvaluationWorkspace({
             className="absolute right-3 top-28 z-20 max-h-[min(65vh,620px)] w-[calc(100%_-_24px)] max-w-[300px] overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xl space-y-4"
           >
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-sm font-bold">Annotation details</h3>
+              <h3 className="text-lg font-bold">Annotation details</h3>
               <button
                 type="button"
                 aria-label="Close annotation details"
@@ -672,12 +672,12 @@ export function PdfEvaluationWorkspace({
               </button>
             </div>
             <fieldset disabled={!editable} className="space-y-3">
-              <p className="text-xs text-[var(--color-text-secondary)]">
+              <p className="text-base text-[var(--color-text-secondary)]">
                 Choose a tool, then click the PDF. Select a mark to move it;
                 drag its corner to resize. Press Delete or Backspace to remove
                 the selected mark.
               </p>
-              <label className="block text-xs font-bold">
+              <label className="block text-sm font-bold">
                 Text or comment
                 <textarea
                   aria-label="Text or comment"
@@ -685,12 +685,12 @@ export function PdfEvaluationWorkspace({
                   maxLength={4000}
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  className="mt-2 w-full rounded border bg-[var(--color-surface)] p-2 text-sm"
+                  className="mt-2 w-full rounded border bg-[var(--color-surface)] p-2 text-base"
                 />
               </label>
               {selectedMark && (
                 <div className="rounded-lg border p-3 space-y-2">
-                  <p className="text-sm font-bold">
+                  <p className="text-base font-bold">
                     Selected {selectedMark.type}
                   </p>
                   {["text", "comment"].includes(selectedMark.type) && (
@@ -707,12 +707,12 @@ export function PdfEvaluationWorkspace({
                           ),
                         )
                       }
-                      className="w-full rounded border bg-[var(--color-surface)] p-2 text-sm"
+                      className="w-full rounded border bg-[var(--color-surface)] p-2 text-base"
                     />
                   )}
                   <div className="grid grid-cols-2 gap-2">
                     {(["x", "y", "width", "height"] as const).map((key) => (
-                      <label key={key} className="text-xs">
+                      <label key={key} className="text-sm">
                         {key} (%)
                         <input
                           aria-label={`Annotation ${key} percent`}
@@ -757,9 +757,9 @@ export function PdfEvaluationWorkspace({
               )}
             </fieldset>
             <div className="border-t pt-3">
-              <h3 className="text-sm font-bold">Comments</h3>
+              <h3 className="text-lg font-bold">Comments</h3>
               {marks.filter((m) => m.type === "comment").length === 0 && (
-                <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                <p className="mt-2 text-base text-[var(--color-text-secondary)]">
                   No comments yet.
                 </p>
               )}
@@ -774,7 +774,7 @@ export function PdfEvaluationWorkspace({
                       setSelected(m.id);
                       setTool("select");
                     }}
-                    className="mt-2 block w-full rounded border p-2 text-left text-xs"
+                    className="mt-2 block w-full rounded border p-2 text-left text-sm"
                   >
                     {i + 1}. Page {m.page}: {m.text}
                   </button>
@@ -1135,7 +1135,7 @@ export function PdfEvaluationWorkspace({
         </div>
       </div>
       <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t p-4">
-        <p className="text-xs text-[var(--color-text-secondary)]">
+        <p className="text-base text-[var(--color-text-secondary)]">
           {manuscript
             ? "Drafts are private. Sharing publishes a fixed copy to the professor and active research group members."
             : locked
@@ -1205,7 +1205,7 @@ export function PdfEvaluationWorkspace({
         >
           <div className="max-h-[90vh] w-full max-w-xl overflow-auto rounded-xl bg-[var(--color-surface)] p-6 space-y-4">
             <h3 className="text-lg font-bold">Sign your evaluation</h3>
-            <p className="text-sm">
+            <p className="text-base">
               Your signature will be placed in the selected box on page{" "}
               {signatureBox?.page}. Editing the draft afterward removes it.
             </p>
@@ -1255,7 +1255,7 @@ export function PdfEvaluationWorkspace({
               />
             </label>
             {error && (
-              <p role="alert" className="text-sm text-rose-600">
+              <p role="alert" className="text-base text-rose-600">
                 {error}
               </p>
             )}
@@ -1327,12 +1327,12 @@ export function PdfEvaluationWorkspace({
             {!preview.final &&
               detail.signatureRequired &&
               !detail.evaluation?.signedAt && (
-                <p className="text-sm text-amber-600">
+                <p className="text-base text-amber-600">
                   Return to editing and sign this evaluation before submitting.
                 </p>
               )}
             {error && (
-              <p role="alert" className="text-sm text-rose-600">
+              <p role="alert" className="text-base text-rose-600">
                 {error}
               </p>
             )}

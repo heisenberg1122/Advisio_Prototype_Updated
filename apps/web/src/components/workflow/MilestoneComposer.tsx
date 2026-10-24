@@ -120,7 +120,7 @@ export function MilestoneComposer({
               >
                 {isCreate ? "New milestone" : "Edit milestone"}
               </h2>
-              <p className="truncate text-xs text-slate-500">
+              <p className="truncate text-sm text-slate-500">
                 {workflowName || "Research workflow"}
               </p>
             </div>
@@ -176,7 +176,7 @@ export function MilestoneComposer({
                   value={instructions}
                   onChange={(event) => onInstructionsChange(event.target.value)}
                   placeholder="Explain what researchers need to complete and what a successful submission should contain."
-                  className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700 outline-none transition focus:border-[#f6a800] focus:bg-white focus:ring-2 focus:ring-amber-100"
+                  className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 p-4 text-base leading-6 text-slate-700 outline-none transition focus:border-[#f6a800] focus:bg-white focus:ring-2 focus:ring-amber-100"
                 />
               </section>
 
@@ -186,7 +186,7 @@ export function MilestoneComposer({
                     <h3 className="font-extrabold text-[#102f49]">
                       Submission requirements
                     </h3>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-base text-slate-500">
                       Choose whether researchers must upload a deliverable for
                       this milestone.
                     </p>
@@ -253,7 +253,7 @@ export function MilestoneComposer({
                     <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
                       Workflow
                     </span>
-                    <p className="mt-1.5 text-sm font-bold text-[#102f49]">
+                    <p className="mt-1.5 text-base font-bold text-[#102f49]">
                       {workflowName || "Not selected"}
                     </p>
                   </div>
@@ -263,7 +263,7 @@ export function MilestoneComposer({
                       value={topicId}
                       onChange={(event) => onTopicIdChange(event.target.value)}
                       required
-                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal"
+                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
                     >
                       <option value="">Choose a topic</option>
                       {topics.map((topic) => (
@@ -280,7 +280,7 @@ export function MilestoneComposer({
                       onChange={(event) =>
                         onSubmissionModeChange(event.target.value)
                       }
-                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal"
+                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
                     >
                       <option value="GROUP">Research group</option>
                       <option value="INDIVIDUAL">Individual researcher</option>
@@ -299,7 +299,7 @@ export function MilestoneComposer({
                           onDeadlineDaysChange(event.target.value)
                         }
                         placeholder="No target"
-                        className="w-full rounded-xl border border-slate-300 px-3 py-2.5 pr-14 text-sm font-normal"
+                        className="w-full rounded-xl border border-slate-300 px-3 py-2.5 pr-14 text-base font-normal"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
                         days
@@ -341,7 +341,7 @@ export function MilestoneComposer({
                     <span className="block font-extrabold text-[#102f49]">
                       Advanced settings
                     </span>
-                    <span className="text-xs text-slate-500">
+                    <span className="text-sm text-slate-500">
                       Most milestones use the default type.
                     </span>
                   </span>
@@ -355,7 +355,7 @@ export function MilestoneComposer({
                     <select
                       value={category}
                       onChange={(event) => onCategoryChange(event.target.value)}
-                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal"
+                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
                     >
                       <option value="Milestone">Standard milestone</option>
                       <option value="Compliance">Compliance requirement</option>

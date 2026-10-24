@@ -77,7 +77,7 @@ export function CourseCard({
           {/* Top Row: Code Badge & Status */}
           <div className="flex items-center justify-between gap-2 relative z-10">
             {code && (
-              <span className="text-[10px] font-black tracking-widest uppercase px-2 py-0.5 rounded bg-black/25 text-white/95 backdrop-blur-xs border border-white/15">
+              <span className="text-xs font-black tracking-widest uppercase px-2 py-0.5 rounded bg-black/25 text-white/95 backdrop-blur-xs border border-white/15">
                 {code}
               </span>
             )}
@@ -88,19 +88,19 @@ export function CourseCard({
           <div className="relative z-10 mt-2 pr-12">
             <h3
               title={title}
-              className="text-base sm:text-[17px] font-bold text-white tracking-tight leading-snug truncate group-hover:underline"
+              className="text-lg font-bold text-white tracking-tight leading-snug truncate group-hover:underline"
             >
               {title}
             </h3>
 
             {subtitle && (
-              <p className="text-[11.5px] text-white/80 mt-0.5 truncate">
+              <p className="text-sm text-white/80 mt-0.5 truncate">
                 {subtitle}
               </p>
             )}
 
             {instructor && (
-              <p className="text-[11.5px] font-medium text-white/90 mt-1 truncate">
+              <p className="text-sm font-medium text-white/90 mt-1 truncate">
                 {instructor}
               </p>
             )}
@@ -128,7 +128,7 @@ export function CourseCard({
         {/* Description or details */}
         <div className="pt-2 min-h-[40px]">
           {description ? (
-            <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
+            <p className="text-base text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
               {description}
             </p>
           ) : (
@@ -140,7 +140,7 @@ export function CourseCard({
           {/* Optional Milestone Progress Bar */}
           {progress !== undefined && (
             <div className="mt-3">
-              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
                 <span>Progress</span>
                 <span className="text-[#0B3A53] dark:text-[#C9A227] font-bold">{progress}%</span>
               </div>
@@ -181,7 +181,7 @@ export function CourseCard({
                 );
               })
             ) : (
-              <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold text-[#0B3A53] dark:text-[#C9A227]">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0B3A53] dark:text-[#C9A227]">
                 <Folder className="h-3.5 w-3.5" />
                 Materials
               </span>
@@ -191,7 +191,7 @@ export function CourseCard({
           {href && (
             <Link
               href={href}
-              className="inline-flex items-center gap-1 font-semibold text-[11.5px] text-[#0B3A53] dark:text-[#C9A227] hover:underline"
+              className="inline-flex items-center gap-1 font-semibold text-sm text-[#0B3A53] dark:text-[#C9A227] hover:underline"
             >
               <span>View Workspace</span>
               <ArrowRight className="h-3 w-3" />

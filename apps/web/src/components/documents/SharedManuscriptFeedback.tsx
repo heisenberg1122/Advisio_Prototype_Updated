@@ -41,22 +41,22 @@ export function SharedManuscriptFeedback({ sessionId }: { sessionId: string }) {
   return (
     <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
       <h3 className="font-bold">Shared manuscript feedback</h3>
-      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+      <p className="mt-1 text-base text-[var(--color-text-secondary)]">
         Only explicitly shared copies appear here. Later private edits do not
         change these snapshots.
       </p>
       {(error || message) && (
-        <p role="alert" className="mt-3 text-sm text-rose-600">
+        <p role="alert" className="mt-3 text-base text-rose-600">
           {message || "Unable to load shared feedback."}
         </p>
       )}
       {!error && !data && (
-        <p role="status" className="mt-3 text-sm">
+        <p role="status" className="mt-3 text-base">
           Loading feedback…
         </p>
       )}
       {data && !data.publications.length && (
-        <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+        <p className="mt-3 text-base text-[var(--color-text-secondary)]">
           No manuscript feedback has been shared yet.
         </p>
       )}
@@ -70,12 +70,12 @@ export function SharedManuscriptFeedback({ sessionId }: { sessionId: string }) {
               <strong className="text-sm">
                 {item.review.panelist.firstName} {item.review.panelist.lastName}
               </strong>
-              <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+              <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                 {item.review.sourceVersion.fileName} · Manuscript v
                 {item.review.sourceVersion.versionNumber} · Review revision{" "}
                 {item.revision}
               </p>
-              <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+              <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                 {item.currentVersion
                   ? "Current published manuscript"
                   : "Earlier manuscript version"}{" "}

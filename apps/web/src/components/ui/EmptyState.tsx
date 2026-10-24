@@ -76,13 +76,13 @@ export function EmptyState({
       <h3
         className={cn(
           "font-semibold text-[var(--color-text-primary)]",
-          isSm ? "text-sm" : isLg ? "text-base sm:text-lg" : "text-sm sm:text-base"
+          isLg ? "text-xl" : "text-lg"
         )}
       >
         {title}
       </h3>
       {description && (
-        <p className="max-w-md text-xs sm:text-sm text-[var(--color-text-secondary)] leading-relaxed">
+        <p className="max-w-md text-base text-[var(--color-text-secondary)] leading-relaxed">
           {description}
         </p>
       )}

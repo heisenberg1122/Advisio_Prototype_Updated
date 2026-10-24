@@ -138,7 +138,7 @@ export function SignaturePad({
         <>
           <label
             htmlFor="typed-signature"
-            className="text-xs font-bold text-slate-600"
+            className="text-sm font-bold text-slate-600"
           >
             Type your signature
           </label>
@@ -214,7 +214,7 @@ export function SignaturePad({
               onLostPointerCapture={finish}
             />
           </div>
-          <p className="mt-2 text-[11px] text-slate-500">
+          <p className="mt-2 text-base text-slate-500">
             Use a mouse, touch, or pen. Choose Type to sign with a keyboard.
           </p>
         </>

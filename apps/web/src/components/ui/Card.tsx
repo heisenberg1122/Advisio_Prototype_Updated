@@ -62,7 +62,7 @@ export function CardHeader({ children, className, ...props }: CardHeaderProps) {
 export function CardTitle({ icon: Icon, children, className, ...props }: CardTitleProps) {
   return (
     <h3
-      className={cn("flex items-center gap-2.5 text-base font-semibold text-[var(--color-text-primary)] leading-snug", className)}
+      className={cn("flex items-center gap-2.5 text-lg font-semibold text-[var(--color-text-primary)] leading-snug", className)}
       {...props}
     >
       {Icon && (
@@ -79,7 +79,7 @@ export function CardTitle({ icon: Icon, children, className, ...props }: CardTit
 
 export function CardDescription({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <p className={cn("text-sm text-[var(--color-text-secondary)] mt-1 leading-normal", className)}>
+    <p className={cn("text-base text-[var(--color-text-secondary)] mt-1 leading-normal", className)}>
       {children}
     </p>
   );
@@ -114,7 +114,7 @@ export function CardLink({
     <button
       onClick={onClick}
       className={cn(
-        "text-xs sm:text-sm font-semibold text-[var(--color-primary)] cursor-pointer inline-flex items-center gap-1.5 hover:underline transition-all select-none",
+        "text-sm font-semibold text-[var(--color-primary)] cursor-pointer inline-flex items-center gap-1.5 hover:underline transition-all select-none",
         className
       )}
     >

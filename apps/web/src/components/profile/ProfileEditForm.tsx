@@ -147,7 +147,7 @@ export function ProfileEditForm() {
           
           {/* Card 1: Identity & Contact */}
           <Card className="flex flex-col gap-4 border border-slate-200 shadow-sm h-full">
-            <h4 className="font-extrabold text-[#1b4264] text-[13px] border-b border-slate-100 pb-2 flex items-center gap-2">
+            <h4 className="font-extrabold text-[#1b4264] text-lg border-b border-slate-100 pb-2 flex items-center gap-2">
               <i className="ti ti-user text-[#ffa400] text-[15px]" />
               Personal & Account Info
             </h4>
@@ -155,11 +155,11 @@ export function ProfileEditForm() {
             {/* Read-Only sensitive area */}
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col gap-3">
               <div className="flex flex-col gap-0.5">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-[8.5px]">System Email Address</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">System Email Address</span>
                 <span className="font-semibold text-slate-700 break-all">{profile.email}</span>
               </div>
               <div className="flex flex-col gap-0.5">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-[8.5px]">Account Role</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Account Role</span>
                 <span className="font-semibold text-slate-700 capitalize">{profile.role.replace("_", " ")}</span>
               </div>
             </div>
@@ -195,7 +195,7 @@ export function ProfileEditForm() {
 
           {/* Card 2: Institutional Info */}
           <Card className="flex flex-col gap-4 border border-slate-200 shadow-sm h-full">
-            <h4 className="font-extrabold text-[#1b4264] text-[13px] border-b border-slate-100 pb-2 flex items-center gap-2">
+            <h4 className="font-extrabold text-[#1b4264] text-lg border-b border-slate-100 pb-2 flex items-center gap-2">
               <i className="ti ti-building text-[#ffa400] text-[15px]" />
               Institutional Info
             </h4>
@@ -289,7 +289,7 @@ export function ProfileEditForm() {
 
           {/* Card 3: Research / Specific Details */}
           <Card className="flex flex-col gap-4 border border-slate-200 shadow-sm h-full">
-            <h4 className="font-extrabold text-[#1b4264] text-[13px] border-b border-slate-100 pb-2 flex items-center gap-2">
+            <h4 className="font-extrabold text-[#1b4264] text-lg border-b border-slate-100 pb-2 flex items-center gap-2">
               <i className="ti ti-award text-[#ffa400] text-[15px]" />
               Specialized Profile Info
             </h4>

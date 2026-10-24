@@ -477,7 +477,7 @@ export default function ResearchTasksPage() {
         <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-5">
           <label
             htmlFor="task-project"
-            className="mb-2 block text-xs font-extrabold uppercase tracking-wider text-slate-500"
+            className="mb-2 block text-sm font-extrabold uppercase tracking-wider text-slate-500"
           >
             Research project
           </label>
@@ -489,7 +489,7 @@ export default function ResearchTasksPage() {
               const projectId = event.target.value;
               projectSelection.selectProject(projectId || null);
             }}
-            className="h-11 w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
+            className="h-11 w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
           >
             <option value="">Select a project</option>
             {data.projects.map((candidate: any) => (
@@ -499,7 +499,7 @@ export default function ResearchTasksPage() {
             ))}
           </select>
           {!project && (
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-base text-slate-500">
               {projectSelection.invalidRequestedProjectId
                 ? "That project is unavailable or you do not have access to it. Choose an authorized project."
                 : "Choose a project to view its requirements and submission history."}
@@ -512,7 +512,7 @@ export default function ResearchTasksPage() {
         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+              <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
                 Active workflow
               </p>
               {activeEnrollment ? (
@@ -520,7 +520,7 @@ export default function ResearchTasksPage() {
                   <h2 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">
                     {activeEnrollment.workflow.name}
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                     {activeEnrollment.workflow.creator
                       ? `Professor: ${`${activeEnrollment.workflow.creator.firstName || ""} ${activeEnrollment.workflow.creator.lastName || ""}`.trim() || activeEnrollment.workflow.creator.email}`
                       : "Professor-created research workflow"}
@@ -531,7 +531,7 @@ export default function ResearchTasksPage() {
                   <h2 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">
                     No workflow joined yet
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                     Use the code or invitation link provided by your professor.
                   </p>
                 </>
@@ -564,7 +564,7 @@ export default function ResearchTasksPage() {
             </div>
           )}
           {enrollments.length > 1 && (
-            <p className="mt-4 text-xs font-semibold text-slate-500">
+            <p className="mt-4 text-base font-semibold text-slate-500">
               You have joined {enrollments.length} workflows. The workflow
               linked to your current project is shown first.
             </p>
@@ -580,13 +580,13 @@ export default function ResearchTasksPage() {
           }}
           className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6"
         >
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+          <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
             Join a workflow
           </p>
-          <h2 className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
+          <h2 className="mt-1 text-lg font-semibold text-[var(--color-text-primary)]">
             Enter professor invitation code
           </h2>
-          <p className="mt-1 text-xs leading-5 text-slate-500">
+          <p className="mt-1 text-base leading-5 text-slate-500">
             You will review the invitation before deciding to accept or reject
             it.
           </p>
@@ -598,7 +598,7 @@ export default function ResearchTasksPage() {
               }
               maxLength={32}
               placeholder="Invitation code"
-              className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 font-mono text-sm font-bold uppercase text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
+              className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 font-mono text-base font-bold uppercase text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
             />
             <button
               type="submit"
@@ -624,7 +624,7 @@ export default function ResearchTasksPage() {
           className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition sm:flex-none ${activeSection === "requirements" ? "bg-[var(--color-surface)] text-[var(--color-primary)] font-semibold shadow-xs" : "text-slate-500 hover:text-[#0B3A53] dark:text-slate-400 dark:hover:text-white"}`}
         >
           <i className="ti ti-checklist" /> Requirements
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] dark:bg-white/10">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs dark:bg-white/10">
             {tasks.length}
           </span>
         </button>
@@ -636,7 +636,7 @@ export default function ResearchTasksPage() {
           className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition sm:flex-none ${activeSection === "resources" ? "bg-[var(--color-surface)] text-[var(--color-primary)] font-semibold shadow-xs" : "text-slate-500 hover:text-[#0B3A53] dark:text-slate-400 dark:hover:text-white"}`}
         >
           <i className="ti ti-books" /> Guides &amp; Templates
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] dark:bg-white/10">
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs dark:bg-white/10">
             {workflowResources?.resources?.length || 0}
           </span>
         </button>
@@ -721,25 +721,25 @@ export default function ResearchTasksPage() {
                     <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
+                          <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">
                             {task.stage.topic?.title || "Ungrouped milestones"}{" "}
                             · Stage {task.stage.sequence}
                           </p>
                           {status === "IN_PROGRESS" && (
-                            <span className="inline-flex items-center rounded-full bg-[var(--color-primary-light)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-primary)]">
+                            <span className="inline-flex items-center rounded-full bg-[var(--color-primary-light)] px-2 py-0.5 text-xs font-semibold text-[var(--color-primary)]">
                               Active Milestone
                             </span>
                           )}
                           {status === "LOCKED" && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-white/10 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 dark:bg-white/10 px-2 py-0.5 text-xs font-medium text-slate-500">
                               <i className="ti ti-lock text-xs" /> Locked
                             </span>
                           )}
                         </div>
-                        <h2 className="mt-1 text-base font-semibold text-[var(--color-text-primary)] leading-snug">
+                        <h2 className="mt-1 text-lg font-semibold text-[var(--color-text-primary)] leading-snug">
                           {task.title}
                         </h2>
-                        <p className="mt-1 line-clamp-2 text-xs sm:text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                        <p className="mt-1 line-clamp-2 text-base text-[var(--color-text-secondary)] leading-relaxed">
                           {task.instructions}
                         </p>
                         <div className="mt-2.5 flex flex-wrap gap-2 text-xs font-medium text-[var(--color-text-secondary)]">
@@ -759,7 +759,7 @@ export default function ResearchTasksPage() {
                           </span>
                         </div>
                         {task.submission && (
-                          <p className="mt-2.5 text-xs font-medium text-[var(--color-text-secondary)]">
+                          <p className="mt-2.5 text-base font-medium text-[var(--color-text-secondary)]">
                             Submitted by:{" "}
                             <span className="text-[var(--color-primary)] font-semibold">
                               {userName(task.submission.submittedByUser)}
@@ -966,7 +966,7 @@ function MilestoneDetailsWorkspace({
         </nav>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-extrabold uppercase tracking-wider text-[var(--color-primary)]">
+            <p className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-primary)]">
               Milestone {task.stage.sequence}
             </p>
             <h1
@@ -975,7 +975,7 @@ function MilestoneDetailsWorkspace({
             >
               {task.title}
             </h1>
-            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+            <p className="mt-2 text-base text-[var(--color-text-secondary)]">
               {task.stage.topic?.title ||
                 project.workflowInstance?.workflow?.name ||
                 "Research workflow"}
@@ -1007,20 +1007,20 @@ function MilestoneDetailsWorkspace({
       <div className="mt-5 grid items-start gap-5 lg:grid-cols-[minmax(0,2.1fr)_minmax(280px,.9fr)]">
         <main className="min-w-0 space-y-5">
         <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
-          <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+          <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
             Professor instructions
           </h2>
           {task.stage.description && task.stage.description !== task.instructions && (
-            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[var(--color-text-secondary)]">
+            <p className="mt-3 whitespace-pre-wrap text-base leading-6 text-[var(--color-text-secondary)]">
               {task.stage.description}
             </p>
           )}
           {task.instructions ? (
-            <p className="mt-3 whitespace-pre-wrap border-t border-[var(--color-border)] pt-4 text-sm leading-6 text-[var(--color-text-primary)]">
+            <p className="mt-3 whitespace-pre-wrap border-t border-[var(--color-border)] pt-4 text-base leading-6 text-[var(--color-text-primary)]">
               {task.instructions}
             </p>
           ) : (
-            <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+            <p className="mt-3 text-base text-[var(--color-text-secondary)]">
               No additional instructions were provided for this milestone.
             </p>
           )}
@@ -1040,14 +1040,14 @@ function MilestoneDetailsWorkspace({
         <StudentMilestoneAttachments stageId={task.stage.id} />
         {task.submission && (
           <section className="rounded-2xl border border-blue-200 bg-blue-50/70 p-5 dark:border-blue-900 dark:bg-blue-950/20 sm:p-6">
-            <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+            <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
               Your submission
             </h2>
-            <p className="mt-2 text-sm text-slate-700 dark:text-slate-200">
+            <p className="mt-2 text-base text-slate-700 dark:text-slate-200">
               <strong>Submitted by:</strong>{" "}
               {userName(task.submission.submittedByUser)}
             </p>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-base text-slate-500">
               {new Date(task.submission.submittedAt).toLocaleString()} ·{" "}
               {task.submission.document?.title || "Submitted document"}
               {task.submission.documentVersion?.versionNumber
@@ -1057,7 +1057,7 @@ function MilestoneDetailsWorkspace({
             {task.submission.documentId && task.submission.documentVersionId && (
               <Link
                 to={`/student/documents?projectId=${encodeURIComponent(task.submission.researchId)}&milestoneId=${encodeURIComponent(task.stage.id)}&taskId=${encodeURIComponent(task.id)}&documentId=${encodeURIComponent(task.submission.documentId)}&versionId=${encodeURIComponent(task.submission.documentVersionId)}`}
-                className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-[var(--color-primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
               >
                 <i className="ti ti-external-link" aria-hidden="true" />
                 Open exact submitted version
@@ -1074,18 +1074,18 @@ function MilestoneDetailsWorkspace({
               return (
                 <div className="mt-3 flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900 dark:bg-emerald-950/30 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-xs font-extrabold text-emerald-800 dark:text-emerald-200">
+                    <p className="text-base font-extrabold text-emerald-800 dark:text-emerald-200">
                       <i className="ti ti-signature mr-1" />
                       Adviser-signed copy available
                     </p>
-                    <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300">
+                    <p className="mt-1 text-base text-emerald-700 dark:text-emerald-300">
                       Verification: {signature.verificationCode}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => onOpenSigned(submittedVersion)}
-                    className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white"
+                    className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-bold text-white"
                   >
                     View signed PDF
                   </button>
@@ -1093,13 +1093,13 @@ function MilestoneDetailsWorkspace({
               );
             })()}
             {task.submission.note && (
-              <p className="mt-3 whitespace-pre-wrap rounded-xl bg-white dark:bg-white/5 p-3 text-xs text-slate-600 dark:text-slate-300">
+              <p className="mt-3 whitespace-pre-wrap rounded-xl bg-white dark:bg-white/5 p-3 text-base text-slate-600 dark:text-slate-300">
                 {task.submission.note}
               </p>
             )}
             {task.submission.attempts?.length > 0 && (
               <div className="mt-4 border-t border-blue-200 pt-4 dark:border-blue-900">
-                <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                <h4 className="text-lg font-extrabold uppercase tracking-wider text-slate-500">
                   Submission history
                 </h4>
                 <ol className="mt-3 space-y-2">
@@ -1147,10 +1147,10 @@ function MilestoneDetailsWorkspace({
         )}
         {!task.submission && (
           <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
-            <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+            <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
               Submission history
             </h2>
-            <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+            <p className="mt-3 text-base text-[var(--color-text-secondary)]">
               No previous submissions. Upload your work or choose an eligible
               document when submission is available.
             </p>
@@ -1162,10 +1162,10 @@ function MilestoneDetailsWorkspace({
           <Notice text="This milestone is visible to your group, but submission opens when the preceding milestone is completed." />
         ) : task.milestoneOnly ? (
           <section className="rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-primary-light)]/30 p-5">
-            <h3 className="text-base font-bold text-[var(--color-text-primary)]">
+            <h3 className="text-lg font-bold text-[var(--color-text-primary)]">
               Ready to work on this milestone?
             </h3>
-            <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
+            <p className="mt-2 text-base leading-6 text-[var(--color-text-secondary)]">
               {task.requiresDocument === false
                 ? "This milestone does not require a file. Start it to review and follow the professor's instructions."
                 : "Start the task to choose between creating a document in the workspace or uploading a finished file."}
@@ -1211,17 +1211,17 @@ function MilestoneDetailsWorkspace({
         ) : !submissionOptionsQuery.data?.availability.canSubmit ? (
           <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
             <p className="font-bold">Submission is not currently available</p>
-            <p className="mt-1 text-xs leading-5">
+            <p className="mt-1 text-base leading-5">
               {submissionOptionsQuery.data?.availability.reasons[0]?.message ||
                 "The current task state does not allow another submission."}
             </p>
           </section>
         ) : submissionMode === "choose" ? (
           <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
-            <h3 className="text-base font-extrabold text-[var(--color-text-primary)]">
+            <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
               How would you like to submit?
             </h3>
-            <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)] sm:text-sm">
+            <p className="mt-1 text-base leading-5 text-[var(--color-text-secondary)] sm:text-base">
               Eligibility is checked against the active project, milestone,
               required file formats, and current review state.
             </p>
@@ -1239,7 +1239,7 @@ function MilestoneDetailsWorkspace({
                 <span className="mt-3 block font-extrabold text-[var(--color-text-primary)]">
                   Choose from Documents
                 </span>
-                <span className="mt-1 block text-xs leading-5 text-[var(--color-text-secondary)]">
+                <span className="mt-1 block text-sm leading-5 text-[var(--color-text-secondary)]">
                   {submissionOptions.length
                     ? `${submissionOptions.length} eligible document option${submissionOptions.length === 1 ? "" : "s"}`
                     : "No eligible project document is available right now."}
@@ -1255,7 +1255,7 @@ function MilestoneDetailsWorkspace({
                 <span className="mt-3 block font-extrabold text-[var(--color-text-primary)]">
                   Upload File
                 </span>
-                <span className="mt-1 block text-xs leading-5 text-[var(--color-text-secondary)]">
+                <span className="mt-1 block text-sm leading-5 text-[var(--color-text-secondary)]">
                   {canUpload
                     ? `Submit an existing ${uploadFileTypes.join(" or ")} file from your device.`
                     : "This task has no format supported by direct upload."}
@@ -1265,7 +1265,7 @@ function MilestoneDetailsWorkspace({
             {!submissionOptions.length && (
               <p
                 id="no-document-options"
-                className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-xs leading-5 text-[var(--color-text-secondary)]"
+                className="mt-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-base leading-5 text-[var(--color-text-secondary)]"
               >
                 {submissionOptionsQuery.data?.unavailableOptionReasons[0]
                   ?.message ||
@@ -1275,7 +1275,7 @@ function MilestoneDetailsWorkspace({
             {canCreateInDocuments && (
               <Link
                 to={`/student/documents?projectId=${encodeURIComponent(project.id)}&milestoneId=${encodeURIComponent(task.stage.id)}&taskId=${encodeURIComponent(task.id)}`}
-                className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-[var(--color-primary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-[var(--color-primary)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
               >
                 <i className="ti ti-external-link" />
                 Create or manage a working copy in Documents
@@ -1285,10 +1285,10 @@ function MilestoneDetailsWorkspace({
         ) : submissionMode === "documents" ? (
           <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
             <SubmissionBackButton onClick={() => setSubmissionMode("choose")} />
-            <h3 className="text-sm font-extrabold text-[var(--color-text-primary)]">
+            <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
               Choose an exact document version
             </h3>
-            <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)]">
+            <p className="mt-1 text-base leading-5 text-[var(--color-text-secondary)]">
               Only choices approved by the server for this project and task are
               listed. The submitted copy will be frozen for faculty review.
             </p>
@@ -1320,7 +1320,7 @@ function MilestoneDetailsWorkspace({
                         <span className="font-bold text-[var(--color-text-primary)]">
                           {summary.title}
                         </span>
-                        <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]">
+                        <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-xs font-bold text-[var(--color-text-secondary)]">
                           {summary.format}
                         </span>
                       </span>
@@ -1328,7 +1328,7 @@ function MilestoneDetailsWorkspace({
                         {summary.version} · {summary.fileName}
                       </span>
                       {option.kind === "GOOGLE_DOC_PDF_SNAPSHOT" && (
-                        <span className="mt-1 block text-[11px] font-semibold text-[var(--color-primary)]">
+                        <span className="mt-1 block text-xs font-semibold text-[var(--color-primary)]">
                           Live Google Doc · export permission is verified when
                           you submit
                         </span>
@@ -1352,12 +1352,12 @@ function MilestoneDetailsWorkspace({
         ) : (
           <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
             <SubmissionBackButton onClick={() => setSubmissionMode("choose")} />
-            <h3 className="text-sm font-extrabold text-[var(--color-text-primary)]">
+            <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
               {task.submission
                 ? "Upload revised group requirement"
                 : "Upload group requirement"}
             </h3>
-            <p className="mt-1 text-xs leading-5 text-[var(--color-text-secondary)]">
+            <p className="mt-1 text-base leading-5 text-[var(--color-text-secondary)]">
               The server will verify the file again before creating the
               immutable submission record.
             </p>
@@ -1454,10 +1454,10 @@ function TaskDetailsUnavailable({
         <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[var(--color-surface-muted)] text-[var(--color-primary)]">
           <i className="ti ti-file-alert text-2xl" aria-hidden="true" />
         </span>
-        <h1 className="mt-4 text-xl font-bold text-[var(--color-text-primary)]">
+        <h1 className="mt-4 text-2xl font-bold text-[var(--color-text-primary)]">
           {title}
         </h1>
-        <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-[var(--color-text-secondary)]">
+        <p className="mx-auto mt-2 max-w-lg text-base leading-6 text-[var(--color-text-secondary)]">
           {explanation}
         </p>
         <Link
@@ -1507,10 +1507,10 @@ function StudentMilestoneAttachments({ stageId }: { stageId: string }) {
     <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+          <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
             Guides and attachments
           </h2>
-          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+          <p className="mt-1 text-base text-[var(--color-text-secondary)]">
             Materials attached by faculty to this milestone.
           </p>
         </div>
@@ -1560,7 +1560,7 @@ function StudentMilestoneAttachments({ stageId }: { stageId: string }) {
                   <span className="block truncate text-sm font-semibold text-[var(--color-text-primary)]">
                     {attachment.title}
                   </span>
-                  <span className="mt-0.5 block truncate text-xs text-[var(--color-text-secondary)]">
+                  <span className="mt-0.5 block truncate text-sm text-[var(--color-text-secondary)]">
                     {fileName || attachment.url || attachment.type}
                   </span>
                 </span>
@@ -1570,12 +1570,12 @@ function StudentMilestoneAttachments({ stageId }: { stageId: string }) {
           })}
         </div>
       ) : (
-        <p className="mt-4 text-sm text-[var(--color-text-secondary)]">
+        <p className="mt-4 text-base text-[var(--color-text-secondary)]">
           No guides or attachments were added to this milestone.
         </p>
       )}
       {notice && (
-        <p className="mt-3 text-sm font-semibold text-rose-700 dark:text-rose-300" role="alert">
+        <p className="mt-3 text-base font-semibold text-rose-700 dark:text-rose-300" role="alert">
           {notice}
         </p>
       )}
@@ -1595,14 +1595,14 @@ function FacultyFeedback({ submission }: { submission: any }) {
 
   return (
     <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
-      <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+      <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
         Faculty feedback
       </h2>
       {hasCurrentFeedback && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
           <p className="whitespace-pre-wrap">{submission.reviewNote}</p>
           {submission.reviewedAt && (
-            <p className="mt-2 text-xs opacity-75">
+            <p className="mt-2 text-base opacity-75">
               Reviewed {new Date(submission.reviewedAt).toLocaleString()}
             </p>
           )}
@@ -1613,7 +1613,7 @@ function FacultyFeedback({ submission }: { submission: any }) {
           {attemptFeedback.map((attempt: any) => (
             <li key={attempt.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+                <p className="text-base font-semibold text-[var(--color-text-primary)]">
                   Attempt {attempt.attemptNumber}
                   {attempt.documentVersion?.versionNumber
                     ? ` · Version ${attempt.documentVersion.versionNumber}`
@@ -1623,11 +1623,11 @@ function FacultyFeedback({ submission }: { submission: any }) {
                   {attempt.status.replace(/_/g, " ")}
                 </Tag>
               </div>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[var(--color-text-secondary)]">
+              <p className="mt-2 whitespace-pre-wrap text-base leading-6 text-[var(--color-text-secondary)]">
                 {attempt.reviewNote}
               </p>
               {attempt.reviewedAt && (
-                <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+                <p className="mt-2 text-base text-[var(--color-text-secondary)]">
                   {new Date(attempt.reviewedAt).toLocaleString()}
                 </p>
               )}
@@ -1636,7 +1636,7 @@ function FacultyFeedback({ submission }: { submission: any }) {
         </ol>
       )}
       {!hasCurrentFeedback && !attemptFeedback.length && (
-        <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+        <p className="mt-3 text-base text-[var(--color-text-secondary)]">
           Faculty feedback will appear here when available.
         </p>
       )}
@@ -1665,7 +1665,7 @@ function MilestoneInformationPanel({
   return (
     <aside className="space-y-5" aria-label="Milestone information">
       <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)]">
-        <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+        <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
           Milestone information
         </h2>
         <dl className="mt-4 divide-y divide-[var(--color-border)]">
@@ -1693,13 +1693,13 @@ function MilestoneInformationPanel({
       </section>
 
       <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)]">
-        <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+        <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
           Research group
         </h2>
-        <p className="mt-1 text-sm font-semibold text-[var(--color-primary)]">
+        <p className="mt-1 text-base font-semibold text-[var(--color-primary)]">
           {project.groupName || project.title}
         </p>
-        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+        <p className="mt-1 text-base text-[var(--color-text-secondary)]">
           {members.length || 1} active member{members.length === 1 ? "" : "s"}
         </p>
         {members.length > 0 && (
@@ -1711,7 +1711,7 @@ function MilestoneInformationPanel({
                 </span>
                 <span className="min-w-0 truncate">{memberName(member)}</span>
                 {member.projectRole === "LEADER" && (
-                  <span className="ml-auto text-[10px] font-bold uppercase text-[var(--color-text-secondary)]">
+                  <span className="ml-auto text-xs font-bold uppercase text-[var(--color-text-secondary)]">
                     Leader
                   </span>
                 )}
@@ -1722,11 +1722,11 @@ function MilestoneInformationPanel({
       </section>
 
       <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)]">
-        <h2 className="text-base font-bold text-[var(--color-text-primary)]">
+        <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
           Milestone progress
         </h2>
         {progressLoading ? (
-          <p className="mt-3 text-sm text-[var(--color-text-secondary)]">Loading progress...</p>
+          <p className="mt-3 text-base text-[var(--color-text-secondary)]">Loading progress...</p>
         ) : progressMeaningful ? (
           <>
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
@@ -1735,12 +1735,12 @@ function MilestoneInformationPanel({
                 style={{ width: `${Math.max(0, Math.min(100, progress.completionPercent))}%` }}
               />
             </div>
-            <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+            <p className="mt-2 text-base text-[var(--color-text-secondary)]">
               {progress.completedRequirements} of {progress.totalRequirements} requirements complete ({progress.completionPercent}%)
             </p>
           </>
         ) : (
-          <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+          <p className="mt-3 text-base text-[var(--color-text-secondary)]">
             Progress will appear when this milestone has configured requirements.
           </p>
         )}
@@ -1762,7 +1762,7 @@ function InformationRow({
     <div className="flex gap-3 py-3 first:pt-0 last:pb-0">
       <i className={`ti ${icon} mt-0.5 text-lg text-[var(--color-primary)]`} aria-hidden="true" />
       <div className="min-w-0">
-        <dt className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
+        <dt className="text-xs font-bold uppercase tracking-wide text-[var(--color-text-secondary)]">
           {label}
         </dt>
         <dd className="mt-0.5 break-words text-sm font-semibold text-[var(--color-text-primary)]">
@@ -1778,7 +1778,7 @@ function SubmissionBackButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="mb-4 inline-flex items-center gap-1 text-xs font-bold text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+      className="mb-4 inline-flex items-center gap-1 text-sm font-bold text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
     >
       <i className="ti ti-arrow-left" />
       Choose another method
@@ -1797,7 +1797,7 @@ function SubmissionNote({
     <div className="mt-4">
       <label
         htmlFor="task-submission-note"
-        className="text-xs font-bold text-[var(--color-text-primary)]"
+        className="text-sm font-bold text-[var(--color-text-primary)]"
       >
         Note for faculty <span className="font-normal">(optional)</span>
       </label>
@@ -1808,7 +1808,7 @@ function SubmissionNote({
         rows={3}
         maxLength={2000}
         placeholder="Add context for the professor and adviser"
-        className="mt-2 w-full resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-xs text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] sm:text-sm"
+        className="mt-2 w-full resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] sm:text-base"
       />
     </div>
   );
@@ -1817,7 +1817,7 @@ function SubmissionNote({
 function SubmissionError({ message }: { message: string }) {
   return (
     <p
-      className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200"
+      className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-base font-semibold text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-200"
       role="alert"
     >
       {message}
@@ -1941,7 +1941,7 @@ function Summary({
         <i className={`ti ${icon} text-xl`} />
       </span>
       <div>
-        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+        <p className="text-base font-semibold text-slate-500 dark:text-slate-400">
           {label}
         </p>
         <p className="text-xl sm:text-2xl font-black text-[var(--color-text-primary)] mt-0.5 tracking-tight">
@@ -1959,7 +1959,7 @@ function Empty({ text }: { text: string }) {
       <p className="font-extrabold text-[var(--color-text-primary)]">
         No milestones deployed yet
       </p>
-      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm">
+      <p className="text-base text-slate-500 dark:text-slate-400 max-w-sm">
         {text}
       </p>
     </div>
@@ -1977,11 +1977,11 @@ function Info({
 }) {
   return (
     <div className="rounded-xl border border-[#EEF2F6] dark:border-white/10 bg-slate-50/50 dark:bg-white/5 p-3.5">
-      <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+      <p className="text-sm font-extrabold uppercase tracking-wider text-slate-400">
         <i className={`ti ${icon} mr-1 text-[#0B3A53] dark:text-[#C9A227]`} />
         {label}
       </p>
-      <p className="mt-1 text-xs sm:text-sm font-bold text-[#17212B] dark:text-slate-100">
+      <p className="mt-1 text-base font-bold text-[#17212B] dark:text-slate-100">
         {value}
       </p>
     </div>

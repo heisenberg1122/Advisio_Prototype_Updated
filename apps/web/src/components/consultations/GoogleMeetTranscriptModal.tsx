@@ -224,8 +224,8 @@ export function GoogleMeetTranscriptModal({
               <i className="ti ti-file-text" />
             </div>
             <div>
-              <h2 className="font-extrabold text-base leading-tight">Consultation Records & Google Meet Chat Archive</h2>
-              <p className="text-xs text-slate-300">
+              <h2 className="font-extrabold text-lg leading-tight">Consultation Records & Google Meet Chat Archive</h2>
+              <p className="text-base text-slate-300">
                 {consultation?.topic || "Consultation Session"} · {consultation?.groupName || "Research Group"}
               </p>
             </div>
@@ -242,7 +242,7 @@ export function GoogleMeetTranscriptModal({
         <div className="flex border-b border-slate-200 bg-slate-50 px-5 pt-3 gap-3">
           <button
             onClick={() => setActiveTab("transcript")}
-            className={`pb-2.5 font-bold text-xs flex items-center gap-2 cursor-pointer transition border-b-2 ${
+            className={`pb-2.5 font-bold text-sm flex items-center gap-2 cursor-pointer transition border-b-2 ${
               activeTab === "transcript"
                 ? "border-[#1b4264] text-[#1b4264]"
                 : "border-transparent text-slate-500 hover:text-slate-700"
@@ -253,7 +253,7 @@ export function GoogleMeetTranscriptModal({
           </button>
           <button
             onClick={() => setActiveTab("minutes")}
-            className={`pb-2.5 font-bold text-xs flex items-center gap-2 cursor-pointer transition border-b-2 ${
+            className={`pb-2.5 font-bold text-sm flex items-center gap-2 cursor-pointer transition border-b-2 ${
               activeTab === "minutes"
                 ? "border-[#1b4264] text-[#1b4264]"
                 : "border-transparent text-slate-500 hover:text-slate-700"
@@ -275,7 +275,7 @@ export function GoogleMeetTranscriptModal({
                     <i className="ti ti-upload text-sm" />
                     <span>Upload Google Meet Chat file (.txt / .vtt) or paste text</span>
                   </label>
-                  <label className="px-3 py-1 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg font-bold text-slate-700 cursor-pointer shadow-sm text-[11px]">
+                  <label className="px-3 py-1 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg font-bold text-slate-700 cursor-pointer shadow-sm text-sm">
                     Browse File
                     <input
                       type="file"
@@ -295,10 +295,10 @@ export function GoogleMeetTranscriptModal({
                   }}
                   placeholder="Paste Google Meet in-call messages here (e.g. 'Juan Reyes 10:45 AM: Here is our code repo...')"
                   rows={4}
-                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-700 text-xs focus:outline-none focus:border-[#1b4264] font-mono resize-none"
+                  className="w-full bg-white border border-slate-300 rounded-lg p-2.5 text-slate-700 text-base focus:outline-none focus:border-[#1b4264] font-mono resize-none"
                 />
 
-                <div className="flex justify-between items-center text-[11px] text-slate-400">
+                <div className="flex justify-between items-center text-xs text-slate-400">
                   <span>Supports all Google Meet chat formats, exported .txt files, and manual pastes.</span>
                   <button
                     type="button"
@@ -314,7 +314,7 @@ export function GoogleMeetTranscriptModal({
               {/* Parsed Message Stream Preview */}
               {parsedMessages.length > 0 ? (
                 <div className="flex flex-col gap-2.5 mt-1">
-                  <div className="flex justify-between items-center text-slate-500 font-bold text-[11px]">
+                  <div className="flex justify-between items-center text-slate-500 font-bold text-xs">
                     <span>Parsed In-Call Discussion ({parsedMessages.length} messages)</span>
                     <button
                       onClick={() => {
@@ -332,11 +332,11 @@ export function GoogleMeetTranscriptModal({
                         key={msg.id}
                         className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-sm flex flex-col gap-1"
                       >
-                        <div className="flex justify-between items-center text-[10.5px]">
+                        <div className="flex justify-between items-center text-xs">
                           <span className="font-extrabold text-[#1b4264]">{msg.sender}</span>
                           <span className="text-slate-400 font-mono">{msg.time}</span>
                         </div>
-                        <p className="text-slate-700 text-[11.5px] leading-relaxed whitespace-pre-wrap">
+                        <p className="text-slate-700 text-base leading-relaxed whitespace-pre-wrap">
                           {msg.content}
                         </p>
                       </div>
@@ -361,7 +361,7 @@ export function GoogleMeetTranscriptModal({
                     onChange={(e) => setNotesSummary(e.target.value)}
                     placeholder="Summarize key feedback, methodology decisions, and chapter recommendations..."
                     rows={4}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-700 text-xs focus:outline-none focus:border-[#1b4264] resize-none"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-700 text-base focus:outline-none focus:border-[#1b4264] resize-none"
                   />
                 </div>
 
@@ -372,7 +372,7 @@ export function GoogleMeetTranscriptModal({
                     onChange={(e) => setActionItemsText(e.target.value)}
                     placeholder="e.g.&#10;1. Update Chapter 3 Neural Network Architecture diagram&#10;2. Normalize dataset before training iteration&#10;3. Submit revised draft by Friday"
                     rows={4}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-700 text-xs focus:outline-none focus:border-[#1b4264] font-mono resize-none"
+                    className="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 text-slate-700 text-base focus:outline-none focus:border-[#1b4264] font-mono resize-none"
                   />
                 </div>
               </div>
@@ -385,14 +385,14 @@ export function GoogleMeetTranscriptModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100 font-semibold cursor-pointer text-xs"
+            className="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100 font-semibold cursor-pointer text-sm"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="flex items-center gap-1.5 px-5 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-lg shadow cursor-pointer transition text-xs border border-[var(--color-primary)]"
+            className="flex items-center gap-1.5 px-5 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-lg shadow cursor-pointer transition text-sm border border-[var(--color-primary)]"
           >
             <i className="ti ti-device-floppy" />
             <span>Save to Consultation History</span>

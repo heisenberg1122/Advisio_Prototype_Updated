@@ -62,22 +62,22 @@ function SetupFormContent() {
             </div>
             <div>
               <span className="font-extrabold text-[18px] tracking-tight block leading-none text-[#1b4264]">ADVISIO</span>
-              <span className="text-[9px] uppercase tracking-widest text-[#ffa400] font-extrabold">Research Management</span>
+              <span className="text-xs uppercase tracking-widest text-[#ffa400] font-extrabold">Research Management</span>
             </div>
           </div>
-          <span className="text-[11px] font-extrabold text-[#1b4264] uppercase tracking-wider bg-[#1b4264]/5 px-3 py-1 rounded-full border border-[#1b4264]/10">
+          <span className="text-xs font-extrabold text-[#1b4264] uppercase tracking-wider bg-[#1b4264]/5 px-3 py-1 rounded-full border border-[#1b4264]/10">
             Account Profile Setup
           </span>
         </div>
 
         {/* Title */}
         <div>
-          <div className="inline-flex items-center gap-1.5 bg-[#ffa400]/15 text-[#1b4264] px-2.5 py-0.5 rounded-full text-[10.5px] font-extrabold uppercase tracking-wide border border-[#ffa400]/30 mb-2">
+          <div className="inline-flex items-center gap-1.5 bg-[#ffa400]/15 text-[#1b4264] px-2.5 py-0.5 rounded-full text-xs font-extrabold uppercase tracking-wide border border-[#ffa400]/30 mb-2">
             <i className="ti ti-user-check" />
             <span>Profile Personalization</span>
           </div>
           <h1 className="text-[24px] font-extrabold text-[#1b4264] tracking-tight">Complete Your Profile</h1>
-          <p className="mt-1 text-[13px] text-slate-500">
+          <p className="mt-1 text-base text-slate-500">
             Configure your academic affiliation and research focus before entering the dashboard.
           </p>
         </div>
@@ -95,7 +95,7 @@ function SetupFormContent() {
             </div>
             <div className="flex-1">
               <div className="text-[13px] font-extrabold text-[#1b4264]">Institutional Identification Photo</div>
-              <p className="text-[11px] text-slate-500 mt-0.5">Upload a formal university identification or profile portrait.</p>
+              <p className="text-base text-slate-500 mt-0.5">Upload a formal university identification or profile portrait.</p>
               <div className="flex items-center gap-2 mt-2">
                 <input 
                   type="file" 
@@ -106,7 +106,7 @@ function SetupFormContent() {
                 />
                 <label 
                   htmlFor="photo-upload" 
-                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-300 rounded-lg text-[11.5px] font-bold text-[#1b4264] hover:bg-slate-50 transition cursor-pointer select-none shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-300 rounded-lg text-sm font-bold text-[#1b4264] hover:bg-slate-50 transition cursor-pointer select-none shadow-xs"
                 >
                   <i className="ti ti-camera" />
                   <span>Choose Photo</span>
@@ -115,7 +115,7 @@ function SetupFormContent() {
                   <button
                     type="button"
                     onClick={() => setPhotoPreview(null)}
-                    className="text-[11px] text-slate-400 hover:text-red-500 transition cursor-pointer"
+                    className="text-sm text-slate-400 hover:text-red-500 transition cursor-pointer"
                   >
                     Remove
                   </button>
@@ -127,7 +127,7 @@ function SetupFormContent() {
           {/* Full Name & Contact Number */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="full-name" className="text-[11px] font-bold text-[#1b4264] uppercase tracking-wider">
+              <label htmlFor="full-name" className="text-sm font-bold text-[#1b4264] uppercase tracking-wider">
                 Full Name
               </label>
               <input 
@@ -137,12 +137,12 @@ function SetupFormContent() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="First Middle Last"
-                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13.5px] text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors placeholder:text-slate-400"
+                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-base text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors placeholder:text-slate-400"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="contact" className="text-[11px] font-bold text-[#1b4264] uppercase tracking-wider">
+              <label htmlFor="contact" className="text-sm font-bold text-[#1b4264] uppercase tracking-wider">
                 Contact Number
               </label>
               <input 
@@ -152,7 +152,7 @@ function SetupFormContent() {
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
                 placeholder="e.g. +63 917 123 4567"
-                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13.5px] text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors placeholder:text-slate-400"
+                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-base text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors placeholder:text-slate-400"
               />
             </div>
           </div>
@@ -160,7 +160,7 @@ function SetupFormContent() {
           {/* Department & Course/Program */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="dept" className="text-[11px] font-bold text-[#1b4264] uppercase tracking-wider">
+              <label htmlFor="dept" className="text-sm font-bold text-[#1b4264] uppercase tracking-wider">
                 {role === "adviser" ? "Faculty Department" : "College / Department"}
               </label>
               <select 
@@ -168,7 +168,7 @@ function SetupFormContent() {
                 required
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
-                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13.5px] text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors"
+                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-base text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors"
               >
                 <option value="">Select Department</option>
                 <option value="Computer Science">Computer Science</option>
@@ -179,7 +179,7 @@ function SetupFormContent() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="course" className="text-[11px] font-bold text-[#1b4264] uppercase tracking-wider">
+              <label htmlFor="course" className="text-sm font-bold text-[#1b4264] uppercase tracking-wider">
                 {role === "adviser" ? "Designation / Academic Rank" : "Degree Program"}
               </label>
               <input 
@@ -189,14 +189,14 @@ function SetupFormContent() {
                 value={course}
                 onChange={(e) => setCourse(e.target.value)}
                 placeholder={role === "adviser" ? "e.g. Associate Professor / MSCS" : "e.g. BSCS - Data Science"}
-                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13.5px] text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors placeholder:text-slate-400"
+                className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-base text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors placeholder:text-slate-400"
               />
             </div>
           </div>
 
           {/* Research Interest / Specialization Area */}
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="interest" className="text-[11px] font-bold text-[#1b4264] uppercase tracking-wider">
+            <label htmlFor="interest" className="text-sm font-bold text-[#1b4264] uppercase tracking-wider">
               {role === "adviser" ? "Research Advising Interests & Specializations" : "Thesis Focus & Technical Interest Areas"}
             </label>
             <textarea 
@@ -206,7 +206,7 @@ function SetupFormContent() {
               value={interest}
               onChange={(e) => setInterest(e.target.value)}
               placeholder={role === "adviser" ? "e.g. Computer Vision, Machine Learning, IoT Sensors, Agritech" : "e.g. Deep Learning in Crop Disease Detection, Natural Language Processing"}
-              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-[13.5px] text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors placeholder:text-slate-400 resize-none"
+              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-base text-slate-900 focus:outline-none focus:border-[#ffa400] focus:ring-1 focus:ring-[#ffa400] transition-colors placeholder:text-slate-400 resize-none"
             />
           </div>
 
@@ -219,7 +219,7 @@ function SetupFormContent() {
               onChange={(e) => setAgreedToa(e.target.checked)}
               className="w-4 h-4 mt-0.5 text-[#1b4264] border-slate-300 rounded focus:ring-[#ffa400] focus:ring-0 focus:ring-offset-0 cursor-pointer shrink-0"
             />
-            <label htmlFor="setup-toa" className="text-[12px] text-slate-700 leading-snug cursor-pointer select-none">
+            <label htmlFor="setup-toa" className="text-sm text-slate-700 leading-snug cursor-pointer select-none">
               I agree to the university's{" "}
               <button
                 type="button"
@@ -257,8 +257,8 @@ function SetupFormContent() {
                   <i className="ti ti-file-certificate text-xl text-[#ffa400]" />
                 </div>
                 <div>
-                  <h3 className="text-[16px] font-extrabold leading-tight">Terms of Agreement & Academic Integrity (TOA)</h3>
-                  <span className="text-[11px] text-[#ffa400] font-semibold">Institutional Policy v2026.1 • Campus Research Office</span>
+                  <h3 className="text-lg font-extrabold leading-tight">Terms of Agreement & Academic Integrity (TOA)</h3>
+                  <span className="text-xs text-[#ffa400] font-semibold">Institutional Policy v2026.1 • Campus Research Office</span>
                 </div>
               </div>
               <button 
@@ -277,7 +277,7 @@ function SetupFormContent() {
               </div>
 
               <div>
-                <h4 className="font-extrabold text-[#1b4264] text-[13.5px] uppercase tracking-wider mb-1">
+                <h4 className="font-extrabold text-[#1b4264] text-lg uppercase tracking-wider mb-1">
                   1. Identity Verification & Administrator Oversight
                 </h4>
                 <p className="text-slate-600">
@@ -286,7 +286,7 @@ function SetupFormContent() {
               </div>
 
               <div>
-                <h4 className="font-extrabold text-[#1b4264] text-[13.5px] uppercase tracking-wider mb-1">
+                <h4 className="font-extrabold text-[#1b4264] text-lg uppercase tracking-wider mb-1">
                   2. Intellectual Property Rights
                 </h4>
                 <p className="text-slate-600">
@@ -295,7 +295,7 @@ function SetupFormContent() {
               </div>
 
               <div>
-                <h4 className="font-extrabold text-[#1b4264] text-[13.5px] uppercase tracking-wider mb-1">
+                <h4 className="font-extrabold text-[#1b4264] text-lg uppercase tracking-wider mb-1">
                   3. Research Ethics & Data Integrity
                 </h4>
                 <p className="text-slate-600">
@@ -306,14 +306,14 @@ function SetupFormContent() {
 
             {/* Footer */}
             <div className="bg-slate-50 p-4 border-t border-slate-200 flex items-center justify-between gap-3">
-              <span className="text-[11.5px] text-slate-500">
+              <span className="text-xs text-slate-500">
                 Official Campus Research Policy
               </span>
               <div className="flex gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowToaModal(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-[12.5px] font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
                 >
                   Close
                 </button>
@@ -323,7 +323,7 @@ function SetupFormContent() {
                     setAgreedToa(true);
                     setShowToaModal(false);
                   }}
-                  className="px-5 py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] rounded-lg text-[12.5px] font-extrabold shadow transition cursor-pointer"
+                  className="px-5 py-2 bg-[#ffa400] hover:bg-[#e09000] text-[#1b4264] rounded-lg text-sm font-extrabold shadow transition cursor-pointer"
                 >
                   I Understand & Accept Terms
                 </button>

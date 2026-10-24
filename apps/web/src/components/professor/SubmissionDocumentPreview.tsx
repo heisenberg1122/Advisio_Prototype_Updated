@@ -77,7 +77,7 @@ export function SubmissionDocumentPreview({
           <p className="truncate text-sm font-extrabold text-[#102f49]">
             {version?.fileName || title}
           </p>
-          <p className="mt-0.5 text-xs text-slate-500">
+          <p className="mt-0.5 text-base text-slate-500">
             {version
               ? `Version ${version.versionNumber} · ${version.mimeType}`
               : "No file"}
@@ -88,7 +88,7 @@ export function SubmissionDocumentPreview({
             <select
               value={version?.id || ""}
               onChange={(event) => setVersionId(event.target.value)}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-base font-bold text-slate-700"
               aria-label="Document version"
             >
               {ordered.map((item) => (
@@ -104,14 +104,14 @@ export function SubmissionDocumentPreview({
                 href={previewUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-extrabold text-[#173f63]"
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-extrabold text-[#173f63]"
               >
                 <i className="ti ti-maximize mr-1" /> Full screen
               </a>
               <a
                 href={previewUrl}
                 download={version?.fileName || title}
-                className="rounded-lg bg-[#173f63] px-3 py-2 text-xs font-extrabold text-white"
+                className="rounded-lg bg-[#173f63] px-3 py-2 text-sm font-extrabold text-white"
               >
                 <i className="ti ti-download mr-1" /> Download
               </a>
@@ -127,7 +127,7 @@ export function SubmissionDocumentPreview({
         {!loading && error && (
           <div className="max-w-md p-8 text-center">
             <i className="ti ti-file-alert text-4xl text-amber-500" />
-            <p className="mt-3 text-sm font-bold text-slate-700">{error}</p>
+            <p className="mt-3 text-base font-bold text-slate-700">{error}</p>
           </div>
         )}
         {!loading && !error && previewUrl && mimeType === "application/pdf" && (
@@ -152,7 +152,7 @@ export function SubmissionDocumentPreview({
             <h3 className="mt-4 text-lg font-extrabold text-[#102f49]">
               Preview is not available for this file type
             </h3>
-            <p className="mt-2 text-sm leading-6 text-slate-500">
+            <p className="mt-2 text-base leading-6 text-slate-500">
               Download the original file to review it. DOCX preview conversion
               can be added as the next phase.
             </p>

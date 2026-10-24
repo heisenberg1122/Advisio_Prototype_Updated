@@ -255,7 +255,7 @@ export default function PanelistDefenseWorkspacePage() {
     <div className="mx-auto flex w-full max-w-[1540px] flex-col gap-5 p-1 sm:p-2 lg:p-3">
       <Link
         href="/panelist/dashboard?tab=schedule"
-        className="inline-flex w-fit items-center gap-2 text-xs font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
+        className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to defense schedule
@@ -273,13 +273,13 @@ export default function PanelistDefenseWorkspacePage() {
                 {readable(invitation?.status, "Invitation unavailable")}
               </Tag>
             </div>
-            <p className="mt-4 text-xs font-bold uppercase tracking-[.16em] text-[var(--color-primary)]">
+            <p className="mt-4 text-sm font-bold uppercase tracking-[.16em] text-[var(--color-primary)]">
               {session.research.groupName || "Research group"}
             </p>
             <h1 className="mt-1 max-w-4xl text-2xl font-bold leading-tight text-[var(--color-text-primary)] sm:text-3xl">
               {session.research.title}
             </h1>
-            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+            <p className="mt-2 text-base text-[var(--color-text-secondary)]">
               {session.research.researchType?.name ||
               session.defenseEvent?.defenseType
                 ? readable(
@@ -331,34 +331,34 @@ export default function PanelistDefenseWorkspacePage() {
         </div>
         <div className="mt-5 grid gap-3 border-t border-[var(--color-border)] pt-4 sm:grid-cols-2 xl:grid-cols-4">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
               Schedule
             </span>
-            <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">
+            <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
               {dateTime(session.scheduledStart)}
             </p>
           </div>
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
               Venue
             </span>
-            <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">
+            <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
               {venue || (meetingUrl ? "Online defense" : "Not assigned")}
             </p>
           </div>
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
               Your role
             </span>
-            <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">
+            <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
               {readable(invitation?.role)}
             </p>
           </div>
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
               Academic year
             </span>
-            <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">
+            <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
               {session.research.academicYear?.name || "Not recorded"}
             </p>
           </div>
@@ -381,7 +381,7 @@ export default function PanelistDefenseWorkspacePage() {
                 <h2 className="font-semibold text-[var(--color-text-primary)]">
                   Your response is required
                 </h2>
-                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                   Accept the proposed schedule or privately tell the professor
                   why you are unavailable.
                 </p>
@@ -406,7 +406,7 @@ export default function PanelistDefenseWorkspacePage() {
               <div className="mt-4 border-t border-amber-200 pt-4">
                 <label
                   htmlFor="decline-reason"
-                  className="text-xs font-semibold text-[var(--color-text-primary)]"
+                  className="text-sm font-semibold text-[var(--color-text-primary)]"
                 >
                   Private reason for the professor
                 </label>
@@ -415,7 +415,7 @@ export default function PanelistDefenseWorkspacePage() {
                   value={declineReason}
                   onChange={(event) => setDeclineReason(event.target.value)}
                   rows={3}
-                  className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-sm text-[var(--color-text-primary)]"
+                  className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base text-[var(--color-text-primary)]"
                   placeholder="Explain why you are unavailable"
                 />
                 <div className="mt-3 flex justify-end gap-2">
@@ -493,7 +493,7 @@ export default function PanelistDefenseWorkspacePage() {
           <CardHeader>
             <div>
               <CardTitle icon={FileCheck2}>Defense packet and review</CardTitle>
-              <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+              <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                 The immutable manuscript and your project-specific panel review.
               </p>
             </div>
@@ -515,7 +515,7 @@ export default function PanelistDefenseWorkspacePage() {
                     Version {packet.manuscriptVersion?.versionNumber}
                   </span>
                 </div>
-                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                   {packet.manuscriptVersion?.fileName ||
                     "File name unavailable"}
                   {packet.manuscriptVersion?.milestone?.name
@@ -602,7 +602,7 @@ export default function PanelistDefenseWorkspacePage() {
                     <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]">
                       {fullName(member.user)}
                     </p>
-                    <p className="truncate text-[11px] text-[var(--color-text-muted)]">
+                    <p className="truncate text-sm text-[var(--color-text-muted)]">
                       {member.user.email}
                     </p>
                   </div>
@@ -634,14 +634,14 @@ export default function PanelistDefenseWorkspacePage() {
           </CardHeader>
           {session.packet?.evaluationMode === "PDF" ? (
             <div className="rounded-xl bg-[var(--color-surface-subtle)] p-4">
-              <p className="text-sm font-semibold">
+              <p className="text-base font-semibold">
                 {pdfEvaluation?.status === "LOCKED"
                   ? "PDF evaluation submitted and locked"
                   : pdfEvaluation
                     ? "Your private PDF evaluation draft"
                     : "Your PDF evaluation has not been started"}
               </p>
-              <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
+              <p className="mt-2 text-base text-[var(--color-text-secondary)]">
                 Mark your department’s original form directly. Visual ratings
                 are not calculated grades.
               </p>
@@ -660,7 +660,7 @@ export default function PanelistDefenseWorkspacePage() {
             <div className="rounded-xl bg-[var(--color-surface-subtle)] p-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                     Score
                   </span>
                   <p className="mt-1 text-lg font-bold text-[var(--color-text-primary)]">
@@ -671,21 +671,21 @@ export default function PanelistDefenseWorkspacePage() {
                   </p>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                     Recommendation
                   </span>
-                  <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">
+                  <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
                     {readable(evaluation.recommendation)}
                   </p>
                 </div>
               </div>
               {evaluation.status === "SUBMITTED" && (
-                <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+                <p className="mt-3 text-base text-amber-700 dark:text-amber-300">
                   Submitted, but not locked as a final immutable evaluation.
                 </p>
               )}
               {evaluation.status === "LOCKED" && (
-                <p className="mt-3 flex items-center gap-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                <p className="mt-3 flex items-center gap-2 text-base font-semibold text-emerald-700 dark:text-emerald-300">
                   <LockKeyhole className="h-4 w-4" />
                   Final submission is immutable.
                 </p>
@@ -705,18 +705,18 @@ export default function PanelistDefenseWorkspacePage() {
           )}
           {session.releasedAt ? (
             <div className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50/70 p-4 dark:bg-emerald-500/10">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+              <p className="text-sm font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
                 Official result released
               </p>
               <p className="mt-1 text-base font-bold text-[var(--color-text-primary)]">
                 {readable(session.decision)}
               </p>
-              <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+              <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                 Released {dateTime(session.releasedAt)}
               </p>
             </div>
           ) : (
-            <p className="mt-4 rounded-xl border border-dashed border-[var(--color-border)] p-3 text-xs text-[var(--color-text-secondary)]">
+            <p className="mt-4 rounded-xl border border-dashed border-[var(--color-border)] p-3 text-base text-[var(--color-text-secondary)]">
               No official result has been released. Release authority remains
               with the professor or authorized facilitator.
             </p>
@@ -732,18 +732,18 @@ export default function PanelistDefenseWorkspacePage() {
           </CardHeader>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl bg-[var(--color-surface-subtle)] p-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Delivery
               </span>
-              <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">
+              <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
                 {attendanceMode(session)}
               </p>
             </div>
             <div className="rounded-xl bg-[var(--color-surface-subtle)] p-3">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Current stage
               </span>
-              <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">
+              <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
                 {session.research.workflowInstance?.currentStage?.name ||
                   "Not recorded"}
               </p>
@@ -755,27 +755,27 @@ export default function PanelistDefenseWorkspacePage() {
                 <div key={`${item.label}:${item.at}`} className="flex gap-3">
                   <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[var(--color-primary)]" />
                   <div>
-                    <p className="text-xs font-semibold text-[var(--color-text-primary)]">
+                    <p className="text-base font-semibold text-[var(--color-text-primary)]">
                       {item.label}
                     </p>
-                    <time className="text-[11px] text-[var(--color-text-muted)]">
+                    <time className="text-xs text-[var(--color-text-muted)]">
                       {dateTime(item.at)}
                     </time>
                   </div>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-[var(--color-text-secondary)]">
+              <p className="text-base text-[var(--color-text-secondary)]">
                 No session activity has been recorded yet.
               </p>
             )}
           </div>
           {session.notes && (
             <div className="mt-4 border-t border-[var(--color-border)] pt-4">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+              <p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Facilitator notes
               </p>
-              <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-[var(--color-text-secondary)]">
+              <p className="mt-2 whitespace-pre-wrap text-base leading-5 text-[var(--color-text-secondary)]">
                 {session.notes}
               </p>
             </div>

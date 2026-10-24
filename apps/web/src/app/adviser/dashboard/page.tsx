@@ -557,12 +557,12 @@ function AdviserDashboardContent() {
           <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start gap-3">
               <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl ${requestDecision.decision === "accept" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}><i className={`ti ${requestDecision.decision === "accept" ? "ti-user-check" : "ti-user-x"}`} /></span>
-              <div><h2 id="adviser-response-title" className="text-lg font-extrabold text-[#102f49]">{requestDecision.decision === "accept" ? "Accept adviser request" : "Decline adviser request"}</h2><p className="mt-1 text-sm text-slate-500">{requestDecision.request.research?.title}</p></div>
+              <div><h2 id="adviser-response-title" className="text-lg font-extrabold text-[#102f49]">{requestDecision.decision === "accept" ? "Accept adviser request" : "Decline adviser request"}</h2><p className="mt-1 text-base text-slate-500">{requestDecision.request.research?.title}</p></div>
             </div>
-            <div className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-600"><span className="font-bold text-[#102f49]">Group message:</span><p className="mt-1 whitespace-pre-line">{requestDecision.request.note || "No message was included."}</p>{requestDecision.request.research?.members?.length > 0 && <p className="mt-3 text-xs"><span className="font-bold text-[#102f49]">Members:</span> {requestDecision.request.research.members.filter((member: any) => member.projectRole !== "ADVISER").map((member: any) => `${member.user.firstName} ${member.user.lastName}`).join(", ")}</p>}{requestDecision.request.requestFormDocument?.versions?.[0]?.storagePath && <button type="button" onClick={() => openAuthenticatedFile(requestDecision.request.requestFormDocument.versions[0].storagePath).catch((error) => triggerToast(error.message))} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-extrabold text-[#173f63] ring-1 ring-slate-200 hover:ring-[#f6a800]"><i className="ti ti-file-type-pdf text-rose-600" />Open adviser request PDF</button>}</div>
+            <div className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-600"><span className="font-bold text-[#102f49]">Group message:</span><p className="mt-1 whitespace-pre-line">{requestDecision.request.note || "No message was included."}</p>{requestDecision.request.research?.members?.length > 0 && <p className="mt-3 text-base"><span className="font-bold text-[#102f49]">Members:</span> {requestDecision.request.research.members.filter((member: any) => member.projectRole !== "ADVISER").map((member: any) => `${member.user.firstName} ${member.user.lastName}`).join(", ")}</p>}{requestDecision.request.requestFormDocument?.versions?.[0]?.storagePath && <button type="button" onClick={() => openAuthenticatedFile(requestDecision.request.requestFormDocument.versions[0].storagePath).catch((error) => triggerToast(error.message))} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-extrabold text-[#173f63] ring-1 ring-slate-200 hover:ring-[#f6a800]"><i className="ti ti-file-type-pdf text-rose-600" />Open adviser request PDF</button>}</div>
             <label className="mt-5 block text-sm font-bold text-slate-700">Note to the group <span className="font-normal text-slate-400">(optional)</span></label>
-            <textarea value={requestResponseNote} onChange={(event) => setRequestResponseNote(event.target.value)} maxLength={1000} rows={4} placeholder={requestDecision.decision === "accept" ? "Share your expectations or next steps." : "Briefly explain your decision or suggest another direction."} className="mt-2 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm outline-none focus:border-[#173f63]" />
-            {requestDecision.decision === "accept" && adviserCapacity?.isFull && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-xs font-semibold text-amber-800">You cannot accept this group because your adviser capacity is full or requests are paused.</p>}<div className="mt-5 flex justify-end gap-2"><button onClick={() => { setRequestDecision(null); setRequestResponseNote(""); }} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-600">Cancel</button><button onClick={handleAdviserRequestResponse} disabled={isRespondingToRequest || (requestDecision.decision === "accept" && adviserCapacity?.isFull)} className={`rounded-lg px-4 py-2 text-sm font-extrabold text-white disabled:opacity-60 ${requestDecision.decision === "accept" ? "bg-emerald-600" : "bg-rose-600"}`}>{isRespondingToRequest ? "Saving…" : requestDecision.decision === "accept" ? "Accept request" : "Decline request"}</button></div>
+            <textarea value={requestResponseNote} onChange={(event) => setRequestResponseNote(event.target.value)} maxLength={1000} rows={4} placeholder={requestDecision.decision === "accept" ? "Share your expectations or next steps." : "Briefly explain your decision or suggest another direction."} className="mt-2 w-full resize-none rounded-xl border border-slate-300 p-3 text-base outline-none focus:border-[#173f63]" />
+            {requestDecision.decision === "accept" && adviserCapacity?.isFull && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-base font-semibold text-amber-800">You cannot accept this group because your adviser capacity is full or requests are paused.</p>}<div className="mt-5 flex justify-end gap-2"><button onClick={() => { setRequestDecision(null); setRequestResponseNote(""); }} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold text-slate-600">Cancel</button><button onClick={handleAdviserRequestResponse} disabled={isRespondingToRequest || (requestDecision.decision === "accept" && adviserCapacity?.isFull)} className={`rounded-lg px-4 py-2 text-sm font-extrabold text-white disabled:opacity-60 ${requestDecision.decision === "accept" ? "bg-emerald-600" : "bg-rose-600"}`}>{isRespondingToRequest ? "Saving…" : requestDecision.decision === "accept" ? "Accept request" : "Decline request"}</button></div>
           </div>
         </div>
       )}
@@ -571,27 +571,27 @@ function AdviserDashboardContent() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="advisee-group-title">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
-              <div><span className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#173f63]">Assigned research group</span><h2 id="advisee-group-title" className="mt-2 text-xl font-extrabold text-[#102f49]">{selectedAdvisee.projectTitle}</h2><p className="mt-1 text-sm text-slate-500">Representative: {selectedAdvisee.leader}</p></div>
+              <div><span className="inline-flex rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-[#173f63]">Assigned research group</span><h2 id="advisee-group-title" className="mt-2 text-xl font-extrabold text-[#102f49]">{selectedAdvisee.projectTitle}</h2><p className="mt-1 text-base text-slate-500">Representative: {selectedAdvisee.leader}</p></div>
               <button type="button" onClick={closeAdviseeModal} aria-label="Close group details" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-[#173f63] hover:bg-slate-200"><i className="ti ti-x text-xl" /></button>
             </div>
 
             {!showWithdrawalForm ? (
               <>
-                <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Project status</p><p className="mt-1 font-bold capitalize text-[#102f49]">{selectedAdvisee.status.replace(/_/g, " ")}</p></div><div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Current milestone</p><p className="mt-1 font-bold text-[#102f49]">{selectedAdvisee.currentStage}</p></div><div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">Overall progress</p><p className="mt-1 font-bold text-[#102f49]">{selectedAdvisee.progress}%</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-gradient-to-r from-[#173f63] to-[#f6a800]" style={{ width: `${selectedAdvisee.progress}%` }} /></div></div></div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-xl bg-slate-50 p-4"><p className="text-base text-slate-500">Project status</p><p className="mt-1 font-bold capitalize text-[#102f49]">{selectedAdvisee.status.replace(/_/g, " ")}</p></div><div className="rounded-xl bg-slate-50 p-4"><p className="text-base text-slate-500">Current milestone</p><p className="mt-1 font-bold text-[#102f49]">{selectedAdvisee.currentStage}</p></div><div className="rounded-xl bg-slate-50 p-4"><p className="text-base text-slate-500">Overall progress</p><p className="mt-1 font-bold text-[#102f49]">{selectedAdvisee.progress}%</p><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-gradient-to-r from-[#173f63] to-[#f6a800]" style={{ width: `${selectedAdvisee.progress}%` }} /></div></div></div>
 
-                <section className="mt-5"><h3 className="text-sm font-extrabold text-[#102f49]">Study abstract</h3><p className="mt-2 whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">{selectedAdvisee.abstract}</p></section>
+                <section className="mt-5"><h3 className="text-lg font-extrabold text-[#102f49]">Study abstract</h3><p className="mt-2 whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-4 text-base leading-6 text-slate-600">{selectedAdvisee.abstract}</p></section>
 
-                <section className="mt-5"><div className="flex items-center justify-between"><h3 className="text-sm font-extrabold text-[#102f49]">Group members</h3><span className="text-xs font-semibold text-slate-400">{selectedAdvisee.members.length} students</span></div><div className="mt-2 grid gap-2 sm:grid-cols-2">{selectedAdvisee.members.map((member: any) => <div key={member.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#173f63] text-xs font-bold text-white">{`${member.user?.firstName?.[0] || "S"}${member.user?.lastName?.[0] || ""}`}</span><div className="min-w-0"><p className="truncate text-sm font-bold text-[#102f49]">{member.user?.firstName} {member.user?.lastName}</p><p className="truncate text-xs text-slate-500">{member.projectRole === "LEADER" ? "Group representative" : "Researcher"} · {member.user?.email}</p></div></div>)}</div></section>
+                <section className="mt-5"><div className="flex items-center justify-between"><h3 className="text-lg font-extrabold text-[#102f49]">Group members</h3><span className="text-xs font-semibold text-slate-400">{selectedAdvisee.members.length} students</span></div><div className="mt-2 grid gap-2 sm:grid-cols-2">{selectedAdvisee.members.map((member: any) => <div key={member.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#173f63] text-xs font-bold text-white">{`${member.user?.firstName?.[0] || "S"}${member.user?.lastName?.[0] || ""}`}</span><div className="min-w-0"><p className="truncate text-sm font-bold text-[#102f49]">{member.user?.firstName} {member.user?.lastName}</p><p className="truncate text-sm text-slate-500">{member.projectRole === "LEADER" ? "Group representative" : "Researcher"} · {member.user?.email}</p></div></div>)}</div></section>
 
-                <section className="mt-5"><h3 className="text-sm font-extrabold text-[#102f49]">Milestone requirements</h3><div className="mt-2 space-y-2">{selectedAdvisee.tasks.length ? selectedAdvisee.tasks.slice(0, 5).map((task: any) => <div key={task.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div className="min-w-0"><p className="truncate text-sm font-bold text-[#102f49]">{task.title}</p><p className="text-xs text-slate-500">{task.stageName}</p></div><Tag variant={task.submission?.status === "APPROVED" ? "success" : task.submission ? "warn" : "neutral"}>{task.submission?.status?.replace(/_/g, " ") || "Not submitted"}</Tag></div>) : <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No milestone requirements have been configured.</p>}</div></section>
+                <section className="mt-5"><h3 className="text-lg font-extrabold text-[#102f49]">Milestone requirements</h3><div className="mt-2 space-y-2">{selectedAdvisee.tasks.length ? selectedAdvisee.tasks.slice(0, 5).map((task: any) => <div key={task.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div className="min-w-0"><p className="truncate text-sm font-bold text-[#102f49]">{task.title}</p><p className="text-base text-slate-500">{task.stageName}</p></div><Tag variant={task.submission?.status === "APPROVED" ? "success" : task.submission ? "warn" : "neutral"}>{task.submission?.status?.replace(/_/g, " ") || "Not submitted"}</Tag></div>) : <p className="rounded-xl bg-slate-50 p-4 text-base text-slate-500">No milestone requirements have been configured.</p>}</div></section>
 
-                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5"><p className="text-xs text-slate-400">Adviser since {selectedAdvisee.adviserSince ? new Date(selectedAdvisee.adviserSince).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "assignment date unavailable"}</p><div className="flex gap-2"><button type="button" onClick={() => { closeAdviseeModal(); handleTabChange("group-chats"); }} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-bold text-[#173f63] hover:bg-slate-50"><i className="ti ti-message mr-1.5" />Message group</button><button type="button" onClick={() => setShowWithdrawalForm(true)} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-100"><i className="ti ti-logout mr-1.5" />Leave as adviser</button></div></div>
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5"><p className="text-base text-slate-400">Adviser since {selectedAdvisee.adviserSince ? new Date(selectedAdvisee.adviserSince).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "assignment date unavailable"}</p><div className="flex gap-2"><button type="button" onClick={() => { closeAdviseeModal(); handleTabChange("group-chats"); }} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-bold text-[#173f63] hover:bg-slate-50"><i className="ti ti-message mr-1.5" />Message group</button><button type="button" onClick={() => setShowWithdrawalForm(true)} className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-bold text-rose-700 hover:bg-rose-100"><i className="ti ti-logout mr-1.5" />Leave as adviser</button></div></div>
               </>
             ) : (
               <div className="mt-5">
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="flex gap-3"><i className="ti ti-alert-triangle mt-0.5 text-xl text-amber-700" /><div><p className="font-extrabold text-amber-900">This group will become unassigned</p><p className="mt-1 text-sm leading-5 text-amber-800">Students may be unable to complete adviser-dependent milestones until another adviser accepts them. Future scheduled consultations will be cancelled, while your previous reviews, comments, and records will remain attributed to you.</p></div></div></div>
-                <div className="mt-5"><label className="text-sm font-bold text-slate-700">Reason for leaving <span className="text-rose-600">*</span></label><select value={withdrawalReason} onChange={(event) => setWithdrawalReason(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-sm outline-none focus:border-[#173f63]"><option value="">Select a reason</option><option value="GROUP_REQUESTED_CHANGE">Group requested a different adviser</option><option value="OUTSIDE_EXPERTISE">Research is outside my expertise</option><option value="WORKLOAD_AVAILABILITY">Workload or availability</option><option value="GROUP_INACTIVE">Group became inactive</option><option value="PROJECT_DISCONTINUED">Project rejected or discontinued</option><option value="STUDENT_WITHDREW">Student withdrew from the course</option><option value="OTHER">Other</option></select></div>
-                <div className="mt-4"><label className="text-sm font-bold text-slate-700">Note to students and coordinator <span className="text-rose-600">*</span></label><textarea value={withdrawalNote} onChange={(event) => setWithdrawalNote(event.target.value)} maxLength={1500} rows={6} placeholder="Explain the decision and provide any recommended next steps. Minimum 10 characters." className="mt-2 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm leading-6 outline-none focus:border-[#173f63]" /><div className="mt-1 flex justify-between text-[10px] text-slate-400"><span>{withdrawalNote.trim().length < 10 ? `${10 - withdrawalNote.trim().length} more characters required` : "Ready to submit"}</span><span>{withdrawalNote.length}/1500</span></div></div>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="flex gap-3"><i className="ti ti-alert-triangle mt-0.5 text-xl text-amber-700" /><div><p className="font-extrabold text-amber-900">This group will become unassigned</p><p className="mt-1 text-base leading-5 text-amber-800">Students may be unable to complete adviser-dependent milestones until another adviser accepts them. Future scheduled consultations will be cancelled, while your previous reviews, comments, and records will remain attributed to you.</p></div></div></div>
+                <div className="mt-5"><label className="text-sm font-bold text-slate-700">Reason for leaving <span className="text-rose-600">*</span></label><select value={withdrawalReason} onChange={(event) => setWithdrawalReason(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-base outline-none focus:border-[#173f63]"><option value="">Select a reason</option><option value="GROUP_REQUESTED_CHANGE">Group requested a different adviser</option><option value="OUTSIDE_EXPERTISE">Research is outside my expertise</option><option value="WORKLOAD_AVAILABILITY">Workload or availability</option><option value="GROUP_INACTIVE">Group became inactive</option><option value="PROJECT_DISCONTINUED">Project rejected or discontinued</option><option value="STUDENT_WITHDREW">Student withdrew from the course</option><option value="OTHER">Other</option></select></div>
+                <div className="mt-4"><label className="text-sm font-bold text-slate-700">Note to students and coordinator <span className="text-rose-600">*</span></label><textarea value={withdrawalNote} onChange={(event) => setWithdrawalNote(event.target.value)} maxLength={1500} rows={6} placeholder="Explain the decision and provide any recommended next steps. Minimum 10 characters." className="mt-2 w-full resize-none rounded-xl border border-slate-300 p-3 text-base leading-6 outline-none focus:border-[#173f63]" /><div className="mt-1 flex justify-between text-xs text-slate-400"><span>{withdrawalNote.trim().length < 10 ? `${10 - withdrawalNote.trim().length} more characters required` : "Ready to submit"}</span><span>{withdrawalNote.length}/1500</span></div></div>
                 <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => { setShowWithdrawalForm(false); setWithdrawalReason(""); setWithdrawalNote(""); }} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Back</button><button type="button" onClick={handleWithdrawFromGroup} disabled={isWithdrawing || !withdrawalReason || withdrawalNote.trim().length < 10} className="inline-flex min-w-44 items-center justify-center gap-2 rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50">{isWithdrawing ? <><i className="ti ti-loader-2 animate-spin" />Withdrawing…</> : <><i className="ti ti-user-minus" />Confirm withdrawal</>}</button></div>
               </div>
             )}
@@ -651,7 +651,7 @@ function AdviserDashboardContent() {
                         <i className={`ti ${item.icon}`} />
                       </span>
                       <span className="min-w-0">
-                        <span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{item.label}</span>
+                        <span className="block text-sm font-semibold text-slate-500 dark:text-slate-400">{item.label}</span>
                         <span className="mt-0.5 block text-2xl font-black text-[#0B3A53] dark:text-white">
                           {item.value} <small className="text-xs font-semibold text-slate-400">· {item.suffix}</small>
                         </span>
@@ -664,16 +664,16 @@ function AdviserDashboardContent() {
                 <div>
                   <div className="mb-4 flex items-center justify-between">
                     <div>
-                      <h2 className="text-base sm:text-lg font-bold text-[#17212B] dark:text-white">
+                      <h2 className="text-lg font-bold text-[#17212B] dark:text-white">
                         Advisee Research Overview
                       </h2>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                      <p className="text-base text-slate-500 dark:text-slate-400">
                         Active research teams currently assigned under your faculty guidance.
                       </p>
                     </div>
                     <button
                       onClick={() => handleTabChange("advisees")}
-                      className="flex items-center gap-1 text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
+                      className="flex items-center gap-1 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
                     >
                       View All ({advisees.length}) <i className="ti ti-chevron-right text-xs" />
                     </button>
@@ -704,7 +704,7 @@ function AdviserDashboardContent() {
                       <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
                         No Advisee Groups Assigned Yet
                       </h3>
-                      <p className="mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400">
+                      <p className="mt-1 max-w-md text-base text-slate-500 dark:text-slate-400">
                         When student research groups send you adviser requests and you accept them, their course cards will appear here.
                       </p>
                     </div>
@@ -716,19 +716,19 @@ function AdviserDashboardContent() {
                   <div className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs xl:col-span-3">
                     <div className="mb-4 flex items-center justify-between">
                       <div>
-                        <h2 className="flex items-center gap-2 text-base font-bold text-[#17212B] dark:text-white">
+                        <h2 className="flex items-center gap-2 text-lg font-bold text-[#17212B] dark:text-white">
                           Needs your attention{" "}
                           {pendingAdviserRequests.length > 0 && (
-                            <span className="rounded-full bg-[#C9A227]/20 px-2 py-0.5 text-[10px] font-bold text-[#8A6A0B] dark:text-[#C9A227]">
+                            <span className="rounded-full bg-[#C9A227]/20 px-2 py-0.5 text-xs font-bold text-[#8A6A0B] dark:text-[#C9A227]">
                               {pendingAdviserRequests.length} request{pendingAdviserRequests.length > 1 ? "s" : ""}
                             </span>
                           )}
                         </h2>
-                        <p className="text-xs text-slate-400">Your highest-priority advising reviews and approvals.</p>
+                        <p className="text-base text-slate-400">Your highest-priority advising reviews and approvals.</p>
                       </div>
                       <button
                         onClick={() => handleTabChange("approvals")}
-                        className="text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
+                        className="text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
                       >
                         View all <i className="ti ti-chevron-right text-xs" />
                       </button>
@@ -750,17 +750,17 @@ function AdviserDashboardContent() {
                                   <p className="truncate text-sm font-bold text-[#17212B] dark:text-white">
                                     {request.research?.title || "Research group"}
                                   </p>
-                                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                  <p className="mt-0.5 text-base text-slate-500 dark:text-slate-400">
                                     Requested by {request.requestedBy ? `${request.requestedBy.firstName} ${request.requestedBy.lastName}` : "group representative"}
                                   </p>
                                   {request.note && (
-                                    <p className="mt-1.5 line-clamp-2 text-xs text-slate-600 dark:text-slate-300 italic">
+                                    <p className="mt-1.5 line-clamp-2 text-sm text-slate-600 dark:text-slate-300 italic">
                                       “{request.note}”
                                     </p>
                                   )}
                                 </div>
                               </div>
-                              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-[#8A6A0B] dark:text-[#C9A227]">
+                              <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-[#8A6A0B] dark:text-[#C9A227]">
                                 Adviser Request
                               </span>
                             </div>
@@ -770,7 +770,7 @@ function AdviserDashboardContent() {
                                   setRequestDecision({ request, decision: "reject" });
                                   setRequestResponseNote("");
                                 }}
-                                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-rose-300 hover:text-rose-600 dark:bg-white/5 dark:text-slate-300"
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:border-rose-300 hover:text-rose-600 dark:bg-white/5 dark:text-slate-300"
                               >
                                 Reject
                               </button>
@@ -781,7 +781,7 @@ function AdviserDashboardContent() {
                                 }}
                                 disabled={adviserCapacity?.isFull}
                                 title={adviserCapacity?.isFull ? "Capacity reached or new requests are paused" : undefined}
-                                className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-xs disabled:cursor-not-allowed disabled:opacity-50"
+                                className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-sm font-bold text-white shadow-xs disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 Accept
                               </button>
@@ -800,12 +800,12 @@ function AdviserDashboardContent() {
                               </span>
                               <div className="min-w-0">
                                 <p className="truncate text-sm font-bold text-[#17212B] dark:text-white">{a.groupName}</p>
-                                <p className="truncate text-xs text-slate-500 dark:text-slate-400">{a.milestone}</p>
+                                <p className="truncate text-sm text-slate-500 dark:text-slate-400">{a.milestone}</p>
                               </div>
                             </div>
                             <button
                               onClick={() => handleApproveMilestone(a.id, a.groupName)}
-                              className="ml-3 rounded-lg bg-[#0B3A53] hover:bg-[#072A3D] px-3 py-1.5 text-xs font-bold text-white shadow-xs"
+                              className="ml-3 rounded-lg bg-[#0B3A53] hover:bg-[#072A3D] px-3 py-1.5 text-sm font-bold text-white shadow-xs"
                             >
                               Review
                             </button>
@@ -826,7 +826,7 @@ function AdviserDashboardContent() {
                                 <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">
                                   {review.docName || "Document review"}
                                 </span>
-                                <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                                <span className="block truncate text-sm text-slate-500 dark:text-slate-400">
                                   {review.groupName} · {getWaitingLabel(review.submittedAt)}
                                 </span>
                               </span>
@@ -840,15 +840,15 @@ function AdviserDashboardContent() {
                         <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
                           <i className="ti ti-circle-check text-lg" />
                         </span>
-                        <p className="text-sm font-bold text-[#17212B] dark:text-white">You’re all caught up</p>
-                        <p className="text-xs text-slate-400">New reviews and approvals will appear here.</p>
+                        <p className="text-base font-bold text-[#17212B] dark:text-white">You’re all caught up</p>
+                        <p className="text-base text-slate-400">New reviews and approvals will appear here.</p>
                       </div>
                     )}
                   </div>
 
                   <div className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs xl:col-span-2">
                     <div className="mb-4 flex items-center justify-between">
-                      <h2 className="text-base font-bold text-[#17212B] dark:text-white">Next Consultation</h2>
+                      <h2 className="text-lg font-bold text-[#17212B] dark:text-white">Next Consultation</h2>
                       <button
                         onClick={() => handleTabChange("consultations")}
                         className="text-slate-400 hover:text-[#0B3A53] dark:hover:text-white"
@@ -860,17 +860,17 @@ function AdviserDashboardContent() {
                     {consultations.length > 0 ? (
                       <div className="flex min-h-40 flex-col justify-between rounded-xl bg-gradient-to-br from-[#0B3A53] to-[#0E4968] p-5 text-white shadow-xs">
                         <div>
-                          <span className="inline-flex rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                          <span className="inline-flex rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
                             Upcoming Session
                           </span>
-                          <h3 className="mt-3 text-base font-bold">{consultations[0].topic}</h3>
-                          <p className="mt-1 text-xs text-slate-200">
+                          <h3 className="mt-3 text-lg font-bold">{consultations[0].topic}</h3>
+                          <p className="mt-1 text-base text-slate-200">
                             {consultations[0].groupName} · {consultations[0].date} · {consultations[0].time}
                           </p>
                         </div>
                         <button
                           onClick={() => handleStartConference(consultations[0].meetingUrl || DEFAULT_SHARED_MEET_URL, consultations[0].topic, consultations[0].researchId)}
-                          className="mt-4 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] py-2.5 text-xs font-bold text-white shadow-xs transition"
+                          className="mt-4 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] py-2.5 text-sm font-bold text-white shadow-xs transition"
                         >
                           <i className="ti ti-video mr-1.5" /> Join Google Meet
                         </button>
@@ -880,10 +880,10 @@ function AdviserDashboardContent() {
                         <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-white">
                           <i className="ti ti-calendar-time text-lg" />
                         </span>
-                        <p className="text-sm font-bold text-[#17212B] dark:text-white">No consultation scheduled</p>
+                        <p className="text-base font-bold text-[#17212B] dark:text-white">No consultation scheduled</p>
                         <button
                           onClick={() => setShowScheduleModal(true)}
-                          className="mt-3 rounded-xl bg-[#0B3A53] hover:bg-[#072A3D] px-4 py-2 text-xs font-bold text-white shadow-xs transition"
+                          className="mt-3 rounded-xl bg-[#0B3A53] hover:bg-[#072A3D] px-4 py-2 text-sm font-bold text-white shadow-xs transition"
                         >
                           Schedule One
                         </button>
@@ -897,10 +897,10 @@ function AdviserDashboardContent() {
                   <article className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
                     <div className="mb-4 flex items-center justify-between gap-4">
                       <div>
-                        <h2 className="text-base font-bold text-[#17212B] dark:text-white">Recent Advisee Activity</h2>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Latest submissions and scheduled advising sessions.</p>
+                        <h2 className="text-lg font-bold text-[#17212B] dark:text-white">Recent Advisee Activity</h2>
+                        <p className="mt-1 text-base text-slate-500 dark:text-slate-400">Latest submissions and scheduled advising sessions.</p>
                       </div>
-                      <button onClick={() => handleTabChange("reviews")} className="shrink-0 text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]">
+                      <button onClick={() => handleTabChange("reviews")} className="shrink-0 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]">
                         View reviews <i className="ti ti-chevron-right" />
                       </button>
                     </div>
@@ -910,7 +910,7 @@ function AdviserDashboardContent() {
                           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i className="ti ti-file-text" /></span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">{review.docName || "Document submission"}</span>
-                            <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{review.groupName} · {getWaitingLabel(review.submittedAt)}</span>
+                            <span className="block truncate text-sm text-slate-500 dark:text-slate-400">{review.groupName} · {getWaitingLabel(review.submittedAt)}</span>
                           </span>
                         </button>
                       ))}
@@ -919,22 +919,22 @@ function AdviserDashboardContent() {
                           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i className="ti ti-calendar-event" /></span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">{consultation.topic}</span>
-                            <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{consultation.groupName} · {consultation.date}</span>
+                            <span className="block truncate text-sm text-slate-500 dark:text-slate-400">{consultation.groupName} · {consultation.date}</span>
                           </span>
                         </button>
                       ))}
                       {reviews.length === 0 && consultations.length === 0 && (
                         <div className="flex min-h-32 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 px-4 text-center dark:border-white/10">
                           <i className="ti ti-activity text-2xl text-slate-300" />
-                          <p className="mt-2 text-sm font-bold text-[#17212B] dark:text-white">No recent advisee activity</p>
-                          <p className="text-xs text-slate-400">New reviews and consultations will appear here.</p>
+                          <p className="mt-2 text-base font-bold text-[#17212B] dark:text-white">No recent advisee activity</p>
+                          <p className="text-base text-slate-400">New reviews and consultations will appear here.</p>
                         </div>
                       )}
                     </div>
                   </article>
 
                   <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
-                  <h2 className="mb-4 text-base font-bold text-[#17212B] dark:text-white">Quick Actions</h2>
+                  <h2 className="mb-4 text-lg font-bold text-[#17212B] dark:text-white">Quick Actions</h2>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {[
                       { label: "View advisees", icon: "ti-users", tab: "advisees" },
@@ -950,7 +950,7 @@ function AdviserDashboardContent() {
                         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0B3A53]/10 dark:bg-white/10 text-lg text-[#0B3A53] dark:text-[#C9A227]">
                           <i className={`ti ${action.icon}`} />
                         </span>
-                        <span className="text-xs font-bold text-[#17212B] dark:text-white">{action.label}</span>
+                        <span className="text-sm font-bold text-[#17212B] dark:text-white">{action.label}</span>
                       </button>
                     ))}
                   </div>
@@ -965,7 +965,7 @@ function AdviserDashboardContent() {
                     <h2 className="text-xl font-bold text-[#17212B] dark:text-white">
                       Assigned Research Groups
                     </h2>
-                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                    <p className="text-base text-slate-500 dark:text-slate-400 mt-1">
                       Google Classroom-style course view for your active capstone and thesis advisee cohorts.
                     </p>
                   </div>
@@ -979,7 +979,7 @@ function AdviserDashboardContent() {
                         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
                           <div className={`h-full rounded-full ${adviserCapacity.isFull ? "bg-rose-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, adviserCapacity.maxAdviseeGroups ? (adviserCapacity.adviseeCount / adviserCapacity.maxAdviseeGroups) * 100 : 100)}%` }} />
                         </div>
-                        <p className="mt-1.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                        <p className="mt-1.5 text-base font-semibold text-slate-500 dark:text-slate-400">
                           {!adviserCapacity.isAcceptingAdvisees ? "New requests are paused." : adviserCapacity.isFull ? "Capacity reached." : `${adviserCapacity.availableSlots} available.`}
                         </p>
                       </div>
@@ -1016,29 +1016,29 @@ function AdviserDashboardContent() {
             ),
             reviews: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Research Document Review & Commenting</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Review draft submissions, download version history, and submit comments.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">Research Document Review & Commenting</h3>
+                <p className="text-base text-slate-400 font-bold">Review draft submissions, download version history, and submit comments.</p>
                 {reviews.length > 0 ? (
                   reviews.map(rev => (
                     <div key={rev.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-3 text-[12.5px] shadow-sm">
                       <div className="flex justify-between items-center border-b border-slate-150 pb-2">
                         <div>
                           <span className="font-bold text-[#1b4264] block">{rev.docName}</span>
-                          <span className="text-[10px] text-slate-400">{rev.groupName} · {rev.milestone} · {getWaitingLabel(rev.submittedAt)}</span>
+                          <span className="text-xs text-slate-400">{rev.groupName} · {rev.milestone} · {getWaitingLabel(rev.submittedAt)}</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <button onClick={() => rev.fileUrl ? openAuthenticatedFile(rev.fileUrl).catch((error) => triggerToast(error.message)) : triggerToast("No document preview is available.")} className="text-[#ffa400] font-bold hover:underline cursor-pointer">Open document</button>
-                          {rev.mimeType === "application/pdf" && !rev.signed && <button onClick={() => setSigningDocument(rev)} className="rounded-lg bg-[#173f63] px-3 py-2 text-[11px] font-extrabold text-white"><i className="ti ti-signature mr-1" />Add signature</button>}
-                          {rev.signed && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-extrabold text-emerald-700">Signed</span>}
+                          {rev.mimeType === "application/pdf" && !rev.signed && <button onClick={() => setSigningDocument(rev)} className="rounded-lg bg-[#173f63] px-3 py-2 text-sm font-extrabold text-white"><i className="ti ti-signature mr-1" />Add signature</button>}
+                          {rev.signed && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-extrabold text-emerald-700">Signed</span>}
                         </div>
                       </div>
                       <div className="flex flex-col gap-1.5 mt-1">
-                        <label className="font-bold text-slate-600 text-[11px]">Submit Review Comments</label>
+                        <label className="font-bold text-slate-600 text-sm">Submit Review Comments</label>
                         <textarea 
                           value={commentInput} 
                           onChange={(e)=>setCommentInput(e.target.value)} 
                           placeholder="Provide detailed feedback comments..." 
-                          className="bg-white border border-slate-350 rounded-lg p-2.5 text-[12px] focus:outline-none" 
+                          className="bg-white border border-slate-350 rounded-lg p-2.5 text-base focus:outline-none"
                         />
                         <button onClick={()=>handleReviewComment(rev.id)} className="px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-lg border border-[var(--color-primary)] self-start mt-2 transition">
                           Submit Comments
@@ -1067,7 +1067,7 @@ function AdviserDashboardContent() {
                       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                         <div className="flex items-center justify-between gap-4 xl:block">
                           <div>
-                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Consultation calendar</p>
+                            <p className="text-sm font-bold uppercase tracking-widest text-slate-400">Consultation calendar</p>
                             <p className="mt-1 text-lg font-bold text-[#0B3A53] dark:text-white">{today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
                           </div>
                           <button onClick={() => setShowScheduleModal(true)} className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 text-sm font-bold text-white transition hover:bg-[#072A3D] xl:hidden"><i className="ti ti-plus" />Schedule</button>
@@ -1104,8 +1104,8 @@ function AdviserDashboardContent() {
                             <i className="ti ti-video text-base" />
                           </div>
                           <div>
-                            <h4 className="font-bold text-[14px] text-slate-900">New Google Meet Consultation</h4>
-                            <span className="text-[10px] text-slate-400">Generate real calendar video conference</span>
+                            <h4 className="font-bold text-lg text-slate-900">New Google Meet Consultation</h4>
+                            <span className="text-xs text-slate-400">Generate real calendar video conference</span>
                           </div>
                         </div>
                         <button
@@ -1174,9 +1174,9 @@ function AdviserDashboardContent() {
                             value={customMeetUrl}
                             onChange={(e) => setCustomMeetUrl(e.target.value)}
                             placeholder="Leave blank for instant live Google Meet room (https://meet.google.com/new)"
-                            className="bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800 focus:outline-none focus:border-[#1b4264] text-[11.5px]"
+                            className="bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800 focus:outline-none focus:border-[#1b4264] text-base"
                           />
-                          <span className="text-[10px] text-slate-400">Default creates an instant live Google Meet video room automatically.</span>
+                          <span className="text-xs text-slate-400">Default creates an instant live Google Meet video room automatically.</span>
                         </div>
 
                         <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-slate-100">
@@ -1211,8 +1211,8 @@ function AdviserDashboardContent() {
                 <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101B2B]">
                   <div className="mb-5 flex items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-base font-bold text-[#0B3A53] dark:text-white">Consultation Schedule</h3>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Manage requests, meeting links, and upcoming advising sessions.</p>
+                      <h3 className="text-lg font-bold text-[#0B3A53] dark:text-white">Consultation Schedule</h3>
+                      <p className="mt-1 text-base text-slate-500 dark:text-slate-400">Manage requests, meeting links, and upcoming advising sessions.</p>
                     </div>
                     <span className="rounded-full bg-[#EAF3F7] px-3 py-1 text-xs font-bold text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">{consultations.length} total</span>
                   </div>
@@ -1230,7 +1230,7 @@ function AdviserDashboardContent() {
                               {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
                             </Tag>
                           </div>
-                          <span className="text-[11px] text-slate-500 block">{c.groupName} · {c.date} at {c.time}</span>
+                          <span className="text-xs text-slate-500 block">{c.groupName} · {c.date} at {c.time}</span>
                           {c.meetingUrl && (
                             <span className="mt-2 inline-block max-w-full truncate rounded-lg bg-white px-2 py-1 font-mono text-xs text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">
                               {c.meetingUrl}
@@ -1243,7 +1243,7 @@ function AdviserDashboardContent() {
                         {(c.status === "pending" || c.status === "requested") && (
                           <button
                             onClick={() => handleApproveConsultation(c.id, c.topic)}
-                            className="flex h-10 items-center gap-1.5 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-3.5 text-xs font-bold text-white transition"
+                            className="flex h-10 items-center gap-1.5 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-3.5 text-sm font-bold text-white transition"
                           >
                             <i className="ti ti-check" />
                             <span>Approve Consultation</span>
@@ -1251,7 +1251,7 @@ function AdviserDashboardContent() {
                         )}
                         <button
                           onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic, c.researchId)}
-                          className="flex h-10 items-center gap-1.5 rounded-xl bg-[#0B3A53] px-3.5 text-xs font-bold text-white transition hover:bg-[#072A3D]"
+                          className="flex h-10 items-center gap-1.5 rounded-xl bg-[#0B3A53] px-3.5 text-sm font-bold text-white transition hover:bg-[#072A3D]"
                         >
                           <i className="ti ti-video" />
                           <span>Join Google Meet</span>
@@ -1275,7 +1275,7 @@ function AdviserDashboardContent() {
                     <div className="col-span-full flex min-h-80 flex-col items-center justify-center rounded-2xl bg-slate-50/70 px-6 text-center dark:bg-white/[0.03]">
                       <span className="grid h-16 w-16 place-items-center rounded-2xl bg-[#EAF3F7] text-2xl text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i className="ti ti-calendar-time" /></span>
                       <h3 className="mt-5 text-lg font-bold text-[#0B3A53] dark:text-white">No consultations scheduled</h3>
-                      <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">Schedule an advising session or wait for a student consultation request.</p>
+                      <p className="mt-2 max-w-md text-base leading-6 text-slate-500 dark:text-slate-400">Schedule an advising session or wait for a student consultation request.</p>
                       <button onClick={() => setShowScheduleModal(true)} className="mt-5 flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 text-sm font-bold text-white transition"><i className="ti ti-plus" />Schedule consultation</button>
                     </div>
                   )}
@@ -1285,8 +1285,8 @@ function AdviserDashboardContent() {
             ),
             progress: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Research Group Progress Monitoring</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Oversight indicators showing project progression across all assigned advisees.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">Research Group Progress Monitoring</h3>
+                <p className="text-base text-slate-400 font-bold">Oversight indicators showing project progression across all assigned advisees.</p>
                 <div className="flex flex-col gap-4 mt-2">
                   {advisees.map(adv => (
                     <div key={adv.id} className="bg-slate-50 p-4 border border-slate-200 rounded-xl shadow-sm flex flex-col gap-3">
@@ -1297,15 +1297,15 @@ function AdviserDashboardContent() {
                       <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
                         <div className="bg-gradient-to-r from-[#1b4264] to-[#ffa400] h-full rounded-full" style={{ width: `${adv.progress}%` }} />
                       </div>
-                      <span className="text-[11px] font-medium text-slate-500">Current stage: {adv.currentStage}</span>
+                      <span className="text-xs font-medium text-slate-500">Current stage: {adv.currentStage}</span>
                       <div className="mt-1 grid gap-2 border-t border-slate-200 pt-3">
-                        <div className="flex items-center justify-between"><span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Shared task status</span><span className="text-[10px] font-bold text-slate-500">Adviser view</span></div>
+                        <div className="flex items-center justify-between"><span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Shared task status</span><span className="text-xs font-bold text-slate-500">Adviser view</span></div>
                         {adv.tasks?.length ? adv.tasks.map((task: any) => {
                           const submission = task.submission;
                           const status = submission?.status || "NOT SUBMITTED";
                           const submitter = submission?.submittedByUser ? `${submission.submittedByUser.firstName} ${submission.submittedByUser.lastName}` : null;
-                          return <div key={task.id} className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold text-[#1b4264]">{task.stageSequence}. {task.title}</p><p className="text-[10px] text-slate-500">{submitter ? `Submitted by: ${submitter}` : task.stageName}</p></div><Tag variant={status === "APPROVED" ? "success" : status === "REVISION_REQUIRED" || status === "REJECTED" ? "warn" : "info"}>{status.replace(/_/g, " ")}</Tag></div>;
-                        }) : <p className="rounded-lg bg-white p-3 text-xs text-slate-500">No submission requirements configured for this workflow.</p>}
+                          return <div key={task.id} className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#1b4264]">{task.stageSequence}. {task.title}</p><p className="text-base text-slate-500">{submitter ? `Submitted by: ${submitter}` : task.stageName}</p></div><Tag variant={status === "APPROVED" ? "success" : status === "REVISION_REQUIRED" || status === "REJECTED" ? "warn" : "info"}>{status.replace(/_/g, " ")}</Tag></div>;
+                        }) : <p className="rounded-lg bg-white p-3 text-base text-slate-500">No submission requirements configured for this workflow.</p>}
                       </div>
                     </div>
                   ))}
@@ -1314,16 +1314,16 @@ function AdviserDashboardContent() {
             ),
             approvals: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Milestone Approval & Recommendation</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Approve core outline thresholds and issue recommendations for oral review panels.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">Milestone Approval & Recommendation</h3>
+                <p className="text-base text-slate-400 font-bold">Approve core outline thresholds and issue recommendations for oral review panels.</p>
                 <div className="flex flex-col gap-3 mt-2">
                   {approvals.map(a => (
                     <div key={a.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm">
                       <div>
                         <span className="font-bold text-[#1b4264] block">{a.groupName}</span>
-                        <span className="text-[10px] text-slate-450">Target Milestone: {a.milestone}</span>
+                        <span className="text-xs text-slate-450">Target Milestone: {a.milestone}</span>
                       </div>
-                      <button onClick={()=>handleApproveMilestone(a.id, a.groupName)} className="px-3.5 py-1.5 bg-[#ffa400] text-[#1b4264] font-extrabold text-[11px] rounded border border-[#ffa400] cursor-pointer">
+                      <button onClick={()=>handleApproveMilestone(a.id, a.groupName)} className="px-3.5 py-1.5 bg-[#ffa400] text-[#1b4264] font-extrabold text-sm rounded border border-[#ffa400] cursor-pointer">
                         Approve Milestone
                       </button>
                     </div>
@@ -1338,11 +1338,11 @@ function AdviserDashboardContent() {
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                   <div>
-                    <h3 className="font-extrabold text-[#1b4264] text-[16px]">Consultation History & Transcript Archive</h3>
-                    <p className="text-[11px] text-slate-400 font-bold">Access historical meeting schedules, advising minutes, and Google Meet chat records.</p>
+                    <h3 className="font-extrabold text-[#1b4264] text-lg">Consultation History & Transcript Archive</h3>
+                    <p className="text-base text-slate-400 font-bold">Access historical meeting schedules, advising minutes, and Google Meet chat records.</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11.5px] font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                    <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
                       <strong>{consultations.length}</strong> Total Sessions
                     </span>
                   </div>
@@ -1362,14 +1362,14 @@ function AdviserDashboardContent() {
                               {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
                             </Tag>
                           </div>
-                          <span className="text-[11.5px] text-slate-500 font-medium block mt-0.5">
+                          <span className="text-xs text-slate-500 font-medium block mt-0.5">
                             {c.groupName} · {c.date} at {c.time} ({c.mode})
                           </span>
                         </div>
 
                         <button
                           onClick={() => handleOpenTranscriptModal(c)}
-                          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-xs shadow-sm cursor-pointer self-start sm:self-auto transition"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-sm shadow-sm cursor-pointer self-start sm:self-auto transition"
                         >
                           <i className="ti ti-file-text text-amber-500" />
                           <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "View / Edit Transcript & Notes" : "Import Google Meet Chat"}</span>
@@ -1396,7 +1396,7 @@ function AdviserDashboardContent() {
                           </span>
                           <ul className="list-disc list-inside text-slate-700 space-y-1 pl-1">
                             {c.actionItems.map((item, idx) => (
-                              <li key={idx} className="text-[11.5px]">{item}</li>
+                              <li key={idx} className="text-xs">{item}</li>
                             ))}
                           </ul>
                         </div>
@@ -1410,12 +1410,12 @@ function AdviserDashboardContent() {
                               <i className="ti ti-messages text-blue-600" />
                               <span>Google Meet In-Call Messages ({c.transcript.length})</span>
                             </span>
-                            <span className="text-[10px] text-slate-400 font-mono">Auto-Indexed</span>
+                            <span className="text-xs text-slate-400 font-mono">Auto-Indexed</span>
                           </div>
                           <div className="max-h-36 overflow-y-auto flex flex-col gap-1.5 pr-1">
                             {c.transcript.map((msg) => (
-                              <div key={msg.id} className="p-2 bg-slate-50 rounded border border-slate-100 text-[11px]">
-                                <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
+                              <div key={msg.id} className="p-2 bg-slate-50 rounded border border-slate-100 text-xs">
+                                <div className="flex justify-between items-center text-xs text-slate-500 font-bold">
                                   <span>{msg.sender}</span>
                                   <span className="font-mono text-slate-400">{msg.time}</span>
                                 </div>
@@ -1438,8 +1438,8 @@ function AdviserDashboardContent() {
             ),
             conferencing: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">In-App Voice and Video Group Conferencing</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Initiate peer study room conferences or sync appointments with advisees.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">In-App Voice and Video Group Conferencing</h3>
+                <p className="text-base text-slate-400 font-bold">Initiate peer study room conferences or sync appointments with advisees.</p>
                 
                 {!isMeetingActive ? (
                   <div className="bg-slate-50 p-6 border border-slate-200 rounded-xl text-center flex flex-col gap-4 shadow-sm">
@@ -1448,7 +1448,7 @@ function AdviserDashboardContent() {
                     </div>
                     <div>
                       <span className="font-bold text-[#1b4264] text-[14px] block">Live Stream Channels Ready</span>
-                      <span className="text-[10.5px] text-slate-400">Join consultation call with your assigned advisee groups</span>
+                      <span className="text-xs text-slate-400">Join consultation call with your assigned advisee groups</span>
                     </div>
                     <button 
                       onClick={() => handleStartConference("https://meet.google.com/new", "In-App Voice and Video Group Conferencing", advisees[0]?.id)}
@@ -1469,19 +1469,19 @@ function AdviserDashboardContent() {
                     </div>
 
                     <div className="flex flex-col items-center justify-center gap-1">
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Active Call Duration</span>
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Active Call Duration</span>
                       <span className="font-mono text-3xl font-black text-[#1b4264] tracking-tight">{formatMeetingTime(meetingDuration)}</span>
-                      <span className="text-[11px] text-slate-500 mt-1">Google Meet session is running in floating window</span>
+                      <span className="text-xs text-slate-500 mt-1">Google Meet session is running in floating window</span>
                     </div>
 
                     {/* LIVE ATTENDEES LIST */}
                     <div className="bg-white/80 border border-emerald-200/80 rounded-xl p-3.5 max-w-lg mx-auto w-full text-left shadow-sm">
                       <div className="flex items-center justify-between border-b border-emerald-100 pb-2 mb-2.5">
-                        <span className="text-[11px] font-extrabold text-[#1b4264] flex items-center gap-1.5">
+                        <span className="text-xs font-extrabold text-[#1b4264] flex items-center gap-1.5">
                           <i className="ti ti-users text-emerald-600" />
                           <span>Connected Attendees ({activeParticipants.length})</span>
                         </span>
-                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100/70 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="text-xs font-bold text-emerald-600 bg-emerald-100/70 px-2 py-0.5 rounded-full flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                           Live Sync
                         </span>
@@ -1489,17 +1489,17 @@ function AdviserDashboardContent() {
 
                       <div className="flex flex-col gap-1.5">
                         {activeParticipants.map((p) => (
-                          <div key={p.id} className="flex items-center justify-between text-[11.5px] p-1.5 rounded-lg hover:bg-emerald-50/50 transition">
+                          <div key={p.id} className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-emerald-50/50 transition">
                             <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-[#1b4264] text-[#ffa400] text-[10px] font-black flex items-center justify-center">
+                              <div className="w-6 h-6 rounded-full bg-[#1b4264] text-[#ffa400] text-xs font-black flex items-center justify-center">
                                 {p.name.split(" ").map(n => n[0]).slice(0, 2).join("")}
                               </div>
                               <div>
                                 <span className="font-bold text-slate-800 block leading-tight">{p.name}</span>
-                                <span className="text-[9.5px] text-slate-500">{p.role} · {p.email}</span>
+                                <span className="text-xs text-slate-500">{p.role} · {p.email}</span>
                               </div>
                             </div>
-                            <span className="text-[9.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
                               {p.joinedAt}
                             </span>
                           </div>
@@ -1510,7 +1510,7 @@ function AdviserDashboardContent() {
                     <div className="flex items-center justify-center gap-3 mt-2">
                       <button
                         onClick={handleReopenMeetingWindow}
-                        className="px-4 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-xs"
+                        className="px-4 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-sm"
                       >
                         <i className="ti ti-external-link" />
                         <span>Reopen Meeting Window</span>
@@ -1518,7 +1518,7 @@ function AdviserDashboardContent() {
 
                       <button
                         onClick={() => handleEndConference()}
-                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-xs"
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-sm"
                       >
                         <i className="ti ti-phone-off" />
                         <span>End Session</span>
@@ -1530,8 +1530,8 @@ function AdviserDashboardContent() {
             ),
             defense: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Defense Schedule Viewing</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Review defense panel timings, assignees, and digital venues.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">Defense Schedule Viewing</h3>
+                <p className="text-base text-slate-400 font-bold">Review defense panel timings, assignees, and digital venues.</p>
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-[12.5px] flex flex-col gap-2 mt-2 shadow-sm">
                   <div className="flex justify-between items-center">
                     <span className="font-extrabold text-[#1b4264] text-[14px]">AI Crop Yield Prediction System ML</span>
@@ -1546,20 +1546,20 @@ function AdviserDashboardContent() {
             ),
             settings: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Portal Settings</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Manage your notification channels, authentication credentials, and user preferences.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">Portal Settings</h3>
+                <p className="text-base text-slate-400 font-bold">Manage your notification channels, authentication credentials, and user preferences.</p>
                 <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl text-[12.5px] mt-2 flex flex-col gap-4 shadow-sm">
                   <div className="flex justify-between items-center pb-3 border-b border-slate-200">
                     <div>
                       <span className="font-bold text-[#1b4264] block">Email Notifications</span>
-                      <span className="text-[10px] text-slate-400">Receive system notifications via email address.</span>
+                      <span className="text-xs text-slate-400">Receive system notifications via email address.</span>
                     </div>
                     <input type="checkbox" defaultChecked className="accent-[#ffa400] w-4 h-4 cursor-pointer" />
                   </div>
                   <div className="flex justify-between items-center">
                     <div>
                       <span className="font-bold text-[#1b4264] block">Dark Mode</span>
-                      <span className="text-[10px] text-slate-400">Switch platform styling theme to night vision.</span>
+                      <span className="text-xs text-slate-400">Switch platform styling theme to night vision.</span>
                     </div>
                     <input
                       type="checkbox"

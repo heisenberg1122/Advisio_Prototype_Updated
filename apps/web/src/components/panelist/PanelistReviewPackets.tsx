@@ -311,7 +311,7 @@ export function PanelistReviewPackets() {
         <h3 className="mt-3 font-extrabold text-[var(--color-text-primary)]">
           No manuscript is ready for review
         </h3>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-base text-slate-500">
           An accepted defense invitation and a packet published by the professor
           are required.
         </p>
@@ -336,7 +336,7 @@ export function PanelistReviewPackets() {
       <div className="grid min-h-[720px] gap-4 xl:grid-cols-[290px_1fr]">
         <aside className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-card-soft)]">
           <div className="px-2 py-3">
-            <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#d98d00]">
+            <p className="text-sm font-extrabold uppercase tracking-[.16em] text-[#d98d00]">
               Ready for review
             </p>
             <h2 className="mt-1 text-lg font-black text-[var(--color-text-primary)]">
@@ -353,13 +353,13 @@ export function PanelistReviewPackets() {
                 }}
                 className={`w-full rounded-xl border p-3 text-left ${session.id === selected.id ? "border-[#f6a800] bg-amber-50 dark:bg-amber-500/10" : "border-[var(--color-border)] hover:bg-[var(--color-surface-subtle)]"}`}
               >
-                <p className="line-clamp-2 text-sm font-extrabold text-[var(--color-text-primary)]">
+                <p className="line-clamp-2 text-base font-extrabold text-[var(--color-text-primary)]">
                   {session.research.title}
                 </p>
-                <p className="mt-1 text-[11px] text-slate-500">
+                <p className="mt-1 text-base text-slate-500">
                   {session.research.researchType?.name || "Defense"}
                 </p>
-                <p className="mt-2 text-[10px] font-bold text-slate-400">
+                <p className="mt-2 text-base font-bold text-slate-400">
                   {session.scheduledStart
                     ? formatDateTime(session.scheduledStart)
                     : "Schedule pending"}
@@ -368,7 +368,7 @@ export function PanelistReviewPackets() {
             ))}
           </div>
           <div className="mt-4 border-t p-2">
-            <p className="text-[10px] font-extrabold uppercase text-slate-400">
+            <p className="text-sm font-extrabold uppercase text-slate-400">
               Packet progress
             </p>
             {progress.map((item) => (
@@ -398,7 +398,7 @@ export function PanelistReviewPackets() {
                 <h2 className="text-xl font-black text-[var(--color-text-primary)]">
                   {selected.research.title}
                 </h2>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-base text-slate-500">
                   Published manuscript v
                   {detail?.packet?.manuscriptVersion?.versionNumber} · Review
                   deadline{" "}
@@ -408,7 +408,7 @@ export function PanelistReviewPackets() {
                 </p>
               </div>
               {publishedManuscript && (
-                <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-[10px] font-extrabold text-emerald-700">
+                <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-extrabold text-emerald-700">
                   Published for defense: v{publishedManuscript.versionNumber}
                 </span>
               )}
@@ -425,14 +425,14 @@ export function PanelistReviewPackets() {
                 <button
                   key={id}
                   onClick={() => setTab(id)}
-                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-extrabold ${tab === id ? "bg-[var(--color-primary)] text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]" : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"}`}
+                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-extrabold ${tab === id ? "bg-[var(--color-primary)] text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]" : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"}`}
                 >
                   {label}
                 </button>
               ))}
             </nav>
             {notice && (
-              <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-xs font-bold text-sky-700">
+              <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-base font-bold text-sky-700">
                 {notice}
               </p>
             )}
@@ -461,7 +461,7 @@ export function PanelistReviewPackets() {
                 </section>
                 <aside className="space-y-4">
                   <div className="rounded-xl border p-4">
-                    <h3 className="text-sm font-extrabold text-[#173f63]">
+                    <h3 className="text-lg font-extrabold text-[#173f63]">
                       Published manuscript
                     </h3>
                     <div className="mt-3 space-y-2">
@@ -475,15 +475,15 @@ export function PanelistReviewPackets() {
                                 detail.packet.manuscriptVersion.document,
                             })
                           }
-                          className={`w-full rounded-lg border p-2 text-left text-xs ${previewVersion?.id === publishedManuscript.id ? "border-[#f6a800] bg-amber-50" : "border-slate-200"}`}
+                          className={`w-full rounded-lg border p-2 text-left text-sm ${previewVersion?.id === publishedManuscript.id ? "border-[#f6a800] bg-amber-50" : "border-slate-200"}`}
                         >
                           <span className="font-bold">
                             Version {publishedManuscript.versionNumber}
                           </span>
-                          <span className="ml-2 text-[9px] font-extrabold text-emerald-600">
+                          <span className="ml-2 text-sm font-extrabold text-emerald-600">
                             PUBLISHED FOR DEFENSE
                           </span>
-                          <span className="mt-1 block truncate text-[10px] text-slate-400">
+                          <span className="mt-1 block truncate text-sm text-slate-400">
                             {publishedManuscript.fileName}
                           </span>
                         </button>
@@ -492,23 +492,23 @@ export function PanelistReviewPackets() {
                     {previewVersion?.googleDriveFileId && (
                       <button
                         onClick={() => downloadVersion(previewVersion)}
-                        className="mt-3 block rounded-lg bg-[#173f63] px-3 py-2 text-center text-xs font-extrabold text-white"
+                        className="mt-3 block rounded-lg bg-[#173f63] px-3 py-2 text-center text-sm font-extrabold text-white"
                       >
                         Download selected PDF
                       </button>
                     )}
                     {detail?.downloads?.[0] && (
-                      <p className="mt-2 text-[9px] text-slate-400">
+                      <p className="mt-2 text-base text-slate-400">
                         Last downloaded{" "}
                         {formatDateTime(detail.downloads[0].createdAt)}
                       </p>
                     )}
                   </div>
                   <div className="rounded-xl border p-4">
-                    <h3 className="text-sm font-extrabold text-[#173f63]">
+                    <h3 className="text-lg font-extrabold text-[#173f63]">
                       Page comment
                     </h3>
-                    <label className="mt-3 block text-[10px] font-bold text-slate-500">
+                    <label className="mt-3 block text-sm font-bold text-slate-500">
                       Page number
                       <input
                         type="number"
@@ -517,7 +517,7 @@ export function PanelistReviewPackets() {
                         onChange={(event) =>
                           setPageNumber(Math.max(1, Number(event.target.value)))
                         }
-                        className="mt-1 w-full rounded-lg border p-2 text-sm"
+                        className="mt-1 w-full rounded-lg border p-2 text-base"
                       />
                     </label>
                     <textarea
@@ -526,7 +526,7 @@ export function PanelistReviewPackets() {
                         setAnnotationText(event.target.value)
                       }
                       placeholder="Add a page-specific observation…"
-                      className="mt-3 min-h-24 w-full rounded-lg border p-2 text-xs"
+                      className="mt-3 min-h-24 w-full rounded-lg border p-2 text-base"
                     />
                     <button
                       disabled={!annotationText.trim()}
@@ -543,7 +543,7 @@ export function PanelistReviewPackets() {
                         setAnnotationText("");
                         setTab("notes");
                       }}
-                      className="mt-2 w-full rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-3 py-2 text-xs font-extrabold text-white transition disabled:opacity-50"
+                      className="mt-2 w-full rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-3 py-2 text-sm font-extrabold text-white transition disabled:opacity-50"
                     >
                       Add page comment
                     </button>
@@ -553,7 +553,7 @@ export function PanelistReviewPackets() {
                       onClick={() =>
                         setPreviewVersion(detail.packet.similarityReport)
                       }
-                      className="w-full rounded-xl border border-violet-200 bg-violet-50 p-4 text-left text-xs font-extrabold text-violet-700"
+                      className="w-full rounded-xl border border-violet-200 bg-violet-50 p-4 text-left text-sm font-extrabold text-violet-700"
                     >
                       <i className="ti ti-fingerprint mr-2" />
                       Open similarity report
@@ -568,13 +568,13 @@ export function PanelistReviewPackets() {
                 <h3 className="font-extrabold text-[#173f63]">
                   Private panelist notes
                 </h3>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-base text-slate-500">
                   These notes are visible only to you.
                 </p>
                 <textarea
                   value={privateNotes}
                   onChange={(event) => setPrivateNotes(event.target.value)}
-                  className="mt-3 min-h-44 w-full rounded-xl border p-3 text-sm"
+                  className="mt-3 min-h-44 w-full rounded-xl border p-3 text-base"
                   placeholder="Record questions, observations, and discussion points…"
                 />
                 <h3 className="mt-6 font-extrabold text-[#173f63]">
@@ -593,7 +593,7 @@ export function PanelistReviewPackets() {
                               setPageNumber(item.pageNumber);
                               setTab("manuscript");
                             }}
-                            className="text-[10px] font-extrabold text-sky-700"
+                            className="text-sm font-extrabold text-sky-700"
                           >
                             PAGE {item.pageNumber}
                           </button>
@@ -608,13 +608,13 @@ export function PanelistReviewPackets() {
                             <i className="ti ti-trash" />
                           </button>
                         </div>
-                        <p className="mt-2 text-xs leading-5 text-slate-700">
+                        <p className="mt-2 text-base leading-5 text-slate-700">
                           {item.comment}
                         </p>
                       </div>
                     ))
                   ) : (
-                    <p className="rounded-xl border border-dashed p-5 text-center text-xs text-slate-400">
+                    <p className="rounded-xl border border-dashed p-5 text-center text-base text-slate-400">
                       No page comments yet.
                     </p>
                   )}
@@ -624,7 +624,7 @@ export function PanelistReviewPackets() {
                 <h3 className="font-extrabold text-[#173f63]">
                   Required-revision checklist
                 </h3>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-base text-slate-500">
                   Prepare actionable corrections for the deliberation and
                   recommendation form.
                 </p>
@@ -633,7 +633,7 @@ export function PanelistReviewPackets() {
                     value={newChecklist}
                     onChange={(event) => setNewChecklist(event.target.value)}
                     placeholder="Add a revision item"
-                    className="min-w-0 flex-1 rounded-lg border px-3 text-sm"
+                    className="min-w-0 flex-1 rounded-lg border px-3 text-base"
                   />
                   <button
                     disabled={!newChecklist.trim()}
@@ -649,7 +649,7 @@ export function PanelistReviewPackets() {
                       ]);
                       setNewChecklist("");
                     }}
-                    className="rounded-lg bg-[#173f63] px-3 py-2 text-xs font-bold text-white"
+                    className="rounded-lg bg-[#173f63] px-3 py-2 text-sm font-bold text-white"
                   >
                     Add
                   </button>
@@ -676,11 +676,11 @@ export function PanelistReviewPackets() {
                       />
                       <div className="min-w-0 flex-1">
                         <p
-                          className={`text-xs font-semibold ${item.resolved ? "text-slate-400 line-through" : "text-slate-700"}`}
+                          className={`text-base font-semibold ${item.resolved ? "text-slate-400 line-through" : "text-slate-700"}`}
                         >
                           {item.text}
                         </p>
-                        <label className="mt-2 flex items-center gap-2 text-[10px] text-slate-500">
+                        <label className="mt-2 flex items-center gap-2 text-sm text-slate-500">
                           <input
                             type="checkbox"
                             checked={item.required}
@@ -717,14 +717,14 @@ export function PanelistReviewPackets() {
                   <button
                     disabled={saving}
                     onClick={() => saveReview(false)}
-                    className="flex-1 rounded-xl border px-4 py-3 text-xs font-extrabold text-[#173f63]"
+                    className="flex-1 rounded-xl border px-4 py-3 text-sm font-extrabold text-[#173f63]"
                   >
                     Save privately
                   </button>
                   <button
                     disabled={saving}
                     onClick={() => saveReview(true)}
-                    className="flex-1 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-3 text-xs font-extrabold text-white transition"
+                    className="flex-1 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-3 text-sm font-extrabold text-white transition"
                   >
                     Mark reviewed
                   </button>
@@ -737,7 +737,7 @@ export function PanelistReviewPackets() {
                 <h3 className="font-extrabold text-[#173f63]">
                   Panel recommendation
                 </h3>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-base text-slate-500">
                   Your answers will be mapped into the PDF template published by
                   the professor.
                 </p>
@@ -751,7 +751,7 @@ export function PanelistReviewPackets() {
                   ].map(([key, label]) => (
                     <label
                       key={key}
-                      className="text-xs font-bold text-slate-600"
+                      className="text-sm font-bold text-slate-600"
                     >
                       {label}
                       <textarea
@@ -764,7 +764,7 @@ export function PanelistReviewPackets() {
                       />
                     </label>
                   ))}
-                  <label className="text-xs font-bold text-slate-600">
+                  <label className="text-sm font-bold text-slate-600">
                     Final recommendation
                     <select
                       value={recommendation.recommendation}
@@ -789,7 +789,7 @@ export function PanelistReviewPackets() {
                       saving || detail?.recommendation?.status === "LOCKED"
                     }
                     onClick={saveRecommendation}
-                    className="rounded-xl border px-5 py-3 text-xs font-extrabold text-[#173f63]"
+                    className="rounded-xl border px-5 py-3 text-sm font-extrabold text-[#173f63]"
                   >
                     Save draft
                   </button>
@@ -798,7 +798,7 @@ export function PanelistReviewPackets() {
                       saving || detail?.recommendation?.status === "LOCKED"
                     }
                     onClick={generateRecommendationPreview}
-                    className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 py-3 text-xs font-extrabold text-white transition"
+                    className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 py-3 text-sm font-extrabold text-white transition"
                   >
                     Generate preview
                   </button>
@@ -807,10 +807,10 @@ export function PanelistReviewPackets() {
                   <div className="mt-5 rounded-xl border border-sky-200 bg-sky-50 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-extrabold text-sky-900">
+                        <p className="text-base font-extrabold text-sky-900">
                           Preview ready for review
                         </p>
-                        <p className="mt-1 text-xs text-sky-700">
+                        <p className="mt-1 text-base text-sky-700">
                           {layoutReport?.fields?.filter(
                             (item: any) =>
                               item.status === "MOVED_TO_APPENDIX" ||
@@ -827,7 +827,7 @@ export function PanelistReviewPackets() {
                             "I reviewed the complete generated PDF. Lock this recommendation?",
                           ) && confirmRecommendation()
                         }
-                        className="rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-extrabold text-white"
+                        className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-extrabold text-white"
                       >
                         Confirm & lock
                       </button>
@@ -843,7 +843,7 @@ export function PanelistReviewPackets() {
                         .map((item: any) => (
                           <p
                             key={item.key}
-                            className="text-[10px] font-bold text-amber-700"
+                            className="text-base font-bold text-amber-700"
                           >
                             {item.label}: {item.warning}
                           </p>
@@ -853,15 +853,15 @@ export function PanelistReviewPackets() {
                 )}
               </section>
               <aside className="rounded-xl border bg-slate-50 p-4">
-                <h3 className="text-sm font-extrabold text-[#173f63]">
+                <h3 className="text-lg font-extrabold text-[#173f63]">
                   Generated document
                 </h3>
                 {detail?.recommendation?.generatedVersion ? (
                   <>
-                    <p className="mt-3 break-all text-xs font-bold text-slate-600">
+                    <p className="mt-3 break-all text-base font-bold text-slate-600">
                       {detail.recommendation.generatedVersion.fileName}
                     </p>
-                    <p className="mt-2 text-[10px] text-emerald-600">
+                    <p className="mt-2 text-base text-emerald-600">
                       Locked · integrity hash recorded
                     </p>
                     <button
@@ -871,7 +871,7 @@ export function PanelistReviewPackets() {
                         );
                         setTab("manuscript");
                       }}
-                      className="mt-4 w-full rounded-lg border bg-white px-3 py-2 text-xs font-bold"
+                      className="mt-4 w-full rounded-lg border bg-white px-3 py-2 text-sm font-bold"
                     >
                       Preview PDF
                     </button>
@@ -884,14 +884,14 @@ export function PanelistReviewPackets() {
                           fileUrl: `/api/documents/files/${detail.recommendation.generatedVersion.googleDriveFileId}`,
                         })
                       }
-                      className="mt-2 w-full rounded-lg bg-[#173f63] px-3 py-2 text-xs font-extrabold text-white"
+                      className="mt-2 w-full rounded-lg bg-[#173f63] px-3 py-2 text-sm font-extrabold text-white"
                     >
                       <i className="ti ti-signature mr-1" />
                       Add signature
                     </button>
                   </>
                 ) : (
-                  <p className="mt-3 text-xs leading-5 text-slate-400">
+                  <p className="mt-3 text-base leading-5 text-slate-400">
                     Submit the final form to generate the mapped recommendation
                     PDF.
                   </p>
@@ -903,7 +903,7 @@ export function PanelistReviewPackets() {
               <h3 className="text-lg font-extrabold text-[#173f63]">
                 Evaluation rubric
               </h3>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+              <p className="mt-2 max-w-2xl text-base leading-6 text-slate-500">
                 The professor’s criteria are available in the live evaluation
                 workspace when the defense begins. Final submission
                 automatically produces the mapped evaluation PDF when an

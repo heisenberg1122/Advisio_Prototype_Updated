@@ -419,7 +419,7 @@ export function FacultyProfileEditForm() {
           <h2 className="text-xl sm:text-2xl font-extrabold text-[#17212B] dark:text-white">
             Edit Faculty Professional Profile
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-base text-slate-500 dark:text-slate-400 mt-0.5">
             Manage your academic CV credentials, specialties, and mentoring background.
           </p>
         </div>
@@ -459,7 +459,7 @@ export function FacultyProfileEditForm() {
       <form onSubmit={handleSave} className="flex flex-col gap-6 text-xs">
         {/* Section 1: Professional Header & Academic Title */}
         <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <h3 className="text-sm font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+          <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
             <GraduationCap className="h-4 w-4 text-[#C9A227]" />
             1. Academic Title & Faculty Designation
           </h3>
@@ -478,7 +478,7 @@ export function FacultyProfileEditForm() {
                 placeholder="e.g. Dr., Prof., Ph.D., PE, MSCS"
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
               />
-              <span className="text-[11px] text-slate-400 mt-1 block">
+              <span className="text-xs text-slate-400 mt-1 block">
                 Displayed beside your name (e.g. Dr. Jane Doe)
               </span>
             </div>
@@ -533,7 +533,7 @@ export function FacultyProfileEditForm() {
 
         {/* Section 2: Professional Summary & Mentoring Philosophy */}
         <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <h3 className="text-sm font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+          <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
             <Lightbulb className="h-4 w-4 text-[#C9A227]" />
             2. Professional Summary & Mentoring Philosophy
           </h3>
@@ -603,7 +603,7 @@ export function FacultyProfileEditForm() {
         {/* Section 3: Educational Background (Repeatable) */}
         <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
-            <h3 className="text-sm font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
+            <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
               <GraduationCap className="h-4 w-4 text-[#C9A227]" />
               3. Educational Background & Degrees
             </h3>
@@ -613,7 +613,7 @@ export function FacultyProfileEditForm() {
           </div>
 
           {educations.length === 0 ? (
-            <p className="text-xs text-slate-500 italic py-2">
+            <p className="text-sm text-slate-500 italic py-2">
               No degrees entered yet. Click "Add Degree" to record your Bachelor's, Master's, or Doctoral
               qualifications.
             </p>
@@ -694,7 +694,7 @@ export function FacultyProfileEditForm() {
 
         {/* Section 4: Areas of Expertise */}
         <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <h3 className="text-sm font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+          <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
             <Award className="h-4 w-4 text-[#C9A227]" />
             4. Areas of Expertise & Specialty Tags
           </h3>
@@ -710,7 +710,7 @@ export function FacultyProfileEditForm() {
                   type="button"
                   key={spec}
                   onClick={() => toggleSpecialty(spec)}
-                  className={`px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer border ${
+                  className={`px-3 py-1.5 rounded-xl font-bold text-sm transition cursor-pointer border ${
                     isSelected
                       ? "bg-[#0B3A53] text-white border-[#0B3A53] dark:bg-[#C9A227] dark:text-[#101b2b] dark:border-[#C9A227]"
                       : "bg-slate-50 dark:bg-white/5 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:border-[#0B3A53]"
@@ -745,7 +745,7 @@ export function FacultyProfileEditForm() {
 
         {/* Section 5: Research Interests & Supervision */}
         <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <h3 className="text-sm font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+          <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
             <Lightbulb className="h-4 w-4 text-[#C9A227]" />
             5. Research Interests & Thesis Topics
           </h3>
@@ -851,7 +851,7 @@ export function FacultyProfileEditForm() {
                       type="button"
                       key={type}
                       onClick={() => toggleResearchType(type)}
-                      className={`px-3 py-1.5 rounded-xl font-bold text-xs transition border cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-xl font-bold text-sm transition border cursor-pointer ${
                         isChecked
                           ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800"
                           : "bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/10"
@@ -870,7 +870,7 @@ export function FacultyProfileEditForm() {
         {/* Section 6: Professional & Academic Experience (Repeatable) */}
         <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
-            <h3 className="text-sm font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
+            <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
               <Briefcase className="h-4 w-4 text-[#C9A227]" />
               6. Professional & Teaching Experience
             </h3>
@@ -880,7 +880,7 @@ export function FacultyProfileEditForm() {
           </div>
 
           {experiences.length === 0 ? (
-            <p className="text-xs text-slate-500 italic py-2">
+            <p className="text-sm text-slate-500 italic py-2">
               No positions added yet. Click "Add Position" to include academic appointments or industry experience.
             </p>
           ) : (
@@ -986,7 +986,7 @@ export function FacultyProfileEditForm() {
         {/* Section 7: Certifications & Licenses (Repeatable) */}
         <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
-            <h3 className="text-sm font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
+            <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-[#C9A227]" />
               7. Professional Certifications & Licenses
             </h3>
@@ -996,7 +996,7 @@ export function FacultyProfileEditForm() {
           </div>
 
           {certifications.length === 0 ? (
-            <p className="text-xs text-slate-500 italic py-2">No certifications added yet.</p>
+            <p className="text-sm text-slate-500 italic py-2">No certifications added yet.</p>
           ) : (
             <div className="space-y-4">
               {certifications.map((cert, idx) => (
@@ -1062,7 +1062,7 @@ export function FacultyProfileEditForm() {
         {/* Section 8: Publications & Contributions (Repeatable) */}
         <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
-            <h3 className="text-sm font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
+            <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
               <FileText className="h-4 w-4 text-[#C9A227]" />
               8. Publications & Research Contributions
             </h3>
@@ -1072,7 +1072,7 @@ export function FacultyProfileEditForm() {
           </div>
 
           {publications.length === 0 ? (
-            <p className="text-xs text-slate-500 italic py-2">No publications added yet.</p>
+            <p className="text-sm text-slate-500 italic py-2">No publications added yet.</p>
           ) : (
             <div className="space-y-4">
               {publications.map((pub, idx) => (
@@ -1151,7 +1151,7 @@ export function FacultyProfileEditForm() {
         {/* Section 9: Awards & Achievements (Repeatable) */}
         <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
-            <h3 className="text-sm font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
+            <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
               <Award className="h-4 w-4 text-[#C9A227]" />
               9. Awards & Professional Achievements
             </h3>
@@ -1161,7 +1161,7 @@ export function FacultyProfileEditForm() {
           </div>
 
           {awards.length === 0 ? (
-            <p className="text-xs text-slate-500 italic py-2">No awards added yet.</p>
+            <p className="text-sm text-slate-500 italic py-2">No awards added yet.</p>
           ) : (
             <div className="space-y-4">
               {awards.map((award, idx) => (
@@ -1222,7 +1222,7 @@ export function FacultyProfileEditForm() {
 
         {/* Section 10: Advising Preferences */}
         <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <h3 className="text-sm font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
+          <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
             <CheckCircle2 className="h-4 w-4 text-[#C9A227]" />
             10. Advising Preferences & Group Expectations
           </h3>

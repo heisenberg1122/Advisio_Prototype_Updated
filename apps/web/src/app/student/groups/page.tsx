@@ -20,11 +20,11 @@ export default function GroupsPage() {
           <CardTitle icon="ti-users">{group.name}</CardTitle>
           <Tag variant="info">Active</Tag>
         </CardHeader>
-        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-4">
+        <p className="text-base text-slate-500 dark:text-slate-400 mb-4">
           Research title: <span className="font-semibold text-slate-800 dark:text-slate-200">{group.researchTitle}</span>
         </p>
 
-        <div className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-2">
+        <div className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-2">
           Members
         </div>
 
@@ -46,7 +46,7 @@ export default function GroupsPage() {
                     <span className="text-slate-400 font-normal ml-1.5">(you)</span>
                   )}
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                <div className="text-xs text-slate-500 dark:text-slate-400">
                   {member.role === "leader" ? "Group leader" : "Member"}
                 </div>
               </div>
@@ -61,11 +61,11 @@ export default function GroupsPage() {
         <CardTitle icon="ti-message-circle" className="mb-2">
           Group workspace thread
         </CardTitle>
-        <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-4">
+        <p className="text-base text-slate-500 dark:text-slate-400 mb-4">
           Created by your adviser — you were added automatically.
         </p>
         <div>
-          <button className="inline-flex items-center gap-2 rounded-xl bg-[#0B3A53] hover:bg-[#072A3D] text-white px-5 py-2.5 text-xs font-bold shadow-xs transition cursor-pointer">
+          <button className="inline-flex items-center gap-2 rounded-xl bg-[#0B3A53] hover:bg-[#072A3D] text-white px-5 py-2.5 text-sm font-bold shadow-xs transition cursor-pointer">
             <i className="ti ti-external-link" aria-hidden="true" />
             Open workspace
           </button>

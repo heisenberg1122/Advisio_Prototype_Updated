@@ -118,7 +118,7 @@ export function AppSidebar({
                   ADVISIO
                 </span>
               </div>
-              <div className="text-[11px] font-semibold uppercase leading-tight tracking-wider text-[var(--color-primary)]">
+              <div className="text-xs font-semibold uppercase leading-tight tracking-wider text-[var(--color-primary)]">
                 {roleBadge || roleTitle}
               </div>
             </div>
@@ -139,7 +139,7 @@ export function AppSidebar({
               )}
             >
               {section.title && !isVisuallyCollapsed && (
-                <div className="px-4 pb-1.5 pt-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                <div className="px-4 pb-1.5 pt-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
                   {section.title}
                 </div>
               )}

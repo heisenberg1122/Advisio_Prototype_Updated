@@ -208,13 +208,13 @@ export default function ResearcherOnboardingPage() {
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 text-3xl text-emerald-600">
             <i className="ti ti-circle-check" />
           </div>
-          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-emerald-600">
+          <p className="text-sm font-extrabold uppercase tracking-[0.18em] text-emerald-600">
             Profile submitted
           </p>
           <h1 className="mt-2 text-2xl font-extrabold text-[#1b4264]">
             Your researcher profile is ready for verification
           </h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
+          <p className="mt-3 text-base leading-6 text-slate-600">
             The administrator will verify your institutional and academic
             information. You can sign in once your account is approved.
           </p>
@@ -253,7 +253,7 @@ export default function ResearcherOnboardingPage() {
             </div>
             <div>
               <strong className="block tracking-tight">ADVISIO</strong>
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-amber-300">
+              <span className="text-xs font-semibold uppercase tracking-widest text-amber-300">
                 Researcher onboarding
               </span>
             </div>
@@ -269,13 +269,13 @@ export default function ResearcherOnboardingPage() {
 
       <div className="mx-auto grid max-w-6xl gap-7 px-5 py-8 lg:grid-cols-[250px_1fr]">
         <aside className="h-fit rounded-2xl bg-[#1b4264] p-5 text-white shadow-lg">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-amber-300">
+          <p className="text-sm font-bold uppercase tracking-[0.16em] text-amber-300">
             Profile setup
           </p>
-          <h1 className="mt-2 text-xl font-extrabold">
+          <h1 className="mt-2 text-2xl font-extrabold">
             Tell us about your research journey
           </h1>
-          <p className="mt-2 text-xs leading-5 text-slate-300">
+          <p className="mt-2 text-base leading-5 text-slate-300">
             Your answers connect you with the correct program, workflow, group
             tools, and adviser pool.
           </p>
@@ -285,10 +285,10 @@ export default function ResearcherOnboardingPage() {
                 key={label}
                 type="button"
                 onClick={() => index < step && setStep(index)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs transition ${index === step ? "bg-white/12 text-white" : index < step ? "text-slate-200 hover:bg-white/5" : "cursor-default text-slate-300"}`}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition ${index === step ? "bg-white/12 text-white" : index < step ? "text-slate-200 hover:bg-white/5" : "cursor-default text-slate-300"}`}
               >
                 <span
-                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold ${index < step ? "bg-emerald-500 text-white" : index === step ? "bg-[#ffa400] text-[#1b4264]" : "bg-white/10 text-slate-300"}`}
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${index < step ? "bg-emerald-500 text-white" : index === step ? "bg-[#ffa400] text-[#1b4264]" : "bg-white/10 text-slate-300"}`}
                 >
                   {index < step ? <i className="ti ti-check" /> : index + 1}
                 </span>
@@ -302,20 +302,20 @@ export default function ResearcherOnboardingPage() {
               style={{ width: `${((step + 1) / steps.length) * 100}%` }}
             />
           </div>
-          <p className="mt-2 text-right text-[10px] text-slate-400">
+          <p className="mt-2 text-right text-base text-slate-400">
             Step {step + 1} of {steps.length}
           </p>
         </aside>
 
         <section className="rounded-2xl border border-slate-200 bg-white shadow-xl">
           <div className="border-b border-slate-100 px-6 py-5 md:px-8">
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#e09000]">
+            <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-[#e09000]">
               Step {step + 1}
             </p>
             <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[#1b4264]">
               {steps[step]}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-base text-slate-500">
               {stepDescription(step)}
             </p>
           </div>
@@ -662,7 +662,7 @@ function ResearchInterests({
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-        <p className="text-sm text-slate-600">
+        <p className="text-base text-slate-600">
           Select up to {MAX_RESEARCH_INTERESTS} areas for{" "}
           {program
             ? `${program.name} (${program.code})`
@@ -681,7 +681,7 @@ function ResearchInterests({
             type="button"
             onClick={() => toggle(interest)}
             aria-pressed={form.interests.includes(interest)}
-            className={`rounded-full border px-4 py-2 text-xs font-bold transition ${form.interests.includes(interest) ? "border-[#1b4264] bg-[#1b4264] text-white" : "border-slate-300 bg-white text-slate-600 hover:border-[#ffa400]"}`}
+            className={`rounded-full border px-4 py-2 text-sm font-bold transition ${form.interests.includes(interest) ? "border-[#1b4264] bg-[#1b4264] text-white" : "border-slate-300 bg-white text-slate-600 hover:border-[#ffa400]"}`}
           >
             {form.interests.includes(interest) && (
               <i className="ti ti-check mr-1" />
@@ -771,13 +771,13 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[11px] font-extrabold uppercase tracking-wider text-[#1b4264]">
+      <span className="mb-1.5 block text-xs font-extrabold uppercase tracking-wider text-[#1b4264]">
         {label}
         {required && <span className="ml-1 text-red-500">*</span>}
       </span>
       {children}
       {hint && (
-        <span className="mt-1 block text-[10px] text-slate-400">{hint}</span>
+        <span className="mt-1 block text-xs text-slate-400">{hint}</span>
       )}
     </label>
   );
@@ -786,7 +786,7 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-[#ffa400] focus:ring-2 focus:ring-[#ffa400]/20"
+      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-base outline-none transition placeholder:text-slate-400 focus:border-[#ffa400] focus:ring-2 focus:ring-[#ffa400]/20"
     />
   );
 }
@@ -794,7 +794,7 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-[#ffa400] focus:ring-2 focus:ring-[#ffa400]/20 disabled:bg-slate-100 disabled:text-slate-400"
+      className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-base outline-none transition focus:border-[#ffa400] focus:ring-2 focus:ring-[#ffa400]/20 disabled:bg-slate-100 disabled:text-slate-400"
     />
   );
 }
@@ -823,7 +823,7 @@ function Choice({
         </span>
         <span>
           <strong className="block text-sm text-[#1b4264]">{title}</strong>
-          <span className="mt-1 block text-xs leading-5 text-slate-500">
+          <span className="mt-1 block text-sm leading-5 text-slate-500">
             {description}
           </span>
         </span>
@@ -863,12 +863,12 @@ function ReviewSection({
   return (
     <section className="rounded-2xl border border-slate-200 p-4">
       <div className="mb-1 flex items-center justify-between">
-        <h3 className="text-sm font-extrabold text-[#1b4264]">{title}</h3>
+        <h3 className="text-lg font-extrabold text-[#1b4264]">{title}</h3>
         {!locked && (
           <button
             type="button"
             onClick={onEdit}
-            className="text-xs font-bold text-[#1b4264] underline hover:text-[#e09000]"
+            className="text-sm font-bold text-[#1b4264] underline hover:text-[#e09000]"
           >
             Edit
           </button>

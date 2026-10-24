@@ -59,13 +59,13 @@ export const GoogleMeetRoom: React.FC<GoogleMeetRoomProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-white text-[16px]">{topic}</h3>
-                <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                <h3 className="font-extrabold text-white text-lg">{topic}</h3>
+                <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   GOOGLE MEET LIVE
                 </span>
               </div>
-              <span className="text-[11.5px] text-slate-400 font-medium">
+              <span className="text-xs text-slate-400 font-medium">
                 {groupName} · Session Duration: {formatDuration(callDuration)}
               </span>
             </div>
@@ -74,7 +74,7 @@ export const GoogleMeetRoom: React.FC<GoogleMeetRoomProps> = ({
           <div className="flex items-center gap-2.5">
             <button
               onClick={handleLaunchGoogleMeet}
-              className="flex items-center gap-2 px-4 py-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold rounded-xl text-xs transition shadow cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold rounded-xl text-sm transition shadow cursor-pointer"
             >
               <i className="ti ti-video text-sm" />
               <span>Launch Google Meet Room</span>
@@ -82,7 +82,7 @@ export const GoogleMeetRoom: React.FC<GoogleMeetRoomProps> = ({
 
             <button
               onClick={onClose}
-              className="px-3.5 py-2 bg-rose-600/90 hover:bg-rose-600 text-white text-xs font-bold rounded-xl transition flex items-center gap-1 cursor-pointer"
+              className="px-3.5 py-2 bg-rose-600/90 hover:bg-rose-600 text-white text-sm font-bold rounded-xl transition flex items-center gap-1 cursor-pointer"
             >
               <i className="ti ti-x" />
               <span>Close</span>
@@ -101,8 +101,8 @@ export const GoogleMeetRoom: React.FC<GoogleMeetRoomProps> = ({
                     GM
                   </div>
                   <div>
-                    <h4 className="font-extrabold text-white text-[16px]">Official Google Meet Consultation</h4>
-                    <p className="text-[12px] text-slate-400">Authenticated video call room powered by Google Workspace</p>
+                    <h4 className="font-extrabold text-white text-lg">Official Google Meet Consultation</h4>
+                    <p className="text-base text-slate-400">Authenticated video call room powered by Google Workspace</p>
                   </div>
                 </div>
                 <div className="px-3 py-1 bg-blue-500/10 border border-blue-500/30 text-blue-400 rounded-lg text-xs font-mono font-bold">
@@ -113,12 +113,12 @@ export const GoogleMeetRoom: React.FC<GoogleMeetRoomProps> = ({
               {/* MEETING LINK DISPLAY */}
               <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Google Meet URL</span>
+                  <span className="text-xs text-slate-500 font-bold uppercase tracking-wider block">Google Meet URL</span>
                   <span className="font-mono text-emerald-400 font-bold text-[13px]">{meetingUrl}</span>
                 </div>
                 <button
                   onClick={handleCopyLink}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-lg border border-slate-700 flex items-center gap-1.5 transition cursor-pointer self-start sm:self-center"
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-bold rounded-lg border border-slate-700 flex items-center gap-1.5 transition cursor-pointer self-start sm:self-center"
                 >
                   <i className={`ti ${copied ? "ti-check text-emerald-400" : "ti-copy"}`} />
                   <span>{copied ? "Link Copied!" : "Copy Link"}</span>
@@ -132,12 +132,12 @@ export const GoogleMeetRoom: React.FC<GoogleMeetRoomProps> = ({
                     <i className="ti ti-brand-google text-blue-400 text-base" />
                     <span>Real-Time Google Meet</span>
                   </div>
-                  <p className="text-slate-400 text-[11px] leading-relaxed">
+                  <p className="text-slate-400 text-base leading-relaxed">
                     Uses official Google Meet servers with crystal-clear audio, noise cancellation, and screen sharing for capstone presentations.
                   </p>
                   <button
                     onClick={handleLaunchGoogleMeet}
-                    className="mt-1 px-3 py-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold rounded-lg text-xs transition cursor-pointer text-center"
+                    className="mt-1 px-3 py-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white font-bold rounded-lg text-sm transition cursor-pointer text-center"
                   >
                     Open Google Meet
                   </button>
@@ -148,12 +148,12 @@ export const GoogleMeetRoom: React.FC<GoogleMeetRoomProps> = ({
                     <i className="ti ti-file-text text-[#ffa400] text-base" />
                     <span>Side-by-Side Minutes</span>
                   </div>
-                  <p className="text-slate-400 text-[11px] leading-relaxed">
+                  <p className="text-slate-400 text-base leading-relaxed">
                     Document feedback, advisor remarks, and action items simultaneously while on the Google Meet video call.
                   </p>
                   <button
                     onClick={() => setActiveTab("notes")}
-                    className="mt-1 px-3 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-bold rounded-lg text-xs transition cursor-pointer text-center"
+                    className="mt-1 px-3 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-bold rounded-lg text-sm transition cursor-pointer text-center"
                   >
                     View / Edit Minutes
                   </button>
@@ -161,7 +161,7 @@ export const GoogleMeetRoom: React.FC<GoogleMeetRoomProps> = ({
               </div>
             </div>
 
-            <div className="text-[11px] text-slate-500 border-t border-slate-800 pt-3 flex items-center justify-between">
+            <div className="text-xs text-slate-500 border-t border-slate-800 pt-3 flex items-center justify-between">
               <span>Security: Google Meet Encrypted In-Transit & at Rest</span>
               <span>Advisio Research Platform Integration</span>
             </div>
@@ -174,19 +174,19 @@ export const GoogleMeetRoom: React.FC<GoogleMeetRoomProps> = ({
                 <i className="ti ti-notes" />
                 <span>Consultation Minutes</span>
               </span>
-              <span className="text-[10px] text-slate-400 font-bold">Auto-Syncing</span>
+              <span className="text-xs text-slate-400 font-bold">Auto-Syncing</span>
             </div>
 
             <div className="flex-1 p-3.5 flex flex-col gap-2 min-h-0">
               <textarea
                 value={meetingNotes}
                 onChange={(e) => setMeetingNotes(e.target.value)}
-                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-slate-200 text-[12px] focus:outline-none focus:border-[#ffa400] resize-none font-mono leading-relaxed shadow-inner"
+                className="flex-1 bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-slate-200 text-base focus:outline-none focus:border-[#ffa400] resize-none font-mono leading-relaxed shadow-inner"
                 placeholder="Type consultation minutes and action points..."
               />
               <button
                 onClick={() => alert("Minutes of consultation saved successfully to project repository!")}
-                className="px-4 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] text-[11.5px] font-bold rounded-xl border border-[#ffa400]/40 cursor-pointer self-end shadow transition"
+                className="px-4 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] text-sm font-bold rounded-xl border border-[#ffa400]/40 cursor-pointer self-end shadow transition"
               >
                 Save Minutes to Database
               </button>

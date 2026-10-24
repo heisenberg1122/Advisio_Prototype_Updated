@@ -170,13 +170,13 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-extrabold text-white text-[15px]">{topic}</h3>
-                <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                <h3 className="font-extrabold text-white text-lg">{topic}</h3>
+                <span className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   REAL WEBRTC STREAM
                 </span>
               </div>
-              <span className="text-[11px] text-slate-400 font-medium">
+              <span className="text-xs text-slate-400 font-medium">
                 {groupName} · Active Call Duration: {formatDuration(callDuration)}
               </span>
             </div>
@@ -184,7 +184,7 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
 
           <div className="flex items-center gap-2">
             {/* VIEW MODE TOGGLE */}
-            <div className="hidden sm:flex bg-slate-800 rounded-lg p-1 border border-slate-700 text-[11px] font-bold text-slate-300">
+            <div className="hidden sm:flex bg-slate-800 rounded-lg p-1 border border-slate-700 text-xs font-bold text-slate-300">
               <button
                 onClick={() => setViewMode("webrtc")}
                 className={`px-3 py-1 rounded-md transition cursor-pointer ${
@@ -205,7 +205,7 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
 
             <button
               onClick={onClose}
-              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-[11.5px] font-bold rounded-lg transition flex items-center gap-1 cursor-pointer shadow"
+              className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold rounded-lg transition flex items-center gap-1 cursor-pointer shadow"
             >
               <i className="ti ti-phone-off text-sm" />
               <span>Leave Consultation</span>
@@ -218,7 +218,7 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
           {/* VIDEO STAGE (COL 1-3) */}
           <div className="lg:col-span-3 flex flex-col gap-2.5 min-h-0 h-full">
             {permissionError && (
-              <div className="bg-amber-950/60 border border-amber-500/40 text-amber-200 px-3 py-1.5 rounded-lg text-[11.5px] flex items-center justify-between">
+              <div className="bg-amber-950/60 border border-amber-500/40 text-amber-200 px-3 py-1.5 rounded-lg text-xs flex items-center justify-between">
                 <span>{permissionError}</span>
                 <button
                   onClick={() => setViewMode("embed")}
@@ -247,16 +247,16 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
                         YOU
                       </div>
                       <span className="font-bold text-white text-[13px]">Your Camera is Off</span>
-                      <span className="text-[11px] text-slate-500">Audio stream remains active</span>
+                      <span className="text-xs text-slate-500">Audio stream remains active</span>
                     </div>
                   )}
 
-                  <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+                  <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded text-xs text-emerald-400 font-mono flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     LIVE 1080P FEED
                   </div>
 
-                  <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-xs px-2.5 py-1 rounded-md text-[11px] text-white font-bold flex items-center gap-1.5">
+                  <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-xs px-2.5 py-1 rounded-md text-xs text-white font-bold flex items-center gap-1.5">
                     <i className={`ti ${micOn ? "ti-microphone text-emerald-400" : "ti-microphone-off text-rose-400"}`} />
                     <span>You (Active Stream)</span>
                   </div>
@@ -277,15 +277,15 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
                         ADV
                       </div>
                       <span className="font-bold text-white text-[14px]">Adviser Connection</span>
-                      <span className="text-[11px] text-slate-400">Institutional Faculty Member</span>
-                      <div className="mt-3 px-3 py-1 bg-emerald-950/60 border border-emerald-500/30 rounded-full text-emerald-400 text-[10px] font-bold flex items-center gap-1.5">
+                      <span className="text-xs text-slate-400">Institutional Faculty Member</span>
+                      <div className="mt-3 px-3 py-1 bg-emerald-950/60 border border-emerald-500/30 rounded-full text-emerald-400 text-xs font-bold flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                         Awaiting Remote Peer Connection
                       </div>
                     </div>
                   )}
 
-                  <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-xs px-2.5 py-1 rounded-md text-[11px] text-white font-bold flex items-center gap-1.5">
+                  <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-xs px-2.5 py-1 rounded-md text-xs text-white font-bold flex items-center gap-1.5">
                     <i className="ti ti-video text-blue-400" />
                     <span>{isScreenSharing ? "Live Screen Share" : "Faculty Advisory Desk"}</span>
                   </div>
@@ -308,7 +308,7 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   onClick={toggleMicrophone}
-                  className={`px-3 py-2 rounded-xl flex items-center gap-1.5 transition font-bold text-xs cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl flex items-center gap-1.5 transition font-bold text-sm cursor-pointer ${
                     micOn ? "bg-slate-800 hover:bg-slate-700 text-white" : "bg-rose-600 text-white"
                   }`}
                 >
@@ -318,7 +318,7 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
 
                 <button
                   onClick={toggleCamera}
-                  className={`px-3 py-2 rounded-xl flex items-center gap-1.5 transition font-bold text-xs cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl flex items-center gap-1.5 transition font-bold text-sm cursor-pointer ${
                     cameraOn ? "bg-slate-800 hover:bg-slate-700 text-white" : "bg-rose-600 text-white"
                   }`}
                 >
@@ -328,7 +328,7 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
 
                 <button
                   onClick={toggleScreenShare}
-                  className={`px-3 py-2 rounded-xl flex items-center gap-1.5 transition font-bold text-xs cursor-pointer ${
+                  className={`px-3 py-2 rounded-xl flex items-center gap-1.5 transition font-bold text-sm cursor-pointer ${
                     isScreenSharing ? "bg-blue-600 text-white" : "bg-slate-800 hover:bg-slate-700 text-white"
                   }`}
                 >
@@ -340,7 +340,7 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setViewMode(viewMode === "webrtc" ? "embed" : "webrtc")}
-                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-bold rounded-xl border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <i className="ti ti-switch-horizontal" />
                   <span>Switch Mode</span>
@@ -348,7 +348,7 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
 
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow"
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-extrabold rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow"
                 >
                   <i className="ti ti-phone-off" />
                   <span>End Meeting</span>
@@ -360,7 +360,7 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
           {/* SIDEBAR PANEL (COL 4) */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl flex flex-col min-h-0 overflow-hidden shadow">
             {/* TABS */}
-            <div className="flex border-b border-slate-800 text-[11px] font-bold">
+            <div className="flex border-b border-slate-800 text-xs font-bold">
               <button
                 onClick={() => setActiveTab("notes")}
                 className={`flex-1 py-2.5 text-center transition cursor-pointer ${
@@ -382,26 +382,26 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
             {/* CONTENT */}
             {activeTab === "notes" ? (
               <div className="flex-1 p-3 flex flex-col gap-2 min-h-0">
-                <span className="text-[10.5px] font-bold text-slate-400">Live Collaborative Notes</span>
+                <span className="text-xs font-bold text-slate-400">Live Collaborative Notes</span>
                 <textarea
                   value={meetingNotes}
                   onChange={(e) => setMeetingNotes(e.target.value)}
-                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-200 text-[12px] focus:outline-none focus:border-[#ffa400] resize-none font-mono leading-relaxed"
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-3 text-slate-200 text-base focus:outline-none focus:border-[#ffa400] resize-none font-mono leading-relaxed"
                   placeholder="Record consultation discussion notes..."
                 />
                 <button
                   onClick={() => alert("Minutes of consultation saved successfully to project repository!")}
-                  className="px-3 py-1.5 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] text-[11px] font-bold rounded-lg border border-[#ffa400]/40 cursor-pointer self-end shadow"
+                  className="px-3 py-1.5 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] text-sm font-bold rounded-lg border border-[#ffa400]/40 cursor-pointer self-end shadow"
                 >
                   Save Notes to Database
                 </button>
               </div>
             ) : (
               <div className="flex-1 flex flex-col min-h-0">
-                <div className="flex-1 p-3 overflow-y-auto flex flex-col gap-2.5 text-[11.5px]">
+                <div className="flex-1 p-3 overflow-y-auto flex flex-col gap-2.5 text-xs">
                   {chatMessages.map((m, idx) => (
                     <div key={idx} className="flex flex-col gap-0.5">
-                      <div className="flex items-center justify-between text-[10px]">
+                      <div className="flex items-center justify-between text-xs">
                         <span className={`font-bold ${m.sender === "You" ? "text-emerald-400" : "text-blue-400"}`}>
                           {m.sender}
                         </span>
@@ -419,9 +419,9 @@ export const EmbeddedVideoRoom: React.FC<EmbeddedVideoRoomProps> = ({
                     value={msgInput}
                     onChange={(e) => setMsgInput(e.target.value)}
                     placeholder="Type in-call message..."
-                    className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-[11.5px] focus:outline-none focus:border-blue-500"
+                    className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-200 text-base focus:outline-none focus:border-blue-500"
                   />
-                  <button type="submit" className="px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold cursor-pointer">
+                  <button type="submit" className="px-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold cursor-pointer">
                     <i className="ti ti-send" />
                   </button>
                 </form>

@@ -48,19 +48,19 @@ export default function ForgotPasswordPage() {
         {message ? (
           <p
             role="status"
-            className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-800"
+            className="rounded-xl bg-emerald-50 p-4 text-base text-emerald-800"
           >
             {message}
           </p>
         ) : (
           <>
-            <p className="text-sm text-slate-600">
+            <p className="text-base text-slate-600">
               {isReset
                 ? "Your reset link can be used once and expires after 30 minutes."
                 : "Enter your account email to request a secure reset link."}
             </p>
             {isReset && !token ? (
-              <p role="alert" className="text-sm text-red-700">
+              <p role="alert" className="text-base text-red-700">
                 This reset link is invalid. Request a new link from the password
                 recovery page.
               </p>
@@ -109,7 +109,7 @@ export default function ForgotPasswordPage() {
                   </label>
                 )}
                 {error && (
-                  <p role="alert" className="text-sm text-red-700">
+                  <p role="alert" className="text-base text-red-700">
                     {error}
                   </p>
                 )}

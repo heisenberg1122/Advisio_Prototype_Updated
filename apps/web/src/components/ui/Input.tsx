@@ -22,7 +22,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           disabled={disabled}
           className={cn(
-            "w-full h-10 px-3.5 text-xs sm:text-sm rounded-xl transition-all duration-150",
+            "w-full h-10 px-3.5 text-base rounded-xl transition-all duration-150",
             "border border-[var(--color-border-strong)] bg-[var(--color-surface)]",
             "text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500",
             "focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]",
@@ -40,7 +40,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           </div>
         )}
         {error && (
-          <p className="mt-1 text-xs font-semibold text-red-600 dark:text-red-400">
+          <p className="mt-1 text-base font-semibold text-red-600 dark:text-red-400">
             {error}
           </p>
         )}
@@ -62,7 +62,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           disabled={disabled}
           className={cn(
-            "w-full h-10 px-3.5 text-xs sm:text-sm rounded-xl transition-all duration-150 cursor-pointer",
+            "w-full h-10 px-3.5 text-base rounded-xl transition-all duration-150 cursor-pointer",
             "border border-[var(--color-border-strong)] bg-[var(--color-surface)]",
             "text-slate-800 dark:text-slate-100",
             "focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]",
@@ -75,7 +75,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           {children}
         </select>
         {error && (
-          <p className="mt-1 text-xs font-semibold text-red-600 dark:text-red-400">
+          <p className="mt-1 text-base font-semibold text-red-600 dark:text-red-400">
             {error}
           </p>
         )}
@@ -97,7 +97,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           disabled={disabled}
           className={cn(
-            "w-full p-3.5 text-xs sm:text-sm rounded-xl transition-all duration-150 resize-y min-h-[96px]",
+            "w-full p-3.5 text-base rounded-xl transition-all duration-150 resize-y min-h-[96px]",
             "border border-[var(--color-border-strong)] bg-[var(--color-surface)]",
             "text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500",
             "focus:outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]",
@@ -108,7 +108,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           {...props}
         />
         {error && (
-          <p className="mt-1 text-xs font-semibold text-red-600 dark:text-red-400">
+          <p className="mt-1 text-base font-semibold text-red-600 dark:text-red-400">
             {error}
           </p>
         )}
@@ -138,7 +138,7 @@ export function FormField({
   return (
     <div className={cn("flex flex-col gap-1.5 w-full", className)}>
       {label && (
-        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+        <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
           <span>
             {label}
             {required && <span className="text-red-500 ml-1">*</span>}
@@ -152,7 +152,7 @@ export function FormField({
       )}
       {children}
       {error && (
-        <p className="text-xs font-semibold text-red-600 dark:text-red-400">
+        <p className="text-base font-semibold text-red-600 dark:text-red-400">
           {error}
         </p>
       )}

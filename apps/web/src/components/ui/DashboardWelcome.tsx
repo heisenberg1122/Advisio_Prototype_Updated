@@ -23,13 +23,13 @@ export function DashboardWelcome({
     >
       <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+          <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
             Today&apos;s overview
           </p>
           <h2 className="mt-1 text-2xl sm:text-[28px] font-bold tracking-tight text-[var(--color-text-primary)] leading-tight">
             Good day, {displayName}
           </h2>
-          <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-secondary)]">
+          <p className="mt-2 text-base leading-relaxed text-[var(--color-text-secondary)]">
             {summary}
           </p>
         </div>

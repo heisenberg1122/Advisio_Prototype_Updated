@@ -64,7 +64,7 @@ function RecipientPicker({
 
   return (
     <div className="relative flex min-h-11 items-start gap-2 border-b border-[var(--color-border)] px-4 py-2">
-      <label className="w-9 shrink-0 pt-1.5 text-xs font-bold text-[var(--color-text-muted)]">
+      <label className="w-9 shrink-0 pt-1.5 text-sm font-bold text-[var(--color-text-muted)]">
         {label}{required ? <span className="sr-only"> required</span> : null}
       </label>
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
@@ -76,7 +76,7 @@ function RecipientPicker({
               key={id}
               className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-[var(--color-primary-light)] px-2 py-1 text-xs font-semibold text-[var(--color-primary-dark)] dark:bg-white/10 dark:text-slate-100"
             >
-              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[var(--color-primary)] text-[9px] font-black text-white">
+              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[var(--color-primary)] text-xs font-black text-white">
                 {personInitials(contact)}
               </span>
               <span className="max-w-44 truncate">{personName(contact)}</span>
@@ -98,7 +98,7 @@ function RecipientPicker({
           onBlur={() => window.setTimeout(() => setFocused(false), 120)}
           aria-label={`Search ${label} recipients`}
           placeholder={selectedIds.length ? "Add another" : `Search authorized ${label} recipients`}
-          className="h-7 min-w-40 flex-1 bg-transparent text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)]"
+          className="h-7 min-w-40 flex-1 bg-transparent text-base text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)]"
         />
       </div>
       {focused && suggestions.length > 0 ? (
@@ -127,7 +127,7 @@ function RecipientPicker({
                 <span className="block truncate text-sm font-bold text-[var(--color-text-primary)]">
                   {personName(contact)}
                 </span>
-                <span className="block truncate text-xs text-[var(--color-text-muted)]">
+                <span className="block truncate text-sm text-[var(--color-text-muted)]">
                   {contact.email} · {contact.roles.join(", ")}
                 </span>
               </span>
@@ -264,10 +264,10 @@ export function MailComposeWindow({
       >
         <header className="flex h-14 shrink-0 items-center justify-between bg-[var(--color-primary)] px-4 text-white">
           <div>
-            <h2 id="mail-compose-title" className="text-sm font-bold">
+            <h2 id="mail-compose-title" className="text-lg font-bold">
               {seed.draftId ? "Edit draft" : "New academic correspondence"}
             </h2>
-            <p className="text-[11px] text-white/70">Internal Advisio mail</p>
+            <p className="text-base text-white/70">Internal Advisio mail</p>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -291,7 +291,7 @@ export function MailComposeWindow({
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {error ? (
-            <p role="alert" className="m-3 rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
+            <p role="alert" className="m-3 rounded-xl bg-rose-50 p-3 text-base font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
               {error}
             </p>
           ) : null}
@@ -332,14 +332,14 @@ export function MailComposeWindow({
               maxLength={255}
               onChange={(event) => setSubject(event.target.value)}
               placeholder="Subject"
-              className="h-12 w-full bg-transparent px-4 text-sm font-semibold text-[var(--color-text-primary)] outline-none placeholder:font-normal placeholder:text-[var(--color-text-muted)]"
+              className="h-12 w-full bg-transparent px-4 text-base font-semibold text-[var(--color-text-primary)] outline-none placeholder:font-normal placeholder:text-[var(--color-text-muted)]"
             />
           </label>
           <div className="flex items-center gap-1 border-b border-[var(--color-border)] px-3 py-2" aria-label="Message formatting">
             <button type="button" onClick={() => insertFormatting("bold")} aria-label="Bold" className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[var(--color-surface-muted)]"><Bold className="h-4 w-4" /></button>
             <button type="button" onClick={() => insertFormatting("italic")} aria-label="Italic" className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[var(--color-surface-muted)]"><Italic className="h-4 w-4" /></button>
             <button type="button" onClick={() => insertFormatting("list")} aria-label="Bulleted list" className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[var(--color-surface-muted)]"><List className="h-4 w-4" /></button>
-            <span className="ml-2 text-[11px] text-[var(--color-text-muted)]">Safe plain-text formatting</span>
+            <span className="ml-2 text-xs text-[var(--color-text-muted)]">Safe plain-text formatting</span>
           </div>
           <textarea
             ref={bodyRef}
@@ -348,7 +348,7 @@ export function MailComposeWindow({
             onChange={(event) => setBody(event.target.value)}
             onKeyDown={handleShortcut}
             placeholder="Write your message"
-            className="min-h-56 w-full resize-none bg-transparent p-4 text-sm leading-6 text-[var(--color-text-primary)] outline-none sm:min-h-72"
+            className="min-h-56 w-full resize-none bg-transparent p-4 text-base leading-6 text-[var(--color-text-primary)] outline-none sm:min-h-72"
           />
           {existingAttachments.length || seed.sourceAttachments?.length || files.length ? (
             <div className="space-y-2 border-t border-[var(--color-border)] px-4 py-3">
@@ -401,7 +401,7 @@ export function MailComposeWindow({
               onChange={(event) => setFiles(Array.from(event.target.files || []).slice(0, 5))}
             />
           </label>
-          <span className="hidden text-[11px] text-[var(--color-text-muted)] sm:inline">Ctrl+Enter to send · up to 5 files, 10 MB each</span>
+          <span className="hidden text-xs text-[var(--color-text-muted)] sm:inline">Ctrl+Enter to send · up to 5 files, 10 MB each</span>
           <button
             type="button"
             disabled={pending}

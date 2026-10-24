@@ -868,7 +868,7 @@ function StudentDashboardContent() {
             <h2 className="mt-1 text-2xl font-black tracking-tight text-[var(--color-text-primary)] dark:text-white">
               Faculty Consultation Repository & Video Rooms
             </h2>
-            <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
+            <p className="mt-2 text-base leading-6 text-[var(--color-text-secondary)]">
               Book advising slots, launch synchronized Google Meet rooms, and review auto-indexed meeting transcripts.
             </p>
           </div>
@@ -887,7 +887,7 @@ function StudentDashboardContent() {
         <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-5 py-4" aria-label="Consultation calendar">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="shrink-0">
-              <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">Consultation calendar</p>
+              <p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">Consultation calendar</p>
               <p className="mt-1 text-lg font-bold text-[var(--color-text-primary)] dark:text-white">
                 {today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
               </p>
@@ -904,7 +904,7 @@ function StudentDashboardContent() {
                         : "bg-[var(--color-surface)] border border-[var(--color-border)]/70 text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/40 hover:text-[var(--color-text-primary)]"
                     }`}
                   >
-                    <span className="text-[11px] font-bold uppercase">{date.toLocaleDateString(undefined, { weekday: "short" })}</span>
+                    <span className="text-xs font-bold uppercase">{date.toLocaleDateString(undefined, { weekday: "short" })}</span>
                     <span className="mt-1 text-sm font-black">{date.getDate()}</span>
                   </div>
                 );
@@ -922,7 +922,7 @@ function StudentDashboardContent() {
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)]">
                     <i className="ti ti-calendar-time text-lg" />
                   </span>
-                  <h3 className="flex items-center gap-2 text-base font-extrabold text-[var(--color-text-primary)] dark:text-white">
+                  <h3 className="flex items-center gap-2 text-lg font-extrabold text-[var(--color-text-primary)] dark:text-white">
                     Scheduled Sessions
                   </h3>
                   <span className="rounded-full bg-[var(--color-surface-muted)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)]">
@@ -986,7 +986,7 @@ function StudentDashboardContent() {
                         <div className="flex items-center gap-2 self-start sm:self-auto">
                           <button
                             onClick={() => handleOpenTranscriptModal(c)}
-                            className="px-3 py-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-surface-muted)] text-[var(--color-text-primary)] font-bold rounded-lg border border-[var(--color-border)] text-xs shadow-xs cursor-pointer transition flex items-center gap-1"
+                            className="px-3 py-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-surface-muted)] text-[var(--color-text-primary)] font-bold rounded-lg border border-[var(--color-border)] text-sm shadow-xs cursor-pointer transition flex items-center gap-1"
                           >
                             <i className="ti ti-file-text text-[var(--color-primary)]" />
                             <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "Notes & Chat" : "Import Chat"}</span>
@@ -999,7 +999,7 @@ function StudentDashboardContent() {
                           ) : (
                             <button
                               onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
-                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow-xs transition cursor-pointer flex items-center gap-1"
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm shadow-xs transition cursor-pointer flex items-center gap-1"
                             >
                               <i className="ti ti-video" />
                               <span>Join Meet</span>
@@ -1012,7 +1012,7 @@ function StudentDashboardContent() {
                                 triggerToast("Copied Google Meet link!");
                               }}
                               title="Copy Meet Link"
-                              className="p-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-muted)] rounded-lg text-[var(--color-text-secondary)] cursor-pointer text-xs"
+                              className="p-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-muted)] rounded-lg text-[var(--color-text-secondary)] cursor-pointer text-sm"
                             >
                               <i className="ti ti-copy" />
                             </button>
@@ -1036,7 +1036,7 @@ function StudentDashboardContent() {
                   </div>
                   <div>
                     <h4 className="text-lg font-extrabold tracking-tight text-[var(--color-text-primary)] dark:text-white">No Consultations Found</h4>
-                    <p className="mt-1.5 max-w-sm text-sm leading-6 text-[var(--color-text-secondary)]">
+                    <p className="mt-1.5 max-w-sm text-base leading-6 text-[var(--color-text-secondary)]">
                       {consultFilter === "all"
                         ? "You have not booked any advising consultations yet. Use the booking form on the right to schedule a session."
                         : `No ${consultFilter} consultations found.`}
@@ -1050,11 +1050,11 @@ function StudentDashboardContent() {
           {/* Right Panel: Booking Form & Live Conferencing */}
           <div className="flex flex-col gap-5 xl:sticky xl:top-6">
             <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xs sm:p-6">
-              <h3 className="flex items-center gap-2 text-base font-extrabold text-[var(--color-text-primary)] dark:text-white">
+              <h3 className="flex items-center gap-2 text-lg font-extrabold text-[var(--color-text-primary)] dark:text-white">
                 <i className="ti ti-calendar-plus text-[var(--color-primary)]" />
                 Book a Consultation Session
               </h3>
-              <p className="text-sm leading-6 text-[var(--color-text-secondary)]">
+              <p className="text-base leading-6 text-[var(--color-text-secondary)]">
                 Submit your preferred date and topic to your research adviser.
               </p>
               <form onSubmit={handleRequestConsult} className="flex flex-col gap-4 text-sm">
@@ -1116,21 +1116,21 @@ function StudentDashboardContent() {
 
             <div className="flex flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xs sm:p-6">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-extrabold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-1.5">
+                <span className="text-xs font-extrabold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-1.5">
                   <i className="ti ti-video text-emerald-600" />
                   Live Conferencing Room
                 </span>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span className="text-xs font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   Ready
                 </span>
               </div>
-              <p className="text-[var(--color-text-secondary)] text-xs leading-relaxed">
+              <p className="text-[var(--color-text-secondary)] text-base leading-relaxed">
                 Need an immediate sync with your team members or adviser? Launch a synchronized Google Meet room with floating transcript window.
               </p>
               <button
                 onClick={() => handleStartConference(DEFAULT_SHARED_MEET_URL, `${group?.name || "Student"} Instant Room`)}
-                className="w-full py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.98]"
+                className="w-full py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-xl text-sm transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.98]"
               >
                 <i className="ti ti-external-link" />
                 <span>Launch Instant Meet Room</span>
@@ -1142,7 +1142,7 @@ function StudentDashboardContent() {
                 <i className="ti ti-info-circle text-[var(--color-primary)]" />
                 Advising Guidelines & Policies
               </span>
-              <ul className="list-disc list-inside text-[var(--color-text-secondary)] space-y-1 text-[11px]">
+              <ul className="list-disc list-inside text-[var(--color-text-secondary)] space-y-1 text-xs">
                 <li>Book consultations at least 48 hours in advance.</li>
                 <li>Upload your updated draft to Document Workspace prior to the call.</li>
                 <li>In-call chats and action items are automatically preserved for compliance.</li>
@@ -1160,7 +1160,7 @@ function StudentDashboardContent() {
         <div className="flex justify-end">
           <button
             onClick={() => router.push("/student/documents")}
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 text-xs font-extrabold text-white shadow-xs transition"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 text-sm font-extrabold text-white shadow-xs transition"
           >
             <i className="ti ti-edit font-bold" />
             <span>Open Document Workspace</span>
@@ -1173,7 +1173,7 @@ function StudentDashboardContent() {
           <div className="lg:col-span-7 flex flex-col gap-5">
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                <h3 className="font-extrabold text-[#1b4264] text-[15px] flex items-center gap-2">
+                <h3 className="font-extrabold text-[#1b4264] text-lg flex items-center gap-2">
                   <i className="ti ti-history text-[#ffa400]" />
                   Manuscript Versions & Upload History
                 </h3>
@@ -1195,7 +1195,7 @@ function StudentDashboardContent() {
                         </div>
                         <div>
                           <span className="font-bold text-[#1b4264] text-[13px] block">{sub.docName}</span>
-                          <span className="text-[11px] text-slate-500">
+                          <span className="text-xs text-slate-500">
                             {sub.milestone || "Chapter Draft"} · Version {sub.version} · {sub.date}
                           </span>
                         </div>
@@ -1210,7 +1210,7 @@ function StudentDashboardContent() {
                               `/student/documents?projectId=${activeProject?.id || ""}&documentId=${sub.documentId}`,
                             )
                           }
-                          className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-[#1b4264] font-bold text-xs cursor-pointer transition flex items-center gap-1"
+                          className="px-2.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-[#1b4264] font-bold text-sm cursor-pointer transition flex items-center gap-1"
                         >
                           <i className="ti ti-edit" />
                           <span>Edit</span>
@@ -1225,8 +1225,8 @@ function StudentDashboardContent() {
                     <i className="ti ti-upload" />
                   </div>
                   <div>
-                    <h4 className="font-extrabold text-[#1b4264] text-sm">No Manuscript Submissions Yet</h4>
-                    <p className="text-slate-500 text-xs max-w-sm mt-1">
+                    <h4 className="font-extrabold text-[#1b4264] text-lg">No Manuscript Submissions Yet</h4>
+                    <p className="text-slate-500 text-base max-w-sm mt-1">
                       Upload your initial proposal outline or chapter drafts using the submission form on the right.
                     </p>
                   </div>
@@ -1239,11 +1239,11 @@ function StudentDashboardContent() {
           <div className="lg:col-span-5 flex flex-col gap-5">
             {/* Card 1: Upload Manuscript Form */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
-              <h3 className="font-extrabold text-[#1b4264] text-[15px] flex items-center gap-2">
+              <h3 className="font-extrabold text-[#1b4264] text-lg flex items-center gap-2">
                 <i className="ti ti-cloud-upload text-[#ffa400]" />
                 Submit Draft Manuscript
               </h3>
-              <p className="text-slate-400 text-[11px] font-bold">
+              <p className="text-slate-400 text-base font-bold">
                 Submit your document draft for adviser endorsement and review.
               </p>
               <form onSubmit={handleUploadDoc} className="flex flex-col gap-3 text-xs">
@@ -1323,7 +1323,7 @@ function StudentDashboardContent() {
                       <span className="text-[12px] font-bold text-emerald-800 break-all px-2">
                         {selectedFile.name}
                       </span>
-                      <span className="text-[10.5px] text-emerald-600 font-medium">
+                      <span className="text-xs text-emerald-600 font-medium">
                         {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Click or drop to replace
                       </span>
                     </>
@@ -1333,7 +1333,7 @@ function StudentDashboardContent() {
                       <span className="text-[12px] font-bold text-slate-700">
                         {isDragging ? "Drop your manuscript here" : "Click to browse or Drag & Drop Manuscript"}
                       </span>
-                      <span className="text-[10.5px] text-slate-400">Supported formats: PDF or DOCX (Max: 25 MB)</span>
+                      <span className="text-xs text-slate-400">Supported formats: PDF or DOCX (Max: 25 MB)</span>
                     </>
                   )}
                 </div>
@@ -1361,7 +1361,7 @@ function StudentDashboardContent() {
                 <i className="ti ti-checklist text-emerald-600" />
                 Submission Standards Checklist
               </span>
-              <ul className="list-disc list-inside text-slate-600 space-y-1 text-[11px]">
+              <ul className="list-disc list-inside text-slate-600 space-y-1 text-xs">
                 <li>Turnitin similarity score must be strictly under 15%.</li>
                 <li>Include faculty adviser formal endorsement slip.</li>
                 <li>Use standard institutional margins (1.5" left, 1" top/right/bottom).</li>
@@ -1401,7 +1401,7 @@ function StudentDashboardContent() {
         </div>
       )}
 
-      {groupAction && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="group-action-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !groupActionPending) setGroupAction(null); }}><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-start gap-3"><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${groupAction.type === "transfer" ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-600"}`}><i className={`ti ${groupAction.type === "transfer" ? "ti-user-star" : "ti-alert-triangle"} text-xl`} /></span><div><h2 id="group-action-title" className="text-lg font-extrabold text-[#102f49]">{groupAction.type === "transfer" ? "Transfer group leadership?" : groupAction.type === "leave" ? "Leave this research group?" : groupAction.type === "disband" ? "Disband and archive this group?" : groupAction.type === "delete" ? "Permanently delete rejected project?" : "Remove this member?"}</h2><p className="mt-2 text-sm leading-6 text-slate-600">{groupAction.type === "transfer" ? `${groupAction.member?.user?.firstName} ${groupAction.member?.user?.lastName} will become the group leader. You will remain as a member.` : groupAction.type === "leave" ? "You will lose access to the group, but your previous submissions and activity attribution will remain." : groupAction.type === "disband" ? "All active memberships will end and the project will be archived. Academic records and submissions will be preserved." : groupAction.type === "delete" ? `The rejected project “${activeProject?.title}” will be permanently deleted. You can register a replacement afterward.` : `${groupAction.member?.user?.firstName} ${groupAction.member?.user?.lastName} will lose group access. Their previous contributions will remain attributed to them.`}</p></div></div><div className="mt-6 flex justify-end gap-2"><button onClick={() => setGroupAction(null)} disabled={groupActionPending} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button><button onClick={executeGroupAction} disabled={groupActionPending} className={`rounded-xl px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50 ${groupAction.type === "transfer" ? "bg-[#173f63]" : "bg-rose-600"}`}>{groupActionPending ? "Processing…" : groupAction.type === "transfer" ? "Confirm transfer" : groupAction.type === "leave" ? "Confirm leave" : groupAction.type === "disband" ? "Confirm disband" : groupAction.type === "delete" ? "Delete project" : "Confirm removal"}</button></div></div></div>}
+      {groupAction && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="group-action-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !groupActionPending) setGroupAction(null); }}><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-start gap-3"><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${groupAction.type === "transfer" ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-600"}`}><i className={`ti ${groupAction.type === "transfer" ? "ti-user-star" : "ti-alert-triangle"} text-xl`} /></span><div><h2 id="group-action-title" className="text-lg font-extrabold text-[#102f49]">{groupAction.type === "transfer" ? "Transfer group leadership?" : groupAction.type === "leave" ? "Leave this research group?" : groupAction.type === "disband" ? "Disband and archive this group?" : groupAction.type === "delete" ? "Permanently delete rejected project?" : "Remove this member?"}</h2><p className="mt-2 text-base leading-6 text-slate-600">{groupAction.type === "transfer" ? `${groupAction.member?.user?.firstName} ${groupAction.member?.user?.lastName} will become the group leader. You will remain as a member.` : groupAction.type === "leave" ? "You will lose access to the group, but your previous submissions and activity attribution will remain." : groupAction.type === "disband" ? "All active memberships will end and the project will be archived. Academic records and submissions will be preserved." : groupAction.type === "delete" ? `The rejected project “${activeProject?.title}” will be permanently deleted. You can register a replacement afterward.` : `${groupAction.member?.user?.firstName} ${groupAction.member?.user?.lastName} will lose group access. Their previous contributions will remain attributed to them.`}</p></div></div><div className="mt-6 flex justify-end gap-2"><button onClick={() => setGroupAction(null)} disabled={groupActionPending} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button><button onClick={executeGroupAction} disabled={groupActionPending} className={`rounded-xl px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50 ${groupAction.type === "transfer" ? "bg-[#173f63]" : "bg-rose-600"}`}>{groupActionPending ? "Processing…" : groupAction.type === "transfer" ? "Confirm transfer" : groupAction.type === "leave" ? "Confirm leave" : groupAction.type === "disband" ? "Confirm disband" : groupAction.type === "delete" ? "Delete project" : "Confirm removal"}</button></div></div></div>}
 
       <ProductTour
         tourKey="student_onboarding_v1"
@@ -1415,12 +1415,12 @@ function StudentDashboardContent() {
       <div className={`w-full flex-1 space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
         {((researchData?.projects?.length || 0) > 1 || projectSelection.invalidRequestedProjectId) && (
           <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-5">
-            <label htmlFor="dashboard-project" className="mb-2 block text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">Active research project</label>
-            <select id="dashboard-project" value={activeProject?.id || ""} onChange={(event) => projectSelection.selectProject(event.target.value || null)} className="h-11 w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-sm font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]">
+            <label htmlFor="dashboard-project" className="mb-2 block text-sm font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">Active research project</label>
+            <select id="dashboard-project" value={activeProject?.id || ""} onChange={(event) => projectSelection.selectProject(event.target.value || null)} className="h-11 w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]">
               <option value="">Choose a research project</option>
               {(researchData?.projects || []).map((project: any) => <option key={project.id} value={project.id}>{project.groupName || project.title}</option>)}
             </select>
-            {!activeProject && <p className="mt-2 text-xs text-[var(--color-text-secondary)]">{projectSelection.invalidRequestedProjectId ? "That project is unavailable or you do not have access to it." : "Choose a project to view its authoritative workflow data."}</p>}
+            {!activeProject && <p className="mt-2 text-base text-[var(--color-text-secondary)]">{projectSelection.invalidRequestedProjectId ? "That project is unavailable or you do not have access to it." : "Choose a project to view its authoritative workflow data."}</p>}
           </section>
         )}
         
@@ -1524,11 +1524,11 @@ function StudentDashboardContent() {
                         <i className="ti ti-certificate" />
                       </span>
                       <div>
-                        <p className="text-xs font-extrabold uppercase tracking-wider text-slate-500">Official defense result</p>
+                        <p className="text-sm font-extrabold uppercase tracking-wider text-slate-500">Official defense result</p>
                         <h2 className="mt-1 text-xl font-extrabold text-[#0B3A53] dark:text-white">
                           {String(officialDefenseResult.decision).replace(/_/g, " ")}
                         </h2>
-                        <p className="mt-1 text-sm text-slate-600">
+                        <p className="mt-1 text-base text-slate-600">
                           Released by the defense facilitator on {new Date(officialDefenseResult.releasedAt).toLocaleString()}.
                         </p>
                       </div>
@@ -1575,7 +1575,7 @@ function StudentDashboardContent() {
                 {activeProject && (
                   <div>
                     <div className="mb-3 flex items-center justify-between">
-                      <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--color-text-primary)]">
+                      <h2 className="flex items-center gap-2 text-lg font-semibold text-[var(--color-text-primary)]">
                         <span>Active Research Study</span>
                         <span className="rounded-full bg-[#0B3A53]/10 dark:bg-[#0B3A53]/30 px-2.5 py-0.5 text-xs font-bold text-[#0B3A53] dark:text-[#38bdf8]">
                           ENROLLED
@@ -1583,7 +1583,7 @@ function StudentDashboardContent() {
                       </h2>
                       <button
                         onClick={() => handleTabChange("group")}
-                        className="flex items-center gap-1 text-xs font-bold text-[#0B3A53] hover:underline dark:text-[#FFA400] cursor-pointer"
+                        className="flex items-center gap-1 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#FFA400] cursor-pointer"
                       >
                         Manage Project <i className="ti ti-chevron-right text-xs transition group-hover:translate-x-0.5" />
                       </button>
@@ -1622,8 +1622,8 @@ function StudentDashboardContent() {
                     <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)]">
                       <div className="flex items-center justify-between gap-4">
                         <div>
-                          <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Getting Started</h3>
-                          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Complete these steps to begin your research journey.</p>
+                          <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Getting Started</h3>
+                          <p className="mt-0.5 text-base text-slate-500 dark:text-slate-400">Complete these steps to begin your research journey.</p>
                         </div>
                         <button
                           onClick={() => setIsTourOpen(true)}
@@ -1651,10 +1651,10 @@ function StudentDashboardContent() {
                           <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[var(--color-primary)] transition">
                             <i className="ti ti-file-description text-xl" />
                           </span>
-                          <span className="mt-3 text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                          <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">
                             Register project
                           </span>
-                          <span className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
+                          <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
                             Tell us about your research topic.
                           </span>
                         </button>
@@ -1673,10 +1673,10 @@ function StudentDashboardContent() {
                           <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[var(--color-primary)] transition">
                             <i className="ti ti-users text-xl" />
                           </span>
-                          <span className="mt-3 text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                          <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">
                             Add group members
                           </span>
-                          <span className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
+                          <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
                             Invite your team, if any.
                           </span>
                         </button>
@@ -1694,10 +1694,10 @@ function StudentDashboardContent() {
                           <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[var(--color-primary)] transition">
                             <i className="ti ti-user-check text-xl" />
                           </span>
-                          <span className="mt-3 text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                          <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">
                             Choose an adviser
                           </span>
-                          <span className="mt-1 text-[11px] text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
+                          <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
                             {isGroupLeader ? "Browse verified faculty and send a formal request." : "View your project’s adviser status."}
                           </span>
                         </button>
@@ -1707,7 +1707,7 @@ function StudentDashboardContent() {
                     {/* Recent Activity Card */}
                     <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)]">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Recent Activity</h3>
+                        <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Recent Activity</h3>
                         <button
                           onClick={() => handleTabChange("notifications")}
                           className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition p-1"
@@ -1724,7 +1724,7 @@ function StudentDashboardContent() {
                                 <span className="h-2 w-2 rounded-full bg-[#0B3A53] shrink-0" />
                                 <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">{item.msg}</span>
                               </div>
-                              <span className="text-[11px] text-slate-400 shrink-0">{item.date}</span>
+                              <span className="text-xs text-slate-400 shrink-0">{item.date}</span>
                             </div>
                           ))}
                         </div>
@@ -1733,8 +1733,8 @@ function StudentDashboardContent() {
                           <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-400 text-xl">
                             <i className="ti ti-file-description" />
                           </span>
-                          <p className="mt-3 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">No recent activity</p>
-                          <p className="mt-0.5 text-[11px] text-slate-400 dark:text-slate-500">Your updates, submissions, and consultations will appear here.</p>
+                          <p className="mt-3 text-base font-bold text-slate-800 dark:text-slate-200">No recent activity</p>
+                          <p className="mt-0.5 text-base text-slate-400 dark:text-slate-500">Your updates, submissions, and consultations will appear here.</p>
                         </div>
                       )}
                     </div>
@@ -1746,7 +1746,7 @@ function StudentDashboardContent() {
                     <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)] flex flex-col justify-between">
                       <div>
                         <div className="flex items-center justify-between">
-                          <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Next Consultation</h3>
+                          <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Next Consultation</h3>
                           <button
                             onClick={() => handleTabChange("consultations")}
                             className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition p-1"
@@ -1761,10 +1761,10 @@ function StudentDashboardContent() {
                             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 dark:bg-sky-950/40 text-[#0B3A53] dark:text-[#38bdf8] text-2xl">
                               <i className="ti ti-calendar-time" />
                             </span>
-                            <p className="mt-3 text-sm font-bold text-slate-900 dark:text-white">
+                            <p className="mt-3 text-base font-bold text-slate-900 dark:text-white">
                               {consultations[0].topic}
                             </p>
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                               {consultations[0].date} at {consultations[0].time} ({consultations[0].mode})
                             </p>
                           </div>
@@ -1773,10 +1773,10 @@ function StudentDashboardContent() {
                             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50/80 dark:bg-white/5 text-slate-400 dark:text-slate-500 text-2xl">
                               <i className="ti ti-calendar-time" />
                             </span>
-                            <p className="mt-3 text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-200">
+                            <p className="mt-3 text-base font-bold text-slate-800 dark:text-slate-200">
                               No upcoming consultation
                             </p>
-                            <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500 max-w-xs leading-relaxed">
+                            <p className="mt-1 text-base text-slate-400 dark:text-slate-500 max-w-xs leading-relaxed">
                               Book a consultation with your adviser to get feedback and guidance.
                             </p>
                           </div>
@@ -1785,7 +1785,7 @@ function StudentDashboardContent() {
 
                       <button
                         onClick={() => handleTabChange("consultations")}
-                        className="w-full mt-4 h-10 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-semibold rounded-xl shadow-xs transition flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer active:scale-[0.98]"
+                        className="w-full mt-4 h-10 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-semibold rounded-xl shadow-xs transition flex items-center justify-center gap-2 text-sm cursor-pointer active:scale-[0.98]"
                       >
                         <i className="ti ti-calendar-plus text-base font-bold" />
                         <span>Book consultation</span>
@@ -1794,35 +1794,35 @@ function StudentDashboardContent() {
 
                     {/* Quick Actions Card */}
                     <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)]">
-                      <h3 className="text-base font-semibold text-[var(--color-text-primary)] mb-4">Quick Actions</h3>
+                      <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">Quick Actions</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
                         <button
                           onClick={() => router.push("/student/documents")}
                           className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
                         >
                           <i className="ti ti-file-text text-xl text-slate-700 dark:text-slate-200 group-hover:text-[var(--color-primary)] transition" />
-                          <span className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-200">New document</span>
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">New document</span>
                         </button>
                         <button
                           onClick={() => handleTabChange("submissions")}
                           className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
                         >
                           <i className="ti ti-upload text-xl text-slate-700 dark:text-slate-200 group-hover:text-[var(--color-primary)] transition" />
-                          <span className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-200">Submit draft</span>
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Submit draft</span>
                         </button>
                         <button
                           onClick={() => handleTabChange("group-chats")}
                           className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
                         >
                           <i className="ti ti-message text-xl text-slate-700 dark:text-slate-200 group-hover:text-[var(--color-primary)] transition" />
-                          <span className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-200">Message group</span>
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Message group</span>
                         </button>
                         <button
                           onClick={() => handleTabChange("milestones")}
                           className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
                         >
                           <i className="ti ti-chart-bar text-xl text-slate-700 dark:text-slate-200 group-hover:text-[var(--color-primary)] transition" />
-                          <span className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-200">View milestones</span>
+                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">View milestones</span>
                         </button>
                       </div>
                     </div>
@@ -1838,7 +1838,7 @@ function StudentDashboardContent() {
                       <i className="ti ti-folder-plus text-3xl text-[#1b4264]" />
                     </div>
                     <h3 className="text-xl font-extrabold text-[#1b4264] mb-2">No Research Project Registered Yet</h3>
-                    <p className="text-slate-500 text-sm max-w-md mb-6 leading-relaxed">
+                    <p className="text-slate-500 text-base max-w-md mb-6 leading-relaxed">
                       You are not enrolled in an active research study yet. Create your capstone or thesis project to start collaborating with faculty advisers, submitting drafts, and booking consultations.
                     </p>
                     <button
@@ -1852,13 +1852,13 @@ function StudentDashboardContent() {
                 ) : (
                   <div className="college-hero-surface border border-[var(--color-border)] text-[var(--color-text-primary)] p-6 rounded-2xl shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div>
-                      <span className="text-[11px] font-extrabold text-[#ffa400] uppercase tracking-wider block">Active Research Study</span>
+                      <span className="text-xs font-extrabold text-[#ffa400] uppercase tracking-wider block">Active Research Study</span>
                       <h2 className="text-xl font-black mt-0.5">{group.projectTitle}</h2>
-                      <p className="text-xs text-slate-200 mt-1">Study Leader: {user?.firstName} {user?.lastName} · Status: <span className="uppercase font-bold text-[#ffa400]">{group.status}</span></p>
+                      <p className="text-base text-slate-200 mt-1">Study Leader: {user?.firstName} {user?.lastName} · Status: <span className="uppercase font-bold text-[#ffa400]">{group.status}</span></p>
                     </div>
                     <button
                       onClick={() => router.push("/student/documents")}
-                      className="px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-xl text-xs shadow-xs transition cursor-pointer active:scale-[0.98]"
+                      className="px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-xl text-sm shadow-xs transition cursor-pointer active:scale-[0.98]"
                     >
                       Open Document Workspace
                     </button>
@@ -1872,7 +1872,7 @@ function StudentDashboardContent() {
                       <i className="ti ti-users" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Research Group Status</span>
+                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">Research Group Status</span>
                       <span className="text-[15px] font-extrabold text-[#1b4264]">{group ? `${group.name} (${group.status})` : "Not Registered"}</span>
                     </div>
                   </div>
@@ -1882,7 +1882,7 @@ function StudentDashboardContent() {
                       <i className="ti ti-brain" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Adviser Recs</span>
+                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">Adviser Recs</span>
                       <span className="text-[15px] font-extrabold text-[#1b4264]">{aiMatches.length > 0 ? `${aiMatches[0].name} (${aiMatches[0].match}%)` : "None yet"}</span>
                     </div>
                   </div>
@@ -1892,7 +1892,7 @@ function StudentDashboardContent() {
                       <i className="ti ti-file-text" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Submitted Documents</span>
+                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">Submitted Documents</span>
                       <span className="text-[15px] font-extrabold text-[#1b4264]">{combinedSubmissions.length} Uploads</span>
                     </div>
                   </div>
@@ -1902,7 +1902,7 @@ function StudentDashboardContent() {
                       <i className="ti ti-calendar-event" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Pending Consults</span>
+                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">Pending Consults</span>
                       <span className="text-[15px] font-extrabold text-[#1b4264]">{consultations.filter(c=>c.status==='pending' || c.status==='requested').length} Requested</span>
                     </div>
                   </div>
@@ -1913,7 +1913,7 @@ function StudentDashboardContent() {
                         <i className="ti ti-target" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold leading-none">Milestone Progress</span>
+                        <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold leading-none">Milestone Progress</span>
                         <span className="text-[14.5px] font-extrabold text-[#1b4264] mt-1.5 block leading-none">{group ? `${projectProgress}% Complete` : "0% Complete"}</span>
                       </div>
                     </div>
@@ -1930,7 +1930,7 @@ function StudentDashboardContent() {
                       <i className="ti ti-calendar" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Defense Schedule</span>
+                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">Defense Schedule</span>
                       <span className="text-[15px] font-extrabold text-[#1b4264]">{defenses.length > 0 ? defenses[0].date : "Not Scheduled"}</span>
                     </div>
                   </div>
@@ -1940,7 +1940,7 @@ function StudentDashboardContent() {
                       <i className="ti ti-certificate" />
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-extrabold">Certificate Status</span>
+                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">Certificate Status</span>
                       <span className="text-[15px] font-extrabold text-[#1b4264]">{group ? "Locked (Pending Defense)" : "Locked"}</span>
                     </div>
                   </div>
@@ -1952,23 +1952,23 @@ function StudentDashboardContent() {
                   <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
                     <div className="flex flex-col gap-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
                           <i className="ti ti-school text-[#ffa400]" />
                           Study Overview
                         </span>
                         <Tag variant={group ? "success" : "info"}>{group ? "Enrolled" : "Draft"}</Tag>
                       </div>
-                      <h4 className="font-extrabold text-[#1b4264] text-[13.5px] leading-snug line-clamp-2">
+                      <h4 className="font-extrabold text-[#1b4264] text-lg leading-snug line-clamp-2">
                         {group?.projectTitle || "No project registered yet"}
                       </h4>
-                      <div className="text-[11.5px] text-slate-500 flex flex-col gap-1 mt-1">
+                      <div className="text-xs text-slate-500 flex flex-col gap-1 mt-1">
                         <div><strong className="text-slate-700">Team:</strong> {group?.members?.length > 0 ? group.members.join(", ") : `${user?.firstName || "Student"} ${user?.lastName || ""}`}</div>
                         <div><strong className="text-slate-700">Adviser:</strong> {group?.adviser || "Not Assigned"}</div>
                       </div>
                     </div>
                     <button
                       onClick={() => group ? router.push("/student/documents") : handleTabChange("group")}
-                      className="w-full py-2 bg-slate-100 hover:bg-[#1b4264] hover:text-[#ffa400] text-slate-700 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full py-2 bg-slate-100 hover:bg-[#1b4264] hover:text-[#ffa400] text-slate-700 text-sm font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <i className="ti ti-arrow-right text-xs" />
                       <span>{group ? "Open Workspace" : "Manage Group"}</span>
@@ -1979,17 +1979,17 @@ function StudentDashboardContent() {
                   <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
                     <div className="flex flex-col gap-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
                           <i className="ti ti-timeline text-[#ffa400]" />
                           Workflow Milestones
                         </span>
-                        <span className="text-[11px] font-bold text-slate-400">{milestones.length} Tasks</span>
+                        <span className="text-xs font-bold text-slate-400">{milestones.length} Tasks</span>
                       </div>
                       <div className="flex flex-col gap-2">
                         {milestones.length > 0 ? (
                           milestones.slice(0, 2).map(m => (
                             <div key={m.id} className="flex justify-between items-center gap-2 text-[12px] p-2 bg-slate-50 border border-slate-200 rounded-lg">
-                              <span className="min-w-0"><span className="block truncate text-[9px] font-extrabold uppercase tracking-wide text-slate-400">{m.topicTitle}</span><span className="block truncate font-bold text-[#1b4264]">{m.title}</span></span>
+                              <span className="min-w-0"><span className="block truncate text-xs font-extrabold uppercase tracking-wide text-slate-400">{m.topicTitle}</span><span className="block truncate font-bold text-[#1b4264]">{m.title}</span></span>
                               <Tag variant={m.status === "completed" ? "success" : m.status === "in-progress" ? "warn" : "info"}>{m.status}</Tag>
                             </div>
                           ))
@@ -2002,7 +2002,7 @@ function StudentDashboardContent() {
                     </div>
                     <button
                       onClick={() => handleTabChange("milestones")}
-                      className="w-full py-2 bg-slate-100 hover:bg-[#1b4264] hover:text-[#ffa400] text-slate-700 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="w-full py-2 bg-slate-100 hover:bg-[#1b4264] hover:text-[#ffa400] text-slate-700 text-sm font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <i className="ti ti-list-details text-xs" />
                       <span>View All Milestones</span>
@@ -2013,7 +2013,7 @@ function StudentDashboardContent() {
                   <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
                     <div className="flex flex-col gap-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
                           <i className="ti ti-calendar-event text-[#ffa400]" />
                           Next Consultation
                         </span>
@@ -2022,7 +2022,7 @@ function StudentDashboardContent() {
                       {consultations.length > 0 ? (
                         <div className="p-2.5 bg-blue-50/50 border border-blue-100 rounded-lg flex flex-col gap-1 text-[12px]">
                           <span className="font-bold text-[#1b4264] truncate">{consultations[0].topic}</span>
-                          <span className="text-[11px] text-slate-500">{consultations[0].date} · {consultations[0].time}</span>
+                          <span className="text-xs text-slate-500">{consultations[0].date} · {consultations[0].time}</span>
                         </div>
                       ) : (
                         <div className="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
@@ -2032,7 +2032,7 @@ function StudentDashboardContent() {
                     </div>
                     <button
                       onClick={() => handleTabChange("consultations")}
-                      className="w-full py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white text-xs font-extrabold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98]"
+                      className="w-full py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white text-sm font-extrabold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98]"
                     >
                       <i className="ti ti-plus font-bold text-xs" />
                       <span>Book Consultation</span>
@@ -2043,11 +2043,11 @@ function StudentDashboardContent() {
                   <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
                     <div className="flex flex-col gap-2.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
                           <i className="ti ti-bolt text-[#ffa400]" />
                           Quick Actions
                         </span>
-                        <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded">Shortcuts</span>
+                        <span className="text-xs bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded">Shortcuts</span>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <button
@@ -2055,32 +2055,32 @@ function StudentDashboardContent() {
                           className="p-2.5 bg-slate-50 hover:bg-[#1b4264]/10 rounded-lg border border-slate-200 text-left transition cursor-pointer"
                         >
                           <i className="ti ti-file-text text-[#1b4264] text-sm block mb-0.5" />
-                          <span className="text-[11px] font-bold text-[#1b4264] block">Editor</span>
-                          <span className="text-[9px] text-slate-400">Draft Chapters</span>
+                          <span className="text-sm font-bold text-[#1b4264] block">Editor</span>
+                          <span className="text-sm text-slate-400">Draft Chapters</span>
                         </button>
                         <button
                           onClick={() => handleTabChange("group-chats")}
                           className="p-2.5 bg-slate-50 hover:bg-[#1b4264]/10 rounded-lg border border-slate-200 text-left transition cursor-pointer"
                         >
                           <i className="ti ti-messages text-[#1b4264] text-sm block mb-0.5" />
-                          <span className="text-[11px] font-bold text-[#1b4264] block">Group Chat</span>
-                          <span className="text-[9px] text-slate-400">Message Team</span>
+                          <span className="text-sm font-bold text-[#1b4264] block">Group Chat</span>
+                          <span className="text-sm text-slate-400">Message Team</span>
                         </button>
                         <button
                           onClick={() => handleTabChange("submissions")}
                           className="p-2.5 bg-slate-50 hover:bg-[#1b4264]/10 rounded-lg border border-slate-200 text-left transition cursor-pointer"
                         >
                           <i className="ti ti-upload text-[#1b4264] text-sm block mb-0.5" />
-                          <span className="text-[11px] font-bold text-[#1b4264] block">Submit Draft</span>
-                          <span className="text-[9px] text-slate-400">Upload Files</span>
+                          <span className="text-sm font-bold text-[#1b4264] block">Submit Draft</span>
+                          <span className="text-sm text-slate-400">Upload Files</span>
                         </button>
                         <button
                           onClick={() => handleTabChange("defense")}
                           className="p-2.5 bg-slate-50 hover:bg-[#1b4264]/10 rounded-lg border border-slate-200 text-left transition cursor-pointer"
                         >
                           <i className="ti ti-calendar text-[#1b4264] text-sm block mb-0.5" />
-                          <span className="text-[11px] font-bold text-[#1b4264] block">Defense</span>
-                          <span className="text-[9px] text-slate-400">View Schedule</span>
+                          <span className="text-sm font-bold text-[#1b4264] block">Defense</span>
+                          <span className="text-sm text-slate-400">View Schedule</span>
                         </button>
                       </div>
                     </div>
@@ -2090,8 +2090,8 @@ function StudentDashboardContent() {
             ),
             profile: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Student profile Info</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Edit your student representative details, institutional identity cards, and department classifications.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">Student profile Info</h3>
+                <p className="text-base text-slate-400 font-bold">Edit your student representative details, institutional identity cards, and department classifications.</p>
                 <div className="flex flex-col gap-3 mt-2 text-[12px]">
                   <div className="flex flex-col gap-1">
                     <label className="font-bold text-slate-600">Student Name</label>
@@ -2113,12 +2113,12 @@ function StudentDashboardContent() {
                 <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-xs">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-primary)]">Research workspace</p>
+                      <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">Research workspace</p>
                       <h3 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">My Projects</h3>
-                      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Create a solo study, form a group, or join an existing research project.</p>
+                      <p className="mt-1 text-base text-[var(--color-text-secondary)]">Create a solo study, form a group, or join an existing research project.</p>
                     </div>
                     {activeProject && isGroupLeader && (
-                      <button onClick={openEditProject} className="rounded-xl border border-[#173f63] px-4 py-2 text-xs font-extrabold text-[#173f63]">
+                      <button onClick={openEditProject} className="rounded-xl border border-[#173f63] px-4 py-2 text-sm font-extrabold text-[#173f63]">
                         <i className="ti ti-edit mr-1.5" />Edit project
                       </button>
                     )}
@@ -2130,64 +2130,64 @@ function StudentDashboardContent() {
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <div className="flex flex-wrap gap-2">
-                              <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-extrabold text-blue-800">
+                              <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-extrabold text-blue-800">
                                 {(activeProject.participationMode || (activeStudentMembers.length > 1 ? "GROUP" : "SOLO")) === "SOLO" ? "Solo project" : "Group project"}
                               </span>
-                              <span className="rounded-full bg-slate-200 px-2.5 py-1 text-[10px] font-extrabold text-slate-700">{projectStatusLabel}</span>
-                              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-extrabold text-amber-800">
+                              <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-extrabold text-slate-700">{projectStatusLabel}</span>
+                              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-extrabold text-amber-800">
                                 {(activeProject.accessMode || "INVITE_ONLY").replace(/_/g, " ")}
                               </span>
                             </div>
-                            <p className="mt-3 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">Official research title</p>
+                            <p className="mt-3 text-sm font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">Official research title</p>
                             <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)] leading-snug">{activeProject.title}</p>
-                            {activeProject.groupName && <p className="mt-1 text-xs text-slate-500">Group: <strong>{activeProject.groupName}</strong></p>}
+                            {activeProject.groupName && <p className="mt-1 text-base text-slate-500">Group: <strong>{activeProject.groupName}</strong></p>}
                           </div>
                           <div className="rounded-xl bg-white px-4 py-3 text-center">
                             <p className="text-xl font-black text-[#173f63]">{activeStudentMembers.length}</p>
-                            <p className="text-[10px] font-bold text-slate-400">researcher{activeStudentMembers.length === 1 ? "" : "s"}</p>
+                            <p className="text-base font-bold text-slate-400">researcher{activeStudentMembers.length === 1 ? "" : "s"}</p>
                           </div>
                         </div>
                       </div>
 
                       {activeProject.status === "REJECTED" && isGroupLeader && (
                         <div className="flex flex-col gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div><p className="text-sm font-extrabold text-rose-800">Your proposed title needs revision</p><p className="mt-1 text-xs text-rose-700">Revise this project instead of deleting it. Memberships, files, and workflow history will be preserved.</p></div>
-                          <button onClick={openEditProject} className="shrink-0 rounded-xl bg-rose-700 px-4 py-2 text-xs font-extrabold text-white">Revise title</button>
+                          <div><p className="text-base font-extrabold text-rose-800">Your proposed title needs revision</p><p className="mt-1 text-base text-rose-700">Revise this project instead of deleting it. Memberships, files, and workflow history will be preserved.</p></div>
+                          <button onClick={openEditProject} className="shrink-0 rounded-xl bg-rose-700 px-4 py-2 text-sm font-extrabold text-white">Revise title</button>
                         </div>
                       )}
 
                       <div>
-                        <div className="flex items-center justify-between"><h4 className="text-sm font-semibold text-[var(--color-text-primary)]">Active researchers</h4><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div>
-                        <div className="mt-3 space-y-2">{activeStudentMembers.map((member: any) => <div key={member.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{(member.userId === user?.id || member.user?.id === user?.id) ? " (You)" : ""}</p><p className="text-xs text-slate-500">{member.user.email} · {member.projectRole === "LEADER" ? "Group Leader" : "Member"}</p></div>{isGroupLeader && member.projectRole === "MEMBER" && <div className="flex gap-2"><button onClick={() => setGroupAction({ type: "transfer", member })} className="rounded-lg border border-blue-200 px-3 py-1.5 text-xs font-bold text-blue-700">Transfer leadership</button><button onClick={() => setGroupAction({ type: "remove", member })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-600">Remove</button></div>}</div>)}</div>
+                        <div className="flex items-center justify-between"><h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Active researchers</h4><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div>
+                        <div className="mt-3 space-y-2">{activeStudentMembers.map((member: any) => <div key={member.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{(member.userId === user?.id || member.user?.id === user?.id) ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.projectRole === "LEADER" ? "Group Leader" : "Member"}</p></div>{isGroupLeader && member.projectRole === "MEMBER" && <div className="flex gap-2"><button onClick={() => setGroupAction({ type: "transfer", member })} className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm font-bold text-blue-700">Transfer leadership</button><button onClick={() => setGroupAction({ type: "remove", member })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-600">Remove</button></div>}</div>)}</div>
                       </div>
 
                       <div className={`rounded-2xl border p-5 ${activeAdviserMembership ? "border-emerald-200 bg-emerald-50" : pendingAdviserRequest ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">Faculty Adviser</h4>
-                              <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${activeAdviserMembership ? "bg-emerald-200 text-emerald-900" : pendingAdviserRequest ? "bg-amber-200 text-amber-900" : "bg-white text-slate-600"}`}>
+                              <h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Faculty Adviser</h4>
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${activeAdviserMembership ? "bg-emerald-200 text-emerald-900" : pendingAdviserRequest ? "bg-amber-200 text-amber-900" : "bg-white text-slate-600"}`}>
                                 {activeAdviserMembership ? "ASSIGNED" : pendingAdviserRequest ? "PENDING" : latestAdviserRequest?.status || "NOT ASSIGNED"}
                               </span>
                             </div>
 
                             {activeAdviserMembership ? (
                               <div className="mt-3">
-                                <p className="text-sm font-extrabold text-[#102f49]">{activeAdviserMembership.user.firstName} {activeAdviserMembership.user.lastName}</p>
-                                <p className="mt-1 text-xs text-slate-600">{activeAdviserMembership.user.email} · Adviser for the entire research project</p>
-                                <p className="mt-2 text-[11px] text-emerald-800">Assigned {activeAdviserMembership.joinedAt ? new Date(activeAdviserMembership.joinedAt).toLocaleDateString() : "to your group"}</p>
+                                <p className="text-base font-extrabold text-[#102f49]">{activeAdviserMembership.user.firstName} {activeAdviserMembership.user.lastName}</p>
+                                <p className="mt-1 text-base text-slate-600">{activeAdviserMembership.user.email} · Adviser for the entire research project</p>
+                                <p className="mt-2 text-base text-emerald-800">Assigned {activeAdviserMembership.joinedAt ? new Date(activeAdviserMembership.joinedAt).toLocaleDateString() : "to your group"}</p>
                               </div>
                             ) : pendingAdviserRequest ? (
                               <div className="mt-3">
-                                <p className="text-sm font-extrabold text-[#102f49]">{pendingAdviserRequest.adviser?.firstName} {pendingAdviserRequest.adviser?.lastName}</p>
-                                <p className="mt-1 text-xs text-slate-600">Request sent {new Date(pendingAdviserRequest.createdAt).toLocaleString()}</p>
-                                {pendingAdviserRequest.note && <p className="mt-2 whitespace-pre-line text-xs text-slate-600">{pendingAdviserRequest.note}</p>}
-                                {!isGroupLeader && <p className="mt-2 text-[11px] font-semibold text-amber-800">Your group leader manages this request.</p>}
+                                <p className="text-base font-extrabold text-[#102f49]">{pendingAdviserRequest.adviser?.firstName} {pendingAdviserRequest.adviser?.lastName}</p>
+                                <p className="mt-1 text-base text-slate-600">Request sent {new Date(pendingAdviserRequest.createdAt).toLocaleString()}</p>
+                                {pendingAdviserRequest.note && <p className="mt-2 whitespace-pre-line text-base text-slate-600">{pendingAdviserRequest.note}</p>}
+                                {!isGroupLeader && <p className="mt-2 text-base font-semibold text-amber-800">Your group leader manages this request.</p>}
                               </div>
                             ) : (
                               <div className="mt-3">
-                                <p className="text-sm font-extrabold text-[#102f49]">No adviser assigned</p>
-                                <p className="mt-1 text-xs text-slate-600">{isGroupLeader ? "Browse verified advisers for your program and send one formal request." : "Your group leader can browse the adviser pool and send a request."}</p>
+                                <p className="text-base font-extrabold text-[#102f49]">No adviser assigned</p>
+                                <p className="mt-1 text-base text-slate-600">{isGroupLeader ? "Browse verified advisers for your program and send one formal request." : "Your group leader can browse the adviser pool and send a request."}</p>
                                 {latestAdviserRequest && ["REJECTED", "CANCELLED"].includes(latestAdviserRequest.status) && (
                                   <div className="mt-3 rounded-xl bg-white p-3 text-xs">
                                     <p className="font-bold text-slate-700">Previous request: {latestAdviserRequest.status.toLowerCase()}</p>
@@ -2202,11 +2202,11 @@ function StudentDashboardContent() {
                           {isGroupLeader && !activeAdviserMembership && (
                             <div className="flex shrink-0 flex-wrap gap-2">
                               {pendingAdviserRequest ? (
-                                <button onClick={cancelAdviserRequest} disabled={adviserCancelPending} className="rounded-xl border border-rose-300 bg-white px-4 py-2 text-xs font-extrabold text-rose-700 disabled:opacity-50">
+                                <button onClick={cancelAdviserRequest} disabled={adviserCancelPending} className="rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-extrabold text-rose-700 disabled:opacity-50">
                                   {adviserCancelPending ? "Cancelling…" : "Cancel request"}
                                 </button>
                               ) : (
-                                <button onClick={() => router.push("/student/adviser-pool")} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-xs font-extrabold text-white">
+                                <button onClick={() => router.push("/student/adviser-pool")} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white">
                                   <i className="ti ti-user-search mr-1.5" />Browse adviser pool
                                 </button>
                               )}
@@ -2219,22 +2219,22 @@ function StudentDashboardContent() {
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <div className="flex flex-wrap items-center gap-2">
-                              <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">Defense Readiness</h4>
-                              <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold ${currentDefenseSession ? "bg-blue-200 text-blue-900" : activeProject.workflowInstance?.completedAt ? "bg-emerald-100 text-emerald-800" : "bg-white text-slate-600"}`}>
+                              <h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Defense Readiness</h4>
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${currentDefenseSession ? "bg-blue-200 text-blue-900" : activeProject.workflowInstance?.completedAt ? "bg-emerald-100 text-emerald-800" : "bg-white text-slate-600"}`}>
                                 {currentDefenseSession ? currentDefenseSession.status.replace(/_/g, " ") : activeProject.workflowInstance?.completedAt ? "READY FOR SCHEDULING" : "NOT YET ELIGIBLE"}
                               </span>
                             </div>
                             {currentDefenseSession ? (
                               <div className="mt-3">
-                                <p className="text-sm font-extrabold text-[#102f49]">{currentDefenseSession.defenseEvent?.code || `Session ${currentDefenseSession.id.slice(0, 8)}`}</p>
-                                <p className="mt-1 text-xs text-slate-600">{currentDefenseSession.scheduledStart ? new Date(currentDefenseSession.scheduledStart).toLocaleString() : "Schedule to be announced"}{currentDefenseSession.venue ? ` · ${currentDefenseSession.venue}` : ""}</p>
-                                <p className="mt-1 text-[11px] text-blue-700">Queue {currentDefenseSession.queuePosition || "—"} · {(currentDefenseSession.queueStatus || "WAITING").replace(/_/g, " ")}</p>
+                                <p className="text-base font-extrabold text-[#102f49]">{currentDefenseSession.defenseEvent?.code || `Session ${currentDefenseSession.id.slice(0, 8)}`}</p>
+                                <p className="mt-1 text-base text-slate-600">{currentDefenseSession.scheduledStart ? new Date(currentDefenseSession.scheduledStart).toLocaleString() : "Schedule to be announced"}{currentDefenseSession.venue ? ` · ${currentDefenseSession.venue}` : ""}</p>
+                                <p className="mt-1 text-base text-blue-700">Queue {currentDefenseSession.queuePosition || "—"} · {(currentDefenseSession.queueStatus || "WAITING").replace(/_/g, " ")}</p>
                               </div>
                             ) : (
-                              <p className="mt-3 text-xs text-slate-600">{activeProject.workflowInstance?.completedAt ? "Your professor can now place this project into a defense event after the remaining approval checks." : "Complete the workflow, final manuscript, adviser assignment, and Dean approval to become schedulable."}</p>
+                              <p className="mt-3 text-base text-slate-600">{activeProject.workflowInstance?.completedAt ? "Your professor can now place this project into a defense event after the remaining approval checks." : "Complete the workflow, final manuscript, adviser assignment, and Dean approval to become schedulable."}</p>
                             )}
                           </div>
-                          <button onClick={() => handleTabChange("defense")} className="shrink-0 rounded-xl bg-[#173f63] px-4 py-2.5 text-xs font-extrabold text-white">
+                          <button onClick={() => handleTabChange("defense")} className="shrink-0 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white">
                             <i className="ti ti-presentation mr-1.5" />{currentDefenseSession ? "View defense" : "View readiness"}
                           </button>
                         </div>
@@ -2243,59 +2243,59 @@ function StudentDashboardContent() {
                       {isGroupLeader && (
                         <div className="grid gap-4 lg:grid-cols-2">
                           <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                            <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">Group access</h4>
-                            <label className="mt-3 block text-xs font-bold text-slate-600">Working arrangement<select value={projectParticipationMode} onChange={(event) => setProjectParticipationMode(event.target.value as "SOLO" | "GROUP")} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="SOLO">Solo</option><option value="GROUP">Group</option></select></label>
-                            {projectParticipationMode === "GROUP" && <><label className="mt-3 block text-xs font-bold text-slate-600">How researchers can join<select value={projectAccessMode} onChange={(event) => setProjectAccessMode(event.target.value as typeof projectAccessMode)} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="INVITE_ONLY">Invite only</option><option value="PUBLIC_APPROVAL">Code access — leader approval</option><option value="PUBLIC_OPEN">Code access — join immediately</option></select></label><label className="mt-3 flex items-center gap-2 text-xs font-bold text-slate-600"><input type="checkbox" checked={projectInviteEnabled} onChange={(event) => setProjectInviteEnabled(event.target.checked)} />Accept joins using the current code</label></>}
-                            <button onClick={handleSaveProjectAccess} disabled={projectAccessSaving} className="mt-4 rounded-lg bg-[#173f63] px-4 py-2 text-xs font-extrabold text-white disabled:opacity-50">{projectAccessSaving ? "Saving…" : "Save access settings"}</button>
+                            <h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Group access</h4>
+                            <label className="mt-3 block text-sm font-bold text-slate-600">Working arrangement<select value={projectParticipationMode} onChange={(event) => setProjectParticipationMode(event.target.value as "SOLO" | "GROUP")} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="SOLO">Solo</option><option value="GROUP">Group</option></select></label>
+                            {projectParticipationMode === "GROUP" && <><label className="mt-3 block text-sm font-bold text-slate-600">How researchers can join<select value={projectAccessMode} onChange={(event) => setProjectAccessMode(event.target.value as typeof projectAccessMode)} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="INVITE_ONLY">Invite only</option><option value="PUBLIC_APPROVAL">Code access — leader approval</option><option value="PUBLIC_OPEN">Code access — join immediately</option></select></label><label className="mt-3 flex items-center gap-2 text-sm font-bold text-slate-600"><input type="checkbox" checked={projectInviteEnabled} onChange={(event) => setProjectInviteEnabled(event.target.checked)} />Accept joins using the current code</label></>}
+                            <button onClick={handleSaveProjectAccess} disabled={projectAccessSaving} className="mt-4 rounded-lg bg-[#173f63] px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">{projectAccessSaving ? "Saving…" : "Save access settings"}</button>
                           </div>
                           <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                            <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">Invitation code and link</h4>
-                            <p className="mt-1 text-xs text-slate-600">Researchers review the group before joining or requesting approval.</p>
-                            {inviteCode ? <div className="mt-3 space-y-2"><div className="rounded-lg bg-white p-3 font-mono text-sm font-bold text-[#173f63]">Code: {inviteCode}</div><div className="flex flex-wrap gap-2"><button onClick={() => navigator.clipboard.writeText(inviteCode).then(() => triggerToast("Invite code copied."))} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-700"><i className="ti ti-copy mr-1" />Copy code</button><button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join-group?code=${inviteCode}`).then(() => triggerToast("Shareable link copied."))} className="rounded-lg bg-[#173f63] px-3 py-2 text-xs font-extrabold text-white"><i className="ti ti-link mr-1" />Copy link</button><button onClick={handleCreateInvite} className="rounded-lg px-3 py-2 text-xs font-bold text-slate-600">Rotate code</button></div></div> : <button onClick={handleCreateInvite} className="mt-3 rounded-xl bg-[#173f63] px-4 py-2.5 text-xs font-extrabold text-white"><i className="ti ti-user-plus mr-1" />Create invitation</button>}
+                            <h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Invitation code and link</h4>
+                            <p className="mt-1 text-base text-slate-600">Researchers review the group before joining or requesting approval.</p>
+                            {inviteCode ? <div className="mt-3 space-y-2"><div className="rounded-lg bg-white p-3 font-mono text-sm font-bold text-[#173f63]">Code: {inviteCode}</div><div className="flex flex-wrap gap-2"><button onClick={() => navigator.clipboard.writeText(inviteCode).then(() => triggerToast("Invite code copied."))} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-700"><i className="ti ti-copy mr-1" />Copy code</button><button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join-group?code=${inviteCode}`).then(() => triggerToast("Shareable link copied."))} className="rounded-lg bg-[#173f63] px-3 py-2 text-sm font-extrabold text-white"><i className="ti ti-link mr-1" />Copy link</button><button onClick={handleCreateInvite} className="rounded-lg px-3 py-2 text-sm font-bold text-slate-600">Rotate code</button></div></div> : <button onClick={handleCreateInvite} className="mt-3 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"><i className="ti ti-user-plus mr-1" />Create invitation</button>}
                           </div>
                         </div>
                       )}
 
                       {isGroupLeader && pendingJoinRequests.length > 0 && (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center justify-between"><div><h4 className="font-extrabold text-[#102f49]">Pending join requests</h4><p className="mt-1 text-xs text-slate-600">Approve only researchers who should receive this project’s workflow and files.</p></div><span className="rounded-full bg-amber-200 px-2.5 py-1 text-xs font-extrabold text-amber-900">{pendingJoinRequests.length}</span></div><div className="mt-3 space-y-2">{pendingJoinRequests.map((request: any) => <div key={request.id} className="flex flex-col gap-3 rounded-xl bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-bold text-[#102f49]">{request.requester ? `${request.requester.firstName} ${request.requester.lastName}` : "Researcher"}</p><p className="text-xs text-slate-500">{request.requester?.email} · Requested {new Date(request.createdAt).toLocaleDateString()}</p></div><div className="flex gap-2"><button onClick={() => decideJoinRequest(request.id, "REJECT")} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-bold text-rose-700">Reject</button><button onClick={() => decideJoinRequest(request.id, "ACCEPT")} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-extrabold text-white">Accept</button></div></div>)}</div></div>
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center justify-between"><div><h4 className="font-extrabold text-[#102f49]">Pending join requests</h4><p className="mt-1 text-base text-slate-600">Approve only researchers who should receive this project’s workflow and files.</p></div><span className="rounded-full bg-amber-200 px-2.5 py-1 text-xs font-extrabold text-amber-900">{pendingJoinRequests.length}</span></div><div className="mt-3 space-y-2">{pendingJoinRequests.map((request: any) => <div key={request.id} className="flex flex-col gap-3 rounded-xl bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#102f49]">{request.requester ? `${request.requester.firstName} ${request.requester.lastName}` : "Researcher"}</p><p className="text-base text-slate-500">{request.requester?.email} · Requested {new Date(request.createdAt).toLocaleDateString()}</p></div><div className="flex gap-2"><button onClick={() => decideJoinRequest(request.id, "REJECT")} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-700">Reject</button><button onClick={() => decideJoinRequest(request.id, "ACCEPT")} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-extrabold text-white">Accept</button></div></div>)}</div></div>
                       )}
 
                       {Array.isArray(activeProject.titleRevisions) && activeProject.titleRevisions.length > 0 && (
-                        <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer text-sm font-extrabold text-[#102f49]">Title revision history ({activeProject.titleRevisions.length})</summary><div className="mt-3 space-y-2">{activeProject.titleRevisions.map((revision: any) => <div key={revision.id} className="rounded-lg bg-slate-50 p-3 text-xs"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-[#102f49]">{revision.proposedTitle}</strong><span className="rounded-full bg-white px-2 py-1 text-[10px] font-bold text-slate-600">{revision.status}</span></div><p className="mt-1 text-slate-500">Previous: {revision.previousTitle}</p>{revision.reason && <p className="mt-1 text-slate-600">Reason: {revision.reason}</p>}<p className="mt-1 text-[10px] text-slate-400">{new Date(revision.createdAt).toLocaleString()}</p></div>)}</div></details>
+                        <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer text-sm font-extrabold text-[#102f49]">Title revision history ({activeProject.titleRevisions.length})</summary><div className="mt-3 space-y-2">{activeProject.titleRevisions.map((revision: any) => <div key={revision.id} className="rounded-lg bg-slate-50 p-3 text-xs"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-[#102f49]">{revision.proposedTitle}</strong><span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-slate-600">{revision.status}</span></div><p className="mt-1 text-slate-500">Previous: {revision.previousTitle}</p>{revision.reason && <p className="mt-1 text-slate-600">Reason: {revision.reason}</p>}<p className="mt-1 text-base text-slate-400">{new Date(revision.createdAt).toLocaleString()}</p></div>)}</div></details>
                       )}
                     </div>
                   ) : (
                     activeWorkspace ? (
                       <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
                         <div className="flex flex-wrap items-center justify-between gap-4">
-                          <div><p className="text-[10px] font-extrabold uppercase tracking-widest text-[#C58A18]">{activeWorkspace.participationMode === "GROUP" ? "Research group" : "Solo workspace"}</p><h4 className="mt-1 text-lg font-extrabold text-[#102f49]">{activeWorkspace.name}</h4><p className="mt-1 text-xs text-slate-500">{activeWorkspace.program?.code || activeWorkspace.program?.name} · {activeWorkspace.members?.length || 1} member{(activeWorkspace.members?.length || 1) === 1 ? "" : "s"}</p></div>
-                          {!activeWorkspace.projects?.length && <button onClick={() => { setCreateTitle(""); setShowCreateModal(true); }} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-xs font-extrabold text-white"><i className="ti ti-plus mr-1" />Add research project</button>}
+                          <div><p className="text-sm font-extrabold uppercase tracking-widest text-[#C58A18]">{activeWorkspace.participationMode === "GROUP" ? "Research group" : "Solo workspace"}</p><h4 className="mt-1 text-lg font-extrabold text-[#102f49]">{activeWorkspace.name}</h4><p className="mt-1 text-base text-slate-500">{activeWorkspace.program?.code || activeWorkspace.program?.name} · {activeWorkspace.members?.length || 1} member{(activeWorkspace.members?.length || 1) === 1 ? "" : "s"}</p></div>
+                          {!activeWorkspace.projects?.length && <button onClick={() => { setCreateTitle(""); setShowCreateModal(true); }} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"><i className="ti ti-plus mr-1" />Add research project</button>}
                         </div>
-                        {activeWorkspace.projects?.length > 0 && <div className="mt-4 space-y-2">{activeWorkspace.projects.map((project: any) => <div key={project.id} className="flex items-center justify-between rounded-xl bg-white p-3"><span className="text-sm font-bold text-[#102f49]">{project.title}</span><span className="text-[10px] font-bold text-slate-500">{project.status}</span></div>)}</div>}
-                        {activeWorkspace.participationMode === "GROUP" && <p className="mt-3 text-xs text-slate-500">Invite code: <strong className="font-mono text-[#173f63]">{activeWorkspace.inviteCode}</strong></p>}
+                        {activeWorkspace.projects?.length > 0 && <div className="mt-4 space-y-2">{activeWorkspace.projects.map((project: any) => <div key={project.id} className="flex items-center justify-between rounded-xl bg-white p-3"><span className="text-sm font-bold text-[#102f49]">{project.title}</span><span className="text-xs font-bold text-slate-500">{project.status}</span></div>)}</div>}
+                        {activeWorkspace.participationMode === "GROUP" && <p className="mt-3 text-base text-slate-500">Invite code: <strong className="font-mono text-[#173f63]">{activeWorkspace.inviteCode}</strong></p>}
                       </div>
                     ) : (
                       <div className="mt-5 grid gap-4 md:grid-cols-2">
-                        <button onClick={() => { setCreateTitle(""); setCreateGroupName(""); setShowCreateModal(true); }} className="rounded-2xl border-2 border-[#173f63] bg-[#173f63] p-6 text-left text-white transition hover:-translate-y-0.5"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10"><i className="ti ti-folder-plus text-xl text-[#ffa400]" /></span><span className="mt-4 block text-base font-extrabold">Create a workspace</span><span className="mt-1 block text-xs leading-5 text-blue-100">Start Solo or create a group. Add a research title now or later.</span></button>
-                        <button onClick={() => router.push("/join-group")} className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-6 text-left transition hover:-translate-y-0.5 hover:border-[#173f63]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100"><i className="ti ti-users-plus text-xl text-[#173f63]" /></span><span className="mt-4 block text-base font-extrabold text-[#102f49]">Join a group</span><span className="mt-1 block text-xs leading-5 text-slate-500">Enter a group invitation code to join a research workspace.</span></button>
+                        <button onClick={() => { setCreateTitle(""); setCreateGroupName(""); setShowCreateModal(true); }} className="rounded-2xl border-2 border-[#173f63] bg-[#173f63] p-6 text-left text-white transition hover:-translate-y-0.5"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10"><i className="ti ti-folder-plus text-xl text-[#ffa400]" /></span><span className="mt-4 block text-base font-extrabold">Create a workspace</span><span className="mt-1 block text-sm leading-5 text-blue-100">Start Solo or create a group. Add a research title now or later.</span></button>
+                        <button onClick={() => router.push("/join-group")} className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-6 text-left transition hover:-translate-y-0.5 hover:border-[#173f63]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100"><i className="ti ti-users-plus text-xl text-[#173f63]" /></span><span className="mt-4 block text-base font-extrabold text-[#102f49]">Join a group</span><span className="mt-1 block text-sm leading-5 text-slate-500">Enter a group invitation code to join a research workspace.</span></button>
                       </div>
                     )
                   )}
                 </section>
-                {activeProject && <section className="rounded-xl border border-rose-200 bg-white p-6 shadow-sm"><h3 className="text-base font-semibold text-rose-700">Project management</h3><p className="mt-1 text-xs text-slate-500">These actions require final confirmation and preserve historical submissions.</p><div className="mt-4 flex flex-wrap gap-2">{!isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-xs font-bold text-amber-700">Leave group</button>}{isGroupLeader && <button onClick={() => setGroupAction({ type: "disband" })} className="rounded-xl border border-rose-300 px-4 py-2 text-xs font-bold text-rose-700">Archive project</button>}</div></section>}
+                {activeProject && <section className="rounded-xl border border-rose-200 bg-white p-6 shadow-sm"><h3 className="text-lg font-semibold text-rose-700">Project management</h3><p className="mt-1 text-base text-slate-500">These actions require final confirmation and preserve historical submissions.</p><div className="mt-4 flex flex-wrap gap-2">{!isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-bold text-amber-700">Leave group</button>}{isGroupLeader && <button onClick={() => setGroupAction({ type: "disband" })} className="rounded-xl border border-rose-300 px-4 py-2 text-sm font-bold text-rose-700">Archive project</button>}</div></section>}
               </div>
             ),
             "adviser-credentials": (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Adviser Credentials Hub</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Adviser credentials now come from verified institutional accounts instead of sample profiles.</p>
-                <button onClick={() => isGroupLeader ? router.push("/student/adviser-pool") : handleTabChange("group")} className="mt-2 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-left transition hover:border-[#f6a800]"><span><span className="block text-sm font-extrabold text-[#102f49]">{isGroupLeader ? "Open Verified Adviser Pool" : "View Adviser Status"}</span><span className="mt-1 block text-xs text-slate-600">{isGroupLeader ? "Browse active advisers and send the project’s formal request." : "Adviser selection is managed by your group leader in My Projects."}</span></span><i className="ti ti-arrow-right text-xl text-[#173f63]" /></button>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">Adviser Credentials Hub</h3>
+                <p className="text-base text-slate-400 font-bold">Adviser credentials now come from verified institutional accounts instead of sample profiles.</p>
+                <button onClick={() => isGroupLeader ? router.push("/student/adviser-pool") : handleTabChange("group")} className="mt-2 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-left transition hover:border-[#f6a800]"><span><span className="block text-sm font-extrabold text-[#102f49]">{isGroupLeader ? "Open Verified Adviser Pool" : "View Adviser Status"}</span><span className="mt-1 block text-sm text-slate-600">{isGroupLeader ? "Browse active advisers and send the project’s formal request." : "Adviser selection is managed by your group leader in My Projects."}</span></span><i className="ti ti-arrow-right text-xl text-[#173f63]" /></button>
               </div>
             ),
             "ai-recommendation": (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">AI Adviser Recommendation</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Generate optimized matches based on topic alignment algorithms.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">AI Adviser Recommendation</h3>
+                <p className="text-base text-slate-400 font-bold">Generate optimized matches based on topic alignment algorithms.</p>
                 <div className="flex flex-col gap-3.5 mt-2 text-[12px]">
                   <div className="flex gap-2">
                     <input 
@@ -2327,8 +2327,8 @@ function StudentDashboardContent() {
             ),
             conferencing: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">In-App Voice and Video Group Conferencing</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Coordinate with peers and advisers using localized sandbox stream channels.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">In-App Voice and Video Group Conferencing</h3>
+                <p className="text-base text-slate-400 font-bold">Coordinate with peers and advisers using localized sandbox stream channels.</p>
                 
                 {!isMeetingActive ? (
                   <div className="bg-slate-50 p-6 border border-slate-200 rounded-xl text-center flex flex-col gap-4 shadow-sm">
@@ -2337,7 +2337,7 @@ function StudentDashboardContent() {
                     </div>
                     <div>
                       <span className="font-bold text-[#1b4264] text-[14px] block">Live Stream Channels Ready</span>
-                      <span className="text-[10.5px] text-slate-400">Current Room ID: <strong>{group?.name || "Research Room"}</strong></span>
+                      <span className="text-xs text-slate-400">Current Room ID: <strong>{group?.name || "Research Room"}</strong></span>
                     </div>
                     <button 
                       onClick={() => handleStartConference("https://meet.google.com/new", `${group?.name || "Research"} Study Stream`)} 
@@ -2358,19 +2358,19 @@ function StudentDashboardContent() {
                     </div>
 
                     <div className="flex flex-col items-center justify-center gap-1">
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Active Call Duration</span>
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Active Call Duration</span>
                       <span className="font-mono text-3xl font-black text-[#1b4264] tracking-tight">{formatMeetingTime(meetingDuration)}</span>
-                      <span className="text-[11px] text-slate-500 mt-1">Google Meet session is running in floating window</span>
+                      <span className="text-xs text-slate-500 mt-1">Google Meet session is running in floating window</span>
                     </div>
 
                     {/* LIVE ATTENDEES LIST */}
                     <div className="bg-white/80 border border-emerald-200/80 rounded-xl p-3.5 max-w-lg mx-auto w-full text-left shadow-sm">
                       <div className="flex items-center justify-between border-b border-emerald-100 pb-2 mb-2.5">
-                        <span className="text-[11px] font-extrabold text-[#1b4264] flex items-center gap-1.5">
+                        <span className="text-xs font-extrabold text-[#1b4264] flex items-center gap-1.5">
                           <i className="ti ti-users text-emerald-600" />
                           <span>Connected Attendees ({activeParticipants.length})</span>
                         </span>
-                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100/70 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="text-xs font-bold text-emerald-600 bg-emerald-100/70 px-2 py-0.5 rounded-full flex items-center gap-1">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                           Live Sync
                         </span>
@@ -2378,17 +2378,17 @@ function StudentDashboardContent() {
 
                       <div className="flex flex-col gap-1.5">
                         {activeParticipants.map((p) => (
-                          <div key={p.id} className="flex items-center justify-between text-[11.5px] p-1.5 rounded-lg hover:bg-emerald-50/50 transition">
+                          <div key={p.id} className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-emerald-50/50 transition">
                             <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-[#1b4264] text-[#ffa400] text-[10px] font-black flex items-center justify-center">
+                              <div className="w-6 h-6 rounded-full bg-[#1b4264] text-[#ffa400] text-xs font-black flex items-center justify-center">
                                 {p.name.split(" ").map(n => n[0]).slice(0, 2).join("")}
                               </div>
                               <div>
                                 <span className="font-bold text-slate-800 block leading-tight">{p.name}</span>
-                                <span className="text-[9.5px] text-slate-500">{p.role} · {p.email}</span>
+                                <span className="text-xs text-slate-500">{p.role} · {p.email}</span>
                               </div>
                             </div>
-                            <span className="text-[9.5px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
                               {p.joinedAt}
                             </span>
                           </div>
@@ -2399,7 +2399,7 @@ function StudentDashboardContent() {
                     <div className="flex items-center justify-center gap-3 mt-2">
                       <button
                         onClick={handleReopenMeetingWindow}
-                        className="px-4 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-xs"
+                        className="px-4 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-sm"
                       >
                         <i className="ti ti-external-link" />
                         <span>Reopen Meeting Window</span>
@@ -2407,7 +2407,7 @@ function StudentDashboardContent() {
 
                       <button
                         onClick={() => handleEndConference()}
-                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-xs"
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-sm"
                       >
                         <i className="ti ti-phone-off" />
                         <span>End Session</span>
@@ -2424,8 +2424,8 @@ function StudentDashboardContent() {
               <div className="flex flex-col gap-5">
                 <StudentGanttChart project={activeProject} milestoneProgress={manuscriptWorkflowData?.milestones || []} />
                 <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
-                  <h3 className="text-base font-bold text-[var(--color-text-primary)]">Recorded research activity</h3>
-                  <p className="mt-1 text-xs text-[var(--color-text-secondary)]">Actual events from manuscript, milestone, consultation, defense, and official-copy records. The Gantt chart above remains the planned schedule.</p>
+                  <h3 className="text-lg font-bold text-[var(--color-text-primary)]">Recorded research activity</h3>
+                  <p className="mt-1 text-base text-[var(--color-text-secondary)]">Actual events from manuscript, milestone, consultation, defense, and official-copy records. The Gantt chart above remains the planned schedule.</p>
                   <div className="mt-4 space-y-2">
                     {(manuscriptWorkflowData?.activity || []).slice(0, 12).map((event: any) => {
                       const href = event.documentId
@@ -2437,15 +2437,15 @@ function StudentDashboardContent() {
                             : event.milestoneId
                               ? projectSelection.projectHref(`/student/documents?tab=milestones&milestoneId=${event.milestoneId}`)
                               : null;
-                      const content = <><span className="min-w-0"><span className="block text-sm font-semibold text-[var(--color-text-primary)]">{event.title}</span><span className="block truncate text-xs text-[var(--color-text-secondary)]">{event.description}</span></span><time className="shrink-0 text-[11px] text-[var(--color-text-muted)]">{new Date(event.timestamp).toLocaleString()}</time></>;
+                      const content = <><span className="min-w-0"><span className="block text-sm font-semibold text-[var(--color-text-primary)]">{event.title}</span><span className="block truncate text-xs text-[var(--color-text-secondary)]">{event.description}</span></span><time className="shrink-0 text-xs text-[var(--color-text-muted)]">{new Date(event.timestamp).toLocaleString()}</time></>;
                       return href ? <button key={event.id} type="button" onClick={() => router.push(href)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-muted)] p-3 text-left hover:border-[var(--color-primary)]">{content}</button> : <div key={event.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-muted)] p-3">{content}</div>;
                     })}
-                    {!manuscriptWorkflowData?.activity?.length && <p className="rounded-xl border border-dashed border-[var(--color-border)] p-5 text-center text-xs text-[var(--color-text-secondary)]">No recorded workflow activity for this project yet.</p>}
+                    {!manuscriptWorkflowData?.activity?.length && <p className="rounded-xl border border-dashed border-[var(--color-border)] p-5 text-center text-base text-[var(--color-text-secondary)]">No recorded workflow activity for this project yet.</p>}
                   </div>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                  <h3 className="font-extrabold text-[#1b4264] text-[16px]">Milestone Details</h3>
-                  <p className="text-[11px] text-slate-400 font-bold">Review the professor-defined sequence, duration, approval gates, and current status.</p>
+                  <h3 className="font-extrabold text-[#1b4264] text-lg">Milestone Details</h3>
+                  <p className="text-base text-slate-400 font-bold">Review the professor-defined sequence, duration, approval gates, and current status.</p>
                   <div className="flex flex-col gap-2.5 mt-2">
                   {milestones.length > 0 ? (
                     milestones.map((m, index) => (
@@ -2454,8 +2454,8 @@ function StudentDashboardContent() {
                       <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-start gap-4 text-[12.5px] shadow-sm">
                         <div className="min-w-0 flex-1">
                           <span className="font-bold text-[#1b4264] block">{m.sequence}. {m.title}</span>
-                          <span className="mt-0.5 block text-[10px] text-slate-500">{m.category} · {m.deadlineDays ? `${m.deadlineDays} days` : "No target duration"}{m.requiresApproval ? " · Adviser approval required" : ""}</span>
-                          {m.description && <p className="mt-2 whitespace-pre-wrap text-[11.5px] leading-5 text-slate-600">{m.description}</p>}
+                          <span className="mt-0.5 block text-xs text-slate-500">{m.category} · {m.deadlineDays ? `${m.deadlineDays} days` : "No target duration"}{m.requiresApproval ? " · Adviser approval required" : ""}</span>
+                          {m.description && <p className="mt-2 whitespace-pre-wrap text-base leading-5 text-slate-600">{m.description}</p>}
                         </div>
                         <Tag variant={m.status === 'completed' ? 'success' : m.status === 'in-progress' ? 'warn' : 'info'}>{m.status}</Tag>
                       </div>
@@ -2475,12 +2475,12 @@ function StudentDashboardContent() {
             "consultation-requests": renderConsultationsHub(),
             progress: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Progress Tracking Dashboard</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Visual status indicators showing project workflow completion.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">Progress Tracking Dashboard</h3>
+                <p className="text-base text-slate-400 font-bold">Visual status indicators showing project workflow completion.</p>
                 <div className="bg-slate-50 p-6 border border-slate-200 rounded-2xl mt-2 shadow-sm flex flex-col gap-4">
                   <div className="flex justify-between items-center text-[13px] font-extrabold text-[#1b4264]">
                     <span>Overall Study Progression</span>
-                    <span className="bg-[#1b4264]/10 text-[#1b4264] px-2.5 py-0.5 rounded text-[11px] font-extrabold font-mono">{projectProgress}% COMPLETE</span>
+                    <span className="bg-[#1b4264]/10 text-[#1b4264] px-2.5 py-0.5 rounded text-xs font-extrabold font-mono">{projectProgress}% COMPLETE</span>
                   </div>
                   <div className="w-full bg-slate-200 rounded-full h-4 p-1 overflow-hidden border border-slate-300/40 shadow-inner flex items-center">
                     <div 
@@ -2488,7 +2488,7 @@ function StudentDashboardContent() {
                       style={{ width: `${projectProgress}%` }}
                     />
                   </div>
-                  <div className="text-[11px] text-slate-500 font-medium leading-relaxed mt-1 flex items-center gap-1.5">
+                  <div className="text-xs text-slate-500 font-medium leading-relaxed mt-1 flex items-center gap-1.5">
                     <i className="ti ti-info-circle text-[#1b4264]" />
                     <span>{group ? `Current Milestone: ${activeProject?.workflowInstance?.currentStage?.name || "Not started"}` : "Register your research study to begin tracking milestones."}</span>
                   </div>
@@ -2497,8 +2497,8 @@ function StudentDashboardContent() {
             ),
             defense: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Defense Schedule Viewing</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Review defense panel timings, assignees, and digital venues.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">Defense Schedule Viewing</h3>
+                <p className="text-base text-slate-400 font-bold">Review defense panel timings, assignees, and digital venues.</p>
                 {defenses.length > 0 ? (
                   defenses.map(d => (
                     <div key={d.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-[12.5px] flex flex-col gap-2 mt-2 shadow-sm">
@@ -2511,8 +2511,8 @@ function StudentDashboardContent() {
                         <div><strong>Venue:</strong> {d.venue}</div>
                         <div><strong>Panelists:</strong> {d.panelists?.join(", ")}</div>
                         {d.meetingUrl && d.status === "SCHEDULED" && <div><strong>Meeting:</strong> <a href={d.meetingUrl} target="_blank" rel="noreferrer" className="font-bold text-blue-700 underline">Open meeting link</a></div>}
-                        {d.status === "PENDING_ACKNOWLEDGEMENT" && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">The proposed schedule is awaiting confirmation from required panel members.</p>}
-                        {d.status === "NEEDS_RESCHEDULING" && <p className="mt-2 rounded-lg bg-blue-50 p-2 text-xs text-blue-800">The professor is adjusting the schedule. Private decline reasons are not shown to the group.</p>}
+                        {d.status === "PENDING_ACKNOWLEDGEMENT" && <p className="mt-2 rounded-lg bg-amber-50 p-2 text-base text-amber-800">The proposed schedule is awaiting confirmation from required panel members.</p>}
+                        {d.status === "NEEDS_RESCHEDULING" && <p className="mt-2 rounded-lg bg-blue-50 p-2 text-base text-blue-800">The professor is adjusting the schedule. Private decline reasons are not shown to the group.</p>}
                       </div>
                     </div>
                   ))
@@ -2527,11 +2527,11 @@ function StudentDashboardContent() {
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                   <div>
-                    <h3 className="font-extrabold text-[#1b4264] text-[16px]">Consultation History & Transcript Archive</h3>
-                    <p className="text-[11px] text-slate-400 font-bold">Review historical meeting schedules, faculty advice, and Google Meet chat records.</p>
+                    <h3 className="font-extrabold text-[#1b4264] text-lg">Consultation History & Transcript Archive</h3>
+                    <p className="text-base text-slate-400 font-bold">Review historical meeting schedules, faculty advice, and Google Meet chat records.</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11.5px] font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                    <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
                       <strong>{consultations.length}</strong> Total Records
                     </span>
                   </div>
@@ -2552,14 +2552,14 @@ function StudentDashboardContent() {
                                 {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
                               </Tag>
                             </div>
-                            <span className="text-[11.5px] text-slate-500 font-medium block mt-0.5">
+                            <span className="text-xs text-slate-500 font-medium block mt-0.5">
                               {c.groupName || "Research Consultation"} · {c.date} at {c.time} ({c.mode})
                             </span>
                           </div>
 
                           <button
                             onClick={() => handleOpenTranscriptModal(c)}
-                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-xs shadow-sm cursor-pointer self-start sm:self-auto transition"
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-100 text-[#1b4264] font-bold rounded-lg border border-slate-300 text-sm shadow-sm cursor-pointer self-start sm:self-auto transition"
                           >
                             <i className="ti ti-file-text text-amber-500" />
                             <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "View Notes & Chat" : "Import Google Meet Chat"}</span>
@@ -2583,12 +2583,12 @@ function StudentDashboardContent() {
                                 <i className="ti ti-messages text-blue-600" />
                                 <span>Google Meet In-Call Messages ({c.transcript.length})</span>
                               </span>
-                              <span className="text-[10px] text-slate-400 font-mono">Auto-Indexed</span>
+                              <span className="text-xs text-slate-400 font-mono">Auto-Indexed</span>
                             </div>
                             <div className="max-h-36 overflow-y-auto flex flex-col gap-1.5 pr-1">
                               {c.transcript.map((msg: any) => (
-                                <div key={msg.id} className="p-2 bg-slate-50 rounded border border-slate-100 text-[11px]">
-                                  <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
+                                <div key={msg.id} className="p-2 bg-slate-50 rounded border border-slate-100 text-xs">
+                                  <div className="flex justify-between items-center text-xs text-slate-500 font-bold">
                                     <span>{msg.sender}</span>
                                     <span className="font-mono text-slate-400">{msg.time}</span>
                                   </div>
@@ -2610,8 +2610,8 @@ function StudentDashboardContent() {
             ),
             notifications: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Notifications & Announcements</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Real-time alerts, chapter approvals, and institutional announcements.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">Notifications & Announcements</h3>
+                <p className="text-base text-slate-400 font-bold">Real-time alerts, chapter approvals, and institutional announcements.</p>
                 <div className="flex flex-col gap-3 mt-2">
                   {combinedNotifications.length > 0 ? (
                     combinedNotifications.map(n => (
@@ -2619,7 +2619,7 @@ function StudentDashboardContent() {
                         <div>
                           <span className="font-bold text-[#1b4264] block">{n.msg}</span>
                         </div>
-                        <span className="text-slate-400 font-bold text-[10.5px]">{n.date}</span>
+                        <span className="text-slate-400 font-bold text-xs">{n.date}</span>
                       </div>
                     ))
                   ) : (
@@ -2632,12 +2632,12 @@ function StudentDashboardContent() {
             ),
             certificates: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Certificates of Completion</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Access and download QR-verified Certificates of Completion.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">Certificates of Completion</h3>
+                <p className="text-base text-slate-400 font-bold">Access and download QR-verified Certificates of Completion.</p>
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-[12.5px] flex items-center justify-between mt-2 shadow-sm">
                   <div>
                     <span className="font-bold text-[#1b4264] block">Certificate of Completion (Pending)</span>
-                    <span className="text-[10px] text-slate-400">Available once final oral grading has been submitted.</span>
+                    <span className="text-xs text-slate-400">Available once final oral grading has been submitted.</span>
                   </div>
                   <button 
                     onClick={() => setModalCert(true)} 
@@ -2650,20 +2650,20 @@ function StudentDashboardContent() {
             ),
             settings: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-[16px]">Portal Settings</h3>
-                <p className="text-[11px] text-slate-400 font-bold">Manage your notification channels, authentication credentials, and user preferences.</p>
+                <h3 className="font-extrabold text-[#1b4264] text-lg">Portal Settings</h3>
+                <p className="text-base text-slate-400 font-bold">Manage your notification channels, authentication credentials, and user preferences.</p>
                 <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl text-[12.5px] mt-2 flex flex-col gap-4 shadow-sm">
                   <div className="flex justify-between items-center pb-3 border-b border-slate-200">
                     <div>
                       <span className="font-bold text-[#1b4264] block">Email Notifications</span>
-                      <span className="text-[10px] text-slate-400">Receive system notifications via email address.</span>
+                      <span className="text-xs text-slate-400">Receive system notifications via email address.</span>
                     </div>
                     <input type="checkbox" defaultChecked className="accent-[#ffa400] w-4 h-4 cursor-pointer" />
                   </div>
                   <div className="flex justify-between items-center">
                     <div>
                       <span className="font-bold text-[#1b4264] block">Dark Mode</span>
-                      <span className="text-[10px] text-slate-400">Switch platform styling theme to night vision.</span>
+                      <span className="text-xs text-slate-400">Switch platform styling theme to night vision.</span>
                     </div>
                     <input
                       type="checkbox"
@@ -2695,7 +2695,7 @@ function StudentDashboardContent() {
       {modalCert && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-xl border-t-4 border-[#1b4264] max-w-md w-full p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4">
-            <h3 className="font-extrabold text-[#1b4264] text-[16px] flex items-center gap-2">
+            <h3 className="font-extrabold text-[#1b4264] text-lg flex items-center gap-2">
               <i className="ti ti-certificate text-[#ffa400] text-xl" />
               Certificate Completion Verification
             </h3>
@@ -2705,12 +2705,12 @@ function StudentDashboardContent() {
                 <i className="ti ti-qrcode text-5xl text-slate-350" />
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#ffa400] rounded-full border border-white" />
               </div>
-              <p className="text-[11px] text-slate-500 leading-relaxed font-bold">
+              <p className="text-base text-slate-500 leading-relaxed font-bold">
                 Lock status: Locked. Oral evaluation sheet verification signature must be processed by the administrative panel.
               </p>
             </div>
             <div className="flex justify-end gap-3 border-t border-slate-100 pt-4">
-              <button onClick={()=>setModalCert(false)} className="px-4 py-2 border border-slate-350 hover:bg-slate-50 rounded-lg text-[12px] font-bold text-slate-700 cursor-pointer">
+              <button onClick={()=>setModalCert(false)} className="px-4 py-2 border border-slate-350 hover:bg-slate-50 rounded-lg text-sm font-bold text-slate-700 cursor-pointer">
                 Close
               </button>
             </div>
@@ -2723,7 +2723,7 @@ function StudentDashboardContent() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 max-w-lg w-full p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-[#1b4264] text-[16px] flex items-center gap-2">
+              <h3 className="font-extrabold text-[#1b4264] text-lg flex items-center gap-2">
                 <i className="ti ti-folder-plus text-[#ffa400] text-xl" />
                 {activeWorkspace ? "Add research project" : "Create research workspace"}
               </h3>
@@ -2745,7 +2745,7 @@ function StudentDashboardContent() {
                     <button key={option.value} type="button" onClick={() => setCreateParticipationMode(option.value)} className={`rounded-xl border-2 p-4 text-left transition ${createParticipationMode === option.value ? "border-[#173f63] bg-blue-50" : "border-slate-200 bg-white"}`}>
                       <i className={`ti ${option.icon} text-xl text-[#173f63]`} />
                       <span className="mt-2 block font-extrabold text-[#102f49]">{option.title}</span>
-                      <span className="mt-1 block text-[10px] leading-4 text-slate-500">{option.text}</span>
+                      <span className="mt-1 block text-sm leading-4 text-slate-500">{option.text}</span>
                     </button>
                   ))}
                 </div>
@@ -2816,9 +2816,9 @@ function StudentDashboardContent() {
           <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-t-4 border-[#1b4264] bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between border-b border-slate-100 pb-4">
               <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-[#C58A18]">Project leader</p>
+                <p className="text-sm font-extrabold uppercase tracking-[.16em] text-[#C58A18]">Project leader</p>
                 <h3 className="mt-1 text-lg font-extrabold text-[#1b4264]">Edit project details</h3>
-                <p className="mt-1 text-xs text-slate-500">Revise a rejected title without losing the project, members, files, or workflow history.</p>
+                <p className="mt-1 text-base text-slate-500">Revise a rejected title without losing the project, members, files, or workflow history.</p>
               </div>
               <button type="button" onClick={() => setShowEditProjectModal(false)} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-500"><i className="ti ti-x" /></button>
             </div>
@@ -2829,11 +2829,11 @@ function StudentDashboardContent() {
               {activeProject.status === "APPROVED" && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"><strong>Approved title.</strong> A changed title will be submitted as a pending amendment and will not replace the official title until approved.</div>
               )}
-              <label className="block text-xs font-bold text-slate-700">Research title *<input required minLength={5} value={editProjectTitle} onChange={(event) => setEditProjectTitle(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-[#173f63]" /></label>
-              <label className="block text-xs font-bold text-slate-700">Group name <span className="font-normal text-slate-400">(optional)</span><input maxLength={120} value={groupNameInput} onChange={(event) => setGroupNameInput(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-[#173f63]" /></label>
-              <label className="block text-xs font-bold text-slate-700">Abstract / problem scope<textarea rows={4} value={editProjectAbstract} onChange={(event) => setEditProjectAbstract(event.target.value)} className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-[#173f63]" /></label>
+              <label className="block text-sm font-bold text-slate-700">Research title *<input required minLength={5} value={editProjectTitle} onChange={(event) => setEditProjectTitle(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base font-normal outline-none focus:border-[#173f63]" /></label>
+              <label className="block text-sm font-bold text-slate-700">Group name <span className="font-normal text-slate-400">(optional)</span><input maxLength={120} value={groupNameInput} onChange={(event) => setGroupNameInput(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 p-3 text-base font-normal outline-none focus:border-[#173f63]" /></label>
+              <label className="block text-sm font-bold text-slate-700">Abstract / problem scope<textarea rows={4} value={editProjectAbstract} onChange={(event) => setEditProjectAbstract(event.target.value)} className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-base font-normal outline-none focus:border-[#173f63]" /></label>
               {editProjectTitle.trim() !== activeProject.title && (
-                <label className="block text-xs font-bold text-slate-700">Reason for changing the title<textarea rows={3} value={editProjectReason} onChange={(event) => setEditProjectReason(event.target.value)} placeholder="Explain the rejection feedback or reason for the revised title." className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-sm font-normal outline-none focus:border-[#173f63]" /></label>
+                <label className="block text-sm font-bold text-slate-700">Reason for changing the title<textarea rows={3} value={editProjectReason} onChange={(event) => setEditProjectReason(event.target.value)} placeholder="Explain the rejection feedback or reason for the revised title." className="mt-1.5 w-full resize-none rounded-xl border border-slate-300 p-3 text-base font-normal outline-none focus:border-[#173f63]" /></label>
               )}
               <div className="flex justify-end gap-2 border-t border-slate-100 pt-4"><button type="button" onClick={() => setShowEditProjectModal(false)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button><button type="submit" disabled={editProjectSaving || !editProjectTitle.trim()} className="rounded-xl bg-[#173f63] px-5 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">{editProjectSaving ? "Saving…" : activeProject.status === "APPROVED" && editProjectTitle.trim() !== activeProject.title ? "Submit title change" : "Save changes"}</button></div>
             </form>

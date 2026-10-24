@@ -76,7 +76,7 @@ export function NotificationList() {
             >
               {tab}
               {tab === "unread" && unreadCount > 0 && (
-                <span className="ml-1.5 bg-[#ffa400] text-[#1b4264] px-1.5 py-0.5 rounded-full text-[9px] font-extrabold">
+                <span className="ml-1.5 bg-[#ffa400] text-[#1b4264] px-1.5 py-0.5 rounded-full text-xs font-extrabold">
                   {unreadCount}
                 </span>
               )}
@@ -102,7 +102,7 @@ export function NotificationList() {
             <i className="ti ti-bell-off text-xl" />
           </div>
           <div className="font-bold text-slate-500">No {activeTab !== "all" ? activeTab : ""} notifications found</div>
-          <p className="text-[11px] text-slate-400 font-medium">You are all caught up!</p>
+          <p className="text-base text-slate-400 font-medium">You are all caught up!</p>
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
@@ -139,10 +139,10 @@ export function NotificationList() {
                       </Tag>
                     )}
                   </div>
-                  <p className="text-slate-650 text-[12px] leading-relaxed break-words font-medium">
+                  <p className="text-slate-650 text-base leading-relaxed break-words font-medium">
                     {n.message}
                   </p>
-                  <span className="text-[10px] text-slate-400 font-bold block mt-1.5">
+                  <span className="text-xs text-slate-400 font-bold block mt-1.5">
                     {n.time}
                   </span>
                 </div>

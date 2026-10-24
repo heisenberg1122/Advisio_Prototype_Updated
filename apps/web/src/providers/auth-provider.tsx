@@ -198,7 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 <h3 id="logout-modal-title" className="text-lg font-bold text-slate-900">
                   Are you sure you want to log out?
                 </h3>
-                <p className="mt-1 text-sm text-slate-500 leading-relaxed">
+                <p className="mt-1 text-base text-slate-500 leading-relaxed">
                   You will be signed out of your session and returned to the login screen.
                 </p>
               </div>

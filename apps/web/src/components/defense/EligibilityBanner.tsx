@@ -21,7 +21,7 @@ export function EligibilityBanner({ eligibility }: EligibilityBannerProps) {
             <i className="ti ti-alert-triangle mr-1.5" aria-hidden="true" />
             Not yet eligible for defense
           </div>
-          <p className="text-[13px] text-[var(--color-text-secondary)]">
+          <p className="text-base text-[var(--color-text-secondary)]">
             Complete all requirements below to unlock defense scheduling.
           </p>
         </>

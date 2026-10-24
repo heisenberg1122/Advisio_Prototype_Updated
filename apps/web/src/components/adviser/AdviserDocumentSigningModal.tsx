@@ -419,12 +419,12 @@ export function DocumentSigningModal({
             >
               Sign {document.docName}
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-base text-slate-500">
               {document.groupName} · Drag your signature to the exact location.
             </p>
           </div>
           <span
-            className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ${result ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
+            className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${result ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
           >
             {result ? "Signed" : "Awaiting signature"}
           </span>
@@ -455,7 +455,7 @@ export function DocumentSigningModal({
               <button
                 type="button"
                 onClick={() => changeZoom(1)}
-                className={`min-w-14 rounded-lg px-2 py-1.5 text-xs font-extrabold ${fitMode === "custom" && zoom === 1 ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                className={`min-w-14 rounded-lg px-2 py-1.5 text-sm font-extrabold ${fitMode === "custom" && zoom === 1 ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`}
                 title="Reset zoom"
               >
                 {fitMode === "custom" ? `${Math.round(zoom * 100)}%` : "100%"}
@@ -473,14 +473,14 @@ export function DocumentSigningModal({
               <button
                 type="button"
                 onClick={() => setFitMode("width")}
-                className={`rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold ${fitMode === "width" ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                className={`rounded-lg px-2.5 py-1.5 text-sm font-extrabold ${fitMode === "width" ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`}
               >
                 Fit width
               </button>
               <button
                 type="button"
                 onClick={() => setFitMode("page")}
-                className={`rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold ${fitMode === "page" ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                className={`rounded-lg px-2.5 py-1.5 text-sm font-extrabold ${fitMode === "page" ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`}
               >
                 Fit page
               </button>
@@ -645,10 +645,10 @@ export function DocumentSigningModal({
                 <h3 className="text-xl font-extrabold text-[#102f49]">
                   Document signed
                 </h3>
-                <p className="text-sm text-slate-600">
+                <p className="text-base text-slate-600">
                   Your signed PDF has been saved successfully.
                 </p>
-                <p className="break-all text-xs text-slate-500">
+                <p className="break-all text-base text-slate-500">
                   Verification: {result.signature.verificationCode}
                 </p>
                 <button
@@ -672,7 +672,7 @@ export function DocumentSigningModal({
                   <h3 className="text-lg font-extrabold text-[#102f49]">
                     Review and sign
                   </h3>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-base text-slate-500">
                     Signing as {signerName}. Choose a signature, then place it
                     on the PDF.
                   </p>
@@ -695,7 +695,7 @@ export function DocumentSigningModal({
                             setSaveSignature(false);
                             setError("");
                           }}
-                          className={`rounded-lg px-2 py-2 text-xs font-bold capitalize disabled:opacity-40 ${mode === value ? "bg-white text-[#173f63] shadow-sm" : "text-slate-600"}`}
+                          className={`rounded-lg px-2 py-2 text-sm font-bold capitalize disabled:opacity-40 ${mode === value ? "bg-white text-[#173f63] shadow-sm" : "text-slate-600"}`}
                         >
                           {value}
                         </button>
@@ -709,7 +709,7 @@ export function DocumentSigningModal({
                         alt="Saved signature"
                         className="mx-auto h-20 max-w-full object-contain"
                       />
-                      <p className="mt-2 text-center text-[10px] text-slate-400">
+                      <p className="mt-2 text-center text-base text-slate-400">
                         Private signature · updated{" "}
                         {profile &&
                           new Date(profile.updatedAt).toLocaleDateString()}
@@ -725,13 +725,13 @@ export function DocumentSigningModal({
                     />
                   )}
                   {mode === "upload" && (
-                    <label className="mt-3 block text-xs font-bold text-slate-600">
+                    <label className="mt-3 block text-sm font-bold text-slate-600">
                       PNG signature, up to 2 MB
                       <input
                         type="file"
                         accept="image/png,.png"
                         disabled={saving}
-                        className="mt-2 block w-full rounded-lg border border-slate-300 p-2 text-xs focus-visible:outline-2"
+                        className="mt-2 block w-full rounded-lg border border-slate-300 p-2 text-base focus-visible:outline-2"
                         onChange={(event) =>
                           uploadSignature(event.target.files?.[0])
                         }
@@ -746,7 +746,7 @@ export function DocumentSigningModal({
                     />
                   )}
                   {mode !== "saved" && (
-                    <label className="mt-3 flex items-start gap-2 text-xs text-slate-600">
+                    <label className="mt-3 flex items-start gap-2 text-sm text-slate-600">
                       <input
                         type="checkbox"
                         checked={saveSignature}
@@ -761,7 +761,7 @@ export function DocumentSigningModal({
                   )}
                 </section>
                 <section className="mt-6 border-t pt-5">
-                  <h3 className="text-sm font-extrabold text-[#102f49]">
+                  <h3 className="text-lg font-extrabold text-[#102f49]">
                     2. Placement
                   </h3>
                   <div className="mt-3 flex items-center gap-2">
@@ -783,7 +783,7 @@ export function DocumentSigningModal({
                       ›
                     </button>
                   </div>
-                  <label className="mt-4 block text-xs font-bold text-slate-600">
+                  <label className="mt-4 block text-sm font-bold text-slate-600">
                     Signature size
                     <input
                       type="range"
@@ -807,7 +807,7 @@ export function DocumentSigningModal({
                       className="mt-2 w-full"
                     />
                   </label>
-                  <label className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600">
+                  <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-slate-600">
                     <input
                       type="checkbox"
                       checked={includeName}
@@ -815,7 +815,7 @@ export function DocumentSigningModal({
                     />
                     Include printed name
                   </label>
-                  <label className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600">
+                  <label className="mt-2 flex items-center gap-2 text-sm font-semibold text-slate-600">
                     <input
                       type="checkbox"
                       checked={includeDate}
@@ -825,10 +825,10 @@ export function DocumentSigningModal({
                   </label>
                 </section>
                 <section className="mt-6 border-t pt-5">
-                  <h3 className="text-sm font-extrabold text-[#102f49]">
+                  <h3 className="text-lg font-extrabold text-[#102f49]">
                     3. Confirm and sign
                   </h3>
-                  <label className="mt-3 block text-xs font-bold text-slate-600">
+                  <label className="mt-3 block text-sm font-bold text-slate-600">
                     Confirm your password
                     <input
                       type="password"
@@ -838,7 +838,7 @@ export function DocumentSigningModal({
                       className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-[#173f63]"
                     />
                   </label>
-                  <label className="mt-3 flex items-start gap-2 text-xs leading-5 text-slate-600">
+                  <label className="mt-3 flex items-start gap-2 text-sm leading-5 text-slate-600">
                     <input
                       type="checkbox"
                       checked={confirmed}
@@ -864,7 +864,7 @@ export function DocumentSigningModal({
                   >
                     {saving ? "Signing securely…" : "Confirm & Sign"}
                   </button>
-                  <p className="mt-3 text-[10px] leading-4 text-slate-400">
+                  <p className="mt-3 text-base leading-4 text-slate-400">
                     The original remains in version history. Advisio creates a
                     separate signed PDF and records the signer, time, and file
                     hashes.

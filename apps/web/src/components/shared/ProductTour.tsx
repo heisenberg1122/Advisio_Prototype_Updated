@@ -148,7 +148,7 @@ export const ProductTour: React.FC<ProductTourProps> = ({
           <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
             {currentStep.title}
           </h3>
-          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+          <p className="text-base text-slate-600 dark:text-slate-300 leading-relaxed">
             {currentStep.content}
           </p>
         </div>
@@ -172,7 +172,7 @@ export const ProductTour: React.FC<ProductTourProps> = ({
             {currentStepIndex > 0 && (
               <button
                 onClick={() => setCurrentStepIndex((prev) => prev - 1)}
-                className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                className="px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               >
                 Back
               </button>
@@ -186,7 +186,7 @@ export const ProductTour: React.FC<ProductTourProps> = ({
                   setCurrentStepIndex((prev) => prev + 1);
                 }
               }}
-              className="px-4 py-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg shadow-sm transition-colors flex items-center gap-1"
+              className="px-4 py-1.5 text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg shadow-sm transition-colors flex items-center gap-1"
             >
               {isLast ? (
                 <>Finish <i className="ti ti-check text-xs" /></>
