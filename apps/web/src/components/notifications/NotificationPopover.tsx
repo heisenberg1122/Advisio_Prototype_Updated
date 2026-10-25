@@ -112,8 +112,8 @@ export function NotificationPopover({ viewAllHref, compact = false }: Notificati
                       <i className={cn("ti text-lg", styles.icon)} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-extrabold text-[#173f63]">{notification.title}</span>
-                      <span className="mt-0.5 line-clamp-2 block text-sm font-medium leading-4 text-slate-500">{notification.message}</span>
+                      <span className="block break-words text-sm font-extrabold text-[#173f63]">{notification.title}</span>
+                      <span className="mt-0.5 block whitespace-pre-wrap break-words text-sm font-medium leading-5 text-slate-500">{notification.message}</span>
                       <span className="mt-1 block text-sm font-bold text-slate-400">{notification.time}</span>
                     </span>
                   </button>

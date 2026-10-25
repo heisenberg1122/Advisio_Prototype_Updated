@@ -1,4 +1,4 @@
-import React, { useState, Suspense, useEffect } from "react";
+import React, { useState, Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
@@ -358,9 +358,9 @@ function AdviserDashboardContent() {
     router.push(`/adviser/reviews?${params.toString()}`);
   };
 
-  const { data: adviserRequestData, refetch: refetchAdviserRequests } = useQuery({
+  const { data: adviserRequestData, isPending: requestsLoading, isError: requestsError, refetch: refetchAdviserRequests } = useQuery({
     queryKey: ["adviser-requests"],
-    queryFn: () => apiClient.get<{ requests: any[] }>("/api/adviser-requests").catch(() => ({ requests: [] })),
+    queryFn: () => apiClient.get<{ requests: any[] }>("/api/adviser-requests"),
     refetchInterval: 15000,
     refetchOnWindowFocus: true,
   });
@@ -375,6 +375,21 @@ function AdviserDashboardContent() {
   const [requestDecision, setRequestDecision] = useState<{ request: any; decision: "accept" | "reject" } | null>(null);
   const [requestResponseNote, setRequestResponseNote] = useState("");
   const [isRespondingToRequest, setIsRespondingToRequest] = useState(false);
+  const requestId = searchParams.get("requestId");
+  const requestDetails = adviserRequests.find((request: any) => request.id === requestId);
+  const requestDetailsRef = useRef<HTMLDivElement>(null);
+  const showingRequestDetails = Boolean(requestId && !requestDecision);
+  useEffect(() => {
+    if (!showingRequestDetails) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    requestDetailsRef.current?.focus();
+    return () => previousFocus?.focus();
+  }, [showingRequestDetails, requestId]);
+  const closeRequestDetails = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("requestId");
+    router.replace(`/adviser/dashboard${params.size ? `?${params}` : ""}`);
+  };
 
   const handleAdviserRequestResponse = async () => {
     if (!requestDecision) return;
@@ -552,9 +567,49 @@ function AdviserDashboardContent() {
         />
       )}
 
+      {requestId && !requestDecision && (
+        <div ref={requestDetailsRef} tabIndex={-1} onKeyDown={(event) => {
+          if (event.key === "Escape") { event.stopPropagation(); closeRequestDetails(); }
+          if (event.key !== "Tab") return;
+          const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)");
+          const first = buttons[0];
+          const last = buttons[buttons.length - 1];
+          if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) { event.preventDefault(); last?.focus(); }
+          else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        }} className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="adviser-request-details-title">
+          <div className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl [overflow-wrap:anywhere]">
+            <div className="flex items-start justify-between gap-4">
+              <h2 id="adviser-request-details-title" className="text-lg font-extrabold text-[#102f49]">Adviser request details</h2>
+              <button type="button" onClick={closeRequestDetails} aria-label="Close request details" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600"><i className="ti ti-x text-xl" /></button>
+            </div>
+            {requestsLoading ? <p className="mt-4" role="status">Loading request…</p> : requestsError ? (
+              <div className="mt-4" role="alert"><p>Unable to load this request.</p><button type="button" onClick={() => void refetchAdviserRequests()} className="mt-3 font-bold text-[#173f63] underline">Try again</button></div>
+            ) : !requestDetails ? <p className="mt-4">This request is no longer available.</p> : (
+              <>
+                <h3 className="mt-4 whitespace-pre-wrap text-xl font-bold text-[#102f49]">{requestDetails.research?.title || "Research group"}</h3>
+                <p className="mt-2 text-sm text-slate-600">Status: {requestDetails.status}</p>
+                <p className="mt-2 text-sm text-slate-600">Requested by {requestDetails.requestedBy ? `${requestDetails.requestedBy.firstName} ${requestDetails.requestedBy.lastName}` : "group representative"}</p>
+                {requestDetails.createdAt && <p className="mt-1 text-sm text-slate-500">Submitted {new Date(requestDetails.createdAt).toLocaleString()}</p>}
+                {requestDetails.research?.abstract && <div className="mt-5"><h4 className="font-bold text-[#102f49]">Research abstract</h4><p className="mt-2 whitespace-pre-wrap text-slate-600">{requestDetails.research.abstract}</p></div>}
+                <div className="mt-5 rounded-xl bg-slate-50 p-4"><h4 className="font-bold text-[#102f49]">Group message</h4><p className="mt-2 whitespace-pre-wrap text-slate-600">{requestDetails.note || "No message was included."}</p></div>
+                <div className="mt-5"><h4 className="font-bold text-[#102f49]">Group members</h4><ul className="mt-2 space-y-2 text-slate-600">{requestDetails.research?.members?.filter((member: any) => member.projectRole !== "ADVISER").map((member: any) => <li key={member.user.id}>{member.user.firstName} {member.user.lastName}{member.projectRole === "LEADER" ? " (Group leader)" : ""}</li>)}</ul></div>
+                <div className="mt-5">
+                  {requestDetails.requestFormDocument?.versions?.[0]?.storagePath ? <button type="button" onClick={() => openAuthenticatedFile(requestDetails.requestFormDocument.versions[0].storagePath).catch((error) => triggerToast(error.message))} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 font-bold text-[#173f63]"><i className="ti ti-file-type-pdf text-rose-600" />Open adviser request PDF</button> : <p className="text-sm text-slate-500">No adviser request PDF was attached.</p>}
+                </div>
+                {requestDetails.status === "PENDING" && <div className="mt-6 flex flex-wrap justify-end gap-2">
+                  <button type="button" onClick={() => { setRequestDecision({ request: requestDetails, decision: "reject" }); setRequestResponseNote(""); }} className="rounded-lg border border-slate-300 px-4 py-2 font-bold text-slate-700">Reject</button>
+                  <button type="button" disabled={adviserCapacity?.isFull} onClick={() => { setRequestDecision({ request: requestDetails, decision: "accept" }); setRequestResponseNote(""); }} className="rounded-lg bg-emerald-600 px-4 py-2 font-bold text-white disabled:opacity-60">Accept request</button>
+                  {adviserCapacity?.isFull && <p className="w-full text-sm text-amber-800">Your adviser capacity is full or new requests are paused.</p>}
+                </div>}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {requestDecision && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-labelledby="adviser-response-title">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <div className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl [overflow-wrap:anywhere]">
             <div className="flex items-start gap-3">
               <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl ${requestDecision.decision === "accept" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}><i className={`ti ${requestDecision.decision === "accept" ? "ti-user-check" : "ti-user-x"}`} /></span>
               <div><h2 id="adviser-response-title" className="text-lg font-extrabold text-[#102f49]">{requestDecision.decision === "accept" ? "Accept adviser request" : "Decline adviser request"}</h2><p className="mt-1 text-base text-slate-500">{requestDecision.request.research?.title}</p></div>
@@ -736,7 +791,7 @@ function AdviserDashboardContent() {
 
                     {pendingAdviserRequests.length > 0 || approvals.length > 0 || reviews.length > 0 ? (
                       <div className="space-y-2.5">
-                        {pendingAdviserRequests.slice(0, 3).map((request: any) => (
+                        {pendingAdviserRequests.map((request: any) => (
                           <div
                             key={request.id}
                             className="rounded-xl border border-[#C9A227]/30 bg-[#C9A227]/5 p-3.5 dark:border-[#C9A227]/20"
@@ -764,7 +819,8 @@ function AdviserDashboardContent() {
                                 Adviser Request
                               </span>
                             </div>
-                            <div className="mt-3 flex justify-end gap-2">
+                            <div className="mt-3 flex flex-wrap justify-end gap-2">
+                              <button type="button" onClick={() => { const params = new URLSearchParams(searchParams.toString()); params.set("requestId", request.id); router.push(`/adviser/dashboard?${params}`); }} className="mr-auto rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-bold text-[#173f63] dark:text-slate-200">View full request</button>
                               <button
                                 onClick={() => {
                                   setRequestDecision({ request, decision: "reject" });

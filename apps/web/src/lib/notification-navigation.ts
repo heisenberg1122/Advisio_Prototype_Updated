@@ -1,3 +1,9 @@
+export function adviserRequestNotificationLink(entityId: unknown): string {
+  return typeof entityId === "string" && entityId
+    ? `/adviser/dashboard?requestId=${encodeURIComponent(entityId)}`
+    : "/adviser/dashboard";
+}
+
 export function notificationLink(
   actionUrl: unknown,
   role: string,

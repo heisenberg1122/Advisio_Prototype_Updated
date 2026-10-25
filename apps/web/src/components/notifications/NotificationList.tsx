@@ -130,7 +130,7 @@ export function NotificationList() {
                 {/* Message Body */}
                 <div className="flex-1 min-w-0 pr-8">
                   <div className="flex items-center flex-wrap gap-2 mb-0.5">
-                    <span className="font-extrabold text-[#1b4264] text-[13.5px] leading-tight truncate">
+                    <span className="font-extrabold text-[#1b4264] text-[13.5px] leading-tight break-words min-w-0">
                       {n.title}
                     </span>
                     {n.module && (

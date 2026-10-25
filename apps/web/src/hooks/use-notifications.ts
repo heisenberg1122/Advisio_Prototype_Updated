@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
-import { notificationLink } from "@/lib/notification-navigation";
+import { adviserRequestNotificationLink, notificationLink } from "@/lib/notification-navigation";
 import { useAuth } from "@/providers/auth-provider";
 
 export interface AppNotification {
@@ -65,7 +65,7 @@ export function useNotifications() {
                   : undefined,
         link:
           notificationLink(item.actionUrl, role, user?.roles || []) ||
-          (item.type === "ADVISER_REQUESTED" ? "/adviser/dashboard" : undefined),
+          (item.type === "ADVISER_REQUESTED" ? adviserRequestNotificationLink(item.entityId) : undefined),
       }));
       setNotifications(apiItems);
     } catch {
