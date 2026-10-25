@@ -294,7 +294,7 @@ npm run db:seed
 npm run dev
 ```
 
-The system will start both the frontend and backend servers concurrently:
+The system will start both the frontend and backend servers concurrently. On Windows, it also starts the portable PostgreSQL database when one is installed in `.local/pgsql` with data in `.local/pgdata`. If you use Docker or another PostgreSQL installation, start that database separately as described above. Press Ctrl+C to stop both development servers; the database stays running between sessions.
 
 - 🌐 **Web Application**: `http://localhost:3000`
 - ⚙️ **Backend API**: `http://localhost:5000`

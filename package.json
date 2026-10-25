@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "node scripts/dev.mjs",
     "build": "turbo run build",
     "db:push": "npm --workspace=@research-management/database run db:push",
     "db:seed": "npm --workspace=@research-management/database run build && npm --workspace=@research-management/database run seed",
