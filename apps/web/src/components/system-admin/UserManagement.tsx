@@ -25,7 +25,7 @@ const roleLabels: Record<RoleName, string> = {
   ADVISER: "Adviser",
   PANELIST: "Panelist",
   RESEARCH_COORDINATOR: "Professor Coordinator",
-  RPO: "Dean's Office (RPO)",
+  RPO: "Dean",
   REB: "Ethics Board (REB)",
   VPAA: "Academic Affairs (VPAA)",
   SYSTEM_ADMIN: "System Administration",
@@ -35,6 +35,9 @@ const roleLabels: Record<RoleName, string> = {
 
 
 };
+
+const isDashboardRole = (role: RoleName) => role !== "VPAA" && role !== "REB";
+const isAssignableRole = (role: RoleName) => isDashboardRole(role) && role !== "SYSTEM_ADMIN";
 
 const statusTone: Record<User["status"], string> = {
   ACTIVE: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-950/40 dark:text-emerald-300",
@@ -86,6 +89,7 @@ export function UserManagement({ initialStatus = "ALL" }: { initialStatus?: stri
 
   const openDialog = (type: NonNullable<Dialog>["type"], user: User) => {
     setDialog({ type, user });
+    // Retain hidden assignments because this endpoint replaces the complete role list.
     setSelectedRoles(user.roles.map((item) => item.role.name));
     setSelectedCollegeId(user.college?.id || "");
     setVerificationConfirmed(false);
@@ -167,6 +171,7 @@ export function UserManagement({ initialStatus = "ALL" }: { initialStatus?: stri
   };
 
   const toggleRole = (role: RoleName) => {
+    if (!isAssignableRole(role)) return;
     setSelectedRoles((current) => current.includes(role) ? current.filter((item) => item !== role) : [...current, role]);
   };
 
@@ -183,7 +188,7 @@ export function UserManagement({ initialStatus = "ALL" }: { initialStatus?: stri
               <input aria-label="Search users" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, email, or ID" className="min-w-64 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/5 px-3 py-2 text-base text-slate-900 dark:text-white outline-none focus:border-[#0B3A53]" />
               <select aria-label="Filter by role" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)} className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white px-3 py-2 text-base">
                 <option value="ALL">All categories</option>
-                {rolesQuery.data?.roles.map((role) => <option key={role.id} value={role.name}>{roleLabels[role.name]}</option>)}
+                {rolesQuery.data?.roles.filter((role) => isDashboardRole(role.name)).map((role) => <option key={role.id} value={role.name}>{roleLabels[role.name]}</option>)}
               </select>
               <select aria-label="Filter by account status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white px-3 py-2 text-base">
                 <option value="ALL">All statuses</option>
@@ -213,7 +218,7 @@ export function UserManagement({ initialStatus = "ALL" }: { initialStatus?: stri
                   <tr key={user.id} className="align-top hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
                     <td className="px-5 py-4 font-mono font-bold text-[#0B3A53] dark:text-[#C9A227]">{user.universityId}</td>
                     <td className="px-5 py-4"><p className="font-extrabold text-slate-900 dark:text-white">{user.firstName} {user.middleName ? `${user.middleName} ` : ""}{user.lastName}</p><p className="mt-0.5 text-base text-slate-400">{user.email}</p></td>
-                    <td className="max-w-xs px-5 py-4"><div className="flex flex-wrap gap-1.5">{user.roles.map((item) => <span key={item.role.id} className="rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2.5 py-1 text-xs font-extrabold">{roleLabels[item.role.name]}</span>)}</div></td>
+                    <td className="max-w-xs px-5 py-4"><div className="flex flex-wrap gap-1.5">{user.roles.filter((item) => isDashboardRole(item.role.name)).map((item) => <span key={item.role.id} className="rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2.5 py-1 text-xs font-extrabold">{roleLabels[item.role.name]}</span>)}</div></td>
                     <td className="px-5 py-4"><p className="font-bold text-slate-700 dark:text-slate-300">{user.college?.code || "—"}</p><p className="text-base text-slate-400">{user.program?.code || "No program"}</p></td>
                     <td className="px-5 py-4"><span className={`rounded-full border px-2.5 py-1 text-xs font-extrabold ${statusTone[user.status]}`}>{user.status}</span></td>
                     <td className="px-5 py-4 text-xs text-slate-500 dark:text-slate-400">{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "Never"}</td>
@@ -237,7 +242,7 @@ export function UserManagement({ initialStatus = "ALL" }: { initialStatus?: stri
 
             {feedback?.tone === "error" && <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/40 p-3 text-xs font-semibold text-rose-700 dark:text-rose-300">{feedback.message}</div>}
 
-            {dialog.type === "roles" && <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">{rolesQuery.data?.roles.map((role) => <label key={role.id} className="flex cursor-pointer items-start gap-2 rounded-xl border border-slate-200 dark:border-white/10 p-3"><input type="checkbox" checked={selectedRoles.includes(role.name)} onChange={() => toggleRole(role.name)} className="mt-0.5 accent-[#C9A227]" /><span><strong className="block text-xs text-slate-900 dark:text-white">{roleLabels[role.name]}</strong><span className="text-xs text-slate-400">{role.description || role.name}</span></span></label>)}</div>}
+            {dialog.type === "roles" && <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">{rolesQuery.data?.roles.filter((role) => isAssignableRole(role.name)).map((role) => <label key={role.id} className="flex cursor-pointer items-start gap-2 rounded-xl border border-slate-200 dark:border-white/10 p-3"><input type="checkbox" checked={selectedRoles.includes(role.name)} onChange={() => toggleRole(role.name)} className="mt-0.5 accent-[#C9A227]" /><span><strong className="block text-xs text-slate-900 dark:text-white">{roleLabels[role.name]}</strong><span className="text-xs text-slate-400">{role.name === "RPO" ? "College research oversight and approvals" : role.description || roleLabels[role.name]}</span></span></label>)}</div>}
 
             {dialog.type === "college" && <div className="mt-5 space-y-4"><div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">College assignment controls which users, projects, and defenses this account can access. Active cross-college research assignments must be resolved before transfer.</div><div><label htmlFor="assigned-college" className="mb-1.5 block text-sm font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">College / School assignment</label><select id="assigned-college" value={selectedCollegeId} onChange={(event) => setSelectedCollegeId(event.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] px-3 py-2.5 text-base text-slate-900 dark:text-white"><option value="">No college or school assigned</option>{collegesQuery.data?.colleges.map((college) => <option key={college.id} value={college.id}>{college.name}</option>)}</select></div><div><label htmlFor="college-reason" className="mb-1 block text-sm font-bold text-slate-700 dark:text-slate-300">Assignment or transfer reason</label><textarea id="college-reason" value={collegeReason} onChange={(event) => setCollegeReason(event.target.value)} rows={3} placeholder="Explain why this account belongs to the selected college or school." className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] px-3 py-2 text-base" /></div></div>}
 

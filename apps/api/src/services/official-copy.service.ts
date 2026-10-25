@@ -751,19 +751,34 @@ class OfficialCopyService {
     const buffer = await loadVersionFile(artifact);
     const actualChecksum = sha256(buffer);
     const expectedChecksum = signature?.signedFileHash || copy.checksum;
+    const matches = actualChecksum === expectedChecksum;
+    const checkedAt = new Date();
     await prisma.auditLog.create({
       data: {
         userId: user.id,
         action: "UPDATE",
         entityType: signature ? "OfficialCopySignatureIntegrity" : "OfficialCopyIntegrity",
         entityId: artifact.id,
-        newValues: { matches: actualChecksum === expectedChecksum },
+        newValues: {
+          matches,
+          algorithm: "SHA-256",
+          expectedChecksum,
+          actualChecksum,
+          officialCopyId: copy.id,
+          signatureId: signature?.id || null,
+          checkedAt: checkedAt.toISOString(),
+        },
       },
     });
     return {
-      matches: actualChecksum === expectedChecksum,
+      matches,
       checksum: expectedChecksum,
-      checkedAt: new Date(),
+      algorithm: "SHA-256" as const,
+      expectedChecksum,
+      actualChecksum,
+      officialCopyId: copy.id,
+      signatureId: signature?.id || null,
+      checkedAt,
       statement:
         "Checksum verification confirms file integrity only; it does not establish legal validity or cryptographic digital-signature authenticity.",
     };
