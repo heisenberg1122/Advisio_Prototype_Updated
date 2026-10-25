@@ -1,5 +1,7 @@
 "use client";
 
+import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
+
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
@@ -445,6 +447,7 @@ export default function ResearchTasksPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      <WorkflowAccessInbox/>
       {message && (
         <div className="rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/30 p-3.5 text-sm font-semibold text-blue-900 dark:text-blue-200">
           {message}

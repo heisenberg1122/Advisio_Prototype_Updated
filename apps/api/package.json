@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --format=esm --packages=external",
-    "start": "node dist/index.js",
+    "start": "prisma migrate deploy --schema=../../packages/database/prisma/schema.prisma && node dist/index.js",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "node scripts/run-database-integration-tests.mjs",

@@ -429,10 +429,6 @@ function ProfessorDashboardContent() {
   const [topicTitle, setTopicTitle] = useState("");
   const [topicDescription, setTopicDescription] = useState("");
   const [topicSaving, setTopicSaving] = useState(false);
-  const [workflowInvitation, setWorkflowInvitation] = useState<{
-    code: string;
-    link: string;
-  } | null>(null);
   const [milestoneSaveStatus, setMilestoneSaveStatus] = useState<
     "idle" | "saving" | "saved"
   >("idle");
@@ -923,14 +919,7 @@ function ProfessorDashboardContent() {
     if (!selectedWorkflowId) return;
     setSaving(true);
     try {
-      const result = await apiClient.post<{
-        invitation: { inviteCode: string };
-      }>(`/api/workflows/${selectedWorkflowId}/invitation`, {});
-      const code = result.invitation.inviteCode;
-      setWorkflowInvitation({
-        code,
-        link: `${window.location.origin}/student/workflows/join/${code}`,
-      });
+      await apiClient.post(`/api/workflows/${selectedWorkflowId}/invitation`, {});
       await refetchWorkflows();
       triggerToast("Workflow invitation link generated.");
     } catch (error: any) {
@@ -1017,9 +1006,9 @@ function ProfessorDashboardContent() {
     null;
   const selectedWorkflowTopics = selectedWorkflow?.topics || [];
   const selectedWorkflowInvitation =
-    workflowInvitation ||
     (selectedWorkflow?.inviteCode
       ? {
+          expiresAt: selectedWorkflow.inviteExpiresAt,
           code: selectedWorkflow.inviteCode,
           link: `${typeof window !== "undefined" ? window.location.origin : ""}/student/workflows/join/${selectedWorkflow.inviteCode}`,
         }
@@ -4912,7 +4901,6 @@ function ProfessorDashboardContent() {
                       value={selectedWorkflowId}
                       onChange={(event) => {
                         setSelectedWorkflowId(event.target.value);
-                        setWorkflowInvitation(null);
                       }}
                       className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-base font-semibold text-[#102f49] sm:max-w-md"
                     >

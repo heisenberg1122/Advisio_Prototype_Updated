@@ -130,6 +130,7 @@ const tests = spawnSync(
     "src/routes/faculty-profile-integration.test.ts",
     "src/routes/defense-workflow.integration.test.ts",
     "src/routes/mail-workspace.integration.test.ts",
+    "src/routes/workflow-access.integration.test.ts",
     "src/services/audit-remediation.integration.test.ts",
     "--no-file-parallelism",
     "--pool=threads",

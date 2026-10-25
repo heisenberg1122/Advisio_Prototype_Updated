@@ -17,3 +17,12 @@ describe("notification workflow links", () => {
       .toBe("/student/defense/s1?projectId=p1");
   });
 });
+
+describe("workflow access notification destinations", () => {
+  it("opens the intended Advisio inbox thread for researchers", () => {
+    expect(notificationLink("/student/inbox?thread=invitation-thread", "student")).toBe("/student/inbox?thread=invitation-thread");
+  });
+  it("preserves the owner's workflow participant context", () => {
+    expect(notificationLink("/professor/dashboard?tab=builder&workflowView=participants&workflowId=w1", "professor")).toBe("/professor/dashboard?tab=builder&workflowView=participants&workflowId=w1");
+  });
+});

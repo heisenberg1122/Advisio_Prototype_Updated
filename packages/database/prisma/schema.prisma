@@ -524,6 +524,7 @@ model User {
   college                   College?                   @relation(fields: [collegeId], references: [id], onDelete: SetNull)
   program                   Program?                   @relation(fields: [programId], references: [id], onDelete: SetNull)
   roles                     UserRole[]
+  workflowAccessEntries     WorkflowAccessEntry[]
   memberships               ResearchMember[]
   workspaceMemberships      WorkspaceMember[]
   createdWorkspaces         ResearchWorkspace[]        @relation("WorkspaceCreator")
@@ -923,6 +924,7 @@ model Workflow {
   topics        WorkflowTopic[]
   instances     WorkflowInstance[]
   creator       User                 @relation("WorkflowCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  accessEntries WorkflowAccessEntry[]
   enrollments   WorkflowEnrollment[]
   resources     WorkflowResource[]
 
@@ -1421,6 +1423,7 @@ model MailThread {
 
   createdBy    User              @relation("MailThreadCreator", fields: [createdById], references: [id], onDelete: Restrict)
   participants MailParticipant[]
+  workflowInvitation WorkflowAccessEntry?
   messages     MailMessage[]
 
   @@index([updatedAt])
@@ -2378,4 +2381,24 @@ model ChatParticipant {
   @@index([userId, status])
   @@index([invitedByUserId])
   @@map("chat_participants")
+}
+
+model WorkflowAccessEntry {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowId   String    @map("workflow_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  kind         String    @db.VarChar(20)
+  status       String    @default("PENDING") @db.VarChar(20)
+  actorId      String    @map("actor_id") @db.Uuid
+  decidedBy    String?   @map("decided_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  decidedAt    DateTime? @map("decided_at")
+  mailThreadId String?   @unique @map("mail_thread_id") @db.Uuid
+  workflow     Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mailThread   MailThread? @relation(fields: [mailThreadId], references: [id], onDelete: SetNull)
+  @@unique([workflowId, userId, kind])
+  @@index([workflowId, kind, status])
+  @@index([userId, status])
+  @@map("workflow_access_entries")
 }

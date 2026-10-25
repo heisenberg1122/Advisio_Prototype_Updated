@@ -114,7 +114,8 @@ export default function MailInboxPage() {
       ? "signature-requests"
       : "inbox",
   );
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedId, setSelectedId] = useState(() => searchParams.get("thread") || "");
+  useEffect(() => {const id=searchParams.get("thread");if(id){setSelectedId(id);setFolder("inbox");}},[searchParams]);
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query.trim());
   const [filter, setFilter] = useState<MailFilter>("all");
@@ -155,6 +156,7 @@ export default function MailInboxPage() {
         `/api/mail/threads/${selectedId}`,
       ),
     enabled: Boolean(selectedId && folder !== "drafts" && folder !== "signature-requests"),
+    refetchInterval: 15000,
   });
 
   useEffect(() => {
@@ -168,10 +170,10 @@ export default function MailInboxPage() {
   }, [deferredQuery, filter, folder]);
 
   useEffect(() => {
-    if (selectedId && !listQuery.isFetching && !threads.some((thread) => thread.id === selectedId)) {
+    if (selectedId && selectedId !== searchParams.get("thread") && !listQuery.isFetching && !threads.some((thread) => thread.id === selectedId)) {
       setSelectedId("");
     }
-  }, [listQuery.isFetching, selectedId, threads]);
+  }, [listQuery.isFetching, selectedId, threads, searchParams]);
 
   const chooseFolder = (nextFolder: MailFolder) => {
     setFolder(nextFolder);
