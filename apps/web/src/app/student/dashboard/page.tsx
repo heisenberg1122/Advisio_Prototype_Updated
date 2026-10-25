@@ -6,6 +6,7 @@ import { useTheme } from "@/providers/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { apiClient } from "@/lib/api-client";
 import { calculateMilestoneProgress } from "@/lib/workflow-progress";
+import { formatMilestoneTarget } from "@/lib/workflow-deadlines";
 import { Tag } from "@/components/ui/Tag";
 import { CourseCard } from "@/components/ui/CourseCard";
 import { StatCard } from "@/components/ui/StatCard";
@@ -434,6 +435,7 @@ function StudentDashboardContent() {
             : "upcoming",
         completionPercent: authoritative.get(stage.id)?.completionPercent || 0,
         deadlineDays: stage.deadlineDays,
+        targetCompletionDate: stage.targetCompletionDate,
         requiresApproval: stage.requiresApproval,
         sequence: stage.sequence,
         topicId: stage.topic?.id || null,
@@ -450,6 +452,7 @@ function StudentDashboardContent() {
             title: stage.name,
             status: index === 0 ? "in-progress" : "upcoming",
             deadlineDays: stage.deadlineDays,
+        targetCompletionDate: stage.targetCompletionDate,
             requiresApproval: stage.requiresApproval,
             sequence: stage.sequence,
             topicId: stage.topic?.id || null,
@@ -2480,7 +2483,7 @@ function StudentDashboardContent() {
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                   <h3 className="font-extrabold text-[#1b4264] text-lg">Milestone Details</h3>
-                  <p className="text-base text-slate-400 font-bold">Review the professor-defined sequence, duration, approval gates, and current status.</p>
+                  <p className="text-base text-slate-400 font-bold">Review the professor-defined sequence, target dates, approval gates, and current status.</p>
                   <div className="flex flex-col gap-2.5 mt-2">
                   {milestones.length > 0 ? (
                     milestones.map((m, index) => (
@@ -2489,7 +2492,7 @@ function StudentDashboardContent() {
                       <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-start gap-4 text-[12.5px] shadow-sm">
                         <div className="min-w-0 flex-1">
                           <span className="font-bold text-[#1b4264] block">{m.sequence}. {m.title}</span>
-                          <span className="mt-0.5 block text-xs text-slate-500">{m.category} · {m.deadlineDays ? `${m.deadlineDays} days` : "No target duration"}{m.requiresApproval ? " · Adviser approval required" : ""}</span>
+                          <span className="mt-0.5 block text-xs text-slate-500">{m.category} · {formatMilestoneTarget(m)}{m.requiresApproval ? " · Adviser approval required" : ""}</span>
                           {m.description && <p className="mt-2 whitespace-pre-wrap text-base leading-5 text-slate-600">{m.description}</p>}
                         </div>
                         <Tag variant={m.status === 'completed' ? 'success' : m.status === 'in-progress' ? 'warn' : 'info'}>{m.status}</Tag>

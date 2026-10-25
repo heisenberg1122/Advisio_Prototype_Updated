@@ -7,6 +7,7 @@ import {
   reorderWorkflowTopicsSchema,
   updateWorkflowTopicSchema,
   workflowTransitionSchema,
+  targetCompletionDateSchema,
 } from "@research-management/validations";
 import { Permissions } from "@research-management/auth";
 import { validateBody } from "../middleware/validate";
@@ -1218,7 +1219,10 @@ router.post(
               sequence: s.sequence,
               responsibleRoleId: s.responsibleRoleId,
               requiresApproval: s.requiresApproval,
-              deadlineDays: s.deadlineDays || null,
+              deadlineDays: s.targetCompletionDate !== undefined ? null : s.deadlineDays ?? null,
+              targetCompletionDate: s.targetCompletionDate
+                ? new Date(`${s.targetCompletionDate}T00:00:00.000Z`)
+                : null,
               isFinal: s.isFinal,
             })),
           },
@@ -1609,6 +1613,7 @@ router.post(
         topicId,
         category = "Milestone",
         deadlineDays,
+        targetCompletionDate,
         requiresApproval = false,
         requiresDocument = true,
         submissionMode = "EITHER",
@@ -1627,10 +1632,15 @@ router.post(
         return;
       }
 
+      const targetDate = targetCompletionDateSchema.safeParse(targetCompletionDate);
+      if (!targetDate.success) {
+        return void res.status(400).json({
+          error: "Choose a valid target completion date (YYYY-MM-DD).",
+        });
+      }
+
       const deadline =
-        deadlineDays === null ||
-        deadlineDays === undefined ||
-        deadlineDays === ""
+        targetCompletionDate !== undefined || deadlineDays == null || deadlineDays === ""
           ? null
           : Number(deadlineDays);
       if (
@@ -1687,6 +1697,9 @@ router.post(
             requiresApproval: Boolean(requiresApproval),
             requiresDocument: Boolean(requiresDocument),
             deadlineDays: deadline,
+            targetCompletionDate: targetDate.data
+              ? new Date(`${targetDate.data}T00:00:00.000Z`)
+              : null,
             isFinal: Boolean(isFinal),
             submissionMode,
           },
@@ -1947,6 +1960,7 @@ router.patch(
         topicId,
         category,
         deadlineDays,
+        targetCompletionDate,
         requiresApproval,
         requiresDocument,
         isFinal,
@@ -1977,6 +1991,24 @@ router.patch(
         }
       }
 
+      const targetDate = targetCompletionDateSchema.safeParse(targetCompletionDate);
+      if (!targetDate.success) {
+        return void res.status(400).json({
+          error: "Choose a valid target completion date (YYYY-MM-DD).",
+        });
+      }
+      const deadline =
+        deadlineDays == null || deadlineDays === "" ? null : Number(deadlineDays);
+      if (
+        targetCompletionDate === undefined && deadlineDays !== undefined &&
+        deadline !== null &&
+        (!Number.isInteger(deadline) || deadline < 0 || deadline > 3650)
+      ) {
+        return void res.status(400).json({
+          error: "Deadline must be a whole number between 0 and 3650 days.",
+        });
+      }
+
       const stage = await prisma.$transaction(async (tx) => {
         await tx.workflowStage.update({
           where: { id: stageId },
@@ -1985,9 +2017,14 @@ router.patch(
             ...(description !== undefined && { description }),
             ...(topicId !== undefined && { topicId }),
             ...(category !== undefined && { category }),
-            ...(deadlineDays !== undefined && {
-              deadlineDays: deadlineDays ? Number(deadlineDays) : null,
-            }),
+            ...(targetCompletionDate !== undefined
+              ? {
+                  targetCompletionDate: targetDate.data
+                    ? new Date(`${targetDate.data}T00:00:00.000Z`)
+                    : null,
+                  deadlineDays: null,
+                }
+              : deadlineDays !== undefined && { deadlineDays: deadline }),
             ...(requiresApproval !== undefined && {
               requiresApproval: Boolean(requiresApproval),
             }),
@@ -2001,6 +2038,14 @@ router.patch(
               }),
           },
         });
+        // Earlier creation copied the milestone's relative target into its tasks.
+        // Remove those inherited offsets when explicitly replacing/clearing it.
+        if (targetCompletionDate !== undefined && existing.deadlineDays !== null) {
+          await tx.workflowTask.updateMany({
+            where: { stageId, dueDays: existing.deadlineDays },
+            data: { dueDays: null },
+          });
+        }
         if (topicId !== undefined && topicId !== existing.topicId) {
           await resequenceWorkflowStagesByTopics(tx, existing.workflowId);
         }
@@ -2107,7 +2152,7 @@ router.post(
           title: title.trim(),
           instructions: instructions?.trim() || null,
           sequence: (lastTask?.sequence || 0) + 1,
-          dueDays: deadline,
+          dueDays: stage.targetCompletionDate ? null : deadline,
           allowedFileTypes: String(
             allowedFileTypes || "PDF,DOCX",
           ).toUpperCase(),
@@ -2189,7 +2234,7 @@ router.post(
             stage.description ||
             `Complete the ${stage.name} milestone and submit the required deliverable.`,
           sequence: 1,
-          dueDays: stage.deadlineDays,
+          dueDays: stage.targetCompletionDate ? null : stage.deadlineDays,
           allowedFileTypes: "PDF,DOCX",
           isRequired: true,
         },

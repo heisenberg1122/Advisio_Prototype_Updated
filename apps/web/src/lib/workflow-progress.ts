@@ -1,3 +1,5 @@
+import { targetCompletionEnd } from "./workflow-deadlines";
+
 export interface WorkflowStageLike {
   id: string;
   name: string;
@@ -5,6 +7,7 @@ export interface WorkflowStageLike {
   category?: string | null;
   sequence: number;
   deadlineDays?: number | null;
+  targetCompletionDate?: string | null;
   requiresApproval?: boolean;
   isFinal?: boolean;
   topic?: { id: string; title: string } | null;
@@ -79,11 +82,17 @@ export function buildWorkflowTimeline(project?: WorkflowProjectLike | null): Tim
     : new Date();
 
   return stages.map((stage) => {
-    const durationDays = Math.max(1, stage.deadlineDays || 14);
-    const startDate = new Date(cursor);
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + durationDays);
-    cursor = new Date(endDate);
+    const targetDate = targetCompletionEnd(stage.targetCompletionDate);
+    const endDate = targetDate || new Date(
+      cursor.getTime() + Math.max(1, stage.deadlineDays || 14) * 86_400_000,
+    );
+    // A fixed target may precede enrollment or a preceding milestone's date.
+    // Keep the selected target and avoid negative chart widths.
+    const startDate = new Date(Math.min(cursor.getTime(), endDate.getTime()));
+    const durationDays = Math.max(1, Math.ceil(
+      (endDate.getTime() - startDate.getTime()) / 86_400_000,
+    ));
+    cursor = new Date(endDate.getTime() + (targetDate ? 1 : 0));
 
     return {
       ...stage,

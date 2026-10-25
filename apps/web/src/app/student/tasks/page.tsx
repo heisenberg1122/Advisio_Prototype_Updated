@@ -5,6 +5,7 @@ import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import { formatTaskDeadline } from "@/lib/workflow-deadlines";
 import { Tag } from "@/components/ui/Tag";
 import { StatCard } from "@/components/ui/StatCard";
 import { TablePageSkeleton } from "@/components/ui/Skeleton";
@@ -750,9 +751,7 @@ export default function ResearchTasksPage() {
                         </p>
                         <div className="mt-2.5 flex flex-wrap gap-2 text-xs font-medium text-[var(--color-text-secondary)]">
                           <span className="rounded-lg bg-[var(--color-surface-muted)] px-2.5 py-1">
-                            {task.dueDays != null
-                              ? `Due within ${task.dueDays} days`
-                              : "Milestone deadline"}
+                            {formatTaskDeadline(task)}
                           </span>
                           {!task.milestoneOnly && (
                             <span className="rounded-lg bg-[var(--color-surface-muted)] px-2.5 py-1">
@@ -1679,9 +1678,7 @@ function MilestoneInformationPanel({
             icon="ti-calendar-due"
             label="Deadline"
             value={
-              task.dueDays != null
-                ? `Within ${task.dueDays} days of availability`
-                : "No deadline set"
+              formatTaskDeadline(task)
             }
           />
           <InformationRow icon="ti-file-type-pdf" label="Accepted formats" value={formats} />

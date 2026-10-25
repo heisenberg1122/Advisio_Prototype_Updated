@@ -986,6 +986,7 @@ model WorkflowStage {
   requiresApproval  Boolean @default(true) @map("requires_approval")
   requiresDocument  Boolean @default(true) @map("requires_document")
   deadlineDays      Int?    @map("deadline_days")
+  targetCompletionDate DateTime? @map("target_completion_date") @db.Date
   isFinal           Boolean @default(false) @map("is_final")
   submissionMode    String  @default("EITHER") @map("submission_mode") @db.VarChar(20)
 
