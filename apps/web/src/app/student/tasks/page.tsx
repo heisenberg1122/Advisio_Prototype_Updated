@@ -618,7 +618,7 @@ export default function ResearchTasksPage() {
         </section>
       )}
 
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)]">
+      <section className={`grid gap-4 ${enrollments.length === 0 ? "lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)]" : ""}`}>
         <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -689,44 +689,46 @@ export default function ResearchTasksPage() {
           )}
         </div>
 
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            const code = workflowCode.trim().toUpperCase();
-            if (code)
-              navigate(`/student/workflows/join/${encodeURIComponent(code)}`);
-          }}
-          className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6"
-        >
-          <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
-            Join a workflow
-          </p>
-          <h2 className="mt-1 text-lg font-semibold text-[var(--color-text-primary)]">
-            Enter professor invitation code
-          </h2>
-          <p className="mt-1 text-base leading-5 text-slate-500">
-            You will review the invitation before deciding to accept or reject
-            it.
-          </p>
-          <div className="mt-4 flex gap-2">
-            <input
-              value={workflowCode}
-              onChange={(event) =>
-                setWorkflowCode(event.target.value.toUpperCase())
-              }
-              maxLength={32}
-              placeholder="Invitation code"
-              className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 font-mono text-base font-bold uppercase text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
-            />
-            <button
-              type="submit"
-              disabled={!workflowCode.trim()}
-              className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              Review
-            </button>
-          </div>
-        </form>
+        {enrollments.length === 0 && (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const code = workflowCode.trim().toUpperCase();
+              if (code)
+                navigate(`/student/workflows/join/${encodeURIComponent(code)}`);
+            }}
+            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6"
+          >
+            <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
+              Join a workflow
+            </p>
+            <h2 className="mt-1 text-lg font-semibold text-[var(--color-text-primary)]">
+              Enter professor invitation code
+            </h2>
+            <p className="mt-1 text-base leading-5 text-slate-500">
+              You will review the invitation before deciding to accept or reject
+              it.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <input
+                value={workflowCode}
+                onChange={(event) =>
+                  setWorkflowCode(event.target.value.toUpperCase())
+                }
+                maxLength={32}
+                placeholder="Invitation code"
+                className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 font-mono text-base font-bold uppercase text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
+              />
+              <button
+                type="submit"
+                disabled={!workflowCode.trim()}
+                className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                Review
+              </button>
+            </div>
+          </form>
+        )}
       </section>
 
       <nav
