@@ -56,7 +56,10 @@ export function StudentProjectOverview({
     error,
     isLeader,
   });
-  const titleLabel = researchTitleLabel(project);
+  const recordedTitleLabel = researchTitleLabel(project);
+  const titleLabel = recordedTitleLabel === "Approved research title" && milestones?.some(stage => stage.capturesResearchTitle && ["REVISION_REQUIRED", "NEEDS_REVALIDATION"].includes(stage.status || ""))
+    ? "Previously approved research title"
+    : recordedTitleLabel;
   const approvedTitle = titleLabel === "Approved research title";
   const current = milestones?.find(
     (stage) =>
@@ -164,6 +167,10 @@ export function StudentProjectOverview({
         )}
       </section>
 
+      {milestones && <section className={card} aria-label="Milestone availability">
+        <h3 className="font-bold text-[var(--color-text-primary)]">Milestones and prerequisites</h3>
+        <div className="mt-3 space-y-3">{milestones.map(stage => <div key={stage.id} className="rounded-xl border border-[var(--color-border)] p-3"><p className="font-semibold text-[var(--color-text-primary)]">{stage.name}</p><p className="mt-1 text-sm text-[var(--color-text-secondary)]">{stage.status?.replace(/_/g, " ") || "Not started"}{stage.independent ? " · No prerequisites" : ""}{stage.locked ? " · Blocked" : ""}</p>{stage.blockedReason && <p className="mt-1 text-sm text-amber-800">{stage.blockedReason}</p>}{stage.reason && <p className="mt-1 whitespace-pre-line text-sm text-[var(--color-text-secondary)]">{stage.reason}</p>}</div>)}</div>
+      </section>}
       <section className={card} aria-labelledby="project-workflow-progress">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3

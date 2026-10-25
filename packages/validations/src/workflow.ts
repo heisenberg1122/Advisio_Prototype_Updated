@@ -15,7 +15,28 @@ export const createWorkflowSchema = z.object({
   researchTypeId: z.string().uuid("Invalid research type ID"),
   name: z.string().trim().min(3).max(150),
   description: z.string().optional(),
+  availabilityMode: z
+    .enum(["LEGACY_SEQUENCE", "PREREQUISITES"])
+    .default("PREREQUISITES"),
   stages: z.array(workflowStageSchema).default([]),
+});
+
+export const milestonePrerequisitesSchema = z.object({
+  prerequisiteIds: z
+    .array(z.string().uuid("Invalid prerequisite milestone ID"))
+    .max(100)
+    .optional(),
+  capturesResearchTitle: z.boolean().optional(),
+});
+
+export const milestoneDecisionSchema = z.object({
+  action: z.enum(["REQUEST_REVISION", "APPROVE", "RECONFIRM"]),
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Explain the reason for this decision.")
+    .max(4000),
+  taskIds: z.array(z.string().uuid()).max(100).optional(),
 });
 
 export const createWorkflowTopicSchema = z.object({
@@ -23,10 +44,12 @@ export const createWorkflowTopicSchema = z.object({
   description: z.string().trim().max(2000).optional().nullable(),
 });
 
-export const updateWorkflowTopicSchema = createWorkflowTopicSchema.partial().refine(
-  (value) => value.title !== undefined || value.description !== undefined,
-  "Provide a topic title or description to update.",
-);
+export const updateWorkflowTopicSchema = createWorkflowTopicSchema
+  .partial()
+  .refine(
+    (value) => value.title !== undefined || value.description !== undefined,
+    "Provide a topic title or description to update.",
+  );
 
 export const reorderWorkflowTopicsSchema = z.object({
   topicIds: z.array(z.string().uuid("Invalid topic ID")).min(1),
@@ -40,6 +63,10 @@ export const workflowTransitionSchema = z.object({
 
 export type WorkflowStageInput = z.infer<typeof workflowStageSchema>;
 export type CreateWorkflowInput = z.infer<typeof createWorkflowSchema>;
-export type CreateWorkflowTopicInput = z.infer<typeof createWorkflowTopicSchema>;
-export type UpdateWorkflowTopicInput = z.infer<typeof updateWorkflowTopicSchema>;
+export type CreateWorkflowTopicInput = z.infer<
+  typeof createWorkflowTopicSchema
+>;
+export type UpdateWorkflowTopicInput = z.infer<
+  typeof updateWorkflowTopicSchema
+>;
 export type WorkflowTransitionInput = z.infer<typeof workflowTransitionSchema>;
