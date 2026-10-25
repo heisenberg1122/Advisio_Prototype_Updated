@@ -1,5 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { notificationLink } from "../lib/notification-navigation";
+import { adviserRequestNotificationLink, notificationLink } from "../lib/notification-navigation";
+
+describe("adviser request notifications", () => {
+  it("opens the exact request, including requests outside the dashboard preview", () => {
+    const link = adviserRequestNotificationLink("request-4");
+    expect(link).toBe("/adviser/dashboard?requestId=request-4");
+    expect(notificationLink(link, "adviser")).toBe(link);
+  });
+
+  it("encodes request identifiers without creating extra query parameters", () => {
+    const link = adviserRequestNotificationLink("request&tab=other");
+    const url = new URL(link, "https://advisio.local");
+    expect(url.searchParams.get("requestId")).toBe("request&tab=other");
+    expect(url.searchParams.has("tab")).toBe(false);
+  });
+
+  it("keeps notifications without request context usable", () => {
+    expect(adviserRequestNotificationLink(undefined)).toBe("/adviser/dashboard");
+    expect(adviserRequestNotificationLink(null)).toBe("/adviser/dashboard");
+    expect(adviserRequestNotificationLink("")).toBe("/adviser/dashboard");
+  });
+});
 
 describe("notification workflow links", () => {
   it("keeps exact manuscript context for students", () => {
