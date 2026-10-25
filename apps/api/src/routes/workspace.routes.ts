@@ -12,6 +12,7 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
     const workspaces = await prisma.researchWorkspace.findMany({
       where: { members: { some: { userId: req.user!.id, leftAt: null } } },
       include: {
+        _count: { select: { projects: true } },
         college: { select: { id: true, code: true, name: true } },
         program: { select: { id: true, code: true, name: true } },
         members: {
@@ -215,6 +216,36 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
     res
       .status(error.statusCode || 500)
       .json({ error: error.message || "Failed to join workspace" });
+  }
+});
+
+router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!req.user!.roles.includes("RESEARCHER")) {
+      res.status(403).json({ error: "Researcher access is required." });
+      return;
+    }
+    const workspaceId = String(req.params.id);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workspaceId)) {
+      res.status(400).json({ error: "Invalid workspace ID." });
+      return;
+    }
+    await prisma.$transaction(async (tx) => {
+      // Share the registration/join lock so a project cannot be added during deletion.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${workspaceId}))`;
+      const workspace = await tx.researchWorkspace.findUnique({
+        where: { id: workspaceId },
+        include: { members: { where: { userId: req.user!.id, role: "LEADER", leftAt: null } } },
+      });
+      if (!workspace) throw Object.assign(new Error("Workspace not found."), { statusCode: 404 });
+      if (!workspace.members.length) throw Object.assign(new Error("Only the active workspace leader can delete this workspace."), { statusCode: 403 });
+      const projectCount = await tx.researchProject.count({ where: { workspaceId } });
+      if (projectCount) throw Object.assign(new Error("This workspace contains research projects and cannot be deleted."), { statusCode: 409 });
+      await tx.researchWorkspace.delete({ where: { id: workspaceId } });
+    });
+    res.json({ message: "Workspace deleted." });
+  } catch (error: any) {
+    res.status(error.statusCode || 500).json({ error: error.message || "Failed to delete workspace" });
   }
 });
 

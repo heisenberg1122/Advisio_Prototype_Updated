@@ -231,6 +231,12 @@ function StudentDashboardContent() {
     refetchOnWindowFocus: true,
   });
   const activeWorkspace = workspaceData?.workspaces?.[0] || null;
+  const [workspaceToDelete, setWorkspaceToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [workspaceDeletePending, setWorkspaceDeletePending] = useState(false);
+  const [workspaceDeleteError, setWorkspaceDeleteError] = useState("");
+  const canDeleteWorkspace = activeWorkspace?._count?.projects === 0 && activeWorkspace.members?.some(
+    (member: any) => member.userId === user?.id && member.role === "LEADER" && !member.leftAt,
+  );
   const { data: workflowEnrollmentData } = useQuery({
     queryKey: ["student-workflow-enrollments"],
     queryFn: () =>
@@ -772,6 +778,26 @@ function StudentDashboardContent() {
       triggerToast(error?.message || "The adviser request could not be cancelled.");
     } finally {
       setAdviserCancelPending(false);
+    }
+  };
+
+  const deleteWorkspace = async () => {
+    if (!workspaceToDelete || workspaceDeletePending) return;
+    setWorkspaceDeletePending(true);
+    setWorkspaceDeleteError("");
+    try {
+      await apiClient.delete(`/api/workspaces/${workspaceToDelete.id}`);
+      queryClient.setQueryData<{ workspaces: any[] }>(["student-workspaces"], (previous) => previous ? {
+        ...previous, workspaces: previous.workspaces.filter((workspace) => workspace.id !== workspaceToDelete.id),
+      } : previous);
+      setWorkspaceToDelete(null);
+      setShowCreateModal(false);
+      await queryClient.invalidateQueries({ queryKey: ["student-workspaces"] });
+      triggerToast("Workspace deleted. You can create a new workspace.");
+    } catch (error: any) {
+      setWorkspaceDeleteError(error?.message || "The workspace could not be deleted. Please try again.");
+    } finally {
+      setWorkspaceDeletePending(false);
     }
   };
 
@@ -2269,7 +2295,10 @@ function StudentDashboardContent() {
                       <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
                         <div className="flex flex-wrap items-center justify-between gap-4">
                           <div><p className="text-sm font-extrabold uppercase tracking-widest text-[#C58A18]">{activeWorkspace.participationMode === "GROUP" ? "Research group" : "Solo workspace"}</p><h4 className="mt-1 text-lg font-extrabold text-[#102f49]">{activeWorkspace.name}</h4><p className="mt-1 text-base text-slate-500">{activeWorkspace.program?.code || activeWorkspace.program?.name} · {activeWorkspace.members?.length || 1} member{(activeWorkspace.members?.length || 1) === 1 ? "" : "s"}</p></div>
-                          {!activeWorkspace.projects?.length && <button onClick={() => { setCreateTitle(""); setShowCreateModal(true); }} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"><i className="ti ti-plus mr-1" />Add research project</button>}
+                          <div className="flex flex-wrap gap-2">
+                            {!activeWorkspace.projects?.length && <button onClick={() => { setCreateTitle(""); setShowCreateModal(true); }} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"><i className="ti ti-plus mr-1" />Add research project</button>}
+                            {canDeleteWorkspace && <button onClick={() => { setWorkspaceDeleteError(""); setWorkspaceToDelete({ id: activeWorkspace.id, name: activeWorkspace.name }); }} className="rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-sm font-extrabold text-rose-700 hover:bg-rose-50"><i className="ti ti-trash mr-1" />Delete workspace</button>}
+                          </div>
                         </div>
                         {activeWorkspace.projects?.length > 0 && <div className="mt-4 space-y-2">{activeWorkspace.projects.map((project: any) => <div key={project.id} className="flex items-center justify-between rounded-xl bg-white p-3"><span className="text-sm font-bold text-[#102f49]">{project.title}</span><span className="text-xs font-bold text-slate-500">{project.status}</span></div>)}</div>}
                         {activeWorkspace.participationMode === "GROUP" && <p className="mt-3 text-base text-slate-500">Invite code: <strong className="font-mono text-[#173f63]">{activeWorkspace.inviteCode}</strong></p>}
@@ -2713,6 +2742,29 @@ function StudentDashboardContent() {
               <button onClick={()=>setModalCert(false)} className="px-4 py-2 border border-slate-350 hover:bg-slate-50 rounded-lg text-sm font-bold text-slate-700 cursor-pointer">
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {workspaceToDelete && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4" onKeyDown={(event) => {
+          if (event.key === "Escape" && !workspaceDeletePending) setWorkspaceToDelete(null);
+          if (event.key === "Tab") {
+            const buttons = event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)");
+            const first = buttons[0];
+            const last = buttons[buttons.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+          }
+        }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="workspace-delete-title" aria-describedby="workspace-delete-description" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 id="workspace-delete-title" className="text-lg font-extrabold text-[#102f49]">Delete workspace?</h2>
+            <p id="workspace-delete-description" className="mt-2 text-base leading-6 text-slate-600">The workspace “{workspaceToDelete.name}” will be permanently deleted for all members and its invitation code will stop working. This cannot be undone.</p>
+            {workspaceDeleteError && <p role="alert" className="mt-3 text-sm font-semibold text-rose-700">{workspaceDeleteError}</p>}
+            <div className="mt-6 flex justify-end gap-2">
+              <button autoFocus onClick={() => setWorkspaceToDelete(null)} disabled={workspaceDeletePending} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600 disabled:opacity-50">Cancel</button>
+              <button onClick={deleteWorkspace} disabled={workspaceDeletePending} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white hover:bg-rose-700 disabled:opacity-50">{workspaceDeletePending ? "Deleting…" : "Delete workspace"}</button>
             </div>
           </div>
         </div>
