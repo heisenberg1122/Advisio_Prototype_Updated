@@ -35,6 +35,8 @@ import {
 } from "../services/research-workflow-integration.service.js";
 import { SubmissionIntegrityError } from "../services/submission.service.js";
 
+import { hasActiveWorkflowEnrollment } from "../services/workflow-enrollment-access.service.js";
+
 const router = Router();
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -741,6 +743,12 @@ router.get(
         return void res.status(403).json({
           error: "You cannot view this project's manuscript workflow.",
         });
+      if (req.user!.roles.includes("RESEARCHER")) {
+        const instance = await prisma.workflowInstance.findUnique({ where: { researchId }, select: { workflowId: true } });
+        if (!instance || !(await hasActiveWorkflowEnrollment(req.user!.id, instance.workflowId))) {
+          return void res.status(403).json({ error: "Your access to this workflow was removed by the professor." });
+        }
+      }
       const [milestones, activity] = await Promise.all([
         getMilestoneProgress(prisma, researchId),
         getManuscriptActivity(prisma, researchId, access.canReview),

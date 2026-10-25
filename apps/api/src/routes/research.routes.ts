@@ -16,6 +16,8 @@ import { requirePermission } from "../middleware/rbac";
 import { randomBytes } from "node:crypto";
 import { getCollegeScope } from "../lib/college-scope.js";
 
+import { filterResearchWorkflowDetails } from "../services/workflow-enrollment-access.service.js";
+
 const router = Router();
 
 function researchScopeWhere(user: AuthenticatedUser) {
@@ -193,7 +195,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
       orderBy: { updatedAt: "desc" },
     });
 
-    res.json({ projects });
+    res.json({ projects: await filterResearchWorkflowDetails(req.user!, projects) });
   } catch (error: any) {
     res
       .status(500)
@@ -387,7 +389,7 @@ router.post(
                 userId: req.user!.id,
               },
             },
-            update: { status: "ACTIVE", joinedAt: new Date() },
+            update: {},
             create: {
               workflowId: selectedWorkflow.id,
               userId: req.user!.id,
@@ -413,7 +415,7 @@ router.post(
           if (selectedWorkflow && otherMembers.length) {
             for (const { userId } of otherMembers) await tx.workflowEnrollment.upsert({
               where: { workflowId_userId: { workflowId: selectedWorkflow.id, userId } },
-              update: { status: "ACTIVE", joinedAt: new Date() },
+              update: {},
               create: { workflowId: selectedWorkflow.id, userId },
             });
           }
@@ -597,7 +599,8 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
       return;
     }
 
-    res.json(jsonSafe({ project }));
+    const [visibleProject] = await filterResearchWorkflowDetails(req.user!, [project]);
+    res.json(jsonSafe({ project: visibleProject }));
   } catch (error: any) {
     res
       .status(500)
@@ -1124,7 +1127,7 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
                 userId: req.user!.id,
               },
             },
-            update: { status: "ACTIVE", joinedAt: new Date() },
+            update: {},
             create: {
               workflowId: project.workflowInstance.workflowId,
               userId: req.user!.id,
@@ -1310,7 +1313,7 @@ router.patch(
                   userId: joinRequest.requesterId,
                 },
               },
-              update: { status: "ACTIVE", joinedAt: new Date() },
+              update: {},
               create: {
                 workflowId: project.workflowInstance.workflowId,
                 userId: joinRequest.requesterId,

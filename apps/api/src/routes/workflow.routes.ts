@@ -32,6 +32,8 @@ import {
   SubmissionIntegrityError,
 } from "../services/submission.service.js";
 
+import { hasActiveWorkflowEnrollment } from "../services/workflow-enrollment-access.service.js";
+
 const router = Router();
 const resourceUpload = multer({
   storage: multer.memoryStorage(),
@@ -107,6 +109,9 @@ async function workflowAccess(
         (!user.programId || user.programId === program.id),
       ));
   if (manages) return { workflow, manages: true };
+  if (user.roles.includes("RESEARCHER")) {
+    return await hasActiveWorkflowEnrollment(user.id, workflowId) ? { workflow, manages: false } : null;
+  }
   const [enrollment, membership] = await Promise.all([
     prisma.workflowEnrollment.findFirst({
       where: { workflowId, userId: user.id, status: "ACTIVE" },
@@ -894,6 +899,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
     const workflows = await prisma.workflow.findMany({
       where: {
         AND: [
+          ...(req.user!.roles.includes("RESEARCHER") ? [{ enrollments: { some: { userId: req.user!.id, status: "ACTIVE" } } }] : []),
           ...(researchTypeId
             ? [{ researchTypeId: String(researchTypeId) }]
             : []),
@@ -1308,8 +1314,8 @@ router.get(
             },
           },
           enrollments: {
-            where: { userId: req.user!.id, status: "ACTIVE" },
-            select: { id: true },
+            where: { userId: req.user!.id },
+            select: { id: true, status: true },
           },
         },
       });
@@ -1321,6 +1327,9 @@ router.get(
         return void res
           .status(404)
           .json({ error: "This workflow invitation is invalid or expired." });
+      }
+      if (workflow.enrollments.some((enrollment) => enrollment.status !== "ACTIVE")) {
+        return void res.status(403).json({ error: "Your access to this workflow was removed by the professor." });
       }
       res.json({
         invitation: {
@@ -1384,9 +1393,12 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
       where: {
         workflowId_userId: { workflowId: workflow.id, userId: req.user!.id },
       },
-      update: { status: "ACTIVE", joinedAt: new Date() },
+      update: {},
       create: { workflowId: workflow.id, userId: req.user!.id },
     });
+    if (enrollment.status !== "ACTIVE") {
+      return void res.status(403).json({ error: "Your access to this workflow was removed by the professor." });
+    }
     await prisma.notification.createMany({
       data: [
         {
@@ -1441,7 +1453,11 @@ router.get(
         },
         orderBy: { joinedAt: "desc" },
       });
-      res.json({ enrollments });
+      const removedEnrollments = await prisma.workflowEnrollment.findMany({
+        where: { userId: req.user!.id, status: "REVOKED" },
+        select: { workflowId: true },
+      });
+      res.json({ enrollments, removedWorkflowIds: removedEnrollments.map((item) => item.workflowId) });
     } catch (error: any) {
       res.status(500).json({
         error: error.message || "Failed to load workflow enrollments.",
@@ -1574,7 +1590,7 @@ router.delete(
       }
 
       await prisma.$transaction([
-        prisma.workflowEnrollment.delete({ where: { id: enrollment.id } }),
+        prisma.workflowEnrollment.update({ where: { id: enrollment.id }, data: { status: "REVOKED" } }),
         prisma.notification.create({
           data: {
             recipientId: enrollment.user.id,
@@ -1588,7 +1604,7 @@ router.delete(
         prisma.auditLog.create({
           data: {
             userId: req.user!.id,
-            action: "DELETE",
+            action: "UPDATE",
             entityType: "WorkflowEnrollment",
             entityId: enrollment.id,
             oldValues: {
@@ -1602,7 +1618,7 @@ router.delete(
               status: enrollment.status,
               joinedAt: enrollment.joinedAt.toISOString(),
             },
-            newValues: { removalReason: reason },
+            newValues: { status: "REVOKED", removalReason: reason },
             ipAddress: req.ip,
             userAgent: req.get("user-agent") || null,
           },
@@ -2304,6 +2320,9 @@ router.post(
           error: "You are not an active member of this research group.",
         });
 
+      if (!(await hasActiveWorkflowEnrollment(req.user.id, project.workflowInstance.workflowId))) {
+        return void res.status(403).json({ error: "Your access to this workflow was removed by the professor." });
+      }
       const stage = await prisma.workflowStage.findFirst({
         where: { id: stageId, workflowId: project.workflowInstance.workflowId },
       });

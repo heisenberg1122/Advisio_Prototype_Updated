@@ -9,6 +9,8 @@ import type { AuthenticatedUser } from "../middleware/auth.js";
 import { documentAccessService } from "./document-access.service.js";
 import { createConfiguredAssignmentsForSubmission } from "./reviewer-assignment.service.js";
 
+import { hasActiveWorkflowEnrollment } from "./workflow-enrollment-access.service.js";
+
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
 export class SubmissionIntegrityError extends Error {
@@ -376,6 +378,14 @@ export function validateSubmissionArtifact(options: {
   return fromExtension;
 }
 
+export async function assertTaskWorkflowEnrollment(
+  db: Pick<Prisma.TransactionClient, "workflowEnrollment">, userId: string, workflowId: string,
+) {
+  if (!(await hasActiveWorkflowEnrollment(userId, workflowId, db))) {
+    throw new SubmissionIntegrityError("Your access to this workflow was removed by the professor.", 403, "WORKFLOW_ENROLLMENT_REQUIRED");
+  }
+}
+
 export async function authorizeTaskSubmission(options: {
   user: AuthenticatedUser;
   researchId: string;
@@ -428,6 +438,7 @@ export async function authorizeTaskSubmission(options: {
       "WORKFLOW_REQUIRED",
     );
   }
+  await assertTaskWorkflowEnrollment(prisma, options.user.id, project.workflowInstance.workflowId);
   const task = await prisma.workflowTask.findFirst({
     where: {
       id: options.taskId,

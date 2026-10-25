@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   SubmissionIntegrityError,
   assertTaskSubmissionLifecycle,
+  assertTaskWorkflowEnrollment,
   authorizeTaskSubmission,
   liveGoogleDocumentEligibility,
   parseAllowedFileTypes,
@@ -16,6 +17,12 @@ import {
 } from "./submission.service.js";
 
 describe("submission integrity policy", () => {
+  it("rechecks enrollment inside the submission transaction", async () => {
+    const tx = { workflowEnrollment: { findFirst: vi.fn().mockResolvedValue(null) } } as any;
+    await expect(assertTaskWorkflowEnrollment(tx, "student", "workflow")).rejects.toMatchObject({ statusCode: 403, code: "WORKFLOW_ENROLLMENT_REQUIRED" });
+    tx.workflowEnrollment.findFirst.mockResolvedValue({ id: "active" });
+    await expect(assertTaskWorkflowEnrollment(tx, "student", "workflow")).resolves.toBeUndefined();
+  });
   it("requires the student role before project-scoped task authorization", async () => {
     await expect(
       authorizeTaskSubmission({

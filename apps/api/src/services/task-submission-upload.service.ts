@@ -9,6 +9,7 @@ import {
 import {
   assertTaskSubmissionLifecycle,
   authorizeTaskSubmission,
+  assertTaskWorkflowEnrollment,
   configureTaskSubmissionReview,
   runSubmissionTransaction,
   storedVersionEligibility,
@@ -131,6 +132,7 @@ export async function uploadTaskSubmission(options: {
 
   try {
     result = await runSubmissionTransaction(async (tx) => {
+      await assertTaskWorkflowEnrollment(tx, options.user.id, project.workflowInstance!.workflowId);
       await assertTaskSubmissionLifecycle(tx, {
         researchId: options.researchId,
         taskId: options.taskId,
@@ -401,6 +403,7 @@ export async function submitStoredTaskVersion(options: {
   };
   try {
     recordedSubmission = await runSubmissionTransaction(async (tx) => {
+      await assertTaskWorkflowEnrollment(tx, options.user.id, project.workflowInstance!.workflowId);
       const committedSnapshot = await tx.documentVersion.findFirst({
         where: { documentId: document.id, submissionKey },
         select: { id: true },

@@ -243,7 +243,7 @@ function StudentDashboardContent() {
     queryFn: () =>
       apiClient.get<{ enrollments: any[] }>("/api/workflows/enrollments/me"),
     refetchOnWindowFocus: true,
-    refetchInterval: showCreateModal ? 5000 : false,
+    refetchInterval: 5000,
   });
   // Enrollment results are ordered by joinedAt descending by the API.
   const registrationWorkflow = workflowEnrollmentData?.enrollments?.[0]?.workflow;
@@ -315,17 +315,16 @@ function StudentDashboardContent() {
     enabled: Boolean(activeProject?.id),
     refetchOnWindowFocus: true,
   });
-  const { data: manuscriptWorkflowData } = useQuery({
+  const { data: manuscriptWorkflowResponse } = useQuery({
     queryKey: ["student-manuscript-workflow", activeProject?.id],
     queryFn: () => apiClient.get<{ milestones: any[]; activity: any[] }>(`/api/research/${activeProject.id}/manuscript-workflow`),
     enabled: Boolean(activeProject?.id),
     refetchOnWindowFocus: true,
   });
-  const activeWorkflowEnrollment =
-    workflowEnrollmentData?.enrollments?.find(
-      (enrollment: any) =>
-        enrollment.workflowId === activeProject?.workflowInstance?.workflowId,
-    ) || workflowEnrollmentData?.enrollments?.[0];
+  const manuscriptWorkflowData = activeProject?.workflowAccessRemoved ? undefined : manuscriptWorkflowResponse;
+  const activeWorkflowEnrollment = activeProject
+    ? workflowEnrollmentData?.enrollments?.find((enrollment: any) => enrollment.workflowId === activeProject.workflowInstance?.workflowId)
+    : workflowEnrollmentData?.enrollments?.[0];
   const { data: defenseResultData } = useQuery({
     queryKey: ["student-defense-result", activeProject?.id],
     queryFn: () => apiClient.get<{ result: any | null }>(`/api/research/${activeProject.id}/defense-result`),

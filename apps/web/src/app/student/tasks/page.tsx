@@ -68,7 +68,7 @@ export default function ResearchTasksPage() {
     queryFn: async () => {
       const [list, enrollmentList] = await Promise.all([
         apiClient.get<{ projects: any[] }>("/api/research"),
-        apiClient.get<{ enrollments: any[] }>("/api/workflows/enrollments/me"),
+        apiClient.get<{ enrollments: any[]; removedWorkflowIds?: string[] }>("/api/workflows/enrollments/me"),
       ]);
       const projects = list.projects || [];
       const project = sharedProjectId
@@ -77,14 +77,12 @@ export default function ResearchTasksPage() {
           ? projects[0]
           : undefined;
       const enrollments = enrollmentList.enrollments || [];
-      const activeEnrollment =
-        enrollments.find(
-          (enrollment: any) =>
-            enrollment.workflowId === project?.workflowInstance?.workflowId,
-        ) || enrollments[0];
-      const stages = project
-        ? project.workflowInstance?.workflow?.stages || []
-        : activeEnrollment?.workflow?.stages || [];
+      const activeEnrollment = project
+        ? enrollments.find((enrollment: any) => enrollment.workflowId === project.workflowInstance?.workflowId)
+        : enrollments[0];
+      const stages = activeEnrollment
+        ? (project ? project.workflowInstance?.workflow?.stages : activeEnrollment.workflow?.stages) || []
+        : [];
       const currentSequence =
         project?.workflowInstance?.currentStage?.sequence || 0;
       const submissions = new Map(
@@ -144,9 +142,10 @@ export default function ResearchTasksPage() {
           },
         ];
       });
-      return { project, projects, tasks, enrollments };
+      return { project, projects, tasks, enrollments, removedWorkflowIds: enrollmentList.removedWorkflowIds || [] };
     },
     refetchOnWindowFocus: true,
+    refetchInterval: 5000,
   });
   const projectSelection = useActiveProject(data?.projects || []);
   const projectedSelectedTask = requestedTaskId
@@ -157,10 +156,9 @@ export default function ResearchTasksPage() {
       ? startedTaskOverride
       : projectedSelectedTask;
 
-  const workflowId =
-    data?.project?.workflowInstance?.workflow?.id ||
-    data?.project?.workflowInstance?.workflowId ||
-    data?.enrollments?.[0]?.workflowId;
+  const workflowId = data?.project
+    ? data.project.workflowAccessRemoved ? undefined : data.project.workflowInstance?.workflowId
+    : data?.enrollments?.[0]?.workflowId;
   const { data: workflowResources } = useQuery({
     queryKey: ["workflow-resources", workflowId],
     queryFn: () =>
@@ -377,11 +375,10 @@ export default function ResearchTasksPage() {
   const tasks = data?.tasks || [];
   const project = data?.project;
   const enrollments = data?.enrollments || [];
-  const activeEnrollment =
-    enrollments.find(
-      (enrollment: any) =>
-        enrollment.workflowId === project?.workflowInstance?.workflowId,
-    ) || enrollments[0];
+  const activeEnrollment = project
+    ? enrollments.find((enrollment: any) => enrollment.workflowId === project.workflowInstance?.workflowId)
+    : enrollments[0];
+  const workflowAccessRemoved = project?.workflowAccessRemoved || (!activeEnrollment && !!data?.removedWorkflowIds?.length);
   const acceptedWorkflowName = searchParams.get("workflowAccepted");
   const invitationDeclined = searchParams.get("invitation") === "declined";
   const currentSequence =
@@ -398,6 +395,10 @@ export default function ResearchTasksPage() {
   const adviser = (project?.members || []).find(
     (member: any) => !member.leftAt && member.projectRole === "ADVISER",
   );
+
+  if (requestedTaskId && workflowAccessRemoved) {
+    return <TaskDetailsUnavailable title="Workflow access removed" explanation="Your access to this workflow was removed by the professor. Contact your professor if this was a mistake." backHref={studentTasksHref(project?.id)} />;
+  }
 
   if (requestedTaskId) {
     if (!project) {
@@ -450,7 +451,9 @@ export default function ResearchTasksPage() {
         </div>
       )}
 
-      {acceptedWorkflowName && (
+      {workflowAccessRemoved && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">Your access to this workflow was removed by the professor. Contact your professor if this was a mistake.</div>}
+
+      {acceptedWorkflowName && activeEnrollment && (
         <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
           <i className="ti ti-circle-check mt-0.5 text-lg" />
           <div>
@@ -529,16 +532,16 @@ export default function ResearchTasksPage() {
               ) : (
                 <>
                   <h2 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">
-                    No workflow joined yet
+                    {workflowAccessRemoved ? "Workflow access removed" : "No workflow joined yet"}
                   </h2>
                   <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
-                    Use the code or invitation link provided by your professor.
+                    {workflowAccessRemoved ? "Contact your professor to discuss access." : "Use the code or invitation link provided by your professor."}
                   </p>
                 </>
               )}
             </div>
             <Tag variant={activeEnrollment ? "success" : "info"}>
-              {activeEnrollment ? "Active" : "Not joined"}
+              {activeEnrollment ? "Active" : workflowAccessRemoved ? "Removed" : "Not joined"}
             </Tag>
           </div>
           {activeEnrollment && (
