@@ -4895,111 +4895,14 @@ function ProfessorDashboardContent() {
                         academic resources.
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowWorkflowCreateMenu((value) => !value)
-                          }
-                          disabled={!selectedWorkflowId}
-                          aria-haspopup="menu"
-                          aria-expanded={showWorkflowCreateMenu}
-                          className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          <i className="ti ti-plus mr-1.5" />
-                          Create <i className="ti ti-chevron-down ml-1" />
-                        </button>
-                        {showWorkflowCreateMenu && (
-                          <div
-                            role="menu"
-                            className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-xl"
-                          >
-                            <button
-                              type="button"
-                              role="menuitem"
-                              onClick={() => openTopicEditor()}
-                              className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
-                            >
-                              <i className="ti ti-folders mt-0.5 text-lg text-[#C58A18]" />
-                              <span>
-                                <strong className="block text-sm text-[#102f49]">
-                                  Topic
-                                </strong>
-                                <span className="mt-0.5 block text-sm text-slate-500">
-                                  Group milestones by defense or phase
-                                </span>
-                              </span>
-                            </button>
-                            <div className="my-1 border-t border-slate-100" />
-                            {[
-                              [
-                                "submission",
-                                "ti-file-upload",
-                                "Submission milestone",
-                                "Collect a document or deliverable",
-                              ],
-                              [
-                                "approval",
-                                "ti-circle-check",
-                                "Approval checkpoint",
-                                "Review before researchers continue",
-                              ],
-                              [
-                                "event",
-                                "ti-presentation",
-                                "Academic event",
-                                "Presentation, defense, or consultation",
-                              ],
-                            ].map(([kind, icon, label, description]) => (
-                              <button
-                                key={kind}
-                                type="button"
-                                role="menuitem"
-                                onClick={() =>
-                                  openNewMilestone(
-                                    kind as "submission" | "approval" | "event",
-                                  )
-                                }
-                                className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
-                              >
-                                <i
-                                  className={`ti ${icon} mt-0.5 text-lg text-[#173f63]`}
-                                />
-                                <span>
-                                  <strong className="block text-sm text-[#102f49]">
-                                    {label}
-                                  </strong>
-                                  <span className="mt-0.5 block text-sm text-slate-500">
-                                    {description}
-                                  </span>
-                                </span>
-                              </button>
-                            ))}
-                            <div className="my-1 border-t border-slate-100" />
-                            <button
-                              type="button"
-                              role="menuitem"
-                              onClick={() => {
-                                setShowWorkflowCreateMenu(false);
-                                setWorkflowView("resources");
-                              }}
-                              className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
-                            >
-                              <i className="ti ti-books mt-0.5 text-lg text-[#173f63]" />
-                              <span>
-                                <strong className="block text-sm text-[#102f49]">
-                                  Guide or template
-                                </strong>
-                                <span className="mt-0.5 block text-sm text-slate-500">
-                                  Share a reusable workflow resource
-                                </span>
-                              </span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCreatingWorkflow(true)}
+                      className="shrink-0 self-start rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#102f49] lg:self-auto"
+                    >
+                      <i className="ti ti-plus mr-1.5" />
+                      Create workflow
+                    </button>
                   </div>
                   <div className="mt-5 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center">
                     <label className="text-sm font-bold text-slate-600">
@@ -5022,14 +4925,6 @@ function ProfessorDashboardContent() {
                         </option>
                       ))}
                     </select>
-                    <button
-                      type="button"
-                      onClick={() => setCreatingWorkflow(true)}
-                      className="rounded-xl border border-[#173f63] bg-white px-4 py-2.5 text-sm font-extrabold text-[#173f63] transition hover:bg-[#173f63] hover:text-white"
-                    >
-                      <i className="ti ti-plus mr-1.5" />
-                      Create workflow
-                    </button>
                     <span className="text-xs text-slate-400">
                       Changes are saved directly to this workflow.
                     </span>
@@ -5281,7 +5176,7 @@ function ProfessorDashboardContent() {
                     {!workflowsLoading && !workflowsError && (
                       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
                         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                               <h3 className="text-lg font-extrabold text-[#102f49]">
                                 Milestone order
@@ -5291,15 +5186,120 @@ function ProfessorDashboardContent() {
                                 student submissions.
                               </p>
                             </div>
-                            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                              {
-                                milestones.filter(
-                                  (item) =>
-                                    item.workflowId === selectedWorkflowId,
-                                ).length
-                              }{" "}
-                              milestones
-                            </span>
+                            <div className="flex shrink-0 flex-wrap items-center gap-3 self-end sm:self-auto">
+                              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                                {
+                                  milestones.filter(
+                                    (item) =>
+                                      item.workflowId === selectedWorkflowId,
+                                  ).length
+                                }{" "}
+                                milestones
+                              </span>
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setShowWorkflowCreateMenu((value) => !value)
+                                  }
+                                  disabled={!selectedWorkflowId}
+                                  aria-haspopup="menu"
+                                  aria-expanded={showWorkflowCreateMenu}
+                                  className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  <i className="ti ti-plus mr-1.5" />
+                                  Create <i className="ti ti-chevron-down ml-1" />
+                                </button>
+                                {showWorkflowCreateMenu && (
+                                  <div
+                                    role="menu"
+                                    className="absolute right-0 z-20 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white py-2 shadow-xl"
+                                  >
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      onClick={() => openTopicEditor()}
+                                      className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
+                                    >
+                                      <i className="ti ti-folders mt-0.5 text-lg text-[#C58A18]" />
+                                      <span>
+                                        <strong className="block text-sm text-[#102f49]">
+                                          Topic
+                                        </strong>
+                                        <span className="mt-0.5 block text-sm text-slate-500">
+                                          Group milestones by defense or phase
+                                        </span>
+                                      </span>
+                                    </button>
+                                    <div className="my-1 border-t border-slate-100" />
+                                    {[
+                                      [
+                                        "submission",
+                                        "ti-file-upload",
+                                        "Submission milestone",
+                                        "Collect a document or deliverable",
+                                      ],
+                                      [
+                                        "approval",
+                                        "ti-circle-check",
+                                        "Approval checkpoint",
+                                        "Review before researchers continue",
+                                      ],
+                                      [
+                                        "event",
+                                        "ti-presentation",
+                                        "Academic event",
+                                        "Presentation, defense, or consultation",
+                                      ],
+                                    ].map(([kind, icon, label, description]) => (
+                                      <button
+                                        key={kind}
+                                        type="button"
+                                        role="menuitem"
+                                        onClick={() =>
+                                          openNewMilestone(
+                                            kind as "submission" | "approval" | "event",
+                                          )
+                                        }
+                                        className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
+                                      >
+                                        <i
+                                          className={`ti ${icon} mt-0.5 text-lg text-[#173f63]`}
+                                        />
+                                        <span>
+                                          <strong className="block text-sm text-[#102f49]">
+                                            {label}
+                                          </strong>
+                                          <span className="mt-0.5 block text-sm text-slate-500">
+                                            {description}
+                                          </span>
+                                        </span>
+                                      </button>
+                                    ))}
+                                    <div className="my-1 border-t border-slate-100" />
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      onClick={() => {
+                                        setShowWorkflowCreateMenu(false);
+                                        setWorkflowView("resources");
+                                      }}
+                                      className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
+                                    >
+                                      <i className="ti ti-books mt-0.5 text-lg text-[#173f63]" />
+                                      <span>
+                                        <strong className="block text-sm text-[#102f49]">
+                                          Guide or template
+                                        </strong>
+                                        <span className="mt-0.5 block text-sm text-slate-500">
+                                          Share a reusable workflow resource
+                                        </span>
+                                      </span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
                           <div className="mt-5 space-y-5">
                             {ungroupedWorkflowMilestones.length > 0 && (
