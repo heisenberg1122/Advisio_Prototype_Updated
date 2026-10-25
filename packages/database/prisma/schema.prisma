@@ -122,6 +122,11 @@ enum WorkflowStatus {
   ARCHIVED
 }
 
+enum WorkflowStageType {
+  STANDARD
+  ADVISER_SELECTION
+}
+
 enum ReviewType {
   ADVISER
   PANEL
@@ -829,6 +834,7 @@ model AdviserRequest {
   note                  String?              @db.Text
   responseNote          String?              @map("response_note") @db.Text
   requestFormDocumentId String?              @map("request_form_document_id") @db.Uuid
+  workflowStageId       String?              @map("workflow_stage_id") @db.Uuid
   respondedAt           DateTime?            @map("responded_at")
   createdAt             DateTime             @default(now()) @map("created_at")
   updatedAt             DateTime             @updatedAt @map("updated_at")
@@ -837,11 +843,13 @@ model AdviserRequest {
   adviser             User            @relation("RequestedAdviser", fields: [adviserId], references: [id], onDelete: Cascade)
   requestedBy         User            @relation("AdviserRequestCreator", fields: [requestedById], references: [id], onDelete: Cascade)
   requestFormDocument Document?       @relation(fields: [requestFormDocumentId], references: [id], onDelete: SetNull)
+  workflowStage       WorkflowStage?  @relation(fields: [workflowStageId], references: [id], onDelete: SetNull)
 
   @@unique([researchId, adviserId])
   @@index([adviserId, status])
   @@index([researchId, status])
   @@index([requestFormDocumentId])
+  @@index([workflowStageId, status])
   @@map("adviser_requests")
 }
 
@@ -923,7 +931,7 @@ model Workflow {
   stages        WorkflowStage[]
   topics        WorkflowTopic[]
   instances     WorkflowInstance[]
-  creator       User                 @relation("WorkflowCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  creator       User                  @relation("WorkflowCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   accessEntries WorkflowAccessEntry[]
   enrollments   WorkflowEnrollment[]
   resources     WorkflowResource[]
@@ -975,20 +983,21 @@ model WorkflowTopic {
 }
 
 model WorkflowStage {
-  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workflowId        String  @map("workflow_id") @db.Uuid
-  topicId           String? @map("topic_id") @db.Uuid
-  name              String  @db.VarChar(150)
-  description       String? @db.Text
-  category          String  @default("Milestone") @db.VarChar(50)
-  sequence          Int
-  responsibleRoleId String  @map("responsible_role_id") @db.Uuid
-  requiresApproval  Boolean @default(true) @map("requires_approval")
-  requiresDocument  Boolean @default(true) @map("requires_document")
-  deadlineDays      Int?    @map("deadline_days")
-  targetCompletionDate DateTime? @map("target_completion_date") @db.Date
-  isFinal           Boolean @default(false) @map("is_final")
-  submissionMode    String  @default("EITHER") @map("submission_mode") @db.VarChar(20)
+  id                   String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowId           String            @map("workflow_id") @db.Uuid
+  topicId              String?           @map("topic_id") @db.Uuid
+  name                 String            @db.VarChar(150)
+  description          String?           @db.Text
+  category             String            @default("Milestone") @db.VarChar(50)
+  sequence             Int
+  responsibleRoleId    String            @map("responsible_role_id") @db.Uuid
+  requiresApproval     Boolean           @default(true) @map("requires_approval")
+  requiresDocument     Boolean           @default(true) @map("requires_document")
+  deadlineDays         Int?              @map("deadline_days")
+  targetCompletionDate DateTime?         @map("target_completion_date") @db.Date
+  isFinal              Boolean           @default(false) @map("is_final")
+  submissionMode       String            @default("EITHER") @map("submission_mode") @db.VarChar(20)
+  milestoneType        WorkflowStageType @default(STANDARD) @map("milestone_type")
 
   workflow               Workflow                  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   topic                  WorkflowTopic?            @relation(fields: [topicId], references: [id], onDelete: SetNull)
@@ -1001,6 +1010,7 @@ model WorkflowStage {
   documents              Document[]                @relation("DocumentMilestone")
   submittedVersions      DocumentVersion[]         @relation("DocumentVersionMilestone")
   taskSubmissionAttempts TaskSubmissionAttempt[]
+  adviserRequests        AdviserRequest[]
 
   @@unique([workflowId, sequence])
   @@index([topicId])
@@ -1422,23 +1432,23 @@ model MailThread {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  createdBy    User              @relation("MailThreadCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  participants MailParticipant[]
+  createdBy          User                 @relation("MailThreadCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  participants       MailParticipant[]
   workflowInvitation WorkflowAccessEntry?
-  messages     MailMessage[]
+  messages           MailMessage[]
 
   @@index([updatedAt])
   @@map("mail_threads")
 }
 
 model MailParticipant {
-  threadId     String            @map("thread_id") @db.Uuid
-  userId       String            @map("user_id") @db.Uuid
+  threadId      String            @map("thread_id") @db.Uuid
+  userId        String            @map("user_id") @db.Uuid
   recipientType MailRecipientType @default(TO) @map("recipient_type")
-  readAt       DateTime?         @map("read_at")
-  archivedAt   DateTime?         @map("archived_at")
-  trashedAt    DateTime?         @map("trashed_at")
-  joinedAt     DateTime          @default(now()) @map("joined_at")
+  readAt        DateTime?         @map("read_at")
+  archivedAt    DateTime?         @map("archived_at")
+  trashedAt     DateTime?         @map("trashed_at")
+  joinedAt      DateTime          @default(now()) @map("joined_at")
 
   thread MailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
   user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1868,15 +1878,15 @@ model DefenseSession {
   preparedAt     DateTime?            @map("prepared_at")
   calledAt       DateTime?            @map("called_at")
 
-  research          ResearchProject            @relation(fields: [researchId], references: [id], onDelete: Cascade)
-  defenseEvent      DefenseEvent?              @relation(fields: [defenseEventId], references: [id], onDelete: SetNull)
-  creator           User?                      @relation("DefenseSessionCreator", fields: [createdBy], references: [id], onDelete: SetNull)
-  invitations       DefenseInvitation[]
-  evaluations       Evaluation[]
-  packet            DefensePacket?
-  manuscriptReviews PanelistManuscriptReview[]
-  recommendations   PanelistRecommendation[]
-  pdfEvaluations    PdfEvaluation[]
+  research              ResearchProject            @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  defenseEvent          DefenseEvent?              @relation(fields: [defenseEventId], references: [id], onDelete: SetNull)
+  creator               User?                      @relation("DefenseSessionCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  invitations           DefenseInvitation[]
+  evaluations           Evaluation[]
+  packet                DefensePacket?
+  manuscriptReviews     PanelistManuscriptReview[]
+  recommendations       PanelistRecommendation[]
+  pdfEvaluations        PdfEvaluation[]
   packetDocumentReviews PacketDocumentReview[]
 
   @@index([researchId, status])
@@ -1889,61 +1899,63 @@ model DefenseSession {
 // Each reviewer owns a separate source snapshot and editable annotation draft.
 // Final PDF bytes are retained with the exact revision and checksum submitted.
 model PdfEvaluation {
-  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  defenseSessionId  String           @map("defense_session_id") @db.Uuid
-  panelistId        String           @map("panelist_id") @db.Uuid
-  sourceVersionId   String           @map("source_version_id") @db.Uuid
-  sourceData        Bytes            @map("source_data")
-  sourceChecksum    String           @map("source_checksum") @db.VarChar(64)
-  annotations       Json             @default("[]")
-  revision          Int              @default(1)
-  status            EvaluationStatus @default(DRAFT)
-  signatureData     Bytes?           @map("signature_data")
-  signaturePlacement Json?           @map("signature_placement")
-  signedAt          DateTime?        @map("signed_at")
-  previewHash       String?          @map("preview_hash") @db.VarChar(64)
-  finalData         Bytes?           @map("final_data")
-  integrityHash     String?          @map("integrity_hash") @db.VarChar(64)
-  lockedAt          DateTime?        @map("locked_at")
-  createdAt         DateTime         @default(now()) @map("created_at")
-  updatedAt         DateTime         @updatedAt @map("updated_at")
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  defenseSessionId   String           @map("defense_session_id") @db.Uuid
+  panelistId         String           @map("panelist_id") @db.Uuid
+  sourceVersionId    String           @map("source_version_id") @db.Uuid
+  sourceData         Bytes            @map("source_data")
+  sourceChecksum     String           @map("source_checksum") @db.VarChar(64)
+  annotations        Json             @default("[]")
+  revision           Int              @default(1)
+  status             EvaluationStatus @default(DRAFT)
+  signatureData      Bytes?           @map("signature_data")
+  signaturePlacement Json?            @map("signature_placement")
+  signedAt           DateTime?        @map("signed_at")
+  previewHash        String?          @map("preview_hash") @db.VarChar(64)
+  finalData          Bytes?           @map("final_data")
+  integrityHash      String?          @map("integrity_hash") @db.VarChar(64)
+  lockedAt           DateTime?        @map("locked_at")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
 
-  defenseSession DefenseSession @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
-  panelist User @relation(fields: [panelistId], references: [id], onDelete: Restrict)
-  sourceVersion DocumentVersion @relation(fields: [sourceVersionId], references: [id], onDelete: Restrict)
+  defenseSession DefenseSession  @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
+  panelist       User            @relation(fields: [panelistId], references: [id], onDelete: Restrict)
+  sourceVersion  DocumentVersion @relation(fields: [sourceVersionId], references: [id], onDelete: Restrict)
 
   @@unique([defenseSessionId, panelistId])
   @@map("pdf_evaluations")
 }
 
 model PacketDocumentReview {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  defenseSessionId String   @map("defense_session_id") @db.Uuid
-  panelistId       String   @map("panelist_id") @db.Uuid
-  sourceVersionId  String   @map("source_version_id") @db.Uuid
-  sourceData       Bytes    @map("source_data")
-  sourceChecksum   String   @map("source_checksum") @db.VarChar(64)
-  annotations      Json     @default("[]")
-  revision         Int      @default(1)
-  previewHash      String?  @map("preview_hash") @db.VarChar(64)
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-  defenseSession DefenseSession @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
-  panelist User @relation(fields: [panelistId], references: [id], onDelete: Restrict)
-  sourceVersion DocumentVersion @relation(fields: [sourceVersionId], references: [id], onDelete: Restrict)
-  publications PacketReviewPublication[]
+  id               String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  defenseSessionId String                    @map("defense_session_id") @db.Uuid
+  panelistId       String                    @map("panelist_id") @db.Uuid
+  sourceVersionId  String                    @map("source_version_id") @db.Uuid
+  sourceData       Bytes                     @map("source_data")
+  sourceChecksum   String                    @map("source_checksum") @db.VarChar(64)
+  annotations      Json                      @default("[]")
+  revision         Int                       @default(1)
+  previewHash      String?                   @map("preview_hash") @db.VarChar(64)
+  createdAt        DateTime                  @default(now()) @map("created_at")
+  updatedAt        DateTime                  @updatedAt @map("updated_at")
+  defenseSession   DefenseSession            @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
+  panelist         User                      @relation(fields: [panelistId], references: [id], onDelete: Restrict)
+  sourceVersion    DocumentVersion           @relation(fields: [sourceVersionId], references: [id], onDelete: Restrict)
+  publications     PacketReviewPublication[]
+
   @@unique([defenseSessionId, panelistId, sourceVersionId], map: "packet_reviews_session_panelist_version_key")
   @@map("packet_document_reviews")
 }
 
 model PacketReviewPublication {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  reviewId      String   @map("review_id") @db.Uuid
+  id            String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reviewId      String               @map("review_id") @db.Uuid
   revision      Int
-  pdfData       Bytes    @map("pdf_data")
-  integrityHash String   @map("integrity_hash") @db.VarChar(64)
-  publishedAt   DateTime @default(now()) @map("published_at")
-  review PacketDocumentReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  pdfData       Bytes                @map("pdf_data")
+  integrityHash String               @map("integrity_hash") @db.VarChar(64)
+  publishedAt   DateTime             @default(now()) @map("published_at")
+  review        PacketDocumentReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
   @@unique([reviewId, revision])
   @@map("packet_review_publications")
 }
@@ -2385,19 +2397,20 @@ model ChatParticipant {
 }
 
 model WorkflowAccessEntry {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workflowId   String    @map("workflow_id") @db.Uuid
-  userId       String    @map("user_id") @db.Uuid
-  kind         String    @db.VarChar(20)
-  status       String    @default("PENDING") @db.VarChar(20)
-  actorId      String    @map("actor_id") @db.Uuid
-  decidedBy    String?   @map("decided_by") @db.Uuid
-  createdAt    DateTime  @default(now()) @map("created_at")
-  decidedAt    DateTime? @map("decided_at")
-  mailThreadId String?   @unique @map("mail_thread_id") @db.Uuid
-  workflow     Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowId   String      @map("workflow_id") @db.Uuid
+  userId       String      @map("user_id") @db.Uuid
+  kind         String      @db.VarChar(20)
+  status       String      @default("PENDING") @db.VarChar(20)
+  actorId      String      @map("actor_id") @db.Uuid
+  decidedBy    String?     @map("decided_by") @db.Uuid
+  createdAt    DateTime    @default(now()) @map("created_at")
+  decidedAt    DateTime?   @map("decided_at")
+  mailThreadId String?     @unique @map("mail_thread_id") @db.Uuid
+  workflow     Workflow    @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   mailThread   MailThread? @relation(fields: [mailThreadId], references: [id], onDelete: SetNull)
+
   @@unique([workflowId, userId, kind])
   @@index([workflowId, kind, status])
   @@index([userId, status])
