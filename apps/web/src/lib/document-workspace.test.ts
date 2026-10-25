@@ -5,6 +5,7 @@ import {
   filterAndSortDocuments,
   resolveDocumentSelection,
   taskReturnHref,
+  resolveDocumentPreview,
   type FileManagerDocument,
 } from "./document-workspace";
 
@@ -84,6 +85,43 @@ describe("Documents workspace collection", () => {
 });
 
 describe("Documents workspace preview and permissions", () => {
+  it("previews the exact submitted version even when a live Google draft exists", () => {
+    const document = { ...googleDocument, versions: uploadedDocument.versions };
+    expect(resolveDocumentPreview(document).kind).toBe("GOOGLE_DOC");
+    expect(resolveDocumentPreview(document, "version-1")).toMatchObject({
+      kind: "PDF",
+      version: { id: "version-1" },
+    });
+  });
+
+  it("does not substitute a live draft or latest file for an unavailable version", () => {
+    expect(resolveDocumentPreview(googleDocument, "missing").kind).toBe(
+      "UNAVAILABLE",
+    );
+    expect(resolveDocumentPreview(uploadedDocument, "missing").kind).toBe(
+      "UNAVAILABLE",
+    );
+  });
+
+  it("keeps the selected historical file separate from the newest upload", () => {
+    const document = {
+      ...uploadedDocument,
+      versions: [
+        uploadedDocument.versions[0],
+        {
+          ...uploadedDocument.versions[0],
+          id: "version-2",
+          versionNumber: 2,
+          mimeType: "text/plain",
+        },
+      ],
+    };
+    expect(resolveDocumentPreview(document).kind).toBe("TEXT");
+    expect(resolveDocumentPreview(document, "version-1").version?.id).toBe(
+      "version-1",
+    );
+  });
+
   it("uses supported preview types without pretending Word files render", () => {
     expect(documentPreviewKind(googleDocument)).toBe("GOOGLE_DOC");
     expect(documentPreviewKind(uploadedDocument)).toBe("PDF");
