@@ -543,6 +543,7 @@ model User {
   notifications             Notification[]
   auditLogs                 AuditLog[]
   certificatesIssued        Certificate[]              @relation("CertificateIssuer")
+  defenseBadgesIssued       DefenseBadge[]
   workflowTransitions       WorkflowTransition[]
   consultationParticipants  ConsultationParticipant[]
   adviserRequestsReceived   AdviserRequest[]           @relation("RequestedAdviser")
@@ -1888,12 +1889,30 @@ model DefenseSession {
   recommendations       PanelistRecommendation[]
   pdfEvaluations        PdfEvaluation[]
   packetDocumentReviews PacketDocumentReview[]
+  badge                 DefenseBadge?
 
   @@index([researchId, status])
   @@index([status, startedAt])
   @@index([createdBy])
   @@index([defenseEventId, queuePosition])
   @@map("defense_sessions")
+}
+
+// One coordinator-issued group award per released defense. Recipient names and
+// defense type are snapshots so later roster/event edits do not rename an award.
+model DefenseBadge {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  defenseSessionId String   @unique @map("defense_session_id") @db.Uuid
+  kind             String   @db.VarChar(40)
+  issuedBy         String   @map("issued_by") @db.Uuid
+  issuedAt         DateTime @default(now()) @map("issued_at")
+  recipients       Json
+
+  session DefenseSession @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
+  issuer  User           @relation(fields: [issuedBy], references: [id], onDelete: Restrict)
+
+  @@index([issuedBy])
+  @@map("defense_badges")
 }
 
 // Each reviewer owns a separate source snapshot and editable annotation draft.

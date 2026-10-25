@@ -23,6 +23,7 @@ import { SubmissionDocumentPreview } from "@/components/professor/SubmissionDocu
 import { ProfessorDeanRequestModal } from "@/components/professor/ProfessorDeanRequestModal";
 import { DefensePacketConfigurator } from "@/components/professor/DefensePacketConfigurator";
 import { DefenseSessionStatusModal } from "@/components/professor/DefenseSessionStatusModal";
+import { DefenseBadgeIssuance } from "@/components/professor/DefenseBadgeIssuance";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
 import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
 import {
@@ -3831,6 +3832,11 @@ function ProfessorDashboardContent() {
                     </p>
                   )}
                 </section>
+                <DefenseBadgeIssuance
+                  sessions={defenseSessions}
+                  canIssue={Boolean(user?.roles.includes("RESEARCH_COORDINATOR"))}
+                  onIssued={() => Promise.all([refetchDefenseManagement(), refetchDefenseEvents()])}
+                />
                 {liveDefense && (
                   <section className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
                     <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
@@ -4373,6 +4379,7 @@ function ProfessorDashboardContent() {
                                 }
                                 className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base"
                               >
+                                <option value="TITLE_DEFENSE">Title defense</option>
                                 <option value="PROPOSAL_DEFENSE">
                                   Proposal defense
                                 </option>

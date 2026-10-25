@@ -7,6 +7,7 @@ import { jsonSafe } from "../lib/json-response.js";
 import { defensePacketService } from "../services/defense-packet.service.js";
 import { createNotificationsOnce } from "../services/research-workflow-integration.service.js";
 import { hasDefenseFacilitatorAccess } from "../services/defense-manuscript.service.js";
+import { canIssueDefenseBadge, defenseBadgeKind } from "../services/defense-badge-policy.js";
 import {
   currentPanelInvitation,
   EvaluationScoreError,
@@ -37,6 +38,7 @@ function requireFacilitator(req: Request, res: Response, next: NextFunction) {
 }
 
 const sessionInclude = {
+  badge: { include: { issuer: { select: { firstName: true, lastName: true } } } },
   pdfEvaluations: {
     select: {
       id: true,
@@ -1914,6 +1916,67 @@ router.put(
       res.status(500).json({
         error: error.message || "Failed to save the live evaluation.",
       });
+    }
+  },
+);
+
+router.post(
+  "/defense-sessions/:id/badge",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    if (!req.user!.roles.includes("RESEARCH_COORDINATOR") || !req.user!.collegeId) {
+      return void res.status(403).json({ error: "Only a research coordinator may issue defense badges." });
+    }
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const session = await tx.defenseSession.findUnique({
+          where: { id: req.params.id as string },
+          include: {
+            defenseEvent: true,
+            research: { include: { members: {
+              where: { leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } },
+              include: { user: { select: { firstName: true, lastName: true } } },
+            } } },
+          },
+        });
+        // Match the coordinator's own college even for accounts with additional roles.
+        if (!session || session.research.collegeId !== req.user!.collegeId) {
+          return { status: 404, error: "Defense session was not found in your college scope." };
+        }
+        if (!canIssueDefenseBadge(session)) {
+          return { status: 409, error: "Badges require a released Approved result for a title or final defense. Pending revisions are not eligible." };
+        }
+        if (!session.research.members.length) {
+          return { status: 409, error: "The research group has no active student members." };
+        }
+        const kind = defenseBadgeKind(session.defenseEvent?.defenseType)!;
+        const inserted = await tx.defenseBadge.createMany({
+          data: [{
+            defenseSessionId: session.id, kind, issuedBy: req.user!.id,
+            recipients: session.research.members.map((member) => ({
+              userId: member.userId, name: `${member.user.firstName} ${member.user.lastName}`,
+            })),
+          }],
+          skipDuplicates: true,
+        });
+        const badge = await tx.defenseBadge.findUniqueOrThrow({
+          where: { defenseSessionId: session.id },
+          include: { issuer: { select: { firstName: true, lastName: true } } },
+        });
+        if (inserted.count) {
+          await tx.auditLog.create({ data: {
+            userId: req.user!.id, action: "CREATE", entityType: "DefenseBadge", entityId: badge.id,
+            newValues: { defenseSessionId: session.id, kind, issuedBy: req.user!.id },
+          } });
+          await notifyResearchGroup(tx, session.researchId, "DEFENSE_CONFIRMED",
+            "Defense badge issued",
+            `Your coordinator issued your ${kind === "TITLE_DEFENSE" ? "Title" : "Final"} Defense Passed badge.`, session.id);
+        }
+        return { status: inserted.count ? 201 : 200, badge };
+      });
+      res.status(result.status).json("error" in result ? { error: result.error } : { badge: result.badge });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Failed to issue the defense badge." });
     }
   },
 );

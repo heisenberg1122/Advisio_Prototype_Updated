@@ -622,6 +622,9 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
         }),
       );
       await assertIsolatedIntegrationDatabase(prisma);
+      await guardedWrite(() => prisma.defenseEvent.deleteMany({
+        where: { collegeId: { in: fixtureScope.collegeIds }, createdBy: { in: fixtureScope.userIds } },
+      }));
       await cleanupIntegrationFixture(prisma, fixtureScope);
       if (baseline) expect(await rootSnapshot()).toEqual(baseline);
     } catch (error) {
@@ -1227,4 +1230,37 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
       }),
     ).toMatchObject({ lifecycleStatus: "REVISION_REQUIRED" });
   }, 120_000);
+
+  it("issues title/final badges once and exposes them only through authorized defense reads", async () => {
+    for (const [mode, defenseType] of [["onsite", "TITLE_DEFENSE"], ["hybrid", "FINAL_ORAL_DEFENSE"]] as const) {
+      const project = fixture.projects[mode];
+      const event = await guardedWrite(() => prisma.defenseEvent.create({ data: {
+        code: `BADGE-${crypto.randomBytes(6).toString("hex")}`,
+        collegeId: fixture.collegeId, createdBy: fixture.professor.id,
+        defenseType, status: "COMPLETED", scheduledStart: new Date(), scheduledEnd: new Date(),
+      } }));
+      await guardedWrite(() => prisma.defenseSession.update({
+        where: { id: project.sessionId }, data: { defenseEventId: event.id },
+      }));
+      const endpoint = `/api/defense-sessions/${project.sessionId}/badge`;
+      const forbidden = await apiWrite(endpoint, project.student.token, "POST", {});
+      expect(forbidden.status).toBe(403);
+      const responses = await Promise.all([
+        apiWrite(endpoint, fixture.professor.token, "POST", {}),
+        apiWrite(endpoint, fixture.professor.token, "POST", {}),
+      ]);
+      expect(responses.map((response) => response.status).sort()).toEqual([200, 201]);
+      const awards = await Promise.all(responses.map(readJson));
+      expect(awards[0].badge.id).toBe(awards[1].badge.id);
+      expect(awards[0].badge.kind).toBe(mode === "onsite" ? "TITLE_DEFENSE" : "FINAL_DEFENSE");
+      const visible = await request(`/api/defense-sessions/${project.sessionId}`, project.student.token);
+      expect(visible.status).toBe(200);
+      expect((await readJson(visible)).session.badge).toMatchObject({
+        id: awards[0].badge.id, recipients: expect.arrayContaining([expect.objectContaining({ userId: project.student.id })]),
+      });
+      const otherGroup = await request(`/api/defense-sessions/${project.sessionId}`, fixture.projects.online.student.token);
+      expect(otherGroup.status).toBe(404);
+      expect(await prisma.auditLog.count({ where: { entityType: "DefenseBadge", entityId: awards[0].badge.id } })).toBe(1);
+    }
+  }, 60_000);
 });
