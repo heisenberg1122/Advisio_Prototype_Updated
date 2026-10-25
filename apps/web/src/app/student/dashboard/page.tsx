@@ -90,7 +90,6 @@ function StudentDashboardContent() {
   // Project Registration State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
-  const [createWorkflowId, setCreateWorkflowId] = useState("");
   const [createAbstract, setCreateAbstract] = useState("");
   const [createParticipationMode, setCreateParticipationMode] = useState<
     "SOLO" | "GROUP"
@@ -225,24 +224,32 @@ function StudentDashboardContent() {
     staleTime: 5000,
     refetchInterval: 5000,
   });
-  const { data: workspaceData } = useQuery({
+  const { data: workspaceData, isLoading: isWorkspaceLoading } = useQuery({
     queryKey: ["student-workspaces"],
     queryFn: () => apiClient.get<{ workspaces: any[] }>("/api/workspaces/me"),
     refetchOnWindowFocus: true,
   });
   const activeWorkspace = workspaceData?.workspaces?.[0] || null;
+  const isWorkspaceLeader = activeWorkspace?.members?.some((member: any) => member.userId === user?.id && member.role === "LEADER" && !member.leftAt) ?? false;
+  const canCreateResearch = !isWorkspaceLoading && !isResearchLoading && !isResearchError && !!workspaceData && (!activeWorkspace || isWorkspaceLeader);
   const [workspaceToDelete, setWorkspaceToDelete] = useState<{ id: string; name: string } | null>(null);
   const [workspaceDeletePending, setWorkspaceDeletePending] = useState(false);
   const [workspaceDeleteError, setWorkspaceDeleteError] = useState("");
   const canDeleteWorkspace = activeWorkspace?._count?.projects === 0 && activeWorkspace.members?.some(
     (member: any) => member.userId === user?.id && member.role === "LEADER" && !member.leftAt,
   );
-  const { data: workflowEnrollmentData } = useQuery({
+  const { data: workflowEnrollmentData, isLoading: isWorkflowEnrollmentLoading, isError: isWorkflowEnrollmentError } = useQuery({
     queryKey: ["student-workflow-enrollments"],
     queryFn: () =>
       apiClient.get<{ enrollments: any[] }>("/api/workflows/enrollments/me"),
     refetchOnWindowFocus: true,
+    refetchInterval: showCreateModal ? 5000 : false,
   });
+  // Enrollment results are ordered by joinedAt descending by the API.
+  const registrationWorkflow = workflowEnrollmentData?.enrollments?.[0]?.workflow;
+  const registrationWorkflowId = workflowEnrollmentData?.enrollments?.[0]?.workflowId;
+  const hasRegistrationWorkflow = !isWorkflowEnrollmentLoading && !isWorkflowEnrollmentError && !!registrationWorkflowId;
+  const needsRegistrationWorkflow = !!activeWorkspace || !!createTitle.trim();
 
   const projectSelection = useActiveProject(researchData?.projects || []);
   const activeProject = projectSelection.project;
@@ -614,6 +621,11 @@ function StudentDashboardContent() {
 
   const handleCreateResearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canCreateResearch) {
+      setShowCreateModal(false);
+      triggerToast("Only your group leader can register the research project.");
+      return;
+    }
     if (activeProject) {
       setShowCreateModal(false);
       triggerToast(activeProject.status === "REJECTED"
@@ -622,8 +634,8 @@ function StudentDashboardContent() {
       return;
     }
     if (activeWorkspace && !createTitle.trim()) return;
-    if (createTitle.trim() && !createWorkflowId && workflowEnrollmentData?.enrollments?.length !== 1) {
-      triggerToast("Select a joined research workflow before registering your project.");
+    if (needsRegistrationWorkflow && !hasRegistrationWorkflow) {
+      triggerToast("Join your professor’s workflow from Tasks & Requirements before adding a research project.");
       return;
     }
     setIsCreatingProject(true);
@@ -644,7 +656,7 @@ function StudentDashboardContent() {
           title: createTitle.trim(),
           abstract: createAbstract.trim() || undefined,
           workspaceId: workspace.id,
-          workflowId: createWorkflowId || (workflowEnrollmentData?.enrollments?.length === 1 ? workflowEnrollmentData.enrollments[0].workflowId : undefined),
+          workflowId: registrationWorkflowId,
         });
       }
       queryClient.invalidateQueries({ queryKey: ["student-research"] });
@@ -1478,7 +1490,7 @@ function StudentDashboardContent() {
                   fallbackName="Student Researcher"
                   summary="Here's an overview of your research progress and what needs your attention."
                   actions={
-                    isResearchLoading ? (
+                    isResearchLoading || isWorkspaceLoading ? (
                       <div className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-100 px-5 text-sm font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">
                         <i className="ti ti-loader-2 animate-spin text-base" /> Checking your project…
                       </div>
@@ -1491,10 +1503,10 @@ function StudentDashboardContent() {
                       </button>
                     ) : !activeProject ? (
                       <button
-                        onClick={() => (researchData?.projects?.length ? window.scrollTo({ top: 0, behavior: "smooth" }) : setShowCreateModal(true))}
+                        onClick={() => researchData?.projects?.length ? window.scrollTo({ top: 0, behavior: "smooth" }) : canCreateResearch ? setShowCreateModal(true) : handleTabChange("my-group")}
                         className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-6 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98] dark:text-[var(--college-on-primary-dark)]"
                       >
-                        <i className={`ti ${researchData?.projects?.length ? "ti-folders" : "ti-plus"} text-base font-bold`} /> {researchData?.projects?.length ? "Select Project" : "Register Project"}
+                        <i className={`ti ${researchData?.projects?.length ? "ti-folders" : canCreateResearch ? "ti-plus" : "ti-users"} text-base font-bold`} /> {researchData?.projects?.length ? "Select Project" : canCreateResearch ? "Register Project" : "View My Group"}
                       </button>
                     ) : activeProject.status === "REJECTED" ? (
                       <div className="flex flex-wrap items-center justify-end gap-3">
@@ -1665,7 +1677,7 @@ function StudentDashboardContent() {
                       <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 relative">
                         {/* Step 1: Register Project */}
                         <button
-                          onClick={() => !activeProject ? setShowCreateModal(true) : handleTabChange("group")}
+                          onClick={() => !activeProject && canCreateResearch ? setShowCreateModal(true) : handleTabChange(activeProject ? "group" : "my-group")}
                           className="group relative flex flex-col items-center text-center cursor-pointer focus:outline-none"
                         >
                           <span className="hidden md:block absolute left-[65%] top-[14px] w-[70%] h-[2px] bg-slate-200 dark:bg-white/10 -z-0" />
@@ -1678,10 +1690,10 @@ function StudentDashboardContent() {
                             <i className="ti ti-file-description text-xl" />
                           </span>
                           <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">
-                            Register project
+                            {canCreateResearch || activeProject ? "Register project" : "View group"}
                           </span>
                           <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
-                            Tell us about your research topic.
+                            {canCreateResearch || activeProject ? "View or register your research topic." : "View your team while your leader registers the project."}
                           </span>
                         </button>
 
@@ -1868,11 +1880,11 @@ function StudentDashboardContent() {
                       You are not enrolled in an active research study yet. Create your capstone or thesis project to start collaborating with faculty advisers, submitting drafts, and booking consultations.
                     </p>
                     <button
-                      onClick={() => setShowCreateModal(true)}
+                      onClick={() => canCreateResearch ? setShowCreateModal(true) : handleTabChange("my-group")}
                       className="px-6 py-3 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-extrabold rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer text-sm"
                     >
                       <i className="ti ti-plus font-bold" />
-                      <span>Register Research Project</span>
+                      <span>{canCreateResearch ? "Register Research Project" : "View My Group"}</span>
                     </button>
                   </div>
                 ) : (
@@ -2134,6 +2146,28 @@ function StudentDashboardContent() {
                 </div>
               </div>
             ),
+            "my-group": (
+              <section className="student-projects-readable space-y-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-xs">
+                <div><h3 className="text-xl font-bold text-[var(--color-text-primary)]">My Group</h3><p className="mt-1 text-base text-[var(--color-text-secondary)]">View your teammates, roles, and adviser. Your leader manages project registration and group access.</p></div>
+                {activeProject || activeWorkspace ? <>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                    <h4 className="text-lg font-bold text-[#102f49]">{activeProject ? activeProject.groupName || "Research team" : activeWorkspace?.name}</h4>
+                    <p className="mt-1 text-base text-slate-600">{activeProject?.title || "Research project awaiting registration by your leader."}</p>
+                    <p className="mt-2 text-sm font-semibold text-[#173f63]">Your role: {(activeProject ? isGroupLeader : isWorkspaceLeader) ? "Group Leader" : "Member"}</p>
+                  </div>
+                  {activeProject ? (
+                      <div>
+                        <div className="flex items-center justify-between"><h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Active researchers</h4><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div>
+                        <div className="mt-3 space-y-2">{activeStudentMembers.map((member: any) => <div key={member.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{(member.userId === user?.id || member.user?.id === user?.id) ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.projectRole === "LEADER" ? "Group Leader" : "Member"}</p></div>{isGroupLeader && member.projectRole === "MEMBER" && <div className="flex gap-2"><button onClick={() => setGroupAction({ type: "transfer", member })} className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm font-bold text-blue-700">Transfer leadership</button><button onClick={() => setGroupAction({ type: "remove", member })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-600">Remove</button></div>}</div>)}</div>
+                      </div>
+                  ) : <div><h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Group members</h4><div className="mt-3 space-y-2">{(activeWorkspace.members || []).filter((member: any) => !member.leftAt).map((member: any) => <div key={member.id} className="rounded-xl border border-slate-200 p-3"><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{member.userId === user?.id ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.role === "LEADER" ? "Group Leader" : "Member"}</p></div>)}</div></div>}
+                  <div className="rounded-xl border border-slate-200 p-4"><h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Faculty Adviser</h4><p className="mt-2 text-base text-slate-600">{activeAdviserMembership ? activeAdviserMembership.user.firstName + " " + activeAdviserMembership.user.lastName : pendingAdviserRequest ? "Adviser request pending" : "No adviser assigned yet"}</p>{activeAdviserMembership && <p className="mt-1 text-base text-slate-500">{activeAdviserMembership.user.email}</p>}<button onClick={() => handleTabChange("group")} className="mt-3 text-sm font-bold text-[#173f63]">View project and adviser details <i className="ti ti-arrow-right ml-1" /></button></div>
+                  {activeProject && <div className="flex flex-wrap gap-3"><button onClick={() => handleTabChange("group-chats")} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Group messages</button><button onClick={() => router.push(projectSelection.projectHref("/student/tasks"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Tasks</button><button onClick={() => router.push(projectSelection.projectHref("/student/group-files"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Shared files</button></div>}
+                  {isGroupLeader && <p className="text-sm text-slate-500">Manage invitations and join requests from My Project.</p>}
+                  {activeProject && !isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-bold text-amber-700">Leave group</button>}
+                </> : <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center"><p className="text-base text-slate-500">{isWorkspaceLoading ? "Loading your group…" : !workspaceData ? "Unable to load your group. Refresh to try again." : "You have not joined a research group yet."}</p>{workspaceData && <button onClick={() => handleTabChange("group")} className="mt-4 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Open My Project</button>}</div>}
+              </section>
+            ),
             group: (
               <div className="student-projects-readable flex flex-col gap-5">
                 <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-xs">
@@ -2141,7 +2175,7 @@ function StudentDashboardContent() {
                     <div>
                       <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">Research workspace</p>
                       <h3 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">My Projects</h3>
-                      <p className="mt-1 text-base text-[var(--color-text-secondary)]">Create a solo study, form a group, or join an existing research project.</p>
+                      <p className="mt-1 text-base text-[var(--color-text-secondary)]">{activeProject ? "View your research details, adviser status, and academic progress." : activeWorkspace && !isWorkspaceLeader ? "Your group leader will register the research project. View your team in My Group." : "Create a solo study, form a group, or join an existing research project."}</p>
                     </div>
                     {activeProject && isGroupLeader && (
                       <button onClick={openEditProject} className="rounded-xl border border-[#173f63] px-4 py-2 text-sm font-extrabold text-[#173f63]">
@@ -2182,10 +2216,7 @@ function StudentDashboardContent() {
                         </div>
                       )}
 
-                      <div>
-                        <div className="flex items-center justify-between"><h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Active researchers</h4><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div>
-                        <div className="mt-3 space-y-2">{activeStudentMembers.map((member: any) => <div key={member.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{(member.userId === user?.id || member.user?.id === user?.id) ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.projectRole === "LEADER" ? "Group Leader" : "Member"}</p></div>{isGroupLeader && member.projectRole === "MEMBER" && <div className="flex gap-2"><button onClick={() => setGroupAction({ type: "transfer", member })} className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm font-bold text-blue-700">Transfer leadership</button><button onClick={() => setGroupAction({ type: "remove", member })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-600">Remove</button></div>}</div>)}</div>
-                      </div>
+                      <button onClick={() => handleTabChange("my-group")} className="flex w-full items-center justify-between rounded-xl border border-slate-200 p-4 text-left font-semibold text-[#173f63]"><span>My Group · {activeStudentMembers.length} researcher{activeStudentMembers.length === 1 ? "" : "s"}</span><span>View team <i className="ti ti-arrow-right ml-1" /></span></button>
 
                       <div className={`rounded-2xl border p-5 ${activeAdviserMembership ? "border-emerald-200 bg-emerald-50" : pendingAdviserRequest ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -2296,13 +2327,15 @@ function StudentDashboardContent() {
                         <div className="flex flex-wrap items-center justify-between gap-4">
                           <div><p className="text-sm font-extrabold uppercase tracking-widest text-[#C58A18]">{activeWorkspace.participationMode === "GROUP" ? "Research group" : "Solo workspace"}</p><h4 className="mt-1 text-lg font-extrabold text-[#102f49]">{activeWorkspace.name}</h4><p className="mt-1 text-base text-slate-500">{activeWorkspace.program?.code || activeWorkspace.program?.name} · {activeWorkspace.members?.length || 1} member{(activeWorkspace.members?.length || 1) === 1 ? "" : "s"}</p></div>
                           <div className="flex flex-wrap gap-2">
-                            {!activeWorkspace.projects?.length && <button onClick={() => { setCreateTitle(""); setShowCreateModal(true); }} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"><i className="ti ti-plus mr-1" />Add research project</button>}
+                            {canCreateResearch && !activeWorkspace.projects?.length && <button onClick={() => { setCreateTitle(""); setShowCreateModal(true); }} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"><i className="ti ti-plus mr-1" />Add research project</button>}
                             {canDeleteWorkspace && <button onClick={() => { setWorkspaceDeleteError(""); setWorkspaceToDelete({ id: activeWorkspace.id, name: activeWorkspace.name }); }} className="rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-sm font-extrabold text-rose-700 hover:bg-rose-50"><i className="ti ti-trash mr-1" />Delete workspace</button>}
                           </div>
                         </div>
                         {activeWorkspace.projects?.length > 0 && <div className="mt-4 space-y-2">{activeWorkspace.projects.map((project: any) => <div key={project.id} className="flex items-center justify-between rounded-xl bg-white p-3"><span className="text-sm font-bold text-[#102f49]">{project.title}</span><span className="text-xs font-bold text-slate-500">{project.status}</span></div>)}</div>}
                         {activeWorkspace.participationMode === "GROUP" && <p className="mt-3 text-base text-slate-500">Invite code: <strong className="font-mono text-[#173f63]">{activeWorkspace.inviteCode}</strong></p>}
                       </div>
+                    ) : isWorkspaceLoading || !workspaceData ? (
+                      <p className="mt-5 text-base text-slate-500">{isWorkspaceLoading ? "Loading your workspace…" : "Unable to load your workspace. Refresh to try again."}</p>
                     ) : (
                       <div className="mt-5 grid gap-4 md:grid-cols-2">
                         <button onClick={() => { setCreateTitle(""); setCreateGroupName(""); setShowCreateModal(true); }} className="rounded-2xl border-2 border-[#173f63] bg-[#173f63] p-6 text-left text-white transition hover:-translate-y-0.5"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10"><i className="ti ti-folder-plus text-xl text-[#ffa400]" /></span><span className="mt-4 block text-base font-extrabold">Create a workspace</span><span className="mt-1 block text-sm leading-5 text-blue-100">Start Solo or create a group. Add a research title now or later.</span></button>
@@ -2771,7 +2804,7 @@ function StudentDashboardContent() {
       )}
 
       {/* CREATE RESEARCH PROJECT MODAL */}
-      {showCreateModal && (
+      {showCreateModal && canCreateResearch && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 max-w-lg w-full p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -2812,13 +2845,19 @@ function StudentDashboardContent() {
                   className="p-3 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-[#ffa400]"
                 />
               </div>
-              {createTitle.trim() && <label className="flex flex-col gap-2 text-sm font-bold text-slate-700">Research workflow
-                <select required value={createWorkflowId || (workflowEnrollmentData?.enrollments?.length === 1 ? workflowEnrollmentData.enrollments[0].workflowId : "")} onChange={(event) => setCreateWorkflowId(event.target.value)} className="rounded-xl border border-slate-300 bg-white p-3 font-normal">
-                  <option value="">Select a joined workflow</option>
-                  {(workflowEnrollmentData?.enrollments || []).map((enrollment: any) => <option key={enrollment.workflowId} value={enrollment.workflowId}>{enrollment.workflow.name}</option>)}
-                </select>
-                {!workflowEnrollmentData?.enrollments?.length && <span className="text-xs font-normal">Join your professor's workflow from Tasks &amp; Requirements before adding a research project.</span>}
-              </label>}
+              {needsRegistrationWorkflow && (
+                isWorkflowEnrollmentLoading ? (
+                  <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">Checking your workflow enrollment…</p>
+                ) : !hasRegistrationWorkflow ? (
+                  <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                    <p className="font-bold"><i className="ti ti-alert-triangle mr-1.5" />{isWorkflowEnrollmentError ? "Unable to verify workflow enrollment" : "Join a workflow first"}</p>
+                    <p className="mt-1">{isWorkflowEnrollmentError ? "Your enrollment could not be checked. Open Tasks & Requirements to verify your workflow before creating a research project." : "You cannot create a research project until you join your professor’s workflow in Tasks & Requirements."}</p>
+                    <button type="button" onClick={() => { setShowCreateModal(false); handleTabChange("tasks"); }} className="mt-3 font-bold underline underline-offset-2">Open Tasks &amp; Requirements</button>
+                  </div>
+                ) : (
+                  <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">This project will use your {workflowEnrollmentData!.enrollments.length > 1 ? "most recently joined workflow" : "joined workflow"}: <strong>{registrationWorkflow?.name || "Research workflow"}</strong>.</p>
+                )
+              )}
               {!activeWorkspace && <div className="grid gap-4 rounded-xl border border-blue-100 bg-blue-50 p-4 sm:grid-cols-2">
                 <label className="flex flex-col gap-1.5 font-bold text-slate-700">
                   {createParticipationMode === "GROUP" ? "Group name" : "Workspace name"}
@@ -2852,7 +2891,7 @@ function StudentDashboardContent() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isCreatingProject || (activeWorkspace ? !createTitle.trim() : !createGroupName.trim())}
+                  disabled={isCreatingProject || (needsRegistrationWorkflow && !hasRegistrationWorkflow) || (activeWorkspace ? !createTitle.trim() : !createGroupName.trim())}
                   className="px-5 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-extrabold rounded-xl shadow cursor-pointer disabled:opacity-50"
                 >
                   {isCreatingProject ? "Creating..." : activeWorkspace ? "Create research project" : createTitle.trim() ? "Create workspace and project" : "Create workspace"}

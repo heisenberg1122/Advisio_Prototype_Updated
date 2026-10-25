@@ -7,6 +7,7 @@ import { useActiveProjectContext } from "@/providers/active-project-provider";
 import {
   LayoutDashboard,
   FolderKanban,
+  Users,
   CheckSquare,
   Clock,
   FileText,
@@ -29,6 +30,7 @@ const STUDENT_NAV_SECTIONS: NavSection[] = [
     title: "RESEARCH WORKSPACE",
     items: [
       { label: "My Project", href: "/student/dashboard?tab=group", tabName: "group", icon: FolderKanban },
+      { label: "My Group", href: "/student/dashboard?tab=my-group", tabName: "my-group", icon: Users },
       { label: "Tasks", href: "/student/tasks", icon: CheckSquare },
       { label: "Documents", href: "/student/documents", icon: FileText },
       { label: "Group Files", href: "/student/group-files", icon: FolderOpen },

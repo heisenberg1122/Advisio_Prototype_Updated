@@ -23,6 +23,7 @@ const PAGE_TITLES: Record<string, string> = {
 const TAB_TITLES: Record<string, string> = {
   overview: "Researcher Dashboard",
   group: "My Project",
+  "my-group": "My Group",
   milestones: "Project Milestones",
   progress: "Progress Tracking",
   submission: "Submit Document",
