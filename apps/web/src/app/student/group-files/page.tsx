@@ -7,7 +7,7 @@ import {
   FileSpreadsheet, FileText, Folder, FolderKanban, FolderPlus, HardDrive, Loader2, MoreHorizontal,
   Plus, Search, Trash2, UploadCloud, X,
 } from "lucide-react";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, panelRequestHeaders } from "@/lib/api-client";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Modal } from "@/components/ui/Modal";
@@ -133,7 +133,7 @@ export default function GroupFilesPage() {
       if (description.trim()) form.append("description", description.trim());
       const token = localStorage.getItem("advisio_token");
       const response = await fetch(`${API_BASE}/api/research/${project.id}/group-files`, {
-        method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : undefined, body: form,
+        method: "POST", headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...panelRequestHeaders() }, body: form,
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "Upload failed.");
@@ -157,7 +157,7 @@ export default function GroupFilesPage() {
   const openFile = async (file: GroupFile, download = false) => {
     try {
       const token = localStorage.getItem("advisio_token");
-      const response = await fetch(`${API_BASE}/api/group-files/${file.id}/content${download ? "?download=1" : ""}`, { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
+      const response = await fetch(`${API_BASE}/api/group-files/${file.id}/content${download ? "?download=1" : ""}`, { headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...panelRequestHeaders() } });
       if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || "Unable to open file.");
       const url = URL.createObjectURL(await response.blob());
       if (download) { const link = document.createElement("a"); link.href = url; link.download = file.name; link.click(); }

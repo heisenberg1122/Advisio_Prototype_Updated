@@ -16,6 +16,12 @@ interface RequestOptions extends RequestInit {
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
+export function panelRequestHeaders(): Record<string, string> {
+  return typeof window !== "undefined" && /^\/student(?:\/|$)/.test(window.location?.pathname || "")
+    ? { "X-Advisio-Panel": "researcher" }
+    : {};
+}
+
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { params, headers = {}, ...rest } = options;
 
@@ -39,6 +45,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   const requestHeaders: Record<string, string> = {
     ...(!isFormData ? { "Content-Type": "application/json" } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...panelRequestHeaders(),
     ...(headers as Record<string, string>),
   };
 
@@ -75,7 +82,7 @@ export const apiClient = {
   file: async (url: string, options: { expectedMimeType?: string } = {}) => {
     const token = typeof window !== "undefined" ? localStorage.getItem("advisio_token") : null;
     const response = await fetch(url.startsWith("http") ? url : `${API_BASE_URL}${url}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...panelRequestHeaders() },
     });
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdvisers } from "@/hooks/use-student";
 import { useAuth } from "@/hooks/use-auth";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, panelRequestHeaders } from "@/lib/api-client";
 import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
 import { CardsPageSkeleton } from "@/components/ui/Skeleton";
@@ -93,7 +93,7 @@ export default function AdviserPoolPage() {
           `${apiBase}/api/research/${data.projectId}/documents`,
           {
             method: "POST",
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...panelRequestHeaders() },
             body: formData,
           },
         );

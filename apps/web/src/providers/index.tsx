@@ -1,7 +1,8 @@
-import React, { type ReactNode } from "react";
+import React, { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { getQueryClient } from "@/lib/query/query-client";
+import { makeQueryClient } from "@/lib/query/query-client";
 import { ThemeProvider } from "./theme-provider";
 import { AuthProvider, useAuth } from "./auth-provider";
 
@@ -22,19 +23,33 @@ function UserThemeProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function Providers({ children }: { children: ReactNode }) {
-  const queryClient = getQueryClient();
+function SessionQueries({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const { pathname } = useLocation();
+  const panel = pathname.split("/")[1] || "public";
+  const scope = `${user?.id || "anonymous"}:${panel}`;
+  const queryClient = useMemo(() => makeQueryClient(), [scope]);
+  const previousClient = useRef(queryClient);
+  useEffect(() => {
+    if (previousClient.current !== queryClient) {
+      void previousClient.current.cancelQueries();
+      previousClient.current.clear();
+      previousClient.current = queryClient;
+    }
+  }, [queryClient]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <UserThemeProvider>
-          {children}
-          <ReactQueryDevtools initialIsOpen={false} />
-        </UserThemeProvider>
-      </AuthProvider>
+    <QueryClientProvider key={scope} client={queryClient}>
+      <UserThemeProvider>
+        {children}
+        <ReactQueryDevtools initialIsOpen={false} />
+      </UserThemeProvider>
     </QueryClientProvider>
   );
+}
+
+export function Providers({ children }: { children: ReactNode }) {
+  return <AuthProvider><SessionQueries>{children}</SessionQueries></AuthProvider>;
 }
 
 export { ThemeProvider, useTheme } from "./theme-provider";

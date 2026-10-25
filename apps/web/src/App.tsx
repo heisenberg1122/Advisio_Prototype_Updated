@@ -7,14 +7,14 @@ import { AppRoutes } from './routes';
 
 export default function App() {
   return (
-    <Providers>
-      <BrowserRouter>
+    <BrowserRouter>
+      <Providers>
         <DashboardWorkspaceProvider>
           <ActiveProjectProvider>
             <AppRoutes />
           </ActiveProjectProvider>
         </DashboardWorkspaceProvider>
-      </BrowserRouter>
-    </Providers>
+      </Providers>
+    </BrowserRouter>
   );
 }

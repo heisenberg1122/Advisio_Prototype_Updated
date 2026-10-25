@@ -47,7 +47,9 @@ router.get("/", requireAuth, async (req, res) => {
       ? [researchId]
       : (
           await prisma.researchProject.findMany({
-            where: req.user!.roles.includes("SYSTEM_ADMIN")
+            where: req.user!.researcherPanel
+              ? { members: { some: { userId: req.user!.id, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } } } }
+              : req.user!.roles.includes("SYSTEM_ADMIN")
               ? {}
               : {
                   OR: [
