@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { PublicLinks } from "@/components/public/PublicLayout";
 import {
   resolvePostLoginAction,
   resetOnboardingForSession,
@@ -489,6 +490,9 @@ export default function LoginPage() {
           </p>
           <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-400">
             <ShieldCheck size={13} /> Protected university access
+          </div>
+          <div className="mt-5 text-slate-500">
+            <PublicLinks />
           </div>
         </div>
       </section>

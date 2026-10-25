@@ -113,6 +113,9 @@ const MailInboxPage = lazy(() => import("./app/mail/page"));
 
 // Public Auth Pages
 import LoginPage from "./app/(public)/login/page";
+import HomePage from "./app/(public)/home/page";
+import PrivacyPolicyPage from "./app/(public)/privacy-policy/page";
+import TermsOfServicePage from "./app/(public)/terms-of-service/page";
 import RegisterPage from "./app/(public)/register/page";
 import ResearcherOnboardingPage from "./app/(public)/researcher-onboarding/page";
 import ForgotPasswordPage from "./app/(public)/forgot-password/page";
@@ -173,7 +176,9 @@ export function AppRoutes() {
     <Suspense fallback={<RouteLoader />}>
       <Routes>
         {/* Public Auth Routes */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+        <Route path="/terms-of-service" element={<TermsOfServicePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route
