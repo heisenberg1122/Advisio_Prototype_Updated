@@ -160,6 +160,9 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
       },
     });
     fixture.workflowIds.push(workflow.id);
+    await prisma.workflowEnrollment.create({
+      data: { workflowId: workflow.id, userId: student.id, status: "ACTIVE" },
+    });
     await prisma.researchType.update({
       where: { id: researchType.id },
       data: { workflowId: workflow.id },

@@ -170,6 +170,9 @@ databaseDescribe(
         },
       });
       fixture.workflowIds.push(workflow.id);
+      await prisma.workflowEnrollment.create({
+        data: { workflowId: workflow.id, userId: student.id, status: "ACTIVE" },
+      });
       await prisma.researchType.update({
         where: { id: researchType.id },
         data: { workflowId: workflow.id },
@@ -363,6 +366,23 @@ databaseDescribe(
           teardownErrors,
           `Integration fixture cleanup failed for ${fixture.marker}.`,
         );
+      }
+    });
+
+    it("denies a revoked workflow participant who remains a project member", async () => {
+      const where = {
+        workflowId_userId: { workflowId: fixture.workflowIds[0], userId: student.id },
+      };
+      await prisma.workflowEnrollment.update({ where, data: { status: "REVOKED" } });
+      try {
+        expect(await prisma.researchMember.findFirst({
+          where: { researchId: projectId, userId: student.id, leftAt: null },
+        })).toMatchObject({ projectRole: "LEADER" });
+        await expect(getTaskSubmissionOptions({
+          user: student, researchId: projectId, taskId,
+        })).rejects.toMatchObject({ statusCode: 403, code: "WORKFLOW_ENROLLMENT_REQUIRED" });
+      } finally {
+        await prisma.workflowEnrollment.update({ where, data: { status: "ACTIVE" } });
       }
     });
 
