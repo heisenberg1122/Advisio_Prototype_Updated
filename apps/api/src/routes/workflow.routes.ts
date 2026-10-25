@@ -1,8 +1,13 @@
+import { startWorkflowProject } from "../services/workflow-project-start.service.js";
+import { getGroupMilestones, assertMilestoneAvailable, lockMilestoneProject, setMilestonePrerequisites, captureMilestoneApprovalBases, MilestoneEligibilityError } from "../services/milestone-eligibility.service.js";
+import { recordMilestoneApproval, requestMilestoneRevision, reconcileMilestoneNavigation } from "../services/milestone-decision.service.js";
 import { Router, Request, Response } from "express";
 import { storageHierarchyService } from "../services/storage-hierarchy.service.js";
 import { ManuscriptLifecycleStatus, prisma } from "../lib/prisma.js";
 import {
   createWorkflowTopicSchema,
+  milestonePrerequisitesSchema,
+  milestoneDecisionSchema,
   createWorkflowSchema,
   reorderWorkflowTopicsSchema,
   updateWorkflowTopicSchema,
@@ -919,7 +924,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
         stages: {
           where: { category: { not: "Archived" } },
           orderBy: { sequence: "asc" },
-          include: { topic: true, tasks: { orderBy: { sequence: "asc" } } },
+          include: { topic: true, prerequisites: true, tasks: { orderBy: { sequence: "asc" } } },
         },
       },
     });
@@ -1142,7 +1147,7 @@ router.post(
         return;
       }
 
-      const { researchTypeId, name, description, stages = [] } = req.body;
+      const { researchTypeId, name, description, stages = [], availabilityMode } = req.body;
       const scope = getCollegeScope(req.user);
       if (scope.kind === "unassigned") {
         res.status(403).json({
@@ -1208,6 +1213,7 @@ router.post(
               ? description.trim()
               : null,
           version: (latestVersion._max.version || 0) + 1,
+          availabilityMode,
           status: "DRAFT",
           createdBy: req.user.id,
           stages: {
@@ -1261,6 +1267,7 @@ router.get(
                 orderBy: { sequence: "asc" },
                 include: {
                   topic: true,
+                  prerequisites: true,
                   tasks: { orderBy: { sequence: "asc" } },
                 },
               },
@@ -1596,6 +1603,8 @@ router.post(
   requirePermission(Permissions.WORKFLOW_EDIT),
   async (req: Request, res: Response) => {
     try {
+      const settings = milestonePrerequisitesSchema.safeParse(req.body);
+      if (!settings.success) return void res.status(400).json({ error: settings.error.issues[0].message });
       const workflowId = req.params.id as string;
       const access = await workflowAccess(workflowId, req.user!);
       if (!access?.manages) {
@@ -1663,6 +1672,7 @@ router.post(
       }
 
       const stage = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`milestone-workflow:${workflowId}`}))`;
         await normalizeWorkflowStageSequences(tx, workflowId);
         const lastStage = await tx.workflowStage.findFirst({
           where: { workflowId, category: { not: "Archived" } },
@@ -1689,8 +1699,10 @@ router.post(
             deadlineDays: deadline,
             isFinal: Boolean(isFinal),
             submissionMode,
+            capturesResearchTitle: settings.data.capturesResearchTitle || false,
           },
         });
+        await setMilestonePrerequisites(tx, workflowId, createdStage.id, settings.data.prerequisiteIds || []);
         if (createdStage.requiresDocument) {
           await tx.workflowTask.create({
             data: {
@@ -1705,6 +1717,10 @@ router.post(
           });
         }
         await resequenceWorkflowStagesByTopics(tx, workflowId);
+        if (access.workflow.availabilityMode === "PREREQUISITES") {
+          const instances = await tx.workflowInstance.findMany({ where: { workflowId }, select: { researchId: true } });
+          for (const instance of instances) await reconcileMilestoneNavigation(tx, instance.researchId);
+        }
         return tx.workflowStage.findUniqueOrThrow({
           where: { id: createdStage.id },
         });
@@ -1748,7 +1764,7 @@ router.post(
           );
       })();
     } catch (error: any) {
-      res.status(500).json({
+      res.status(error.statusCode || 500).json({
         error: error.message || "Failed to create workflow milestone",
       });
     }
@@ -1776,6 +1792,8 @@ router.delete(
           .status(404)
           .json({ error: "Workflow milestone not found." });
 
+      if (await prisma.milestonePrerequisite.count({ where: { prerequisiteId: stageId } })) return void res.status(409).json({ error: "Remove this milestone from dependent prerequisites before deleting or archiving it." });
+      const hasDecisions = await prisma.projectMilestoneState.count({ where: { stageId } });
       const taskIds = stage.tasks.map((task) => task.id);
       const [activeUsage, submissions, transitions] = await Promise.all([
         prisma.workflowInstance.count({ where: { currentStageId: stageId } }),
@@ -1787,8 +1805,12 @@ router.delete(
         }),
       ]);
 
-      if (!activeUsage && !submissions && !transitions) {
-        await prisma.workflowStage.delete({ where: { id: stageId } });
+      if (!activeUsage && !submissions && !transitions && !hasDecisions) {
+        await prisma.$transaction(async tx => {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`milestone-workflow:${stage.workflowId}`}))`;
+          if (await tx.milestonePrerequisite.count({ where: { prerequisiteId: stageId } })) throw new MilestoneEligibilityError("This milestone is a prerequisite. Remove its references first.");
+          await tx.workflowStage.delete({ where: { id: stageId } });
+        });
         res.status(204).send();
         return;
       }
@@ -1812,10 +1834,13 @@ router.delete(
         }));
 
       await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`milestone-workflow:${stage.workflowId}`}))`;
+        if (await tx.milestonePrerequisite.count({ where: { prerequisiteId: stageId } })) throw new MilestoneEligibilityError("This milestone is a prerequisite. Remove its references first.");
         await tx.workflowInstance.updateMany({
           where: { currentStageId: stageId },
           data: { currentStageId: replacement?.id || null },
         });
+        await tx.milestonePrerequisite.deleteMany({ where: { stageId } });
         await tx.workflowStage.update({
           where: { id: stageId },
           data: { category: "Archived" },
@@ -1835,7 +1860,7 @@ router.delete(
         res.status(404).json({ error: "Workflow milestone not found." });
         return;
       }
-      res.status(500).json({
+      res.status(error.statusCode || (error.code === "P2003" ? 409 : 500)).json({
         error: error.message || "Failed to delete workflow milestone",
       });
     }
@@ -1886,6 +1911,9 @@ router.post(
 
       // Record transition and advance stage in transaction
       const updatedInstance = await prisma.$transaction(async (tx) => {
+        await lockMilestoneProject(tx, instance.researchId);
+        await assertMilestoneAvailable(tx, instance.researchId, targetStage.id);
+        if (targetStage.isFinal && !(await getGroupMilestones(tx, instance.researchId)).every(stage => stage.completed)) throw new MilestoneEligibilityError("Complete all mandatory milestone requirements before completing this workflow.");
         await tx.workflowTransition.create({
           data: {
             workflowInstanceId: instance.id,
@@ -1940,6 +1968,8 @@ router.patch(
   requirePermission(Permissions.WORKFLOW_EDIT),
   async (req: Request, res: Response) => {
     try {
+      const settings = milestonePrerequisitesSchema.safeParse(req.body);
+      if (!settings.success) return void res.status(400).json({ error: settings.error.issues[0].message });
       const stageId = req.params.stageId as string;
       const {
         name,
@@ -1964,6 +1994,9 @@ router.patch(
           .status(404)
           .json({ error: "Workflow milestone not found." });
       }
+      if (settings.data.capturesResearchTitle && !existing.capturesResearchTitle && await prisma.taskSubmission.count({ where: { task: { stageId } } })) {
+        return void res.status(409).json({ error: "Configure title collection before submissions start, or create a new title milestone for existing groups." });
+      }
       if (topicId !== undefined) {
         const topic = topicId
           ? await prisma.workflowTopic.findFirst({
@@ -1978,9 +2011,18 @@ router.patch(
       }
 
       const stage = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`milestone-workflow:${existing.workflowId}`}))`;
+        if (settings.data.prerequisiteIds !== undefined) {
+          await setMilestonePrerequisites(tx, existing.workflowId, stageId, settings.data.prerequisiteIds);
+        }
+        if (category === "Archived" && await tx.milestonePrerequisite.count({ where: { prerequisiteId: stageId } })) {
+          throw new MilestoneEligibilityError("Remove this milestone from dependent prerequisites before archiving it.");
+        }
+        if (category === "Archived") await tx.milestonePrerequisite.deleteMany({ where: { stageId } });
         await tx.workflowStage.update({
           where: { id: stageId },
           data: {
+            ...(settings.data.capturesResearchTitle !== undefined && { capturesResearchTitle: settings.data.capturesResearchTitle }),
             ...(name !== undefined && { name }),
             ...(description !== undefined && { description }),
             ...(topicId !== undefined && { topicId }),
@@ -2004,13 +2046,15 @@ router.patch(
         if (topicId !== undefined && topicId !== existing.topicId) {
           await resequenceWorkflowStagesByTopics(tx, existing.workflowId);
         }
+        const instances = await tx.workflowInstance.findMany({ where: { workflowId: existing.workflowId, workflow: { availabilityMode: "PREREQUISITES" } }, select: { researchId: true } });
+        for (const instance of instances) await reconcileMilestoneNavigation(tx, instance.researchId);
         return tx.workflowStage.findUniqueOrThrow({ where: { id: stageId } });
       });
 
       res.json({ stage });
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({ error: error.message || "Failed to update workflow stage" });
     }
   },
@@ -2164,22 +2208,16 @@ router.post(
         return void res.status(404).json({
           error: "This milestone is not part of the project workflow.",
         });
-      if (
-        project.workflowInstance.currentStage &&
-        stage.sequence > project.workflowInstance.currentStage.sequence &&
-        stage.requiresApproval
-      ) {
-        return void res.status(409).json({
-          error: "Complete the preceding milestone before starting this task.",
-        });
-      }
-
+      await assertMilestoneAvailable(prisma, researchId, stageId);
       if (!stage.requiresDocument) {
         res.status(200).json({ task: null, requiresDocument: false, stage });
         return;
       }
 
-      const task = await prisma.workflowTask.upsert({
+      const task = await prisma.$transaction(async tx => {
+        await lockMilestoneProject(tx, researchId);
+        await assertMilestoneAvailable(tx, researchId, stageId);
+        return tx.workflowTask.upsert({
         where: { stageId_sequence: { stageId, sequence: 1 } },
         update: {},
         create: {
@@ -2194,10 +2232,11 @@ router.post(
           isRequired: true,
         },
       });
+      });
       res.status(201).json({ task, requiresDocument: true, stage });
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({ error: error.message || "Failed to start milestone task" });
     }
   },
@@ -2489,6 +2528,10 @@ router.patch(
         });
       }
       const result = await prisma.$transaction(async (tx) => {
+        await lockMilestoneProject(tx, existing.researchId);
+        const fresh = await tx.taskSubmission.findUniqueOrThrow({ where: { id: submissionId } });
+        if (fresh.status === "APPROVED" && status !== "APPROVED") throw new MilestoneEligibilityError("Use Request Revision on the group's milestone to reopen a passed submission and preserve its approval history.");
+        if (status === "APPROVED") await assertMilestoneAvailable(tx, existing.researchId, existing.task.stage.id);
         const updated = await tx.taskSubmission.update({
           where: { id: submissionId },
           data: {
@@ -2550,10 +2593,87 @@ router.patch(
       res.json(result);
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({ error: error.message || "Failed to review task submission" });
     }
   },
 );
+
+router.post("/:id/start-project", requireAuth, async (req, res) => {
+  try {
+    const result = await startWorkflowProject(req.user!, { workflowId: req.params.id as string, workspaceId: typeof req.body.workspaceId === "string" ? req.body.workspaceId : undefined, participationMode: req.body.participationMode });
+    res.status(result.created ? 201 : 200).json(result);
+  } catch (error: any) { res.status(error.statusCode || 500).json({ error: error.message || "Unable to start this workflow." }); }
+});
+
+// Dependency mode is an explicit change for existing workflows.
+router.get("/:id/availability-preview", requireAuth, requirePermission(Permissions.WORKFLOW_EDIT), async (req, res) => {
+  try {
+    const workflowId = req.params.id as string;
+    if (!(await workflowAccess(workflowId, req.user!))?.manages) return void res.status(404).json({ error: "Workflow not found." });
+    const instances = await prisma.workflowInstance.findMany({ where: { workflowId }, include: { research: { select: { title: true, groupName: true } } } });
+    res.json({ groups: instances.map(instance => ({ researchId: instance.researchId, name: instance.research?.groupName || instance.research?.title || "Research group" })) });
+  } catch (error: any) { res.status(error.statusCode || 500).json({ error: error.message }); }
+});
+
+router.post("/:id/availability", requireAuth, requirePermission(Permissions.WORKFLOW_EDIT), async (req, res) => {
+  try {
+    const workflowId = req.params.id as string;
+    if (!(await workflowAccess(workflowId, req.user!))?.manages) return void res.status(404).json({ error: "Workflow not found." });
+    if (req.body.availabilityMode !== "PREREQUISITES") return void res.status(400).json({ error: "Choose prerequisite-based availability." });
+    await prisma.$transaction(async tx => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`milestone-workflow:${workflowId}`}))`;
+      await captureMilestoneApprovalBases(tx, workflowId);
+      await tx.workflow.update({ where: { id: workflowId }, data: { availabilityMode: "PREREQUISITES" } });
+      await tx.auditLog.create({ data: { userId: req.user!.id, action: "UPDATE", entityType: "Workflow", entityId: workflowId, newValues: { availabilityMode: "PREREQUISITES" } } });
+      const instances = await tx.workflowInstance.findMany({ where: { workflowId }, select: { researchId: true } });
+      for (const instance of instances) await reconcileMilestoneNavigation(tx, instance.researchId);
+    }, { timeout: 30000 });
+    res.json({ success: true });
+  } catch (error: any) { res.status(error.statusCode || 500).json({ error: error.message }); }
+});
+
+router.put("/projects/:researchId/milestones/:stageId/proposed-title", requireAuth, async (req, res) => {
+  try {
+    const researchId = req.params.researchId as string;
+    const stageId = req.params.stageId as string;
+    const title = typeof req.body.title === "string" ? req.body.title.trim() : "";
+    if (title.length < 3 || title.length > 1000) return void res.status(400).json({ error: "Enter a proposed research title between 3 and 1000 characters." });
+    const project = await prisma.researchProject.findFirst({ where: { id: researchId, status: { not: "ARCHIVED" }, members: { some: { userId: req.user!.id, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } } } }, include: { workflowInstance: true } });
+    if (!req.user!.roles.includes("RESEARCHER") || !project?.workflowInstance || !(await hasActiveWorkflowEnrollment(req.user!.id, project.workflowInstance.workflowId))) return void res.status(403).json({ error: "Active group membership and workflow enrollment are required." });
+    await prisma.$transaction(async tx => {
+      await lockMilestoneProject(tx, researchId);
+      const milestone = await assertMilestoneAvailable(tx, researchId, stageId);
+      if (!milestone.capturesResearchTitle) throw new MilestoneEligibilityError("This milestone does not collect a research title.", 400);
+      if (milestone.proposedTitle === title) return;
+      const pending = milestone.tasks.some(task => ["SUBMITTED", "UNDER_REVIEW"].includes(task.status || ""));
+      if (milestone.completed || pending) throw new MilestoneEligibilityError("The proposed title is locked during review and after approval. Ask your professor to request revision first.");
+      await tx.projectMilestoneState.upsert({ where: { researchId_stageId: { researchId, stageId } }, create: { researchId, stageId, proposedTitle: title }, update: { proposedTitle: title } });
+    });
+    res.json({ success: true });
+  } catch (error: any) { res.status(error.statusCode || 500).json({ error: error.message }); }
+});
+
+router.post("/projects/:researchId/milestones/:stageId/decision", requireAuth, requirePermission(Permissions.WORKFLOW_EDIT), validateBody(milestoneDecisionSchema), async (req, res) => {
+  try {
+    const researchId = req.params.researchId as string;
+    const stageId = req.params.stageId as string;
+    const project = await prisma.researchProject.findUnique({ where: { id: researchId }, include: { workflowInstance: { include: { workflow: true } }, members: { where: { userId: req.user!.id, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } } } } });
+    const stage = project?.workflowInstance && await prisma.workflowStage.findFirst({ where: { id: stageId, workflowId: project.workflowInstance.workflowId, category: { not: "Archived" } }, include: { responsible: true } });
+    if (!project?.workflowInstance || !stage) return void res.status(404).json({ error: "Group milestone not found." });
+    if (project.status === "ARCHIVED" || project.members.length || !canReviewTaskSubmission(req.user!, { submittedBy: project.createdBy, researchCollegeId: project.collegeId, workflowOwnerId: project.workflowInstance.workflow.createdBy, responsibleRole: stage.responsible.name })) return void res.status(403).json({ error: "Only the assigned professor can decide this group's milestone." });
+    const { action, reason, taskIds } = req.body;
+    const result = await prisma.$transaction(async tx => {
+      const input = { researchId, milestoneId: stageId, actorId: req.user!.id, reason };
+      if (action === "REQUEST_REVISION") return requestMilestoneRevision(tx, { ...input, taskIds });
+      await lockMilestoneProject(tx, researchId);
+      const milestone = (await getGroupMilestones(tx, researchId)).find(item => item.id === stageId)!;
+      if (action === "RECONFIRM" && !milestone.needsRevalidation) throw new MilestoneEligibilityError("This milestone does not require revalidation.");
+      await recordMilestoneApproval(tx, { ...input, manual: true, reconfirm: action === "RECONFIRM" });
+      return reconcileMilestoneNavigation(tx, researchId);
+    }, { timeout: 30000 });
+    res.json(result);
+  } catch (error: any) { res.status(error.statusCode || 500).json({ error: error.message || "Unable to save milestone decision." }); }
+});
 
 export default router;

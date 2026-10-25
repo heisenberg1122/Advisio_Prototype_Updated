@@ -544,6 +544,7 @@ model User {
   adviserRequestsCreated    AdviserRequest[]           @relation("AdviserRequestCreator")
   taskSubmissions           TaskSubmission[]           @relation("TaskSubmissionSubmitter")
   taskSubmissionAttempts    TaskSubmissionAttempt[]    @relation("TaskSubmissionAttemptSubmitter")
+  milestoneDecisions        MilestoneDecisionEvent[]
   submittedDocumentVersions DocumentVersion[]          @relation("DocumentVersionSubmitter")
   manuscriptStatusEvents    ManuscriptStatusEvent[]    @relation("ManuscriptStatusActor")
   announcementsCreated      SystemAnnouncement[]       @relation("AnnouncementCreator")
@@ -764,6 +765,8 @@ model ResearchProject {
   adviserRequests        AdviserRequest[]
   taskSubmissions        TaskSubmission[]
   taskSubmissionAttempts TaskSubmissionAttempt[]
+  milestoneStates        ProjectMilestoneState[]
+  milestoneDecisions     MilestoneDecisionEvent[]
   defenseSessions        DefenseSession[]
   calendarEvents         CalendarEventResearch[]
   groupFolders           GroupFolder[]
@@ -911,6 +914,7 @@ model Workflow {
   name            String         @db.VarChar(150)
   description     String?        @db.Text
   version         Int            @default(1)
+  availabilityMode String        @default("LEGACY_SEQUENCE") @map("availability_mode") @db.VarChar(24)
   status          WorkflowStatus @default(DRAFT)
   createdBy       String         @map("created_by") @db.Uuid
   publishedAt     DateTime?      @map("published_at")
@@ -988,6 +992,7 @@ model WorkflowStage {
   deadlineDays      Int?    @map("deadline_days")
   isFinal           Boolean @default(false) @map("is_final")
   submissionMode    String  @default("EITHER") @map("submission_mode") @db.VarChar(20)
+  capturesResearchTitle Boolean @default(false) @map("captures_research_title")
 
   workflow               Workflow                  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   topic                  WorkflowTopic?            @relation(fields: [topicId], references: [id], onDelete: SetNull)
@@ -1000,10 +1005,62 @@ model WorkflowStage {
   documents              Document[]                @relation("DocumentMilestone")
   submittedVersions      DocumentVersion[]         @relation("DocumentVersionMilestone")
   taskSubmissionAttempts TaskSubmissionAttempt[]
+  prerequisites          MilestonePrerequisite[] @relation("DependentMilestone")
+  dependents             MilestonePrerequisite[] @relation("PrerequisiteMilestone")
+  projectStates          ProjectMilestoneState[]
+  decisionEvents         MilestoneDecisionEvent[]
 
   @@unique([workflowId, sequence])
   @@index([topicId])
   @@map("workflow_stages")
+}
+
+model MilestonePrerequisite {
+  stageId        String @map("stage_id") @db.Uuid
+  prerequisiteId String @map("prerequisite_id") @db.Uuid
+  stage          WorkflowStage @relation("DependentMilestone", fields: [stageId], references: [id], onDelete: Cascade)
+  prerequisite   WorkflowStage @relation("PrerequisiteMilestone", fields: [prerequisiteId], references: [id], onDelete: Restrict)
+
+  @@id([stageId, prerequisiteId])
+  @@index([prerequisiteId])
+  @@map("milestone_prerequisites")
+}
+
+model ProjectMilestoneState {
+  researchId    String @map("research_id") @db.Uuid
+  stageId       String @map("stage_id") @db.Uuid
+  decision      String @default("PENDING") @db.VarChar(30)
+  generation    Int @default(0)
+  approvalBasis Json @default("{}") @map("approval_basis")
+  revisionTaskIds Json @default("[]") @map("revision_task_ids")
+  reopenedAt    DateTime? @map("reopened_at")
+  reason        String? @db.Text
+  proposedTitle String? @map("proposed_title") @db.Text
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  research      ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  stage         WorkflowStage @relation(fields: [stageId], references: [id], onDelete: Restrict)
+
+  @@id([researchId, stageId])
+  @@index([stageId])
+  @@map("project_milestone_states")
+}
+
+model MilestoneDecisionEvent {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId String @map("research_id") @db.Uuid
+  stageId    String @map("stage_id") @db.Uuid
+  actorId    String @map("actor_id") @db.Uuid
+  decision   String @db.VarChar(30)
+  generation Int
+  reason     String @db.Text
+  details    Json @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at")
+  research   ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  stage      WorkflowStage @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  actor      User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([researchId, stageId, createdAt])
+  @@map("milestone_decision_events")
 }
 
 model WorkflowStageAttachment {

@@ -343,6 +343,12 @@ router.post(
           const workspaceLeader = await tx.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: workspace.id, userId: req.user!.id } } });
           if (!workspaceLeader || workspaceLeader.leftAt || workspaceLeader.role !== "LEADER") throw Object.assign(new Error("Only the active workspace leader can register this project."), { statusCode: 403 });
         }
+        const registrationMemberIds = workspace
+          ? (await tx.workspaceMember.findMany({ where: { workspaceId: workspace.id, leftAt: null }, select: { userId: true } })).map(member => member.userId)
+          : [req.user!.id];
+        for (const memberId of [...registrationMemberIds].sort()) await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`research-start:${memberId}`}))`;
+        const concurrentProject = await tx.researchProject.findFirst({ where: { academicYearId, status: { not: "ARCHIVED" }, OR: [{ createdBy: { in: registrationMemberIds } }, { members: { some: { userId: { in: registrationMemberIds }, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } } } }] }, select: { id: true } });
+        if (concurrentProject) throw Object.assign(new Error("You or a group member already has a research project for this academic year. Continue the existing project."), { statusCode: 409 });
         const newProject = await tx.researchProject.create({
           data: {
             researchTypeId,

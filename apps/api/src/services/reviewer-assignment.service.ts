@@ -1,3 +1,4 @@
+import { assertMilestoneAvailable, lockMilestoneProject } from "./milestone-eligibility.service.js";
 import type { AuthenticatedUser } from "../middleware/auth.js";
 import {
   ManuscriptLifecycleStatus,
@@ -878,6 +879,10 @@ class ReviewerAssignmentService {
             404,
             "ASSIGNMENT_NOT_FOUND",
           );
+        await lockMilestoneProject(tx, assignment.researchId);
+        if (options.recommendation === "APPROVE" && assignment.documentVersion.milestoneId) {
+          await assertMilestoneAvailable(tx, assignment.researchId, assignment.documentVersion.milestoneId);
+        }
         if (assignment.reviewerId !== options.user.id)
           throw new ReviewerAssignmentError(
             "Only the assigned reviewer can submit this decision.",

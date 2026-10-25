@@ -1,3 +1,4 @@
+import { assertMilestoneAvailable, lockMilestoneProject } from "./milestone-eligibility.service.js";
 import { createHash } from "node:crypto";
 import { ManuscriptLifecycleStatus, prisma } from "../lib/prisma.js";
 import type { AuthenticatedUser } from "../middleware/auth.js";
@@ -132,6 +133,8 @@ export async function uploadTaskSubmission(options: {
 
   try {
     result = await runSubmissionTransaction(async (tx) => {
+      await lockMilestoneProject(tx, options.researchId);
+      await assertMilestoneAvailable(tx, options.researchId, task.stageId);
       await assertTaskWorkflowEnrollment(tx, options.user.id, project.workflowInstance!.workflowId);
       await assertTaskSubmissionLifecycle(tx, {
         researchId: options.researchId,
@@ -403,6 +406,8 @@ export async function submitStoredTaskVersion(options: {
   };
   try {
     recordedSubmission = await runSubmissionTransaction(async (tx) => {
+      await lockMilestoneProject(tx, options.researchId);
+      await assertMilestoneAvailable(tx, options.researchId, task.stageId);
       await assertTaskWorkflowEnrollment(tx, options.user.id, project.workflowInstance!.workflowId);
       const committedSnapshot = await tx.documentVersion.findFirst({
         where: { documentId: document.id, submissionKey },
