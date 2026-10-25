@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { useActiveProject } from "@/providers/active-project-provider";
 import { SharedManuscriptFeedback } from "@/components/documents/SharedManuscriptFeedback";
+import { DefenseBadgeCard } from "@/components/defense/DefenseBadgeCard";
 
 const activeStatuses = new Set(["LIVE", "DELIBERATION", "SCHEDULED", "PENDING_ACKNOWLEDGEMENT", "NEEDS_RESCHEDULING"]);
 const readable = (value?: string | null) => value ? value.toLowerCase().replace(/_/g, " ").replace(/^\w/, (letter) => letter.toUpperCase()) : "Not available";
@@ -60,6 +61,10 @@ export default function DefensePage() {
   return (
     <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {selectedSession && <SharedManuscriptFeedback sessionId={selectedSession.id}/>}
+      {data.sessions.some((session: any) => session.badge) && <section aria-label="Defense achievement badges" className="space-y-3">
+        <h2 className="text-lg font-bold text-[var(--color-text-primary)]">Your group’s defense badges</h2>
+        {data.sessions.filter((session: any) => session.badge).map((session: any) => <DefenseBadgeCard key={session.id} badge={session.badge} />)}
+      </section>}
       <section className="college-hero-surface flex flex-col justify-between gap-4 rounded-2xl border border-[var(--color-border)] p-6 text-[var(--color-text-primary)] shadow-[var(--shadow-card-soft)] sm:p-7 lg:flex-row lg:items-center">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">Research defense</p>
