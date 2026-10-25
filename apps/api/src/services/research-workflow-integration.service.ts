@@ -1,5 +1,3 @@
-import { getGroupMilestones, lockMilestoneProject, assertMilestoneAvailable } from "./milestone-eligibility.service.js";
-import { recordMilestoneApproval, reconcileMilestoneNavigation } from "./milestone-decision.service.js";
 import {
   ManuscriptLifecycleStatus,
   Prisma,
@@ -70,9 +68,6 @@ export async function recordTaskSubmissionAttempt(
     lifecycleStatus: ManuscriptLifecycleStatus;
   },
 ) {
-  await lockMilestoneProject(tx, options.researchId);
-  const milestone = await assertMilestoneAvailable(tx, options.researchId, options.milestoneId);
-  if (milestone.capturesResearchTitle && !milestone.proposedTitle?.trim()) throw Object.assign(new Error("Enter a proposed research title before submitting this milestone."), { statusCode: 400 });
   const existingSummary = await tx.taskSubmission.findUnique({
     where: {
       researchId_taskId: {
@@ -203,22 +198,144 @@ function displayStatus(
 }
 
 export async function getMilestoneProgress(client: DbClient, researchId: string) {
-  return getGroupMilestones(client, researchId);
+  const project = await client.researchProject.findUnique({
+    where: { id: researchId },
+    select: {
+      workflowInstance: {
+        select: {
+          currentStageId: true,
+          completedAt: true,
+          workflow: {
+            select: {
+              stages: {
+                where: { category: { not: "Archived" } },
+                orderBy: { sequence: "asc" },
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  sequence: true,
+                  requiresDocument: true,
+                  requiresApproval: true,
+                  isFinal: true,
+                  tasks: {
+                    orderBy: { sequence: "asc" },
+                    select: {
+                      id: true,
+                      title: true,
+                      sequence: true,
+                      isRequired: true,
+                      submissions: {
+                        where: { researchId },
+                        take: 1,
+                        select: {
+                          id: true,
+                          status: true,
+                          documentId: true,
+                          documentVersionId: true,
+                          submittedAt: true,
+                          reviewedAt: true,
+                          attempts: {
+                            orderBy: { attemptNumber: "desc" },
+                            select: {
+                              id: true,
+                              attemptNumber: true,
+                              status: true,
+                              documentVersionId: true,
+                              submittedAt: true,
+                              reviewedAt: true,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  submittedVersions: {
+                    where: {
+                      isImmutable: true,
+                      manuscriptStatus: { in: ["APPROVED", "FINALIZED"] },
+                    },
+                    select: { id: true },
+                    take: 1,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  const instance = project?.workflowInstance;
+  if (!instance) return [];
+  return instance.workflow.stages.map((stage) => {
+    const tasks = stage.tasks.map((task) => {
+      const submission = task.submissions[0] || null;
+      return {
+        id: task.id,
+        title: task.title,
+        sequence: task.sequence,
+        isRequired: task.isRequired,
+        status: submission?.status || null,
+        submissionId: submission?.id || null,
+        documentId: submission?.documentId || null,
+        documentVersionId: submission?.documentVersionId || null,
+        submittedAt: submission?.submittedAt || null,
+        reviewedAt: submission?.reviewedAt || null,
+        attempts: submission?.attempts || [],
+      };
+    });
+    const requiredTasks = tasks.filter((task) => task.isRequired);
+    const approvedRequiredTasks = requiredTasks.filter(
+      (task) => task.status === TaskSubmissionStatus.APPROVED,
+    ).length;
+    const legacyApprovedDocument = requiredTasks.some(
+      (task) => task.status === TaskSubmissionStatus.APPROVED && task.documentId,
+    );
+    const approvedDocument =
+      !stage.requiresDocument ||
+      stage.submittedVersions.length > 0 ||
+      legacyApprovedDocument;
+    const totalRequirements =
+      requiredTasks.length + (stage.requiresDocument ? 1 : 0);
+    const completedRequirements =
+      approvedRequiredTasks + (stage.requiresDocument && approvedDocument ? 1 : 0);
+    const completed =
+      totalRequirements > 0 && completedRequirements === totalRequirements;
+    const statuses = tasks
+      .map((task) => task.status)
+      .filter(Boolean) as TaskSubmissionStatus[];
+    const hasActivity =
+      statuses.length > 0 ||
+      tasks.some((task) => task.attempts.length > 0) ||
+      stage.submittedVersions.length > 0;
+    return {
+      id: stage.id,
+      name: stage.name,
+      description: stage.description,
+      sequence: stage.sequence,
+      requiresDocument: stage.requiresDocument,
+      requiresApproval: stage.requiresApproval,
+      isFinal: stage.isFinal,
+      isCurrent: instance.currentStageId === stage.id,
+      completed,
+      status: displayStatus(completed, statuses, hasActivity),
+      completionPercent:
+        totalRequirements > 0
+          ? Math.round((completedRequirements / totalRequirements) * 100)
+          : 0,
+      completedRequirements,
+      totalRequirements,
+      documentRequirementSatisfied: approvedDocument,
+      tasks,
+    };
+  });
 }
 
 export async function advanceMilestoneIfSatisfied(
   tx: Prisma.TransactionClient,
   options: { researchId: string; milestoneId: string; actorId: string },
 ) {
-  await lockMilestoneProject(tx, options.researchId);
-  const initial = await getGroupMilestones(tx, options.researchId);
-  const selected = initial.find(stage => stage.id === options.milestoneId);
-  if (selected?.locked || selected?.needsRevalidation) return { advanced: false, completed: false, milestone: selected };
-  await recordMilestoneApproval(tx, options);
-  if (selected?.availabilityMode === "PREREQUISITES") {
-    const result = await reconcileMilestoneNavigation(tx, options.researchId);
-    return { ...result, milestone: (await getGroupMilestones(tx, options.researchId)).find(stage => stage.id === options.milestoneId) };
-  }
   const progress = await getMilestoneProgress(tx, options.researchId);
   const milestone = progress.find(({ id }) => id === options.milestoneId);
   if (!milestone?.completed || !milestone.isCurrent)
@@ -247,7 +364,6 @@ export async function advanceMilestoneIfSatisfied(
       data: { currentStageId: nextStage.id },
     });
   } else {
-    if (!progress.every(stage => stage.completed)) return { advanced: false, completed: false, milestone };
     const completedAt = new Date();
     await tx.workflowInstance.update({
       where: { id: instance.id },

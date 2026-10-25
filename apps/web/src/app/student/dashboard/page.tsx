@@ -1,4 +1,3 @@
-import { StudentWorkflowStart } from "@/components/workflow/StudentWorkflowStart";
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
 import React, { useState, Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -1531,22 +1530,22 @@ function StudentDashboardContent() {
                       </button>
                     ) : !activeProject ? (
                       <button
-                        onClick={() => researchData?.projects?.length ? window.scrollTo({ top: 0, behavior: "smooth" }) : handleTabChange("group")}
+                        onClick={() => researchData?.projects?.length ? window.scrollTo({ top: 0, behavior: "smooth" }) : canCreateResearch ? setShowCreateModal(true) : handleTabChange("my-group")}
                         className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-6 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98] dark:text-[var(--college-on-primary-dark)]"
                       >
-                        <i className={`ti ${researchData?.projects?.length ? "ti-folders" : canCreateResearch ? "ti-plus" : "ti-users"} text-base font-bold`} /> {researchData?.projects?.length ? "Select Project" : "Start workflow"}
+                        <i className={`ti ${researchData?.projects?.length ? "ti-folders" : canCreateResearch ? "ti-plus" : "ti-users"} text-base font-bold`} /> {researchData?.projects?.length ? "Select Project" : canCreateResearch ? "Register Project" : "View My Group"}
                       </button>
                     ) : activeProject.status === "REJECTED" ? (
                       <div className="flex flex-wrap items-center justify-end gap-3">
                         <span className="text-xs font-medium text-rose-600">
-                          Review your professor's feedback and revise the required milestones.
+                          Delete this rejected record before registering a replacement.
                         </span>
                         <button
-                          onClick={() => router.push(`/student/tasks?projectId=${activeProject.id}`)}
+                          onClick={() => setGroupAction({ type: "delete" })}
                           disabled={groupActionPending}
                           className="inline-flex h-11 items-center gap-2 rounded-xl bg-rose-600 px-5 text-sm font-bold text-white shadow-xs transition hover:bg-rose-700 disabled:opacity-60"
                         >
-                          <i className="ti ti-trash text-base" /> {groupActionPending ? "Loading…" : "Review milestone feedback"}
+                          <i className="ti ti-trash text-base" /> {groupActionPending ? "Deleting…" : "Delete Rejected Project"}
                         </button>
                       </div>
                     ) : (
@@ -2295,7 +2294,29 @@ function StudentDashboardContent() {
                 ) : (researchData?.projects?.length || 0) > 0 ? (
                   <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6"><h2 className="text-xl font-bold text-[var(--color-text-primary)]">Select a research project</h2><p className="mt-2 text-base text-[var(--color-text-secondary)]">Use the project selector above to view the correct title, workflow, and next step.</p></section>
                 ) : (
-                  <StudentWorkflowStart enrollments={workflowEnrollmentData?.enrollments || []} workspaces={workspaceData?.workspaces || []} loading={isWorkflowEnrollmentLoading || isWorkspaceLoading} />
+                  <section className="student-projects-readable rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-xs">
+                    <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Research title not added</h2>
+                    <p className="mt-2 text-base text-[var(--color-text-secondary)]">{activeWorkspace && !isWorkspaceLeader ? "Your leader will register the project after joining a workflow. View your teammates in My Group." : "Create or join a workspace, then register your research title after joining your professor’s workflow."}</p>
+                    {activeWorkspace ? (
+                      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                          <div><p className="text-sm font-extrabold uppercase tracking-widest text-[#C58A18]">{activeWorkspace.participationMode === "GROUP" ? "Research group" : "Solo workspace"}</p><h4 className="mt-1 text-lg font-extrabold text-[#102f49]">{activeWorkspace.name}</h4><p className="mt-1 text-base text-slate-500">{activeWorkspace.program?.code || activeWorkspace.program?.name} · {activeWorkspace.members?.length || 1} member{(activeWorkspace.members?.length || 1) === 1 ? "" : "s"}</p></div>
+                          <div className="flex flex-wrap gap-2">
+                            {canCreateResearch && !activeWorkspace.projects?.length && <button onClick={() => { setCreateTitle(""); setShowCreateModal(true); }} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"><i className="ti ti-plus mr-1" />Add research project</button>}
+                          </div>
+                        </div>
+                        {activeWorkspace.projects?.length > 0 && <div className="mt-4 space-y-2">{activeWorkspace.projects.map((project: any) => <div key={project.id} className="flex items-center justify-between rounded-xl bg-white p-3"><span className="text-sm font-bold text-[#102f49]">{project.title}</span><span className="text-xs font-bold text-slate-500">{project.status}</span></div>)}</div>}
+                      </div>
+                    ) : isWorkspaceLoading || !workspaceData ? (
+                      <p className="mt-5 text-base text-slate-500">{isWorkspaceLoading ? "Loading your workspace…" : "Unable to load your workspace. Refresh to try again."}</p>
+                    ) : (
+                      <div className="mt-5 grid gap-4 md:grid-cols-2">
+                        <button onClick={() => { setCreateTitle(""); setCreateGroupName(""); setShowCreateModal(true); }} className="rounded-2xl border-2 border-[#173f63] bg-[#173f63] p-6 text-left text-white transition hover:-translate-y-0.5"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10"><i className="ti ti-folder-plus text-xl text-[#ffa400]" /></span><span className="mt-4 block text-base font-extrabold">Create a workspace</span><span className="mt-1 block text-sm leading-5 text-blue-100">Start Solo or create a group. Add a research title now or later.</span></button>
+                        <button onClick={() => router.push("/join-group")} className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-6 text-left transition hover:-translate-y-0.5 hover:border-[#173f63]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100"><i className="ti ti-users-plus text-xl text-[#173f63]" /></span><span className="mt-4 block text-base font-extrabold text-[#102f49]">Join a group</span><span className="mt-1 block text-sm leading-5 text-slate-500">Enter a group invitation code to join a research workspace.</span></button>
+                      </div>
+                    )}
+                    {activeWorkspace && <button type="button" onClick={() => handleTabChange("my-group")} className="mt-5 text-sm font-semibold text-[var(--color-primary)] hover:underline">View My Group →</button>}
+                  </section>
                 )}
               </div>
             ),

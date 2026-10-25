@@ -1,4 +1,3 @@
-import { getGroupMilestones } from "./milestone-eligibility.service.js";
 import { prisma } from "../lib/prisma.js";
 
 const PANEL_ROLES = new Set(["PANELIST", "PANEL_CHAIR"]);
@@ -260,7 +259,6 @@ class DefenseManuscriptService {
       sessionOpen: !["COMPLETED", "CANCELLED"].includes(session.status),
     };
     const workflowId = session.research.workflowInstance?.workflowId || null;
-    const milestoneProgress = await getGroupMilestones(prisma, session.researchId);
     const candidates = versions.map((version) => {
       const requiredAssignments = version.reviewerAssignments;
       const result = evaluateDefenseManuscriptEligibility({
@@ -293,11 +291,6 @@ class DefenseManuscriptService {
           ),
         ...sessionChecks,
       });
-      const milestone = milestoneProgress.find(stage => stage.id === version.milestoneId);
-      if (milestone && (milestone.locked || milestone.needsRevalidation || milestone.status === "REVISION_REQUIRED")) {
-        result.eligible = false;
-        result.reasons.push(milestone.blockedReason || "This manuscript milestone requires revision or professor revalidation.");
-      }
       return {
         ...version,
         fileSize: version.fileSize.toString(),

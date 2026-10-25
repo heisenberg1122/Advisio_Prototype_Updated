@@ -1,7 +1,5 @@
 "use client";
 
-import { StudentWorkflowStart } from "@/components/workflow/StudentWorkflowStart";
-
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
 
 import { useEffect, useRef, useState } from "react";
@@ -54,7 +52,6 @@ export default function ResearchTasksPage() {
   const [file, setFile] = useState<File | null>(null);
   const [submissionKey, setSubmissionKey] = useState("");
   const [note, setNote] = useState("");
-  const [proposedTitle, setProposedTitle] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const submissionInFlightRef = useRef(false);
   const preparedTaskIdRef = useRef<string | null>(null);
@@ -81,7 +78,6 @@ export default function ResearchTasksPage() {
         : projects.length === 1
           ? projects[0]
           : undefined;
-      const projection = project && !project.workflowAccessRemoved ? await apiClient.get<{ milestones: any[] }>(`/api/research/${project.id}/manuscript-workflow`) : null;
       const enrollments = enrollmentList.enrollments || [];
       const activeEnrollment = project
         ? enrollments.find((enrollment: any) => enrollment.workflowId === project.workflowInstance?.workflowId)
@@ -97,8 +93,7 @@ export default function ResearchTasksPage() {
           submission,
         ]),
       );
-      const tasks = stages.flatMap((originalStage: any) => {
-        const stage = { ...originalStage, ...(projection?.milestones.find(item => item.id === originalStage.id) || {}), tasks: originalStage.tasks };
+      const tasks = stages.flatMap((stage: any) => {
         if (stage.requiresDocument === false)
           return [
             {
@@ -113,7 +108,7 @@ export default function ResearchTasksPage() {
               stage,
               submission: null,
               locked:
-                Boolean(stage.locked || stage.needsRevalidation),
+                stage.sequence > currentSequence && stage.requiresApproval,
               milestoneOnly: true,
               requiresDocument: false,
               previewOnly: !project,
@@ -125,7 +120,7 @@ export default function ResearchTasksPage() {
             ...task,
             stage,
             submission: submissions.get(task.id),
-            locked: Boolean(stage.locked || stage.needsRevalidation),
+            locked: stage.sequence > currentSequence && stage.requiresApproval,
             milestoneOnly: false,
             requiresDocument: true,
             previewOnly: !project,
@@ -142,7 +137,7 @@ export default function ResearchTasksPage() {
             isRequired: true,
             stage,
             submission: null,
-            locked: Boolean(stage.locked || stage.needsRevalidation),
+            locked: stage.sequence > currentSequence && stage.requiresApproval,
             milestoneOnly: true,
             requiresDocument: true,
             previewOnly: !project,
@@ -154,7 +149,6 @@ export default function ResearchTasksPage() {
     refetchOnWindowFocus: true,
     refetchInterval: 5000,
   });
-  const { data: startingWorkspaces, isPending: loadingStartingWorkspaces } = useQuery({ queryKey: ["student-workspaces"], queryFn: () => apiClient.get<{ workspaces: any[] }>("/api/workspaces/me") });
   const projectSelection = useActiveProject(data?.projects || []);
   const projectedSelectedTask = requestedTaskId
     ? data?.tasks?.find((task: any) => task.id === requestedTaskId) || null
@@ -186,16 +180,13 @@ export default function ResearchTasksPage() {
   }, [legacyTaskId, navigate, routeTaskId, searchParams]);
 
   useEffect(() => {
-    if (!selectedTask) return;
-    const preparationKey = `${data?.project?.id || "preview"}:${selectedTask.id}:${selectedTask.stage.generation || 0}`;
-    if (preparedTaskIdRef.current === preparationKey) return;
-    preparedTaskIdRef.current = preparationKey;
+    if (!selectedTask || preparedTaskIdRef.current === selectedTask.id) return;
+    preparedTaskIdRef.current = selectedTask.id;
     setFile(null);
     setSubmissionKey(crypto.randomUUID());
     setNote(selectedTask.submission?.note || "");
-    setProposedTitle(selectedTask.stage.proposedTitle || "");
     setMessage(null);
-  }, [selectedTask, data?.project?.id]);
+  }, [selectedTask]);
 
   const openTask = (task: any) => {
     setStartedTaskOverride(null);
@@ -233,12 +224,6 @@ export default function ResearchTasksPage() {
     setMessage(successMessage);
   };
 
-  const saveProposedTitle = async () => {
-    if (selectedTask?.stage.capturesResearchTitle && data?.project) {
-      await apiClient.put(`/api/workflows/projects/${data.project.id}/milestones/${selectedTask.stage.id}/proposed-title`, { title: proposedTitle });
-    }
-  };
-
   const submitUploadedRequirement = async () => {
     if (!selectedTask || !data?.project || !file || selectedTask.milestoneOnly)
       throw new Error("Choose a file before submitting.");
@@ -260,7 +245,6 @@ export default function ResearchTasksPage() {
     setSubmitting(true);
     setMessage(null);
     try {
-      await saveProposedTitle();
       const formData = new FormData();
       formData.append("file", file);
       formData.append("title", `${selectedTask.title} - ${data.project.title}`);
@@ -300,7 +284,6 @@ export default function ResearchTasksPage() {
     setSubmitting(true);
     setMessage(null);
     try {
-      await saveProposedTitle();
       await apiClient.post(request.endpoint, request.body);
       await finishSubmission(
         option.kind === "GOOGLE_DOC_PDF_SNAPSHOT"
@@ -321,7 +304,6 @@ export default function ResearchTasksPage() {
     setStarting(true);
     setMessage(null);
     try {
-      await saveProposedTitle();
       const response = await apiClient.post<{
         task: any | null;
         requiresDocument: boolean;
@@ -406,7 +388,7 @@ export default function ResearchTasksPage() {
   const completed = tasks.filter(
     (task: any) =>
       task.submission?.status === "APPROVED" ||
-      task.stage.completed,
+      task.stage.sequence < currentSequence,
   ).length;
   const activeMembers = (project?.members || []).filter(
     (member: any) =>
@@ -443,8 +425,6 @@ export default function ResearchTasksPage() {
       );
     }
     return (
-      <>
-      {selectedTask.stage.capturesResearchTitle && <section className="mx-auto mt-5 w-full max-w-[1360px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"><label className="block font-bold text-[var(--color-text-primary)]">Proposed research title<input value={proposedTitle} onChange={event => setProposedTitle(event.target.value)} maxLength={1000} disabled={selectedTask.locked || selectedTask.stage.completed} className="mt-2 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 font-normal" /></label><p className="mt-2 text-sm text-[var(--color-text-secondary)]">This title is included when you start or submit the task. The professor's milestone approval sets your project title.</p>{!selectedTask.locked && !selectedTask.stage.completed && <button type="button" onClick={() => { saveProposedTitle().then(() => setMessage("Proposed title saved.")).catch(error => setMessage(error.message)); }} className="mt-3 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-bold text-white">Save proposed title</button>}</section>}
       <MilestoneDetailsWorkspace
         task={selectedTask}
         project={project}
@@ -462,14 +442,12 @@ export default function ResearchTasksPage() {
         onSubmitDocument={submitDocumentRequirement}
         onOpenSigned={openSubmissionVersion}
       />
-      </>
     );
   }
 
   return (
     <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <WorkflowAccessInbox/>
-      {!project && <StudentWorkflowStart enrollments={enrollments} workspaces={startingWorkspaces?.workspaces || []} loading={loadingStartingWorkspaces} />}
       {message && (
         <div className="rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-950/30 p-3.5 text-sm font-semibold text-blue-900 dark:text-blue-200">
           {message}
@@ -586,7 +564,7 @@ export default function ResearchTasksPage() {
                 label="Current status"
                 value={
                   project?.workflowInstance?.currentStage?.name ||
-                  "Ready to start available milestones"
+                  "Awaiting project registration"
                 }
               />
             </div>
@@ -713,7 +691,8 @@ export default function ResearchTasksPage() {
                     <strong className="block">Milestone preview</strong>
                     <span>
                       You can review the professor&apos;s current milestones
-                      now. Choose your workspace above and start the workflow to begin submitting files.
+                      now. Register or join a research project before starting
+                      tasks or submitting files.
                     </span>
                   </div>
                 </div>
@@ -721,8 +700,8 @@ export default function ResearchTasksPage() {
               {tasks.map((task: any) => {
                 const status = task.previewOnly
                   ? "AWAITING_PROJECT"
-                  : task.stage.needsRevalidation ? "NEEDS_REVALIDATION" : task.stage.status === "REVISION_REQUIRED" ? "REVISION_REQUIRED" : task.submission?.status ||
-                    (task.stage.completed
+                  : task.submission?.status ||
+                    (task.stage.sequence < currentSequence
                       ? "COMPLETED"
                       : task.locked
                         ? "LOCKED"
@@ -785,10 +764,6 @@ export default function ResearchTasksPage() {
                             {activeMembers.length === 1 ? "" : "s"}
                           </span>
                         </div>
-                        {task.stage.independent && <p className="mt-2 text-sm font-semibold text-[var(--color-primary)]">No prerequisites{!task.stage.completed && !task.stage.needsRevalidation && (!task.submission || task.submission.status === "REVISION_REQUIRED") ? " · Available to start" : ""}</p>}
-                        {task.stage.prerequisites?.length > 0 && <p className="mt-2 text-sm text-[var(--color-text-secondary)]">Requires: {task.stage.prerequisites.map((item: any) => `${item.topic ? `${item.topic} → ` : ""}${item.name} (${item.passed ? "Passed" : "Not passed"})`).join(", ")}</p>}
-                        {task.stage.blockedReason && <p className="mt-2 text-sm text-amber-800">{task.stage.blockedReason}</p>}
-                        {task.stage.reason && <p className="mt-2 text-sm text-amber-800">Professor's feedback: {task.stage.reason}</p>}
                         {task.submission && (
                           <p className="mt-2.5 text-base font-medium text-[var(--color-text-secondary)]">
                             Submitted by:{" "}
@@ -876,8 +851,8 @@ function MilestoneDetailsWorkspace({
     project?.workflowInstance?.currentStage?.sequence || 0;
   const status = task.previewOnly
     ? "AWAITING_PROJECT"
-    : task.stage.needsRevalidation ? "NEEDS_REVALIDATION" : task.stage.status === "REVISION_REQUIRED" ? "REVISION_REQUIRED" : task.submission?.status ||
-      (task.stage.completed
+    : task.submission?.status ||
+      (task.stage.sequence < currentSequence
         ? "COMPLETED"
         : task.locked
           ? "LOCKED"
@@ -1190,7 +1165,7 @@ function MilestoneDetailsWorkspace({
         {task.previewOnly ? (
           <Notice text="This milestone is available for review. Join or register a research project connected to this workflow before starting work or submitting files." />
         ) : task.locked ? (
-          <Notice text={task.stage.blockedReason || (task.stage.needsRevalidation ? "Your professor must revalidate this milestone or request a revised submission." : "Complete this milestone's prerequisites before submitting.")} />
+          <Notice text="This milestone is visible to your group, but submission opens when the preceding milestone is completed." />
         ) : task.milestoneOnly ? (
           <section className="rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-primary-light)]/30 p-5">
             <h3 className="text-lg font-bold text-[var(--color-text-primary)]">

@@ -1,4 +1,3 @@
-import { assertMilestoneAvailable } from "./milestone-eligibility.service.js";
 import {
   ManuscriptLifecycleStatus,
   Prisma,
@@ -456,7 +455,18 @@ export async function authorizeTaskSubmission(options: {
       "INVALID_TASK",
     );
   }
-  await assertMilestoneAvailable(prisma, options.researchId, task.stageId);
+  const currentStage = project.workflowInstance.currentStage;
+  if (
+    currentStage &&
+    task.stage.sequence > currentStage.sequence &&
+    task.stage.requiresApproval
+  ) {
+    throw new SubmissionIntegrityError(
+      "This task is locked until the project reaches its milestone.",
+      409,
+      "TASK_NOT_AVAILABLE",
+    );
+  }
   return { project, task };
 }
 

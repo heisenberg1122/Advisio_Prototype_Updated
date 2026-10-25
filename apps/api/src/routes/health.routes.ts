@@ -7,10 +7,8 @@ router.get("/", async (_req: Request, res: Response) => {
   try {
     // Ping database
     const [features] = await prisma.$queryRaw<
-      Array<{ workflowAccessApproval: boolean; milestonePrerequisites: boolean }>
-    >`SELECT to_regclass('public.workflow_access_entries') IS NOT NULL AS "workflowAccessApproval",
-      (to_regclass('public.milestone_prerequisites') IS NOT NULL AND
-       to_regclass('public.project_milestone_states') IS NOT NULL) AS "milestonePrerequisites"`;
+      Array<{ workflowAccessApproval: boolean }>
+    >`SELECT to_regclass('public.workflow_access_entries') IS NOT NULL AS "workflowAccessApproval"`;
 
     res.json({
       status: "healthy",

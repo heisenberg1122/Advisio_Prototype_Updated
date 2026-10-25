@@ -213,14 +213,6 @@ describe("project next step", () => {
 });
 
 describe("project navigation", () => {
-  it("points back to a reopened prerequisite even if the navigation cursor is stale", () => {
-    const reopened = { ...stage, id: "earlier", isCurrent: false, status: "REVISION_REQUIRED", tasks: [{ id: "revision-task", title: "Revised title", status: "REVISION_REQUIRED" }] };
-    expect(resolve([stage, reopened])).toMatchObject({ label: "Changes requested", action: { kind: "task", taskId: "revision-task" } });
-  });
-  it("explains blocked milestones and professor revalidation without offering a submission", () => {
-    expect(resolve([{ ...stage, locked: true, blockedReason: "Pass Title Research first." }])).toMatchObject({ description: "Pass Title Research first.", action: { kind: "tasks" } });
-    expect(resolve([{ ...stage, needsRevalidation: true }])).toMatchObject({ label: "Waiting for revalidation", tone: "pending", action: { kind: "tasks" } });
-  });
   it("nests group settings under the project and preserves task project context", () => {
     expect(projectSectionHref("my-group")).toBe(
       "/student/dashboard?tab=group&section=my-group",

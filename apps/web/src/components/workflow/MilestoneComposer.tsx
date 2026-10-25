@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 
 type MilestoneComposerProps = {
   mode: "create" | "edit";
@@ -11,11 +11,6 @@ type MilestoneComposerProps = {
   submissionMode: string;
   requiresDocument: boolean;
   requiresApproval: boolean;
-  prerequisiteIds: string[];
-  availableMilestones: Array<{ id: string; name: string; topic: string; prerequisiteIds: string[] }>;
-  milestoneId?: string;
-  capturesResearchTitle: boolean;
-  legacyAvailability?: boolean;
   category: string;
   saving: boolean;
   advancedOpen: boolean;
@@ -28,8 +23,6 @@ type MilestoneComposerProps = {
   onSubmissionModeChange: (value: string) => void;
   onRequiresDocumentChange: (value: boolean) => void;
   onRequiresApprovalChange: (value: boolean) => void;
-  onPrerequisiteIdsChange: (value: string[]) => void;
-  onCapturesResearchTitleChange: (value: boolean) => void;
   onCategoryChange: (value: string) => void;
   onAdvancedOpenChange: (value: boolean) => void;
   onClose: () => void;
@@ -49,11 +42,6 @@ export function MilestoneComposer({
   submissionMode,
   requiresDocument,
   requiresApproval,
-  prerequisiteIds,
-  availableMilestones,
-  milestoneId,
-  capturesResearchTitle,
-  legacyAvailability,
   category,
   saving,
   advancedOpen,
@@ -66,8 +54,6 @@ export function MilestoneComposer({
   onSubmissionModeChange,
   onRequiresDocumentChange,
   onRequiresApprovalChange,
-  onPrerequisiteIdsChange,
-  onCapturesResearchTitleChange,
   onCategoryChange,
   onAdvancedOpenChange,
   onClose,
@@ -75,15 +61,6 @@ export function MilestoneComposer({
   onDelete,
   saveStatus = "idle",
 }: MilestoneComposerProps) {
-  const [requiresPrerequisites, setRequiresPrerequisites] = useState(prerequisiteIds.length > 0);
-  const [prerequisiteSearch, setPrerequisiteSearch] = useState("");
-  const dependsOnCurrent = (id: string, visited = new Set<string>()): boolean => {
-    if (id === milestoneId) return true;
-    if (visited.has(id)) return false;
-    visited.add(id);
-    return availableMilestones.find(stage => stage.id === id)?.prerequisiteIds.some(required => dependsOnCurrent(required, visited)) || false;
-  };
-  const choices = availableMilestones.filter(stage => !dependsOnCurrent(stage.id) && `${stage.topic} ${stage.name}`.toLowerCase().includes(prerequisiteSearch.toLowerCase()));
   const currentSignature = JSON.stringify({
     title,
     topicId,
@@ -92,9 +69,6 @@ export function MilestoneComposer({
     submissionMode,
     requiresDocument,
     requiresApproval,
-    prerequisiteIds,
-    requiresPrerequisites,
-    capturesResearchTitle,
     category,
   });
   const initialSignature = useRef(currentSignature);
@@ -160,7 +134,7 @@ export function MilestoneComposer({
             )}
             <button
               type="submit"
-              disabled={saving || title.trim().length < 3 || !topicId || (requiresPrerequisites && !prerequisiteIds.length)}
+              disabled={saving || title.trim().length < 3 || !topicId}
               className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#102f49] disabled:cursor-not-allowed disabled:opacity-50 sm:px-5"
             >
               {saving ? "Saving…" : isCreate ? "Add milestone" : "Save changes"}
@@ -171,31 +145,6 @@ export function MilestoneComposer({
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto grid w-full max-w-[1180px] gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_330px] lg:gap-6 lg:p-8">
             <main className="space-y-5">
-              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                <h3 className="font-extrabold text-[#102f49]">Milestone availability</h3>
-                {legacyAvailability && <p className="mt-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">This workflow still uses milestone order. Enable prerequisite-based availability in the workflow settings to use Independent milestones and these dependencies.</p>}
-                <label className="mt-4 flex items-center gap-3 text-sm font-semibold text-slate-700">
-                  <input type="checkbox" checked={requiresPrerequisites} onChange={event => { setRequiresPrerequisites(event.target.checked); if (!event.target.checked) onPrerequisiteIdsChange([]); }} />
-                  Require prerequisite milestones
-                </label>
-                <p className="mt-2 text-sm font-bold text-[#173f63]">{requiresPrerequisites ? "Requires Prerequisites" : "Independent"}</p>
-                <p className="mt-1 text-sm text-slate-500">{requiresPrerequisites ? "Students must pass all selected milestones first." : "No prerequisites; students can start anytime. Deadlines and submission rules still apply."}</p>
-                {requiresPrerequisites && <div className="mt-4 space-y-3">
-                  <input aria-label="Search prerequisite milestones" value={prerequisiteSearch} onChange={event => setPrerequisiteSearch(event.target.value)} placeholder="Search topics or milestones" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
-                  <div className="max-h-56 space-y-2 overflow-y-auto">
-                    {choices.map(stage => <label key={stage.id} className="flex items-start gap-3 rounded-lg border border-slate-200 p-3 text-sm text-slate-700">
-                      <input type="checkbox" checked={prerequisiteIds.includes(stage.id)} onChange={event => onPrerequisiteIdsChange(event.target.checked ? [...prerequisiteIds, stage.id] : prerequisiteIds.filter(id => id !== stage.id))} />
-                      <span>{stage.topic} → <strong>{stage.name}</strong></span>
-                    </label>)}
-                    {!choices.length && <p className="text-sm text-slate-500">No matching milestones are available. Create the prerequisite milestone first.</p>}
-                  </div>
-                  {!prerequisiteIds.length && <p className="text-sm text-amber-800">Select at least one prerequisite before saving.</p>}
-                </div>}
-                <label className="mt-5 flex items-start gap-3 border-t border-slate-100 pt-4 text-sm text-slate-700">
-                  <input type="checkbox" checked={capturesResearchTitle} onChange={event => onCapturesResearchTitleChange(event.target.checked)} />
-                  <span><strong>Collect a proposed research title</strong><span className="mt-1 block text-slate-500">Approval of this milestone sets the group's project title.</span></span>
-                </label>
-              </section>
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                 <label
                   htmlFor="milestone-title"
