@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
+import { Modal } from "@/components/ui/Modal";
 import { calculateMilestoneProgress } from "@/lib/workflow-progress";
 import {
   calendarDateValue,
@@ -369,6 +370,13 @@ function ProfessorDashboardContent() {
   const [newMilestoneTitle, setNewMilestoneTitle] = useState("");
   const [newMilestoneDescription, setNewMilestoneDescription] = useState("");
   const [creatingWorkflow, setCreatingWorkflow] = useState(false);
+  const [workflowToDelete, setWorkflowToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deletingWorkflow, setDeletingWorkflow] = useState(false);
+  const [deleteWorkflowError, setDeleteWorkflowError] = useState("");
   const [newWorkflowName, setNewWorkflowName] = useState("");
   const [newWorkflowDescription, setNewWorkflowDescription] = useState("");
   const [newWorkflowResearchTypeId, setNewWorkflowResearchTypeId] =
@@ -551,6 +559,45 @@ function ProfessorDashboardContent() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const closeDeleteWorkflow = () => {
+    if (deletingWorkflow) return;
+    setWorkflowToDelete(null);
+    setDeleteConfirmation("");
+    setDeleteWorkflowError("");
+  };
+
+  const handleDeleteWorkflow = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (
+      !workflowToDelete ||
+      deletingWorkflow ||
+      deleteConfirmation !== `sudo delete "${workflowToDelete.name}"`
+    )
+      return;
+    setDeletingWorkflow(true);
+    setDeleteWorkflowError("");
+    try {
+      await apiClient.delete(`/api/workflows/${workflowToDelete.id}`, {
+        body: JSON.stringify({ confirmation: deleteConfirmation }),
+      });
+    } catch (error: any) {
+      setDeleteWorkflowError(
+        error?.message || "Workflow could not be deleted.",
+      );
+      setDeletingWorkflow(false);
+      return;
+    }
+    setWorkflowToDelete(null);
+    setDeleteConfirmation("");
+    await Promise.all([
+      refetchWorkflows(),
+      refetchEnrollments(),
+      refetchResearch(),
+    ]);
+    setDeletingWorkflow(false);
+    triggerToast(`Workflow "${workflowToDelete.name}" deleted.`);
   };
 
   const openNewMilestone = (
@@ -1558,6 +1605,74 @@ function ProfessorDashboardContent() {
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
+      <Modal
+        isOpen={Boolean(workflowToDelete)}
+        onClose={closeDeleteWorkflow}
+        title="Delete workflow"
+        maxWidth="lg"
+      >
+        {workflowToDelete && (
+          <form onSubmit={handleDeleteWorkflow} className="space-y-4">
+            <p className="text-base text-[var(--color-text-secondary)]">
+              Permanently delete <strong>{workflowToDelete.name}</strong>,
+              including its milestones, topics, resources, invitations, and
+              enrollments. This cannot be undone. Workflows linked to research
+              projects cannot be deleted.
+            </p>
+            <div>
+              <label
+                htmlFor="delete-workflow-confirmation"
+                className="block text-sm font-bold text-[var(--color-text-primary)]"
+              >
+                To confirm, type the exact text below, including the quotation
+                marks:
+              </label>
+              <code
+                id="delete-workflow-phrase"
+                className="my-2 block whitespace-pre-wrap break-words rounded-lg bg-[var(--color-surface-subtle)] p-3 text-sm select-text"
+              >
+                {`sudo delete "${workflowToDelete.name}"`}
+              </code>
+              <input
+                id="delete-workflow-confirmation"
+                value={deleteConfirmation}
+                onChange={(event) => setDeleteConfirmation(event.target.value)}
+                disabled={deletingWorkflow}
+                autoComplete="off"
+                spellCheck={false}
+                aria-describedby="delete-workflow-phrase"
+                className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
+            {deleteWorkflowError && (
+              <p role="alert" className="text-sm text-red-600">
+                {deleteWorkflowError}
+              </p>
+            )}
+            <div className="flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={closeDeleteWorkflow}
+                disabled={deletingWorkflow}
+                className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={
+                  deletingWorkflow ||
+                  deleteConfirmation !==
+                    `sudo delete "${workflowToDelete.name}"`
+                }
+                className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deletingWorkflow ? "Deleting…" : "Delete workflow"}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
       {showDeanRequestForm && (
         <ProfessorDeanRequestModal
           projects={projects}
@@ -5164,14 +5279,33 @@ function ProfessorDashboardContent() {
                         academic resources.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setCreatingWorkflow(true)}
-                      className="shrink-0 self-start rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#102f49] lg:self-auto"
-                    >
-                      <i className="ti ti-plus mr-1.5" />
-                      Create workflow
-                    </button>
+                    <div className="flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => setCreatingWorkflow(true)}
+                        className="shrink-0 self-start rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#102f49] lg:self-auto"
+                      >
+                        <i className="ti ti-plus mr-1.5" />
+                        Create workflow
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!selectedWorkflow || deletingWorkflow}
+                        onClick={() => {
+                          if (!selectedWorkflow) return;
+                          setWorkflowToDelete({
+                            id: selectedWorkflow.id,
+                            name: selectedWorkflow.name,
+                          });
+                          setDeleteConfirmation("");
+                          setDeleteWorkflowError("");
+                        }}
+                        className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-extrabold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <i className="ti ti-trash mr-1.5" aria-hidden="true" />
+                        Delete
+                      </button>
+                    </div>
                   </div>
                   <div className="mt-5 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center">
                     <label className="text-sm font-bold text-slate-600">

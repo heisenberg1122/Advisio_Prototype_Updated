@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
-  workflow: { findUnique: vi.fn(), findMany: vi.fn() },
+  workflow: { findUnique: vi.fn(), findMany: vi.fn(), delete: vi.fn() },
   researchType: { findUnique: vi.fn(), findMany: vi.fn() },
   workflowEnrollment: {
     findFirst: vi.fn(),
@@ -19,7 +19,7 @@ const db = vi.hoisted(() => ({
     findUnique: vi.fn(),
     findMany: vi.fn(),
   },
-  workflowInstance: { findUnique: vi.fn() },
+  workflowInstance: { findUnique: vi.fn(), count: vi.fn() },
   workflowResource: { findMany: vi.fn() },
   workflowStage: { findUnique: vi.fn(), findFirst: vi.fn() },
   workflowStageAttachment: { findMany: vi.fn() },
@@ -91,6 +91,111 @@ async function request(
   );
   return res;
 }
+
+describe("workflow deletion", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    db.workflow.findUnique.mockResolvedValue({
+      id: "workflow",
+      name: "Private workflow",
+      researchTypeId: "type",
+    });
+    db.researchType.findUnique.mockResolvedValue({
+      program: { id: "program", collegeId: "college" },
+    });
+    db.workflowInstance.count.mockResolvedValue(0);
+    db.$transaction.mockImplementation((callback) => callback(db));
+  });
+
+  const remove = (confirmation: unknown, user: any = professor) =>
+    request("/:id", "delete", { user, body: { confirmation } });
+
+  it.each([
+    undefined,
+    "Private workflow",
+    "sudo delete Private workflow",
+    'sudo delete "private workflow"',
+    'sudo delete "Private workflow" ',
+  ])(
+    "rejects non-exact confirmation %s without deleting",
+    async (confirmation) => {
+      expect((await remove(confirmation)).statusCode).toBe(400);
+      expect(db.workflow.delete).not.toHaveBeenCalled();
+      expect(db.auditLog.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it("deletes an unused workflow and records the action", async () => {
+    const res = await remove('sudo delete "Private workflow"');
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ deleted: true });
+    expect(db.workflow.delete).toHaveBeenCalledWith({
+      where: { id: "workflow" },
+    });
+    expect(db.auditLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: professor.id,
+          action: "DELETE",
+          entityId: "workflow",
+        }),
+      }),
+    );
+  });
+
+  it("preserves workflows used by research projects", async () => {
+    db.workflowInstance.count.mockResolvedValue(1);
+    expect((await remove('sudo delete "Private workflow"')).statusCode).toBe(
+      409,
+    );
+    expect(db.workflow.delete).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    student,
+    { ...professor, collegeId: "other-college" },
+    { ...professor, programId: "other-program" },
+    { ...professor, collegeId: null },
+  ])("rejects users who cannot manage the workflow: %s", async (user) => {
+    expect(
+      (await remove('sudo delete "Private workflow"', user)).statusCode,
+    ).toBe(404);
+    expect(db.workflow.delete).not.toHaveBeenCalled();
+  });
+
+  it("returns not found for an already deleted workflow", async () => {
+    db.workflow.findUnique.mockResolvedValue(null);
+    expect((await remove('sudo delete "Private workflow"')).statusCode).toBe(
+      404,
+    );
+    expect(db.workflow.delete).not.toHaveBeenCalled();
+  });
+
+  it("rejects stale confirmation when the workflow name changes", async () => {
+    db.workflow.findUnique.mockResolvedValueOnce({
+      id: "workflow",
+      name: "Private workflow",
+      researchTypeId: "type",
+    });
+    db.workflow.findUnique.mockResolvedValueOnce({
+      id: "workflow",
+      name: "Renamed workflow",
+      researchTypeId: "type",
+    });
+    expect((await remove('sudo delete "Private workflow"')).statusCode).toBe(
+      400,
+    );
+    expect(db.workflow.delete).not.toHaveBeenCalled();
+  });
+
+  it("returns a conflict if a concurrent project reference prevents deletion", async () => {
+    db.workflow.delete.mockRejectedValue({ code: "P2003" });
+    expect((await remove('sudo delete "Private workflow"')).statusCode).toBe(
+      409,
+    );
+    expect(db.auditLog.create).not.toHaveBeenCalled();
+  });
+});
 
 describe("removed workflow participant API access", () => {
   beforeEach(() => {

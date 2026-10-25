@@ -1321,6 +1321,77 @@ router.post(
   },
 );
 
+// DELETE /api/workflows/:id — only unused workflows can be permanently removed.
+router.delete(
+  "/:id",
+  requireAuth,
+  requirePermission(Permissions.WORKFLOW_EDIT),
+  async (req: Request, res: Response) => {
+    try {
+      const id = req.params.id as string;
+      if (!(await workflowAccess(id, req.user!))?.manages) {
+        return void res.status(404).json({ error: "Workflow not found." });
+      }
+      await prisma.$transaction(async (tx) => {
+        await lockWorkflowAccess(tx, id);
+        const workflow = await tx.workflow.findUnique({ where: { id } });
+        if (!workflow) {
+          throw Object.assign(new Error("Workflow not found."), {
+            statusCode: 404,
+          });
+        }
+        if (req.body?.confirmation !== `sudo delete "${workflow.name}"`) {
+          throw Object.assign(
+            new Error(
+              "Type the exact confirmation text, including the workflow name and quotation marks.",
+            ),
+            { statusCode: 400 },
+          );
+        }
+        if (await tx.workflowInstance.count({ where: { workflowId: id } })) {
+          throw Object.assign(
+            new Error(
+              "This workflow is linked to research projects and cannot be deleted. Academic records must be preserved.",
+            ),
+            { statusCode: 409 },
+          );
+        }
+        await tx.workflow.delete({ where: { id } });
+        await tx.auditLog.create({
+          data: {
+            userId: req.user!.id,
+            action: "DELETE",
+            entityType: "Workflow",
+            entityId: id,
+            oldValues: {
+              name: workflow.name,
+              researchTypeId: workflow.researchTypeId,
+            },
+            ipAddress: req.ip,
+            userAgent: req.get("user-agent") || null,
+          },
+        });
+      });
+      res.json({ deleted: true });
+    } catch (error: any) {
+      if (error?.code === "P2025") {
+        return void res.status(404).json({ error: "Workflow not found." });
+      }
+      if (error?.code === "P2003") {
+        return void res.status(409).json({
+          error:
+            "This workflow is in use and cannot be deleted. Academic records must be preserved.",
+        });
+      }
+      res.status(error.statusCode || 500).json({
+        error: error.statusCode
+          ? error.message
+          : "Workflow could not be deleted. Please retry.",
+      });
+    }
+  },
+);
+
 router.post("/:id/invitation", requireAuth, generateWorkflowCode);
 router.get("/invitation/:code", requireAuth, previewWorkflow);
 router.post("/join/:code", requireAuth, requestWorkflow);
