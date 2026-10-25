@@ -749,12 +749,11 @@ router.get(
           return void res.status(403).json({ error: "Your access to this workflow was removed by the professor." });
         }
       }
-      const [milestones, activity, decisions] = await Promise.all([
+      const [milestones, activity] = await Promise.all([
         getMilestoneProgress(prisma, researchId),
         getManuscriptActivity(prisma, researchId, access.canReview),
-        prisma.milestoneDecisionEvent.findMany({ where: { researchId }, orderBy: { createdAt: "desc" }, include: { stage: { select: { id: true, name: true } } } }),
       ]);
-      res.json({ milestones, activity, decisions });
+      res.json({ milestones, activity });
     } catch (error: any) {
       res.status(500).json({
         error: error.message || "Failed to load the manuscript workflow.",

@@ -1,4 +1,3 @@
-import { assertMilestoneAvailable, lockMilestoneProject } from "./milestone-eligibility.service.js";
 import crypto from "node:crypto";
 import type { AuthenticatedUser } from "../middleware/auth.js";
 import { ManuscriptLifecycleStatus, prisma } from "../lib/prisma.js";
@@ -14,7 +13,6 @@ import {
 } from "./research-workflow-integration.service.js";
 import {
   assertTaskSubmissionLifecycle,
-  assertTaskWorkflowEnrollment,
   authorizeTaskSubmission,
   isDocumentLifecycleSubmittable,
   liveGoogleDocumentEligibility,
@@ -176,7 +174,6 @@ class ManuscriptLifecycleService {
         "INVALID_MILESTONE",
       );
 
-    await assertMilestoneAvailable(prisma, document.researchId, milestone.id);
     let task: { id: string; title: string; allowedFileTypes: string } | null =
       null;
     if (options.taskId) {
@@ -314,9 +311,6 @@ class ManuscriptLifecycleService {
       uploadedFileId = uploaded.fileId;
 
       const result = await runSubmissionTransaction(async (tx) => {
-        await lockMilestoneProject(tx, document.researchId);
-        await assertTaskWorkflowEnrollment(tx, options.user.id, workflowId);
-        await assertMilestoneAvailable(tx, document.researchId, milestone.id);
         const locked = await tx.document.findFirst({
           where: {
             id: document.id,

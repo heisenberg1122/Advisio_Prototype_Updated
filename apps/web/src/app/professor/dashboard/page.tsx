@@ -28,7 +28,6 @@ import {
   WorkflowDeadlineTracker,
   type WorkflowDeadlineRow,
 } from "@/components/workflow/WorkflowDeadlineTracker";
-import { GroupMilestoneReview, WorkflowAvailabilitySettings } from "@/components/workflow/GroupMilestoneReview";
 import { ResearchProjectsOnboarding } from "@/components/workflow/ResearchProjectsOnboarding";
 
 const EMPTY_MILESTONE_PROGRESS_BY_PROJECT: Record<string, any[]> = {};
@@ -239,8 +238,8 @@ function ProfessorDashboardContent() {
         .filter((p: any) => p.status !== "ARCHIVED" && p.workflowInstance)
         .map((p: any) => ({
           id: p.id,
-          title: p.title || "Research title pending",
-          group: p.groupName || p.title || "Research title pending",
+          title: p.title,
+          group: p.title || "Untitled research project",
           abstract: p.abstract || "",
           researchType: p.researchType || null,
           program: p.program || null,
@@ -294,7 +293,6 @@ function ProfessorDashboardContent() {
         inviteCode: w.inviteCode,
         inviteExpiresAt: w.inviteExpiresAt,
         topics: w.topics || [],
-        availabilityMode: w.availabilityMode,
       }));
       setWorkflows(topList);
       if (
@@ -332,8 +330,7 @@ function ProfessorDashboardContent() {
               ? ""
               : s.description || "",
             locked: Boolean(s.requiresApproval),
-            prerequisiteIds: (s.prerequisites || []).map((item: any) => item.prerequisiteId),
-            capturesResearchTitle: Boolean(s.capturesResearchTitle),
+            prerequisiteTaskId: "",
             deadlineDays: s.deadlineDays,
             requiresDocument: s.requiresDocument !== false,
             submissionMode: s.submissionMode || "EITHER",
@@ -346,10 +343,6 @@ function ProfessorDashboardContent() {
   }, [workflowData, requestedWorkflowId, selectedWorkflowId]);
 
   // Form input controllers
-  const [newMilestonePrerequisiteIds, setNewMilestonePrerequisiteIds] = useState<string[]>([]);
-  const [newMilestoneCapturesTitle, setNewMilestoneCapturesTitle] = useState(false);
-  const [milestoneEditPrerequisiteIds, setMilestoneEditPrerequisiteIds] = useState<string[]>([]);
-  const [milestoneEditCapturesTitle, setMilestoneEditCapturesTitle] = useState(false);
   const [newMilestoneTitle, setNewMilestoneTitle] = useState("");
   const [newMilestoneDescription, setNewMilestoneDescription] = useState("");
   const [creatingWorkflow, setCreatingWorkflow] = useState(false);
@@ -386,9 +379,6 @@ function ProfessorDashboardContent() {
   const [newRequirementFileTypes, setNewRequirementFileTypes] =
     useState("PDF,DOCX");
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
-  useEffect(() => {
-    setSelectedProject((current: any) => current ? projects.find(project => project.id === current.id) || null : null);
-  }, [projects]);
   const [monitoringSearch, setMonitoringSearch] = useState("");
   const [monitoringPendingRemoval, setMonitoringPendingRemoval] = useState<{
     kind: "researcher" | "project";
@@ -573,8 +563,6 @@ function ProfessorDashboardContent() {
         requiresApproval: newMilestoneRequiresApproval,
         requiresDocument: newMilestoneRequiresDocument,
         submissionMode: newMilestoneSubmissionMode,
-        prerequisiteIds: newMilestonePrerequisiteIds,
-        capturesResearchTitle: newMilestoneCapturesTitle,
         },
       );
       const attachmentResults = await Promise.allSettled(
@@ -613,8 +601,6 @@ function ProfessorDashboardContent() {
       ).length;
       await refetchWorkflows();
       setNewMilestoneTitle("");
-      setNewMilestonePrerequisiteIds([]);
-      setNewMilestoneCapturesTitle(false);
       setNewMilestoneDescription("");
       setDeadlineDays("");
       setNewMilestoneRequiresApproval(false);
@@ -887,8 +873,6 @@ function ProfessorDashboardContent() {
 
   const openMilestoneEditor = (milestone: any) => {
     setEditingMilestone(milestone);
-    setMilestoneEditPrerequisiteIds(milestone.prerequisiteIds || []);
-    setMilestoneEditCapturesTitle(Boolean(milestone.capturesResearchTitle));
     setMilestoneEditTitle(milestone.title || "");
     setMilestoneEditDescription(milestone.description || "");
     setMilestoneEditCategory(milestone.scope || "Milestone");
@@ -919,8 +903,6 @@ function ProfessorDashboardContent() {
           requiresDocument: milestoneEditRequiresDocument,
           requiresApproval: milestoneEditRequiresApproval,
           submissionMode: milestoneEditSubmissionMode,
-          prerequisiteIds: milestoneEditPrerequisiteIds,
-          capturesResearchTitle: milestoneEditCapturesTitle,
         }),
         minimumDelay,
       ]);
@@ -1102,7 +1084,6 @@ function ProfessorDashboardContent() {
               ? "No upload"
               : `${milestone.tasks?.length || 1} submission requirement${(milestone.tasks?.length || 1) === 1 ? "" : "s"}`}
           </span>
-          {selectedWorkflow?.availabilityMode === "PREREQUISITES" && <span className="text-[#173f63]">{milestone.prerequisiteIds?.length ? `Requires ${milestone.prerequisiteIds.length} prerequisite${milestone.prerequisiteIds.length === 1 ? "" : "s"}` : "Independent"}</span>}
           {milestone.locked && (
             <>
               <span aria-hidden="true">·</span>
@@ -1614,13 +1595,6 @@ function ProfessorDashboardContent() {
           submissionMode={milestoneEditSubmissionMode}
           requiresDocument={milestoneEditRequiresDocument}
           requiresApproval={milestoneEditRequiresApproval}
-          prerequisiteIds={milestoneEditPrerequisiteIds}
-          milestoneId={editingMilestone.id}
-          availableMilestones={milestones.filter(stage => stage.workflowId === editingMilestone.workflowId).map(stage => ({ id: stage.id, name: stage.title, topic: selectedWorkflowTopics.find((topic: any) => topic.id === stage.topicId)?.title || "Ungrouped", prerequisiteIds: stage.prerequisiteIds || [] }))}
-          legacyAvailability={selectedWorkflow?.availabilityMode !== "PREREQUISITES"}
-          capturesResearchTitle={milestoneEditCapturesTitle}
-          onPrerequisiteIdsChange={setMilestoneEditPrerequisiteIds}
-          onCapturesResearchTitleChange={setMilestoneEditCapturesTitle}
           category={milestoneEditCategory}
           saving={milestoneSaveStatus === "saving"}
           saveStatus={milestoneSaveStatus}
@@ -2393,12 +2367,6 @@ function ProfessorDashboardContent() {
           submissionMode={newMilestoneSubmissionMode}
           requiresDocument={newMilestoneRequiresDocument}
           requiresApproval={newMilestoneRequiresApproval}
-          prerequisiteIds={newMilestonePrerequisiteIds}
-          availableMilestones={milestones.filter(stage => stage.workflowId === selectedWorkflowId).map(stage => ({ id: stage.id, name: stage.title, topic: selectedWorkflowTopics.find((topic: any) => topic.id === stage.topicId)?.title || "Ungrouped", prerequisiteIds: stage.prerequisiteIds || [] }))}
-          legacyAvailability={selectedWorkflow?.availabilityMode !== "PREREQUISITES"}
-          capturesResearchTitle={newMilestoneCapturesTitle}
-          onPrerequisiteIdsChange={setNewMilestonePrerequisiteIds}
-          onCapturesResearchTitleChange={setNewMilestoneCapturesTitle}
           category={newMilestoneScope}
           saving={saving}
           advancedOpen={showAdvancedMilestoneOptions}
@@ -2801,7 +2769,6 @@ function ProfessorDashboardContent() {
                 </p>
               )}
             </div>
-            <GroupMilestoneReview projectId={selectedProject.id} onChanged={() => { refetchResearch(); }} />
             <h3 className="mt-6 font-extrabold text-[#102f49]">
               Workflow stages
             </h3>
@@ -5178,7 +5145,6 @@ function ProfessorDashboardContent() {
                     />
                   </div>
                 )}
-                {selectedWorkflow && <WorkflowAvailabilitySettings key={selectedWorkflow.id} workflow={selectedWorkflow} onChanged={() => { refetchWorkflows(); refetchResearch(); }} />}
                 {workflowView === "milestones" && (
                   <div
                     id="workflow-panel-milestones"

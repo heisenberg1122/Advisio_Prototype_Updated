@@ -15,12 +15,6 @@ export interface ProjectMilestoneProgress {
   status?: string | null;
   requiresDocument?: boolean;
   requiresApproval?: boolean;
-  locked?: boolean;
-  blockedReason?: string | null;
-  needsRevalidation?: boolean;
-  reason?: string | null;
-  independent?: boolean;
-  capturesResearchTitle?: boolean;
   tasks?: ProjectTaskProgress[];
 }
 
@@ -141,7 +135,6 @@ export function resolveProjectNextStep({
       buttonLabel: "View defense requirements",
     };
   const current =
-    milestones.find(stage => stage.status === "REVISION_REQUIRED" && !stage.locked) ||
     milestones.find(
       (stage) => stage.id === project.workflowInstance?.currentStage?.id,
     ) || milestones.find((stage) => stage.isCurrent);
@@ -155,12 +148,6 @@ export function resolveProjectNextStep({
       action: { kind: "tasks" },
       buttonLabel: "View requirements",
     };
-  if (current.locked || current.needsRevalidation) return {
-    label: current.needsRevalidation ? "Waiting for revalidation" : "Prerequisites required",
-    title: current.name,
-    description: current.blockedReason || "Your professor must revalidate the earlier approval or request a revised submission.",
-    tone: "pending", action: { kind: "tasks" }, buttonLabel: "View requirements",
-  };
   const required = (current.tasks || []).filter(
     (task) => task.isRequired !== false,
   );
