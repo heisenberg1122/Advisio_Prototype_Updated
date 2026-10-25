@@ -1,3 +1,4 @@
+import { WorkflowAccessManager } from "./WorkflowAccessManager";
 import { useEffect, useMemo, useState } from "react";
 
 type WorkflowParticipant = {
@@ -19,7 +20,7 @@ type WorkflowParticipantsCardProps = {
   participants: WorkflowParticipant[];
   isLoading?: boolean;
   error?: unknown;
-  invitation?: { code: string; link: string } | null;
+  invitation?: { code: string; link: string; expiresAt?: string } | null;
   invitationLoading?: boolean;
   onInvite: () => void;
   onRemove: (participant: WorkflowParticipant) => void;
@@ -37,7 +38,7 @@ function joinedDate(value: string) {
   }).format(new Date(value));
 }
 
-export function WorkflowParticipantsCard({
+function WorkflowMembersCard({
   workflowId,
   workflowName,
   participants,
@@ -107,7 +108,7 @@ export function WorkflowParticipantsCard({
               className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm disabled:opacity-50"
             >
               <i className="ti ti-user-plus mr-1.5" />
-              {invitationLoading ? "Preparing…" : invitation ? "Regenerate invitation" : "Invite researchers"}
+              {invitationLoading ? "Preparing…" : invitation ? "Regenerate code" : "Generate code"}
             </button>
           </div>
 
@@ -123,7 +124,7 @@ export function WorkflowParticipantsCard({
                   {copyStatus === "copied" ? "Copied" : "Copy link"}
                 </button>
               </div>
-              <p className="mt-2 text-base text-blue-800">Code: <strong className="font-mono">{invitation.code}</strong> · Researchers who use this invitation join only {workflowName}.</p>
+              <p className="mt-2 text-base text-blue-800">Code: <strong className="font-mono">{invitation.code}</strong>{invitation.expiresAt && <span> · Expires {joinedDate(invitation.expiresAt)}</span>} · Researchers who use this code or link must request approval to join {workflowName}.</p>
             </div>
           )}
 
@@ -150,7 +151,7 @@ export function WorkflowParticipantsCard({
             <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-blue-50 text-[#173f63]"><i className="ti ti-users-plus text-2xl" /></span>
             <h4 className="mt-3 font-extrabold text-[#102f49]">No researchers enrolled yet</h4>
             <p className="mt-1 text-base text-slate-500">Share this workflow’s invitation link with the appropriate researchers.</p>
-            <button type="button" onClick={onInvite} disabled={invitationLoading} className="mt-4 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">Invite researchers</button>
+            <button type="button" onClick={onInvite} disabled={invitationLoading} className="mt-4 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">Generate code</button>
           </div>
         ) : filteredParticipants.length === 0 ? (
           <div className="p-10 text-center text-sm text-slate-500">No participants match “{search}”.</div>
@@ -217,3 +218,5 @@ export function WorkflowParticipantsCard({
     </>
   );
 }
+
+export function WorkflowParticipantsCard(props: WorkflowParticipantsCardProps) { return <WorkflowAccessManager workflowId={props.workflowId} workflowName={props.workflowName}><WorkflowMembersCard {...props}/></WorkflowAccessManager>; }

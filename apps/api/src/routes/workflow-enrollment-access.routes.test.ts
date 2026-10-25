@@ -5,10 +5,14 @@ const db = vi.hoisted(() => ({
   researchType: { findUnique: vi.fn(), findMany: vi.fn() },
   workflowEnrollment: {
     findFirst: vi.fn(),
+    findUnique: vi.fn(),
     findMany: vi.fn(),
     update: vi.fn(),
     upsert: vi.fn(),
   },
+  user: {findUnique: vi.fn()},
+  workflowAccessEntry: {findUnique:vi.fn(),updateMany:vi.fn()},
+  $executeRaw:vi.fn(),
   researchMember: { findFirst: vi.fn() },
   researchProject: {
     findFirst: vi.fn(),
@@ -94,6 +98,7 @@ describe("removed workflow participant API access", () => {
     db.workflow.findUnique.mockResolvedValue({
       id: "workflow",
       name: "Private workflow",
+      inviteCode:"INVITE",creator:{firstName:"Professor",lastName:"Test"},
       researchTypeId: "type",
       inviteExpiresAt: new Date(Date.now() + 60000),
     });
@@ -111,7 +116,8 @@ describe("removed workflow participant API access", () => {
       id: "stage",
       workflowId: "workflow",
     });
-    db.$transaction.mockImplementation((actions) => Promise.all(actions));
+    db.$transaction.mockImplementation((actions) => typeof actions === "function" ? actions(db) : Promise.all(actions));
+    db.user.findUnique.mockResolvedValue({status:"ACTIVE",collegeId:"college",programId:"program",roles:[{role:{name:"RESEARCHER"}}]});
   });
 
   it("denies resource access despite remaining project membership", async () => {
@@ -269,21 +275,14 @@ describe("removed workflow participant API access", () => {
   });
 
   it("does not let an old invitation reactivate a removed participant", async () => {
-    db.workflowEnrollment.upsert.mockResolvedValue({ status: "REVOKED" });
+    db.workflowEnrollment.findUnique.mockResolvedValue({ status: "REVOKED" });
     expect((await request("/join/:code", "post")).statusCode).toBe(403);
-    expect(db.workflowEnrollment.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ update: {} }),
-    );
+    expect(db.workflowEnrollment.upsert).not.toHaveBeenCalled();
     expect(db.notification.createMany).not.toHaveBeenCalled();
   });
 
   it("does not expose milestone previews through a removed participant's invitation", async () => {
-    db.workflow.findUnique.mockResolvedValue({
-      id: "workflow",
-      inviteExpiresAt: new Date(Date.now() + 60000),
-      enrollments: [{ id: "enrollment", status: "REVOKED" }],
-      stages: [{ name: "Private milestone" }],
-    });
+    db.workflowEnrollment.findUnique.mockResolvedValue({status:"REVOKED"});
     const res = await request("/invitation/:code");
     expect(res.statusCode).toBe(403);
     expect(res.body.invitation).toBeUndefined();

@@ -674,7 +674,8 @@ router.get("/threads/:id", requireAuth, async (req, res) => {
     (participant) => participant.userId === req.user!.id,
   );
   if (mine) mine.readAt = readAt;
-  res.json({ thread: serializeThread(thread, req.user!.id) });
+  const workflowInvitation = await prisma.workflowAccessEntry.findUnique({ where: { mailThreadId: thread.id }, select: { id: true, userId: true, status: true, workflow: { select: { name: true } } } });
+  res.json({ thread: { ...serializeThread(thread, req.user!.id), workflowInvitation } });
 });
 
 router.post("/messages", requireAuth, mailFiles, async (req, res) => {

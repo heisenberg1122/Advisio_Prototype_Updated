@@ -1,3 +1,4 @@
+import type { WorkflowInboxInvitation } from "../workflow/WorkflowInvitationActions";
 import type { MailAttachment } from "./MailAttachmentMenu";
 
 export type MailFolder =
@@ -47,6 +48,7 @@ export interface MailMessage {
 }
 
 export interface MailThread {
+  workflowInvitation?: WorkflowInboxInvitation | null;
   id: string;
   subject: string;
   createdById: string;

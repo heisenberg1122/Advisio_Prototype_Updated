@@ -31,4 +31,4 @@ EXPOSE 5000
 ENV NODE_ENV=production
 ENV PORT=5000
 
-CMD ["node", "apps/api/dist/index.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=packages/database/prisma/schema.prisma && node apps/api/dist/index.js"]

@@ -1,3 +1,4 @@
+import { WorkflowInvitationActions } from "../workflow/WorkflowInvitationActions";
 import { useRef, useState } from "react";
 import {
   Archive,
@@ -182,6 +183,7 @@ export function MailConversation({
       </header>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[var(--color-surface-muted)]/45 p-4 sm:p-6">
+        {thread.workflowInvitation && <WorkflowInvitationActions invitation={thread.workflowInvitation} userId={userId}/>}
         {thread.messages.map((message) => {
           const mine = message.senderId === userId;
           return (

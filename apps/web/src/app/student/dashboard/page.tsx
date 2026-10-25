@@ -1,3 +1,4 @@
+import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
 import React, { useState, Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1474,6 +1475,7 @@ function StudentDashboardContent() {
 
       {/* MAIN CONTAINER */}
       <div className={`w-full flex-1 space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
+        {activeTab === "overview" && <WorkflowAccessInbox/>}
         {((researchData?.projects?.length || 0) > 1 || projectSelection.invalidRequestedProjectId) && (
           <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-5">
             <label htmlFor="dashboard-project" className="mb-2 block text-sm font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">Active research project</label>
