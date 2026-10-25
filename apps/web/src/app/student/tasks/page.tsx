@@ -14,6 +14,10 @@ import { Modal } from "@/components/ui/Modal";
 import { useAuth } from "@/hooks/use-auth";
 import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
 import { AdviserProfileModal } from "@/components/profile/AdviserProfileModal";
+import { AdviserRequestProgressTracker } from "@/components/workflow/AdviserRequestProgressTracker";
+import { AdviserRequestHistory } from "@/components/workflow/AdviserRequestHistory";
+import { WithdrawAdviserRequestModal } from "@/components/workflow/WithdrawAdviserRequestModal";
+import { Avatar } from "@/components/ui/Avatar";
 import {
   Link,
   useNavigate,
@@ -913,129 +917,336 @@ export default function ResearchTasksPage() {
 }
 
 function AdviserMilestoneAction({ task, project, isLeader }: any) {
+  const queryClient = useQueryClient();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [actionMessage, setActionMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
   const milestone = task.adviserMilestone || { status: "NOT_STARTED" };
   const status = milestone.status || "NOT_STARTED";
   const adviserName = milestone.adviser
-    ? `${milestone.adviser.firstName || ""} ${milestone.adviser.lastName || ""}`.trim()
+    ? `${milestone.adviser.firstName || ""} ${milestone.adviser.lastName || ""}`.trim() ||
+      milestone.adviser.email
     : null;
+  const initials = milestone.adviser
+    ? `${milestone.adviser.firstName?.[0] || "A"}${milestone.adviser.lastName?.[0] || ""}`.toUpperCase()
+    : "FA";
   const canSelect =
     isLeader && (status === "NOT_STARTED" || status === "DECLINED");
+  const canWithdraw =
+    isLeader && status === "PENDING_ADVISER" && milestone.requestId;
+
+  const handleWithdraw = async (reason?: string) => {
+    if (!milestone.requestId) return;
+    try {
+      setWithdrawing(true);
+      setActionMessage(null);
+      await apiClient.patch(
+        `/api/adviser-requests/${milestone.requestId}/cancel`,
+        { reason },
+      );
+      setWithdrawModalOpen(false);
+      setActionMessage({
+        type: "success",
+        text: "Adviser request was withdrawn. Your research group may now select another faculty adviser.",
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["student", "workflow-tasks"],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["student", "advisers"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["student-manuscript-workflow"],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+      ]);
+    } catch (error: any) {
+      setActionMessage({
+        type: "error",
+        text: error?.message || "Failed to withdraw adviser request.",
+      });
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
+  const handleOpenProfile = (adv?: any) => {
+    setSelectedProfile(
+      adv ||
+        (milestone.adviser
+          ? {
+              ...milestone.adviser,
+              name: adviserName,
+              initials,
+            }
+          : null),
+    );
+    setProfileOpen(true);
+  };
 
   return (
-    <section className="rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-primary-light)]/30 p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-extrabold uppercase tracking-wider text-[var(--color-primary)]">
-            Adviser selection
-          </p>
-          <h3 className="mt-1 text-lg font-bold text-[var(--color-text-primary)]">
-            {status === "APPROVED"
-              ? "Official adviser accepted"
-              : status === "PENDING_ADVISER"
-                ? "Waiting for adviser response"
-                : status === "DECLINED"
-                  ? "Adviser request declined"
-                  : "Select an adviser to continue"}
-          </h3>
-        </div>
-        <Tag
-          variant={
-            status === "APPROVED"
-              ? "success"
-              : status === "DECLINED"
-                ? "warn"
-                : "info"
-          }
-        >
-          {status.replace(/_/g, " ")}
-        </Tag>
-      </div>
+    <div className="space-y-6">
+      {/* 1. Request Progress Tracker */}
+      <AdviserRequestProgressTracker
+        status={status}
+        adviserName={adviserName}
+        requestedAt={milestone.requestedAt}
+        acceptedAt={milestone.acceptedAt}
+        respondedAt={milestone.respondedAt}
+        latestRequestStatus={milestone.requestStatus}
+      />
 
-      {adviserName && (
-        <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-          <p className="font-bold text-[var(--color-text-primary)]">
-            {adviserName}
-          </p>
-          {milestone.adviser.email && (
-            <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-              {milestone.adviser.email}
-            </p>
-          )}
+      {/* Action feedback message banner */}
+      {actionMessage && (
+        <div
+          className={`flex items-center gap-2.5 rounded-2xl border p-4 text-sm font-semibold ${
+            actionMessage.type === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200"
+              : "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-200"
+          }`}
+          role="alert"
+        >
+          <i
+            className={`ti ${
+              actionMessage.type === "success"
+                ? "ti-circle-check text-emerald-600 dark:text-emerald-400"
+                : "ti-alert-circle text-rose-600 dark:text-rose-400"
+            } text-lg shrink-0`}
+          />
+          <span className="flex-1">{actionMessage.text}</span>
           <button
             type="button"
-            onClick={() => setProfileOpen(true)}
-            className="mt-3 inline-flex items-center gap-1.5 text-sm font-bold text-[var(--color-primary)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+            onClick={() => setActionMessage(null)}
+            className="text-xs font-bold underline opacity-80 hover:opacity-100"
           >
-            <i className="ti ti-id" aria-hidden="true" />
-            View adviser profile
+            Dismiss
           </button>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--color-text-secondary)]">
-            {milestone.requestedAt && (
-              <span>
-                Requested {new Date(milestone.requestedAt).toLocaleString()}
-              </span>
-            )}
-            {milestone.acceptedAt && (
-              <span>
-                Accepted {new Date(milestone.acceptedAt).toLocaleString()}
-              </span>
-            )}
-            {status === "DECLINED" && milestone.respondedAt && (
-              <span>
-                Responded {new Date(milestone.respondedAt).toLocaleString()}
-              </span>
-            )}
-          </div>
         </div>
       )}
 
-      {milestone.responseNote && (
-        <p className="mt-3 whitespace-pre-wrap rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-          {milestone.responseNote}
-        </p>
-      )}
+      {/* 2. Main Milestone Status & Adviser Card */}
+      <section className="rounded-2xl border border-[var(--color-primary)]/30 bg-[var(--color-primary-light)]/20 p-5 sm:p-6 shadow-xs">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-wider text-[var(--color-primary)]">
+              Adviser Milestone
+            </p>
+            <h3 className="mt-1 text-lg font-bold text-[var(--color-text-primary)]">
+              {status === "APPROVED"
+                ? "Official Adviser Accepted"
+                : status === "PENDING_ADVISER"
+                  ? "Waiting for Adviser Response"
+                  : status === "DECLINED"
+                    ? "Adviser Request Declined"
+                    : "Select an Adviser"}
+            </h3>
+          </div>
+          <Tag
+            variant={
+              status === "APPROVED"
+                ? "success"
+                : status === "DECLINED"
+                  ? "warn"
+                  : status === "PENDING_ADVISER"
+                    ? "info"
+                    : "neutral"
+            }
+          >
+            {status.replace(/_/g, " ")}
+          </Tag>
+        </div>
 
-      {status === "APPROVED" ? (
-        <p className="mt-4 text-base leading-6 text-[var(--color-text-secondary)]">
-          This milestone was approved automatically when the adviser accepted.
-          Your group can continue to the next milestone.
-        </p>
-      ) : status === "PENDING_ADVISER" ? (
-        <p className="mt-4 text-base leading-6 text-[var(--color-text-secondary)]">
-          The request is pending. The milestone will complete automatically if
-          the adviser accepts it.
-        </p>
-      ) : canSelect ? (
-        <Link
-          to={`/student/adviser-pool?projectId=${encodeURIComponent(project.id)}&milestoneId=${encodeURIComponent(task.stage.id)}`}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-[var(--color-primary-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
-        >
-          <i className="ti ti-user-search" aria-hidden="true" />
-          {status === "DECLINED" ? "Select another adviser" : "Select Adviser"}
-        </Link>
-      ) : (
-        <p className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-base text-[var(--color-text-secondary)]">
-          Your group leader manages adviser selection. You will see the request
-          status here.
-        </p>
-      )}
+        {/* Selected / Accepted / Previous Adviser Card */}
+        {adviserName && (
+          <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <Avatar
+                  initials={initials}
+                  size="lg"
+                  colorVariant={status === "APPROVED" ? "success" : "info"}
+                />
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="font-extrabold text-base text-[var(--color-text-primary)]">
+                      {adviserName}
+                    </h4>
+                    {status === "APPROVED" && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-950/30 px-2 py-0.5 text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
+                        <i className="ti ti-rosette-discount-check" /> Official
+                        Adviser
+                      </span>
+                    )}
+                  </div>
+                  {milestone.adviser?.email && (
+                    <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+                      {milestone.adviser.email}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-start sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => handleOpenProfile()}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-bold text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] transition cursor-pointer"
+                >
+                  <i className="ti ti-id" aria-hidden="true" />
+                  View Faculty Profile
+                </button>
+              </div>
+            </div>
+
+            {/* Timestamps */}
+            <div className="mt-3.5 flex flex-wrap gap-x-5 gap-y-1.5 border-t border-[var(--color-border)]/60 pt-3 text-xs text-[var(--color-text-secondary)]">
+              {milestone.requestedAt && (
+                <span>
+                  <strong className="text-[var(--color-text-primary)]">
+                    Requested:
+                  </strong>{" "}
+                  {new Date(milestone.requestedAt).toLocaleString()}
+                </span>
+              )}
+              {milestone.acceptedAt && (
+                <span>
+                  <strong className="text-[var(--color-text-primary)]">
+                    Accepted:
+                  </strong>{" "}
+                  {new Date(milestone.acceptedAt).toLocaleString()}
+                </span>
+              )}
+              {status === "DECLINED" && milestone.respondedAt && (
+                <span>
+                  <strong className="text-amber-700 dark:text-amber-400">
+                    Declined:
+                  </strong>{" "}
+                  {new Date(milestone.respondedAt).toLocaleString()}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Decline remarks banner */}
+        {status === "DECLINED" && milestone.responseNote && (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+            <strong className="block font-bold text-sm mb-1">
+              Adviser Decline Reason
+            </strong>
+            <p className="whitespace-pre-wrap">{milestone.responseNote}</p>
+          </div>
+        )}
+
+        {/* Action States & Decision Controls */}
+        <div className="mt-5 pt-4 border-t border-[var(--color-primary)]/20">
+          {status === "APPROVED" ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/60 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200 flex items-start gap-3">
+              <i className="ti ti-check-double text-xl text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <strong className="block font-bold">Milestone Completed</strong>
+                <p className="mt-0.5 text-xs text-emerald-800 dark:text-emerald-300">
+                  {adviserName} officially accepted this research project. This
+                  milestone was approved automatically without requiring
+                  document submission. Your group may proceed to the next
+                  milestone.
+                </p>
+              </div>
+            </div>
+          ) : status === "PENDING_ADVISER" ? (
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/70 dark:border-blue-900/60 dark:bg-blue-950/30 p-4 text-sm text-blue-900 dark:text-blue-200">
+                <div className="flex items-start gap-2.5">
+                  <i className="ti ti-hourglass-low text-lg text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block font-bold">Request Pending</strong>
+                    <span className="text-xs text-blue-800 dark:text-blue-300">
+                      Your invitation has been sent to{" "}
+                      {adviserName || "the adviser"}. You will be notified as
+                      soon as they make a decision.
+                    </span>
+                  </div>
+                </div>
+
+                {canWithdraw && (
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawModalOpen(true)}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-white hover:bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200 dark:hover:bg-rose-900/40 px-3.5 py-2 text-xs font-bold transition shadow-2xs cursor-pointer"
+                  >
+                    <i className="ti ti-arrow-back-up text-sm" />
+                    Withdraw Request
+                  </button>
+                )}
+              </div>
+
+              {!isLeader && (
+                <p className="text-xs text-[var(--color-text-secondary)] italic">
+                  Note: Only the research group leader can withdraw or modify
+                  this pending request.
+                </p>
+              )}
+            </div>
+          ) : canSelect ? (
+            <div className="space-y-3">
+              <p className="text-xs text-[var(--color-text-secondary)]">
+                {status === "DECLINED"
+                  ? "You may browse the Adviser Pool to select another faculty member with available slots."
+                  : "Browse verified faculty members in the Adviser Pool to submit an official adviser request."}
+              </p>
+              <Link
+                to={`/student/adviser-pool?projectId=${encodeURIComponent(project?.id || "")}&milestoneId=${encodeURIComponent(task.stage.id)}`}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 py-3 text-sm font-extrabold text-white shadow-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] cursor-pointer"
+              >
+                <i className="ti ti-user-search text-base" aria-hidden="true" />
+                {status === "DECLINED"
+                  ? "Select Another Adviser"
+                  : "Select Adviser"}
+              </Link>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xs text-[var(--color-text-secondary)] flex items-center gap-2.5">
+              <i className="ti ti-info-circle text-base text-[var(--color-text-muted)] shrink-0" />
+              <span>
+                Your research group leader manages adviser selection. You will
+                see the request status and timeline here once submitted.
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 3. Adviser Request History */}
+      <AdviserRequestHistory
+        history={milestone.requestHistory || []}
+        onViewProfile={handleOpenProfile}
+      />
+
+      {/* Faculty Profile Modal */}
       <AdviserProfileModal
-        adviser={
-          milestone.adviser
-            ? {
-                ...milestone.adviser,
-                name: adviserName,
-                initials:
-                  `${milestone.adviser.firstName?.[0] || "A"}${milestone.adviser.lastName?.[0] || ""}`.toUpperCase(),
-              }
-            : null
-        }
+        adviser={selectedProfile}
         isOpen={profileOpen}
-        onClose={() => setProfileOpen(false)}
+        onClose={() => {
+          setProfileOpen(false);
+          setSelectedProfile(null);
+        }}
         canRequest={false}
       />
-    </section>
+
+      {/* Withdrawal Confirmation Dialog */}
+      <WithdrawAdviserRequestModal
+        isOpen={withdrawModalOpen}
+        onClose={() => setWithdrawModalOpen(false)}
+        onConfirm={handleWithdraw}
+        adviserName={adviserName || "the faculty member"}
+        isSubmitting={withdrawing}
+      />
+    </div>
   );
 }
 
@@ -1950,9 +2161,7 @@ function MilestoneInformationPanel({
           <InformationRow
             icon="ti-calendar-due"
             label="Deadline"
-            value={
-              formatTaskDeadline(task)
-            }
+            value={formatTaskDeadline(task)}
           />
           <InformationRow
             icon="ti-file-type-pdf"

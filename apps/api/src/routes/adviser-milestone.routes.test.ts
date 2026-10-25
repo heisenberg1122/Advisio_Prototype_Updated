@@ -205,4 +205,100 @@ describe("adviser milestone request authorization and synchronization", () => {
     expect(declined.statusCode).toBe(200);
     expect(mocks.synchronizeAdviserMilestone).not.toHaveBeenCalled();
   });
+
+  it("allows a group leader to withdraw a pending adviser request with an optional note", async () => {
+    const existing = {
+      id: "req-1",
+      adviserId: "adviser-1",
+      researchId: "project-1",
+      status: "PENDING",
+      research: { title: "Research Project Alpha" },
+    };
+    db.adviserRequest.findFirst.mockResolvedValue(existing);
+    db.adviserRequest.update.mockResolvedValue({
+      ...existing,
+      status: "CANCELLED",
+      responseNote: "Selecting another faculty adviser.",
+    });
+    db.notification.create.mockResolvedValue({ id: "notif-1" });
+
+    const response = await request("/:id/cancel", "patch", {
+      user: leader,
+      params: { id: "req-1" },
+      body: { reason: "Selecting another faculty adviser." },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(db.adviserRequest.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "req-1" },
+        data: expect.objectContaining({
+          status: "CANCELLED",
+          responseNote: "Selecting another faculty adviser.",
+        }),
+      }),
+    );
+    expect(db.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          recipientId: "adviser-1",
+          type: "ADVISER_REQUEST_DECIDED",
+        }),
+      }),
+    );
+  });
+
+  it("rejects request withdrawal when caller is not the active project leader", async () => {
+    db.adviserRequest.findFirst.mockResolvedValue(null);
+
+    const nonLeader = { ...leader, id: "member-only" };
+    const response = await request("/:id/cancel", "patch", {
+      user: nonLeader,
+      params: { id: "req-1" },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.body.error).toContain("not found for a project you lead");
+    expect(db.adviserRequest.update).not.toHaveBeenCalled();
+  });
+
+  it("reconciles existing accepted adviser for project members", async () => {
+    db.researchMember.findFirst.mockResolvedValue({
+      id: "member-1",
+      researchId: "project-1",
+      userId: leader.id,
+    });
+    mocks.synchronizeAdviserMilestone.mockResolvedValue({
+      synchronized: true,
+      stageId: "adviser-stage",
+      progression: { advanced: true },
+    });
+
+    const response = await request("/reconcile", "post", {
+      user: leader,
+      body: { researchId: "project-1" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(mocks.synchronizeAdviserMilestone).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        researchId: "project-1",
+        actorId: leader.id,
+      }),
+    );
+  });
+
+  it("rejects reconciliation when user has no access to the project", async () => {
+    db.researchMember.findFirst.mockResolvedValue(null);
+
+    const unauthorized = { ...leader, id: "stranger", roles: ["RESEARCHER"] };
+    const response = await request("/reconcile", "post", {
+      user: unauthorized,
+      body: { researchId: "project-1" },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(mocks.synchronizeAdviserMilestone).not.toHaveBeenCalled();
+  });
 });

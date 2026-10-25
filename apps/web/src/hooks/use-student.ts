@@ -1,11 +1,18 @@
 "use client";
 
-import { consultationViewModel, nextConsultation } from "@/lib/consultation-view";
+import {
+  consultationViewModel,
+  nextConsultation,
+} from "@/lib/consultation-view";
 import { useActiveProject } from "@/providers/active-project-provider";
 
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import type { DefenseEligibility, DefenseRequirement, GradeReport } from "@/types/student";
+import type {
+  DefenseEligibility,
+  DefenseRequirement,
+  GradeReport,
+} from "@/types/student";
 import { useActiveProjectContext } from "@/providers/active-project-provider";
 
 export const studentKeys = {
@@ -26,23 +33,39 @@ export const studentKeys = {
 
 // ── Consultations ──────────────────────────────────────────────
 function useStudentProjectSelection() {
-  const projects = useQuery({ queryKey: ["student-research"], queryFn: () => apiClient.get<{ projects: any[] }>("/api/research") });
+  const projects = useQuery({
+    queryKey: ["student-research"],
+    queryFn: () => apiClient.get<{ projects: any[] }>("/api/research"),
+  });
   const selection = useActiveProject(projects.data?.projects || []);
-  return { ...selection, projectLoading: projects.isPending, projectError: projects.error };
+  return {
+    ...selection,
+    projectLoading: projects.isPending,
+    projectError: projects.error,
+  };
 }
 
 export function useConsultations() {
-  const { projectId, projectLoading, projectError } = useStudentProjectSelection();
+  const { projectId, projectLoading, projectError } =
+    useStudentProjectSelection();
   const query = useQuery({
     queryKey: [...studentKeys.consultations(), projectId],
     enabled: Boolean(projectId),
     queryFn: async () => {
-      const res = await apiClient.get<{ consultations: any[] }>("/api/consultations", { params: { researchId: projectId! } });
+      const res = await apiClient.get<{ consultations: any[] }>(
+        "/api/consultations",
+        { params: { researchId: projectId! } },
+      );
       const list = (res.consultations || []).map(consultationViewModel);
       return { list, next: nextConsultation(list) };
     },
   });
-  return { ...query, isPending: projectLoading || (Boolean(projectId) && query.isPending), error: projectError || query.error, projectId };
+  return {
+    ...query,
+    isPending: projectLoading || (Boolean(projectId) && query.isPending),
+    error: projectError || query.error,
+    projectId,
+  };
 }
 
 // ── Notifications ──────────────────────────────────────────────
@@ -51,7 +74,9 @@ export function useNotifications() {
     queryKey: studentKeys.notifications(),
     queryFn: async () => {
       try {
-        const res = await apiClient.get<{ notifications: any[] }>("/api/notifications");
+        const res = await apiClient.get<{ notifications: any[] }>(
+          "/api/notifications",
+        );
         return res.notifications || [];
       } catch {
         return [];
@@ -71,23 +96,33 @@ export function useStudentGroup() {
         const projects = res?.projects || [];
         const active = activeProjectId
           ? projects.find((project: any) => project.id === activeProjectId)
-          : projects.length === 1 ? projects[0] : null;
+          : projects.length === 1
+            ? projects[0]
+            : null;
         if (!active) return null;
         return {
           id: active.id,
           name: active.title?.substring(0, 24) || "Research Group",
           title: active.title,
           researchTitle: active.title,
-          members: active.members?.map((m: any) => ({
-            id: m.id || m.userId,
-            name: `${m.user?.firstName || ""} ${m.user?.lastName || ""}`.trim() || m.user?.email || "Member",
-            initials: `${(m.user?.firstName?.[0] || "M")}${(m.user?.lastName?.[0] || "")}`.toUpperCase(),
-            email: m.user?.email,
-            role: m.projectRole?.toLowerCase() === "leader" ? "leader" : "member",
-            isYou: false,
-            colorVariant: "info",
-          })) || [],
-          adviser: active.members?.find((m: any) => m.projectRole === "ADVISER" && !m.leftAt)?.user
+          members:
+            active.members?.map((m: any) => ({
+              id: m.id || m.userId,
+              name:
+                `${m.user?.firstName || ""} ${m.user?.lastName || ""}`.trim() ||
+                m.user?.email ||
+                "Member",
+              initials:
+                `${m.user?.firstName?.[0] || "M"}${m.user?.lastName?.[0] || ""}`.toUpperCase(),
+              email: m.user?.email,
+              role:
+                m.projectRole?.toLowerCase() === "leader" ? "leader" : "member",
+              isYou: false,
+              colorVariant: "info",
+            })) || [],
+          adviser: active.members?.find(
+            (m: any) => m.projectRole === "ADVISER" && !m.leftAt,
+          )?.user
             ? `${active.members.find((m: any) => m.projectRole === "ADVISER" && !m.leftAt).user.firstName} ${active.members.find((m: any) => m.projectRole === "ADVISER" && !m.leftAt).user.lastName}`.trim()
             : null,
           status: active.status,
@@ -100,28 +135,50 @@ export function useStudentGroup() {
 }
 
 // ── Advisers ───────────────────────────────────────────────────
-export function useAdvisers() {
+export function useAdvisers(explicitProjectId?: string | null) {
   const { activeProjectId } = useActiveProjectContext();
+  const targetProjectId = explicitProjectId || activeProjectId;
   return useQuery({
-    queryKey: [...studentKeys.advisers(), activeProjectId],
+    queryKey: [...studentKeys.advisers(), targetProjectId],
     queryFn: async () => {
       try {
-        const research = await apiClient.get<{ projects: any[] }>("/api/research");
+        const research = await apiClient.get<{ projects: any[] }>(
+          "/api/research",
+        );
         const projects = research.projects || [];
-        const project = activeProjectId
-          ? projects.find((candidate: any) => candidate.id === activeProjectId)
-          : projects.length === 1 ? projects[0] : null;
-        const adviserParams = new URLSearchParams({ role: "ADVISER", status: "ACTIVE" });
-        if (project?.programId) adviserParams.set("programId", project.programId);
-        const res = await apiClient.get<{ users: any[] }>(`/api/users?${adviserParams.toString()}`);
-        const assignedMember = project?.members?.find((m: any) => m.projectRole === "ADVISER" && !m.leftAt);
-        const requests = await apiClient.get<{ requests: any[] }>("/api/adviser-requests").catch(() => ({ requests: [] }));
-        const requestsList = Array.isArray(requests?.requests) ? requests.requests : [];
+        const project = targetProjectId
+          ? projects.find((candidate: any) => candidate.id === targetProjectId)
+          : projects.length === 1
+            ? projects[0]
+            : null;
+        const adviserParams = new URLSearchParams({
+          role: "ADVISER",
+          status: "ACTIVE",
+        });
+        if (project?.programId)
+          adviserParams.set("programId", project.programId);
+        const res = await apiClient.get<{ users: any[] }>(
+          `/api/users?${adviserParams.toString()}`,
+        );
+        const assignedMember = project?.members?.find(
+          (m: any) => m.projectRole === "ADVISER" && !m.leftAt,
+        );
+        const requests = await apiClient
+          .get<{ requests: any[] }>("/api/adviser-requests")
+          .catch(() => ({ requests: [] }));
+        const requestsList = Array.isArray(requests?.requests)
+          ? requests.requests
+          : [];
         const usersList = Array.isArray(res?.users) ? res.users : [];
         const mapAdviser = (adviser: any) => ({
           ...adviser,
-          name: adviser.name || `${adviser.firstName || ""} ${adviser.lastName || ""}`.trim() || adviser.email,
-          initials: adviser.initials || `${adviser.firstName?.[0] || "F"}${adviser.lastName?.[0] || "A"}`.toUpperCase(),
+          name:
+            adviser.name ||
+            `${adviser.firstName || ""} ${adviser.lastName || ""}`.trim() ||
+            adviser.email,
+          initials:
+            adviser.initials ||
+            `${adviser.firstName?.[0] || "F"}${adviser.lastName?.[0] || "A"}`.toUpperCase(),
           college: adviser.college?.name || adviser.college || "Faculty",
           adviseeCount: adviser.adviseeCount ?? 0,
           maxAdviseeGroups: adviser.maxAdviseeGroups ?? 5,
@@ -129,7 +186,10 @@ export function useAdvisers() {
           isAcceptingAdvisees: adviser.isAcceptingAdvisees ?? true,
           isFull: adviser.isFull ?? false,
           avgResponseDays: adviser.avgResponseDays || "—",
-          requestStatus: requestsList.find((r: any) => r.adviserId === adviser.id && r.researchId === project?.id)?.status,
+          requestStatus: requestsList.find(
+            (r: any) =>
+              r.adviserId === adviser.id && r.researchId === project?.id,
+          )?.status,
         });
         return {
           projectId: project?.id || null,
@@ -169,10 +229,13 @@ export function useDefense() {
   }>({
     queryKey: [...studentKeys.defense(), activeProjectId],
     queryFn: async () => {
-      const research = await apiClient.get<{ projects: any[] }>("/api/research");
+      const research = await apiClient.get<{ projects: any[] }>(
+        "/api/research",
+      );
       const projects = research.projects || [];
       const project = activeProjectId
-        ? projects.find((candidate: any) => candidate.id === activeProjectId) || null
+        ? projects.find((candidate: any) => candidate.id === activeProjectId) ||
+          null
         : projects.length === 1
           ? projects[0]
           : null;
@@ -226,7 +289,9 @@ export function useDefense() {
         {
           id: "workflow",
           label: "Required workflow milestones completed",
-          status: project.workflowInstance?.completedAt ? "done" : "in_progress",
+          status: project.workflowInstance?.completedAt
+            ? "done"
+            : "in_progress",
         },
         {
           id: "adviser",
@@ -244,7 +309,9 @@ export function useDefense() {
           status: hasSignedDeanApproval ? "done" : "pending",
         },
       ];
-      const ready = requirements.every((requirement) => requirement.status === "done");
+      const ready = requirements.every(
+        (requirement) => requirement.status === "done",
+      );
       return {
         requirements,
         eligibility: ready ? "eligible" : "not_eligible",
@@ -260,12 +327,24 @@ export function useDefense() {
 
 // ── Grades ────────────────────────────────────────────────────
 export function useGrades() {
-  const { projectId, projectLoading, projectError } = useStudentProjectSelection();
+  const { projectId, projectLoading, projectError } =
+    useStudentProjectSelection();
   const query = useQuery<GradeReport>({
-    queryKey: [...studentKeys.grades(), projectId], enabled: Boolean(projectId),
-    queryFn: async () => (await apiClient.get<{ grades: GradeReport }>(`/api/research/${projectId}/grades`)).grades,
+    queryKey: [...studentKeys.grades(), projectId],
+    enabled: Boolean(projectId),
+    queryFn: async () =>
+      (
+        await apiClient.get<{ grades: GradeReport }>(
+          `/api/research/${projectId}/grades`,
+        )
+      ).grades,
   });
-  return { ...query, isPending: projectLoading || (Boolean(projectId) && query.isPending), error: projectError || query.error, projectId };
+  return {
+    ...query,
+    isPending: projectLoading || (Boolean(projectId) && query.isPending),
+    error: projectError || query.error,
+    projectId,
+  };
 }
 
 // ── Optimistic task toggle ─────────────────────────────────────

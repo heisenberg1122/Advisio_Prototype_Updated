@@ -130,12 +130,9 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
         .status(409)
         .json({ error: "This adviser is not accepting new requests" });
     if (activeGroups >= adviser.maxAdviseeGroups)
-      return void res
-        .status(409)
-        .json({
-          error:
-            "This adviser has reached their maximum number of active groups",
-        });
+      return void res.status(409).json({
+        error: "This adviser has reached their maximum number of active groups",
+      });
 
     if (requestFormDocumentId) {
       const requestForm = await prisma.document.findFirst({
@@ -263,13 +260,15 @@ router.patch(
           error: "Only a pending adviser request can be cancelled.",
         });
 
+      const cancelReason =
+        req.body?.reason?.trim() || "Cancelled by the research project leader.";
       const request = await prisma.$transaction(async (tx) => {
         const cancelled = await tx.adviserRequest.update({
           where: { id: existing.id },
           data: {
             status: "CANCELLED",
             respondedAt: new Date(),
-            responseNote: "Cancelled by the research project leader.",
+            responseNote: cancelReason,
           },
           include: requestInclude,
         });
@@ -278,7 +277,7 @@ router.patch(
             recipientId: existing.adviserId,
             type: "ADVISER_REQUEST_DECIDED",
             title: "Adviser request cancelled",
-            message: `${existing.research.title} cancelled its adviser request.`,
+            message: `${existing.research.title} cancelled its adviser request.${req.body?.reason ? ` Note: ${req.body.reason.trim()}` : ""}`,
             entityType: "AdviserRequest",
             entityId: existing.id,
           },
@@ -293,6 +292,44 @@ router.patch(
     }
   },
 );
+
+// POST /api/adviser-requests/reconcile — explicitly reconciles adviser milestone status for an existing accepted adviser
+router.post("/reconcile", requireAuth, async (req: Request, res: Response) => {
+  try {
+    if (!req.user) return void res.status(401).json({ error: "Unauthorized" });
+    const { researchId, workflowStageId } = req.body;
+    if (!researchId)
+      return void res.status(400).json({ error: "researchId is required" });
+
+    const member = await prisma.researchMember.findFirst({
+      where: {
+        researchId,
+        userId: req.user.id,
+        leftAt: null,
+      },
+    });
+    const isCoordinator = req.user.roles.includes("RESEARCH_COORDINATOR");
+    if (!member && !isCoordinator) {
+      return void res
+        .status(403)
+        .json({ error: "Access denied to this project" });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      return synchronizeAdviserMilestone(tx, {
+        researchId,
+        actorId: req.user!.id,
+        workflowStageId: workflowStageId || undefined,
+      });
+    });
+
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({
+      error: error.message || "Failed to reconcile adviser milestone",
+    });
+  }
+});
 
 // PATCH /api/adviser-requests/:id/respond — target adviser accepts or rejects with an optional note.
 router.patch(
@@ -446,21 +483,17 @@ router.patch(
         error.message === "ADVISER_CAPACITY_REACHED" ||
         error.code === "P2034"
       )
-        return void res
-          .status(409)
-          .json({
-            error:
-              "Your adviser capacity was just reached. Refresh before accepting another group.",
-          });
+        return void res.status(409).json({
+          error:
+            "Your adviser capacity was just reached. Refresh before accepting another group.",
+        });
       if (error.message === "GROUP_ALREADY_ASSIGNED")
         return void res
           .status(409)
           .json({ error: "This group already has an adviser" });
-      res
-        .status(500)
-        .json({
-          error: error.message || "Failed to respond to adviser request",
-        });
+      res.status(500).json({
+        error: error.message || "Failed to respond to adviser request",
+      });
     }
   },
 );
