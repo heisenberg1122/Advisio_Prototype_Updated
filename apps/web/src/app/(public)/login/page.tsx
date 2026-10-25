@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -43,7 +42,6 @@ type GoogleIdentityApi = {
 };
 
 export default function LoginPage() {
-  const router = useRouter();
   const navigate = useNavigate();
   const location = useLocation();
   const { login, loginWithGoogle } = useAuth();
@@ -98,37 +96,6 @@ export default function LoginPage() {
 
     navigate(action.url, { replace: true });
   };
-
-  const goToDashboard = (role = "") => {
-    const value = role.toLowerCase();
-    const requestedLocation = (location.state as any)?.from;
-    if (
-      requestedLocation?.pathname?.startsWith("/student/workflows/join/") &&
-      (value.includes("researcher") || value.includes("student"))
-    ) {
-      navigate(
-        `${requestedLocation.pathname}${requestedLocation.search || ""}${requestedLocation.hash || ""}`,
-        { replace: true },
-      );
-      return;
-    }
-    if (value.includes("researcher") || value.includes("student"))
-      router.push("/student/dashboard");
-    else if (value.includes("adviser")) router.push("/adviser/dashboard");
-    else if (value.includes("professor") || value.includes("coordinator"))
-      router.push("/professor/dashboard");
-    else if (value.includes("panelist")) router.push("/panelist/dashboard");
-    else if (value.includes("system_admin"))
-      router.push("/system-admin/dashboard");
-    else if (value.includes("dean") || value.includes("admin"))
-      router.push("/admin/dashboard");
-    else if (
-      ["rpo", "reb", "vpaa"].some((adminRole) => value.includes(adminRole))
-    )
-      router.push("/admin/dashboard");
-    else router.push("/student/dashboard");
-  };
-
   googleCredentialHandlerRef.current = (credential: string) => {
     if (googleLoading) return;
     void (async () => {
@@ -137,11 +104,8 @@ export default function LoginPage() {
       try {
         const result = await loginWithGoogle(credential);
         if (result.success) {
-          const roles = result.user?.roles || (result.role ? [result.role] : []); handlePostLogin(roles, result.needsAcademicSetup, result.user?.id); return; /*
-            router.push("/google-onboarding");
-            return;
-          }
-        */ } if (false) { goToDashboard(result.role || "RESEARCHER");
+          const roles = result.user?.roles || (result.role ? [result.role] : []);
+          handlePostLogin(roles, result.needsAcademicSetup, result.user?.id);
           return;
         }
         setError(result.error || "Google sign-in failed. Please try again.");
