@@ -119,11 +119,54 @@ export function resolveDocumentSelection<T extends { id: string }>(
 }
 
 export function documentPreviewKind(document: FileManagerDocument) {
-  if (document.liveDocumentUrl) return "GOOGLE_DOC" as const;
-  const mimeType = latestDocumentVersion(document)?.mimeType.toLowerCase();
-  if (mimeType === "application/pdf") return "PDF" as const;
-  if (mimeType === "text/plain") return "TEXT" as const;
-  return "UNSUPPORTED" as const;
+  return resolveDocumentPreview(document).kind;
+}
+
+/** A requested submission must never silently display a newer or live draft. */
+export function resolveDocumentPreview(
+  document: FileManagerDocument,
+  versionId?: string | null,
+) {
+  const version = versionId
+    ? document.versions.find((item) => item.id === versionId)
+    : document.liveDocumentUrl
+      ? undefined
+      : latestDocumentVersion(document);
+  if (versionId && !version)
+    return { kind: "UNAVAILABLE" as const, version: undefined };
+  if (!versionId && document.liveDocumentUrl)
+    return { kind: "GOOGLE_DOC" as const, version: undefined };
+  const mimeType = version?.mimeType.toLowerCase();
+  if (mimeType === "application/pdf") return { kind: "PDF" as const, version };
+  if (mimeType === "text/plain") return { kind: "TEXT" as const, version };
+  return { kind: "UNSUPPORTED" as const, version };
+}
+
+export function documentStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    DRAFT: "Draft",
+    SUBMITTED: "Submitted",
+    IN_REVIEW: "In review",
+    REVISION_REQUIRED: "Changes requested",
+    APPROVED: "Approved",
+    FINALIZED: "Finalized",
+    ACTIVE: "Awaiting review",
+    COMPLETED: "Review completed",
+    REVOKED: "Revoked",
+    REASSIGNED: "Reassigned",
+    SUPERSEDED: "Superseded",
+    MINOR_REVISION: "Minor changes requested",
+    MAJOR_REVISION: "Major changes requested",
+    APPROVE: "Approved",
+    REJECT: "Not accepted",
+  };
+  return (
+    labels[status] ||
+    status
+      .toLowerCase()
+      .replace(/_/g, " ")
+      .replace(/^\w/, (letter) => letter.toUpperCase())
+  );
 }
 
 export function documentWorkspaceCapabilities(

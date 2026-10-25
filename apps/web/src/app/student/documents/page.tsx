@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
@@ -35,7 +36,12 @@ import {
   type DocumentSigningResult,
 } from "@/components/adviser/AdviserDocumentSigningModal";
 import { ResearchFileManager } from "@/components/documents/ResearchFileManager";
-import { resolveDocumentSelection } from "@/lib/document-workspace";
+import { DocumentAddMenu } from "@/components/documents/DocumentAddMenu";
+import {
+  documentStatusLabel,
+  resolveDocumentSelection,
+  taskReturnHref,
+} from "@/lib/document-workspace";
 
 type WorkflowStage = {
   id: string;
@@ -57,7 +63,7 @@ type ResearchProject = {
     }>;
   }>;
   workflowInstance?: {
-    workflow?: { stages?: WorkflowStage[] } | null;
+    workflow?: { name?: string; stages?: WorkflowStage[] } | null;
   } | null;
 };
 
@@ -373,9 +379,13 @@ function milestoneVariant(
 }
 
 export default function DocumentWorkspacePage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const requestSequence = useRef(0);
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const isPanelistPortal = pathname.startsWith("/panelist/");
+  const isResearcherPortal = pathname.startsWith("/student/");
   const milestoneParam = searchParams.get("milestoneId");
   const taskParam = searchParams.get("taskId");
   const documentParam = searchParams.get("documentId");
@@ -399,9 +409,26 @@ export default function DocumentWorkspacePage() {
     null,
   );
   const [selectedDocumentId, setSelectedDocumentId] = useState("");
-  const [activeTab, setActiveTab] = useState(
-    searchParams.get("tab") === "official" ? "official" : "workspace",
-  );
+  const requestedTab = searchParams.get("tab");
+  const activeTab = ["workspace", "reviews", "milestones", "official"].includes(
+    requestedTab || "",
+  )
+    ? requestedTab!
+    : "workspace";
+  const setActiveTab = (tab: string) => {
+    const params = new URLSearchParams(location.search);
+    params.set("tab", tab);
+    navigate(`${pathname}?${params}`, { replace: true });
+  };
+  const selectDocument = (documentId: string, versionId?: string | null) => {
+    setSelectedDocumentId(documentId);
+    const params = new URLSearchParams(location.search);
+    params.set("documentId", documentId);
+    params.set("tab", "workspace");
+    if (versionId) params.set("versionId", versionId);
+    else params.delete("versionId");
+    navigate(`${pathname}?${params}`, { replace: true });
+  };
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [pageError, setPageError] = useState("");
@@ -453,6 +480,14 @@ export default function DocumentWorkspacePage() {
   const stages = activeProject?.workflowInstance?.workflow?.stages || [];
   const selectedDocument =
     documents.find((document) => document.id === selectedDocumentId) || null;
+  const relatedTasks =
+    stages.find((stage) => stage.id === selectedDocument?.milestoneId)?.tasks ||
+    [];
+  const relatedTask = relatedTasks.length === 1 ? relatedTasks[0] : undefined;
+  const taskHref =
+    taskParam || relatedTask?.id
+      ? taskReturnHref(activeProjectId, taskParam || relatedTask!.id)
+      : `/student/tasks?projectId=${encodeURIComponent(activeProjectId)}`;
 
   const importableLegacyDocuments = useMemo(
     () =>
@@ -482,6 +517,7 @@ export default function DocumentWorkspacePage() {
   );
 
   const loadDocuments = async (researchId: string) => {
+    const sequence = ++requestSequence.current;
     setLoadingDocuments(true);
     setPageError("");
     try {
@@ -501,6 +537,7 @@ export default function DocumentWorkspacePage() {
             eligibleVersions: OfficialEligibleVersion[];
           }>(`/api/research/${researchId}/official-copies`),
         ]);
+      if (sequence !== requestSequence.current) return;
       const response =
         documentsResult.status === "fulfilled" ? documentsResult.value : null;
       const workflow =
@@ -532,6 +569,7 @@ export default function DocumentWorkspacePage() {
         ),
       );
     } catch (error: any) {
+      if (sequence !== requestSequence.current) return;
       setDocuments([]);
       setPermissions(null);
       setWorkflowMilestones([]);
@@ -541,7 +579,7 @@ export default function DocumentWorkspacePage() {
       setOfficialPermissions(null);
       setPageError(error.message || "Unable to load this project's documents.");
     } finally {
-      setLoadingDocuments(false);
+      if (sequence === requestSequence.current) setLoadingDocuments(false);
     }
   };
 
@@ -556,29 +594,6 @@ export default function DocumentWorkspacePage() {
         if (!active) return;
         const available = response.projects || [];
         setProjects(available);
-        const contextualProject = available.find(
-          (project) =>
-            project.id === projectParam ||
-            project.workflowInstance?.workflow?.stages?.some(
-              (stage) =>
-                stage.id === milestoneParam ||
-                stage.tasks?.some((task) => task.id === taskParam),
-            ) ||
-            project.taskSubmissions?.some(
-              (submission) =>
-                submission.documentId === documentParam ||
-                submission.documentVersionId === versionParam ||
-                submission.attempts?.some(
-                  (attempt) =>
-                    attempt.documentId === documentParam ||
-                    attempt.documentVersionId === versionParam,
-                ),
-            ),
-        );
-        if (contextualProject && contextualProject.id !== projectParam)
-          selectProject(contextualProject.id, { replace: true });
-        else if (!projectParam && available.length === 1)
-          selectProject(available[0].id, { replace: true });
       } catch (error: any) {
         if (active)
           setPageError(
@@ -592,10 +607,39 @@ export default function DocumentWorkspacePage() {
     return () => {
       active = false;
     };
+  }, []);
+
+  // Resolve incoming task links without refetching projects on every file or tab change.
+  useEffect(() => {
+    if (loadingProjects || projectParam) return;
+    const contextualProject = projects.find(
+      (project) =>
+        project.workflowInstance?.workflow?.stages?.some(
+          (stage) =>
+            stage.id === milestoneParam ||
+            stage.tasks?.some((task) => task.id === taskParam),
+        ) ||
+        project.taskSubmissions?.some(
+          (submission) =>
+            submission.documentId === documentParam ||
+            submission.documentVersionId === versionParam ||
+            submission.attempts?.some(
+              (attempt) =>
+                attempt.documentId === documentParam ||
+                attempt.documentVersionId === versionParam,
+            ),
+        ),
+    );
+    if (contextualProject)
+      selectProject(contextualProject.id, { replace: true });
+    else if (projects.length === 1)
+      selectProject(projects[0].id, { replace: true });
   }, [
     documentParam,
+    loadingProjects,
     milestoneParam,
     projectParam,
+    projects,
     selectProject,
     taskParam,
     versionParam,
@@ -603,6 +647,7 @@ export default function DocumentWorkspacePage() {
 
   useEffect(() => {
     if (!activeProjectId) {
+      requestSequence.current++;
       setDocuments([]);
       setPermissions(null);
       setWorkflowMilestones([]);
@@ -615,6 +660,14 @@ export default function DocumentWorkspacePage() {
     }
     loadDocuments(activeProjectId);
   }, [activeProjectId]);
+
+  useEffect(() => {
+    if (
+      documentParam &&
+      documents.some((document) => document.id === documentParam)
+    )
+      setSelectedDocumentId(documentParam);
+  }, [documentParam, documents]);
 
   useEffect(() => {
     if (
@@ -716,7 +769,7 @@ export default function DocumentWorkspacePage() {
         milestoneId: linkMilestoneId || null,
       });
       await loadDocuments(activeProjectId);
-      setSelectedDocumentId(response.document.id);
+      selectDocument(response.document.id);
       setIsLinkOpen(false);
       setLinkTitle("");
       setLinkUrl("");
@@ -724,7 +777,7 @@ export default function DocumentWorkspacePage() {
       showNotice(
         response.duplicate
           ? "That Google document was already linked."
-          : "Google document linked to the project workspace.",
+          : "Document linked. It is a working file and has not been submitted for review.",
       );
     } catch (error: any) {
       setLinkError(error.message || "Unable to link the Google document.");
@@ -747,9 +800,11 @@ export default function DocumentWorkspacePage() {
         },
       );
       await loadDocuments(activeProjectId);
-      setSelectedDocumentId(response.document.id);
+      selectDocument(response.document.id);
       setIsCreateOpen(false);
-      showNotice("Google document created and added to the project workspace.");
+      showNotice(
+        "Document created. It is a working draft and has not been submitted for review.",
+      );
     } catch (error: any) {
       setCreateError(error.message || "Unable to create the Google document.");
     } finally {
@@ -772,9 +827,11 @@ export default function DocumentWorkspacePage() {
         document: WorkspaceDocument;
       }>(`/api/research/${activeProjectId}/documents`, form);
       await loadDocuments(activeProjectId);
-      setSelectedDocumentId(response.document.id);
+      selectDocument(response.document.id);
       setIsUploadOpen(false);
-      showNotice("Working document uploaded to the project workspace.");
+      showNotice(
+        "Working file uploaded. Submit it through the related task when it is ready for review.",
+      );
     } catch (error: any) {
       setUploadError(error.message || "Unable to upload the document.");
     } finally {
@@ -994,28 +1051,24 @@ export default function DocumentWorkspacePage() {
   const tabs = [
     {
       id: "workspace",
-      label: "Workspace",
-      icon: FolderKanban,
+      label: "Working files",
       badge: documents.length,
     },
     {
       id: "reviews",
-      label: "Reviews",
-      icon: MessageSquareText,
+      label: "Feedback",
       badge: reviewAssignments.length,
     },
     {
       id: "milestones",
-      label: "Milestones",
-      icon: FileClock,
+      label: "Files by milestone",
       badge: workflowMilestones.length,
     },
     ...(officialPermissions?.canView
       ? [
           {
             id: "official",
-            label: "Official Copies",
-            icon: ShieldCheck,
+            label: "Official copies",
             badge: officialCopies.length,
           },
         ]
@@ -1033,48 +1086,87 @@ export default function DocumentWorkspacePage() {
   }
 
   return (
-    <PageContainer>
+    <PageContainer
+      maxWidth="full"
+      className="gap-2.5 py-4 sm:px-5 lg:px-6 lg:py-5"
+    >
       <PageHeader
-        variant="banner"
-        category={
-          isPanelistPortal ? "Authorized defense archive" : "Research workspace"
-        }
+        variant="plain"
+        className="border-0 pb-0"
         title={isPanelistPortal ? "Panel Documents" : "Documents"}
         subtitle={
           isPanelistPortal
             ? "View official copies and records available through your accepted panel assignments."
-            : "Create, organize, and manage your research files."
+            : "Prepare drafts, track feedback, and access finalized copies."
         }
         actions={
           permissions?.canManageWorkingDocuments ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="secondary"
-                icon={<Upload className="h-4 w-4" />}
-                onClick={openUploadDialog}
-                disabled={!activeProjectId}
-              >
-                Upload File
-              </Button>
-              <Button
-                variant="secondary"
-                icon={<LinkIcon className="h-4 w-4" />}
-                onClick={() => setIsLinkOpen(true)}
-                disabled={!activeProjectId}
-              >
-                Link Existing Document
-              </Button>
-              <Button
-                icon={<Plus className="h-4 w-4" />}
-                onClick={openCreateDialog}
-                disabled={!activeProjectId}
-              >
-                New Google Doc
-              </Button>
-            </div>
+            <DocumentAddMenu
+              disabled={!activeProjectId || loadingDocuments}
+              onCreate={openCreateDialog}
+              onUpload={openUploadDialog}
+              onLink={() => setIsLinkOpen(true)}
+            />
           ) : undefined
         }
       />
+
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 border-l-[3px] border-[var(--color-primary)] pl-2.5">
+        <span className="min-w-0 break-words text-base font-bold text-[var(--color-text-primary)]">
+          {activeProject
+            ? `${activeProject.groupName ? activeProject.groupName + " — " : ""}${activeProject.title}`
+            : "Select a research project"}
+        </span>
+        <label htmlFor="research-project" className="sr-only">
+          Research project
+        </label>
+        <div className="relative rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--college-focus-ring)]">
+          <span aria-hidden="true" className="flex items-center gap-2">
+            Change project <span className="text-[10px]">⌄</span>
+          </span>
+          <select
+            id="research-project"
+            value={activeProjectId}
+            onChange={(event) => {
+              const projectId = event.target.value;
+              if (!projectId) {
+                selectProject(null);
+                return;
+              }
+              const params = new URLSearchParams(location.search);
+              for (const key of [
+                "researchId",
+                "documentId",
+                "versionId",
+                "taskId",
+                "milestoneId",
+              ])
+                params.delete(key);
+              params.set("projectId", projectId);
+              setSelectedDocumentId("");
+              navigate(`${pathname}?${params}`);
+            }}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          >
+            <option value="">
+              {projects.length > 1
+                ? "Choose a research project"
+                : "No research project selected"}
+            </option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.groupName ? project.groupName + " — " : ""}
+                {project.title}
+              </option>
+            ))}
+          </select>
+        </div>
+        {activeProject?.workflowInstance?.workflow?.name && (
+          <span className="border-l border-[var(--color-border)] pl-3 text-sm text-[var(--color-text-secondary)]">
+            {activeProject.workflowInstance.workflow.name}
+          </span>
+        )}
+      </div>
 
       {notice && (
         <div
@@ -1093,42 +1185,6 @@ export default function DocumentWorkspacePage() {
           <span>{pageError}</span>
         </div>
       )}
-
-      <Card className="p-4 sm:p-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div className="w-full max-w-xl">
-            <label
-              htmlFor="research-project"
-              className="mb-1.5 block text-sm font-bold text-[var(--color-text-secondary)]"
-            >
-              Research project
-            </label>
-            <select
-              id="research-project"
-              value={activeProjectId}
-              onChange={(event) => selectProject(event.target.value || null)}
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
-            >
-              <option value="">
-                {projects.length > 1
-                  ? "Choose a research project"
-                  : "No research project selected"}
-              </option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.groupName ? `${project.groupName} — ` : ""}
-                  {project.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          <p className="max-w-lg text-base leading-5 text-[var(--color-text-secondary)]">
-            {isPanelistPortal
-              ? "Access is limited to projects with a current authorized panel assignment. Defense packets remain version-scoped and frozen."
-              : "Live Google documents remain editable in Google. A linked document is not a frozen submission; current required deliverables still go through Tasks."}
-          </p>
-        </div>
-      </Card>
 
       {!activeProjectId ? (
         <EmptyState
@@ -1184,14 +1240,31 @@ export default function DocumentWorkspacePage() {
               </Card>
             )}
 
-          <Card className="p-0 overflow-hidden">
+          <div className="min-w-0">
             <Tabs
               tabs={tabs}
               activeTab={activeTab}
               onChange={setActiveTab}
-              className="px-3 sm:px-5"
+              className="gap-2 [&_[role=tab]]:px-3 [&_[role=tab]]:py-3"
             />
 
+            {activeTab === "workspace" && (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1 py-3 text-sm text-[var(--color-text-secondary)]">
+                <span>
+                  {isResearcherPortal
+                    ? "Adding a document saves a working file. Submit requirements through Tasks."
+                    : "Working drafts remain editable. Submitted versions are preserved for review."}
+                </span>
+                {isResearcherPortal && (
+                  <Link
+                    to={taskHref}
+                    className="shrink-0 rounded font-semibold text-[var(--color-primary)] underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                  >
+                    Open Tasks →
+                  </Link>
+                )}
+              </div>
+            )}
             {loadingDocuments ? (
               <div className="p-6">
                 <ListRowsSkeleton rows={5} />
@@ -1200,16 +1273,20 @@ export default function DocumentWorkspacePage() {
               <ResearchFileManager
                 documents={documents}
                 selectedDocumentId={selectedDocumentId}
-                onSelectDocument={setSelectedDocumentId}
+                onSelectDocument={selectDocument}
+                onSelectVersion={(versionId) =>
+                  selectDocument(selectedDocumentId, versionId)
+                }
                 permissions={permissions}
                 stages={stages}
-                projectId={activeProjectId}
                 taskId={taskParam}
+                taskHref={isResearcherPortal ? taskHref : undefined}
                 requestedVersionId={versionParam}
                 onOpenStoredFile={openStoredFile}
                 onUpdateMilestone={updateMilestone}
                 onEditDocument={openEditDialog}
                 onCreateDocument={openCreateDialog}
+                onUploadDocument={openUploadDialog}
               />
             ) : activeTab === "reviews" ? (
               <div className="p-5 sm:p-6">
@@ -1227,7 +1304,7 @@ export default function DocumentWorkspacePage() {
                                 {document.title} · v{version.versionNumber}
                               </p>
                               <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-                                {assignment.reviewType.replace(/_/g, " ")}{" "}
+                                {documentStatusLabel(assignment.reviewType)}{" "}
                                 review
                                 {assignment.isRequired
                                   ? " · Required"
@@ -1236,16 +1313,44 @@ export default function DocumentWorkspacePage() {
                             </div>
                             <Tag
                               variant={
-                                assignment.status === "COMPLETED"
-                                  ? "success"
-                                  : assignment.status === "ACTIVE"
+                                assignment.review?.recommendation === "REJECT"
+                                  ? "danger"
+                                  : [
+                                        "MINOR_REVISION",
+                                        "MAJOR_REVISION",
+                                      ].includes(
+                                        assignment.review?.recommendation || "",
+                                      )
                                     ? "warning"
-                                    : "neutral"
+                                    : assignment.status === "COMPLETED"
+                                      ? "success"
+                                      : assignment.status === "ACTIVE"
+                                        ? "warning"
+                                        : "neutral"
                               }
                             >
-                              {assignment.status.replace(/_/g, " ")}
+                              {documentStatusLabel(
+                                assignment.review?.recommendation ||
+                                  assignment.status,
+                              )}
                             </Tag>
                           </div>
+                          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+                            {assignment.reviewer
+                              ? `${assignment.reviewer.firstName} ${assignment.reviewer.lastName}`
+                              : "Assigned reviewer"}{" "}
+                            · Version {version.versionNumber}
+                          </p>
+                          <Button
+                            className="mt-3"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                              selectDocument(document.id, version.id)
+                            }
+                          >
+                            View reviewed version {version.versionNumber}
+                          </Button>
                           {assignment.review?.overallComment && (
                             <p className="mt-3 text-base leading-6 text-[var(--color-text-secondary)]">
                               {assignment.review.overallComment}
@@ -1290,8 +1395,8 @@ export default function DocumentWorkspacePage() {
                 ) : (
                   <EmptyState
                     icon={MessageSquareText}
-                    title="No document reviews yet"
-                    description="Review assignments and faculty feedback will appear here after a formal manuscript version is submitted."
+                    title="No feedback yet"
+                    description="Feedback will appear after your work is submitted and assigned for review."
                   />
                 )}
               </div>
@@ -1363,8 +1468,7 @@ export default function DocumentWorkspacePage() {
                                 <button
                                   key={document.id}
                                   onClick={() => {
-                                    setSelectedDocumentId(document.id);
-                                    setActiveTab("workspace");
+                                    selectDocument(document.id);
                                   }}
                                   className="block w-full truncate rounded-lg px-3 py-2 text-left text-sm font-semibold text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
                                 >
@@ -1730,12 +1834,12 @@ export default function DocumentWorkspacePage() {
                   <EmptyState
                     icon={Archive}
                     title="No official copies yet"
-                    description="An approved immutable manuscript appears here only after authorized finalization. No sample or placeholder records are shown."
+                    description="Approved documents appear here after an authorized person finalizes them. Your working files and submissions remain available in their tabs."
                   />
                 )}
               </div>
             )}
-          </Card>
+          </div>
         </>
       )}
 

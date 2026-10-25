@@ -1,37 +1,47 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  ArrowDownAZ,
-  Clock3,
+  ChevronDown,
+  CircleAlert,
   Download,
   ExternalLink,
-  File,
   FileText,
   History,
   Link as LinkIcon,
   LockKeyhole,
   Pencil,
   Search,
+  Info,
+  MessageSquareText,
+  Upload,
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
+import { Tabs } from "@/components/ui/Tabs";
 import {
   documentFileType,
   documentModifiedAt,
-  documentPreviewKind,
+  resolveDocumentPreview,
+  documentStatusLabel,
   documentWorkspaceCapabilities,
   filterAndSortDocuments,
   googleDocumentPreviewUrl,
   latestDocumentVersion,
-  taskReturnHref,
   type DocumentWorkspaceFilter,
   type DocumentWorkspaceSort,
   type FileManagerDocument,
   type FileManagerPermissions,
 } from "@/lib/document-workspace";
+
+const PdfDocumentPreview = lazy(() =>
+  import("./PdfDocumentPreview").then((module) => ({
+    default: module.PdfDocumentPreview,
+  })),
+);
 
 type FileManagerVersion = FileManagerDocument["versions"][number] & {
   manuscriptStatus?: string | null;
@@ -40,6 +50,23 @@ type FileManagerVersion = FileManagerDocument["versions"][number] & {
   snapshotCreatedAt?: string | null;
   milestone?: { id: string; name: string; sequence: number } | null;
   submitter?: { id: string; firstName: string; lastName: string } | null;
+  reviewerAssignments?: Array<{
+    id: string;
+    status: string;
+    reviewType: string;
+    completedAt?: string | null;
+    reviewer?: { firstName: string; lastName: string } | null;
+    review?: {
+      recommendation?: string | null;
+      overallComment?: string | null;
+      submittedAt?: string | null;
+      comments: Array<{
+        id: string;
+        comment: string;
+        locationData?: { page?: number; section?: string } | null;
+      }>;
+    } | null;
+  }>;
 };
 
 type ResearchFileManagerDocument = Omit<FileManagerDocument, "versions"> & {
@@ -52,10 +79,11 @@ type ResearchFileManagerProps = {
   documents: ResearchFileManagerDocument[];
   selectedDocumentId: string;
   onSelectDocument: (documentId: string) => void;
+  onSelectVersion: (versionId: string | null) => void;
   permissions: FileManagerPermissions | null;
   stages: Array<{ id: string; name: string; sequence: number }>;
-  projectId: string;
   taskId?: string | null;
+  taskHref?: string;
   requestedVersionId?: string | null;
   onOpenStoredFile: (
     version: FileManagerVersion,
@@ -64,6 +92,7 @@ type ResearchFileManagerProps = {
   onUpdateMilestone: (documentId: string, milestoneId: string) => void;
   onEditDocument: () => void;
   onCreateDocument: () => void;
+  onUploadDocument: () => void;
 };
 
 function displayDate(value?: string | null) {
@@ -75,26 +104,67 @@ function displayDate(value?: string | null) {
   }).format(new Date(value));
 }
 
+function displayModifiedDate(timestamp: number) {
+  const date = new Date(timestamp);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(date.getFullYear() !== today.getFullYear()
+      ? { year: "numeric" as const }
+      : {}),
+  }).format(date);
+}
+
 function lifecycleVariant(status: string) {
-  if (status === "APPROVED" || status === "FINALIZED") return "success";
-  if (status === "REVISION_REQUIRED") return "warning";
-  if (status === "SUBMITTED" || status === "IN_REVIEW") return "info";
+  if (["APPROVED", "FINALIZED", "APPROVE", "COMPLETED"].includes(status))
+    return "success";
+  if (
+    ["REVISION_REQUIRED", "MINOR_REVISION", "MAJOR_REVISION"].includes(status)
+  )
+    return "warning";
+  if (status === "REJECT") return "danger";
+  if (["SUBMITTED", "IN_REVIEW", "ACTIVE"].includes(status)) return "info";
   return "neutral";
+}
+
+function DocumentFileIcon({ fileType }: { fileType: string }) {
+  const isPdf = fileType === "PDF";
+  const isWord = ["DOC", "DOCX"].includes(fileType);
+  return (
+    <span
+      aria-hidden="true"
+      className={`relative flex h-9 w-7 shrink-0 items-center justify-center overflow-hidden rounded-[4px] shadow-sm ${isPdf ? "bg-red-500 text-white" : isWord ? "bg-blue-700 text-white" : fileType === "Google Doc" ? "bg-blue-500 text-white" : "bg-[var(--color-primary-light)] text-[var(--color-primary)]"}`}
+    >
+      <span className="absolute right-0 top-0 h-2 w-2 rounded-bl-sm bg-white/35" />
+      {isWord ? (
+        <span className="text-sm font-bold">W</span>
+      ) : (
+        <FileText className="h-4 w-4" />
+      )}
+    </span>
+  );
 }
 
 export function ResearchFileManager({
   documents,
   selectedDocumentId,
   onSelectDocument,
+  onSelectVersion,
   permissions,
   stages,
-  projectId,
   taskId,
+  taskHref,
   requestedVersionId,
   onOpenStoredFile,
   onUpdateMilestone,
   onEditDocument,
   onCreateDocument,
+  onUploadDocument,
 }: ResearchFileManagerProps) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<DocumentWorkspaceFilter>("ALL");
@@ -102,24 +172,59 @@ export function ResearchFileManager({
   const [storedPreviewUrl, setStoredPreviewUrl] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
+  const [previewRetry, setPreviewRetry] = useState(0);
+  const [detailTab, setDetailTab] = useState("file-preview");
+  const [loadedPreviewKey, setLoadedPreviewKey] = useState("");
 
   const visibleDocuments = useMemo(
     () => filterAndSortDocuments(documents, { search, filter, sort }),
     [documents, filter, search, sort],
   );
   const selectedDocument =
-    documents.find((document) => document.id === selectedDocumentId) || null;
-  const latestVersion = selectedDocument
-    ? (latestDocumentVersion(selectedDocument) as
-        | FileManagerVersion
-        | undefined)
-    : undefined;
-  const previewKind = selectedDocument
-    ? documentPreviewKind(selectedDocument)
-    : "UNSUPPORTED";
+    visibleDocuments.find((document) => document.id === selectedDocumentId) ||
+    null;
+  const previewSource = selectedDocument
+    ? resolveDocumentPreview(selectedDocument, requestedVersionId)
+    : null;
+  const selectedVersion = selectedDocument?.versions.find(
+    (version) => version.id === previewSource?.version?.id,
+  );
+  const previewKind = previewSource?.kind || "UNSUPPORTED";
+  const displayedStatus =
+    selectedVersion?.manuscriptStatus ||
+    selectedDocument?.lifecycleStatus ||
+    "DRAFT";
+  const displayedFileType = selectedVersion
+    ? selectedVersion.fileName.split(".").pop()?.toUpperCase() || "Stored file"
+    : selectedDocument
+      ? documentFileType(selectedDocument)
+      : "";
+  const previewKey = `${selectedDocument?.id || ""}:${selectedVersion?.id || "working"}`;
+  const versions = [...(selectedDocument?.versions || [])].sort(
+    (a, b) => b.versionNumber - a.versionNumber,
+  );
+  const feedbackVersion =
+    selectedVersion ||
+    versions.find((version) =>
+      version.reviewerAssignments?.some(
+        (item) => item.status === "COMPLETED" && item.review?.recommendation,
+      ),
+    );
+  const feedback = feedbackVersion?.reviewerAssignments || [];
+  const decision = feedback.find(
+    (item) => item.status === "COMPLETED" && item.review?.recommendation,
+  );
+  const needsRevision = ["MINOR_REVISION", "MAJOR_REVISION", "REJECT"].includes(
+    decision?.review?.recommendation || "",
+  );
+  const selectVersion = (id: string | null) => {
+    setDetailTab("file-preview");
+    onSelectVersion(id);
+  };
   const capabilities = selectedDocument
     ? documentWorkspaceCapabilities(selectedDocument, permissions)
     : null;
+  const previewHeight = "clamp(340px, calc(100dvh - 570px), 660px)";
 
   useEffect(() => {
     if (!visibleDocuments.length) return;
@@ -132,8 +237,10 @@ export function ResearchFileManager({
   useEffect(() => {
     setStoredPreviewUrl("");
     setPreviewError("");
+    setPreviewLoading(false);
+    setLoadedPreviewKey(previewKey);
     if (
-      !latestVersion?.webViewLink ||
+      !selectedVersion?.webViewLink ||
       (previewKind !== "PDF" && previewKind !== "TEXT") ||
       !permissions?.canView
     )
@@ -142,7 +249,7 @@ export function ResearchFileManager({
     let objectUrl = "";
     setPreviewLoading(true);
     apiClient
-      .file(latestVersion.webViewLink)
+      .file(selectedVersion.webViewLink)
       .then((blob) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
@@ -160,11 +267,17 @@ export function ResearchFileManager({
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [
-    latestVersion?.id,
-    latestVersion?.webViewLink,
+    selectedVersion?.id,
+    selectedVersion?.webViewLink,
     permissions?.canView,
     previewKind,
+    previewKey,
+    previewRetry,
   ]);
+
+  useEffect(() => {
+    setDetailTab("file-preview");
+  }, [selectedDocumentId]);
 
   useEffect(() => {
     if (!requestedVersionId) return;
@@ -178,13 +291,27 @@ export function ResearchFileManager({
   if (!documents.length) {
     return (
       <EmptyState
-        className="m-5 min-h-[420px]"
+        className="m-4 min-h-[320px] sm:m-6"
         icon={FileText}
-        title="No project documents"
-        description="Create, link, or upload a real project document to begin this workspace."
+        title="Your document workspace is ready"
+        description={
+          permissions?.canManageWorkingDocuments
+            ? "Upload a working file, link an existing Google document, or create one. Adding a document does not submit it for review."
+            : "Project documents will appear here when a researcher adds them."
+        }
         action={
           permissions?.canManageWorkingDocuments ? (
-            <Button onClick={onCreateDocument}>New Google Doc</Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button
+                onClick={onUploadDocument}
+                icon={<Upload className="h-4 w-4" />}
+              >
+                Upload working file
+              </Button>
+              <Button variant="secondary" onClick={onCreateDocument}>
+                Create Google document
+              </Button>
+            </div>
           ) : undefined
         }
       />
@@ -192,98 +319,95 @@ export function ResearchFileManager({
   }
 
   return (
-    <div className="min-h-[680px]">
-      {taskId && (
-        <div className="flex flex-col gap-3 border-b border-[var(--color-border)] bg-[var(--color-primary-light)]/35 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-          <div className="flex items-start gap-2.5">
-            <LinkIcon className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-primary)]" />
+    <div className="min-w-0 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+      {taskId && taskHref && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-primary-light)]/25 px-4 py-2">
+          <div className="flex items-center gap-2">
+            <LinkIcon className="h-3.5 w-3.5 shrink-0 text-[var(--color-primary)]" />
             <div>
-              <p className="text-base font-bold text-[var(--color-text-primary)]">
+              <p className="text-xs font-semibold text-[var(--color-text-primary)]">
                 Opened from a task
               </p>
-              <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
+              <p className="sr-only">
                 Manage the working file here, then return to Tasks when you are
                 ready to submit an eligible version.
               </p>
             </div>
           </div>
           <a
-            href={taskReturnHref(projectId, taskId)}
-            className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-[var(--color-primary)] px-3 text-sm font-bold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+            href={taskHref}
+            className="inline-flex min-h-7 shrink-0 items-center justify-center rounded text-xs font-semibold text-[var(--color-primary)] underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
           >
             Return to task
           </a>
         </div>
       )}
 
-      <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5">
-        <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_auto_auto]">
-          <label className="relative block">
-            <span className="sr-only">Search documents by name</span>
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
-            <input
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search documents by name"
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] pl-10 pr-3 text-base text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
-            />
-          </label>
-          <div
-            className="inline-flex overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-1"
-            aria-label="Document type filter"
-          >
-            {(
-              [
-                ["ALL", "All files"],
-                ["GOOGLE_DOCS", "Google Docs"],
-                ["UPLOADED", "Uploaded files"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={filter === value}
-                onClick={() => setFilter(value)}
-                className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] ${filter === value ? "bg-[var(--color-surface)] text-[var(--color-primary)] shadow-sm" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"}`}
-              >
-                {label}
-              </button>
-            ))}
+      <div className="grid min-w-0 xl:grid-cols-[minmax(0,0.84fr)_minmax(0,1.16fr)]">
+        <section
+          aria-label="Working files"
+          className="min-w-0 border-b border-[var(--color-border)] xl:border-b-0 xl:border-r"
+        >
+          <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_9rem] xl:grid-cols-[minmax(0,1fr)_6.5rem_8.5rem]">
+              <label className="relative col-span-2 block sm:col-span-1">
+                <span className="sr-only">Search documents by name</span>
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search files…"
+                  className="h-9 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-2 text-sm text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+                />
+              </label>
+              <label className="relative min-w-0">
+                <select
+                  aria-label="Document type filter"
+                  value={filter}
+                  onChange={(event) =>
+                    setFilter(event.target.value as DocumentWorkspaceFilter)
+                  }
+                  className="h-9 w-full appearance-none rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] pl-3 pr-7 text-xs text-[var(--color-text-primary)] outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+                >
+                  <option value="ALL">All types</option>
+                  <option value="GOOGLE_DOCS">Google Docs</option>
+                  <option value="UPLOADED">Uploaded files</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-secondary)]" />
+              </label>
+              <label className="relative">
+                <span className="sr-only">Sort documents</span>
+                <select
+                  value={sort}
+                  onChange={(event) =>
+                    setSort(event.target.value as DocumentWorkspaceSort)
+                  }
+                  className="h-9 w-full appearance-none rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] pl-3 pr-7 text-xs text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+                >
+                  <option value="MODIFIED_DESC">Last modified</option>
+                  <option value="MODIFIED_ASC">Oldest modified</option>
+                  <option value="NAME_ASC">Filename A–Z</option>
+                  <option value="NAME_DESC">Filename Z–A</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-secondary)]" />
+              </label>
+            </div>
           </div>
-          <label className="relative">
-            <span className="sr-only">Sort documents</span>
-            <select
-              value={sort}
-              onChange={(event) =>
-                setSort(event.target.value as DocumentWorkspaceSort)
-              }
-              className="h-11 w-full appearance-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] pl-9 pr-8 text-base font-bold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] lg:w-48"
-            >
-              <option value="MODIFIED_DESC">Last modified</option>
-              <option value="MODIFIED_ASC">Oldest modified</option>
-              <option value="NAME_ASC">Filename A–Z</option>
-              <option value="NAME_DESC">Filename Z–A</option>
-            </select>
-            {sort.startsWith("NAME") ? (
-              <ArrowDownAZ className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
-            ) : (
-              <Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-secondary)]" />
-            )}
-          </label>
-        </div>
-      </div>
-
-      <div className="grid xl:grid-cols-[minmax(440px,0.9fr)_minmax(520px,1.1fr)]">
-        <section className="min-w-0 border-b border-[var(--color-border)] xl:border-b-0 xl:border-r">
-          <div className="grid grid-cols-[minmax(0,1fr)_88px_112px_36px] gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider text-[var(--color-text-secondary)] sm:grid-cols-[minmax(0,1fr)_110px_130px_44px] sm:px-5">
-            <span>Name</span>
-            <span>Type</span>
-            <span>Modified</span>
-            <span className="sr-only">Actions</span>
+          <div className="grid grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)]/60 px-4 py-2.5 text-xs font-semibold text-[var(--color-text-primary)] sm:grid-cols-[minmax(0,1fr)_8rem_5rem]">
+            <span>
+              Name{" "}
+              <span className="sr-only">· {visibleDocuments.length} files</span>
+            </span>
+            <span>Status</span>
+            <span className="hidden sm:block">Modified</span>
           </div>
           {visibleDocuments.length ? (
-            <div role="list" aria-label="Project documents">
+            <div
+              role="list"
+              aria-label="Project documents"
+              className="max-h-[300px] overflow-y-auto xl:max-h-[calc(100dvh-380px)]"
+            >
               {visibleDocuments.map((document) => {
                 const selected = document.id === selectedDocumentId;
                 const latest = latestDocumentVersion(document);
@@ -291,47 +415,49 @@ export function ResearchFileManager({
                   <div
                     key={document.id}
                     role="listitem"
-                    className={`grid grid-cols-[minmax(0,1fr)_88px_112px_36px] items-center gap-3 border-b border-[var(--color-border)] px-4 py-3 transition sm:grid-cols-[minmax(0,1fr)_110px_130px_44px] sm:px-5 ${selected ? "bg-[var(--color-primary-light)]/45 shadow-[inset_3px_0_0_var(--color-primary)]" : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)]"}`}
+                    className={`border-b border-[var(--color-border)] transition ${selected ? "bg-[var(--color-primary-light)]/45 shadow-[inset_3px_0_0_var(--color-primary)]" : "bg-[var(--color-surface)] hover:bg-[var(--color-surface-subtle)]"}`}
                   >
                     <button
                       type="button"
                       onClick={() => onSelectDocument(document.id)}
-                      className="flex min-w-0 items-center gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                      className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_8rem] items-center gap-3 px-4 py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--college-focus-ring)] sm:grid-cols-[minmax(0,1fr)_8rem_5rem]"
                       aria-current={selected ? "true" : undefined}
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary-light)] text-[var(--color-primary)]">
-                        {document.liveDocumentUrl ? (
-                          <FileText className="h-4 w-4" />
-                        ) : (
-                          <File className="h-4 w-4" />
-                        )}
+                      <span className="flex min-w-0 items-center gap-3">
+                        <DocumentFileIcon
+                          fileType={documentFileType(document)}
+                        />
+                        <span className="min-w-0">
+                          <span
+                            className="block truncate text-sm font-semibold text-[var(--color-text-primary)]"
+                            title={document.title}
+                          >
+                            {document.title}
+                          </span>
+                          <span className="mt-0.5 block truncate text-xs leading-5 text-[var(--color-text-secondary)]">
+                            {documentFileType(document)} ·{" "}
+                            {document.milestone?.name ||
+                              latest?.fileName ||
+                              "Working file"}
+                          </span>
+                        </span>
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-[var(--color-text-primary)]">
-                          {document.title}
-                        </span>
-                        <span className="mt-0.5 block truncate text-sm text-[var(--color-text-secondary)]">
-                          {document.milestone
-                            ? `${document.milestone.sequence}. ${document.milestone.name}`
-                            : latest?.fileName || "Project file"}
-                        </span>
+                        <Tag
+                          size="xs"
+                          variant={lifecycleVariant(document.lifecycleStatus)}
+                        >
+                          {documentStatusLabel(document.lifecycleStatus)}
+                        </Tag>
                       </span>
-                    </button>
-                    <span className="truncate text-xs font-medium text-[var(--color-text-secondary)]">
-                      {documentFileType(document)}
-                    </span>
-                    <span className="text-xs text-[var(--color-text-secondary)]">
-                      {displayDate(
-                        new Date(documentModifiedAt(document)).toISOString(),
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onSelectDocument(document.id)}
-                      aria-label={`View details for ${document.title}`}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
-                    >
-                      <ExternalLink className="h-4 w-4" />
+                      <span
+                        className="hidden text-xs text-[var(--color-text-secondary)] sm:block"
+                        title={displayDate(
+                          new Date(documentModifiedAt(document)).toISOString(),
+                        )}
+                      >
+                        {displayModifiedDate(documentModifiedAt(document))}
+                      </span>
                     </button>
                   </div>
                 );
@@ -342,69 +468,79 @@ export function ResearchFileManager({
               className="m-5 min-h-[300px]"
               icon={Search}
               title="No matching documents"
-              description="Try another filename or file-type filter. No placeholder files are added."
+              description="Try another name or file type."
+              action={
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setSearch("");
+                    setFilter("ALL");
+                  }}
+                >
+                  Clear filters
+                </Button>
+              }
             />
           )}
         </section>
 
-        <aside className="min-w-0 bg-[var(--color-surface-subtle)]">
+        <aside
+          aria-label="Document details"
+          className="min-w-0 bg-[var(--color-surface)]"
+        >
           {selectedDocument ? (
             <div>
-              <div className="border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="bg-[var(--color-surface)] px-4 pb-2 pt-3 sm:px-5">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="truncate text-lg font-extrabold text-[var(--color-text-primary)]">
+                    <h2 className="break-words text-xl font-bold leading-tight text-[var(--color-text-primary)]">
                       {selectedDocument.title}
                     </h2>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Tag variant="neutral">
-                        {documentFileType(selectedDocument)}
-                      </Tag>
-                      <Tag
-                        variant={lifecycleVariant(
-                          selectedDocument.lifecycleStatus,
-                        )}
-                      >
-                        {selectedDocument.lifecycleStatus.replace(/_/g, " ")}
-                      </Tag>
-                    </div>
+                    <p className="sr-only">
+                      {displayedFileType} ·{" "}
+                      {documentStatusLabel(displayedStatus)}
+                    </p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                     {capabilities?.canOpenGoogle && (
                       <a
                         href={selectedDocument.liveDocumentUrl || "#"}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-bold text-[var(--color-primary)] transition hover:bg-[var(--color-primary-light)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                        className="inline-flex min-h-7 items-center gap-1.5 rounded text-xs font-semibold text-[var(--color-primary)] underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] sm:text-sm"
                       >
-                        <ExternalLink className="h-3.5 w-3.5" /> Open in Google
+                        Open working draft{" "}
+                        <ExternalLink className="h-3.5 w-3.5" />
                       </a>
                     )}
-                    {capabilities?.canOpenStoredVersion && latestVersion && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        icon={<Download className="h-3.5 w-3.5" />}
-                        onClick={() => onOpenStoredFile(latestVersion, true)}
+                    {permissions?.canView && selectedVersion?.webViewLink && (
+                      <button
+                        type="button"
+                        aria-label={`Download version ${selectedVersion.versionNumber}`}
+                        title={`Download version ${selectedVersion.versionNumber}`}
+                        className="inline-flex h-7 items-center gap-1.5 rounded px-1 text-xs font-semibold text-[var(--color-primary)] hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                        onClick={() => onOpenStoredFile(selectedVersion, true)}
                       >
-                        Download
-                      </Button>
+                        <Download className="h-4 w-4" />
+                        {!capabilities?.canOpenGoogle && <span>Download</span>}
+                      </button>
                     )}
                     {capabilities?.canEditDetails && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        icon={<Pencil className="h-3.5 w-3.5" />}
+                      <button
+                        type="button"
+                        aria-label="Edit details"
+                        title="Edit document details"
+                        className="flex h-7 w-7 items-center justify-center rounded text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
                         onClick={onEditDocument}
                       >
-                        Edit details
-                      </Button>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
                     )}
                   </div>
                 </div>
 
-                <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2">
-                  <div>
+                <dl className="mt-1 flex flex-wrap items-center gap-3 text-sm">
+                  <div className="sr-only">
                     <dt className="font-semibold text-[var(--color-text-secondary)]">
                       Last modified
                     </dt>
@@ -416,11 +552,11 @@ export function ResearchFileManager({
                       )}
                     </dd>
                   </div>
-                  <div>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <dt className="font-semibold text-[var(--color-text-secondary)]">
-                      Project milestone
+                      Milestone
                     </dt>
-                    <dd className="mt-1 text-[var(--color-text-primary)]">
+                    <dd className="min-w-0 text-[var(--color-text-primary)]">
                       {capabilities?.canUpdateMilestone ? (
                         <select
                           aria-label="Document milestone"
@@ -431,7 +567,7 @@ export function ResearchFileManager({
                               event.target.value,
                             )
                           }
-                          className="h-9 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-base font-semibold outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+                          className="h-7 w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
                         >
                           <option value="">No milestone</option>
                           {stages.map((stage) => (
@@ -448,13 +584,123 @@ export function ResearchFileManager({
                     </dd>
                   </div>
                 </dl>
+                <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                  <label htmlFor="document-preview-version" className="sr-only">
+                    Preview version
+                  </label>
+                  <select
+                    id="document-preview-version"
+                    value={
+                      previewKind === "UNAVAILABLE"
+                        ? "unavailable"
+                        : selectedVersion?.id || "working"
+                    }
+                    onChange={(event) =>
+                      selectVersion(
+                        event.target.value === "working"
+                          ? null
+                          : event.target.value,
+                      )
+                    }
+                    className="h-8 min-w-0 max-w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-xs font-semibold text-[var(--color-text-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+                  >
+                    {previewKind === "UNAVAILABLE" && (
+                      <option value="unavailable" disabled>
+                        Requested version unavailable
+                      </option>
+                    )}
+                    {selectedDocument.liveDocumentUrl && (
+                      <option value="working">Current working draft</option>
+                    )}
+                    {!selectedDocument.liveDocumentUrl && !versions.length && (
+                      <option value="working">No stored versions</option>
+                    )}
+                    {versions.map((version) => (
+                      <option key={version.id} value={version.id}>
+                        {version.isImmutable
+                          ? "Submitted version"
+                          : "Stored version"}{" "}
+                        {version.versionNumber}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedVersion?.isImmutable && (
+                    <Tag icon={<LockKeyhole className="h-3 w-3" />}>
+                      Read-only
+                    </Tag>
+                  )}
+                  <span className="text-xs text-[var(--color-text-secondary)]">
+                    {selectedVersion
+                      ? `${selectedVersion.submittedAt ? "Submitted" : "Saved"} ${displayDate(selectedVersion.submittedAt || selectedVersion.uploadedAt)}`
+                      : previewKind === "GOOGLE_DOC"
+                        ? "Live document · Editing continues in Google"
+                        : ""}
+                  </span>
+                </div>
+                {decision && (
+                  <div
+                    className={`mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-3 py-2.5 text-xs ${needsRevision ? "border-amber-300/70 bg-amber-50/80 text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100" : "border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-primary)]"}`}
+                  >
+                    <CircleAlert
+                      aria-hidden="true"
+                      className={`h-4 w-4 shrink-0 ${needsRevision ? "text-amber-600 dark:text-amber-300" : "text-[var(--color-primary)]"}`}
+                    />
+                    <p className="shrink-0 font-semibold">
+                      {needsRevision &&
+                      decision.review?.recommendation !== "REJECT"
+                        ? "Changes requested"
+                        : documentStatusLabel(decision.review!.recommendation!)}
+                    </p>
+                    {decision.review?.overallComment && (
+                      <p
+                        className="min-w-24 flex-1 truncate border-l border-current/20 pl-3"
+                        title={decision.review.overallComment}
+                      >
+                        {decision.review.overallComment}
+                      </p>
+                    )}
+                    <span className="text-[11px] opacity-80">
+                      <span className="hidden 2xl:inline">
+                        {decision.reviewer
+                          ? `${decision.reviewer.firstName} ${decision.reviewer.lastName} · `
+                          : ""}
+                      </span>
+                      v{feedbackVersion?.versionNumber}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDetailTab("file-feedback")}
+                      className="shrink-0 rounded font-semibold text-[var(--color-primary)] hover:underline focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                    >
+                      View feedback →
+                    </button>
+                  </div>
+                )}
               </div>
 
+              <Tabs
+                tabs={[
+                  { id: "file-preview", label: "Preview" },
+                  {
+                    id: "file-feedback",
+                    label: "Feedback",
+                  },
+                  {
+                    id: "file-history",
+                    label: "Version history",
+                  },
+                ]}
+                activeTab={detailTab}
+                onChange={setDetailTab}
+                className="mx-4 sm:mx-5 [&_[role=tab]]:px-3 [&_[role=tab]]:py-2.5"
+              />
               <section
-                aria-labelledby="document-preview-title"
-                className="p-4 sm:p-5"
+                hidden={detailTab !== "file-preview"}
+                role="tabpanel"
+                aria-labelledby="tab-file-preview"
+                className="px-4 pb-3 pt-3 sm:px-4"
               >
-                <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="sr-only">
                   <div>
                     <h3
                       id="document-preview-title"
@@ -465,22 +711,37 @@ export function ResearchFileManager({
                     <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
                       {previewKind === "GOOGLE_DOC"
                         ? "Live preview; editing continues in Google Docs."
-                        : latestVersion?.fileName || "Latest available version"}
+                        : selectedVersion
+                          ? `Version ${selectedVersion.versionNumber} · ${selectedVersion.fileName}`
+                          : "Selected document version"}
                     </p>
                   </div>
                 </div>
-                <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-                  {previewKind === "GOOGLE_DOC" &&
-                  selectedDocument.liveDocumentUrl ? (
+                <div className="overflow-hidden rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]">
+                  {previewKind === "UNAVAILABLE" ? (
+                    <EmptyState
+                      icon={Info}
+                      title="This version is unavailable"
+                      description="Choose another version above. The working draft has not been substituted for this submission."
+                    />
+                  ) : !permissions?.canView ? (
+                    <EmptyState
+                      icon={LockKeyhole}
+                      title="Preview access unavailable"
+                      description="You do not have permission to view this file."
+                    />
+                  ) : previewKind === "GOOGLE_DOC" &&
+                    selectedDocument.liveDocumentUrl ? (
                     <iframe
                       src={googleDocumentPreviewUrl(
                         selectedDocument.liveDocumentUrl,
                       )}
-                      title={`${selectedDocument.title} preview`}
-                      className="h-[420px] w-full bg-white"
+                      title={`${selectedDocument.title} — current working draft`}
+                      className="w-full bg-white"
+                      style={{ height: previewHeight }}
                       allow="clipboard-write"
                     />
-                  ) : previewLoading ? (
+                  ) : previewLoading || loadedPreviewKey !== previewKey ? (
                     <div
                       className="flex h-64 items-center justify-center gap-2 text-sm text-[var(--color-text-secondary)]"
                       aria-live="polite"
@@ -489,11 +750,33 @@ export function ResearchFileManager({
                       Loading preview…
                     </div>
                   ) : storedPreviewUrl ? (
-                    <iframe
-                      src={storedPreviewUrl}
-                      title={`${selectedDocument.title} preview`}
-                      className="h-[420px] w-full bg-white"
-                    />
+                    previewKind === "PDF" ? (
+                      <div
+                        className="flex min-w-0 flex-col"
+                        style={{ height: previewHeight }}
+                      >
+                        <Suspense
+                          fallback={
+                            <p role="status" className="p-4 text-sm">
+                              Loading PDF reader…
+                            </p>
+                          }
+                        >
+                          <PdfDocumentPreview
+                            key={previewKey}
+                            url={storedPreviewUrl}
+                            compact
+                          />
+                        </Suspense>
+                      </div>
+                    ) : (
+                      <iframe
+                        src={storedPreviewUrl}
+                        title={`${selectedDocument.title} — version ${selectedVersion?.versionNumber}`}
+                        className="w-full bg-white"
+                        style={{ height: previewHeight }}
+                      />
+                    )
                   ) : (
                     <div className="flex min-h-52 flex-col items-center justify-center p-6 text-center">
                       <FileText className="h-8 w-8 text-[var(--color-primary)]" />
@@ -506,14 +789,24 @@ export function ResearchFileManager({
                         {previewError ||
                           "Open or download the stored version using its authorized file action."}
                       </p>
-                      {latestVersion?.webViewLink && permissions?.canView && (
+                      {selectedVersion?.webViewLink && permissions?.canView && (
                         <Button
                           className="mt-4"
                           size="sm"
                           variant="secondary"
-                          onClick={() => onOpenStoredFile(latestVersion)}
+                          onClick={() => onOpenStoredFile(selectedVersion)}
                         >
                           Open stored file
+                        </Button>
+                      )}
+                      {previewError && (
+                        <Button
+                          className="mt-2"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setPreviewRetry((value) => value + 1)}
+                        >
+                          Retry preview
                         </Button>
                       )}
                     </div>
@@ -522,7 +815,9 @@ export function ResearchFileManager({
               </section>
 
               <section
-                aria-labelledby="document-version-history-title"
+                hidden={detailTab !== "file-history"}
+                role="tabpanel"
+                aria-labelledby="tab-file-history"
                 className="border-t border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5"
               >
                 <div className="flex items-center justify-between gap-3">
@@ -591,9 +886,16 @@ export function ResearchFileManager({
                               variant="secondary"
                               onClick={() => onOpenStoredFile(version)}
                             >
-                              Open
+                              Open file
                             </Button>
                           )}
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => selectVersion(version.id)}
+                          >
+                            Preview version {version.versionNumber}
+                          </Button>
                         </div>
                       ))}
                   </div>
@@ -604,6 +906,116 @@ export function ResearchFileManager({
                   </p>
                 )}
               </section>
+              <section
+                hidden={detailTab !== "file-feedback"}
+                role="tabpanel"
+                aria-labelledby="tab-file-feedback"
+                className="space-y-3 p-4 sm:p-5"
+              >
+                {feedback.length ? (
+                  <>
+                    <p className="text-sm text-[var(--color-text-secondary)]">
+                      Feedback for submitted version{" "}
+                      {feedbackVersion?.versionNumber}.
+                    </p>
+                    {feedback.map((assignment) => (
+                      <section
+                        key={assignment.id}
+                        className="rounded-xl border border-[var(--color-border)] p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                              {assignment.reviewer
+                                ? `${assignment.reviewer.firstName} ${assignment.reviewer.lastName}`
+                                : "Assigned reviewer"}
+                            </h3>
+                            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                              {documentStatusLabel(assignment.reviewType)} ·{" "}
+                              {displayDate(
+                                assignment.completedAt ||
+                                  assignment.review?.submittedAt,
+                              )}
+                            </p>
+                          </div>
+                          <Tag
+                            variant={lifecycleVariant(
+                              assignment.review?.recommendation ||
+                                assignment.status,
+                            )}
+                          >
+                            {documentStatusLabel(
+                              assignment.review?.recommendation ||
+                                assignment.status,
+                            )}
+                          </Tag>
+                        </div>
+                        {assignment.review?.overallComment && (
+                          <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--color-text-primary)]">
+                            {assignment.review.overallComment}
+                          </p>
+                        )}
+                        {assignment.review?.comments.map((comment) => (
+                          <div
+                            key={comment.id}
+                            className="mt-3 rounded-lg bg-[var(--color-surface-subtle)] p-3 text-sm"
+                          >
+                            <p className="font-semibold text-[var(--color-text-primary)]">
+                              {[
+                                comment.locationData?.section,
+                                comment.locationData?.page
+                                  ? `Page ${comment.locationData.page}`
+                                  : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                            <p className="whitespace-pre-wrap break-words text-[var(--color-text-secondary)]">
+                              {comment.comment}
+                            </p>
+                          </div>
+                        ))}
+                        {feedbackVersion && (
+                          <button
+                            type="button"
+                            className="mt-3 rounded text-sm font-semibold text-[var(--color-primary)] hover:underline focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                            onClick={() => selectVersion(feedbackVersion.id)}
+                          >
+                            View reviewed version{" "}
+                            {feedbackVersion.versionNumber} →
+                          </button>
+                        )}
+                      </section>
+                    ))}
+                  </>
+                ) : (
+                  <EmptyState
+                    icon={MessageSquareText}
+                    title="No feedback for this version"
+                    description="Reviewer feedback will appear here after this version is submitted and assigned for review."
+                  />
+                )}
+              </section>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-xs">
+                <p className="flex items-start gap-2 text-[var(--color-text-secondary)]">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                  {taskHref
+                    ? "Revise the working draft, then submit through the task."
+                    : "Submitted versions remain read-only. Edit the working draft to prepare a revision."}
+                </p>
+                {taskHref && (
+                  <Link
+                    to={taskHref}
+                    className="inline-flex min-h-8 shrink-0 items-center justify-center rounded-md border border-[var(--color-primary)] bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)] hover:bg-[var(--color-primary-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                  >
+                    {needsRevision && taskHref.includes("taskId=")
+                      ? "Open revision task →"
+                      : taskId
+                        ? "Return to task →"
+                        : "Open Tasks →"}
+                  </Link>
+                )}
+              </div>
             </div>
           ) : (
             <EmptyState
