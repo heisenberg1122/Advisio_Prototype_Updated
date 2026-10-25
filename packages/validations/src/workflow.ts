@@ -12,18 +12,34 @@ export const workflowStageSchema = z.object({
   sequence: z.number().int().positive(),
   responsibleRoleId: z.string().uuid("Invalid role ID"),
   requiresApproval: z.boolean().default(false),
+  requiresDocument: z.boolean().default(true),
   deadlineDays: z.number().int().positive().optional(),
   targetCompletionDate: targetCompletionDateSchema,
   isFinal: z.boolean().default(false),
   submissionMode: z.enum(["INDIVIDUAL", "GROUP", "EITHER"]).default("EITHER"),
+  milestoneType: z.enum(["STANDARD", "ADVISER_SELECTION"]).default("STANDARD"),
 });
 
-export const createWorkflowSchema = z.object({
-  researchTypeId: z.string().uuid("Invalid research type ID"),
-  name: z.string().trim().min(3).max(150),
-  description: z.string().optional(),
-  stages: z.array(workflowStageSchema).default([]),
-});
+export const createWorkflowSchema = z
+  .object({
+    researchTypeId: z.string().uuid("Invalid research type ID"),
+    name: z.string().trim().min(3).max(150),
+    description: z.string().optional(),
+    stages: z.array(workflowStageSchema).default([]),
+  })
+  .superRefine((value, context) => {
+    if (
+      value.stages.filter(
+        (stage) => stage.milestoneType === "ADVISER_SELECTION",
+      ).length > 1
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["stages"],
+        message: "A workflow can contain only one Adviser Milestone.",
+      });
+    }
+  });
 
 export const createWorkflowTopicSchema = z.object({
   title: z.string().trim().min(2).max(150),

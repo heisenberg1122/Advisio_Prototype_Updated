@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdvisers } from "@/hooks/use-student";
 import { useAuth } from "@/hooks/use-auth";
@@ -17,9 +17,13 @@ export default function AdviserPoolPage() {
   const { data, isPending, isError, refetch } = useAdvisers();
   const { user } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const milestoneId = searchParams.get("milestoneId");
   const queryClient = useQueryClient();
   const [selectedAdviser, setSelectedAdviser] = useState<any | null>(null);
-  const [profileModalAdviser, setProfileModalAdviser] = useState<any | null>(null);
+  const [profileModalAdviser, setProfileModalAdviser] = useState<any | null>(
+    null,
+  );
   const [requestMethod, setRequestMethod] = useState<RequestMethod>("details");
   const [requestNote, setRequestNote] = useState("");
   const [requestPdf, setRequestPdf] = useState<File | null>(null);
@@ -44,7 +48,11 @@ export default function AdviserPoolPage() {
 
   const openRequest = (adviser: any) => {
     if (adviser.isFull || !adviser.isAcceptingAdvisees) {
-      setMessage(adviser.isAcceptingAdvisees ? "This adviser has reached their group capacity." : "This adviser is not accepting new requests.");
+      setMessage(
+        adviser.isAcceptingAdvisees
+          ? "This adviser has reached their group capacity."
+          : "This adviser is not accepting new requests.",
+      );
       return;
     }
     setSelectedAdviser(adviser);
@@ -61,20 +69,39 @@ export default function AdviserPoolPage() {
 
   const applyMutation = useMutation({
     mutationFn: async () => {
-      if (!data?.projectId || !selectedAdviser?.id) throw new Error("Register a research project before requesting an adviser.");
-      if (requestMethod === "pdf" && !requestPdf) throw new Error("Select the completed adviser request form in PDF format.");
+      if (!data?.projectId || !selectedAdviser?.id)
+        throw new Error(
+          "Register a research project before requesting an adviser.",
+        );
+      if (requestMethod === "pdf" && !requestPdf)
+        throw new Error(
+          "Select the completed adviser request form in PDF format.",
+        );
 
       let requestFormDocumentId: string | undefined;
       if (requestMethod === "pdf" && requestPdf) {
         const formData = new FormData();
         formData.append("file", requestPdf);
-        formData.append("title", `Adviser Request Form - ${data.project?.title || "Research Group"}`);
+        formData.append(
+          "title",
+          `Adviser Request Form - ${data.project?.title || "Research Group"}`,
+        );
         formData.append("documentType", "ADVISER_REQUEST_FORM");
         const token = localStorage.getItem("advisio_token");
         const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
-        const response = await fetch(`${apiBase}/api/research/${data.projectId}/documents`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : undefined, body: formData });
+        const response = await fetch(
+          `${apiBase}/api/research/${data.projectId}/documents`,
+          {
+            method: "POST",
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            body: formData,
+          },
+        );
         const upload = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(upload.error || "Unable to upload the adviser request form.");
+        if (!response.ok)
+          throw new Error(
+            upload.error || "Unable to upload the adviser request form.",
+          );
         requestFormDocumentId = upload.document?.id;
       }
 
@@ -84,14 +111,30 @@ export default function AdviserPoolPage() {
           ? "Completed adviser request form attached as PDF."
           : undefined);
 
-      return apiClient.post("/api/adviser-requests", { researchId: data.projectId, adviserId: selectedAdviser.id, note: structuredNote, requestFormDocumentId });
+      return apiClient.post("/api/adviser-requests", {
+        researchId: data.projectId,
+        adviserId: selectedAdviser.id,
+        workflowStageId: milestoneId || undefined,
+        note: structuredNote,
+        requestFormDocumentId,
+      });
     },
     onSuccess: async () => {
       setMessage("Your adviser request was sent successfully.");
       closeRequest();
-      await queryClient.invalidateQueries({ queryKey: ["student", "advisers"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["student", "advisers"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["student", "workflow-tasks"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["student-manuscript-workflow"],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+      ]);
     },
-    onError: (error: any) => setMessage(error?.message || "Unable to send adviser request."),
+    onError: (error: any) =>
+      setMessage(error?.message || "Unable to send adviser request."),
   });
 
   if (isPending || !user || (data && (!project || !isLeader)))
@@ -101,7 +144,10 @@ export default function AdviserPoolPage() {
       <div className="mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8">
         <div className="rounded-2xl border border-rose-200 bg-rose-50 dark:bg-rose-950/20 p-5 text-sm text-rose-700 dark:text-rose-300">
           Unable to load verified advisers.{" "}
-          <button onClick={() => refetch()} className="ml-2 font-extrabold underline cursor-pointer">
+          <button
+            onClick={() => refetch()}
+            className="ml-2 font-extrabold underline cursor-pointer"
+          >
             Retry
           </button>
         </div>
@@ -112,10 +158,37 @@ export default function AdviserPoolPage() {
   const { assigned, available, pendingRequest } = data;
   return (
     <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      {milestoneId && project && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <i className="ti ti-user-check mt-0.5 text-lg" aria-hidden="true" />
+            <div>
+              <strong className="block">Adviser Milestone</strong>
+              <span>
+                Select an adviser for {project.groupName || project.title}.
+                Acceptance will complete the milestone automatically.
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              router.push(
+                `/student/tasks/milestone-${encodeURIComponent(milestoneId)}?projectId=${encodeURIComponent(project.id)}`,
+              )
+            }
+            className="shrink-0 rounded-xl border border-blue-300 px-3 py-2 text-sm font-bold hover:bg-blue-100 dark:border-blue-800 dark:hover:bg-blue-900/40"
+          >
+            Back to milestone
+          </button>
+        </div>
+      )}
       {!project && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-4 text-xs sm:text-sm font-semibold text-amber-800 dark:text-amber-200 flex items-center gap-2">
           <i className="ti ti-alert-circle text-base shrink-0 text-amber-600" />
-          <span>Register a research project before sending an adviser request.</span>
+          <span>
+            Register a research project before sending an adviser request.
+          </span>
         </div>
       )}
 
@@ -128,7 +201,9 @@ export default function AdviserPoolPage() {
 
       {assigned && (
         <section className="rounded-2xl border border-emerald-200 dark:border-emerald-800/40 bg-emerald-50/70 dark:bg-emerald-950/20 p-5 shadow-xs">
-          <p className="text-sm font-extrabold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">Assigned adviser</p>
+          <p className="text-sm font-extrabold uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+            Assigned adviser
+          </p>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
             <div
               role="button"
@@ -143,13 +218,21 @@ export default function AdviserPoolPage() {
               className="flex items-center gap-3.5 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-xl p-1 -m-1 transition"
               aria-label={`View academic profile for ${assigned.name}`}
             >
-              <Avatar initials={assigned.initials} colorVariant="info" size="lg" />
+              <Avatar
+                initials={assigned.initials}
+                colorVariant="info"
+                size="lg"
+              />
               <div>
                 <p className="font-extrabold text-[#17212B] dark:text-white text-base group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition flex items-center gap-1.5">
                   {assigned.name}
-                  <span className="text-xs font-normal text-slate-400 opacity-0 group-hover:opacity-100 transition">(View CV)</span>
+                  <span className="text-xs font-normal text-slate-400 opacity-0 group-hover:opacity-100 transition">
+                    (View CV)
+                  </span>
                 </p>
-                <p className="text-base text-slate-500 dark:text-slate-400">{assigned.college} · {assigned.email}</p>
+                <p className="text-base text-slate-500 dark:text-slate-400">
+                  {assigned.college} · {assigned.email}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -169,8 +252,13 @@ export default function AdviserPoolPage() {
       <section className="space-y-4">
         <div className="flex items-end justify-between">
           <div>
-            <h2 className="text-lg font-extrabold text-[#17212B] dark:text-white">Available verified advisers</h2>
-            <p className="text-base text-slate-500 dark:text-slate-400">Active institutional accounts with the Adviser role, including the demo adviser.</p>
+            <h2 className="text-lg font-extrabold text-[#17212B] dark:text-white">
+              Available verified advisers
+            </h2>
+            <p className="text-base text-slate-500 dark:text-slate-400">
+              Active institutional accounts with the Adviser role, including the
+              demo adviser.
+            </p>
           </div>
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400 rounded-lg bg-slate-100 dark:bg-white/5 px-2.5 py-1">
             {available.length} verified
@@ -201,7 +289,11 @@ export default function AdviserPoolPage() {
                   className="flex items-start gap-3.5 cursor-pointer group focus:outline-none focus:ring-2 focus:ring-[#0B3A53] dark:focus:ring-[#FFA400] rounded-xl p-1 -m-1 transition"
                   aria-label={`View academic profile for ${adviser.name}`}
                 >
-                  <Avatar initials={adviser.initials} colorVariant={adviser.colorVariant ?? "info"} size="lg" />
+                  <Avatar
+                    initials={adviser.initials}
+                    colorVariant={adviser.colorVariant ?? "info"}
+                    size="lg"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-extrabold text-[#17212B] dark:text-white group-hover:text-[#0B3A53] dark:group-hover:text-[#FFA400] transition">
@@ -216,8 +308,12 @@ export default function AdviserPoolPage() {
                         {adviser.facultyProfile.facultyDesignation}
                       </p>
                     ) : null}
-                    <p className="mt-1 text-base text-slate-500 dark:text-slate-400">{adviser.college}</p>
-                    <p className="mt-0.5 truncate text-sm text-slate-400 dark:text-slate-500">{adviser.email}</p>
+                    <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
+                      {adviser.college}
+                    </p>
+                    <p className="mt-0.5 truncate text-sm text-slate-400 dark:text-slate-500">
+                      {adviser.email}
+                    </p>
                   </div>
                 </div>
 
@@ -225,17 +321,20 @@ export default function AdviserPoolPage() {
                 {Array.isArray(adviser.facultyProfile?.expertiseKeywords) &&
                   adviser.facultyProfile.expertiseKeywords.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
-                      {adviser.facultyProfile.expertiseKeywords.slice(0, 3).map((keyword: string, idx: number) => (
-                        <span
-                          key={idx}
-                          className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/10"
-                        >
-                          {keyword}
-                        </span>
-                      ))}
+                      {adviser.facultyProfile.expertiseKeywords
+                        .slice(0, 3)
+                        .map((keyword: string, idx: number) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-white/10"
+                          >
+                            {keyword}
+                          </span>
+                        ))}
                       {adviser.facultyProfile.expertiseKeywords.length > 3 && (
                         <span className="text-xs font-medium text-slate-400 self-center">
-                          +{adviser.facultyProfile.expertiseKeywords.length - 3} more
+                          +{adviser.facultyProfile.expertiseKeywords.length - 3}{" "}
+                          more
                         </span>
                       )}
                     </div>
@@ -244,21 +343,29 @@ export default function AdviserPoolPage() {
                 <div className="mt-5 rounded-xl bg-slate-50/70 dark:bg-white/5 p-3.5 border border-[#EEF2F6] dark:border-white/5">
                   <div className="mb-2 flex items-center justify-between text-xs">
                     <span className="font-semibold text-slate-600 dark:text-slate-300">
-                      {adviser.adviseeCount} of {adviser.maxAdviseeGroups} active groups
+                      {adviser.adviseeCount} of {adviser.maxAdviseeGroups}{" "}
+                      active groups
                     </span>
                     <span className="text-slate-400 dark:text-slate-400 font-medium">
-                      {adviser.availableSlots} {adviser.availableSlots === 1 ? "slot" : "slots"} left
+                      {adviser.availableSlots}{" "}
+                      {adviser.availableSlots === 1 ? "slot" : "slots"} left
                     </span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${
-                        adviser.isFull ? "bg-rose-500" : "bg-[#0B3A53] dark:bg-[#FFA400]"
+                        adviser.isFull
+                          ? "bg-rose-500"
+                          : "bg-[#0B3A53] dark:bg-[#FFA400]"
                       }`}
                       style={{
                         width: `${Math.min(
                           100,
-                          adviser.maxAdviseeGroups ? (adviser.adviseeCount / adviser.maxAdviseeGroups) * 100 : 100
+                          adviser.maxAdviseeGroups
+                            ? (adviser.adviseeCount /
+                                adviser.maxAdviseeGroups) *
+                                100
+                            : 100,
                         )}%`,
                       }}
                     />
@@ -310,8 +417,12 @@ export default function AdviserPoolPage() {
           {!available.length && (
             <div className="col-span-full rounded-2xl border-2 border-dashed border-[#DDE3E8] dark:border-white/10 bg-white/60 dark:bg-[#101b2b]/60 p-10 text-center flex flex-col items-center justify-center gap-2">
               <i className="ti ti-users text-4xl text-slate-300 dark:text-slate-600 mb-1" />
-              <p className="font-extrabold text-[#17212B] dark:text-white">No advisers available</p>
-              <p className="text-base text-slate-500 dark:text-slate-400">No verified advisers are currently available for requests.</p>
+              <p className="font-extrabold text-[#17212B] dark:text-white">
+                No advisers available
+              </p>
+              <p className="text-base text-slate-500 dark:text-slate-400">
+                No verified advisers are currently available for requests.
+              </p>
             </div>
           )}
         </div>
@@ -330,8 +441,13 @@ export default function AdviserPoolPage() {
           <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white dark:bg-[#101b2b] p-6 sm:p-7 shadow-2xl border border-[#EEF2F6] dark:border-white/10">
             <div className="flex items-start justify-between border-b border-[#EEF2F6] dark:border-white/10 pb-4">
               <div>
-                <p className="text-sm font-extrabold uppercase tracking-widest text-[#C9A227]">Formal Request</p>
-                <h2 id="adviser-request-title" className="text-xl font-extrabold text-[#17212B] dark:text-white">
+                <p className="text-sm font-extrabold uppercase tracking-widest text-[#C9A227]">
+                  Formal Request
+                </p>
+                <h2
+                  id="adviser-request-title"
+                  className="text-xl font-extrabold text-[#17212B] dark:text-white"
+                >
                   Request {selectedAdviser.name}
                 </h2>
                 <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
@@ -374,13 +490,41 @@ export default function AdviserPoolPage() {
 
             {requestMethod === "details" ? (
               <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-                <p className="text-sm font-extrabold uppercase tracking-widest text-slate-400">Project details</p>
+                <p className="text-sm font-extrabold uppercase tracking-widest text-slate-400">
+                  Project details
+                </p>
                 <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
-                  <div><dt className="font-bold text-slate-500">Project</dt><dd className="mt-1 font-extrabold text-[#17212B] dark:text-white">{project?.title}</dd></div>
-                  <div><dt className="font-bold text-slate-500">Group</dt><dd className="mt-1 font-extrabold text-[#17212B] dark:text-white">{project?.groupName || (project?.participationMode === "SOLO" ? "Solo research project" : "Research group")}</dd></div>
-                  <div className="sm:col-span-2"><dt className="font-bold text-slate-500">Researchers</dt><dd className="mt-1 text-slate-700 dark:text-slate-300">{activeResearchers.map((member: any) => `${member.user?.firstName || ""} ${member.user?.lastName || ""}`.trim()).filter(Boolean).join(", ")}</dd></div>
+                  <div>
+                    <dt className="font-bold text-slate-500">Project</dt>
+                    <dd className="mt-1 font-extrabold text-[#17212B] dark:text-white">
+                      {project?.title}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-bold text-slate-500">Group</dt>
+                    <dd className="mt-1 font-extrabold text-[#17212B] dark:text-white">
+                      {project?.groupName ||
+                        (project?.participationMode === "SOLO"
+                          ? "Solo research project"
+                          : "Research group")}
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="font-bold text-slate-500">Researchers</dt>
+                    <dd className="mt-1 text-slate-700 dark:text-slate-300">
+                      {activeResearchers
+                        .map((member: any) =>
+                          `${member.user?.firstName || ""} ${member.user?.lastName || ""}`.trim(),
+                        )
+                        .filter(Boolean)
+                        .join(", ")}
+                    </dd>
+                  </div>
                 </dl>
-                <p className="mt-3 text-base text-slate-500">These verified project details are included automatically and cannot be changed in the request.</p>
+                <p className="mt-3 text-base text-slate-500">
+                  These verified project details are included automatically and
+                  cannot be changed in the request.
+                </p>
               </div>
             ) : (
               <label className="mt-5 flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed border-slate-300 dark:border-white/20 bg-slate-50/50 dark:bg-white/5 p-7 text-center transition hover:border-[#0B3A53] dark:hover:border-[#C9A227]">
@@ -388,15 +532,23 @@ export default function AdviserPoolPage() {
                 <span className="mt-2 text-sm font-extrabold text-[#17212B] dark:text-white">
                   {requestPdf?.name || "Select completed adviser request form"}
                 </span>
-                <span className="mt-1 text-xs text-slate-500 dark:text-slate-400">PDF only, maximum 10 MB</span>
+                <span className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  PDF only, maximum 10 MB
+                </span>
                 <input
                   type="file"
                   accept="application/pdf,.pdf"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0] || null;
-                    if (file && (file.type !== "application/pdf" || file.size > 10 * 1024 * 1024)) {
-                      setMessage("The request form must be a PDF no larger than 10 MB.");
+                    if (
+                      file &&
+                      (file.type !== "application/pdf" ||
+                        file.size > 10 * 1024 * 1024)
+                    ) {
+                      setMessage(
+                        "The request form must be a PDF no larger than 10 MB.",
+                      );
                       setRequestPdf(null);
                     } else {
                       setMessage(null);
@@ -408,7 +560,10 @@ export default function AdviserPoolPage() {
             )}
 
             <label className="mt-4 block text-sm font-bold text-slate-700 dark:text-slate-300">
-              Message to adviser <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+              Message to adviser{" "}
+              <span className="font-normal text-slate-400 dark:text-slate-500">
+                (optional)
+              </span>
               <textarea
                 value={requestNote}
                 onChange={(e) => setRequestNote(e.target.value)}
@@ -419,7 +574,11 @@ export default function AdviserPoolPage() {
               />
             </label>
 
-            {message && <p className="mt-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 p-3 text-base font-semibold text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900">{message}</p>}
+            {message && (
+              <p className="mt-3 rounded-xl bg-rose-50 dark:bg-rose-950/30 p-3 text-base font-semibold text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
+                {message}
+              </p>
+            )}
 
             <div className="mt-6 flex justify-end gap-2.5 border-t border-[#EEF2F6] dark:border-white/10 pt-4">
               <button
@@ -433,7 +592,9 @@ export default function AdviserPoolPage() {
                 disabled={applyMutation.isPending}
                 className="rounded-xl bg-[#0B3A53] hover:bg-[#072A3D] text-white px-5 py-2.5 text-sm font-extrabold shadow-xs transition disabled:opacity-60 cursor-pointer"
               >
-                {applyMutation.isPending ? "Submitting…" : "Submit adviser request"}
+                {applyMutation.isPending
+                  ? "Submitting…"
+                  : "Submit adviser request"}
               </button>
             </div>
           </div>

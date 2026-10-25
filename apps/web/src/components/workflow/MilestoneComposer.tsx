@@ -13,6 +13,9 @@ type MilestoneComposerProps = {
   requiresDocument: boolean;
   requiresApproval: boolean;
   category: string;
+  milestoneType?: "STANDARD" | "ADVISER_SELECTION";
+  position?: string;
+  positionOptions?: Array<{ value: string; label: string }>;
   saving: boolean;
   advancedOpen: boolean;
   requirementsContent?: React.ReactNode;
@@ -25,6 +28,7 @@ type MilestoneComposerProps = {
   onRequiresDocumentChange: (value: boolean) => void;
   onRequiresApprovalChange: (value: boolean) => void;
   onCategoryChange: (value: string) => void;
+  onPositionChange?: (value: string) => void;
   onAdvancedOpenChange: (value: boolean) => void;
   onClose: () => void;
   onSubmit: (event: React.FormEvent) => void;
@@ -45,6 +49,9 @@ export function MilestoneComposer({
   requiresDocument,
   requiresApproval,
   category,
+  milestoneType = "STANDARD",
+  position = "",
+  positionOptions = [],
   saving,
   advancedOpen,
   requirementsContent,
@@ -57,6 +64,7 @@ export function MilestoneComposer({
   onRequiresDocumentChange,
   onRequiresApprovalChange,
   onCategoryChange,
+  onPositionChange,
   onAdvancedOpenChange,
   onClose,
   onSubmit,
@@ -73,6 +81,8 @@ export function MilestoneComposer({
     requiresDocument,
     requiresApproval,
     category,
+    milestoneType,
+    position,
   });
   const initialSignature = useRef(currentSignature);
   const hasUnsavedChanges =
@@ -96,6 +106,7 @@ export function MilestoneComposer({
   }, [hasUnsavedChanges, onClose, saveStatus, saving]);
 
   const isCreate = mode === "create";
+  const isAdviserMilestone = milestoneType === "ADVISER_SELECTION";
 
   return (
     <div
@@ -181,6 +192,21 @@ export function MilestoneComposer({
                   placeholder="Explain what researchers need to complete and what a successful submission should contain."
                   className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 p-4 text-base leading-6 text-slate-700 outline-none transition focus:border-[#f6a800] focus:bg-white focus:ring-2 focus:ring-amber-100"
                 />
+                {isAdviserMilestone && (
+                  <div className="mt-5 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    <i className="ti ti-user-check mt-0.5 text-xl text-amber-700" />
+                    <div>
+                      <strong className="block">
+                        Completed by adviser acceptance
+                      </strong>
+                      <span className="mt-1 block leading-5">
+                        The group leader selects an eligible adviser from the
+                        existing Adviser Pool. This milestone is approved
+                        automatically when that adviser accepts.
+                      </span>
+                    </div>
+                  </div>
+                )}
               </section>
 
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
@@ -194,19 +220,31 @@ export function MilestoneComposer({
                       this milestone.
                     </p>
                   </div>
-                  <label className="relative inline-flex cursor-pointer items-center">
-                    <input
-                      type="checkbox"
-                      checked={requiresDocument}
-                      onChange={(event) =>
-                        onRequiresDocumentChange(event.target.checked)
-                      }
-                      className="peer sr-only"
-                    />
-                    <span className="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-[#173f63] after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
-                  </label>
+                  {!isAdviserMilestone && (
+                    <label className="relative inline-flex cursor-pointer items-center">
+                      <input
+                        type="checkbox"
+                        checked={requiresDocument}
+                        onChange={(event) =>
+                          onRequiresDocumentChange(event.target.checked)
+                        }
+                        className="peer sr-only"
+                      />
+                      <span className="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-[#173f63] after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
+                    </label>
+                  )}
                 </div>
-                {requiresDocument ? (
+                {isAdviserMilestone ? (
+                  <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
+                    <strong className="block">
+                      No document upload required
+                    </strong>
+                    <span className="mt-1 block text-xs leading-5 text-emerald-800">
+                      Adviser request, eligibility, acceptance, timestamps, and
+                      workflow advancement are synchronized by the server.
+                    </span>
+                  </div>
+                ) : requiresDocument ? (
                   requirementsContent || (
                     <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-sm text-blue-900">
                       <div className="flex gap-3">
@@ -276,25 +314,56 @@ export function MilestoneComposer({
                       ))}
                     </select>
                   </label>
-                  <label className="block text-sm font-bold text-slate-700">
-                    Completed by
-                    <select
-                      value={submissionMode}
-                      onChange={(event) =>
-                        onSubmissionModeChange(event.target.value)
-                      }
-                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
-                    >
-                      <option value="GROUP">Research group</option>
-                      <option value="INDIVIDUAL">Individual researcher</option>
-                      <option value="EITHER">Individual or group</option>
-                    </select>
-                  </label>
-                  <div className="block text-sm font-bold text-slate-700">
-                    <label htmlFor="milestone-target-completion">
-                      Target completion
+                  {isAdviserMilestone ? (
+                    <div>
+                      <span className="block text-sm font-bold text-slate-700">
+                        Completed by
+                      </span>
+                      <div className="mt-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base text-slate-700">
+                        Research group · official adviser acceptance
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="block text-sm font-bold text-slate-700">
+                      Completed by
+                      <select
+                        value={submissionMode}
+                        onChange={(event) =>
+                          onSubmissionModeChange(event.target.value)
+                        }
+                        className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
+                      >
+                        <option value="GROUP">Research group</option>
+                        <option value="INDIVIDUAL">
+                          Individual researcher
+                        </option>
+                        <option value="EITHER">Individual or group</option>
+                      </select>
                     </label>
-                    <div className="mt-1.5">
+                  )}
+                  {isCreate &&
+                    onPositionChange &&
+                    positionOptions.length > 0 && (
+                      <label className="block text-sm font-bold text-slate-700">
+                        Position in topic
+                        <select
+                          value={position}
+                          onChange={(event) =>
+                            onPositionChange(event.target.value)
+                          }
+                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
+                        >
+                          {positionOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                  <label className="block text-sm font-bold text-slate-700">
+                    Target completion
+                    <div className="relative mt-1.5">
                       <input
                         id="milestone-target-completion"
                         type="date"
@@ -323,26 +392,41 @@ export function MilestoneComposer({
                         Clear target
                       </button>
                     )}
-                  </div>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <input
-                      type="checkbox"
-                      checked={requiresApproval}
-                      onChange={(event) =>
-                        onRequiresApprovalChange(event.target.checked)
-                      }
-                      className="mt-0.5 h-4 w-4 accent-[#173f63]"
-                    />
-                    <span>
-                      <span className="block text-sm font-bold text-[#102f49]">
-                        Approval required
-                      </span>
-                      <span className="mt-0.5 block text-xs leading-5 text-slate-500">
-                        Researchers cannot continue until this milestone is
-                        approved.
-                      </span>
-                    </span>
                   </label>
+                  {isAdviserMilestone ? (
+                    <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                      <i className="ti ti-lock-check mt-0.5 text-lg text-emerald-700" />
+                      <span>
+                        <span className="block text-sm font-bold text-emerald-900">
+                          Automatic approval gate
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-5 text-emerald-700">
+                          No professor approval is required after the adviser
+                          accepts.
+                        </span>
+                      </span>
+                    </div>
+                  ) : (
+                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <input
+                        type="checkbox"
+                        checked={requiresApproval}
+                        onChange={(event) =>
+                          onRequiresApprovalChange(event.target.checked)
+                        }
+                        className="mt-0.5 h-4 w-4 accent-[#173f63]"
+                      />
+                      <span>
+                        <span className="block text-sm font-bold text-[#102f49]">
+                          Approval required
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-5 text-slate-500">
+                          Researchers cannot continue until this milestone is
+                          approved.
+                        </span>
+                      </span>
+                    </label>
+                  )}
                 </div>
               </section>
 
@@ -364,20 +448,31 @@ export function MilestoneComposer({
                     className={`ti ${advancedOpen ? "ti-chevron-up" : "ti-chevron-down"}`}
                   />
                 </button>
-                {advancedOpen && (
-                  <label className="mt-4 block text-sm font-bold text-slate-700">
-                    Milestone type
-                    <select
-                      value={category}
-                      onChange={(event) => onCategoryChange(event.target.value)}
-                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
-                    >
-                      <option value="Milestone">Standard milestone</option>
-                      <option value="Compliance">Compliance requirement</option>
-                      <option value="Pre-requisite">Approval checkpoint</option>
-                    </select>
-                  </label>
-                )}
+                {advancedOpen &&
+                  (isAdviserMilestone ? (
+                    <div className="mt-4 rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-bold text-[#102f49]">
+                      Adviser Milestone
+                    </div>
+                  ) : (
+                    <label className="mt-4 block text-sm font-bold text-slate-700">
+                      Milestone type
+                      <select
+                        value={category}
+                        onChange={(event) =>
+                          onCategoryChange(event.target.value)
+                        }
+                        className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
+                      >
+                        <option value="Milestone">Standard milestone</option>
+                        <option value="Compliance">
+                          Compliance requirement
+                        </option>
+                        <option value="Pre-requisite">
+                          Approval checkpoint
+                        </option>
+                      </select>
+                    </label>
+                  ))}
               </section>
             </aside>
           </div>

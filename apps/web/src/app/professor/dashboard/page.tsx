@@ -5,7 +5,12 @@ import { useTheme } from "@/providers/theme-provider";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { calculateMilestoneProgress } from "@/lib/workflow-progress";
-import { calendarDateValue, formatMilestoneTarget, formatTaskDeadline, resolveWorkflowDeadline } from "@/lib/workflow-deadlines";
+import {
+  calendarDateValue,
+  formatMilestoneTarget,
+  formatTaskDeadline,
+  resolveWorkflowDeadline,
+} from "@/lib/workflow-deadlines";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import {
   DashboardSkeleton,
@@ -67,14 +72,21 @@ function ProfessorDashboardContent() {
   const [officialDecision, setOfficialDecision] = useState("APPROVED");
   const [revisionInstructions, setRevisionInstructions] = useState("");
   const [defenseActionPending, setDefenseActionPending] = useState(false);
-  const { data: defenseManagementData, refetch: refetchDefenseManagement, error: defenseManagementError } =
-    useQuery({
-      queryKey: ["professor-defense-management"],
-      queryFn: () =>
-        apiClient.get<{ sessions: any[] }>("/api/defense-management"),
-      refetchInterval: 15000,
-    });
-  const { data: defenseEventData, refetch: refetchDefenseEvents, error: defenseEventError } = useQuery({
+  const {
+    data: defenseManagementData,
+    refetch: refetchDefenseManagement,
+    error: defenseManagementError,
+  } = useQuery({
+    queryKey: ["professor-defense-management"],
+    queryFn: () =>
+      apiClient.get<{ sessions: any[] }>("/api/defense-management"),
+    refetchInterval: 15000,
+  });
+  const {
+    data: defenseEventData,
+    refetch: refetchDefenseEvents,
+    error: defenseEventError,
+  } = useQuery({
     queryKey: ["professor-defense-events"],
     queryFn: () => apiClient.get<{ events: any[] }>("/api/defense-events"),
     refetchInterval: 15000,
@@ -185,22 +197,29 @@ function ProfessorDashboardContent() {
   });
 
   const professorProjectIds = (researchData?.projects || [])
-    .filter((project: any) => project.status !== "ARCHIVED" && project.workflowInstance)
+    .filter(
+      (project: any) =>
+        project.status !== "ARCHIVED" && project.workflowInstance,
+    )
     .map((project: any) => project.id as string);
   const professorProjectKey = professorProjectIds.join(",");
-  const { data: milestoneProgressByProject = EMPTY_MILESTONE_PROGRESS_BY_PROJECT } = useQuery({
+  const {
+    data: milestoneProgressByProject = EMPTY_MILESTONE_PROGRESS_BY_PROJECT,
+  } = useQuery({
     queryKey: ["professor-milestone-progress", professorProjectKey],
     queryFn: async () => {
-      const entries = await Promise.all(professorProjectIds.map(async (projectId) => {
-        try {
-          const projection = await apiClient.get<{ milestones: any[] }>(
-            `/api/research/${projectId}/manuscript-workflow`,
-          );
-          return [projectId, projection.milestones || []] as const;
-        } catch {
-          return [projectId, []] as const;
-        }
-      }));
+      const entries = await Promise.all(
+        professorProjectIds.map(async (projectId) => {
+          try {
+            const projection = await apiClient.get<{ milestones: any[] }>(
+              `/api/research/${projectId}/manuscript-workflow`,
+            );
+            return [projectId, projection.milestones || []] as const;
+          } catch {
+            return [projectId, []] as const;
+          }
+        }),
+      );
       return Object.fromEntries(entries) as Record<string, any[]>;
     },
     enabled: professorProjectIds.length > 0,
@@ -261,6 +280,7 @@ function ProfessorDashboardContent() {
           workflowStartedAt: p.workflowInstance?.startedAt || null,
           workflowTransitions: p.workflowInstance?.transitions || [],
           workflowStages: p.workflowInstance?.workflow?.stages || [],
+          milestoneProgress: milestoneProgressByProject[p.id] || [],
           taskSubmissions: p.taskSubmissions || [],
           progress: calculateMilestoneProgress(
             milestoneProgressByProject[p.id],
@@ -336,6 +356,7 @@ function ProfessorDashboardContent() {
             targetCompletionDate: s.targetCompletionDate,
             requiresDocument: s.requiresDocument !== false,
             submissionMode: s.submissionMode || "EITHER",
+            milestoneType: s.milestoneType || "STANDARD",
             tasks: s.tasks || [],
           });
         });
@@ -370,6 +391,10 @@ function ProfessorDashboardContent() {
   const [newMilestoneSubmissionMode, setNewMilestoneSubmissionMode] =
     useState("GROUP");
   const [newMilestoneTopicId, setNewMilestoneTopicId] = useState("");
+  const [newMilestoneType, setNewMilestoneType] = useState<
+    "STANDARD" | "ADVISER_SELECTION"
+  >("STANDARD");
+  const [newMilestonePosition, setNewMilestonePosition] = useState("1");
   const [newMilestoneAttachments, setNewMilestoneAttachments] = useState<
     PendingMilestoneAttachment[]
   >([]);
@@ -381,6 +406,12 @@ function ProfessorDashboardContent() {
   const [newRequirementFileTypes, setNewRequirementFileTypes] =
     useState("PDF,DOCX");
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
+  useEffect(() => {
+    setSelectedProject((current: any) => {
+      if (!current) return null;
+      return projects.find((project) => project.id === current.id) || current;
+    });
+  }, [projects]);
   const [monitoringSearch, setMonitoringSearch] = useState("");
   const [monitoringPendingRemoval, setMonitoringPendingRemoval] = useState<{
     kind: "researcher" | "project";
@@ -419,7 +450,8 @@ function ProfessorDashboardContent() {
   const [milestoneEditCategory, setMilestoneEditCategory] =
     useState("Milestone");
   const [milestoneEditDeadline, setMilestoneEditDeadline] = useState("");
-  const [milestoneEditTargetChanged, setMilestoneEditTargetChanged] = useState(false);
+  const [milestoneEditTargetChanged, setMilestoneEditTargetChanged] =
+    useState(false);
   const [milestoneEditRequiresDocument, setMilestoneEditRequiresDocument] =
     useState(true);
   const [milestoneEditRequiresApproval, setMilestoneEditRequiresApproval] =
@@ -427,6 +459,9 @@ function ProfessorDashboardContent() {
   const [milestoneEditSubmissionMode, setMilestoneEditSubmissionMode] =
     useState("EITHER");
   const [milestoneEditTopicId, setMilestoneEditTopicId] = useState("");
+  const [milestoneEditType, setMilestoneEditType] = useState<
+    "STANDARD" | "ADVISER_SELECTION"
+  >("STANDARD");
   const [topicDialogOpen, setTopicDialogOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<any | null>(null);
   const [topicTitle, setTopicTitle] = useState("");
@@ -519,7 +554,7 @@ function ProfessorDashboardContent() {
   };
 
   const openNewMilestone = (
-    kind: "submission" | "approval" | "event" = "submission",
+    kind: "submission" | "approval" | "event" | "adviser" = "submission",
     preferredTopicId?: string,
   ) => {
     if (!selectedWorkflowTopics.length) {
@@ -531,14 +566,29 @@ function ProfessorDashboardContent() {
       triggerToast("Create a topic before adding its first milestone.");
       return;
     }
-    setNewMilestoneTitle("");
-    setNewMilestoneDescription("");
+    const adviserMilestone = kind === "adviser";
+    const topicId = preferredTopicId || selectedWorkflowTopics[0].id;
+    const siblingCount = milestones.filter(
+      (milestone) =>
+        milestone.workflowId === selectedWorkflowId &&
+        milestone.topicId === topicId,
+    ).length;
+    setNewMilestoneTitle(adviserMilestone ? "Secure faculty adviser" : "");
+    setNewMilestoneDescription(
+      adviserMilestone
+        ? "The research group leader must request an eligible faculty adviser. This milestone is approved automatically when the adviser accepts."
+        : "",
+    );
     setTargetCompletionDate("");
     setNewMilestoneSubmissionMode("GROUP");
     setNewMilestoneRequiresDocument(kind === "submission");
-    setNewMilestoneRequiresApproval(kind === "approval");
-    setNewMilestoneScope(kind === "approval" ? "Pre-requisite" : "Milestone");
-    setNewMilestoneTopicId(preferredTopicId || selectedWorkflowTopics[0].id);
+    setNewMilestoneRequiresApproval(kind === "approval" || adviserMilestone);
+    setNewMilestoneScope(
+      kind === "approval" || adviserMilestone ? "Pre-requisite" : "Milestone",
+    );
+    setNewMilestoneTopicId(topicId);
+    setNewMilestoneType(adviserMilestone ? "ADVISER_SELECTION" : "STANDARD");
+    setNewMilestonePosition(String(siblingCount + 1));
     setNewMilestoneAttachments([]);
     setShowAdvancedMilestoneOptions(false);
     setShowWorkflowCreateMenu(false);
@@ -558,14 +608,16 @@ function ProfessorDashboardContent() {
       const result = await apiClient.post<{ stage: { id: string } }>(
         `/api/workflows/${selectedWorkflowId}/stages`,
         {
-        name: newMilestoneTitle.trim(),
-        description: newMilestoneDescription.trim() || null,
-        topicId: newMilestoneTopicId,
-        category: newMilestoneScope,
-        targetCompletionDate: targetCompletionDate || null,
-        requiresApproval: newMilestoneRequiresApproval,
-        requiresDocument: newMilestoneRequiresDocument,
-        submissionMode: newMilestoneSubmissionMode,
+          name: newMilestoneTitle.trim(),
+          description: newMilestoneDescription.trim() || null,
+          topicId: newMilestoneTopicId,
+          category: newMilestoneScope,
+          targetCompletionDate: targetCompletionDate || null,
+          requiresApproval: newMilestoneRequiresApproval,
+          requiresDocument: newMilestoneRequiresDocument,
+          submissionMode: newMilestoneSubmissionMode,
+          milestoneType: newMilestoneType,
+          position: Number(newMilestonePosition),
         },
       );
       const attachmentResults = await Promise.allSettled(
@@ -610,6 +662,8 @@ function ProfessorDashboardContent() {
       setNewMilestoneRequiresDocument(true);
       setNewMilestoneSubmissionMode("GROUP");
       setNewMilestoneTopicId("");
+      setNewMilestoneType("STANDARD");
+      setNewMilestonePosition("1");
       setNewMilestoneAttachments([]);
       setNewMilestoneScope("Milestone");
       setCreatingMilestone(false);
@@ -721,7 +775,11 @@ function ProfessorDashboardContent() {
         {
           title: newRequirementTitle.trim(),
           instructions: newRequirementInstructions.trim() || undefined,
-          dueDays: milestoneEditDeadline ? null : newRequirementDueDays ? Number(newRequirementDueDays) : null,
+          dueDays: milestoneEditDeadline
+            ? null
+            : newRequirementDueDays
+              ? Number(newRequirementDueDays)
+              : null,
           allowedFileTypes: newRequirementFileTypes,
         },
       );
@@ -879,14 +937,13 @@ function ProfessorDashboardContent() {
     setMilestoneEditTitle(milestone.title || "");
     setMilestoneEditDescription(milestone.description || "");
     setMilestoneEditCategory(milestone.scope || "Milestone");
-    setMilestoneEditDeadline(
-      calendarDateValue(milestone.targetCompletionDate),
-    );
+    setMilestoneEditDeadline(calendarDateValue(milestone.targetCompletionDate));
     setMilestoneEditTargetChanged(false);
     setMilestoneEditRequiresDocument(milestone.requiresDocument !== false);
     setMilestoneEditRequiresApproval(Boolean(milestone.locked));
     setMilestoneEditSubmissionMode(milestone.submissionMode || "EITHER");
     setMilestoneEditTopicId(milestone.topicId || "");
+    setMilestoneEditType(milestone.milestoneType || "STANDARD");
     setMilestoneSaveStatus("idle");
     setSelectedMilestoneId(milestone.id);
   };
@@ -897,22 +954,26 @@ function ProfessorDashboardContent() {
     const minimumDelay = new Promise((resolve) => setTimeout(resolve, 1500));
     try {
       const [result] = await Promise.all([
-        apiClient.patch<{ stage: any }>(`/api/workflows/stages/${editingMilestone.id}`, {
-          name: milestoneEditTitle.trim(),
-          description: milestoneEditDescription.trim() || null,
-          topicId: milestoneEditTopicId,
-          category: milestoneEditCategory,
-          ...(milestoneEditTargetChanged && {
-            targetCompletionDate: milestoneEditDeadline || null,
-          }),
-          requiresDocument: milestoneEditRequiresDocument,
-          requiresApproval: milestoneEditRequiresApproval,
-          submissionMode: milestoneEditSubmissionMode,
-        }),
+        apiClient.patch<{ stage: any }>(
+          `/api/workflows/stages/${editingMilestone.id}`,
+          {
+            name: milestoneEditTitle.trim(),
+            description: milestoneEditDescription.trim() || null,
+            topicId: milestoneEditTopicId,
+            category: milestoneEditCategory,
+            ...(milestoneEditTargetChanged && {
+              targetCompletionDate: milestoneEditDeadline || null,
+            }),
+            requiresDocument: milestoneEditRequiresDocument,
+            requiresApproval: milestoneEditRequiresApproval,
+            submissionMode: milestoneEditSubmissionMode,
+          },
+        ),
         minimumDelay,
       ]);
       const refreshed = await refetchWorkflows();
-      const refreshedStage = refreshed.data?.workflows?.flatMap((workflow: any) => workflow.stages || [])
+      const refreshedStage = refreshed.data?.workflows
+        ?.flatMap((workflow: any) => workflow.stages || [])
         .find((stage: any) => stage.id === editingMilestone.id);
       setEditingMilestone((current: any) => ({
         ...current,
@@ -933,7 +994,10 @@ function ProfessorDashboardContent() {
     if (!selectedWorkflowId) return;
     setSaving(true);
     try {
-      await apiClient.post(`/api/workflows/${selectedWorkflowId}/invitation`, {});
+      await apiClient.post(
+        `/api/workflows/${selectedWorkflowId}/invitation`,
+        {},
+      );
       await refetchWorkflows();
       triggerToast("Workflow invitation link generated.");
     } catch (error: any) {
@@ -1019,16 +1083,33 @@ function ProfessorDashboardContent() {
     workflows.find((workflow: any) => workflow.id === selectedWorkflowId) ||
     null;
   const selectedWorkflowTopics = selectedWorkflow?.topics || [];
-  const selectedWorkflowInvitation =
-    (selectedWorkflow?.inviteCode
-      ? {
-          expiresAt: selectedWorkflow.inviteExpiresAt,
-          code: selectedWorkflow.inviteCode,
-          link: `${typeof window !== "undefined" ? window.location.origin : ""}/student/workflows/join/${selectedWorkflow.inviteCode}`,
-        }
-      : null);
+  const selectedWorkflowInvitation = selectedWorkflow?.inviteCode
+    ? {
+        expiresAt: selectedWorkflow.inviteExpiresAt,
+        code: selectedWorkflow.inviteCode,
+        link: `${typeof window !== "undefined" ? window.location.origin : ""}/student/workflows/join/${selectedWorkflow.inviteCode}`,
+      }
+    : null;
   const selectedWorkflowMilestones = milestones.filter(
     (item) => item.workflowId === selectedWorkflowId,
+  );
+  const selectedTopicMilestones = selectedWorkflowMilestones
+    .filter((item) => item.topicId === newMilestoneTopicId)
+    .sort((a, b) => a.sequence - b.sequence);
+  const newMilestonePositionOptions = [
+    ...selectedTopicMilestones.map((item, index) => ({
+      value: String(index + 1),
+      label: `Before ${item.title}`,
+    })),
+    {
+      value: String(selectedTopicMilestones.length + 1),
+      label: selectedTopicMilestones.length
+        ? "At the end of this topic"
+        : "First milestone in this topic",
+    },
+  ];
+  const hasAdviserMilestone = selectedWorkflowMilestones.some(
+    (item) => item.milestoneType === "ADVISER_SELECTION",
   );
   const ungroupedWorkflowMilestones = selectedWorkflowMilestones.filter(
     (item) => !item.topicId,
@@ -1087,15 +1168,24 @@ function ProfessorDashboardContent() {
                 : "Individual or group"}
           </span>
           <span aria-hidden="true">·</span>
-          <span>
-            {formatMilestoneTarget(milestone)}
-          </span>
+          <span>{formatMilestoneTarget(milestone)}</span>
           <span aria-hidden="true">·</span>
           <span>
             {milestone.requiresDocument === false
-              ? "No upload"
+              ? milestone.milestoneType === "ADVISER_SELECTION"
+                ? "Adviser acceptance"
+                : "No upload"
               : `${milestone.tasks?.length || 1} submission requirement${(milestone.tasks?.length || 1) === 1 ? "" : "s"}`}
           </span>
+          {milestone.milestoneType === "ADVISER_SELECTION" && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">
+                <i className="ti ti-user-check mr-1" />
+                Adviser Milestone
+              </span>
+            </>
+          )}
           {milestone.locked && (
             <>
               <span aria-hidden="true">·</span>
@@ -1248,7 +1338,11 @@ function ProfessorDashboardContent() {
     setDefenseActionPending(true);
     try {
       await apiClient.post("/api/defense-sessions/start", { sessionId });
-      await Promise.all([refetchDefense(), refetchDefenseManagement(), refetchDefenseEvents()]);
+      await Promise.all([
+        refetchDefense(),
+        refetchDefenseManagement(),
+        refetchDefenseEvents(),
+      ]);
       triggerToast(
         "Live defense started. Assigned panelists are now synchronized to this group.",
       );
@@ -1349,11 +1443,22 @@ function ProfessorDashboardContent() {
     }
   };
 
-  const updateDefenseQueue = async (eventId: string, sessionId: string, action: string) => {
+  const updateDefenseQueue = async (
+    eventId: string,
+    sessionId: string,
+    action: string,
+  ) => {
     setDefenseActionPending(true);
     try {
-      await apiClient.patch(`/api/defense-events/${eventId}/queue/${sessionId}`, { action });
-      await Promise.all([refetchDefenseEvents(), refetchDefenseManagement(), refetchDefense()]);
+      await apiClient.patch(
+        `/api/defense-events/${eventId}/queue/${sessionId}`,
+        { action },
+      );
+      await Promise.all([
+        refetchDefenseEvents(),
+        refetchDefenseManagement(),
+        refetchDefense(),
+      ]);
       triggerToast(
         action === "PREPARE"
           ? "The next group has been notified to prepare."
@@ -1401,7 +1506,12 @@ function ProfessorDashboardContent() {
             ? revisionInstructions.trim()
             : undefined,
       });
-      await Promise.all([refetchDefense(), refetchResearch(), refetchDefenseManagement(), refetchDefenseEvents()]);
+      await Promise.all([
+        refetchDefense(),
+        refetchResearch(),
+        refetchDefenseManagement(),
+        refetchDefenseEvents(),
+      ]);
       triggerToast(
         "Official defense result released to the researcher dashboard.",
       );
@@ -1582,11 +1692,14 @@ function ProfessorDashboardContent() {
           title={milestoneEditTitle}
           instructions={milestoneEditDescription}
           targetCompletionDate={milestoneEditDeadline}
-          legacyDeadlineDays={milestoneEditTargetChanged ? null : editingMilestone.deadlineDays}
+          legacyDeadlineDays={
+            milestoneEditTargetChanged ? null : editingMilestone.deadlineDays
+          }
           submissionMode={milestoneEditSubmissionMode}
           requiresDocument={milestoneEditRequiresDocument}
           requiresApproval={milestoneEditRequiresApproval}
           category={milestoneEditCategory}
+          milestoneType={milestoneEditType}
           saving={milestoneSaveStatus === "saving"}
           saveStatus={milestoneSaveStatus}
           advancedOpen={showAdvancedMilestoneOptions}
@@ -1631,94 +1744,107 @@ function ProfessorDashboardContent() {
           }}
           onDelete={() => setMilestonePendingDelete(editingMilestone)}
           requirementsContent={
-            <div className="mt-4 space-y-3">
-              {(editingMilestone.tasks || []).map((requirement: any) => (
-                <div
-                  key={requirement.id}
-                  className="flex items-start justify-between rounded-xl border border-slate-200 p-3"
-                >
-                  <div>
-                    <p className="text-base font-bold text-[#102f49]">
-                      {requirement.title}
-                    </p>
-                    <p className="mt-0.5 text-base text-slate-500">
-                      {requirement.allowedFileTypes || "PDF,DOCX"} ·{" "}
-                      {formatTaskDeadline({ ...requirement, stage: {
-                        deadlineDays: milestoneEditTargetChanged ? null : editingMilestone.deadlineDays,
-                        targetCompletionDate: milestoneEditDeadline || null,
-                      } })}
-                    </p>
+            milestoneEditType === "STANDARD" ? (
+              <div className="mt-4 space-y-3">
+                {(editingMilestone.tasks || []).map((requirement: any) => (
+                  <div
+                    key={requirement.id}
+                    className="flex items-start justify-between rounded-xl border border-slate-200 p-3"
+                  >
+                    <div>
+                      <p className="text-base font-bold text-[#102f49]">
+                        {requirement.title}
+                      </p>
+                      <p className="mt-0.5 text-base text-slate-500">
+                        {requirement.allowedFileTypes || "PDF,DOCX"} ·{" "}
+                        {formatTaskDeadline({
+                          ...requirement,
+                          stage: {
+                            deadlineDays: milestoneEditTargetChanged
+                              ? null
+                              : editingMilestone.deadlineDays,
+                            targetCompletionDate: milestoneEditDeadline || null,
+                          },
+                        })}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteRequirement(requirement.id)}
+                      aria-label={`Delete ${requirement.title}`}
+                      className="grid h-8 w-8 place-items-center rounded-lg text-rose-500 hover:bg-rose-50"
+                    >
+                      <i className="ti ti-trash" />
+                    </button>
+                  </div>
+                ))}
+                <div className="space-y-3 rounded-xl bg-slate-50 p-4">
+                  <p className="text-base font-extrabold text-[#102f49]">
+                    Add another requirement
+                  </p>
+                  <input
+                    required
+                    value={newRequirementTitle}
+                    onChange={(event) =>
+                      setNewRequirementTitle(event.target.value)
+                    }
+                    placeholder="e.g. Chapter 1 PDF"
+                    className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base"
+                  />
+                  <textarea
+                    value={newRequirementInstructions}
+                    onChange={(event) =>
+                      setNewRequirementInstructions(event.target.value)
+                    }
+                    rows={2}
+                    placeholder="Short instructions (optional)"
+                    className="w-full resize-none rounded-xl border border-slate-300 bg-white p-2.5 text-base"
+                  />
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <input
+                      type="number"
+                      min="0"
+                      max="3650"
+                      value={newRequirementDueDays}
+                      onChange={(event) =>
+                        setNewRequirementDueDays(event.target.value)
+                      }
+                      disabled={Boolean(milestoneEditDeadline)}
+                      placeholder={
+                        milestoneEditDeadline
+                          ? "Uses milestone date"
+                          : "Target days"
+                      }
+                      className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
+                    />
+                    <input
+                      value={newRequirementFileTypes}
+                      onChange={(event) =>
+                        setNewRequirementFileTypes(event.target.value)
+                      }
+                      placeholder="PDF,DOCX"
+                      className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
+                    />
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleDeleteRequirement(requirement.id)}
-                    aria-label={`Delete ${requirement.title}`}
-                    className="grid h-8 w-8 place-items-center rounded-lg text-rose-500 hover:bg-rose-50"
+                    onClick={() => void handleCreateRequirement()}
+                    disabled={saving || !newRequirementTitle.trim()}
+                    className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
                   >
-                    <i className="ti ti-trash" />
+                    {saving ? "Adding…" : "Add requirement"}
                   </button>
                 </div>
-              ))}
-              <div className="space-y-3 rounded-xl bg-slate-50 p-4">
-                <p className="text-base font-extrabold text-[#102f49]">
-                  Add another requirement
-                </p>
-                <input
-                  required
-                  value={newRequirementTitle}
-                  onChange={(event) =>
-                    setNewRequirementTitle(event.target.value)
-                  }
-                  placeholder="e.g. Chapter 1 PDF"
-                  className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base"
-                />
-                <textarea
-                  value={newRequirementInstructions}
-                  onChange={(event) =>
-                    setNewRequirementInstructions(event.target.value)
-                  }
-                  rows={2}
-                  placeholder="Short instructions (optional)"
-                  className="w-full resize-none rounded-xl border border-slate-300 bg-white p-2.5 text-base"
-                />
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <input
-                    type="number"
-                    min="0"
-                    max="3650"
-                    value={newRequirementDueDays}
-                    onChange={(event) =>
-                      setNewRequirementDueDays(event.target.value)
-                    }
-                    disabled={Boolean(milestoneEditDeadline)}
-                    placeholder={milestoneEditDeadline ? "Uses milestone date" : "Target days"}
-                    className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
-                  />
-                  <input
-                    value={newRequirementFileTypes}
-                    onChange={(event) =>
-                      setNewRequirementFileTypes(event.target.value)
-                    }
-                    placeholder="PDF,DOCX"
-                    className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void handleCreateRequirement()}
-                  disabled={saving || !newRequirementTitle.trim()}
-                  className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
-                >
-                  {saving ? "Adding…" : "Add requirement"}
-                </button>
               </div>
-            </div>
+            ) : undefined
           }
           attachmentsContent={
-            <MilestoneAttachmentsCard
-              stageId={editingMilestone.id}
-              workflowId={selectedWorkflowId}
-            />
+            milestoneEditType === "STANDARD" ? (
+              <MilestoneAttachmentsCard
+                stageId={editingMilestone.id}
+                workflowId={selectedWorkflowId}
+              />
+            ) : undefined
           }
         />
       )}
@@ -1881,10 +2007,16 @@ function ProfessorDashboardContent() {
                             </p>
                             <p className="mt-0.5 text-base text-slate-500">
                               {requirement.allowedFileTypes} ·{" "}
-                              {formatTaskDeadline({ ...requirement, stage: {
-                                deadlineDays: milestoneEditTargetChanged ? null : editingMilestone.deadlineDays,
-                                targetCompletionDate: milestoneEditDeadline || null,
-                              } })}
+                              {formatTaskDeadline({
+                                ...requirement,
+                                stage: {
+                                  deadlineDays: milestoneEditTargetChanged
+                                    ? null
+                                    : editingMilestone.deadlineDays,
+                                  targetCompletionDate:
+                                    milestoneEditDeadline || null,
+                                },
+                              })}
                             </p>
                           </div>
                           <button
@@ -1933,7 +2065,11 @@ function ProfessorDashboardContent() {
                             setNewRequirementDueDays(e.target.value)
                           }
                           disabled={Boolean(milestoneEditDeadline)}
-                          placeholder={milestoneEditDeadline ? "Uses milestone date" : "Due in days"}
+                          placeholder={
+                            milestoneEditDeadline
+                              ? "Uses milestone date"
+                              : "Due in days"
+                          }
                           className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                         />
                         <input
@@ -2359,25 +2495,37 @@ function ProfessorDashboardContent() {
           requiresDocument={newMilestoneRequiresDocument}
           requiresApproval={newMilestoneRequiresApproval}
           category={newMilestoneScope}
+          milestoneType={newMilestoneType}
+          position={newMilestonePosition}
+          positionOptions={newMilestonePositionOptions}
           saving={saving}
           advancedOpen={showAdvancedMilestoneOptions}
           onTitleChange={setNewMilestoneTitle}
-          onTopicIdChange={setNewMilestoneTopicId}
+          onTopicIdChange={(topicId) => {
+            setNewMilestoneTopicId(topicId);
+            const count = selectedWorkflowMilestones.filter(
+              (milestone) => milestone.topicId === topicId,
+            ).length;
+            setNewMilestonePosition(String(count + 1));
+          }}
           onInstructionsChange={setNewMilestoneDescription}
           onTargetCompletionDateChange={setTargetCompletionDate}
           onSubmissionModeChange={setNewMilestoneSubmissionMode}
           onRequiresDocumentChange={setNewMilestoneRequiresDocument}
           onRequiresApprovalChange={setNewMilestoneRequiresApproval}
           onCategoryChange={setNewMilestoneScope}
+          onPositionChange={setNewMilestonePosition}
           onAdvancedOpenChange={setShowAdvancedMilestoneOptions}
           onClose={() => setCreatingMilestone(false)}
           onSubmit={handleCreateMilestone}
           attachmentsContent={
-            <MilestoneAttachmentsCard
-              workflowId={selectedWorkflowId}
-              pendingAttachments={newMilestoneAttachments}
-              onPendingAttachmentsChange={setNewMilestoneAttachments}
-            />
+            newMilestoneType === "STANDARD" ? (
+              <MilestoneAttachmentsCard
+                workflowId={selectedWorkflowId}
+                pendingAttachments={newMilestoneAttachments}
+                onPendingAttachmentsChange={setNewMilestoneAttachments}
+              />
+            ) : undefined
           }
         />
       )}
@@ -2517,7 +2665,9 @@ function ProfessorDashboardContent() {
                       <input
                         type="date"
                         value={targetCompletionDate}
-                        onChange={(e) => setTargetCompletionDate(e.target.value)}
+                        onChange={(e) =>
+                          setTargetCompletionDate(e.target.value)
+                        }
                         className="w-full rounded-xl border border-slate-300 p-2.5 text-base"
                       />
                     </div>
@@ -2758,19 +2908,84 @@ function ProfessorDashboardContent() {
               Workflow stages
             </h3>
             <div className="mt-3 space-y-2">
-              {selectedProject.workflowStages.map((stage: any) => (
-                <div
-                  key={stage.id}
-                  className="flex items-center justify-between rounded-xl border border-slate-200 p-3"
-                >
-                  <span className="font-semibold text-[#102f49]">
-                    {stage.sequence}. {stage.name}
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    {formatMilestoneTarget(stage)}
-                  </span>
-                </div>
-              ))}
+              {selectedProject.workflowStages.map((stage: any) => {
+                const progress = selectedProject.milestoneProgress?.find(
+                  (item: any) => item.id === stage.id,
+                );
+                const adviserMilestone = progress?.adviserMilestone;
+                return (
+                  <div
+                    key={stage.id}
+                    className="rounded-xl border border-slate-200 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-[#102f49]">
+                          {stage.sequence}. {stage.name}
+                        </p>
+                        {stage.milestoneType === "ADVISER_SELECTION" && (
+                          <p className="mt-1 text-xs font-bold uppercase tracking-wide text-[#C58A18]">
+                            Adviser Milestone
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-500">
+                        {formatMilestoneTarget(stage)}
+                      </span>
+                    </div>
+                    {stage.milestoneType === "ADVISER_SELECTION" && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3 text-xs text-slate-600">
+                        <Tag
+                          variant={
+                            adviserMilestone?.status === "APPROVED"
+                              ? "success"
+                              : adviserMilestone?.status === "DECLINED"
+                                ? "warn"
+                                : "info"
+                          }
+                        >
+                          {(adviserMilestone?.status || "NOT_STARTED").replace(
+                            /_/g,
+                            " ",
+                          )}
+                        </Tag>
+                        {adviserMilestone?.adviser && (
+                          <span>
+                            {adviserMilestone.adviser.firstName}{" "}
+                            {adviserMilestone.adviser.lastName}
+                          </span>
+                        )}
+                        {adviserMilestone?.acceptedAt && (
+                          <span>
+                            Accepted{" "}
+                            {new Date(
+                              adviserMilestone.acceptedAt,
+                            ).toLocaleString()}
+                          </span>
+                        )}
+                        {!adviserMilestone?.acceptedAt &&
+                          adviserMilestone?.requestedAt && (
+                            <span>
+                              Requested{" "}
+                              {new Date(
+                                adviserMilestone.requestedAt,
+                              ).toLocaleString()}
+                            </span>
+                          )}
+                        {adviserMilestone?.status === "DECLINED" &&
+                          adviserMilestone?.respondedAt && (
+                            <span>
+                              Responded{" "}
+                              {new Date(
+                                adviserMilestone.respondedAt,
+                              ).toLocaleString()}
+                            </span>
+                          )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
             <h3 className="mt-6 font-extrabold text-[#102f49]">
               Task submissions
@@ -3514,14 +3729,18 @@ function ProfessorDashboardContent() {
                         </h2>
                         <p className="mt-1 text-base text-slate-600">
                           {
-                            (liveDefense.packet?.evaluationMode === "PDF" ? liveDefense.pdfEvaluations || [] : liveDefense.evaluations).filter(
-                              (item: any) => item.status === "LOCKED",
-                            ).length
+                            (liveDefense.packet?.evaluationMode === "PDF"
+                              ? liveDefense.pdfEvaluations || []
+                              : liveDefense.evaluations
+                            ).filter((item: any) => item.status === "LOCKED")
+                              .length
                           }{" "}
                           of{" "}
                           {
                             liveDefense.invitations.filter(
-                              (item: any) => item.status === "ACCEPTED" && ["PANELIST", "PANEL_CHAIR"].includes(item.role),
+                              (item: any) =>
+                                item.status === "ACCEPTED" &&
+                                ["PANELIST", "PANEL_CHAIR"].includes(item.role),
                             ).length
                           }{" "}
                           panelists submitted their final evaluation.
@@ -3583,8 +3802,14 @@ function ProfessorDashboardContent() {
                 )}
                 {defenseLoadError && (
                   <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-                    <p className="font-extrabold"><i className="ti ti-alert-circle mr-1.5" />Defense status could not be loaded</p>
-                    <p className="mt-1 text-base">{(defenseLoadError as Error).message || "Refresh the page or check the API connection."}</p>
+                    <p className="font-extrabold">
+                      <i className="ti ti-alert-circle mr-1.5" />
+                      Defense status could not be loaded
+                    </p>
+                    <p className="mt-1 text-base">
+                      {(defenseLoadError as Error).message ||
+                        "Refresh the page or check the API connection."}
+                    </p>
                   </div>
                 )}
                 <section className="grid gap-4 sm:grid-cols-3">
@@ -3652,18 +3877,34 @@ function ProfessorDashboardContent() {
                         </div>
                         <p className="mt-1 text-base text-slate-600">
                           <i className="ti ti-calendar-event mr-1.5" />
-                          {new Date(defenseEvent.scheduledStart).toLocaleString()} – {new Date(defenseEvent.scheduledEnd).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {new Date(
+                            defenseEvent.scheduledStart,
+                          ).toLocaleString()}{" "}
+                          –{" "}
+                          {new Date(
+                            defenseEvent.scheduledEnd,
+                          ).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                           {defenseEvent.venue ? ` · ${defenseEvent.venue}` : ""}
                         </p>
                       </div>
                       <div className="text-sm text-slate-500">
-                        {defenseEvent.sessions.length} research {defenseEvent.sessions.length === 1 ? "group" : "groups"}
+                        {defenseEvent.sessions.length} research{" "}
+                        {defenseEvent.sessions.length === 1
+                          ? "group"
+                          : "groups"}
                       </div>
                     </div>
                     <div className="mt-4 space-y-2">
                       {defenseEvent.sessions.map((session: any) => {
-                        const accepted = (session.invitations || []).filter((item: any) => item.status === "ACCEPTED").length;
-                        const required = (session.invitations || []).filter((item: any) => item.status !== "REMOVED").length;
+                        const accepted = (session.invitations || []).filter(
+                          (item: any) => item.status === "ACCEPTED",
+                        ).length;
+                        const required = (session.invitations || []).filter(
+                          (item: any) => item.status !== "REMOVED",
+                        ).length;
                         return (
                           <div
                             key={session.id}
@@ -3674,9 +3915,18 @@ function ProfessorDashboardContent() {
                                 {session.queuePosition}
                               </span>
                               <div className="min-w-0">
-                                <p className="truncate font-extrabold text-[#102f49]">{session.research.title}</p>
+                                <p className="truncate font-extrabold text-[#102f49]">
+                                  {session.research.title}
+                                </p>
                                 <p className="mt-0.5 text-base text-slate-500">
-                                  {new Date(session.scheduledStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {accepted}/{required} confirmed · {session.queueStatus.replace(/_/g, " ")}
+                                  {new Date(
+                                    session.scheduledStart,
+                                  ).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}{" "}
+                                  · {accepted}/{required} confirmed ·{" "}
+                                  {session.queueStatus.replace(/_/g, " ")}
                                 </p>
                               </div>
                             </div>
@@ -3701,21 +3951,36 @@ function ProfessorDashboardContent() {
                               >
                                 Review packet
                               </button>
-                              {session.status === "SCHEDULED" && !["IN_PROGRESS", "COMPLETED"].includes(session.queueStatus) && (
-                                <button
-                                  type="button"
-                                  disabled={defenseActionPending}
-                                  onClick={() => updateDefenseQueue(defenseEvent.id, session.id, "PREPARE")}
-                                  className="rounded-lg border border-[#f6a800] bg-amber-50 px-3 py-2 text-sm font-extrabold text-[#7a5200] disabled:opacity-50"
-                                >
-                                  Prepare next
-                                </button>
-                              )}
+                              {session.status === "SCHEDULED" &&
+                                !["IN_PROGRESS", "COMPLETED"].includes(
+                                  session.queueStatus,
+                                ) && (
+                                  <button
+                                    type="button"
+                                    disabled={defenseActionPending}
+                                    onClick={() =>
+                                      updateDefenseQueue(
+                                        defenseEvent.id,
+                                        session.id,
+                                        "PREPARE",
+                                      )
+                                    }
+                                    className="rounded-lg border border-[#f6a800] bg-amber-50 px-3 py-2 text-sm font-extrabold text-[#7a5200] disabled:opacity-50"
+                                  >
+                                    Prepare next
+                                  </button>
+                                )}
                               {session.status === "SCHEDULED" && (
                                 <button
                                   type="button"
                                   disabled={defenseActionPending}
-                                  onClick={() => updateDefenseQueue(defenseEvent.id, session.id, "CALL")}
+                                  onClick={() =>
+                                    updateDefenseQueue(
+                                      defenseEvent.id,
+                                      session.id,
+                                      "CALL",
+                                    )
+                                  }
                                   className="rounded-lg bg-[#173f63] px-3 py-2 text-sm font-extrabold text-white disabled:opacity-50"
                                 >
                                   Call group
@@ -3874,20 +4139,22 @@ function ProfessorDashboardContent() {
                       </article>
                     );
                   })}
-                  {!defenseLoadError && !defenseEvents.length && !legacyDefenseSessions.length && (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
-                      <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-blue-50 text-[#173f63]">
-                        <i className="ti ti-presentation text-2xl" />
-                      </span>
-                      <h3 className="mt-3 font-extrabold text-[#102f49]">
-                        No defense requests yet
-                      </h3>
-                      <p className="mt-1 text-base text-slate-500">
-                        Eligible groups can be scheduled once all workflow
-                        requirements are complete.
-                      </p>
-                    </div>
-                  )}
+                  {!defenseLoadError &&
+                    !defenseEvents.length &&
+                    !legacyDefenseSessions.length && (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+                        <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-blue-50 text-[#173f63]">
+                          <i className="ti ti-presentation text-2xl" />
+                        </span>
+                        <h3 className="mt-3 font-extrabold text-[#102f49]">
+                          No defense requests yet
+                        </h3>
+                        <p className="mt-1 text-base text-slate-500">
+                          Eligible groups can be scheduled once all workflow
+                          requirements are complete.
+                        </p>
+                      </div>
+                    )}
                 </section>
                 {showDefenseForm && (
                   <div
@@ -3939,24 +4206,46 @@ function ProfessorDashboardContent() {
                         <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
                           {!reschedulingSession && (
                             <fieldset>
-                              <legend className="text-sm font-bold text-slate-700">Defense-ready research groups</legend>
+                              <legend className="text-sm font-bold text-slate-700">
+                                Defense-ready research groups
+                              </legend>
                               <div className="mt-2 max-h-56 space-y-2 overflow-y-auto rounded-xl border border-slate-200 p-2">
                                 {eligibleDefenseGroups.map((project) => (
-                                  <label key={project.id} className="flex cursor-pointer items-start gap-3 rounded-lg p-2 hover:bg-slate-50">
+                                  <label
+                                    key={project.id}
+                                    className="flex cursor-pointer items-start gap-3 rounded-lg p-2 hover:bg-slate-50"
+                                  >
                                     <input
                                       type="checkbox"
-                                      checked={defenseProjectIds.includes(project.id)}
-                                      onChange={(event) => setDefenseProjectIds((current) => event.target.checked ? [...current, project.id] : current.filter((id) => id !== project.id))}
+                                      checked={defenseProjectIds.includes(
+                                        project.id,
+                                      )}
+                                      onChange={(event) =>
+                                        setDefenseProjectIds((current) =>
+                                          event.target.checked
+                                            ? [...current, project.id]
+                                            : current.filter(
+                                                (id) => id !== project.id,
+                                              ),
+                                        )
+                                      }
                                       className="mt-0.5 h-4 w-4 accent-[#f6a800]"
                                     />
                                     <span>
-                                      <span className="block text-sm font-bold text-[#102f49]">{project.title}</span>
-                                      <span className="text-xs text-slate-500">{project.program?.code || "Program"} · {project.members?.length || 0} members</span>
+                                      <span className="block text-sm font-bold text-[#102f49]">
+                                        {project.title}
+                                      </span>
+                                      <span className="text-xs text-slate-500">
+                                        {project.program?.code || "Program"} ·{" "}
+                                        {project.members?.length || 0} members
+                                      </span>
                                     </span>
                                   </label>
                                 ))}
                               </div>
-                              <p className="mt-1.5 text-base text-slate-500">{defenseProjectIds.length} selected</p>
+                              <p className="mt-1.5 text-base text-slate-500">
+                                {defenseProjectIds.length} selected
+                              </p>
                             </fieldset>
                           )}
                           {!reschedulingSession && (
@@ -3964,12 +4253,20 @@ function ProfessorDashboardContent() {
                               Defense type
                               <select
                                 value={defenseType}
-                                onChange={(event) => setDefenseType(event.target.value)}
+                                onChange={(event) =>
+                                  setDefenseType(event.target.value)
+                                }
                                 className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base"
                               >
-                                <option value="PROPOSAL_DEFENSE">Proposal defense</option>
-                                <option value="PRE_ORAL_DEFENSE">Pre-oral defense</option>
-                                <option value="FINAL_ORAL_DEFENSE">Final oral defense</option>
+                                <option value="PROPOSAL_DEFENSE">
+                                  Proposal defense
+                                </option>
+                                <option value="PRE_ORAL_DEFENSE">
+                                  Pre-oral defense
+                                </option>
+                                <option value="FINAL_ORAL_DEFENSE">
+                                  Final oral defense
+                                </option>
                               </select>
                             </label>
                           )}
@@ -5179,7 +5476,8 @@ function ProfessorDashboardContent() {
                                   className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                                 >
                                   <i className="ti ti-plus mr-1.5" />
-                                  Create <i className="ti ti-chevron-down ml-1" />
+                                  Create{" "}
+                                  <i className="ti ti-chevron-down ml-1" />
                                 </button>
                                 {showWorkflowCreateMenu && (
                                   <div
@@ -5222,31 +5520,54 @@ function ProfessorDashboardContent() {
                                         "Academic event",
                                         "Presentation, defense, or consultation",
                                       ],
-                                    ].map(([kind, icon, label, description]) => (
-                                      <button
-                                        key={kind}
-                                        type="button"
-                                        role="menuitem"
-                                        onClick={() =>
-                                          openNewMilestone(
-                                            kind as "submission" | "approval" | "event",
-                                          )
-                                        }
-                                        className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
-                                      >
-                                        <i
-                                          className={`ti ${icon} mt-0.5 text-lg text-[#173f63]`}
-                                        />
-                                        <span>
-                                          <strong className="block text-sm text-[#102f49]">
-                                            {label}
-                                          </strong>
-                                          <span className="mt-0.5 block text-sm text-slate-500">
-                                            {description}
+                                      [
+                                        "adviser",
+                                        "ti-user-check",
+                                        "Adviser Milestone",
+                                        hasAdviserMilestone
+                                          ? "Already added to this workflow"
+                                          : "Complete when an adviser accepts",
+                                      ],
+                                    ].map(
+                                      ([kind, icon, label, description]) => (
+                                        <button
+                                          key={kind}
+                                          type="button"
+                                          role="menuitem"
+                                          disabled={
+                                            kind === "adviser" &&
+                                            hasAdviserMilestone
+                                          }
+                                          onClick={() => {
+                                            if (
+                                              kind === "adviser" &&
+                                              hasAdviserMilestone
+                                            )
+                                              return;
+                                            openNewMilestone(
+                                              kind as
+                                                | "submission"
+                                                | "approval"
+                                                | "event"
+                                                | "adviser",
+                                            );
+                                          }}
+                                          className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                          <i
+                                            className={`ti ${icon} mt-0.5 text-lg text-[#173f63]`}
+                                          />
+                                          <span>
+                                            <strong className="block text-sm text-[#102f49]">
+                                              {label}
+                                            </strong>
+                                            <span className="mt-0.5 block text-sm text-slate-500">
+                                              {description}
+                                            </span>
                                           </span>
-                                        </span>
-                                      </button>
-                                    ))}
+                                        </button>
+                                      ),
+                                    )}
                                     <div className="my-1 border-t border-slate-100" />
                                     <button
                                       type="button"
