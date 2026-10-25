@@ -39,6 +39,7 @@ import {
 } from "../services/submission.service.js";
 
 import { hasActiveWorkflowEnrollment } from "../services/workflow-enrollment-access.service.js";
+import { synchronizeAdviserMilestone } from "../services/adviser-milestone.service.js";
 
 const router = Router();
 router.use(workflowAccessRoutes);
@@ -117,7 +118,9 @@ async function workflowAccess(
       ));
   if (manages) return { workflow, manages: true };
   if (user.roles.includes("RESEARCHER")) {
-    return await hasActiveWorkflowEnrollment(user.id, workflowId) ? { workflow, manages: false } : null;
+    return (await hasActiveWorkflowEnrollment(user.id, workflowId))
+      ? { workflow, manages: false }
+      : null;
   }
   const [enrollment, membership] = await Promise.all([
     prisma.workflowEnrollment.findFirst({
@@ -502,6 +505,61 @@ async function resequenceWorkflowStagesByTopics(tx: any, workflowId: string) {
     await tx.workflowStage.update({
       where: { id: finalStage.id },
       data: { isFinal: true },
+    });
+  }
+}
+
+async function positionWorkflowStageWithinTopic(
+  tx: any,
+  workflowId: string,
+  stageId: string,
+  requestedPosition?: number | null,
+) {
+  if (!requestedPosition) return;
+  const stage = await tx.workflowStage.findUnique({
+    where: { id: stageId },
+    select: { topicId: true },
+  });
+  if (!stage) return;
+  const active = await tx.workflowStage.findMany({
+    where: { workflowId, category: { not: "Archived" } },
+    orderBy: [{ sequence: "asc" }, { id: "asc" }],
+    select: { id: true, topicId: true },
+  });
+  const withoutStage = active.filter((item: any) => item.id !== stageId);
+  const siblings = withoutStage.filter(
+    (item: any) => item.topicId === stage.topicId,
+  );
+  const position = Math.max(
+    1,
+    Math.min(requestedPosition, siblings.length + 1),
+  );
+  let insertionIndex: number;
+  if (siblings.length && position <= siblings.length) {
+    insertionIndex = withoutStage.findIndex(
+      (item: any) => item.id === siblings[position - 1].id,
+    );
+  } else if (siblings.length) {
+    insertionIndex =
+      withoutStage.findIndex(
+        (item: any) => item.id === siblings[siblings.length - 1].id,
+      ) + 1;
+  } else {
+    const currentIndex = active.findIndex((item: any) => item.id === stageId);
+    insertionIndex = Math.min(currentIndex, withoutStage.length);
+  }
+  const ordered = [...withoutStage];
+  ordered.splice(insertionIndex, 0, { id: stageId, topicId: stage.topicId });
+  for (let index = 0; index < ordered.length; index += 1) {
+    await tx.workflowStage.update({
+      where: { id: ordered[index].id },
+      data: { sequence: 3_000_000 + index },
+    });
+  }
+  for (let index = 0; index < ordered.length; index += 1) {
+    await tx.workflowStage.update({
+      where: { id: ordered[index].id },
+      data: { sequence: index + 1, isFinal: index === ordered.length - 1 },
     });
   }
 }
@@ -906,7 +964,15 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
     const workflows = await prisma.workflow.findMany({
       where: {
         AND: [
-          ...(req.user!.roles.includes("RESEARCHER") ? [{ enrollments: { some: { userId: req.user!.id, status: "ACTIVE" } } }] : []),
+          ...(req.user!.roles.includes("RESEARCHER")
+            ? [
+                {
+                  enrollments: {
+                    some: { userId: req.user!.id, status: "ACTIVE" },
+                  },
+                },
+              ]
+            : []),
           ...(researchTypeId
             ? [{ researchTypeId: String(researchTypeId) }]
             : []),
@@ -1219,11 +1285,23 @@ router.post(
               sequence: s.sequence,
               responsibleRoleId: s.responsibleRoleId,
               requiresApproval: s.requiresApproval,
-              deadlineDays: s.targetCompletionDate !== undefined ? null : s.deadlineDays ?? null,
+              requiresDocument:
+                s.milestoneType === "ADVISER_SELECTION"
+                  ? false
+                  : s.requiresDocument,
+              deadlineDays:
+                s.targetCompletionDate !== undefined
+                  ? null
+                  : (s.deadlineDays ?? null),
               targetCompletionDate: s.targetCompletionDate
                 ? new Date(`${s.targetCompletionDate}T00:00:00.000Z`)
                 : null,
               isFinal: s.isFinal,
+              submissionMode:
+                s.milestoneType === "ADVISER_SELECTION"
+                  ? "GROUP"
+                  : s.submissionMode,
+              milestoneType: s.milestoneType,
             })),
           },
         },
@@ -1277,7 +1355,10 @@ router.get(
         where: { userId: req.user!.id, status: "REVOKED" },
         select: { workflowId: true },
       });
-      res.json({ enrollments, removedWorkflowIds: removedEnrollments.map((item) => item.workflowId) });
+      res.json({
+        enrollments,
+        removedWorkflowIds: removedEnrollments.map((item) => item.workflowId),
+      });
     } catch (error: any) {
       res.status(500).json({
         error: error.message || "Failed to load workflow enrollments.",
@@ -1618,7 +1699,14 @@ router.post(
         requiresDocument = true,
         submissionMode = "EITHER",
         isFinal = false,
+        milestoneType = "STANDARD",
+        position,
       } = req.body;
+      if (!["STANDARD", "ADVISER_SELECTION"].includes(milestoneType)) {
+        return void res
+          .status(400)
+          .json({ error: "Choose a valid milestone type." });
+      }
       if (!["INDIVIDUAL", "GROUP", "EITHER"].includes(submissionMode)) {
         return void res
           .status(400)
@@ -1632,7 +1720,8 @@ router.post(
         return;
       }
 
-      const targetDate = targetCompletionDateSchema.safeParse(targetCompletionDate);
+      const targetDate =
+        targetCompletionDateSchema.safeParse(targetCompletionDate);
       if (!targetDate.success) {
         return void res.status(400).json({
           error: "Choose a valid target completion date (YYYY-MM-DD).",
@@ -1640,7 +1729,9 @@ router.post(
       }
 
       const deadline =
-        targetCompletionDate !== undefined || deadlineDays == null || deadlineDays === ""
+        targetCompletionDate !== undefined ||
+        deadlineDays == null ||
+        deadlineDays === ""
           ? null
           : Number(deadlineDays);
       if (
@@ -1672,63 +1763,142 @@ router.post(
         return;
       }
 
-      const stage = await prisma.$transaction(async (tx) => {
-        await normalizeWorkflowStageSequences(tx, workflowId);
-        const lastStage = await tx.workflowStage.findFirst({
-          where: { workflowId, category: { not: "Archived" } },
-          orderBy: { sequence: "desc" },
+      const requestedPosition =
+        position === null || position === undefined || position === ""
+          ? null
+          : Number(position);
+      if (
+        requestedPosition !== null &&
+        (!Number.isInteger(requestedPosition) || requestedPosition < 1)
+      ) {
+        return void res.status(400).json({
+          error: "Milestone position must be a positive whole number.",
         });
-        const createdStage = await tx.workflowStage.create({
-          data: {
-            workflowId,
-            topicId: topic.id,
-            name: name.trim(),
-            description:
-              typeof description === "string" && description.trim()
-                ? description.trim()
-                : null,
-            category: ["Milestone", "Compliance", "Pre-requisite"].includes(
-              category,
-            )
-              ? category
-              : "Milestone",
-            sequence: (lastStage?.sequence || 0) + 1,
-            responsibleRoleId: researcherRole.id,
-            requiresApproval: Boolean(requiresApproval),
-            requiresDocument: Boolean(requiresDocument),
-            deadlineDays: deadline,
-            targetCompletionDate: targetDate.data
-              ? new Date(`${targetDate.data}T00:00:00.000Z`)
-              : null,
-            isFinal: Boolean(isFinal),
-            submissionMode,
-          },
-        });
-        if (createdStage.requiresDocument) {
-          await tx.workflowTask.create({
+      }
+
+      const stage = await prisma.$transaction(
+        async (tx) => {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${workflowId}))`;
+          await normalizeWorkflowStageSequences(tx, workflowId);
+          if (milestoneType === "ADVISER_SELECTION") {
+            const existingAdviserMilestone = await tx.workflowStage.findFirst({
+              where: { workflowId, milestoneType: "ADVISER_SELECTION" },
+              select: { id: true },
+            });
+            if (existingAdviserMilestone)
+              throw Object.assign(
+                new Error("This workflow already has an Adviser Milestone."),
+                { statusCode: 409 },
+              );
+          }
+          const lastStage = await tx.workflowStage.findFirst({
+            where: { workflowId, category: { not: "Archived" } },
+            orderBy: { sequence: "desc" },
+          });
+          const createdStage = await tx.workflowStage.create({
             data: {
-              stageId: createdStage.id,
-              title: name.trim(),
-              instructions: `Submit the required deliverable for ${name.trim()}.`,
-              sequence: 1,
-              dueDays: deadline,
-              allowedFileTypes: "PDF,DOCX",
-              isRequired: true,
+              workflowId,
+              topicId: topic.id,
+              name: name.trim(),
+              description:
+                typeof description === "string" && description.trim()
+                  ? description.trim()
+                  : null,
+              category: ["Milestone", "Compliance", "Pre-requisite"].includes(
+                category,
+              )
+                ? category
+                : "Milestone",
+              sequence: (lastStage?.sequence || 0) + 1,
+              responsibleRoleId: researcherRole.id,
+              requiresApproval:
+                milestoneType === "ADVISER_SELECTION"
+                  ? true
+                  : Boolean(requiresApproval),
+              requiresDocument:
+                milestoneType === "ADVISER_SELECTION"
+                  ? false
+                  : Boolean(requiresDocument),
+              deadlineDays: deadline,
+              targetCompletionDate: targetDate.data
+                ? new Date(`${targetDate.data}T00:00:00.000Z`)
+                : null,
+              isFinal: Boolean(isFinal),
+              submissionMode:
+                milestoneType === "ADVISER_SELECTION"
+                  ? "GROUP"
+                  : submissionMode,
+              milestoneType,
             },
           });
-        }
-        await resequenceWorkflowStagesByTopics(tx, workflowId);
-        return tx.workflowStage.findUniqueOrThrow({
-          where: { id: createdStage.id },
-        });
-      });
+          if (
+            createdStage.milestoneType !== "ADVISER_SELECTION" &&
+            createdStage.requiresDocument
+          ) {
+            await tx.workflowTask.create({
+              data: {
+                stageId: createdStage.id,
+                title: name.trim(),
+                instructions: `Submit the required deliverable for ${name.trim()}.`,
+                sequence: 1,
+                dueDays: deadline,
+                allowedFileTypes: "PDF,DOCX",
+                isRequired: true,
+              },
+            });
+          }
+          await resequenceWorkflowStagesByTopics(tx, workflowId);
+          await positionWorkflowStageWithinTopic(
+            tx,
+            workflowId,
+            createdStage.id,
+            requestedPosition,
+          );
+          return tx.workflowStage.findUniqueOrThrow({
+            where: { id: createdStage.id },
+          });
+        },
+        { isolationLevel: "Serializable" },
+      );
 
       const assignedProjects = await prisma.researchProject.findMany({
         where: { workflowInstance: { is: { workflowId } } },
-        select: { id: true },
+        select: {
+          id: true,
+          workflowInstance: {
+            select: { id: true, currentStage: { select: { sequence: true } } },
+          },
+        },
       });
+      let adviserSynchronizationFailures = 0;
+      if (stage.milestoneType === "ADVISER_SELECTION") {
+        const synchronization = await Promise.allSettled(
+          assignedProjects.map((project) =>
+            prisma.$transaction(async (tx) => {
+              if (
+                project.workflowInstance?.currentStage &&
+                stage.sequence <= project.workflowInstance.currentStage.sequence
+              ) {
+                await tx.workflowInstance.update({
+                  where: { id: project.workflowInstance.id },
+                  data: { currentStageId: stage.id },
+                });
+              }
+              return synchronizeAdviserMilestone(tx, {
+                researchId: project.id,
+                actorId: req.user!.id,
+                workflowStageId: stage.id,
+              });
+            }),
+          ),
+        );
+        adviserSynchronizationFailures = synchronization.filter(
+          (result) => result.status === "rejected",
+        ).length;
+      }
       res.status(201).json({
         stage,
+        adviserSynchronizationFailures,
         storageProvisioning: {
           assignedGroups: assignedProjects.length,
           status: assignedProjects.length ? "QUEUED" : "NOT_REQUIRED",
@@ -1737,31 +1907,36 @@ router.post(
 
       // Google Drive provisioning continues after the response so milestone
       // creation never waits for external storage calls.
-      void (async () => {
-        let failedGroups = 0;
-        const concurrency = 3;
-        for (
-          let index = 0;
-          index < assignedProjects.length;
-          index += concurrency
-        ) {
-          const batch = assignedProjects.slice(index, index + concurrency);
-          const results = await Promise.allSettled(
-            batch.map((project) =>
-              storageHierarchyService.provisionStage(project.id, stage.id),
-            ),
-          );
-          failedGroups += results.filter(
-            (result) => result.status === "rejected",
-          ).length;
-        }
-        if (failedGroups)
-          console.error(
-            `Milestone ${stage.id} storage provisioning failed for ${failedGroups} group(s).`,
-          );
-      })();
+      if (stage.milestoneType !== "ADVISER_SELECTION")
+        void (async () => {
+          let failedGroups = 0;
+          const concurrency = 3;
+          for (
+            let index = 0;
+            index < assignedProjects.length;
+            index += concurrency
+          ) {
+            const batch = assignedProjects.slice(index, index + concurrency);
+            const results = await Promise.allSettled(
+              batch.map((project) =>
+                storageHierarchyService.provisionStage(project.id, stage.id),
+              ),
+            );
+            failedGroups += results.filter(
+              (result) => result.status === "rejected",
+            ).length;
+          }
+          if (failedGroups)
+            console.error(
+              `Milestone ${stage.id} storage provisioning failed for ${failedGroups} group(s).`,
+            );
+        })();
     } catch (error: any) {
-      res.status(500).json({
+      const duplicateAdviserMilestone =
+        error?.statusCode === 409 ||
+        (error?.code === "P2002" &&
+          String(error?.meta?.target || "").includes("adviser_selection"));
+      res.status(duplicateAdviserMilestone ? 409 : 500).json({
         error: error.message || "Failed to create workflow milestone",
       });
     }
@@ -1978,6 +2153,17 @@ router.patch(
           .status(404)
           .json({ error: "Workflow milestone not found." });
       }
+      if (
+        existing.milestoneType === "ADVISER_SELECTION" &&
+        ((requiresDocument !== undefined && Boolean(requiresDocument)) ||
+          (requiresApproval !== undefined && !Boolean(requiresApproval)) ||
+          (submissionMode !== undefined && submissionMode !== "GROUP"))
+      ) {
+        return void res.status(400).json({
+          error:
+            "An Adviser Milestone is completed only by official adviser acceptance and must remain a group approval gate without document uploads.",
+        });
+      }
       if (topicId !== undefined) {
         const topic = topicId
           ? await prisma.workflowTopic.findFirst({
@@ -1991,16 +2177,20 @@ router.patch(
         }
       }
 
-      const targetDate = targetCompletionDateSchema.safeParse(targetCompletionDate);
+      const targetDate =
+        targetCompletionDateSchema.safeParse(targetCompletionDate);
       if (!targetDate.success) {
         return void res.status(400).json({
           error: "Choose a valid target completion date (YYYY-MM-DD).",
         });
       }
       const deadline =
-        deadlineDays == null || deadlineDays === "" ? null : Number(deadlineDays);
+        deadlineDays == null || deadlineDays === ""
+          ? null
+          : Number(deadlineDays);
       if (
-        targetCompletionDate === undefined && deadlineDays !== undefined &&
+        targetCompletionDate === undefined &&
+        deadlineDays !== undefined &&
         deadline !== null &&
         (!Number.isInteger(deadline) || deadline < 0 || deadline > 3650)
       ) {
@@ -2026,21 +2216,33 @@ router.patch(
                 }
               : deadlineDays !== undefined && { deadlineDays: deadline }),
             ...(requiresApproval !== undefined && {
-              requiresApproval: Boolean(requiresApproval),
+              requiresApproval:
+                existing.milestoneType === "ADVISER_SELECTION"
+                  ? true
+                  : Boolean(requiresApproval),
             }),
             ...(requiresDocument !== undefined && {
-              requiresDocument: Boolean(requiresDocument),
+              requiresDocument:
+                existing.milestoneType === "ADVISER_SELECTION"
+                  ? false
+                  : Boolean(requiresDocument),
             }),
             ...(isFinal !== undefined && { isFinal: Boolean(isFinal) }),
             ...(submissionMode !== undefined &&
               ["INDIVIDUAL", "GROUP", "EITHER"].includes(submissionMode) && {
-                submissionMode,
+                submissionMode:
+                  existing.milestoneType === "ADVISER_SELECTION"
+                    ? "GROUP"
+                    : submissionMode,
               }),
           },
         });
         // Earlier creation copied the milestone's relative target into its tasks.
         // Remove those inherited offsets when explicitly replacing/clearing it.
-        if (targetCompletionDate !== undefined && existing.deadlineDays !== null) {
+        if (
+          targetCompletionDate !== undefined &&
+          existing.deadlineDays !== null
+        ) {
           await tx.workflowTask.updateMany({
             where: { stageId, dueDays: existing.deadlineDays },
             data: { dueDays: null },
@@ -2083,6 +2285,12 @@ router.post(
       ) {
         res.status(404).json({ error: "Workflow stage not found" });
         return;
+      }
+      if (currentStage.milestoneType === "ADVISER_SELECTION") {
+        return void res.status(409).json({
+          error:
+            "The Adviser Milestone remains locked until an eligible adviser accepts the group's request.",
+        });
       }
 
       const updated = await prisma.workflowStage.update({
@@ -2142,6 +2350,12 @@ router.post(
         return void res
           .status(404)
           .json({ error: "Workflow milestone not found." });
+      if (stage.milestoneType === "ADVISER_SELECTION") {
+        return void res.status(409).json({
+          error:
+            "Adviser Milestones do not accept submission requirements. They are completed automatically by adviser acceptance.",
+        });
+      }
       const lastTask = await prisma.workflowTask.findFirst({
         where: { stageId },
         orderBy: { sequence: "desc" },
@@ -2199,8 +2413,15 @@ router.post(
           error: "You are not an active member of this research group.",
         });
 
-      if (!(await hasActiveWorkflowEnrollment(req.user.id, project.workflowInstance.workflowId))) {
-        return void res.status(403).json({ error: "Your access to this workflow was removed by the professor." });
+      if (
+        !(await hasActiveWorkflowEnrollment(
+          req.user.id,
+          project.workflowInstance.workflowId,
+        ))
+      ) {
+        return void res.status(403).json({
+          error: "Your access to this workflow was removed by the professor.",
+        });
       }
       const stage = await prisma.workflowStage.findFirst({
         where: { id: stageId, workflowId: project.workflowInstance.workflowId },
@@ -2209,6 +2430,12 @@ router.post(
         return void res.status(404).json({
           error: "This milestone is not part of the project workflow.",
         });
+      if (stage.milestoneType === "ADVISER_SELECTION") {
+        return void res.status(409).json({
+          error:
+            "Use the Adviser Pool to complete this milestone. Only the group leader may send an adviser request.",
+        });
+      }
       if (
         project.workflowInstance.currentStage &&
         stage.sequence > project.workflowInstance.currentStage.sequence &&

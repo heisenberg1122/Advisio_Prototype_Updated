@@ -1,0 +1,208 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  countActiveAdviseeGroups: vi.fn(),
+  synchronizeAdviserMilestone: vi.fn(),
+}));
+const db = vi.hoisted(() => ({
+  researchProject: { findFirst: vi.fn() },
+  user: { findFirst: vi.fn(), findUnique: vi.fn() },
+  document: { findFirst: vi.fn() },
+  workflowStage: { findFirst: vi.fn() },
+  adviserRequest: {
+    findFirst: vi.fn(),
+    findUnique: vi.fn(),
+    upsert: vi.fn(),
+    update: vi.fn(),
+    updateMany: vi.fn(),
+  },
+  researchMember: {
+    findFirst: vi.fn(),
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    upsert: vi.fn(),
+  },
+  notification: { create: vi.fn(), createMany: vi.fn() },
+  $transaction: vi.fn(),
+}));
+
+vi.mock("../lib/prisma.js", async (importOriginal) => ({
+  ...(await importOriginal<any>()),
+  prisma: db,
+}));
+vi.mock("../lib/adviser-capacity.js", () => ({
+  countActiveAdviseeGroups: mocks.countActiveAdviseeGroups,
+}));
+vi.mock("../services/adviser-milestone.service.js", () => ({
+  synchronizeAdviserMilestone: mocks.synchronizeAdviserMilestone,
+}));
+
+import router from "./adviser-request.routes.js";
+
+const leader = {
+  id: "leader",
+  roles: ["RESEARCHER"],
+  collegeId: "college",
+  programId: "program",
+};
+const adviserUser = {
+  ...leader,
+  id: "adviser",
+  roles: ["ADVISER"],
+};
+
+async function request(
+  path: string,
+  method: "post" | "patch",
+  overrides: any = {},
+) {
+  const handler = (router as any).stack
+    .find(
+      (layer: any) => layer.route?.path === path && layer.route.methods[method],
+    )
+    .route.stack.at(-1).handle;
+  const res = {
+    statusCode: 200,
+    body: null as any,
+    status(code: number) {
+      this.statusCode = code;
+      return this;
+    },
+    json(body: any) {
+      this.body = body;
+      return this;
+    },
+  };
+  await handler(
+    {
+      user: leader,
+      params: { id: "request" },
+      body: {},
+      ...overrides,
+    },
+    res,
+  );
+  return res;
+}
+
+describe("adviser milestone request authorization and synchronization", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    db.$transaction.mockImplementation((callback) => callback(db));
+    db.researchProject.findFirst.mockResolvedValue({
+      id: "project",
+      title: "Capstone",
+      programId: "program",
+      members: [],
+      workflowInstance: { workflowId: "workflow" },
+    });
+    db.user.findFirst.mockResolvedValue({
+      id: "adviser",
+      programId: "program",
+      isAcceptingAdvisees: true,
+      maxAdviseeGroups: 5,
+    });
+    db.workflowStage.findFirst.mockResolvedValue({ id: "adviser-stage" });
+    mocks.countActiveAdviseeGroups.mockResolvedValue(0);
+    db.adviserRequest.findFirst.mockResolvedValue(null);
+    db.adviserRequest.upsert.mockResolvedValue({ id: "request" });
+    db.notification.create.mockResolvedValue({ id: "notification" });
+  });
+
+  it("rejects adviser requests from anyone except the active group leader", async () => {
+    db.researchProject.findFirst.mockResolvedValue(null);
+    const response = await request("/", "post", {
+      body: { researchId: "project", adviserId: "adviser" },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(db.adviserRequest.upsert).not.toHaveBeenCalled();
+  });
+
+  it("associates a leader request with the workflow's adviser milestone", async () => {
+    const response = await request("/", "post", {
+      body: {
+        researchId: "project",
+        adviserId: "adviser",
+        workflowStageId: "adviser-stage",
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(db.adviserRequest.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ workflowStageId: "adviser-stage" }),
+        update: expect.objectContaining({ workflowStageId: "adviser-stage" }),
+      }),
+    );
+  });
+
+  it("rejects a milestone that is not part of the project's workflow", async () => {
+    const response = await request("/", "post", {
+      body: {
+        researchId: "project",
+        adviserId: "adviser",
+        workflowStageId: "different-stage",
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(db.adviserRequest.upsert).not.toHaveBeenCalled();
+  });
+
+  it("synchronizes acceptance in the same transaction and not on decline", async () => {
+    const existing = {
+      id: "request",
+      adviserId: "adviser",
+      researchId: "project",
+      workflowStageId: "adviser-stage",
+      status: "PENDING",
+    };
+    db.adviserRequest.findUnique.mockResolvedValue(existing);
+    db.researchMember.findFirst.mockResolvedValue(null);
+    db.user.findUnique.mockResolvedValue({
+      maxAdviseeGroups: 5,
+      isAcceptingAdvisees: true,
+    });
+    db.researchMember.findUnique.mockResolvedValue(null);
+    db.researchMember.upsert.mockResolvedValue({ id: "membership" });
+    db.adviserRequest.updateMany.mockResolvedValue({ count: 0 });
+    db.adviserRequest.update.mockResolvedValue({
+      ...existing,
+      status: "ACCEPTED",
+    });
+    db.researchMember.findMany.mockResolvedValue([{ userId: "leader" }]);
+    db.notification.createMany.mockResolvedValue({ count: 1 });
+    mocks.synchronizeAdviserMilestone.mockResolvedValue({
+      synchronized: true,
+      progression: { advanced: true },
+    });
+
+    const accepted = await request("/:id/respond", "patch", {
+      user: adviserUser,
+      body: { decision: "accept" },
+    });
+    expect(accepted.statusCode).toBe(200);
+    expect(mocks.synchronizeAdviserMilestone).toHaveBeenCalledWith(db, {
+      researchId: "project",
+      actorId: "adviser",
+      workflowStageId: "adviser-stage",
+    });
+
+    vi.clearAllMocks();
+    db.$transaction.mockImplementation((callback) => callback(db));
+    db.adviserRequest.findUnique.mockResolvedValue(existing);
+    db.adviserRequest.update.mockResolvedValue({
+      ...existing,
+      status: "REJECTED",
+    });
+    db.researchMember.findMany.mockResolvedValue([{ userId: "leader" }]);
+    db.notification.createMany.mockResolvedValue({ count: 1 });
+    const declined = await request("/:id/respond", "patch", {
+      user: adviserUser,
+      body: { decision: "reject" },
+    });
+    expect(declined.statusCode).toBe(200);
+    expect(mocks.synchronizeAdviserMilestone).not.toHaveBeenCalled();
+  });
+});

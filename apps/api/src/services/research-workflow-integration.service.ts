@@ -12,8 +12,16 @@ export type MilestoneDisplayStatus =
   | "IN_PROGRESS"
   | "AWAITING_REVIEW"
   | "REVISION_REQUIRED"
+  | "PENDING_ADVISER"
+  | "DECLINED"
   | "APPROVED"
   | "COMPLETED";
+
+export type AdviserMilestoneStatus =
+  | "NOT_STARTED"
+  | "PENDING_ADVISER"
+  | "DECLINED"
+  | "APPROVED";
 
 export function taskStatusForManuscript(
   status: ManuscriptLifecycleStatus,
@@ -92,7 +100,8 @@ export async function recordTaskSubmissionAttempt(
         },
       },
     });
-    if (duplicate) return { summary: existingSummary, attempt: duplicate, duplicate: true };
+    if (duplicate)
+      return { summary: existingSummary, attempt: duplicate, duplicate: true };
   }
 
   const taskStatus = taskStatusForManuscript(options.lifecycleStatus);
@@ -197,10 +206,63 @@ function displayStatus(
   return hasActivity ? "IN_PROGRESS" : "NOT_STARTED";
 }
 
-export async function getMilestoneProgress(client: DbClient, researchId: string) {
+export function resolveAdviserMilestoneStatus(options: {
+  hasEligibleAdviser: boolean;
+  requestStatus?: string | null;
+}): AdviserMilestoneStatus {
+  if (options.hasEligibleAdviser) return "APPROVED";
+  if (options.requestStatus === "PENDING") return "PENDING_ADVISER";
+  if (options.requestStatus === "REJECTED") return "DECLINED";
+  return "NOT_STARTED";
+}
+
+export async function getMilestoneProgress(
+  client: DbClient,
+  researchId: string,
+) {
   const project = await client.researchProject.findUnique({
     where: { id: researchId },
     select: {
+      programId: true,
+      members: {
+        where: { leftAt: null, projectRole: "ADVISER" },
+        orderBy: { joinedAt: "desc" },
+        select: {
+          joinedAt: true,
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              programId: true,
+              status: true,
+              roles: {
+                select: { role: { select: { name: true } } },
+              },
+            },
+          },
+        },
+      },
+      adviserRequests: {
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          workflowStageId: true,
+          status: true,
+          createdAt: true,
+          respondedAt: true,
+          responseNote: true,
+          adviser: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        },
+      },
       workflowInstance: {
         select: {
           currentStageId: true,
@@ -217,6 +279,7 @@ export async function getMilestoneProgress(client: DbClient, researchId: string)
                   sequence: true,
                   requiresDocument: true,
                   requiresApproval: true,
+                  milestoneType: true,
                   isFinal: true,
                   tasks: {
                     orderBy: { sequence: "asc" },
@@ -290,7 +353,8 @@ export async function getMilestoneProgress(client: DbClient, researchId: string)
       (task) => task.status === TaskSubmissionStatus.APPROVED,
     ).length;
     const legacyApprovedDocument = requiredTasks.some(
-      (task) => task.status === TaskSubmissionStatus.APPROVED && task.documentId,
+      (task) =>
+        task.status === TaskSubmissionStatus.APPROVED && task.documentId,
     );
     const approvedDocument =
       !stage.requiresDocument ||
@@ -299,7 +363,8 @@ export async function getMilestoneProgress(client: DbClient, researchId: string)
     const totalRequirements =
       requiredTasks.length + (stage.requiresDocument ? 1 : 0);
     const completedRequirements =
-      approvedRequiredTasks + (stage.requiresDocument && approvedDocument ? 1 : 0);
+      approvedRequiredTasks +
+      (stage.requiresDocument && approvedDocument ? 1 : 0);
     const completed =
       totalRequirements > 0 && completedRequirements === totalRequirements;
     const statuses = tasks
@@ -309,6 +374,42 @@ export async function getMilestoneProgress(client: DbClient, researchId: string)
       statuses.length > 0 ||
       tasks.some((task) => task.attempts.length > 0) ||
       stage.submittedVersions.length > 0;
+    const activeAdviser =
+      stage.milestoneType === "ADVISER_SELECTION"
+        ? project.members.find(
+            (member) =>
+              member.user.status === "ACTIVE" &&
+              member.user.programId === project.programId &&
+              member.user.roles.some(({ role }) => role.name === "ADVISER"),
+          ) || null
+        : null;
+    const adviserRequest =
+      stage.milestoneType === "ADVISER_SELECTION"
+        ? project.adviserRequests.find(
+            (request) =>
+              request.workflowStageId === stage.id ||
+              request.workflowStageId === null,
+          ) || null
+        : null;
+    const adviserMilestoneStatus: AdviserMilestoneStatus | null =
+      stage.milestoneType !== "ADVISER_SELECTION"
+        ? null
+        : resolveAdviserMilestoneStatus({
+            hasEligibleAdviser: Boolean(activeAdviser),
+            requestStatus: adviserRequest?.status,
+          });
+    const effectiveTotalRequirements =
+      stage.milestoneType === "ADVISER_SELECTION" ? 1 : totalRequirements;
+    const effectiveCompletedRequirements =
+      stage.milestoneType === "ADVISER_SELECTION"
+        ? activeAdviser
+          ? 1
+          : 0
+        : completedRequirements;
+    const effectiveCompleted =
+      stage.milestoneType === "ADVISER_SELECTION"
+        ? Boolean(activeAdviser)
+        : completed;
     return {
       id: stage.id,
       name: stage.name,
@@ -316,17 +417,39 @@ export async function getMilestoneProgress(client: DbClient, researchId: string)
       sequence: stage.sequence,
       requiresDocument: stage.requiresDocument,
       requiresApproval: stage.requiresApproval,
+      milestoneType: stage.milestoneType,
       isFinal: stage.isFinal,
       isCurrent: instance.currentStageId === stage.id,
-      completed,
-      status: displayStatus(completed, statuses, hasActivity),
+      completed: effectiveCompleted,
+      status:
+        adviserMilestoneStatus ||
+        displayStatus(effectiveCompleted, statuses, hasActivity),
       completionPercent:
-        totalRequirements > 0
-          ? Math.round((completedRequirements / totalRequirements) * 100)
+        effectiveTotalRequirements > 0
+          ? Math.round(
+              (effectiveCompletedRequirements / effectiveTotalRequirements) *
+                100,
+            )
           : 0,
-      completedRequirements,
-      totalRequirements,
+      completedRequirements: effectiveCompletedRequirements,
+      totalRequirements: effectiveTotalRequirements,
       documentRequirementSatisfied: approvedDocument,
+      adviserMilestone:
+        stage.milestoneType === "ADVISER_SELECTION"
+          ? {
+              status: adviserMilestoneStatus,
+              adviser: activeAdviser?.user || adviserRequest?.adviser || null,
+              requestId: adviserRequest?.id || null,
+              requestStatus: adviserRequest?.status || null,
+              requestedAt: adviserRequest?.createdAt || null,
+              respondedAt: adviserRequest?.respondedAt || null,
+              acceptedAt:
+                adviserRequest?.status === "ACCEPTED"
+                  ? adviserRequest.respondedAt
+                  : activeAdviser?.joinedAt || null,
+              responseNote: adviserRequest?.responseNote || null,
+            }
+          : null,
       tasks,
     };
   });
@@ -346,33 +469,53 @@ export async function advanceMilestoneIfSatisfied(
   });
   if (!instance || instance.currentStageId !== options.milestoneId)
     return { advanced: false, completed: false, milestone };
-  const nextStage = progress.find(
-    (candidate) => candidate.sequence > milestone.sequence,
-  );
-  if (nextStage) {
+  const completedMilestones: Array<{
+    milestone: (typeof progress)[number];
+    nextStage: (typeof progress)[number] | null;
+  }> = [];
+  let current = milestone;
+  let nextStage: (typeof progress)[number] | undefined;
+  let workflowCompleted = false;
+
+  // A system-completed milestone, such as adviser selection, may already be
+  // satisfied before it becomes current. Continue through consecutive
+  // satisfied stages so the workflow never stops on an already-approved gate.
+  while (current.completed) {
+    nextStage = progress.find(
+      (candidate) => candidate.sequence > current.sequence,
+    );
+    completedMilestones.push({
+      milestone: current,
+      nextStage: nextStage || null,
+    });
+    if (!nextStage) {
+      const completedAt = new Date();
+      await tx.workflowInstance.update({
+        where: { id: instance.id },
+        data: { completedAt },
+      });
+      await tx.researchProject.update({
+        where: { id: options.researchId },
+        data: { status: "COMPLETED", completedAt },
+      });
+      workflowCompleted = true;
+      break;
+    }
     await tx.workflowTransition.create({
       data: {
         workflowInstanceId: instance.id,
-        fromStageId: milestone.id,
+        fromStageId: current.id,
         toStageId: nextStage.id,
         performedBy: options.actorId,
-        remarks: `All mandatory requirements for ${milestone.name} were satisfied.`,
+        remarks: `All mandatory requirements for ${current.name} were satisfied.`,
       },
     });
     await tx.workflowInstance.update({
       where: { id: instance.id },
       data: { currentStageId: nextStage.id },
     });
-  } else {
-    const completedAt = new Date();
-    await tx.workflowInstance.update({
-      where: { id: instance.id },
-      data: { completedAt },
-    });
-    await tx.researchProject.update({
-      where: { id: options.researchId },
-      data: { status: "COMPLETED", completedAt },
-    });
+    if (!nextStage.completed) break;
+    current = nextStage;
   }
   const project = await tx.researchProject.findUnique({
     where: { id: options.researchId },
@@ -393,23 +536,26 @@ export async function advanceMilestoneIfSatisfied(
     recipients.add(project.workflowInstance.workflow.createdBy);
   await createNotificationsOnce(
     tx,
-    Array.from(recipients).map((recipientId) => ({
-      recipientId,
-      type: "WORKFLOW_CHANGED",
-      title: "Milestone requirements completed",
-      message: nextStage
-        ? `${milestone.name} is complete. The project can continue to ${nextStage.name}.`
-        : `${milestone.name} and all configured project requirements are complete.`,
-      entityType: "WorkflowStage",
-      entityId: milestone.id,
-      actionUrl: `/research/manuscript?projectId=${options.researchId}&milestoneId=${milestone.id}`,
-      deduplicationKey: `milestone:${options.researchId}:${milestone.id}:completed:${recipientId}`,
-    })),
+    completedMilestones.flatMap(
+      ({ milestone: completedMilestone, nextStage: followingStage }) =>
+        Array.from(recipients).map((recipientId) => ({
+          recipientId,
+          type: "WORKFLOW_CHANGED",
+          title: "Milestone requirements completed",
+          message: followingStage
+            ? `${completedMilestone.name} is complete. The project can continue to ${followingStage.name}.`
+            : `${completedMilestone.name} and all configured project requirements are complete.`,
+          entityType: "WorkflowStage",
+          entityId: completedMilestone.id,
+          actionUrl: `/research/manuscript?projectId=${options.researchId}&milestoneId=${completedMilestone.id}`,
+          deduplicationKey: `milestone:${options.researchId}:${completedMilestone.id}:completed:${recipientId}`,
+        })),
+    ),
   );
   return {
     advanced: true,
-    completed: !nextStage,
-    nextStageName: nextStage?.name,
+    completed: workflowCompleted,
+    nextStageName: workflowCompleted ? undefined : nextStage?.name,
     milestone,
   };
 }
@@ -444,7 +590,9 @@ export async function getManuscriptActivity(
             },
           },
           documentVersion: { select: { id: true, versionNumber: true } },
-          review: { select: { id: true, recommendation: true, submittedAt: true } },
+          review: {
+            select: { id: true, recommendation: true, submittedAt: true },
+          },
         },
       },
       officialCopies: {
@@ -516,7 +664,9 @@ export async function getManuscriptActivity(
       notes: { select: { id: true, createdAt: true } },
     },
   });
-  const creatorIds = Array.from(new Set(documents.map(({ createdBy }) => createdBy)));
+  const creatorIds = Array.from(
+    new Set(documents.map(({ createdBy }) => createdBy)),
+  );
   const creators = await client.user.findMany({
     where: { id: { in: creatorIds } },
     select: { id: true, firstName: true, lastName: true },
@@ -713,7 +863,8 @@ export async function getManuscriptActivity(
         id: `defense-packet:${session.packet.id}:published`,
         type: "DEFENSE_PACKET_PUBLISHED",
         title: "Defense manuscript packet published",
-        description: "The approved manuscript version was published for the defense session.",
+        description:
+          "The approved manuscript version was published for the defense session.",
         timestamp: session.packet.publishedAt,
         defenseSessionId: session.id,
         versionId: session.packet.manuscriptVersionId,
@@ -721,11 +872,37 @@ export async function getManuscriptActivity(
       });
     }
     if (session.startedAt)
-      activity.push({ id: `defense:${session.id}:started`, type: "DEFENSE_STARTED", title: "Defense started", description: "The scheduled defense session began.", timestamp: session.startedAt, defenseSessionId: session.id, actor: { id: null, name: "Defense coordinator" } });
+      activity.push({
+        id: `defense:${session.id}:started`,
+        type: "DEFENSE_STARTED",
+        title: "Defense started",
+        description: "The scheduled defense session began.",
+        timestamp: session.startedAt,
+        defenseSessionId: session.id,
+        actor: { id: null, name: "Defense coordinator" },
+      });
     if (session.endedAt)
-      activity.push({ id: `defense:${session.id}:ended`, type: "DEFENSE_COMPLETED", title: "Defense session completed", description: "The defense session was concluded.", timestamp: session.endedAt, defenseSessionId: session.id, actor: { id: null, name: "Defense coordinator" } });
+      activity.push({
+        id: `defense:${session.id}:ended`,
+        type: "DEFENSE_COMPLETED",
+        title: "Defense session completed",
+        description: "The defense session was concluded.",
+        timestamp: session.endedAt,
+        defenseSessionId: session.id,
+        actor: { id: null, name: "Defense coordinator" },
+      });
     if (session.releasedAt)
-      activity.push({ id: `defense:${session.id}:released`, type: "DEFENSE_RESULT_RELEASED", title: "Defense result released", description: session.decision ? session.decision.replace(/_/g, " ").toLowerCase() : "The official defense result was released.", timestamp: session.releasedAt, defenseSessionId: session.id, actor: { id: null, name: "Defense coordinator" } });
+      activity.push({
+        id: `defense:${session.id}:released`,
+        type: "DEFENSE_RESULT_RELEASED",
+        title: "Defense result released",
+        description: session.decision
+          ? session.decision.replace(/_/g, " ").toLowerCase()
+          : "The official defense result was released.",
+        timestamp: session.releasedAt,
+        defenseSessionId: session.id,
+        actor: { id: null, name: "Defense coordinator" },
+      });
   }
   for (const consultation of consultations) {
     activity.push({
@@ -738,9 +915,25 @@ export async function getManuscriptActivity(
       actor: { id: null, name: "Project member" },
     });
     if (consultation.status === "COMPLETED")
-      activity.push({ id: `consultation:${consultation.id}:completed`, type: "CONSULTATION_COMPLETED", title: "Consultation completed", description: consultation.title, timestamp: consultation.updatedAt, consultationId: consultation.id, actor: { id: null, name: "Project member" } });
+      activity.push({
+        id: `consultation:${consultation.id}:completed`,
+        type: "CONSULTATION_COMPLETED",
+        title: "Consultation completed",
+        description: consultation.title,
+        timestamp: consultation.updatedAt,
+        consultationId: consultation.id,
+        actor: { id: null, name: "Project member" },
+      });
     for (const note of consultation.notes)
-      activity.push({ id: `consultation-note:${note.id}`, type: "CONSULTATION_NOTE_ADDED", title: "Consultation notes recorded", description: consultation.title, timestamp: note.createdAt, consultationId: consultation.id, actor: { id: null, name: "Authorized participant" } });
+      activity.push({
+        id: `consultation-note:${note.id}`,
+        type: "CONSULTATION_NOTE_ADDED",
+        title: "Consultation notes recorded",
+        description: consultation.title,
+        timestamp: note.createdAt,
+        consultationId: consultation.id,
+        actor: { id: null, name: "Authorized participant" },
+      });
   }
   return activity.sort(
     (left, right) => right.timestamp.getTime() - left.timestamp.getTime(),
