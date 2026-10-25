@@ -24,11 +24,16 @@ const roleLabels: Record<RoleName, string> = {
   RESEARCHER: "Researcher",
   ADVISER: "Adviser",
   PANELIST: "Panelist",
-  RESEARCH_COORDINATOR: "Professor / Coordinator",
-  RPO: "Research Office Admin",
-  REB: "Ethics Board",
-  VPAA: "VPAA",
-  SYSTEM_ADMIN: "System Admin",
+  RESEARCH_COORDINATOR: "Professor Coordinator",
+  RPO: "Dean's Office (RPO)",
+  REB: "Ethics Board (REB)",
+  VPAA: "Academic Affairs (VPAA)",
+  SYSTEM_ADMIN: "System Administration",
+
+
+
+
+
 };
 
 const statusTone: Record<User["status"], string> = {

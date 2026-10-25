@@ -4,10 +4,19 @@ import React, { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FormPageSkeleton } from "@/components/ui/Skeleton";
+import { useAuth } from "@/providers/auth-provider";
+import {
+  resolvePostLoginAction,
+  resetOnboardingForSession,
+  getRememberedWorkspaceId,
+  setRememberedWorkspaceId,
+  markOnboardingCompletedInSession,
+} from "@/lib/post-login-navigation";
 
 function SetupFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   
   // Get query params
   const role = searchParams.get("role") || "student";
@@ -39,6 +48,24 @@ function SetupFormContent() {
       return;
     }
     // Redirect to the correct role dashboard based on selected role
+    const roles = user?.roles || [];
+    if (user?.id) {
+      resetOnboardingForSession(user.id);
+    }
+    const action = resolvePostLoginAction({
+      roles,
+      needsAcademicSetup: false,
+      userId: user?.id,
+      rememberedWorkspaceId: getRememberedWorkspaceId(user?.id),
+    });
+    if (action.type === "SINGLE_ROLE") {
+      if (user?.id) {
+        markOnboardingCompletedInSession(user.id);
+        setRememberedWorkspaceId(user.id, action.workspace.id);
+      }
+    }
+    router.push(action.url);
+    return;
     if (role === "adviser") {
       router.push("/adviser/dashboard");
     } else if (role === "professor") {

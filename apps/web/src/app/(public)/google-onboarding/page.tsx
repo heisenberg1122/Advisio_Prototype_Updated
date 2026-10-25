@@ -3,6 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, GraduationCap, LoaderCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { apiClient } from "@/lib/api-client";
+import {
+  resolvePostLoginAction,
+  resetOnboardingForSession,
+  getRememberedWorkspaceId,
+  setRememberedWorkspaceId,
+  markOnboardingCompletedInSession,
+} from "@/lib/post-login-navigation";
 
 type Program = { id: string; name: string; code: string };
 type College = { id: string; name: string; code: string; programs: Program[] };
@@ -41,7 +48,24 @@ export default function GoogleOnboardingPage() {
     setError("");
     try {
       await apiClient.patch("/api/auth/google/academic-profile", { collegeId, programId });
-      window.location.assign("/student/dashboard");
+      const profileData = await apiClient.get<{ user: any }>("/api/auth/me");
+      const meUser = profileData?.user;
+      if (meUser?.id) {
+        resetOnboardingForSession(meUser.id);
+      }
+      const action = resolvePostLoginAction({
+        roles: meUser?.roles || ["RESEARCHER"],
+        needsAcademicSetup: false,
+        userId: meUser?.id,
+        rememberedWorkspaceId: getRememberedWorkspaceId(meUser?.id),
+      });
+      if (action.type === "SINGLE_ROLE") {
+        if (meUser?.id) {
+          markOnboardingCompletedInSession(meUser.id);
+          setRememberedWorkspaceId(meUser.id, action.workspace.id);
+        }
+      }
+      navigate(action.url, { replace: true });
     } catch (err: any) {
       setError(err.message || "Could not save your academic details. Please try again.");
       setSaving(false);
