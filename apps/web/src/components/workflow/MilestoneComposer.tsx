@@ -7,7 +7,8 @@ type MilestoneComposerProps = {
   topicId: string;
   title: string;
   instructions: string;
-  deadlineDays: string;
+  targetCompletionDate: string;
+  legacyDeadlineDays?: number | null;
   submissionMode: string;
   requiresDocument: boolean;
   requiresApproval: boolean;
@@ -19,7 +20,7 @@ type MilestoneComposerProps = {
   onTitleChange: (value: string) => void;
   onTopicIdChange: (value: string) => void;
   onInstructionsChange: (value: string) => void;
-  onDeadlineDaysChange: (value: string) => void;
+  onTargetCompletionDateChange: (value: string) => void;
   onSubmissionModeChange: (value: string) => void;
   onRequiresDocumentChange: (value: boolean) => void;
   onRequiresApprovalChange: (value: boolean) => void;
@@ -38,7 +39,8 @@ export function MilestoneComposer({
   topicId,
   title,
   instructions,
-  deadlineDays,
+  targetCompletionDate,
+  legacyDeadlineDays,
   submissionMode,
   requiresDocument,
   requiresApproval,
@@ -50,7 +52,7 @@ export function MilestoneComposer({
   onTitleChange,
   onTopicIdChange,
   onInstructionsChange,
-  onDeadlineDaysChange,
+  onTargetCompletionDateChange,
   onSubmissionModeChange,
   onRequiresDocumentChange,
   onRequiresApprovalChange,
@@ -65,7 +67,8 @@ export function MilestoneComposer({
     title,
     topicId,
     instructions,
-    deadlineDays,
+    targetCompletionDate,
+    legacyDeadlineDays,
     submissionMode,
     requiresDocument,
     requiresApproval,
@@ -287,28 +290,40 @@ export function MilestoneComposer({
                       <option value="EITHER">Individual or group</option>
                     </select>
                   </label>
-                  <label className="block text-sm font-bold text-slate-700">
-                    Target completion
-                    <div className="relative mt-1.5">
+                  <div className="block text-sm font-bold text-slate-700">
+                    <label htmlFor="milestone-target-completion">
+                      Target completion
+                    </label>
+                    <div className="mt-1.5">
                       <input
-                        type="number"
-                        min="0"
-                        max="3650"
-                        value={deadlineDays}
+                        id="milestone-target-completion"
+                        type="date"
+                        value={targetCompletionDate}
                         onChange={(event) =>
-                          onDeadlineDaysChange(event.target.value)
+                          onTargetCompletionDateChange(event.target.value)
                         }
-                        placeholder="No target"
-                        className="w-full rounded-xl border border-slate-300 px-3 py-2.5 pr-14 text-base font-normal"
+                        aria-describedby="milestone-target-help"
+                        className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base font-normal"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-                        days
-                      </span>
                     </div>
-                    <span className="mt-1 block text-xs font-normal leading-5 text-slate-400">
-                      Relative to when the milestone becomes available.
+                    <span
+                      id="milestone-target-help"
+                      className="mt-1 block text-xs font-normal leading-5 text-slate-400"
+                    >
+                      {legacyDeadlineDays != null
+                        ? `Current target: ${legacyDeadlineDays} days after availability. Choose a date to replace it.`
+                        : "Optional. Due by the end of this date (Philippine time)."}
                     </span>
-                  </label>
+                    {(targetCompletionDate || legacyDeadlineDays != null) && (
+                      <button
+                        type="button"
+                        onClick={() => onTargetCompletionDateChange("")}
+                        className="mt-1 text-xs font-semibold text-[#173f63] underline"
+                      >
+                        Clear target
+                      </button>
+                    )}
+                  </div>
                   <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <input
                       type="checkbox"

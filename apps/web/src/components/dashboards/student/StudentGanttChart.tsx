@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { buildWorkflowTimeline, calculateMilestoneProgress, WorkflowProjectLike } from "@/lib/workflow-progress";
+import { WORKFLOW_TIME_ZONE } from "@/lib/workflow-deadlines";
 
 interface StudentGanttChartProps {
   project?: (WorkflowProjectLike & { title?: string }) | null;
@@ -15,7 +16,7 @@ interface StudentGanttChartProps {
 const DAY_WIDTH = 12;
 const LABEL_WIDTH = 260;
 
-const formatDate = (date: Date) => date.toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+const formatDate = (date: Date) => date.toLocaleDateString("en-PH", { month: "short", day: "numeric", timeZone: WORKFLOW_TIME_ZONE });
 
 export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGanttChartProps) {
   const stages = useMemo(() => {
@@ -37,9 +38,16 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
     milestoneProgress,
     Boolean(project?.workflowInstance?.completedAt),
   );
-  const timelineStart = stages[0]?.startDate;
-  const totalDays = stages.reduce((total, stage) => total + stage.durationDays, 0);
-  const chartWidth = Math.max(720, totalDays * DAY_WIDTH);
+  const timelineStart = stages.length
+    ? new Date(Math.min(...stages.map((stage) => stage.startDate.getTime())))
+    : undefined;
+  const timelineEnd = stages.length
+    ? Math.max(...stages.map((stage) => stage.endDate.getTime()))
+    : 0;
+  const totalDays = timelineStart
+    ? Math.max(1, Math.ceil((timelineEnd - timelineStart.getTime()) / 86_400_000))
+    : 0;
+  const chartWidth = Math.max(720, totalDays * DAY_WIDTH + 40);
   const todayOffset = timelineStart
     ? Math.floor((Date.now() - timelineStart.getTime()) / 86_400_000) * DAY_WIDTH
     : -1;
@@ -59,7 +67,7 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
       <div className="flex flex-col gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Project Gantt Timeline</h3>
-          <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">Dates are calculated from the professor-managed workflow and milestone durations.</p>
+          <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">Dates follow milestone targets and legacy durations in Philippine time. Milestones without a target use a projected span.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="h-2 w-32 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">

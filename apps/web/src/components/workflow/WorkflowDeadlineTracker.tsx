@@ -1,3 +1,5 @@
+import { WORKFLOW_TIME_ZONE } from "@/lib/workflow-deadlines";
+
 export type WorkflowDeadlineRow = {
   key: string;
   researchId: string;
@@ -53,6 +55,7 @@ function deadlineDate(row: WorkflowDeadlineRow) {
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: WORKFLOW_TIME_ZONE,
   }).format(new Date(row.dueAt));
   return row.projected ? `${value} · Projected` : value;
 }

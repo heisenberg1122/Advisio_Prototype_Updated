@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { calculateMilestoneProgress } from "@/lib/workflow-progress";
+import { resolveWorkflowDeadline, WORKFLOW_TIME_ZONE } from "@/lib/workflow-deadlines";
 import { useAuth } from "@/providers/auth-provider";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -267,13 +268,15 @@ export default function AdviserResearchGroupWorkspacePage() {
     const items: Array<{ id: string; label: string; detail: string; date: Date; type: string }> = [];
     const stages = [...(project?.workflowInstance?.workflow?.stages || [])].sort((a: any, b: any) => a.sequence - b.sequence);
     const milestoneById = new Map(data.milestones.map((milestone) => [milestone.id, milestone]));
-    let cursor = project?.workflowInstance?.startedAt ? new Date(project.workflowInstance.startedAt) : null;
-    for (const stage of stages) {
-      if (!cursor || !stage.deadlineDays || stage.deadlineDays < 1) continue;
-      cursor = new Date(cursor.getTime() + stage.deadlineDays * 86_400_000);
+    for (const [stageIndex, stage] of stages.entries()) {
+      const { dueAt } = resolveWorkflowDeadline({
+        stages,
+        stageIndex,
+        startedAt: project?.workflowInstance?.startedAt,
+      });
       const milestone: any = milestoneById.get(stage.id);
-      if (cursor.getTime() >= now && !milestone?.completed) {
-        items.push({ id: `milestone-${stage.id}`, label: stage.name, detail: "Milestone deadline", date: new Date(cursor), type: "milestone" });
+      if (dueAt && dueAt.getTime() >= now && !milestone?.completed) {
+        items.push({ id: `milestone-${stage.id}`, label: stage.name, detail: "Milestone deadline (Philippine time)", date: dueAt, type: "milestone" });
       }
     }
     for (const consultation of data.consultations) {
@@ -427,7 +430,9 @@ export default function AdviserResearchGroupWorkspacePage() {
               </SectionCard>
               <div className="space-y-4">
                 <SectionCard title="Upcoming deadlines" description="The nearest recorded project dates, in chronological order." action={upcomingDeadlines.length > 4 ? <button type="button" aria-expanded={showAllDeadlines} onClick={() => setShowAllDeadlines((current) => !current)} className="inline-flex items-center gap-1 text-sm font-bold text-[var(--color-primary)] hover:underline">{showAllDeadlines ? "Show nearest" : `View all (${upcomingDeadlines.length})`} <ArrowRight className={cn("h-3.5 w-3.5 transition-transform", showAllDeadlines && "rotate-90")} /></button> : undefined}>
-                  {upcomingDeadlines.length ? <div className="space-y-2">{(showAllDeadlines ? upcomingDeadlines : upcomingDeadlines.slice(0, 4)).map((item) => <div key={item.id} className="flex items-center gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-2.5"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--color-primary-light)] text-[var(--color-primary)]"><CalendarClock className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-[var(--color-text-primary)]">{item.label}</span><span className="block text-xs leading-4 text-[var(--color-text-secondary)]">{item.detail} · {formatDateTime(item.date)}</span></span></div>)}</div> : <EmptyState size="sm" icon={CalendarClock} title="No upcoming deadlines" description="No future milestone, consultation, or defense date is currently recorded." />}
+                  {upcomingDeadlines.length ? <div className="space-y-2">{(showAllDeadlines ? upcomingDeadlines : upcomingDeadlines.slice(0, 4)).map((item) => <div key={item.id} className="flex items-center gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-2.5"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--color-primary-light)] text-[var(--color-primary)]"><CalendarClock className="h-4 w-4" /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-[var(--color-text-primary)]">{item.label}</span><span className="block text-xs leading-4 text-[var(--color-text-secondary)]">{item.detail} · {item.type === "milestone"
+                  ? item.date.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: WORKFLOW_TIME_ZONE })
+                  : formatDateTime(item.date)}</span></span></div>)}</div> : <EmptyState size="sm" icon={CalendarClock} title="No upcoming deadlines" description="No future milestone, consultation, or defense date is currently recorded." />}
                 </SectionCard>
                 <SectionCard title="Group members" description={`${studentMembers.length} active student ${studentMembers.length === 1 ? "member" : "members"}.`}>
                   <div className="space-y-2">{studentMembers.map((member: any) => <div key={member.id} className="flex items-center gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-2.5"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--color-primary)] text-xs font-bold text-[var(--college-on-primary)]">{`${member.user?.firstName?.[0] || "S"}${member.user?.lastName?.[0] || ""}`}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-[var(--color-text-primary)]">{fullName(member.user)}</span><span className="block truncate text-xs text-[var(--color-text-secondary)]">{member.projectRole === "LEADER" ? "Group leader" : "Researcher"}</span></span></div>)}</div>

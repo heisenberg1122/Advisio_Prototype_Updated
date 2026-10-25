@@ -5,6 +5,7 @@ import { useTheme } from "@/providers/theme-provider";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { calculateMilestoneProgress } from "@/lib/workflow-progress";
+import { calendarDateValue, formatMilestoneTarget, formatTaskDeadline, resolveWorkflowDeadline } from "@/lib/workflow-deadlines";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import {
   DashboardSkeleton,
@@ -332,6 +333,7 @@ function ProfessorDashboardContent() {
             locked: Boolean(s.requiresApproval),
             prerequisiteTaskId: "",
             deadlineDays: s.deadlineDays,
+            targetCompletionDate: s.targetCompletionDate,
             requiresDocument: s.requiresDocument !== false,
             submissionMode: s.submissionMode || "EITHER",
             tasks: s.tasks || [],
@@ -360,7 +362,7 @@ function ProfessorDashboardContent() {
     enabled: Boolean(selectedWorkflowId),
     staleTime: 30_000,
   });
-  const [deadlineDays, setDeadlineDays] = useState("");
+  const [targetCompletionDate, setTargetCompletionDate] = useState("");
   const [newMilestoneRequiresDocument, setNewMilestoneRequiresDocument] =
     useState(true);
   const [newMilestoneRequiresApproval, setNewMilestoneRequiresApproval] =
@@ -417,6 +419,7 @@ function ProfessorDashboardContent() {
   const [milestoneEditCategory, setMilestoneEditCategory] =
     useState("Milestone");
   const [milestoneEditDeadline, setMilestoneEditDeadline] = useState("");
+  const [milestoneEditTargetChanged, setMilestoneEditTargetChanged] = useState(false);
   const [milestoneEditRequiresDocument, setMilestoneEditRequiresDocument] =
     useState(true);
   const [milestoneEditRequiresApproval, setMilestoneEditRequiresApproval] =
@@ -530,7 +533,7 @@ function ProfessorDashboardContent() {
     }
     setNewMilestoneTitle("");
     setNewMilestoneDescription("");
-    setDeadlineDays("");
+    setTargetCompletionDate("");
     setNewMilestoneSubmissionMode("GROUP");
     setNewMilestoneRequiresDocument(kind === "submission");
     setNewMilestoneRequiresApproval(kind === "approval");
@@ -559,7 +562,7 @@ function ProfessorDashboardContent() {
         description: newMilestoneDescription.trim() || null,
         topicId: newMilestoneTopicId,
         category: newMilestoneScope,
-        deadlineDays: deadlineDays ? Number(deadlineDays) : null,
+        targetCompletionDate: targetCompletionDate || null,
         requiresApproval: newMilestoneRequiresApproval,
         requiresDocument: newMilestoneRequiresDocument,
         submissionMode: newMilestoneSubmissionMode,
@@ -602,7 +605,7 @@ function ProfessorDashboardContent() {
       await refetchWorkflows();
       setNewMilestoneTitle("");
       setNewMilestoneDescription("");
-      setDeadlineDays("");
+      setTargetCompletionDate("");
       setNewMilestoneRequiresApproval(false);
       setNewMilestoneRequiresDocument(true);
       setNewMilestoneSubmissionMode("GROUP");
@@ -718,7 +721,7 @@ function ProfessorDashboardContent() {
         {
           title: newRequirementTitle.trim(),
           instructions: newRequirementInstructions.trim() || undefined,
-          dueDays: newRequirementDueDays ? Number(newRequirementDueDays) : null,
+          dueDays: milestoneEditDeadline ? null : newRequirementDueDays ? Number(newRequirementDueDays) : null,
           allowedFileTypes: newRequirementFileTypes,
         },
       );
@@ -877,8 +880,9 @@ function ProfessorDashboardContent() {
     setMilestoneEditDescription(milestone.description || "");
     setMilestoneEditCategory(milestone.scope || "Milestone");
     setMilestoneEditDeadline(
-      milestone.deadlineDays == null ? "" : String(milestone.deadlineDays),
+      calendarDateValue(milestone.targetCompletionDate),
     );
+    setMilestoneEditTargetChanged(false);
     setMilestoneEditRequiresDocument(milestone.requiresDocument !== false);
     setMilestoneEditRequiresApproval(Boolean(milestone.locked));
     setMilestoneEditSubmissionMode(milestone.submissionMode || "EITHER");
@@ -892,21 +896,31 @@ function ProfessorDashboardContent() {
     setMilestoneSaveStatus("saving");
     const minimumDelay = new Promise((resolve) => setTimeout(resolve, 1500));
     try {
-      await Promise.all([
-        apiClient.patch(`/api/workflows/stages/${editingMilestone.id}`, {
+      const [result] = await Promise.all([
+        apiClient.patch<{ stage: any }>(`/api/workflows/stages/${editingMilestone.id}`, {
           name: milestoneEditTitle.trim(),
           description: milestoneEditDescription.trim() || null,
           topicId: milestoneEditTopicId,
           category: milestoneEditCategory,
-          deadlineDays:
-            milestoneEditDeadline === "" ? null : Number(milestoneEditDeadline),
+          ...(milestoneEditTargetChanged && {
+            targetCompletionDate: milestoneEditDeadline || null,
+          }),
           requiresDocument: milestoneEditRequiresDocument,
           requiresApproval: milestoneEditRequiresApproval,
           submissionMode: milestoneEditSubmissionMode,
         }),
         minimumDelay,
       ]);
-      await refetchWorkflows();
+      const refreshed = await refetchWorkflows();
+      const refreshedStage = refreshed.data?.workflows?.flatMap((workflow: any) => workflow.stages || [])
+        .find((stage: any) => stage.id === editingMilestone.id);
+      setEditingMilestone((current: any) => ({
+        ...current,
+        ...result.stage,
+        title: result.stage.name,
+        tasks: refreshedStage?.tasks || current.tasks,
+      }));
+      setMilestoneEditTargetChanged(false);
       setMilestoneSaveStatus("saved");
     } catch (error: any) {
       await minimumDelay;
@@ -1074,9 +1088,7 @@ function ProfessorDashboardContent() {
           </span>
           <span aria-hidden="true">·</span>
           <span>
-            {milestone.deadlineDays != null
-              ? `${milestone.deadlineDays} day target`
-              : "No target"}
+            {formatMilestoneTarget(milestone)}
           </span>
           <span aria-hidden="true">·</span>
           <span>
@@ -1146,37 +1158,15 @@ function ProfessorDashboardContent() {
       const stages = [...(project.workflowStages || [])].sort(
         (a: any, b: any) => a.sequence - b.sequence,
       );
-      const startedAt = project.workflowStartedAt
-        ? new Date(project.workflowStartedAt)
-        : null;
       return stages.flatMap((stage: any, stageIndex: number) => {
-        const transition = (project.workflowTransitions || []).find(
-          (item: any) => item.toStageId === stage.id,
-        );
-        const actualActivation = transition?.createdAt
-          ? new Date(transition.createdAt)
-          : stageIndex === 0 && startedAt
-            ? startedAt
-            : null;
-        const projectedOffset = stages
-          .slice(0, stageIndex)
-          .reduce(
-            (days: number, previousStage: any) =>
-              days + Number(previousStage.deadlineDays || 0),
-            0,
-          );
         return (stage.tasks || []).map((task: any) => {
-          const dueDays = task.dueDays ?? stage.deadlineDays;
-          const projected = !actualActivation && Boolean(startedAt);
-          const activation =
-            actualActivation ||
-            (startedAt
-              ? new Date(startedAt.getTime() + projectedOffset * 86_400_000)
-              : null);
-          const dueAt =
-            activation && dueDays != null
-              ? new Date(activation.getTime() + Number(dueDays) * 86_400_000)
-              : null;
+          const { dueAt, projected } = resolveWorkflowDeadline({
+            stages,
+            stageIndex,
+            startedAt: project.workflowStartedAt,
+            transitions: project.workflowTransitions || [],
+            dueDays: task.dueDays,
+          });
           const submission = (project.taskSubmissions || []).find(
             (item: any) => item.taskId === task.id,
           );
@@ -1591,7 +1581,8 @@ function ProfessorDashboardContent() {
           topicId={milestoneEditTopicId}
           title={milestoneEditTitle}
           instructions={milestoneEditDescription}
-          deadlineDays={milestoneEditDeadline}
+          targetCompletionDate={milestoneEditDeadline}
+          legacyDeadlineDays={milestoneEditTargetChanged ? null : editingMilestone.deadlineDays}
           submissionMode={milestoneEditSubmissionMode}
           requiresDocument={milestoneEditRequiresDocument}
           requiresApproval={milestoneEditRequiresApproval}
@@ -1611,8 +1602,9 @@ function ProfessorDashboardContent() {
             setMilestoneEditDescription(value);
             setMilestoneSaveStatus("idle");
           }}
-          onDeadlineDaysChange={(value) => {
+          onTargetCompletionDateChange={(value) => {
             setMilestoneEditDeadline(value);
+            setMilestoneEditTargetChanged(true);
             setMilestoneSaveStatus("idle");
           }}
           onSubmissionModeChange={(value) => {
@@ -1651,9 +1643,10 @@ function ProfessorDashboardContent() {
                     </p>
                     <p className="mt-0.5 text-base text-slate-500">
                       {requirement.allowedFileTypes || "PDF,DOCX"} ·{" "}
-                      {requirement.dueDays != null
-                        ? `${requirement.dueDays} days`
-                        : "Uses milestone target"}
+                      {formatTaskDeadline({ ...requirement, stage: {
+                        deadlineDays: milestoneEditTargetChanged ? null : editingMilestone.deadlineDays,
+                        targetCompletionDate: milestoneEditDeadline || null,
+                      } })}
                     </p>
                   </div>
                   <button
@@ -1697,7 +1690,8 @@ function ProfessorDashboardContent() {
                     onChange={(event) =>
                       setNewRequirementDueDays(event.target.value)
                     }
-                    placeholder="Target days"
+                    disabled={Boolean(milestoneEditDeadline)}
+                    placeholder={milestoneEditDeadline ? "Uses milestone date" : "Target days"}
                     className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                   />
                   <input
@@ -1811,20 +1805,15 @@ function ProfessorDashboardContent() {
                   </label>
                   <div className="relative mt-1.5">
                     <input
-                      type="number"
-                      min="0"
-                      max="3650"
+                      type="date"
                       value={milestoneEditDeadline}
                       onChange={(event) => {
                         setMilestoneEditDeadline(event.target.value);
+                        setMilestoneEditTargetChanged(true);
                         setMilestoneSaveStatus("idle");
                       }}
-                      placeholder="No target"
-                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 pr-14 text-base outline-none focus:border-[#173f63]"
+                      className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base outline-none focus:border-[#173f63]"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-                      days
-                    </span>
                   </div>
                 </div>
                 <div>
@@ -1892,9 +1881,10 @@ function ProfessorDashboardContent() {
                             </p>
                             <p className="mt-0.5 text-base text-slate-500">
                               {requirement.allowedFileTypes} ·{" "}
-                              {requirement.dueDays != null
-                                ? `${requirement.dueDays} days`
-                                : "Uses milestone schedule"}
+                              {formatTaskDeadline({ ...requirement, stage: {
+                                deadlineDays: milestoneEditTargetChanged ? null : editingMilestone.deadlineDays,
+                                targetCompletionDate: milestoneEditDeadline || null,
+                              } })}
                             </p>
                           </div>
                           <button
@@ -1942,7 +1932,8 @@ function ProfessorDashboardContent() {
                           onChange={(e) =>
                             setNewRequirementDueDays(e.target.value)
                           }
-                          placeholder="Due in days"
+                          disabled={Boolean(milestoneEditDeadline)}
+                          placeholder={milestoneEditDeadline ? "Uses milestone date" : "Due in days"}
                           className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                         />
                         <input
@@ -2363,7 +2354,7 @@ function ProfessorDashboardContent() {
           topicId={newMilestoneTopicId}
           title={newMilestoneTitle}
           instructions={newMilestoneDescription}
-          deadlineDays={deadlineDays}
+          targetCompletionDate={targetCompletionDate}
           submissionMode={newMilestoneSubmissionMode}
           requiresDocument={newMilestoneRequiresDocument}
           requiresApproval={newMilestoneRequiresApproval}
@@ -2373,7 +2364,7 @@ function ProfessorDashboardContent() {
           onTitleChange={setNewMilestoneTitle}
           onTopicIdChange={setNewMilestoneTopicId}
           onInstructionsChange={setNewMilestoneDescription}
-          onDeadlineDaysChange={setDeadlineDays}
+          onTargetCompletionDateChange={setTargetCompletionDate}
           onSubmissionModeChange={setNewMilestoneSubmissionMode}
           onRequiresDocumentChange={setNewMilestoneRequiresDocument}
           onRequiresApprovalChange={setNewMilestoneRequiresApproval}
@@ -2524,17 +2515,11 @@ function ProfessorDashboardContent() {
                     </label>
                     <div className="relative mt-1.5">
                       <input
-                        type="number"
-                        min="0"
-                        max="3650"
-                        value={deadlineDays}
-                        onChange={(e) => setDeadlineDays(e.target.value)}
-                        placeholder="e.g. 14"
-                        className="w-full rounded-xl border border-slate-300 p-2.5 pr-14 text-base"
+                        type="date"
+                        value={targetCompletionDate}
+                        onChange={(e) => setTargetCompletionDate(e.target.value)}
+                        className="w-full rounded-xl border border-slate-300 p-2.5 text-base"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
-                        days
-                      </span>
                     </div>
                   </div>
                   <div>
@@ -2782,9 +2767,7 @@ function ProfessorDashboardContent() {
                     {stage.sequence}. {stage.name}
                   </span>
                   <span className="text-xs text-slate-500">
-                    {stage.deadlineDays != null
-                      ? `${stage.deadlineDays} days`
-                      : "No deadline"}
+                    {formatMilestoneTarget(stage)}
                   </span>
                 </div>
               ))}
