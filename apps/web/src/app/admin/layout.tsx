@@ -21,6 +21,8 @@ import { AppTopbar } from "@/components/layout/AppTopbar";
 import { AppWorkspaceFrame } from "@/components/layout/AppWorkspaceFrame";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { useAuth } from "@/providers/auth-provider";
+import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
+import { formatAdminLink } from "@/lib/dashboard-navigation";
 
 const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
@@ -74,13 +76,17 @@ const PAGE_TITLES: Record<string, string> = {
 function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const { collapsed, toggle } = useSidebarCollapsed();
   const { user } = useAuth();
+  const { activeWorkspace } = useDashboardWorkspace();
+
+  const isEthics = activeWorkspace?.id === "ethics";
+  const isVpaa = activeWorkspace?.id === "academic-affairs";
+  const isDean = !isEthics && !isVpaa;
+
   const roles = user?.roles || [];
-  const isEthicsOnly = roles.includes("REB") && !roles.some((role) =>
-    ["RPO", "VPAA", "SYSTEM_ADMIN"].includes(role),
-  );
-  const isVpaa = roles.includes("VPAA") && !roles.includes("RPO");
-  const canViewOfficialCopies = roles.some((role) => ["RPO", "VPAA"].includes(role));
-  const navSections: NavSection[] = isEthicsOnly
+  const canViewOfficialCopies =
+    roles.some((role) => ["RPO", "VPAA", "SYSTEM_ADMIN"].includes(role)) && !isEthics;
+
+  const rawSections: NavSection[] = isEthics
     ? [
         {
           title: "HOME",
@@ -109,6 +115,15 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           (item) => item.href !== "/admin/documents?tab=official" || canViewOfficialCopies,
         ),
       }));
+
+  const navSections: NavSection[] = rawSections.map((section) => ({
+    ...section,
+    items: section.items.map((item) => ({
+      ...item,
+      href: formatAdminLink(item.href, activeWorkspace?.id),
+    })),
+  }));
+
   const activeTab = useSearchParams().get("tab") || "overview";
   const pathname = usePathname() || "";
   const pageTitle =
@@ -128,26 +143,32 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           ? "Manuscript Reviews"
         : pathname === "/admin/documents"
           ? "Official Copies"
-          : activeTab === "overview" && isEthicsOnly
+          : activeTab === "overview" && isEthics
             ? "Research Ethics Board"
             : activeTab === "overview" && isVpaa
               ? "Institutional Research Dashboard"
               : PAGE_TITLES[activeTab] || "Dean Dashboard";
 
+  const currentWorkspaceId = activeWorkspace?.id || "dean";
+  const dashboardPath = formatAdminLink("/admin/dashboard", currentWorkspaceId);
+  const settingsHref = formatAdminLink("/admin/settings", currentWorkspaceId);
+  const profileHref = formatAdminLink("/admin/profile", currentWorkspaceId);
+  const notificationsHref = formatAdminLink("/admin/notifications", currentWorkspaceId);
+
   return (
     <AppWorkspaceFrame
       collapsed={collapsed}
-      dashboardPath="/admin/dashboard"
+      dashboardPath={dashboardPath}
       padSecondaryPages
       sidebar={
         <AppSidebar
-          roleTitle={isEthicsOnly ? "Research Ethics Board" : isVpaa ? "Office of the VPAA" : "Dean / RPO Office"}
-          roleBadge={isEthicsOnly ? "REB PORTAL" : isVpaa ? "VPAA PORTAL" : "DEAN / RPO PORTAL"}
+          roleTitle={isEthics ? "Research Ethics Board" : isVpaa ? "Office of the VPAA" : "Dean / RPO Office"}
+          roleBadge={isEthics ? "REB PORTAL" : isVpaa ? "VPAA PORTAL" : "DEAN / RPO PORTAL"}
           navSections={navSections}
           collapsed={collapsed}
           onToggleCollapse={toggle}
-          settingsHref="/admin/settings"
-          profileHref="/admin/profile"
+          settingsHref={settingsHref}
+          profileHref={profileHref}
           variant="workspace"
         />
       }
@@ -156,9 +177,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           title={pageTitle}
           hideTitle={pathname === "/admin/dashboard" && activeTab === "overview"}
           subtitle="Research Management Center"
-          notificationsHref="/admin/notifications"
-          profileHref="/admin/profile"
-          settingsHref="/admin/settings"
+          notificationsHref={notificationsHref}
+          profileHref={profileHref}
+          settingsHref={settingsHref}
           searchPlaceholder="Search research groups, faculty, defenses..."
           variant="workspace"
         />

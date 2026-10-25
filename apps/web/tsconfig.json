@@ -20,6 +20,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
+      "@research-management/auth": ["../../packages/auth/src/index.ts"],
+      "@research-management/auth/*": ["../../packages/auth/src/*"],
       "next/link": ["./src/lib/router-compat.tsx"],
       "next/navigation": ["./src/lib/router-compat.tsx"]
     }

@@ -12,6 +12,12 @@
       "import": "./dist/index.js",
       "require": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./dashboard-workspaces": {
+      "types": "./dist/dashboard-workspaces.d.ts",
+      "import": "./dist/dashboard-workspaces.js",
+      "require": "./dist/dashboard-workspaces.js",
+      "default": "./dist/dashboard-workspaces.js"
     }
   },
   "scripts": {

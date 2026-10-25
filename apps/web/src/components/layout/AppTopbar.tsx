@@ -30,6 +30,9 @@ import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { useTheme } from "@/providers/theme-provider";
 import { cn } from "@/lib/utils";
 import { portalQuickLinks } from "@/lib/portal-navigation";
+import { DashboardSwitcher } from "@/components/layout/DashboardSwitcher";
+import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
+import { getRoleBadgeLabel } from "@/lib/dashboard-navigation";
 
 export interface AppTopbarProps {
   title?: string;
@@ -70,6 +73,7 @@ export function AppTopbar({
   const router = useRouter();
   const pathname = usePathname() || "";
   const { profile } = useProfile();
+  const { activeWorkspace } = useDashboardWorkspace();
   const { logout, user } = useAuth();
   const { openMobile } = useSidebarCollapsed();
   const { theme, isDark, toggleTheme } = useTheme();
@@ -86,7 +90,9 @@ export function AppTopbar({
   const initials =
     profile?.initials || displayName.slice(0, 2).toUpperCase() || "UA";
   const userEmail = profile?.email || "user@university.edu.ph";
-  const roleName = profile?.role
+  const roleName = activeWorkspace ? activeWorkspace.label : profile?.role ? profile.role.replace(/_/g, " ") : "Institutional User";
+  const activeRoleBadge = activeWorkspace ? getRoleBadgeLabel(activeWorkspace) : profile?.role ? profile.role.replace(/_/g, " ").toUpperCase() : "INSTITUTIONAL USER";
+  const unusedRoleName = null; const ignored = profile?.role
     ? profile.role.replace(/_/g, " ")
     : "Institutional User";
   const isWorkspace = variant === "workspace";
@@ -292,6 +298,8 @@ export function AppTopbar({
                 <span>{filteredSearchItems.length} items</span>
               </div>
 
+
+
               <div className="max-h-[300px] overflow-y-auto space-y-1">
                 {filteredSearchItems.length > 0 ? (
                   filteredSearchItems.map((item) => {
@@ -305,6 +313,8 @@ export function AppTopbar({
                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary-light)] text-[var(--color-primary)] group-hover:scale-105 transition-transform">
                           <ItemIcon className="h-4 w-4" />
                         </div>
+
+
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-bold text-[#17212B] dark:text-white truncate">
                             {item.label}
@@ -315,6 +325,8 @@ export function AppTopbar({
                             </p>
                           )}
                         </div>
+
+
                         <ArrowRight className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600 group-hover:translate-x-0.5 group-hover:text-[var(--color-primary)] transition-all shrink-0" />
                       </button>
                     );
@@ -323,8 +335,12 @@ export function AppTopbar({
                   <div className="py-6 text-center text-xs text-slate-400 dark:text-slate-500">
                     No results found for “{searchQuery}”
                   </div>
+
+
                 )}
               </div>
+
+
             </div>
           )}
         </div>
@@ -386,10 +402,17 @@ export function AppTopbar({
                     {userEmail}
                   </p>
                   <span className="mt-1 inline-flex items-center rounded-full border border-[var(--color-primary)]/30 bg-[var(--color-primary-light)] px-2 py-0.5 text-xs font-extrabold uppercase tracking-wide text-[var(--color-primary)]">
-                    {roleName}
+                    {activeRoleBadge}
                   </span>
                 </div>
+
+
               </div>
+
+
+
+              {/* Multi-role Dashboard Switcher */}
+              <DashboardSwitcher onCloseMenu={() => setIsProfileOpen(false)} />
 
               {/* Theme Toggle & Links */}
               <div className="py-2 space-y-1">
@@ -420,6 +443,8 @@ export function AppTopbar({
                       )}
                     />
                   </div>
+
+
                 </button>
 
                 {/* Profile Link */}
@@ -443,6 +468,8 @@ export function AppTopbar({
                 </Link>
               </div>
 
+
+
               {/* Institutional Branding Badge */}
               <div className="flex items-center justify-between border-t border-slate-100 px-2 pb-2 pt-2 text-xs text-slate-400 dark:border-white/10 dark:text-slate-500">
                 <span>University of the Assumption</span>
@@ -450,6 +477,8 @@ export function AppTopbar({
                   UA ADVISIO
                 </span>
               </div>
+
+
 
               {/* Sign Out Button */}
               <div className="pt-1 border-t border-slate-100 dark:border-white/10">
@@ -465,6 +494,8 @@ export function AppTopbar({
                   <span>Sign Out</span>
                 </button>
               </div>
+
+
             </div>
           )}
         </div>

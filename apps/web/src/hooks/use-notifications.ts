@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { notificationLink } from "@/lib/notification-navigation";
+import { useAuth } from "@/providers/auth-provider";
 
 export interface AppNotification {
   id: string;
@@ -18,6 +19,7 @@ export interface AppNotification {
 
 export function useNotifications() {
   const pathname = usePathname() || "";
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -62,14 +64,14 @@ export function useNotifications() {
                   ? "Documents"
                   : undefined,
         link:
-          notificationLink(item.actionUrl, role) ||
+          notificationLink(item.actionUrl, role, user?.roles || []) ||
           (item.type === "ADVISER_REQUESTED" ? "/adviser/dashboard" : undefined),
       }));
       setNotifications(apiItems);
     } catch {
       setNotifications([]);
     }
-  }, [role]);
+  }, [role, user?.roles]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {

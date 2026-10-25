@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
+import { resolveWorkspaceFromPath } from "@research-management/auth";
 
 export interface ProfileData {
   id: string;
@@ -164,7 +165,7 @@ export function useProfile() {
             "BS Information Technology",
           studentId: user.universityId,
           employeeId: user.universityId,
-          position: user.roles?.[0] || "User",
+          position: resolveWorkspaceFromPath(pathname)?.label || user.roles?.[0] || "User",
           ...savedOverrides,
         };
         dynamicProfile.initials = getInitials(dynamicProfile.name);

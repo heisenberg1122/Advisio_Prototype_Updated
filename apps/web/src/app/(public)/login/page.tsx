@@ -11,6 +11,13 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import {
+  resolvePostLoginAction,
+  resetOnboardingForSession,
+  getRememberedWorkspaceId,
+  setRememberedWorkspaceId,
+  markOnboardingCompletedInSession,
+} from "@/lib/post-login-navigation";
 
 type GoogleCredentialResponse = { credential: string };
 type GoogleIdentityApi = {
@@ -59,6 +66,39 @@ export default function LoginPage() {
     null,
   );
 
+  const handlePostLogin = (
+    roles: string[],
+    needsAcademicSetup?: boolean,
+    userId?: string
+  ) => {
+    const requestedLocation = (location.state as any)?.from;
+    const returnUrl = requestedLocation
+      ? `${requestedLocation.pathname || ""}${requestedLocation.search || ""}${requestedLocation.hash || ""}`
+      : null;
+
+    if (userId) {
+      resetOnboardingForSession(userId);
+    }
+    const rememberedWorkspaceId = getRememberedWorkspaceId(userId);
+    const action = resolvePostLoginAction({
+      roles,
+      needsAcademicSetup,
+      returnUrl,
+      rememberedWorkspaceId,
+    });
+
+    if (action.type === "SINGLE_ROLE") {
+      if (userId) {
+        markOnboardingCompletedInSession(userId);
+        setRememberedWorkspaceId(userId, action.workspace.id);
+      }
+      navigate(action.url, { replace: true });
+      return;
+    }
+
+    navigate(action.url, { replace: true });
+  };
+
   const goToDashboard = (role = "") => {
     const value = role.toLowerCase();
     const requestedLocation = (location.state as any)?.from;
@@ -97,11 +137,11 @@ export default function LoginPage() {
       try {
         const result = await loginWithGoogle(credential);
         if (result.success) {
-          if (result.needsAcademicSetup) {
+          const roles = result.user?.roles || (result.role ? [result.role] : []); handlePostLogin(roles, result.needsAcademicSetup, result.user?.id); return; /*
             router.push("/google-onboarding");
             return;
           }
-          goToDashboard(result.role || "RESEARCHER");
+        */ } if (false) { goToDashboard(result.role || "RESEARCHER");
           return;
         }
         setError(result.error || "Google sign-in failed. Please try again.");
@@ -174,7 +214,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const result = await login(email, password);
-      if (result.success && result.role) return goToDashboard(result.role);
+      if (result.success) { const roles = result.user?.roles || (result.role ? [result.role] : []); handlePostLogin(roles, false, result.user?.id); return; }
       setError(result.error || "Invalid email or password.");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to authenticate.");

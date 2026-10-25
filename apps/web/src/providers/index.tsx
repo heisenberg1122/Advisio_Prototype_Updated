@@ -39,4 +39,14 @@ export function Providers({ children }: { children: ReactNode }) {
 
 export { ThemeProvider, useTheme } from "./theme-provider";
 export { AuthProvider, useAuth } from "./auth-provider";
-export { ActiveProjectProvider, useActiveProject, useActiveProjectContext } from "./active-project-provider";
+export {
+  DashboardWorkspaceProvider,
+  useDashboardWorkspace,
+  type DirtyFormEntry,
+  type DashboardWorkspaceContextType,
+} from "./dashboard-workspace-provider";
+export {
+  ActiveProjectProvider,
+  useActiveProject,
+  useActiveProjectContext,
+} from "./active-project-provider";

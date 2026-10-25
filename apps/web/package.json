@@ -12,6 +12,7 @@
     "test": "vitest run --root ../.. apps/web/src"
   },
   "dependencies": {
+    "@research-management/auth": "*",
     "@research-management/validations": "*",
     "@tabler/icons-react": "^3.44.0",
     "@tanstack/react-query": "^5.101.1",

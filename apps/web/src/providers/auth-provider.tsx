@@ -23,8 +23,9 @@ export interface AuthContextType {
   isAuthenticated: boolean;
   sessionError: string | null;
   retrySession: () => void;
-  login: (email: string, password?: string) => Promise<{ success: boolean; role?: string; error?: string }>;
-  loginWithGoogle: (credential: string) => Promise<{ success: boolean; role?: string; needsAcademicSetup?: boolean; error?: string }>;
+  refreshUser: () => Promise<UserProfile | null>;
+  login: (email: string, password?: string) => Promise<{ success: boolean; user?: UserProfile; role?: string; error?: string }>;
+  loginWithGoogle: (credential: string) => Promise<{ success: boolean; user?: UserProfile; role?: string; needsAcademicSetup?: boolean; error?: string }>;
   register: (payload: any) => Promise<{ success: boolean; isPending?: boolean; message?: string; user?: any; onboardingToken?: string | null; error?: string }>;
   logout: () => void;
 }
@@ -42,6 +43,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sessionAttempt, setSessionAttempt] = useState(0);
   const hydratedToken = useRef<string | null>(null);
   const retrySession = () => { setIsLoading(true); setSessionAttempt((value) => value + 1); };
+
+  const refreshUser = async (): Promise<UserProfile | null> => {
+    if (!token) return null;
+    try {
+      const data = await apiClient.get<{ user: UserProfile }>("/api/auth/me");
+      setUser(data.user);
+      return data.user;
+    } catch (error) {
+      if (error instanceof ApiError && error.statusCode === 401) {
+        localStorage.removeItem("advisio_token");
+        for (const key of ["advisio_theme:active", "advisio_color-theme:active", "advisio_college-theme:active"]) {
+          localStorage.removeItem(key);
+        }
+        setToken(null);
+        setUser(null);
+        hydratedToken.current = null;
+      }
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    const handleFocus = () => {
+      if (token && document.visibilityState === "visible") {
+        void refreshUser();
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleFocus);
+    };
+  }, [token]);
+
   useEffect(() => {
     let cancelled = false;
     async function loadUser() {
@@ -64,13 +100,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadUser();
     return () => { cancelled = true; };
   }, [token, sessionAttempt]);
-  async function hydrateSession(sessionToken: string) {
+
+  async function hydrateSession(sessionToken: string): Promise<UserProfile | null> {
     setSessionError(null);
     localStorage.setItem("advisio_token", sessionToken);
+    let resolvedUser: UserProfile | null = null;
     try {
       const profile = await apiClient.get<{ user: UserProfile }>("/api/auth/me", { headers: { Authorization: `Bearer ${sessionToken}` } });
-      if (localStorage.getItem("advisio_token") !== sessionToken) return;
-      hydratedToken.current = sessionToken; setUser(profile.user); setSessionError(null);
+      if (localStorage.getItem("advisio_token") !== sessionToken) return null;
+      hydratedToken.current = sessionToken;
+      resolvedUser = profile.user;
+      setUser(profile.user);
+      setSessionError(null);
     } catch (error) {
       if (error instanceof ApiError && error.statusCode === 401) {
         localStorage.removeItem("advisio_token"); setUser(null); setToken(null); throw error;
@@ -80,6 +121,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (hydratedToken.current !== sessionToken) { setUser(null); setIsLoading(true); }
       setToken(sessionToken);
     }
+    return resolvedUser;
   }
 
   const login = async (email: string, password?: string) => {
@@ -90,10 +132,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: { id: string; universityId: string; email: string; firstName: string; lastName: string; roles: string[] };
       }>("/api/auth/login", { email, password });
 
-      await hydrateSession(data.token);
+      const hydrated = await hydrateSession(data.token);
 
       const primaryRole = (data.user.roles[0] || "RESEARCHER").toLowerCase();
-      return { success: true, role: primaryRole };
+      return { success: true, user: hydrated || undefined, role: primaryRole };
     } catch (error: any) {
       return { success: false, error: error.message || "Failed to sign in" };
     }
@@ -108,10 +150,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: { id: string; universityId: string; email: string; firstName: string; lastName: string; roles: string[] };
       }>("/api/auth/google", { credential });
 
-      await hydrateSession(data.token);
+      const hydrated = await hydrateSession(data.token);
 
       return {
         success: true,
+        user: hydrated || undefined,
         role: (data.user.roles[0] || "RESEARCHER").toLowerCase(),
         needsAcademicSetup: data.needsAcademicSetup === true,
       };
@@ -149,6 +192,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const confirmLogout = () => {
     setShowLogoutModal(false);
     if (typeof window !== "undefined") {
+      if (user?.id) {
+        try {
+          sessionStorage.removeItem(`advisio_dashboard_onboarding_completed_${user.id}`);
+        } catch {}
+      }
       localStorage.removeItem("advisio_token");
       localStorage.removeItem("advisio_theme:active");
       localStorage.removeItem("advisio_color-theme:active");
@@ -172,6 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         sessionError,
         retrySession,
+        refreshUser,
         login,
         loginWithGoogle,
         register,
@@ -238,6 +287,7 @@ export function useAuth(): AuthContextType {
       isAuthenticated: false,
       sessionError: null,
       retrySession: () => {},
+      refreshUser: async () => null,
       login: async () => ({ success: false, role: undefined, error: "AuthProvider not mounted" }),
       loginWithGoogle: async () => ({ success: false, needsAcademicSetup: false, error: "AuthProvider not mounted" }),
       register: async () => ({ success: false, error: "AuthProvider not mounted" }),
@@ -254,4 +304,3 @@ export function useAuth(): AuthContextType {
   }
   return context;
 }
-
