@@ -253,6 +253,14 @@ export async function getMilestoneProgress(
           createdAt: true,
           respondedAt: true,
           responseNote: true,
+          requestedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
           adviser: {
             select: {
               id: true,
@@ -383,14 +391,19 @@ export async function getMilestoneProgress(
               member.user.roles.some(({ role }) => role.name === "ADVISER"),
           ) || null
         : null;
-    const adviserRequest =
+    const stageRequests =
       stage.milestoneType === "ADVISER_SELECTION"
-        ? project.adviserRequests.find(
+        ? project.adviserRequests.filter(
             (request) =>
               request.workflowStageId === stage.id ||
               request.workflowStageId === null,
-          ) || null
-        : null;
+          )
+        : [];
+    const adviserRequest =
+      stageRequests.find((r) => r.status === "ACCEPTED") ||
+      stageRequests.find((r) => r.status === "PENDING") ||
+      stageRequests[0] ||
+      null;
     const adviserMilestoneStatus: AdviserMilestoneStatus | null =
       stage.milestoneType !== "ADVISER_SELECTION"
         ? null
@@ -448,6 +461,16 @@ export async function getMilestoneProgress(
                   ? adviserRequest.respondedAt
                   : activeAdviser?.joinedAt || null,
               responseNote: adviserRequest?.responseNote || null,
+              requestedBy: adviserRequest?.requestedBy || null,
+              requestHistory: stageRequests.map((req) => ({
+                id: req.id,
+                status: req.status,
+                createdAt: req.createdAt,
+                respondedAt: req.respondedAt,
+                responseNote: req.responseNote,
+                adviser: req.adviser,
+                requestedBy: req.requestedBy,
+              })),
             }
           : null,
       tasks,

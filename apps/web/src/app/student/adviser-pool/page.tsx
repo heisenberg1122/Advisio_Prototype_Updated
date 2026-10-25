@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdvisers } from "@/hooks/use-student";
 import { useAuth } from "@/hooks/use-auth";
@@ -10,15 +11,20 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
 import { CardsPageSkeleton } from "@/components/ui/Skeleton";
 import { AdviserProfileModal } from "@/components/profile/AdviserProfileModal";
+import {
+  studentTaskDetailsHref,
+  studentTasksHref,
+} from "@/lib/student-task-navigation";
 
 type RequestMethod = "details" | "pdf";
 
 export default function AdviserPoolPage() {
-  const { data, isPending, isError, refetch } = useAdvisers();
-  const { user } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const milestoneId = searchParams.get("milestoneId");
+  const projectIdParam = searchParams.get("projectId");
+  const { data, isPending, isError, refetch } = useAdvisers(projectIdParam);
+  const { user } = useAuth();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [selectedAdviser, setSelectedAdviser] = useState<any | null>(null);
   const [profileModalAdviser, setProfileModalAdviser] = useState<any | null>(
@@ -41,10 +47,10 @@ export default function AdviserPoolPage() {
   );
 
   useEffect(() => {
-    if (!isPending && data && user && (!project || !isLeader)) {
+    if (!isPending && data && user && !project) {
       router.replace("/student/dashboard?tab=group");
     }
-  }, [data, isLeader, isPending, project, router, user]);
+  }, [data, isPending, project, router, user]);
 
   const openRequest = (adviser: any) => {
     if (adviser.isFull || !adviser.isAcceptingAdvisees) {
@@ -137,7 +143,7 @@ export default function AdviserPoolPage() {
       setMessage(error?.message || "Unable to send adviser request."),
   });
 
-  if (isPending || !user || (data && (!project || !isLeader)))
+  if (isPending || !user || (data && !project))
     return <CardsPageSkeleton cards={4} />;
   if (isError || !data) {
     return (
@@ -170,17 +176,25 @@ export default function AdviserPoolPage() {
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() =>
-              router.push(
-                `/student/tasks/milestone-${encodeURIComponent(milestoneId)}?projectId=${encodeURIComponent(project.id)}`,
-              )
-            }
-            className="shrink-0 rounded-xl border border-blue-300 px-3 py-2 text-sm font-bold hover:bg-blue-100 dark:border-blue-800 dark:hover:bg-blue-900/40"
+          <Link
+            to={studentTaskDetailsHref(`milestone-${milestoneId}`, project.id)}
+            className="shrink-0 rounded-xl border border-blue-300 px-3 py-2 text-sm font-bold hover:bg-blue-100 dark:border-blue-800 dark:hover:bg-blue-900/40 inline-flex items-center gap-1.5"
           >
+            <i className="ti ti-arrow-left text-xs" />
             Back to milestone
-          </button>
+          </Link>
+        </div>
+      )}
+      {!isLeader && project && (
+        <div className="flex items-center gap-2.5 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+          <i
+            className="ti ti-info-circle text-base text-blue-600 dark:text-blue-400 shrink-0"
+            aria-hidden="true"
+          />
+          <span>
+            Viewing verified advisers in read-only mode. Only your research
+            group leader can submit or withdraw adviser requests.
+          </span>
         </div>
       )}
       {!project && (
@@ -193,9 +207,27 @@ export default function AdviserPoolPage() {
       )}
 
       {message && !selectedAdviser && (
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 dark:bg-blue-950/30 px-4 py-3 text-xs sm:text-sm font-medium text-blue-800 dark:text-blue-200 flex items-center gap-2">
-          <i className="ti ti-info-circle text-base shrink-0 text-blue-600" />
-          <span>{message}</span>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
+          <div className="flex items-center gap-2">
+            <i className="ti ti-circle-check text-lg text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="font-semibold">{message}</span>
+          </div>
+          {project && (
+            <Link
+              to={
+                milestoneId
+                  ? studentTaskDetailsHref(
+                      `milestone-${milestoneId}`,
+                      project.id,
+                    )
+                  : studentTasksHref(project.id)
+              }
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white px-4 py-2 text-xs font-bold shadow-xs transition"
+            >
+              <i className="ti ti-arrow-left text-xs" />
+              Return to Tasks
+            </Link>
+          )}
         </div>
       )}
 
@@ -397,6 +429,8 @@ export default function AdviserPoolPage() {
                   <Tag variant="success">Accepted</Tag>
                 ) : pendingRequest ? (
                   <Tag variant="neutral">Another request is pending</Tag>
+                ) : !isLeader ? (
+                  <Tag variant="neutral">Leader only</Tag>
                 ) : (
                   <button
                     id={`request-adviser-${adviser.id}`}
@@ -610,6 +644,7 @@ export default function AdviserPoolPage() {
           openRequest(adv);
         }}
         canRequest={
+          isLeader &&
           Boolean(project) &&
           !assigned &&
           !pendingRequest &&
