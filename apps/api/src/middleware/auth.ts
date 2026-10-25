@@ -16,6 +16,7 @@ export interface AuthenticatedUser {
   permissions: string[];
   collegeId?: string | null;
   programId?: string | null;
+  researcherPanel?: boolean;
 }
 
 declare global {
@@ -94,6 +95,40 @@ export async function requireAuth(
       collegeId: user.collegeId,
       programId: user.programId,
     };
+
+    // Panel context can only restrict an authenticated account's access.
+    // Keep profile hydration role-complete so dashboard switching still works.
+    if (req.get("X-Advisio-Panel") === "researcher" && !req.originalUrl.startsWith("/api/auth/")) {
+      if (!roles.includes("RESEARCHER")) {
+        res.status(403).json({ error: "The researcher panel is not assigned to your account." });
+        return;
+      }
+      req.user.researcherPanel = true;
+      req.user.roles = ["RESEARCHER"];
+      req.user.permissions = getPermissionsForRoles(["RESEARCHER"]);
+      for (const assignment of user.roles.filter(({ role }) => role.name === "RESEARCHER")) {
+        for (const { permission } of assignment.role.permissions) {
+          if (!req.user.permissions.includes(permission.key)) req.user.permissions.push(permission.key);
+        }
+      }
+
+      // Cover project detail, documents, workflow, tasks and consultation requests.
+      // Join-by-code and project creation deliberately have no project ID here.
+      const researchId = req.params.researchId
+        || (req.baseUrl === "/api/research" ? req.params.id : undefined)
+        || req.query.researchId || req.query.groupId
+        || req.body?.researchId || req.body?.groupId;
+      if (researchId) {
+        const membership = typeof researchId === "string" && await prisma.researchMember.findFirst({
+          where: { researchId, userId: user.id, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } },
+          select: { id: true },
+        });
+        if (!membership) {
+          res.status(403).json({ error: "You are not a current researcher in this project." });
+          return;
+        }
+      }
+    }
 
     next();
   } catch (error) {

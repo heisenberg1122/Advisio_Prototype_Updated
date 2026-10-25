@@ -9,6 +9,8 @@ import React, {
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth-provider";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
 import {
   resolveActiveProject,
   withProjectContext,
@@ -18,6 +20,7 @@ import {
 type ActiveProjectContextValue = {
   activeProjectId: string | null;
   requestedProjectId: string | null;
+  authorizedProjectIds: string[] | null;
   selectProject: (projectId: string | null, options?: { replace?: boolean }) => void;
   projectHref: (path: string, projectId?: string | null) => string;
 };
@@ -28,26 +31,50 @@ export function ActiveProjectProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const panel = location.pathname.split("/")[1] || "public";
+  const researcherPanel = panel === "student";
+  const projectsQuery = useQuery({
+    queryKey: ["student-research"],
+    queryFn: () => apiClient.get<{ projects: ProjectOption[] }>("/api/research", {
+      headers: { "X-Advisio-Panel": "researcher" },
+    }),
+    enabled: researcherPanel && Boolean(user?.id),
+    refetchOnWindowFocus: true,
+    refetchInterval: researcherPanel ? 5000 : false,
+  });
   const requestedProjectId = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get("projectId") || params.get("researchId");
   }, [location.search]);
-  const storageKey = user?.id ? `advisio:active-project:${user.id}` : null;
+  const storageKey = user?.id ? `advisio:active-project:${user.id}:${panel}` : null;
   const [storedProjectId, setStoredProjectId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!storageKey) return;
-    setStoredProjectId(localStorage.getItem(storageKey));
+    setStoredProjectId(storageKey ? localStorage.getItem(storageKey) : null);
   }, [storageKey]);
 
   useEffect(() => {
-    if (!requestedProjectId || !storageKey) return;
-    localStorage.setItem(storageKey, requestedProjectId);
-    setStoredProjectId(requestedProjectId);
-  }, [requestedProjectId, storageKey]);
+    if (!storageKey) return;
+    if (researcherPanel && !projectsQuery.isSuccess) return;
+    const candidate = requestedProjectId || storedProjectId;
+    const allowed = !researcherPanel || projectsQuery.data?.projects.some(({ id }) => id === candidate);
+    if (candidate && allowed) {
+      localStorage.setItem(storageKey, candidate);
+      setStoredProjectId(candidate);
+    } else if (candidate) {
+      localStorage.removeItem(storageKey);
+      setStoredProjectId(null);
+    }
+  }, [requestedProjectId, storedProjectId, storageKey, researcherPanel, projectsQuery.isSuccess, projectsQuery.data]);
+
+  const candidateId = requestedProjectId || storedProjectId;
+  const validatedProjectId = researcherPanel
+    ? projectsQuery.isSuccess && projectsQuery.data.projects.some(({ id }) => id === candidateId) ? candidateId : null
+    : candidateId;
 
   const selectProject = useCallback(
     (projectId: string | null, options?: { replace?: boolean }) => {
+      if (projectId && researcherPanel && (!projectsQuery.isSuccess || !projectsQuery.data.projects.some(({ id }) => id === projectId))) return;
       if (storageKey) {
         if (projectId) localStorage.setItem(storageKey, projectId);
         else localStorage.removeItem(storageKey);
@@ -62,18 +89,19 @@ export function ActiveProjectProvider({ children }: { children: ReactNode }) {
         replace: options?.replace,
       });
     },
-    [location.pathname, location.search, navigate, storageKey],
+    [location.pathname, location.search, navigate, storageKey, researcherPanel, projectsQuery.isSuccess, projectsQuery.data],
   );
 
   const value = useMemo<ActiveProjectContextValue>(
     () => ({
-      activeProjectId: requestedProjectId || storedProjectId,
+      activeProjectId: validatedProjectId,
       requestedProjectId,
+      authorizedProjectIds: researcherPanel ? (projectsQuery.isSuccess ? projectsQuery.data.projects.map(({ id }) => id) : []) : null,
       selectProject,
       projectHref: (path, projectId) =>
-        withProjectContext(path, projectId === undefined ? requestedProjectId || storedProjectId : projectId),
+        withProjectContext(path, projectId === undefined ? validatedProjectId : projectId),
     }),
-    [requestedProjectId, selectProject, storedProjectId],
+    [requestedProjectId, selectProject, validatedProjectId, researcherPanel, projectsQuery.isSuccess, projectsQuery.data],
   );
 
   return <ActiveProjectContext.Provider value={value}>{children}</ActiveProjectContext.Provider>;
@@ -88,7 +116,7 @@ export function useActiveProjectContext() {
 export function useActiveProject<T extends ProjectOption>(projects: T[]) {
   const context = useActiveProjectContext();
   const resolution = resolveActiveProject(
-    projects,
+    context.authorizedProjectIds === null ? projects : projects.filter(({ id }) => context.authorizedProjectIds!.includes(id)),
     context.requestedProjectId,
     context.activeProjectId,
   );

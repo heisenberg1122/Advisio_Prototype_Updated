@@ -23,15 +23,15 @@ function cleanName(value: unknown, max = 255) {
   return String(value || "").trim().replace(/[\\/:*?"<>|]/g, "-").slice(0, max);
 }
 
-async function membership(researchId: string, userId: string) {
+async function membership(researchId: string, userId: string, researcherPanel = false) {
   return prisma.researchMember.findFirst({
-    where: { researchId, userId, leftAt: null },
+    where: { researchId, userId, leftAt: null, ...(researcherPanel ? { projectRole: { in: ["LEADER" as const, "MEMBER" as const] } } : {}) },
     select: { projectRole: true },
   });
 }
 
 async function requireMember(req: Request, res: Response, researchId: string) {
-  const member = await membership(researchId, req.user!.id);
+  const member = await membership(researchId, req.user!.id, req.user!.researcherPanel);
   if (!member) {
     res.status(403).json({ error: "Only active research group members can access these files." });
     return null;
@@ -220,7 +220,7 @@ router.post("/research/:researchId/group-files", requireAuth, upload.array("file
 router.get("/group-files/:fileId/content", requireAuth, async (req, res) => {
   try {
     const file = await prisma.groupFile.findFirst({ where: { id: String(req.params.fileId), deletedAt: null } });
-    if (!file || !(await membership(file.researchId, req.user!.id))) return void res.status(404).json({ error: "File not found." });
+    if (!file || !(await membership(file.researchId, req.user!.id, req.user!.researcherPanel))) return void res.status(404).json({ error: "File not found." });
     res.type(file.mimeType);
     res.setHeader("Content-Disposition", `${req.query.download === "1" ? "attachment" : "inline"}; filename="${file.name.replace(/"/g, "")}"`);
     if (file.storageProvider === "LOCAL") {

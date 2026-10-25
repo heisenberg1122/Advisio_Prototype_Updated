@@ -23,6 +23,10 @@ const router = Router();
 function researchScopeWhere(user: AuthenticatedUser) {
   const scope = getCollegeScope(user);
   const collegeWhere = scope.kind === "college" ? { collegeId: scope.collegeId } : {};
+  if (user.researcherPanel) return {
+    ...collegeWhere,
+    members: { some: { userId: user.id, leftAt: null, projectRole: { in: ["LEADER" as const, "MEMBER" as const] } } },
+  };
   if (scope.kind === "institution" || user.roles.includes("RESEARCH_COORDINATOR")) return collegeWhere;
 
   const access: any[] = [];

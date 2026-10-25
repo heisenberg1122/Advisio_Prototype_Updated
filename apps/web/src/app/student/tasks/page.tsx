@@ -4,7 +4,7 @@ import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
 
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, panelRequestHeaders } from "@/lib/api-client";
 import { formatTaskDeadline } from "@/lib/workflow-deadlines";
 import { Tag } from "@/components/ui/Tag";
 import { StatCard } from "@/components/ui/StatCard";
@@ -425,7 +425,7 @@ export default function ResearchTasksPage() {
       const response = await fetch(
         `${apiBase}/api/documents/files/${version.googleDriveFileId}`,
         {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...panelRequestHeaders() },
         },
       );
       if (!response.ok) throw new Error("Unable to open the signed PDF.");

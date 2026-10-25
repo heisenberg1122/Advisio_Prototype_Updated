@@ -15,6 +15,16 @@ export function consultationAccessPolicy(
 ) {
   const institutionalRoles = new Set(user.roles);
   const projectRoles = new Set(context.activeProjectRoles);
+  if (user.researcherPanel) {
+    const isResearcher = projectRoles.has("LEADER") || projectRoles.has("MEMBER");
+    return {
+      exists: context.exists,
+      canView: context.exists && isResearcher,
+      canRequest: context.exists && isResearcher,
+      canApprove: false,
+      isAssignedFaculty: false,
+    };
+  }
   const isAdministrator = institutionalRoles.has("SYSTEM_ADMIN");
   const isProjectMember = [
     "LEADER",

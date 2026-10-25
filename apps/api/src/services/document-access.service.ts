@@ -31,6 +31,17 @@ export function documentProjectAccessPolicy(
   const roles = new Set(user.roles);
   const projectRoles = new Set(context.activeProjectRoles);
   const isResearcher = projectRoles.has("LEADER") || projectRoles.has("MEMBER");
+  if (user.researcherPanel) {
+    return {
+      exists: true,
+      canView: isResearcher,
+      canManageWorkingDocuments: isResearcher,
+      canSubmitManuscript: isResearcher,
+      canReview: false,
+      canApproveOfficialDocuments: false,
+      reasons: isResearcher ? ["research-group-member"] : [],
+    };
+  }
   const isAdviser = roles.has("ADVISER") && projectRoles.has("ADVISER");
   const isProfessor =
     roles.has("RESEARCH_COORDINATOR") && context.isWorkflowOwner;
@@ -218,6 +229,7 @@ class DocumentAccessService {
       user,
       version.document.researchId,
     );
+    if (user.researcherPanel) return projectAccess.canView;
     const packetAccess = [
       version.packetManuscripts,
       version.packetSimilarityReports,
@@ -240,6 +252,7 @@ class DocumentAccessService {
     versionId: string,
     reviewType: "ADVISER" | "PANEL" | "REB" | "COORDINATOR" | "DEAN",
   ) {
+    if (user.researcherPanel) return false;
     const version = await prisma.documentVersion.findUnique({
       where: { id: versionId },
       select: {
