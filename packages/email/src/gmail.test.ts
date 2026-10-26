@@ -28,7 +28,7 @@ describe("Gmail delivery", () => {
   });
   it("fails rather than falling back to mock delivery for missing Gmail credentials", async () => {
     vi.stubEnv("GMAIL_REFRESH_TOKEN", "");
-    expect(await sendEmail(message)).toEqual({ success: false, error: "Gmail delivery is not configured." });
+    expect(await sendEmail(message)).toMatchObject({ success: false, error: "Gmail delivery is not configured.", errorCode: "GMAIL_NOT_CONFIGURED" });
   });
   it("rejects header injection and sender overrides before contacting Google", async () => {
     const fetchMock = vi.fn(); vi.stubGlobal("fetch", fetchMock);
@@ -43,7 +43,18 @@ describe("Gmail delivery", () => {
     expect((await sendEmail(message)).error).toContain("authorization failed (HTTP 400)");
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "token" })))
       .mockResolvedValueOnce(new Response("secret-details", { status: 429 }));
-    expect(await sendEmail(message)).toEqual({ success: false, error: "Gmail delivery failed (HTTP 429)." });
+    expect(await sendEmail(message)).toMatchObject({ success: false, error: "Gmail delivery failed (HTTP 429).", errorCode: "GMAIL_RATE_LIMITED" });
+  });
+  it.each(["invalid_client", "invalid_grant"])("identifies %s without echoing Google response bodies", async (error) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error, error_description: "sensitive-provider-description" }), { status: 400 })));
+    const result = await sendEmail(message);
+    expect(result.errorCode).toBe(error === "invalid_client" ? "GMAIL_INVALID_CLIENT" : "GMAIL_INVALID_GRANT");
+    expect(JSON.stringify(result)).not.toContain("sensitive-provider-description");
+  });
+  it("identifies missing Gmail permissions", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "token" })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { errors: [{ reason: "insufficientPermissions" }], message: "private-details" } }), { status: 403 })));
+    expect((await sendEmail(message)).errorCode).toBe("GMAIL_SCOPE_INSUFFICIENT");
   });
   it("disallows mock delivery in production and missing Resend credentials", async () => {
     vi.stubEnv("EMAIL_PROVIDER", "mock"); vi.stubEnv("NODE_ENV", "production");

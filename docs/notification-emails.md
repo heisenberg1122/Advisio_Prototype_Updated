@@ -133,6 +133,27 @@ gets a new reminder identity; an expired reminder is suppressed.
 
 ## Preview and validate
 
+For a deployed Docker API, run this in Render Shell from `/app` to inspect
+configuration without printing credentials or sending mail:
+
+```bash
+node apps/api/scripts/check-gmail.mjs
+```
+
+To explicitly send one connection-test email to an address you control:
+
+```bash
+node apps/api/scripts/check-gmail.mjs --to YOUR_TEST_EMAIL
+```
+
+The worker logs safe error codes and persists them in `emailLastError`:
+`GMAIL_INVALID_CLIENT` means the OAuth client credentials were rejected;
+`GMAIL_INVALID_GRANT` means the refresh token was rejected;
+`GMAIL_SCOPE_INSUFFICIENT` means the send permission is missing. Provider bodies,
+credentials, and email content are excluded from these diagnostics. Fix the
+configuration first; jobs that already reached five attempts need an explicit
+requeue, or use the separate connection-test command to validate the fix.
+
 Run `npm run email:preview` to generate all fourteen examples plus a desktop/mobile
 gallery at `.local/email-previews/index.html`. Open that file locally. This sends
 no messages. The examples use sample names and links based on

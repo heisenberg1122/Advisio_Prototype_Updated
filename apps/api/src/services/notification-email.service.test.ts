@@ -148,4 +148,14 @@ describe("notification email queue", () => {
       }),
     );
   });
+  it("logs and persists only allowlisted diagnostics for Gmail authorization errors", async () => {
+    const log = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      mocks.sendEmail.mockResolvedValue({ success: false, errorCode: "GMAIL_INVALID_GRANT", error: "sensitive-provider-response" });
+      await processNotificationEmails();
+      expect(mocks.updateMany).toHaveBeenLastCalledWith(expect.objectContaining({ data: expect.objectContaining({ emailLastError: expect.stringContaining("[GMAIL_INVALID_GRANT]") }) }));
+      expect(JSON.stringify(log.mock.calls)).not.toContain("sensitive-provider-response");
+      expect(JSON.stringify(log.mock.calls)).toContain("GMAIL_INVALID_GRANT");
+    } finally { log.mockRestore(); }
+  });
 });
