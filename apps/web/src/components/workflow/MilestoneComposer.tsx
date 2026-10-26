@@ -13,7 +13,8 @@ type MilestoneComposerProps = {
   requiresDocument: boolean;
   requiresApproval: boolean;
   category: string;
-  milestoneType?: "STANDARD" | "ADVISER_SELECTION";
+  milestoneType?: "STANDARD" | "ADVISER_SELECTION" | "DEFENSE_ELIGIBILITY";
+  onMilestoneTypeChange?: (value: "STANDARD" | "DEFENSE_ELIGIBILITY") => void;
   requiredMilestoneId?: string;
   milestoneConditions?: Array<{ value: string; label: string }>;
   saving: boolean;
@@ -52,6 +53,7 @@ export function MilestoneComposer({
   requiresApproval,
   category,
   milestoneType = "STANDARD",
+  onMilestoneTypeChange,
   requiredMilestoneId = "",
   milestoneConditions = [],
   saving,
@@ -422,6 +424,7 @@ export function MilestoneComposer({
                       <input
                         type="checkbox"
                         checked={requiresApproval}
+                        disabled={milestoneType === "DEFENSE_ELIGIBILITY"}
                         onChange={(event) =>
                           onRequiresApprovalChange(event.target.checked)
                         }
@@ -453,9 +456,11 @@ export function MilestoneComposer({
                     <span className="mt-1 block text-xs leading-5 text-[var(--color-text-secondary)]">
                       {isAdviserMilestone
                         ? "The selected faculty adviser completes this gate only by accepting the official adviser request."
-                        : requiresApproval
-                          ? `${reviewerLabel} must approve every required submission before the next milestone unlocks.`
-                          : "Required submissions must be completed before the next milestone unlocks; no separate faculty approval gate is added."}
+                        : milestoneType === "DEFENSE_ELIGIBILITY"
+                          ? "Approve required submissions first, then grant the group's eligibility in Defense → Defense eligibility approvals."
+                          : requiresApproval
+                            ? `${reviewerLabel} must approve every required submission before the next milestone unlocks.`
+                            : "Required submissions must be completed before the next milestone unlocks; no separate faculty approval gate is added."}
                     </span>
                   </div>
                 </div>
@@ -488,13 +493,28 @@ export function MilestoneComposer({
                     <label className="mt-4 block text-sm font-bold text-slate-700">
                       Milestone type
                       <select
-                        value={category}
-                        onChange={(event) =>
-                          onCategoryChange(event.target.value)
+                        value={
+                          milestoneType === "DEFENSE_ELIGIBILITY"
+                            ? "DEFENSE_ELIGIBILITY"
+                            : category
                         }
+                        onChange={(event) => {
+                          const defenseGate =
+                            event.target.value === "DEFENSE_ELIGIBILITY";
+                          onMilestoneTypeChange?.(
+                            defenseGate ? "DEFENSE_ELIGIBILITY" : "STANDARD",
+                          );
+                          onCategoryChange(
+                            defenseGate ? "Milestone" : event.target.value,
+                          );
+                          if (defenseGate) onRequiresApprovalChange(true);
+                        }}
                         className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
                       >
                         <option value="Milestone">Standard milestone</option>
+                        <option value="DEFENSE_ELIGIBILITY">
+                          Defense Eligibility
+                        </option>
                         <option value="Compliance">
                           Compliance requirement
                         </option>
@@ -502,6 +522,13 @@ export function MilestoneComposer({
                           Approval checkpoint
                         </option>
                       </select>
+                      {milestoneType === "DEFENSE_ELIGIBILITY" && (
+                        <span className="mt-2 block text-xs font-normal leading-5 text-slate-500">
+                          Coordinator approval grants one defense cycle. Passing
+                          that defense consumes the eligibility; another
+                          milestone approval is needed for the next defense.
+                        </span>
+                      )}
                     </label>
                   ))}
               </section>

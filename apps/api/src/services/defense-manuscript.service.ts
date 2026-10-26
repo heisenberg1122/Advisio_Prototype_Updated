@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma.js";
+import { hasSignedDefenseApproval } from "./defense-eligibility.service.js";
 
 const PANEL_ROLES = new Set(["PANELIST", "PANEL_CHAIR"]);
 const DEFENSE_FACILITATOR_ROLES = new Set(["RESEARCH_COORDINATOR", "DEAN"]);
@@ -154,6 +155,8 @@ class DefenseManuscriptService {
       select: {
         id: true,
         researchId: true,
+        eligibilityId: true,
+        eligibility: { select: { deanApprovalDocumentId: true } },
         status: true,
         research: {
           select: {
@@ -249,7 +252,12 @@ class DefenseManuscriptService {
       (invitation) => invitation.isRequired && invitation.status !== "REMOVED",
     );
     const sessionChecks = {
-      institutionalApprovalSatisfied: session.research.documents.length > 0,
+      institutionalApprovalSatisfied: session.eligibilityId
+        ? await hasSignedDefenseApproval(
+            prisma,
+            session.eligibility?.deanApprovalDocumentId || null,
+          )
+        : session.research.documents.length > 0,
       hasAcceptedPanelist: acceptedPanelists.length > 0,
       requiredPanelistsAccepted:
         requiredPanelists.length > 0 &&

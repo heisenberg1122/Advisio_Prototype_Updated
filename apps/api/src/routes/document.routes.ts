@@ -1,3 +1,7 @@
+import {
+  lockDefenseGroup,
+  requireDefenseEligibility,
+} from "../services/defense-eligibility.service.js";
 import { Router, Request, Response } from "express";
 import multer from "multer";
 import fs from "node:fs";
@@ -65,7 +69,7 @@ const canManageSignature = (user: NonNullable<Request["user"]>) =>
   user.roles.some((role) => documentSignerRoles.has(role));
 
 const canUseDeanInbox = (user: NonNullable<Request["user"]>) =>
-    (user.roles.includes("DEAN") && Boolean(user.collegeId));
+  user.roles.includes("DEAN") && Boolean(user.collegeId);
 
 const canViewResearchDocuments = async (
   user: NonNullable<Request["user"]>,
@@ -398,7 +402,6 @@ router.get("/dean-inbox/recipients", requireAuth, async (req, res) => {
           collegeId: research.collegeId,
           roles: { some: { role: { name: "DEAN" } } },
         },
-
       ],
     },
     select: {
@@ -425,105 +428,225 @@ router.post(
   requireAuth,
   upload.single("file"),
   async (req, res) => {
-    if (!req.user || !req.user.roles.includes("RESEARCH_COORDINATOR"))
-      return void res.status(403).json({
-        error:
-          "Only a research professor or coordinator can send a Dean signature request.",
+    let stored: Awaited<
+      ReturnType<typeof documentService.storeDocumentFile>
+    > | null = null;
+    let committed = false;
+    try {
+      if (!req.user || !req.user.roles.includes("RESEARCH_COORDINATOR"))
+        return void res
+          .status(403)
+          .json({
+            error:
+              "Only a research professor or coordinator can send a Dean signature request.",
+          });
+      let requested: unknown;
+      try {
+        requested = req.body.researchIds
+          ? JSON.parse(req.body.researchIds)
+          : [req.body.researchId];
+      } catch {
+        return void res
+          .status(400)
+          .json({ error: "Choose valid research groups." });
+      }
+      if (
+        !Array.isArray(requested) ||
+        !requested.length ||
+        requested.length > 50 ||
+        requested.some((id) => typeof id !== "string" || !id)
+      )
+        return void res
+          .status(400)
+          .json({ error: "Choose between 1 and 50 research groups." });
+      const researchIds = [...new Set<string>(requested)];
+      const subject = String(req.body.subject || "").trim();
+      const message = String(req.body.message || "").trim();
+      const recipientId = String(req.body.recipientId || "");
+      if (
+        !subject ||
+        subject.length > 255 ||
+        !message ||
+        message.length > 5000 ||
+        !recipientId ||
+        !req.file
+      )
+        return void res
+          .status(400)
+          .json({
+            error:
+              "Research groups, Dean, subject, message, and a PDF letter are required.",
+          });
+      if (
+        req.file.mimetype !== "application/pdf" ||
+        req.file.buffer.subarray(0, 5).toString("ascii") !== "%PDF-"
+      )
+        return void res
+          .status(400)
+          .json({ error: "Attach a valid PDF request letter." });
+      for (const researchId of researchIds) {
+        if (!(await canViewResearchDocuments(req.user, researchId)))
+          return void res
+            .status(403)
+            .json({
+              error:
+                "One or more research groups are outside your assigned scope.",
+            });
+      }
+      const projects = await prisma.researchProject.findMany({
+        where: { id: { in: researchIds } },
+        select: { id: true, title: true, collegeId: true },
       });
-    const researchId =
-      typeof req.body?.researchId === "string" ? req.body.researchId : "";
-    const subject =
-      typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
-    const message =
-      typeof req.body?.message === "string" ? req.body.message.trim() : "";
-    const recipientId =
-      typeof req.body?.recipientId === "string" ? req.body.recipientId : "";
-    if (!researchId || !recipientId || !subject || !message || !req.file)
-      return void res.status(400).json({
-        error:
-          "Research group, Dean recipient, subject, message, and PDF request letter are required.",
+      if (
+        projects.length !== researchIds.length ||
+        new Set(projects.map((item) => item.collegeId)).size !== 1
+      )
+        return void res
+          .status(400)
+          .json({ error: "Choose groups from the same college." });
+      const recipient = await prisma.user.findFirst({
+        where: {
+          id: recipientId,
+          status: "ACTIVE",
+          collegeId: projects[0].collegeId,
+          roles: { some: { role: { name: "DEAN" } } },
+        },
+        select: { id: true, firstName: true, lastName: true },
       });
-    if (subject.length > 255 || message.length > 5000)
-      return void res
-        .status(400)
-        .json({ error: "The subject or message is too long." });
-    if (
-      req.file.mimetype !== "application/pdf" ||
-      req.file.buffer.subarray(0, 5).toString("ascii") !== "%PDF-"
-    )
-      return void res
-        .status(400)
-        .json({ error: "Attach a valid PDF request letter." });
-    if (!(await canViewResearchDocuments(req.user, researchId)))
-      return void res
-        .status(403)
-        .json({ error: "You cannot send a request for this research group." });
-
-    const research = await prisma.researchProject.findUnique({
-      where: { id: researchId },
-      select: { title: true, collegeId: true },
-    });
-    const recipient = await prisma.user.findFirst({
-      where: {
-        id: recipientId,
-        status: "ACTIVE",
-        OR: [
-          {
-            collegeId: research?.collegeId,
-            roles: { some: { role: { name: "DEAN" } } },
+      if (!recipient)
+        return void res
+          .status(400)
+          .json({
+            error: "Choose an active Dean assigned to these groups' college.",
+          });
+      for (const researchId of researchIds)
+        await requireDefenseEligibility(prisma, researchId, false);
+      const recipientName = `${recipient.firstName} ${recipient.lastName}`;
+      const payload = {
+        researchId: researchIds[0],
+        title: subject,
+        documentType: "DEAN_DEFENSE_APPROVAL",
+        fileBuffer: req.file.buffer,
+        fileName: req.file.originalname,
+        mimeType: "application/pdf",
+        uploadedBy: req.user.id,
+        deanRecipient: { id: recipient.id, name: recipientName },
+      };
+      stored = await documentService.storeDocumentFile(payload);
+      const uploaded = stored;
+      const result = await prisma.$transaction(async (tx) => {
+        const eligibilities: Awaited<
+          ReturnType<typeof requireDefenseEligibility>
+        >[] = [];
+        for (const researchId of [...researchIds].sort()) {
+          await lockDefenseGroup(tx, researchId);
+          eligibilities.push(
+            await requireDefenseEligibility(tx, researchId, false),
+          );
+        }
+        const document = await tx.document.create({
+          data: {
+            researchId: researchIds[0],
+            milestoneId: eligibilities.find(
+              (item) => item.researchId === researchIds[0],
+            )!.milestoneId,
+            title: subject,
+            documentType: "DEAN_DEFENSE_APPROVAL",
+            currentVersion: 1,
+            storageProvider: uploaded.provider,
+            externalFileId:
+              uploaded.provider === "LOCAL"
+                ? null
+                : uploaded.storageResult.fileId,
+            createdBy: req.user!.id,
           },
-
-        ],
-      },
-      select: { id: true, firstName: true, middleName: true, lastName: true },
-    });
-    if (!recipient)
-      return void res.status(400).json({
-        error: "The selected Dean is unavailable for this research group.",
+        });
+        const version = await tx.documentVersion.create({
+          data: {
+            documentId: document.id,
+            versionNumber: 1,
+            fileName: uploaded.storageResult.fileName,
+            mimeType: "application/pdf",
+            fileSize: BigInt(uploaded.storageResult.sizeBytes),
+            storagePath: uploaded.storageResult.storagePath,
+            googleDriveFileId:
+              uploaded.provider === "GOOGLE_DRIVE"
+                ? uploaded.storageResult.fileId
+                : null,
+            uploadedBy: req.user!.id,
+            status: "ACTIVE",
+          },
+        });
+        await tx.defenseEligibility.updateMany({
+          where: {
+            id: { in: eligibilities.map((item) => item.id) },
+            consumedAt: null,
+          },
+          data: { deanApprovalDocumentId: document.id },
+        });
+        const groupSummary = projects
+          .map(
+            (project) =>
+              `${project.title} — ${eligibilities.find((item) => item.researchId === project.id)!.milestoneName}`,
+          )
+          .join("\n");
+        const request = await tx.deanInboxMessage.create({
+          data: {
+            documentId: document.id,
+            authorId: req.user!.id,
+            recipientId,
+            message: `${message}\n\nResearch groups covered by this request:\n${groupSummary}`,
+            attachmentVersionId: version.id,
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            userId: req.user!.id,
+            action: "CREATE",
+            entityType: "DefenseApprovalRequest",
+            entityId: document.id,
+            newValues: {
+              researchIds,
+              eligibilityIds: eligibilities.map((item) => item.id),
+              recipientId,
+            },
+          },
+        });
+        await tx.notification.create({
+          data: {
+            audience: "dean",
+            recipientId,
+            type: "DOCUMENT_UPLOADED",
+            title: "New Dean signature request",
+            message: `Defense approval requested for ${projects.length} research group(s).`,
+            entityType: "DeanInboxMessage",
+            entityId: request.id,
+          },
+        });
+        return {
+          request,
+          document,
+          version: { ...version, fileSize: Number(version.fileSize) },
+          recipient: { id: recipient.id, name: recipientName },
+          groupCount: projects.length,
+        };
       });
-    const recipientName = [
-      recipient.firstName,
-      recipient.middleName,
-      recipient.lastName,
-    ]
-      .filter(Boolean)
-      .join(" ");
-
-    const result = await documentService.createDocumentWithVersion({
-      researchId,
-      title: subject,
-      documentType: "DEAN_DEFENSE_APPROVAL",
-      fileBuffer: req.file.buffer,
-      fileName: req.file.originalname,
-      mimeType: "application/pdf",
-      uploadedBy: req.user.id,
-      deanRecipient: { id: recipient.id, name: recipientName },
-    });
-    const inboxMessage = await prisma.deanInboxMessage.create({
-      data: {
-        documentId: result.document.id,
-        authorId: req.user.id,
-        recipientId: recipient.id,
-        message,
-        attachmentVersionId: result.version.id,
-      },
-    });
-    await prisma.notification.create({
-      data: {
-        audience: "dean", recipientId: recipient.id,
-        type: "DOCUMENT_UPLOADED",
-        title: "New Dean signature request",
-        message: `${req.user.firstName || "A professor"} ${req.user.lastName || ""} requested a signature for ${research?.title || subject}.`,
-        entityType: "DeanInboxMessage",
-        entityId: inboxMessage.id,
-      },
-    });
-    res.status(201).json({
-      request: inboxMessage,
-      document: result.document,
-      version: result.version,
-      recipient: { id: recipient.id, name: recipientName },
-    });
+      committed = true;
+      res.status(201).json(result);
+    } catch (error: any) {
+      res
+        .status(error.statusCode || 500)
+        .json({
+          error:
+            error.message || "Unable to send the defense signature request.",
+        });
+    } finally {
+      if (stored && !committed)
+        await documentService.cleanupStoredFile(
+          stored.provider,
+          stored.storageResult,
+        );
+    }
   },
 );
 
@@ -590,19 +713,55 @@ router.post(
 );
 
 // Provider-neutral, authorization-scoped version preview/download.
-router.get("/documents/versions/:versionId/content", requireAuth, async (req, res) => {
-  try {
-    const version = await prisma.documentVersion.findUnique({ where: { id: String(req.params.versionId) }, include: { document: { select: { storageProvider: true } } } });
-    if (!version || !(await documentAccessService.canViewVersion(req.user!, version.id))) return void res.status(404).json({ error: "Document version not found." });
-    const { buffer } = await documentService.readStoredVersionFile({ storageProvider: version.document.storageProvider, storagePath: version.storagePath, googleDriveFileId: version.googleDriveFileId, expectedSize: version.fileSize });
-    if (req.query.download === "1") await prisma.auditLog.create({ data: { userId: req.user!.id, action: "DOWNLOAD", entityType: "DocumentVersion", entityId: version.id, ipAddress: req.ip, userAgent: req.get("user-agent") } });
-    const inline = req.query.download !== "1" && version.mimeType === "application/pdf";
-    res.type(version.mimeType);
-    res.setHeader("Content-Disposition", `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(version.fileName)}`);
-    res.setHeader("Cache-Control", "private, no-store");
-    res.send(buffer);
-  } catch (error: any) { res.status(error.statusCode || 500).json({ error: "The document could not be opened. Please try again." }); }
-});
+router.get(
+  "/documents/versions/:versionId/content",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const version = await prisma.documentVersion.findUnique({
+        where: { id: String(req.params.versionId) },
+        include: { document: { select: { storageProvider: true } } },
+      });
+      if (
+        !version ||
+        !(await documentAccessService.canViewVersion(req.user!, version.id))
+      )
+        return void res
+          .status(404)
+          .json({ error: "Document version not found." });
+      const { buffer } = await documentService.readStoredVersionFile({
+        storageProvider: version.document.storageProvider,
+        storagePath: version.storagePath,
+        googleDriveFileId: version.googleDriveFileId,
+        expectedSize: version.fileSize,
+      });
+      if (req.query.download === "1")
+        await prisma.auditLog.create({
+          data: {
+            userId: req.user!.id,
+            action: "DOWNLOAD",
+            entityType: "DocumentVersion",
+            entityId: version.id,
+            ipAddress: req.ip,
+            userAgent: req.get("user-agent"),
+          },
+        });
+      const inline =
+        req.query.download !== "1" && version.mimeType === "application/pdf";
+      res.type(version.mimeType);
+      res.setHeader(
+        "Content-Disposition",
+        `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(version.fileName)}`,
+      );
+      res.setHeader("Cache-Control", "private, no-store");
+      res.send(buffer);
+    } catch (error: any) {
+      res
+        .status(error.statusCode || 500)
+        .json({ error: "The document could not be opened. Please try again." });
+    }
+  },
+);
 
 // GET /api/documents/files/:fileId — authenticated preview/download for Drive or local fallback files.
 router.get(
@@ -736,9 +895,23 @@ router.get(
           error: "You cannot view this project's manuscript workflow.",
         });
       if (req.user!.roles.includes("RESEARCHER")) {
-        const instance = await prisma.workflowInstance.findUnique({ where: { researchId }, select: { workflowId: true } });
-        if (!instance || !(await hasActiveWorkflowEnrollment(req.user!.id, instance.workflowId))) {
-          return void res.status(403).json({ error: "Your access to this workflow was removed by the professor." });
+        const instance = await prisma.workflowInstance.findUnique({
+          where: { researchId },
+          select: { workflowId: true },
+        });
+        if (
+          !instance ||
+          !(await hasActiveWorkflowEnrollment(
+            req.user!.id,
+            instance.workflowId,
+          ))
+        ) {
+          return void res
+            .status(403)
+            .json({
+              error:
+                "Your access to this workflow was removed by the professor.",
+            });
         }
       }
       const [milestones, activity] = await Promise.all([
@@ -1689,7 +1862,13 @@ router.post(
         return void res
           .status(403)
           .json({ error: "Your role cannot sign documents." });
-      const { password, confirmation, placements, signatureImage, saveSignature } = req.body || {};
+      const {
+        password,
+        confirmation,
+        placements,
+        signatureImage,
+        saveSignature,
+      } = req.body || {};
       if (confirmation !== true)
         return void res
           .status(400)
