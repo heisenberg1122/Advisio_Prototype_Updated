@@ -1,0 +1,51 @@
+/* Keep public branding legible when a returning user's portal theme is active. */
+.landing-page {
+  color-scheme: light;
+  --color-surface: #fff;
+  --color-surface-muted: #f1f5f9;
+  --color-border: #cbd5e1;
+  --color-primary: #0b3553;
+  --color-primary-dark: #124569;
+  --color-primary-text: #0b3553;
+  --color-on-primary: #fff;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-success: #166534;
+  --color-warning: #92400e;
+  --color-info: #1d4ed8;
+  --color-danger: #9f1239;
+}
+
+.landing-page section[id],
+.landing-page main[id] {
+  scroll-margin-top: 6rem;
+}
+
+/* Dark portal utilities must not recolor the light product previews. */
+:root body .landing-page :is([class~="text-slate-700"], [class~="text-slate-800"], [class~="text-slate-900"]) {
+  color: var(--color-text-primary) !important;
+}
+
+:root body .landing-page :is([class~="text-blue-700"], [class~="text-blue-800"], [class~="text-blue-900"]) {
+  color: #1d4ed8 !important;
+}
+
+/* Supporting text on navy panels needs a light foreground in both appearances. */
+:root body .landing-page :is(#security, .landing-final-cta) :is([class~="text-slate-300"], [class~="text-slate-400"]) {
+  color: #cbd5e1 !important;
+}
+
+.landing-page button {
+  touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page *,
+  .landing-page *::before,
+  .landing-page *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
