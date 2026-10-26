@@ -14,6 +14,7 @@ import { validateBody } from "../middleware/validate";
 import { requireAuth } from "../middleware/auth";
 import { requirePermission } from "../middleware/rbac";
 import { getCollegeScope } from "../lib/college-scope.js";
+import { jsonSafe } from "../lib/json-response.js";
 import workflowAccessRoutes, {
   generateWorkflowCode,
   previewWorkflow,
@@ -3038,7 +3039,7 @@ router.post(
         ipAddress: req.ip,
         userAgent: req.get("user-agent"),
       });
-      res.status(result.duplicate ? 200 : 201).json(result);
+      res.status(result.duplicate ? 200 : 201).json(jsonSafe(result));
     } catch (error: any) {
       res
         .status(error?.statusCode || 500)
@@ -3114,7 +3115,7 @@ router.post(
           );
         }
       }
-      res.status(result.duplicate ? 200 : 201).json({ submission });
+      res.status(result.duplicate ? 200 : 201).json(jsonSafe({ submission }));
     } catch (error: any) {
       res.status(error?.statusCode || 500).json({
         error: error.message || "Failed to submit task requirement",
