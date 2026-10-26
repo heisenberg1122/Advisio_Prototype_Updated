@@ -59,6 +59,17 @@ export const reorderWorkflowTopicsSchema = z.object({
   topicIds: z.array(z.string().uuid("Invalid topic ID")).min(1),
 });
 
+export const reorderWorkflowMilestonesSchema = z.object({
+  milestones: z
+    .array(
+      z.object({
+        id: z.string().uuid("Invalid milestone ID"),
+        topicId: z.string().uuid("Invalid topic ID").nullable(),
+      }),
+    )
+    .min(1),
+});
+
 export const workflowTransitionSchema = z.object({
   workflowInstanceId: z.string().uuid("Invalid workflow instance ID"),
   toStageId: z.string().uuid("Invalid stage ID"),
@@ -72,5 +83,8 @@ export type CreateWorkflowTopicInput = z.infer<
 >;
 export type UpdateWorkflowTopicInput = z.infer<
   typeof updateWorkflowTopicSchema
+>;
+export type ReorderWorkflowMilestonesInput = z.infer<
+  typeof reorderWorkflowMilestonesSchema
 >;
 export type WorkflowTransitionInput = z.infer<typeof workflowTransitionSchema>;
