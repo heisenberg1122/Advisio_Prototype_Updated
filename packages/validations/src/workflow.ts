@@ -17,7 +17,9 @@ export const workflowStageSchema = z.object({
   targetCompletionDate: targetCompletionDateSchema,
   isFinal: z.boolean().default(false),
   submissionMode: z.enum(["INDIVIDUAL", "GROUP", "EITHER"]).default("EITHER"),
-  milestoneType: z.enum(["STANDARD", "ADVISER_SELECTION"]).default("STANDARD"),
+  milestoneType: z
+    .enum(["STANDARD", "ADVISER_SELECTION", "DEFENSE_ELIGIBILITY"])
+    .default("STANDARD"),
 });
 
 export const createWorkflowSchema = z

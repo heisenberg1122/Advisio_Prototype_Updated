@@ -223,6 +223,9 @@ export async function getMilestoneProgress(
   const project = await client.researchProject.findUnique({
     where: { id: researchId },
     select: {
+      defenseEligibilities: {
+        select: { milestoneId: true, approvedAt: true, consumedAt: true },
+      },
       programId: true,
       members: {
         where: { leftAt: null, projectRole: "ADVISER" },
@@ -413,18 +416,31 @@ export async function getMilestoneProgress(
             hasEligibleAdviser: Boolean(activeAdviser),
             requestStatus: adviserRequest?.status,
           });
+    const defenseApproved = Boolean(
+      project.defenseEligibilities?.some(
+        (approval) => approval.milestoneId === stage.id,
+      ),
+    );
     const effectiveTotalRequirements =
-      stage.milestoneType === "ADVISER_SELECTION" ? 1 : totalRequirements;
+      stage.milestoneType === "ADVISER_SELECTION"
+        ? 1
+        : totalRequirements +
+          (stage.milestoneType === "DEFENSE_ELIGIBILITY" ? 1 : 0);
     const effectiveCompletedRequirements =
       stage.milestoneType === "ADVISER_SELECTION"
         ? activeAdviser
           ? 1
           : 0
-        : completedRequirements;
+        : completedRequirements +
+          (stage.milestoneType === "DEFENSE_ELIGIBILITY" && defenseApproved
+            ? 1
+            : 0);
     const effectiveCompleted =
-      stage.milestoneType === "ADVISER_SELECTION"
-        ? Boolean(activeAdviser)
-        : completed;
+      stage.milestoneType === "DEFENSE_ELIGIBILITY"
+        ? defenseApproved && (totalRequirements === 0 || completed)
+        : stage.milestoneType === "ADVISER_SELECTION"
+          ? Boolean(activeAdviser)
+          : completed;
     return {
       id: stage.id,
       name: stage.name,

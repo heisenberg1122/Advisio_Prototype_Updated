@@ -221,6 +221,10 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
     vi.spyOn(storageHierarchyService, "resolveFolder").mockResolvedValue(
       `defense-e2e-folder-${fixtureSuffix}`,
     );
+    vi.spyOn(
+      storageHierarchyService,
+      "resolveDeanApprovalsFolder",
+    ).mockResolvedValue(`defense-e2e-dean-folder-${fixtureSuffix}`);
 
     fixture = await guardedWrite(() =>
       prisma.$transaction(async (tx) => {
@@ -319,6 +323,7 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
           data: {
             workflowId: workflow.id,
             name: "Approved defense manuscript",
+            milestoneType: "DEFENSE_ELIGIBILITY",
             sequence: 1,
             responsibleRoleId: roleByName.get("RESEARCH_COORDINATOR")!,
             isFinal: true,
@@ -503,6 +508,15 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
             },
           });
 
+          await tx.defenseEligibility.create({
+            data: {
+              researchId: project.id,
+              milestoneId: stage.id,
+              approvedBy: professor.id,
+              deanApprovalDocumentId: approval.id,
+            },
+          });
+
           const recommendationTemplate = await tx.document.create({
             data: {
               researchId: project.id,
@@ -622,9 +636,14 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
         }),
       );
       await assertIsolatedIntegrationDatabase(prisma);
-      await guardedWrite(() => prisma.defenseEvent.deleteMany({
-        where: { collegeId: { in: fixtureScope.collegeIds }, createdBy: { in: fixtureScope.userIds } },
-      }));
+      await guardedWrite(() =>
+        prisma.defenseEvent.deleteMany({
+          where: {
+            collegeId: { in: fixtureScope.collegeIds },
+            createdBy: { in: fixtureScope.userIds },
+          },
+        }),
+      );
       await cleanupIntegrationFixture(prisma, fixtureScope);
       if (baseline) expect(await rootSnapshot()).toEqual(baseline);
     } catch (error) {
@@ -639,6 +658,87 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
       );
     }
   }, 60_000);
+
+  it("cancels an accidental session with confirmation without consuming eligibility", async () => {
+    const researchIds = [
+      fixture.projects.online.id,
+      fixture.projects.onsite.id,
+    ];
+    const created = await apiWrite(
+      "/api/defense-events",
+      fixture.professor.token,
+      "POST",
+      {
+        researchIds,
+        defenseType: "TITLE_DEFENSE",
+        scheduledStart: "2098-11-14T01:00:00.000Z",
+        scheduledEnd: "2098-11-14T03:00:00.000Z",
+        invitees: [
+          { userId: fixture.chair.id, role: "PANEL_CHAIR" },
+          { userId: fixture.panelistOne.id, role: "PANELIST" },
+        ],
+      },
+    );
+    const createdBody = await readJson(created);
+    expect(created.status, JSON.stringify(createdBody)).toBe(201);
+    for (const session of createdBody.event.sessions) {
+      expect(session.eligibilityId).toBeTruthy();
+      const missingConfirmation = await apiWrite(
+        `/api/defense-management/${session.id}`,
+        fixture.professor.token,
+        "DELETE",
+        {},
+      );
+      expect(missingConfirmation.status).toBe(400);
+      const denied = await apiWrite(
+        `/api/defense-management/${session.id}`,
+        fixture.outsider.token,
+        "DELETE",
+        { confirmation: `DELETE ${session.id}` },
+      );
+      expect(denied.status).toBe(403);
+      const cancelled = await apiWrite(
+        `/api/defense-management/${session.id}`,
+        fixture.professor.token,
+        "DELETE",
+        { confirmation: `DELETE ${session.id}` },
+      );
+      expect(cancelled.status).toBe(200);
+      expect(
+        (
+          await prisma.defenseSession.findUniqueOrThrow({
+            where: { id: session.id },
+          })
+        ).status,
+      ).toBe("CANCELLED");
+      expect(
+        (
+          await prisma.defenseEligibility.findUniqueOrThrow({
+            where: { id: session.eligibilityId },
+          })
+        ).consumedAt,
+      ).toBeNull();
+      const reschedule = await apiWrite(
+        `/api/defense-management/${session.id}/reschedule`,
+        fixture.professor.token,
+        "PATCH",
+        {
+          scheduledStart: "2098-11-14T01:00:00.000Z",
+          scheduledEnd: "2098-11-14T02:00:00.000Z",
+        },
+      );
+      expect(reschedule.status).toBe(409);
+    }
+    const groups = await readJson(
+      await request(
+        "/api/defense-management/eligible-groups",
+        fixture.professor.token,
+      ),
+    );
+    expect(groups.projects.map((item: any) => item.id)).toEqual(
+      expect.arrayContaining(researchIds),
+    );
+  });
 
   it("completes online, on-site, and hybrid defenses with scoped immutable records", async () => {
     const modes: Array<{
@@ -1162,6 +1262,20 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
     }
 
     for (const { mode } of modes) {
+      const eligibility = await prisma.defenseEligibility.findUniqueOrThrow({
+        where: {
+          researchId_milestoneId: {
+            researchId: fixture.projects[mode].id,
+            milestoneId: fixture.stageId,
+          },
+        },
+      });
+      expect(Boolean(eligibility.consumedAt)).toBe(
+        decisions[mode].decision === "APPROVED",
+      );
+    }
+
+    for (const { mode } of modes) {
       const project = fixture.projects[mode];
       const result = await request(
         `/api/research/${project.id}/defense-result`,
@@ -1232,35 +1346,250 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
   }, 120_000);
 
   it("issues title/final badges once and exposes them only through authorized defense reads", async () => {
-    for (const [mode, defenseType] of [["onsite", "TITLE_DEFENSE"], ["hybrid", "FINAL_ORAL_DEFENSE"]] as const) {
+    for (const [mode, defenseType] of [
+      ["onsite", "TITLE_DEFENSE"],
+      ["hybrid", "FINAL_ORAL_DEFENSE"],
+    ] as const) {
       const project = fixture.projects[mode];
-      const event = await guardedWrite(() => prisma.defenseEvent.create({ data: {
-        code: `BADGE-${crypto.randomBytes(6).toString("hex")}`,
-        collegeId: fixture.collegeId, createdBy: fixture.professor.id,
-        defenseType, status: "COMPLETED", scheduledStart: new Date(), scheduledEnd: new Date(),
-      } }));
-      await guardedWrite(() => prisma.defenseSession.update({
-        where: { id: project.sessionId }, data: { defenseEventId: event.id },
-      }));
+      const event = await guardedWrite(() =>
+        prisma.defenseEvent.create({
+          data: {
+            code: `BADGE-${crypto.randomBytes(6).toString("hex")}`,
+            collegeId: fixture.collegeId,
+            createdBy: fixture.professor.id,
+            defenseType,
+            status: "COMPLETED",
+            scheduledStart: new Date(),
+            scheduledEnd: new Date(),
+          },
+        }),
+      );
+      await guardedWrite(() =>
+        prisma.defenseSession.update({
+          where: { id: project.sessionId },
+          data: { defenseEventId: event.id },
+        }),
+      );
       const endpoint = `/api/defense-sessions/${project.sessionId}/badge`;
-      const forbidden = await apiWrite(endpoint, project.student.token, "POST", {});
+      const forbidden = await apiWrite(
+        endpoint,
+        project.student.token,
+        "POST",
+        {},
+      );
       expect(forbidden.status).toBe(403);
       const responses = await Promise.all([
         apiWrite(endpoint, fixture.professor.token, "POST", {}),
         apiWrite(endpoint, fixture.professor.token, "POST", {}),
       ]);
-      expect(responses.map((response) => response.status).sort()).toEqual([200, 201]);
+      expect(responses.map((response) => response.status).sort()).toEqual([
+        200, 201,
+      ]);
       const awards = await Promise.all(responses.map(readJson));
       expect(awards[0].badge.id).toBe(awards[1].badge.id);
-      expect(awards[0].badge.kind).toBe(mode === "onsite" ? "TITLE_DEFENSE" : "FINAL_DEFENSE");
-      const visible = await request(`/api/defense-sessions/${project.sessionId}`, project.student.token);
+      expect(awards[0].badge.kind).toBe(
+        mode === "onsite" ? "TITLE_DEFENSE" : "FINAL_DEFENSE",
+      );
+      const visible = await request(
+        `/api/defense-sessions/${project.sessionId}`,
+        project.student.token,
+      );
       expect(visible.status).toBe(200);
       expect((await readJson(visible)).session.badge).toMatchObject({
-        id: awards[0].badge.id, recipients: expect.arrayContaining([expect.objectContaining({ userId: project.student.id })]),
+        id: awards[0].badge.id,
+        recipients: expect.arrayContaining([
+          expect.objectContaining({ userId: project.student.id }),
+        ]),
       });
-      const otherGroup = await request(`/api/defense-sessions/${project.sessionId}`, fixture.projects.online.student.token);
+      const otherGroup = await request(
+        `/api/defense-sessions/${project.sessionId}`,
+        fixture.projects.online.student.token,
+      );
       expect(otherGroup.status).toBe(404);
-      expect(await prisma.auditLog.count({ where: { entityType: "DefenseBadge", entityId: awards[0].badge.id } })).toBe(1);
+      expect(
+        await prisma.auditLog.count({
+          where: { entityType: "DefenseBadge", entityId: awards[0].badge.id },
+        }),
+      ).toBe(1);
     }
   }, 60_000);
+  it("requires a new gate for Final Defense and sends one Dean request for multiple approved groups", async () => {
+    const researchIds = [
+      fixture.projects.onsite.id,
+      fixture.projects.hybrid.id,
+    ];
+    const before = await readJson(
+      await request(
+        "/api/defense-management/eligible-groups?purpose=signature",
+        fixture.professor.token,
+      ),
+    );
+    expect(before.projects.map((item: any) => item.id)).not.toEqual(
+      expect.arrayContaining(researchIds),
+    );
+    const gate = await guardedWrite(async () =>
+      prisma.workflowStage.create({
+        data: {
+          workflowId: fixture.workflowId,
+          name: "Final Defense readiness",
+          sequence: 2,
+          responsibleRoleId: (
+            await prisma.role.findUniqueOrThrow({
+              where: { name: "RESEARCH_COORDINATOR" },
+            })
+          ).id,
+          milestoneType: "DEFENSE_ELIGIBILITY",
+          requiresDocument: false,
+          requiresApproval: true,
+        },
+      }),
+    );
+    for (const researchId of researchIds) {
+      const approval = await apiWrite(
+        `/api/defense-management/eligibility/${researchId}/${gate.id}/approve`,
+        fixture.professor.token,
+        "POST",
+        {},
+      );
+      expect(approval.status, JSON.stringify(await readJson(approval))).toBe(
+        200,
+      );
+    }
+    const ready = await readJson(
+      await request(
+        "/api/defense-management/eligible-groups?purpose=signature",
+        fixture.professor.token,
+      ),
+    );
+    expect(ready.projects.map((item: any) => item.id)).toEqual(
+      expect.arrayContaining(researchIds),
+    );
+    const body = new FormData();
+    body.append("researchIds", JSON.stringify(researchIds));
+    body.append("recipientId", fixture.dean.id);
+    body.append("subject", "Final Defense approval for two groups");
+    body.append(
+      "message",
+      "Please sign this letter covering both groups for Final Defense.",
+    );
+    body.append(
+      "file",
+      new Blob([new Uint8Array(pdf)], { type: "application/pdf" }),
+      "request.pdf",
+    );
+    await assertIsolatedIntegrationDatabase(prisma);
+    const sent = await fetch(`${baseUrl}/api/dean-inbox/requests`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${fixture.professor.token}` },
+      body,
+    });
+    const sentBody = await readJson(sent);
+    expect(sent.status, JSON.stringify(sentBody)).toBe(201);
+    expect(sentBody.groupCount).toBe(2);
+    const grants = await prisma.defenseEligibility.findMany({
+      where: { researchId: { in: researchIds }, milestoneId: gate.id },
+    });
+    expect(grants).toHaveLength(2);
+    expect(
+      grants.every(
+        (item) =>
+          item.deanApprovalDocumentId === sentBody.document.id &&
+          !item.consumedAt,
+      ),
+    ).toBe(true);
+    expect(sentBody.request.message).toContain("ONSITE");
+    expect(sentBody.request.message).toContain("HYBRID");
+    const schedulable = await readJson(
+      await request(
+        "/api/defense-management/eligible-groups",
+        fixture.professor.token,
+      ),
+    );
+    for (const researchId of researchIds)
+      expect(schedulable.projects.map((item: any) => item.id)).not.toContain(
+        researchId,
+      );
+
+    // Supply a signed PDF fixture just as the initial Title Defense letters
+    // above. One unrevoked signature must cover both explicitly linked cycles.
+    await guardedWrite(() =>
+      prisma.$transaction(async (tx) => {
+        await tx.documentVersion.update({
+          where: { id: sentBody.version.id },
+          data: { status: "SUPERSEDED" },
+        });
+        const signed = await tx.documentVersion.create({
+          data: {
+            documentId: sentBody.document.id,
+            versionNumber: 2,
+            fileName: "signed-final-request.pdf",
+            mimeType: "application/pdf",
+            fileSize: BigInt(pdf.length),
+            storagePath: "test://signed-final-request",
+            uploadedBy: fixture.dean.id,
+            status: "ACTIVE",
+          },
+        });
+        await tx.documentSignature.create({
+          data: {
+            sourceVersionId: sentBody.version.id,
+            signedVersionId: signed.id,
+            signedById: fixture.dean.id,
+            originalFileHash: crypto
+              .createHash("sha256")
+              .update(pdf)
+              .digest("hex"),
+            signedFileHash: crypto
+              .createHash("sha256")
+              .update(pdf)
+              .digest("hex"),
+            placements: [
+              { pageNumber: 1, x: 0.1, y: 0.1, width: 0.2, height: 0.1 },
+            ],
+            authenticationMethod: "INTEGRATION_TEST",
+            verificationCode: `FINAL${fixtureSuffix}`,
+          },
+        });
+        await tx.document.update({
+          where: { id: sentBody.document.id },
+          data: { currentVersion: 2 },
+        });
+      }),
+    );
+    const afterSignature = await readJson(
+      await request(
+        "/api/defense-management/eligible-groups",
+        fixture.professor.token,
+      ),
+    );
+    expect(afterSignature.projects.map((item: any) => item.id)).toEqual(
+      expect.arrayContaining(researchIds),
+    );
+    const finalEvent = await apiWrite(
+      "/api/defense-events",
+      fixture.professor.token,
+      "POST",
+      {
+        researchIds,
+        defenseType: "FINAL_DEFENSE",
+        scheduledStart: "2098-12-15T01:00:00.000Z",
+        scheduledEnd: "2098-12-15T03:00:00.000Z",
+        invitees: [
+          { userId: fixture.chair.id, role: "PANEL_CHAIR" },
+          { userId: fixture.panelistOne.id, role: "PANELIST" },
+        ],
+      },
+    );
+    const finalBody = await readJson(finalEvent);
+    expect(finalEvent.status, JSON.stringify(finalBody)).toBe(201);
+    for (const session of finalBody.event.sessions) {
+      expect(
+        grants.some(
+          (grant) =>
+            grant.id === session.eligibilityId &&
+            grant.researchId === session.researchId,
+        ),
+      ).toBe(true);
+    }
+  });
 });

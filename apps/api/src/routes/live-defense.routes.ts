@@ -1,4 +1,7 @@
-import { defenseAudience, defenseSchedulerAudience } from "../services/notification.service.js";
+import {
+  defenseAudience,
+  defenseSchedulerAudience,
+} from "../services/notification.service.js";
 import { createHash } from "node:crypto";
 import { Router, Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma.js";
@@ -6,9 +9,16 @@ import { requireAuth } from "../middleware/auth.js";
 import { canAccessCollege, getCollegeScope } from "../lib/college-scope.js";
 import { jsonSafe } from "../lib/json-response.js";
 import { defensePacketService } from "../services/defense-packet.service.js";
-import { createNotificationsOnce } from "../services/research-workflow-integration.service.js";
+import {
+  getMilestoneProgress,
+  advanceMilestoneIfSatisfied,
+  createNotificationsOnce,
+} from "../services/research-workflow-integration.service.js";
 import { hasDefenseFacilitatorAccess } from "../services/defense-manuscript.service.js";
-import { canIssueDefenseBadge, defenseBadgeKind } from "../services/defense-badge-policy.js";
+import {
+  canIssueDefenseBadge,
+  defenseBadgeKind,
+} from "../services/defense-badge-policy.js";
 import {
   currentPanelInvitation,
   EvaluationScoreError,
@@ -16,7 +26,247 @@ import {
   normalizeEvaluationScores,
 } from "../services/defense-session-policy.js";
 
+import {
+  activeDefenseStatuses,
+  approveDefenseEligibility,
+  currentDefenseEligibility,
+  requireDefenseEligibility,
+  lockDefenseGroup,
+  consumeDefenseEligibility,
+} from "../services/defense-eligibility.service.js";
+
 const router = Router();
+
+// Pending and approved gates are displayed separately from groups that have
+// both eligibility and a signed Dean letter and can actually be scheduled.
+router.get(
+  "/defense-management/eligibility-gates",
+  requireAuth,
+  requireFacilitator,
+  async (req, res) => {
+    try {
+      const scope = getCollegeScope(req.user!);
+      if (scope.kind === "unassigned")
+        return void res
+          .status(403)
+          .json({ error: "College assignment is required." });
+      const projects = await prisma.researchProject.findMany({
+        where: {
+          ...(scope.kind === "college" && { collegeId: scope.collegeId }),
+          workflowInstance: {
+            workflow: {
+              status: "PUBLISHED",
+              stages: {
+                some: {
+                  milestoneType: "DEFENSE_ELIGIBILITY",
+                  category: { not: "Archived" },
+                },
+              },
+            },
+          },
+        },
+        select: { id: true, title: true, groupName: true },
+      });
+      const groups = [];
+      for (const project of projects) {
+        const progress = await getMilestoneProgress(prisma, project.id);
+        const grants = await prisma.defenseEligibility.findMany({
+          where: { researchId: project.id },
+        });
+        const gate = progress.find(
+          (item) =>
+            item.milestoneType === "DEFENSE_ELIGIBILITY" &&
+            !grants.some(
+              (grant) => grant.milestoneId === item.id && grant.consumedAt,
+            ),
+        );
+        if (!gate) continue;
+        groups.push({
+          ...project,
+          milestone: gate,
+          approved: grants.some((grant) => grant.milestoneId === gate.id),
+          canApprove:
+            !gate.isBlocked &&
+            (!gate.requiresDocument || gate.documentRequirementSatisfied) &&
+            gate.tasks.every(
+              (task) => !task.isRequired || task.status === "APPROVED",
+            ),
+        });
+      }
+      res.json({ groups });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  },
+);
+
+router.post(
+  "/defense-management/eligibility/:researchId/:milestoneId/approve",
+  requireAuth,
+  requireFacilitator,
+  async (req, res) => {
+    try {
+      const researchId = String(req.params.researchId);
+      const project = await prisma.researchProject.findUnique({
+        where: { id: researchId },
+        select: {
+          collegeId: true,
+          workflowInstance: {
+            select: { workflow: { select: { status: true } } },
+          },
+        },
+      });
+      if (!project || !canAccessCollege(req.user!, project.collegeId))
+        return void res
+          .status(404)
+          .json({ error: "Research group not found in your college scope." });
+      if (project.workflowInstance?.workflow.status !== "PUBLISHED")
+        return void res
+          .status(409)
+          .json({
+            error: "Publish the workflow before approving defense eligibility.",
+          });
+      const eligibility = await prisma.$transaction(async (tx) => {
+        const approval = await approveDefenseEligibility(tx, {
+          researchId,
+          milestoneId: String(req.params.milestoneId),
+          actorId: req.user!.id,
+        });
+        await tx.auditLog.create({
+          data: {
+            userId: req.user!.id,
+            action: "APPROVE",
+            entityType: "DefenseEligibility",
+            entityId: approval.id,
+            newValues: { researchId, milestoneId: approval.milestoneId },
+          },
+        });
+        await advanceMilestoneIfSatisfied(tx, {
+          researchId,
+          milestoneId: approval.milestoneId,
+          actorId: req.user!.id,
+        });
+        await notifyResearchGroup(
+          tx,
+          researchId,
+          "WORKFLOW_CHANGED",
+          "Defense eligibility approved",
+          "Your group is approved for one defense cycle. A signed Dean approval is required before scheduling.",
+          approval.id,
+        );
+        return approval;
+      });
+      res.json({ eligibility });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  },
+);
+
+// Delete removes an accidental request from the active schedule, preserving
+// its invitations, packet, and audit history as a cancelled session.
+router.delete(
+  "/defense-management/:sessionId",
+  requireAuth,
+  requireFacilitator,
+  async (req, res) => {
+    try {
+      const sessionId = String(req.params.sessionId);
+      if (req.body.confirmation !== `DELETE ${sessionId}`)
+        return void res
+          .status(400)
+          .json({
+            error: "Confirm deletion of this specific defense session.",
+          });
+      const session = await prisma.defenseSession.findUnique({
+        where: { id: sessionId },
+        include: { research: { select: { collegeId: true } } },
+      });
+      if (!session || !canAccessCollege(req.user!, session.research.collegeId))
+        return void res
+          .status(404)
+          .json({ error: "Defense session not found in your college scope." });
+      await prisma.$transaction(async (tx) => {
+        await lockDefenseGroup(tx, session.researchId);
+        const cancelled = await tx.defenseSession.updateMany({
+          where: {
+            id: sessionId,
+            startedAt: null,
+            releasedAt: null,
+            status: {
+              in: [
+                "SCHEDULED",
+                "PENDING_ACKNOWLEDGEMENT",
+                "NEEDS_RESCHEDULING",
+              ],
+            },
+          },
+          data: { status: "CANCELLED" },
+        });
+        if (!cancelled.count)
+          throw Object.assign(
+            new Error(
+              "Only an unstarted defense session can be deleted. Live and completed defense records are preserved.",
+            ),
+            { statusCode: 409 },
+          );
+        const invitations = await tx.defenseInvitation.findMany({
+          where: { defenseSessionId: sessionId, status: { not: "REMOVED" } },
+        });
+        await tx.defenseInvitation.updateMany({
+          where: { defenseSessionId: sessionId },
+          data: { status: "REMOVED" },
+        });
+        await tx.notification.createMany({
+          data: invitations.map((item) => ({
+            audience: defenseAudience(item.role),
+            recipientId: item.inviteeId,
+            type: "DEFENSE_RESCHEDULED",
+            title: "Defense session cancelled",
+            message:
+              "The coordinator removed an accidental defense request. The previous schedule and invitation are cancelled.",
+            entityType: "DefenseSession",
+            entityId: sessionId,
+          })),
+        });
+        await notifyResearchGroup(
+          tx,
+          session.researchId,
+          "DEFENSE_RESCHEDULED",
+          "Defense session cancelled",
+          "Your defense schedule was cancelled. Your defense eligibility remains available for a new schedule.",
+          sessionId,
+        );
+        if (session.defenseEventId) {
+          const remaining = await tx.defenseSession.count({
+            where: {
+              defenseEventId: session.defenseEventId,
+              status: { not: "CANCELLED" },
+            },
+          });
+          if (!remaining)
+            await tx.defenseEvent.update({
+              where: { id: session.defenseEventId },
+              data: { status: "CANCELLED" },
+            });
+          else await syncDefenseEventStatus(tx, session.defenseEventId);
+        }
+        await tx.auditLog.create({
+          data: {
+            userId: req.user!.id,
+            action: "DELETE",
+            entityType: "DefenseSession",
+            entityId: sessionId,
+            newValues: { status: "CANCELLED", eligibilityPreserved: true },
+          },
+        });
+      });
+      res.json({ deleted: true });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({ error: error.message });
+    }
+  },
+);
 const RECOMMENDATIONS = new Set([
   "APPROVE",
   "MINOR_REVISION",
@@ -39,7 +289,9 @@ function requireFacilitator(req: Request, res: Response, next: NextFunction) {
 }
 
 const sessionInclude = {
-  badge: { include: { issuer: { select: { firstName: true, lastName: true } } } },
+  badge: {
+    include: { issuer: { select: { firstName: true, lastName: true } } },
+  },
   pdfEvaluations: {
     select: {
       id: true,
@@ -196,6 +448,7 @@ const sessionInclude = {
 const eventInclude = {
   creator: { select: { id: true, firstName: true, lastName: true } },
   sessions: {
+    where: { status: { not: "CANCELLED" as const } },
     include: sessionInclude,
     orderBy: [
       { queuePosition: "asc" as const },
@@ -282,7 +535,8 @@ async function notifyResearchGroup(
   if (members.length)
     await tx.notification.createMany({
       data: members.map(({ userId }: any) => ({
-        audience: "researcher", recipientId: userId,
+        audience: "researcher",
+        recipientId: userId,
         type,
         title,
         message,
@@ -310,7 +564,10 @@ async function syncDefenseEventStatus(tx: any, eventId: string | null) {
     where: { id: eventId },
     select: {
       status: true,
-      sessions: { select: { status: true, queueStatus: true } },
+      sessions: {
+        where: { status: { not: "CANCELLED" } },
+        select: { status: true, queueStatus: true },
+      },
     },
   });
   if (!event || ["ONGOING", "COMPLETED", "CANCELLED"].includes(event.status))
@@ -322,81 +579,6 @@ async function syncDefenseEventStatus(tx: any, eventId: string | null) {
     where: { id: eventId },
     data: { status: ready ? "READY" : "DRAFT" },
   });
-}
-
-async function reconcileCompletedWorkflows(options: {
-  researchIds?: string[];
-  collegeId?: string;
-}) {
-  const researchWhere: any = {
-    ...(options.researchIds?.length ? { id: { in: options.researchIds } } : {}),
-    ...(options.collegeId ? { collegeId: options.collegeId } : {}),
-  };
-  const instances = await prisma.workflowInstance.findMany({
-    where: {
-      completedAt: null,
-      research: { is: researchWhere },
-    },
-    include: {
-      workflow: {
-        select: {
-          stages: {
-            where: { category: { not: "Archived" } },
-            orderBy: [{ sequence: "desc" }, { id: "desc" }],
-            take: 1,
-            select: { id: true },
-          },
-        },
-      },
-      currentStage: {
-        include: {
-          tasks: { where: { isRequired: true }, select: { id: true } },
-        },
-      },
-      research: {
-        select: {
-          id: true,
-          taskSubmissions: {
-            where: { status: "APPROVED" },
-            select: { taskId: true },
-          },
-        },
-      },
-    },
-  });
-  for (const instance of instances) {
-    const finalStageId = instance.workflow.stages[0]?.id;
-    const requiredTaskIds =
-      instance.currentStage?.tasks.map((task) => task.id) || [];
-    const approvedTaskIds = new Set(
-      instance.research?.taskSubmissions.map(
-        (submission) => submission.taskId,
-      ) || [],
-    );
-    if (
-      !instance.research ||
-      !finalStageId ||
-      instance.currentStageId !== finalStageId ||
-      requiredTaskIds.length === 0 ||
-      !requiredTaskIds.every((id) => approvedTaskIds.has(id))
-    )
-      continue;
-    const completedAt = new Date();
-    await prisma.$transaction([
-      prisma.workflowStage.update({
-        where: { id: finalStageId },
-        data: { isFinal: true },
-      }),
-      prisma.workflowInstance.update({
-        where: { id: instance.id },
-        data: { completedAt },
-      }),
-      prisma.researchProject.update({
-        where: { id: instance.research.id },
-        data: { status: "COMPLETED", completedAt },
-      }),
-    ]);
-  }
 }
 
 router.get(
@@ -411,7 +593,10 @@ router.get(
           error: "Your account has not been assigned to a college or school.",
         });
       const events = await prisma.defenseEvent.findMany({
-        where: scope.kind === "college" ? { collegeId: scope.collegeId } : {},
+        where: {
+          status: { not: "CANCELLED" },
+          ...(scope.kind === "college" ? { collegeId: scope.collegeId } : {}),
+        },
         include: eventInclude,
         orderBy: [{ scheduledStart: "desc" }, { createdAt: "desc" }],
       });
@@ -478,39 +663,9 @@ router.post(
           invitees.map((item: any) => [String(item.userId), item]),
         ).values(),
       ) as any[];
-      const requestScope = getCollegeScope(req.user!);
-      await reconcileCompletedWorkflows({
-        researchIds,
-        ...(requestScope.kind === "college"
-          ? { collegeId: requestScope.collegeId }
-          : {}),
-      });
       const projects = await prisma.researchProject.findMany({
         where: { id: { in: researchIds } },
-        include: {
-          workflowInstance: true,
-          documents: {
-            where: {
-              documentType: "DEAN_DEFENSE_APPROVAL",
-              versions: {
-                some: {
-                  status: "ACTIVE",
-                  signedSignature: {
-                    is: {
-                      revokedAt: null,
-                      signedBy: {
-                        roles: {
-                          some: { role: { name: { in: ["DEAN"] } } },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-            select: { id: true },
-          },
-        },
+        include: { workflowInstance: true },
       });
       if (projects.length !== researchIds.length)
         return void res
@@ -529,16 +684,6 @@ router.post(
         return void res.status(400).json({
           error:
             "A defense event can only contain groups from the same college.",
-        });
-      if (projects.some((project) => !project.workflowInstance?.completedAt))
-        return void res.status(409).json({
-          error:
-            "Every selected group must complete its workflow requirements first.",
-        });
-      if (projects.some((project) => project.documents.length === 0))
-        return void res.status(409).json({
-          error:
-            "Every selected group needs a signed Dean approval before a defense event can be created.",
         });
       const activeSession = await prisma.defenseSession.findFirst({
         where: {
@@ -578,6 +723,12 @@ router.post(
         projects.map((project) => [project.id, project]),
       );
       const event = await prisma.$transaction(async (tx) => {
+        const eligibilityByResearch = new Map<string, string>();
+        for (const researchId of [...researchIds].sort()) {
+          await lockDefenseGroup(tx, researchId);
+          const eligibility = await requireDefenseEligibility(tx, researchId);
+          eligibilityByResearch.set(researchId, eligibility.id);
+        }
         const createdEvent = await tx.defenseEvent.create({
           data: {
             code,
@@ -605,6 +756,7 @@ router.post(
           const session = await tx.defenseSession.create({
             data: {
               researchId,
+              eligibilityId: eligibilityByResearch.get(researchId),
               defenseEventId: createdEvent.id,
               queuePosition: index + 1,
               status: "PENDING_ACKNOWLEDGEMENT",
@@ -635,7 +787,8 @@ router.post(
         }
         await tx.notification.createMany({
           data: uniqueInvitees.map((item) => ({
-            audience: defenseAudience(item.role), recipientId: item.userId,
+            audience: defenseAudience(item.role),
+            recipientId: item.userId,
             type: "DEFENSE_INVITATION" as const,
             title: `${code} panel invitation`,
             message: `You are invited to a defense event with ${researchIds.length} research ${researchIds.length === 1 ? "group" : "groups"} on ${scheduledStart.toLocaleString()}. One response confirms the full event.`,
@@ -650,7 +803,7 @@ router.post(
       });
       res.status(201).json({ event });
     } catch (error: any) {
-      res.status(500).json({
+      res.status(error.statusCode || 500).json({
         error: error.message || "Failed to create the defense event.",
       });
     }
@@ -696,6 +849,17 @@ router.patch(
         });
 
       const event = await prisma.$transaction(async (tx) => {
+        await lockDefenseGroup(tx, session.researchId);
+        const current = await tx.defenseSession.findUniqueOrThrow({
+          where: { id: session.id },
+        });
+        if (current.status !== session.status || current.status === "CANCELLED")
+          throw Object.assign(
+            new Error(
+              "This session changed. Refresh before updating the queue.",
+            ),
+            { statusCode: 409 },
+          );
         if (action === "PREPARE") {
           if (
             !["SCHEDULED", "PENDING_ACKNOWLEDGEMENT"].includes(session.status)
@@ -1047,55 +1211,38 @@ router.get(
         return void res.status(403).json({
           error: "Your account has not been assigned to a college or school.",
         });
-      await reconcileCompletedWorkflows(
-        scope.kind === "college" ? { collegeId: scope.collegeId } : {},
-      );
-      const projects = await prisma.researchProject.findMany({
+      const candidates = await prisma.researchProject.findMany({
         where: {
           ...(scope.kind === "college" && { collegeId: scope.collegeId }),
-          workflowInstance: { completedAt: { not: null } },
-          documents: {
-            some: {
-              documentType: "DEAN_DEFENSE_APPROVAL",
-              versions: {
-                some: {
-                  status: "ACTIVE",
-                  signedSignature: {
-                    is: {
-                      revokedAt: null,
-                      signedBy: {
-                        roles: {
-                          some: { role: { name: { in: ["DEAN"] } } },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
+          workflowInstance: { isNot: null },
           defenseSessions: {
-            none: {
-              status: {
-                in: [
-                  "PENDING_ACKNOWLEDGEMENT",
-                  "NEEDS_RESCHEDULING",
-                  "SCHEDULED",
-                  "LIVE",
-                  "DELIBERATION",
-                ],
-              },
-            },
+            none: { status: { in: [...activeDefenseStatuses] } },
           },
         },
         select: {
           id: true,
           title: true,
-          program: { select: { code: true, name: true } },
+          groupName: true,
+          collegeId: true,
           members: { where: { leftAt: null }, select: { id: true } },
+          program: { select: { code: true, name: true } },
         },
         orderBy: { updatedAt: "desc" },
       });
+      const projects = [];
+      for (const project of candidates) {
+        const eligibility = await currentDefenseEligibility(prisma, project.id);
+        if (!eligibility) continue;
+        if (req.query.purpose !== "signature") {
+          try {
+            await requireDefenseEligibility(prisma, project.id);
+          } catch (error: any) {
+            if (error.statusCode === 409) continue;
+            throw error;
+          }
+        }
+        projects.push({ ...project, eligibility });
+      }
       res.json({ projects });
     } catch (error: any) {
       res.status(500).json({
@@ -1156,10 +1303,6 @@ router.post(
         return void res.status(404).json({
           error: "Research group was not found in your college scope.",
         });
-      if (!research.workflowInstance?.completedAt)
-        return void res.status(409).json({
-          error: "This group has not completed all workflow requirements.",
-        });
       const existing = await prisma.defenseSession.findFirst({
         where: {
           researchId,
@@ -1192,9 +1335,12 @@ router.post(
         });
 
       const session = await prisma.$transaction(async (tx) => {
+        await lockDefenseGroup(tx, researchId);
+        const eligibility = await requireDefenseEligibility(tx, researchId);
         const created = await tx.defenseSession.create({
           data: {
             researchId,
+            eligibilityId: eligibility.id,
             status: "PENDING_ACKNOWLEDGEMENT",
             venue: String(req.body.venue || "").trim() || null,
             meetingUrl: String(req.body.meetingUrl || "").trim() || null,
@@ -1214,7 +1360,8 @@ router.post(
         });
         await tx.notification.createMany({
           data: uniqueInvitees.map((item) => ({
-            audience: defenseAudience(item.role), recipientId: item.userId,
+            audience: defenseAudience(item.role),
+            recipientId: item.userId,
             type: "DEFENSE_INVITATION" as const,
             title: "Defense panel invitation",
             message: `You are invited to the defense of ${research.title} on ${scheduledStart.toLocaleString()}.`,
@@ -1235,7 +1382,7 @@ router.post(
       res.status(201).json({ session });
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({ error: error.message || "Failed to create defense request." });
     }
   },
@@ -1275,16 +1422,36 @@ router.patch(
           .json({ error: "This invitation has already been answered." });
 
       const result = await prisma.$transaction(async (tx) => {
-        const sessionIds = existing.defenseSession.defenseEventId
-          ? (
-              await tx.defenseSession.findMany({
-                where: {
-                  defenseEventId: existing.defenseSession.defenseEventId,
-                },
-                select: { id: true },
-              })
-            ).map((item) => item.id)
-          : [existing.defenseSessionId];
+        const affected = await tx.defenseSession.findMany({
+          where: existing.defenseSession.defenseEventId
+            ? { defenseEventId: existing.defenseSession.defenseEventId }
+            : { id: existing.defenseSessionId },
+          select: { id: true, researchId: true },
+        });
+        for (const researchId of [
+          ...new Set(affected.map((item) => item.researchId)),
+        ].sort())
+          await lockDefenseGroup(tx, researchId);
+        const activeSessions = await tx.defenseSession.findMany({
+          where: {
+            id: { in: affected.map((item) => item.id) },
+            status: {
+              in: [
+                "PENDING_ACKNOWLEDGEMENT",
+                "NEEDS_RESCHEDULING",
+                "SCHEDULED",
+              ],
+            },
+            startedAt: null,
+          },
+          select: { id: true },
+        });
+        const sessionIds = activeSessions.map((item) => item.id);
+        if (!sessionIds.includes(existing.defenseSessionId))
+          throw Object.assign(
+            new Error("This defense invitation is no longer active."),
+            { statusCode: 409 },
+          );
         await tx.defenseInvitation.updateMany({
           where: {
             defenseSessionId: { in: sessionIds },
@@ -1345,7 +1512,12 @@ router.patch(
         if (existing.defenseSession.createdBy)
           await tx.notification.create({
             data: {
-              audience: await defenseSchedulerAudience(tx, existing.defenseSession.createdBy, existing.defenseSession.researchId), recipientId: existing.defenseSession.createdBy,
+              audience: await defenseSchedulerAudience(
+                tx,
+                existing.defenseSession.createdBy,
+                existing.defenseSession.researchId,
+              ),
+              recipientId: existing.defenseSession.createdBy,
               type: "DEFENSE_RESPONSE",
               title:
                 response === "ACCEPTED"
@@ -1360,7 +1532,7 @@ router.patch(
       });
       res.json(result);
     } catch (error: any) {
-      res.status(500).json({
+      res.status(error.statusCode || 500).json({
         error: error.message || "Failed to respond to the defense invitation.",
       });
     }
@@ -1397,6 +1569,24 @@ router.patch(
           error: "Defense request was not found in your college scope.",
         });
       const session = await prisma.$transaction(async (tx) => {
+        await lockDefenseGroup(tx, existing.researchId);
+        const current = await tx.defenseSession.findUniqueOrThrow({
+          where: { id: existing.id },
+        });
+        if (
+          ![
+            "PENDING_ACKNOWLEDGEMENT",
+            "NEEDS_RESCHEDULING",
+            "SCHEDULED",
+          ].includes(current.status) ||
+          current.startedAt
+        )
+          throw Object.assign(
+            new Error(
+              "Only unstarted active defense sessions can be rescheduled.",
+            ),
+            { statusCode: 409 },
+          );
         await tx.defenseInvitation.updateMany({
           where: { defenseSessionId: existing.id, status: { not: "REMOVED" } },
           data: { status: "RECONFIRMATION_REQUIRED", respondedAt: null },
@@ -1418,7 +1608,8 @@ router.patch(
           data: existing.invitations
             .filter((item) => item.status !== "REMOVED")
             .map((item) => ({
-              audience: defenseAudience(item.role), recipientId: item.inviteeId,
+              audience: defenseAudience(item.role),
+              recipientId: item.inviteeId,
               type: "DEFENSE_RESCHEDULED" as const,
               title: "Defense schedule changed",
               message: `Please confirm the updated defense schedule for ${existing.research.title}.`,
@@ -1439,7 +1630,7 @@ router.patch(
       res.json({ session });
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({ error: error.message || "Failed to reschedule the defense." });
     }
   },
@@ -1503,6 +1694,22 @@ router.patch(
           .json({ error: "That person is already invited to this defense." });
 
       const session = await prisma.$transaction(async (tx) => {
+        await lockDefenseGroup(tx, existing.defenseSession.researchId);
+        const current = await tx.defenseSession.findUniqueOrThrow({
+          where: { id: existing.defenseSessionId },
+        });
+        if (
+          ![
+            "PENDING_ACKNOWLEDGEMENT",
+            "NEEDS_RESCHEDULING",
+            "SCHEDULED",
+          ].includes(current.status) ||
+          current.startedAt
+        )
+          throw Object.assign(
+            new Error("This defense session is no longer editable."),
+            { statusCode: 409 },
+          );
         await tx.defenseInvitation.update({
           where: { id: existing.id },
           data: { status: "REMOVED" },
@@ -1535,7 +1742,8 @@ router.patch(
         });
         await tx.notification.create({
           data: {
-            audience: defenseAudience(existing.role), recipientId: replacementUserId,
+            audience: defenseAudience(existing.role),
+            recipientId: replacementUserId,
             type: "DEFENSE_INVITATION",
             title: "Defense panel invitation",
             message: `You are invited to the defense of ${existing.defenseSession.research.title}.`,
@@ -1700,6 +1908,15 @@ router.post(
         return;
       }
       const session = await prisma.$transaction(async (tx) => {
+        await lockDefenseGroup(tx, scheduled.researchId);
+        const current = await tx.defenseSession.findUniqueOrThrow({
+          where: { id: scheduled.id },
+        });
+        if (current.status !== "SCHEDULED")
+          throw Object.assign(
+            new Error("This defense is no longer scheduled."),
+            { statusCode: 409 },
+          );
         for (const invitation of scheduled.invitations) {
           await tx.researchMember.upsert({
             where: {
@@ -1794,12 +2011,10 @@ router.put(
         select: { evaluationMode: true },
       });
       if (evaluationPacket?.evaluationMode === "PDF") {
-        return void res
-          .status(409)
-          .json({
-            error:
-              "This defense uses PDF evaluation. Open its PDF workspace to submit.",
-          });
+        return void res.status(409).json({
+          error:
+            "This defense uses PDF evaluation. Open its PDF workspace to submit.",
+        });
       }
 
       const templateId = String(req.body.templateId || "");
@@ -1925,8 +2140,15 @@ router.post(
   "/defense-sessions/:id/badge",
   requireAuth,
   async (req: Request, res: Response) => {
-    if (!req.user!.roles.includes("RESEARCH_COORDINATOR") || !req.user!.collegeId) {
-      return void res.status(403).json({ error: "Only a research coordinator may issue defense badges." });
+    if (
+      !req.user!.roles.includes("RESEARCH_COORDINATOR") ||
+      !req.user!.collegeId
+    ) {
+      return void res
+        .status(403)
+        .json({
+          error: "Only a research coordinator may issue defense badges.",
+        });
     }
     try {
       const result = await prisma.$transaction(async (tx) => {
@@ -1934,30 +2156,54 @@ router.post(
           where: { id: req.params.id as string },
           include: {
             defenseEvent: true,
-            research: { include: { members: {
-              where: { leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } },
-              include: { user: { select: { firstName: true, lastName: true } } },
-            } } },
+            research: {
+              include: {
+                members: {
+                  where: {
+                    leftAt: null,
+                    projectRole: { in: ["LEADER", "MEMBER"] },
+                  },
+                  include: {
+                    user: { select: { firstName: true, lastName: true } },
+                  },
+                },
+              },
+            },
           },
         });
         // Match the coordinator's own college even for accounts with additional roles.
         if (!session || session.research.collegeId !== req.user!.collegeId) {
-          return { status: 404, error: "Defense session was not found in your college scope." };
+          return {
+            status: 404,
+            error: "Defense session was not found in your college scope.",
+          };
         }
         if (!canIssueDefenseBadge(session)) {
-          return { status: 409, error: "Badges require a released Approved result for a title or final defense. Pending revisions are not eligible." };
+          return {
+            status: 409,
+            error:
+              "Badges require a released Approved result for a title or final defense. Pending revisions are not eligible.",
+          };
         }
         if (!session.research.members.length) {
-          return { status: 409, error: "The research group has no active student members." };
+          return {
+            status: 409,
+            error: "The research group has no active student members.",
+          };
         }
         const kind = defenseBadgeKind(session.defenseEvent?.defenseType)!;
         const inserted = await tx.defenseBadge.createMany({
-          data: [{
-            defenseSessionId: session.id, kind, issuedBy: req.user!.id,
-            recipients: session.research.members.map((member) => ({
-              userId: member.userId, name: `${member.user.firstName} ${member.user.lastName}`,
-            })),
-          }],
+          data: [
+            {
+              defenseSessionId: session.id,
+              kind,
+              issuedBy: req.user!.id,
+              recipients: session.research.members.map((member) => ({
+                userId: member.userId,
+                name: `${member.user.firstName} ${member.user.lastName}`,
+              })),
+            },
+          ],
           skipDuplicates: true,
         });
         const badge = await tx.defenseBadge.findUniqueOrThrow({
@@ -1965,19 +2211,39 @@ router.post(
           include: { issuer: { select: { firstName: true, lastName: true } } },
         });
         if (inserted.count) {
-          await tx.auditLog.create({ data: {
-            userId: req.user!.id, action: "CREATE", entityType: "DefenseBadge", entityId: badge.id,
-            newValues: { defenseSessionId: session.id, kind, issuedBy: req.user!.id },
-          } });
-          await notifyResearchGroup(tx, session.researchId, "DEFENSE_CONFIRMED",
+          await tx.auditLog.create({
+            data: {
+              userId: req.user!.id,
+              action: "CREATE",
+              entityType: "DefenseBadge",
+              entityId: badge.id,
+              newValues: {
+                defenseSessionId: session.id,
+                kind,
+                issuedBy: req.user!.id,
+              },
+            },
+          });
+          await notifyResearchGroup(
+            tx,
+            session.researchId,
+            "DEFENSE_CONFIRMED",
             "Defense badge issued",
-            `Your coordinator issued your ${kind === "TITLE_DEFENSE" ? "Title" : "Final"} Defense Passed badge.`, session.id);
+            `Your coordinator issued your ${kind === "TITLE_DEFENSE" ? "Title" : "Final"} Defense Passed badge.`,
+            session.id,
+          );
         }
         return { status: inserted.count ? 201 : 200, badge };
       });
-      res.status(result.status).json("error" in result ? { error: result.error } : { badge: result.badge });
+      res
+        .status(result.status)
+        .json(
+          "error" in result ? { error: result.error } : { badge: result.badge },
+        );
     } catch (error: any) {
-      res.status(500).json({ error: error.message || "Failed to issue the defense badge." });
+      res
+        .status(500)
+        .json({ error: error.message || "Failed to issue the defense badge." });
     }
   },
 );
@@ -2077,6 +2343,7 @@ router.post(
             ? "REVISION"
             : "APPROVED";
       const result = await prisma.$transaction(async (tx) => {
+        await lockDefenseGroup(tx, session.researchId);
         const releasedAt = new Date();
         const released = await tx.defenseSession.updateMany({
           where: { id: session.id, status: { in: ["LIVE", "DELIBERATION"] } },
@@ -2096,6 +2363,7 @@ router.post(
           conflict.statusCode = 409;
           throw conflict;
         }
+        await consumeDefenseEligibility(tx, session, decision, releasedAt);
         await tx.researchProject.update({
           where: { id: session.researchId },
           data: { status: researchStatus },
@@ -2202,6 +2470,7 @@ router.post(
             where: {
               defenseEventId: session.defenseEventId,
               queueStatus: { notIn: ["COMPLETED", "SKIPPED"] },
+              status: { not: "CANCELLED" },
             },
           });
           if (!remaining)

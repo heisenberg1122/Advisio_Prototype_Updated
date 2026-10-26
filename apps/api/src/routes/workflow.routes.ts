@@ -1403,7 +1403,10 @@ router.post(
               category: s.category || "Milestone",
               sequence: s.sequence,
               responsibleRoleId: s.responsibleRoleId,
-              requiresApproval: s.requiresApproval,
+              requiresApproval:
+                s.milestoneType === "DEFENSE_ELIGIBILITY"
+                  ? true
+                  : s.requiresApproval,
               requiresDocument:
                 s.milestoneType === "ADVISER_SELECTION"
                   ? false
@@ -1416,10 +1419,12 @@ router.post(
                 ? new Date(`${s.targetCompletionDate}T00:00:00.000Z`)
                 : null,
               isFinal: s.isFinal,
-              submissionMode:
-                s.milestoneType === "ADVISER_SELECTION"
-                  ? "GROUP"
-                  : s.submissionMode,
+              submissionMode: [
+                "ADVISER_SELECTION",
+                "DEFENSE_ELIGIBILITY",
+              ].includes(s.milestoneType)
+                ? "GROUP"
+                : s.submissionMode,
               milestoneType: s.milestoneType,
             })),
           },
@@ -2041,7 +2046,11 @@ router.post(
         position,
       } = req.body;
       const requiredCondition = parseRequiredMilestoneId(requiredMilestoneId);
-      if (!["STANDARD", "ADVISER_SELECTION"].includes(milestoneType)) {
+      if (
+        !["STANDARD", "ADVISER_SELECTION", "DEFENSE_ELIGIBILITY"].includes(
+          milestoneType,
+        )
+      ) {
         return void res
           .status(400)
           .json({ error: "Choose a valid milestone type." });
@@ -2168,10 +2177,12 @@ router.post(
                 : "Milestone",
               sequence: (lastStage?.sequence || 0) + 1,
               responsibleRoleId: researcherRole.id,
-              requiresApproval:
-                milestoneType === "ADVISER_SELECTION"
-                  ? true
-                  : Boolean(requiresApproval),
+              requiresApproval: [
+                "ADVISER_SELECTION",
+                "DEFENSE_ELIGIBILITY",
+              ].includes(milestoneType)
+                ? true
+                : Boolean(requiresApproval),
               requiresDocument:
                 milestoneType === "ADVISER_SELECTION"
                   ? false
@@ -2181,10 +2192,12 @@ router.post(
                 ? new Date(`${targetDate.data}T00:00:00.000Z`)
                 : null,
               isFinal: Boolean(isFinal),
-              submissionMode:
-                milestoneType === "ADVISER_SELECTION"
-                  ? "GROUP"
-                  : submissionMode,
+              submissionMode: [
+                "ADVISER_SELECTION",
+                "DEFENSE_ELIGIBILITY",
+              ].includes(milestoneType)
+                ? "GROUP"
+                : submissionMode,
               milestoneType,
               requiredMilestoneId: requiredCondition,
             },
@@ -2536,6 +2549,7 @@ router.patch(
         requiresDocument,
         isFinal,
         submissionMode,
+        milestoneType,
         requiredMilestoneId,
       } = req.body;
       const requiredCondition =
@@ -2554,6 +2568,38 @@ router.patch(
           .status(404)
           .json({ error: "Workflow milestone not found." });
       }
+      if (
+        milestoneType !== undefined &&
+        !["STANDARD", "DEFENSE_ELIGIBILITY", "ADVISER_SELECTION"].includes(
+          milestoneType,
+        )
+      )
+        return void res
+          .status(400)
+          .json({ error: "Choose a valid milestone type." });
+      // Adviser acceptance remains a dedicated, immutable completion mechanism.
+      if (
+        milestoneType !== undefined &&
+        milestoneType !== existing.milestoneType &&
+        (existing.milestoneType === "ADVISER_SELECTION" ||
+          milestoneType === "ADVISER_SELECTION")
+      )
+        return void res
+          .status(400)
+          .json({ error: "Create an Adviser Milestone separately." });
+      if (
+        milestoneType !== undefined &&
+        milestoneType !== existing.milestoneType &&
+        (await prisma.defenseEligibility.count({
+          where: { milestoneId: stageId },
+        }))
+      )
+        return void res
+          .status(409)
+          .json({
+            error:
+              "A milestone with recorded defense approvals cannot change its completion type.",
+          });
       if (
         existing.milestoneType === "ADVISER_SELECTION" &&
         ((requiresDocument !== undefined && Boolean(requiresDocument)) ||
@@ -2628,6 +2674,7 @@ router.patch(
             ...(description !== undefined && { description }),
             ...(topicId !== undefined && { topicId }),
             ...(category !== undefined && { category }),
+            ...(milestoneType !== undefined && { milestoneType }),
             ...(requiredCondition !== undefined && {
               requiredMilestoneId: requiredCondition,
             }),
@@ -2639,11 +2686,14 @@ router.patch(
                   deadlineDays: null,
                 }
               : deadlineDays !== undefined && { deadlineDays: deadline }),
-            ...(requiresApproval !== undefined && {
-              requiresApproval:
-                existing.milestoneType === "ADVISER_SELECTION"
-                  ? true
-                  : Boolean(requiresApproval),
+            ...((requiresApproval !== undefined ||
+              milestoneType === "DEFENSE_ELIGIBILITY") && {
+              requiresApproval: [
+                "ADVISER_SELECTION",
+                "DEFENSE_ELIGIBILITY",
+              ].includes(milestoneType || existing.milestoneType)
+                ? true
+                : Boolean(requiresApproval),
             }),
             ...(requiresDocument !== undefined && {
               requiresDocument:
@@ -2654,10 +2704,12 @@ router.patch(
             ...(isFinal !== undefined && { isFinal: Boolean(isFinal) }),
             ...(submissionMode !== undefined &&
               ["INDIVIDUAL", "GROUP", "EITHER"].includes(submissionMode) && {
-                submissionMode:
-                  existing.milestoneType === "ADVISER_SELECTION"
-                    ? "GROUP"
-                    : submissionMode,
+                submissionMode: [
+                  "ADVISER_SELECTION",
+                  "DEFENSE_ELIGIBILITY",
+                ].includes(milestoneType || existing.milestoneType)
+                  ? "GROUP"
+                  : submissionMode,
               }),
           },
         });

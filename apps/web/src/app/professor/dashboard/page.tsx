@@ -107,8 +107,32 @@ function ProfessorDashboardContent() {
     queryFn: () =>
       apiClient.get<{ users: any[] }>("/api/defense-management/candidates"),
   });
-  const defenseSessions = defenseManagementData?.sessions || [];
-  const defenseEvents = defenseEventData?.events || [];
+  const { data: eligibilityGatesData, refetch: refetchEligibilityGates } =
+    useQuery({
+      queryKey: ["defense-eligibility-gates"],
+      queryFn: () =>
+        apiClient.get<{ groups: any[] }>(
+          "/api/defense-management/eligibility-gates",
+        ),
+      refetchInterval: 15000,
+    });
+  const { data: signatureGroupsData, refetch: refetchSignatureGroups } =
+    useQuery({
+      queryKey: ["defense-signature-groups"],
+      queryFn: () =>
+        apiClient.get<{ projects: any[] }>(
+          "/api/defense-management/eligible-groups?purpose=signature",
+        ),
+      refetchInterval: 15000,
+    });
+  const signatureGroups = signatureGroupsData?.projects || [];
+  const eligibilityGroups = eligibilityGatesData?.groups || [];
+  const defenseSessions = (defenseManagementData?.sessions || []).filter(
+    (session: any) => session.status !== "CANCELLED",
+  );
+  const defenseEvents = (defenseEventData?.events || []).filter(
+    (event: any) => event.status !== "CANCELLED",
+  );
   const legacyDefenseSessions = defenseSessions.filter(
     (session: any) => !session.defenseEventId,
   );
@@ -404,7 +428,7 @@ function ProfessorDashboardContent() {
     useState("GROUP");
   const [newMilestoneTopicId, setNewMilestoneTopicId] = useState("");
   const [newMilestoneType, setNewMilestoneType] = useState<
-    "STANDARD" | "ADVISER_SELECTION"
+    "STANDARD" | "ADVISER_SELECTION" | "DEFENSE_ELIGIBILITY"
   >("STANDARD");
   const [newMilestoneRequired, setNewMilestoneRequired] = useState("");
   const [newMilestoneAttachments, setNewMilestoneAttachments] = useState<
@@ -481,7 +505,7 @@ function ProfessorDashboardContent() {
   const [milestoneEditTopicId, setMilestoneEditTopicId] = useState("");
   const [milestoneEditRequired, setMilestoneEditRequired] = useState("");
   const [milestoneEditType, setMilestoneEditType] = useState<
-    "STANDARD" | "ADVISER_SELECTION"
+    "STANDARD" | "ADVISER_SELECTION" | "DEFENSE_ELIGIBILITY"
   >("STANDARD");
   const [topicDialogOpen, setTopicDialogOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<any | null>(null);
@@ -1040,6 +1064,7 @@ function ProfessorDashboardContent() {
           description: milestoneEditDescription.trim() || null,
           topicId: milestoneEditTopicId,
           category: milestoneEditCategory,
+          milestoneType: milestoneEditType,
           ...(milestoneEditTargetChanged && {
             targetCompletionDate: milestoneEditDeadline || null,
           }),
@@ -1350,6 +1375,11 @@ function ProfessorDashboardContent() {
                 </span>
               </>
             )}
+            {milestone.milestoneType === "DEFENSE_ELIGIBILITY" && (
+              <span className="rounded-full bg-[var(--color-primary-light)] px-2 py-0.5 text-[var(--color-primary)]">
+                Defense Eligibility · one defense cycle
+              </span>
+            )}
           </span>
           {milestone.requiredMilestoneId && (
             <span className="mt-2 block text-xs font-semibold text-amber-700">
@@ -1502,6 +1532,62 @@ function ProfessorDashboardContent() {
   const openSubmissionReview = (submission: any) => {
     setSelectedSubmission(submission);
     setReviewFeedback(submission.reviewNote || "");
+  };
+
+  const deleteDefenseSession = async (session: any) => {
+    if (
+      !window.confirm(
+        `Delete the defense session for ${session.research?.title || "this group"}? The schedule and invitations will be cancelled. The group's eligibility will remain available.`,
+      )
+    )
+      return;
+    setDefenseActionPending(true);
+    try {
+      await apiClient.delete(`/api/defense-management/${session.id}`, {
+        body: JSON.stringify({ confirmation: `DELETE ${session.id}` }),
+      });
+      await Promise.all([
+        refetchDefenseManagement(),
+        refetchDefenseEvents(),
+        refetchEligibleDefenseGroups(),
+        refetchSignatureGroups(),
+      ]);
+      triggerToast(
+        "Defense session deleted. The group can be scheduled again.",
+      );
+    } catch (error: any) {
+      triggerToast(error?.message || "Unable to delete the defense session.");
+    } finally {
+      setDefenseActionPending(false);
+    }
+  };
+  const approveDefenseGate = async (group: any) => {
+    if (
+      !window.confirm(
+        `Approve ${group.milestone.name} for ${group.title}? This grants one defense cycle.`,
+      )
+    )
+      return;
+    setDefenseActionPending(true);
+    try {
+      await apiClient.post(
+        `/api/defense-management/eligibility/${group.id}/${group.milestone.id}/approve`,
+        {},
+      );
+      await Promise.all([
+        refetchEligibilityGates(),
+        refetchSignatureGroups(),
+        refetchEligibleDefenseGroups(),
+        refetchResearch(),
+      ]);
+      triggerToast(
+        "Defense eligibility approved. Request the Dean signature before scheduling.",
+      );
+    } catch (error: any) {
+      triggerToast(error?.message || "Unable to approve defense eligibility.");
+    } finally {
+      setDefenseActionPending(false);
+    }
   };
 
   const startDefense = async (sessionId: string) => {
@@ -1798,10 +1884,11 @@ function ProfessorDashboardContent() {
       </Modal>
       {showDeanRequestForm && (
         <ProfessorDeanRequestModal
-          projects={projects}
+          projects={signatureGroups}
           onClose={() => setShowDeanRequestForm(false)}
           onSent={(message) => {
             setShowDeanRequestForm(false);
+            void refetchSignatureGroups();
             triggerToast(message);
           }}
         />
@@ -2125,6 +2212,10 @@ function ProfessorDashboardContent() {
           requiresApproval={milestoneEditRequiresApproval}
           category={milestoneEditCategory}
           milestoneType={milestoneEditType}
+          onMilestoneTypeChange={(value) => {
+            setMilestoneEditType(value);
+            setMilestoneSaveStatus("idle");
+          }}
           requiredMilestoneId={milestoneEditRequired}
           milestoneConditions={milestoneConditionOptions(
             milestoneEditTopicId,
@@ -2938,6 +3029,7 @@ function ProfessorDashboardContent() {
           requiresApproval={newMilestoneRequiresApproval}
           category={newMilestoneScope}
           milestoneType={newMilestoneType}
+          onMilestoneTypeChange={setNewMilestoneType}
           requiredMilestoneId={newMilestoneRequired}
           milestoneConditions={milestoneConditionOptions(newMilestoneTopicId)}
           saving={saving}
@@ -2959,7 +3051,7 @@ function ProfessorDashboardContent() {
           onClose={() => setCreatingMilestone(false)}
           onSubmit={handleCreateMilestone}
           attachmentsContent={
-            newMilestoneType === "STANDARD" ? (
+            newMilestoneType !== "ADVISER_SELECTION" ? (
               <MilestoneAttachmentsCard
                 workflowId={selectedWorkflowId}
                 pendingAttachments={newMilestoneAttachments}
@@ -4128,7 +4220,7 @@ function ProfessorDashboardContent() {
                       <button
                         type="button"
                         onClick={() => setShowDeanRequestForm(true)}
-                        disabled={!projects.length}
+                        disabled={!signatureGroups.length}
                         className="rounded-xl border border-[#173f63] bg-white px-5 py-3 text-sm font-extrabold text-[#173f63] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <i className="ti ti-mail-forward mr-2" />
@@ -4151,10 +4243,55 @@ function ProfessorDashboardContent() {
                   {!eligibleDefenseGroups.length && (
                     <p className="mt-4 rounded-xl bg-blue-50 p-3 text-base text-blue-800">
                       <i className="ti ti-info-circle mr-1" />A group becomes
-                      schedulable after every required workflow milestone is
-                      completed and its Dean approval request is signed.
+                      schedulable after its Defense Eligibility milestone is
+                      approved and the Dean letter for that cycle is signed.
                     </p>
                   )}
+                </section>
+                <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                  <h3 className="text-lg font-extrabold">
+                    Defense eligibility approvals
+                  </h3>
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                    Approve each group's next eligibility milestone. A passed
+                    defense consumes that milestone's approval.
+                  </p>
+                  {!eligibilityGroups.length && (
+                    <p className="mt-3 text-sm">
+                      Add a Defense Eligibility milestone in Workflow → Academic
+                      event → Advanced settings.
+                    </p>
+                  )}
+                  <div className="mt-4 space-y-3">
+                    {eligibilityGroups.map((group: any) => (
+                      <div
+                        key={group.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"
+                      >
+                        <div>
+                          <strong>{group.groupName || group.title}</strong>
+                          <p className="text-sm text-[var(--color-text-secondary)]">
+                            {group.milestone.name} ·{" "}
+                            {group.approved
+                              ? "Approved for one defense cycle"
+                              : group.canApprove
+                                ? "Ready for coordinator approval"
+                                : "Complete prerequisites and approve required submissions first"}
+                          </p>
+                        </div>
+                        {!group.approved && (
+                          <button
+                            type="button"
+                            disabled={!group.canApprove || defenseActionPending}
+                            onClick={() => approveDefenseGate(group)}
+                            className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
+                          >
+                            Approve eligibility
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </section>
                 <DefenseBadgeIssuance
                   sessions={defenseSessions}
@@ -4396,6 +4533,21 @@ function ProfessorDashboardContent() {
                                 <i className="ti ti-users-group mr-1.5" />
                                 View status
                               </button>
+                              {![
+                                "LIVE",
+                                "DELIBERATION",
+                                "COMPLETED",
+                                "CANCELLED",
+                              ].includes(session.status) && (
+                                <button
+                                  type="button"
+                                  disabled={defenseActionPending}
+                                  onClick={() => deleteDefenseSession(session)}
+                                  className="rounded-xl border border-rose-300 px-3 py-2 text-sm font-bold text-rose-600 disabled:opacity-40"
+                                >
+                                  Delete session
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => setPacketSession(session)}
@@ -4497,6 +4649,21 @@ function ProfessorDashboardContent() {
                               <i className="ti ti-users-group mr-1.5" />
                               View status
                             </button>
+                            {![
+                              "LIVE",
+                              "DELIBERATION",
+                              "COMPLETED",
+                              "CANCELLED",
+                            ].includes(session.status) && (
+                              <button
+                                type="button"
+                                disabled={defenseActionPending}
+                                onClick={() => deleteDefenseSession(session)}
+                                className="rounded-xl border border-rose-300 px-3 py-2 text-sm font-bold text-rose-600 disabled:opacity-40"
+                              >
+                                Delete session
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => setPacketSession(session)}
@@ -4690,6 +4857,8 @@ function ProfessorDashboardContent() {
                                       <span className="text-xs text-slate-500">
                                         {project.program?.code || "Program"} ·{" "}
                                         {project.members?.length || 0} members
+                                        {project.eligibility?.milestoneName &&
+                                          ` · ${project.eligibility.milestoneName}`}
                                       </span>
                                     </span>
                                   </label>

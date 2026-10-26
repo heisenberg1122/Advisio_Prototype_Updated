@@ -123,6 +123,7 @@ enum WorkflowStatus {
 enum WorkflowStageType {
   STANDARD
   ADVISER_SELECTION
+  DEFENSE_ELIGIBILITY
 }
 
 enum ReviewType {
@@ -770,6 +771,7 @@ model ResearchProject {
   taskSubmissions        TaskSubmission[]
   taskSubmissionAttempts TaskSubmissionAttempt[]
   defenseSessions        DefenseSession[]
+  defenseEligibilities   DefenseEligibility[]
   calendarEvents         CalendarEventResearch[]
   groupFolders           GroupFolder[]
   groupFiles             GroupFile[]
@@ -1014,6 +1016,7 @@ model WorkflowStage {
   adviserRequests        AdviserRequest[]
   requiredMilestone      WorkflowStage?             @relation("MilestoneCondition", fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
   dependentMilestones    WorkflowStage[]            @relation("MilestoneCondition")
+  defenseEligibilities   DefenseEligibility[]
 
   @@unique([workflowId, sequence])
   @@index([topicId])
@@ -1211,6 +1214,7 @@ model Document {
   taskSubmissions        TaskSubmission[]
   taskSubmissionAttempts TaskSubmissionAttempt[]
   deanInboxMessages      DeanInboxMessage[]
+  defenseEligibilities   DefenseEligibility[]
   manuscriptStatusEvents ManuscriptStatusEvent[]
   reviewerAssignments    ReviewerAssignment[]
   officialCopies         OfficialCopy[]
@@ -1858,9 +1862,31 @@ model PanelistRecommendation {
   @@map("panelist_recommendations")
 }
 
+// One approval grants one defense cycle. Cancellation and an unsuccessful
+// defense preserve it; a released Approved result permanently consumes it.
+model DefenseEligibility {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId             String   @map("research_id") @db.Uuid
+  milestoneId            String   @map("milestone_id") @db.Uuid
+  approvedBy             String   @map("approved_by") @db.Uuid
+  approvedAt             DateTime @default(now()) @map("approved_at")
+  consumedAt             DateTime? @map("consumed_at")
+  deanApprovalDocumentId String?  @map("dean_approval_document_id") @db.Uuid
+
+  research             ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  milestone            WorkflowStage   @relation(fields: [milestoneId], references: [id], onDelete: Restrict)
+  deanApprovalDocument Document?       @relation(fields: [deanApprovalDocumentId], references: [id], onDelete: Restrict, map: "defense_eligibilities_approval_document_fkey")
+  sessions             DefenseSession[]
+
+  @@unique([researchId, milestoneId])
+  @@index([researchId, consumedAt])
+  @@map("defense_eligibilities")
+}
+
 model DefenseSession {
   id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   researchId     String               @map("research_id") @db.Uuid
+  eligibilityId  String?              @map("eligibility_id") @db.Uuid
   defenseEventId String?              @map("defense_event_id") @db.Uuid
   queuePosition  Int?                 @map("queue_position")
   queueStatus    DefenseQueueStatus   @default(WAITING) @map("queue_status")
@@ -1883,6 +1909,7 @@ model DefenseSession {
   calledAt       DateTime?            @map("called_at")
 
   research              ResearchProject            @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  eligibility           DefenseEligibility?         @relation(fields: [eligibilityId], references: [id], onDelete: Restrict)
   defenseEvent          DefenseEvent?              @relation(fields: [defenseEventId], references: [id], onDelete: SetNull)
   creator               User?                      @relation("DefenseSessionCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   invitations           DefenseInvitation[]
@@ -1895,6 +1922,7 @@ model DefenseSession {
   badge                 DefenseBadge?
 
   @@index([researchId, status])
+  @@index([eligibilityId])
   @@index([status, startedAt])
   @@index([createdBy])
   @@index([defenseEventId, queuePosition])
