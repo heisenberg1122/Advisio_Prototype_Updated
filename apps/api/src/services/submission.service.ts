@@ -1,3 +1,4 @@
+import { assertMilestoneOrder } from "./milestone-condition.service.js";
 import {
   ManuscriptLifecycleStatus,
   Prisma,
@@ -458,6 +459,7 @@ export async function authorizeTaskSubmission(options: {
   }
   const currentStage = project.workflowInstance.currentStage;
   await assertMilestoneCondition(prisma, options.researchId, task.stage.id);
+  await assertMilestoneOrder(prisma, { workflowId: project.workflowInstance.workflowId, currentSequence: currentStage?.sequence, sequence: task.stage.sequence, requiresApproval: task.stage.requiresApproval });
   if (
     currentStage &&
     task.stage.sequence > currentStage.sequence &&

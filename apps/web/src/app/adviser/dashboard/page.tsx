@@ -263,7 +263,7 @@ function AdviserDashboardContent() {
             return {
               id: p.id,
               groupName: p.groupName || "Research Group",
-              projectTitle: p.title,
+              projectTitle: p.title || "Research title not registered",
               leader: (() => {
                 const leader = p.members?.find((m: any) => m.projectRole === "LEADER" && !m.leftAt)?.user;
                 return leader ? `${leader.firstName || ""} ${leader.lastName || ""}`.trim() : "Group Leader";
@@ -612,7 +612,7 @@ function AdviserDashboardContent() {
           <div className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl [overflow-wrap:anywhere]">
             <div className="flex items-start gap-3">
               <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl ${requestDecision.decision === "accept" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}><i className={`ti ${requestDecision.decision === "accept" ? "ti-user-check" : "ti-user-x"}`} /></span>
-              <div><h2 id="adviser-response-title" className="text-lg font-extrabold text-[#102f49]">{requestDecision.decision === "accept" ? "Accept adviser request" : "Decline adviser request"}</h2><p className="mt-1 text-base text-slate-500">{requestDecision.request.research?.title}</p></div>
+              <div><h2 id="adviser-response-title" className="text-lg font-extrabold text-[#102f49]">{requestDecision.decision === "accept" ? "Accept adviser request" : "Decline adviser request"}</h2><p className="mt-1 text-base text-slate-500">{requestDecision.request.research?.title || requestDecision.request.research?.groupName || "Research title not registered"}</p></div>
             </div>
             <div className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-600"><span className="font-bold text-[#102f49]">Group message:</span><p className="mt-1 whitespace-pre-line">{requestDecision.request.note || "No message was included."}</p>{requestDecision.request.research?.members?.length > 0 && <p className="mt-3 text-base"><span className="font-bold text-[#102f49]">Members:</span> {requestDecision.request.research.members.filter((member: any) => member.projectRole !== "ADVISER").map((member: any) => `${member.user.firstName} ${member.user.lastName}`).join(", ")}</p>}{requestDecision.request.requestFormDocument?.versions?.[0]?.storagePath && <button type="button" onClick={() => openAuthenticatedFile(requestDecision.request.requestFormDocument.versions[0].storagePath).catch((error) => triggerToast(error.message))} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-extrabold text-[#173f63] ring-1 ring-slate-200 hover:ring-[#f6a800]"><i className="ti ti-file-type-pdf text-rose-600" />Open adviser request PDF</button>}</div>
             <label className="mt-5 block text-sm font-bold text-slate-700">Note to the group <span className="font-normal text-slate-400">(optional)</span></label>

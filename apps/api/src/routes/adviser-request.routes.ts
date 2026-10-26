@@ -1,3 +1,5 @@
+import { startWorkflowParticipation } from "../services/workflow-participation.service.js";
+import { hasActiveWorkflowEnrollment } from "../services/workflow-enrollment-access.service.js";
 import { Router, Request, Response } from "express";
 import { assertMilestoneCondition } from "../services/milestone-condition.service.js";
 import { prisma } from "../lib/prisma.js";
@@ -75,12 +77,14 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
   try {
     if (!req.user) return void res.status(401).json({ error: "Unauthorized" });
     const {
-      researchId,
       adviserId,
       note,
       requestFormDocumentId,
       workflowStageId,
     } = req.body;
+    let researchId = req.body.researchId;
+    if (!researchId && typeof req.body.workflowId === "string")
+      researchId = (await startWorkflowParticipation({ user: req.user, workflowId: req.body.workflowId, workspaceId: req.body.workspaceId })).id;
     if (!researchId || !adviserId)
       return void res
         .status(400)
@@ -99,13 +103,15 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
       },
       include: {
         members: { where: { projectRole: "ADVISER", leftAt: null } },
-        workflowInstance: { select: { workflowId: true } },
+        workflowInstance: { select: { workflowId: true, currentStage: { select: { sequence: true } } } },
       },
     });
     if (!project)
       return void res.status(403).json({
         error: "Only the active project leader can request an adviser.",
       });
+    if (project.workflowInstance && !(await hasActiveWorkflowEnrollment(req.user.id, project.workflowInstance.workflowId)))
+      return void res.status(403).json({ error: "Your access to this workflow was removed by the professor." });
     if (project.members.length)
       return void res
         .status(409)
@@ -155,7 +161,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
             workflowId: project.workflowInstance.workflowId,
             milestoneType: "ADVISER_SELECTION",
           },
-          select: { id: true },
+          select: { id: true, sequence: true },
         })
       : null;
     if (
@@ -168,8 +174,12 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
       });
     }
 
+    if (adviserMilestone && project.workflowInstance?.currentStage && adviserMilestone.sequence > project.workflowInstance.currentStage.sequence)
+      return void res.status(409).json({ error: "Complete the preceding milestone before requesting an adviser." });
     const request = await prisma.$transaction(
       async (tx) => {
+        if (project.workflowInstance && !(await hasActiveWorkflowEnrollment(req.user!.id, project.workflowInstance.workflowId, tx)))
+          throw Object.assign(new Error("Your workflow enrollment is no longer active."), { statusCode: 403 });
         if (adviserMilestone) await assertMilestoneCondition(tx, researchId, adviserMilestone.id);
         const pendingRequest = await tx.adviserRequest.findFirst({
           where: { researchId, status: "PENDING" },
@@ -203,7 +213,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
             audience: "adviser", recipientId: adviserId,
             type: "ADVISER_REQUESTED",
             title: "New adviser request",
-            message: `${project.title} would like you to serve as their adviser.`,
+            message: `${project.groupName || project.title || "An enrolled researcher"} would like you to serve as their adviser.`,
             entityType: "AdviserRequest",
             entityId: created.id,
           },

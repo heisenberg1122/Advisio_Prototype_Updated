@@ -227,6 +227,7 @@ export async function getMilestoneProgress(
   const project = await client.researchProject.findUnique({
     where: { id: researchId },
     select: {
+      titleProposals: true,
       defenseEligibilities: {
         select: { milestoneId: true, approvedAt: true, consumedAt: true },
       },
@@ -425,12 +426,16 @@ export async function getMilestoneProgress(
         (approval) => approval.milestoneId === stage.id,
       ),
     );
+    const proposal = project.titleProposals?.find(item => item.stageId === stage.id);
+    const titleMilestone = stage.milestoneType === "TITLE_PROPOSAL";
     const effectiveTotalRequirements =
+      titleMilestone ? 1 :
       stage.milestoneType === "ADVISER_SELECTION"
         ? 1
         : totalRequirements +
           (stage.milestoneType === "DEFENSE_ELIGIBILITY" ? 1 : 0);
     const effectiveCompletedRequirements =
+      titleMilestone ? (proposal?.status === "APPROVED" ? 1 : 0) :
       stage.milestoneType === "ADVISER_SELECTION"
         ? activeAdviser
           ? 1
@@ -440,6 +445,7 @@ export async function getMilestoneProgress(
             ? 1
             : 0);
     const effectiveCompleted =
+      titleMilestone ? proposal?.status === "APPROVED" :
       stage.milestoneType === "DEFENSE_ELIGIBILITY"
         ? defenseApproved && (totalRequirements === 0 || completed)
         : stage.milestoneType === "ADVISER_SELECTION"
@@ -457,7 +463,9 @@ export async function getMilestoneProgress(
       isFinal: stage.isFinal,
       isCurrent: instance.currentStageId === stage.id,
       completed: effectiveCompleted,
+      titleProposal: titleMilestone ? proposal || null : null,
       status:
+        (titleMilestone ? (proposal?.status === "SUBMITTED" ? "AWAITING_REVIEW" : proposal?.status || "NOT_STARTED") as MilestoneDisplayStatus : null) ||
         adviserMilestoneStatus ||
         displayStatus(effectiveCompleted, statuses, hasActivity),
       completionPercent:
@@ -550,7 +558,7 @@ export async function advanceMilestoneIfSatisfied(
     return { advanced: false, completed: false, milestone };
   const instance = await tx.workflowInstance.findUnique({
     where: { researchId: options.researchId },
-    include: { workflow: true },
+    include: { workflow: true, research: { select: { workflowDraft: true } } },
   });
   if (!instance || instance.currentStageId !== milestone.id)
     return { advanced: false, completed: false, milestone };
@@ -579,7 +587,7 @@ export async function advanceMilestoneIfSatisfied(
         where: { id: instance.id },
         data: { completedAt },
       });
-      await tx.researchProject.update({
+      if (!instance.research?.workflowDraft) await tx.researchProject.update({
         where: { id: options.researchId },
         data: { status: "COMPLETED", completedAt },
       });

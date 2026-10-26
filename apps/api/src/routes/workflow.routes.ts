@@ -1,3 +1,6 @@
+import { startWorkflowParticipation } from "../services/workflow-participation.service.js";
+import { z } from "zod";
+import { submitTitleProposals, reviewTitleProposals } from "../services/title-proposal.service.js";
 import { Router, Request, Response } from "express";
 import { emailNotification } from "../services/notification-email.service.js";
 import { storageHierarchyService } from "../services/storage-hierarchy.service.js";
@@ -44,6 +47,7 @@ import { hasActiveWorkflowEnrollment } from "../services/workflow-enrollment-acc
 import { synchronizeAdviserMilestone } from "../services/adviser-milestone.service.js";
 import { workflowPublicationIssues } from "../services/workflow-publication.service.js";
 import {
+  assertMilestoneOrder,
   parseRequiredMilestoneId,
   validateMilestoneConditions,
   assertMilestoneCondition,
@@ -185,6 +189,46 @@ async function stageWithAccess(
   const access = await workflowAccess(stage.workflowId, user);
   return access ? { stage, access } : null;
 }
+
+// Title proposals use text submissions and explicit title selection, independent of files.
+router.get("/stages/:stageId/title-proposals", requireAuth, async (req, res) => {
+  try {
+    const context = await stageWithAccess(req.params.stageId as string, req.user!);
+    if (!context || context.stage.milestoneType !== "TITLE_PROPOSAL") return void res.status(404).json({ error: "Title Proposal milestone not found." });
+    const researchId = typeof req.query.researchId === "string" ? req.query.researchId : undefined;
+    if (!context.access.manages && !researchId) return void res.status(400).json({ error: "researchId is required." });
+    if (!context.access.manages && !(await prisma.researchMember.findFirst({ where: { researchId, userId: req.user!.id, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] }, research: { workflowInstance: { is: { workflowId: context.stage.workflowId } } } } })))
+      return void res.status(403).json({ error: "You cannot view this project's proposals." });
+    const submissions = await prisma.titleProposalSubmission.findMany({ where: { stageId: context.stage.id, ...(researchId && { researchId }) }, include: { research: { select: { id: true, title: true, groupName: true, creator: { select: { firstName: true, lastName: true } } } } }, orderBy: { submittedAt: "desc" } });
+    res.json({ submissions });
+  } catch (error: any) { res.status(500).json({ error: error.message || "Unable to load title proposals." }); }
+});
+router.post("/stages/:stageId/title-proposals", requireAuth, async (req, res) => {
+  try {
+    if (typeof req.body.researchId !== "string") return void res.status(400).json({ error: "researchId is required." });
+    const submission = await submitTitleProposals({ researchId: req.body.researchId, stageId: req.params.stageId as string, userId: req.user!.id, titles: req.body.titles });
+    res.status(201).json({ submission });
+  } catch (error: any) { res.status(error.statusCode || 500).json({ error: error.message || "Unable to submit title proposals." }); }
+});
+router.patch("/stages/:stageId/title-proposals/:researchId/review", requireAuth, requirePermission(Permissions.WORKFLOW_EDIT), async (req, res) => {
+  try {
+    const context = await stageWithAccess(req.params.stageId as string, req.user!);
+    if (!context?.access.manages) return void res.status(404).json({ error: "Milestone not found in your academic scope." });
+    const submission = await reviewTitleProposals({ researchId: req.params.researchId as string, stageId: context.stage.id, reviewerId: req.user!.id, version: req.body.version, status: req.body.status, selectedIndex: req.body.selectedIndex, reviewNote: req.body.reviewNote });
+    res.json({ submission });
+  } catch (error: any) { res.status(error.statusCode || 500).json({ error: error.message || "Unable to review title proposals." }); }
+});
+
+// An enrolled researcher may begin before a title has been registered.
+router.post("/:id/participation", requireAuth, async (req, res) => {
+  const input = z.object({ workspaceId: z.string().uuid().nullable().optional() }).safeParse(req.body);
+  const id = z.string().uuid().safeParse(req.params.id);
+  if (!input.success || !id.success) return void res.status(400).json({ error: "Choose a valid workflow and workspace." });
+  try {
+    const project = await startWorkflowParticipation({ user: req.user!, workflowId: id.data, workspaceId: input.data.workspaceId });
+    res.json({ project });
+  } catch (error: any) { res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : "Unable to start workflow participation." }); }
+});
 
 // Supporting materials attached to one milestone.
 router.get("/stages/:stageId/attachments", requireAuth, async (req, res) => {
@@ -1407,11 +1451,11 @@ router.post(
               sequence: s.sequence,
               responsibleRoleId: s.responsibleRoleId,
               requiresApproval:
-                s.milestoneType === "DEFENSE_ELIGIBILITY"
+                ["TITLE_PROPOSAL", "DEFENSE_ELIGIBILITY"].includes(s.milestoneType)
                   ? true
                   : s.requiresApproval,
               requiresDocument:
-                s.milestoneType === "ADVISER_SELECTION"
+                ["ADVISER_SELECTION", "TITLE_PROPOSAL"].includes(s.milestoneType)
                   ? false
                   : s.requiresDocument,
               deadlineDays:
@@ -1423,12 +1467,14 @@ router.post(
                 : null,
               isFinal: s.isFinal,
               submissionMode: [
+                "TITLE_PROPOSAL",
                 "ADVISER_SELECTION",
                 "DEFENSE_ELIGIBILITY",
               ].includes(s.milestoneType)
                 ? "GROUP"
                 : s.submissionMode,
               milestoneType: s.milestoneType,
+              titleProposalCount: s.titleProposalCount,
             })),
           },
         },
@@ -2046,13 +2092,16 @@ router.post(
         requiresDocument = true,
         submissionMode = "EITHER",
         isFinal = false,
+        titleProposalCount = 3,
         milestoneType = "STANDARD",
         requiredMilestoneId,
         position,
       } = req.body;
+      if (!Number.isInteger(titleProposalCount) || titleProposalCount < 1 || titleProposalCount > 10)
+        return void res.status(400).json({ error: "Choose between 1 and 10 title fields." });
       const requiredCondition = parseRequiredMilestoneId(requiredMilestoneId);
       if (
-        !["STANDARD", "ADVISER_SELECTION", "DEFENSE_ELIGIBILITY"].includes(
+        !["STANDARD", "ADVISER_SELECTION", "DEFENSE_ELIGIBILITY", "TITLE_PROPOSAL"].includes(
           milestoneType,
         )
       ) {
@@ -2151,6 +2200,8 @@ router.post(
               { statusCode: 400 },
             );
           }
+          if (milestoneType === "TITLE_PROPOSAL" && await tx.workflowStage.findFirst({ where: { workflowId, milestoneType: "TITLE_PROPOSAL" }, select: { id: true } }))
+            throw Object.assign(new Error("This workflow already has a Title Proposal milestone."), { statusCode: 409 });
           if (milestoneType === "ADVISER_SELECTION") {
             const existingAdviserMilestone = await tx.workflowStage.findFirst({
               where: { workflowId, milestoneType: "ADVISER_SELECTION" },
@@ -2183,13 +2234,14 @@ router.post(
               sequence: (lastStage?.sequence || 0) + 1,
               responsibleRoleId: researcherRole.id,
               requiresApproval: [
+                "TITLE_PROPOSAL",
                 "ADVISER_SELECTION",
                 "DEFENSE_ELIGIBILITY",
               ].includes(milestoneType)
                 ? true
                 : Boolean(requiresApproval),
               requiresDocument:
-                milestoneType === "ADVISER_SELECTION"
+                ["ADVISER_SELECTION", "TITLE_PROPOSAL"].includes(milestoneType)
                   ? false
                   : Boolean(requiresDocument),
               deadlineDays: deadline,
@@ -2198,11 +2250,13 @@ router.post(
                 : null,
               isFinal: Boolean(isFinal),
               submissionMode: [
+                "TITLE_PROPOSAL",
                 "ADVISER_SELECTION",
                 "DEFENSE_ELIGIBILITY",
               ].includes(milestoneType)
                 ? "GROUP"
                 : submissionMode,
+              titleProposalCount,
               milestoneType,
               requiredMilestoneId: requiredCondition,
             },
@@ -2241,11 +2295,16 @@ router.post(
         where: { workflowInstance: { is: { workflowId } } },
         select: {
           id: true,
+          workflowDraft: true,
           workflowInstance: {
-            select: { id: true, currentStage: { select: { sequence: true } } },
+            select: { id: true, completedAt: true, currentStage: { select: { sequence: true } } },
           },
         },
       });
+      for (const project of assignedProjects) {
+        if (project.workflowDraft && project.workflowInstance && (project.workflowInstance.completedAt || (project.workflowInstance.currentStage && stage.sequence <= project.workflowInstance.currentStage.sequence)))
+          await prisma.workflowInstance.update({ where: { id: project.workflowInstance.id }, data: { currentStageId: stage.id, completedAt: null } });
+      }
       let adviserSynchronizationFailures = 0;
       if (stage.milestoneType === "ADVISER_SELECTION") {
         const synchronization = await Promise.allSettled(
@@ -2351,6 +2410,8 @@ router.delete(
           .json({ error: "Workflow milestone not found." });
 
       await assertMilestoneNotRequired(prisma, stageId);
+      if (stage.milestoneType === "TITLE_PROPOSAL" && await prisma.titleProposalSubmission.count({ where: { stageId } }))
+        return void res.status(409).json({ error: "A Title Proposal milestone with submissions must be retained as an academic record." });
 
       const taskIds = stage.tasks.map((task) => task.id);
       const [activeUsage, submissions, transitions, dependentRecords] =
@@ -2484,6 +2545,9 @@ router.post(
         return;
       }
 
+      const pendingTitle = await prisma.workflowStage.findFirst({ where: { workflowId: instance.workflowId, milestoneType: "TITLE_PROPOSAL", category: { not: "Archived" }, sequence: { lt: targetStage.sequence }, titleProposals: { none: { researchId: instance.researchId, status: "APPROVED" } } } });
+      if (pendingTitle) return void res.status(409).json({ error: "Approve a proposed title before advancing beyond Title Proposal." });
+      const transitionCompletes = targetStage.isFinal && targetStage.milestoneType !== "TITLE_PROPOSAL" && !instance.research?.workflowDraft;
       // Record transition and advance stage in transaction
       const updatedInstance = await prisma.$transaction(async (tx) => {
         await assertMilestoneCondition(tx, instance.researchId, targetStage.id);
@@ -2501,7 +2565,7 @@ router.post(
           where: { id: instance.id },
           data: {
             currentStageId: targetStage.id,
-            ...(targetStage.isFinal && { completedAt: new Date() }),
+            ...(transitionCompletes && { completedAt: new Date() }),
           },
           include: {
             currentStage: true,
@@ -2512,7 +2576,7 @@ router.post(
         });
 
         // If target stage is final, update research project status
-        if (targetStage.isFinal) {
+        if (transitionCompletes) {
           await tx.researchProject.update({
             where: { id: instance.researchId },
             data: {
@@ -2556,6 +2620,7 @@ router.patch(
         isFinal,
         submissionMode,
         milestoneType,
+        titleProposalCount,
         requiredMilestoneId,
       } = req.body;
       const requiredCondition =
@@ -2576,13 +2641,23 @@ router.patch(
       }
       if (
         milestoneType !== undefined &&
-        !["STANDARD", "DEFENSE_ELIGIBILITY", "ADVISER_SELECTION"].includes(
+        !["STANDARD", "DEFENSE_ELIGIBILITY", "ADVISER_SELECTION", "TITLE_PROPOSAL"].includes(
           milestoneType,
         )
       )
         return void res
           .status(400)
           .json({ error: "Choose a valid milestone type." });
+      if (existing.milestoneType === "TITLE_PROPOSAL") {
+        if ((milestoneType !== undefined && milestoneType !== existing.milestoneType) || requiresDocument === true || requiresApproval === false || (submissionMode !== undefined && submissionMode !== "GROUP"))
+          return void res.status(400).json({ error: "Title Proposal must remain a text-only approval milestone." });
+        if (titleProposalCount !== undefined && (!Number.isInteger(titleProposalCount) || titleProposalCount < 1 || titleProposalCount > 10))
+          return void res.status(400).json({ error: "Choose between 1 and 10 title fields." });
+        if (titleProposalCount !== undefined && titleProposalCount !== existing.titleProposalCount && await prisma.titleProposalSubmission.count({ where: { stageId } }))
+          return void res.status(409).json({ error: "The field count cannot change after researchers submit proposals." });
+      } else if (milestoneType === "TITLE_PROPOSAL") {
+        return void res.status(400).json({ error: "Create a Title Proposal milestone separately." });
+      }
       // Adviser acceptance remains a dedicated, immutable completion mechanism.
       if (
         milestoneType !== undefined &&
@@ -2654,6 +2729,8 @@ router.patch(
 
       const stage = await prisma.$transaction(async (tx) => {
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${existing.workflowId}))`;
+        if (existing.milestoneType === "TITLE_PROPOSAL" && titleProposalCount !== undefined && titleProposalCount !== existing.titleProposalCount && await tx.titleProposalSubmission.count({ where: { stageId } }))
+          throw Object.assign(new Error("The field count cannot change after researchers submit proposals."), { statusCode: 409 });
         if (
           requiredCondition &&
           (requiredCondition === stageId ||
@@ -2681,6 +2758,7 @@ router.patch(
             ...(topicId !== undefined && { topicId }),
             ...(category !== undefined && { category }),
             ...(milestoneType !== undefined && { milestoneType }),
+            ...(existing.milestoneType === "TITLE_PROPOSAL" && titleProposalCount !== undefined && { titleProposalCount }),
             ...(requiredCondition !== undefined && {
               requiredMilestoneId: requiredCondition,
             }),
@@ -2695,6 +2773,7 @@ router.patch(
             ...((requiresApproval !== undefined ||
               milestoneType === "DEFENSE_ELIGIBILITY") && {
               requiresApproval: [
+                "TITLE_PROPOSAL",
                 "ADVISER_SELECTION",
                 "DEFENSE_ELIGIBILITY",
               ].includes(milestoneType || existing.milestoneType)
@@ -2703,7 +2782,7 @@ router.patch(
             }),
             ...(requiresDocument !== undefined && {
               requiresDocument:
-                existing.milestoneType === "ADVISER_SELECTION"
+                ["ADVISER_SELECTION", "TITLE_PROPOSAL"].includes(existing.milestoneType)
                   ? false
                   : Boolean(requiresDocument),
             }),
@@ -2776,10 +2855,10 @@ router.post(
         res.status(404).json({ error: "Workflow stage not found" });
         return;
       }
-      if (currentStage.milestoneType === "ADVISER_SELECTION") {
+      if (["ADVISER_SELECTION", "TITLE_PROPOSAL"].includes(currentStage.milestoneType)) {
         return void res.status(409).json({
           error:
-            "The Adviser Milestone remains locked until an eligible adviser accepts the group's request.",
+            "This milestone remains an approval gate until its dedicated approval flow is completed.",
         });
       }
 
@@ -2840,10 +2919,10 @@ router.post(
         return void res
           .status(404)
           .json({ error: "Workflow milestone not found." });
-      if (stage.milestoneType === "ADVISER_SELECTION") {
+      if (["ADVISER_SELECTION", "TITLE_PROPOSAL"].includes(stage.milestoneType)) {
         return void res.status(409).json({
           error:
-            "Adviser Milestones do not accept submission requirements. They are completed automatically by adviser acceptance.",
+            "This milestone uses its dedicated approval flow and does not accept document submission requirements.",
         });
       }
       const lastTask = await prisma.workflowTask.findFirst({
@@ -2889,9 +2968,12 @@ router.post(
       if (!req.user)
         return void res.status(401).json({ error: "Unauthorized" });
       const stageId = req.params.stageId as string;
-      const { researchId } = req.body;
-      if (!researchId)
-        return void res.status(400).json({ error: "researchId is required." });
+      let { researchId } = req.body;
+      if (!researchId) {
+        const startingStage = await prisma.workflowStage.findUnique({ where: { id: stageId }, select: { workflowId: true } });
+        if (!startingStage) return void res.status(404).json({ error: "Milestone not found." });
+        researchId = (await startWorkflowParticipation({ user: req.user, workflowId: startingStage.workflowId, workspaceId: req.body.workspaceId })).id;
+      }
 
       const project = await prisma.researchProject.findFirst({
         where: {
@@ -2929,11 +3011,9 @@ router.post(
           error: "This milestone is not part of the project workflow.",
         });
       await assertMilestoneCondition(prisma, researchId, stage.id);
-      if (stage.milestoneType === "ADVISER_SELECTION") {
-        return void res.status(409).json({
-          error:
-            "Use the Adviser Pool to complete this milestone. Only the group leader may send an adviser request.",
-        });
+      await assertMilestoneOrder(prisma, { workflowId: stage.workflowId, currentSequence: project.workflowInstance.currentStage?.sequence, sequence: stage.sequence, requiresApproval: stage.requiresApproval });
+      if (["ADVISER_SELECTION", "TITLE_PROPOSAL"].includes(stage.milestoneType)) {
+        return void res.json({ task: null, requiresDocument: false, stage, researchId, action: stage.milestoneType });
       }
       if (
         project.workflowInstance.currentStage &&
@@ -2946,7 +3026,7 @@ router.post(
       }
 
       if (!stage.requiresDocument) {
-        res.status(200).json({ task: null, requiresDocument: false, stage });
+        res.status(200).json({ task: null, requiresDocument: false, stage, researchId });
         return;
       }
 
@@ -2965,7 +3045,7 @@ router.post(
           isRequired: true,
         },
       });
-      res.status(201).json({ task, requiresDocument: true, stage });
+      res.status(201).json({ task, requiresDocument: true, stage, researchId });
     } catch (error: any) {
       res
         .status(error.statusCode || 500)

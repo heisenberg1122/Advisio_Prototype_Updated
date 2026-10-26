@@ -1,3 +1,4 @@
+import { TitleProposalPanel } from "@/components/workflow/TitleProposalPanel";
 import React, { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -284,6 +285,8 @@ function ProfessorDashboardContent() {
         .filter((p: any) => p.status !== "ARCHIVED" && p.workflowInstance)
         .map((p: any) => ({
           id: p.id,
+          workflowDraft: p.workflowDraft,
+          registeredAt: p.registeredAt,
           title: p.title,
           group: p.title || "Untitled research project",
           abstract: p.abstract || "",
@@ -385,6 +388,7 @@ function ProfessorDashboardContent() {
             targetCompletionDate: s.targetCompletionDate,
             requiresDocument: s.requiresDocument !== false,
             submissionMode: s.submissionMode || "EITHER",
+            titleProposalCount: s.titleProposalCount || 3,
             milestoneType: s.milestoneType || "STANDARD",
             tasks: s.tasks || [],
           });
@@ -395,6 +399,8 @@ function ProfessorDashboardContent() {
   }, [workflowData, requestedWorkflowId, selectedWorkflowId]);
 
   // Form input controllers
+  const [newTitleProposalCount, setNewTitleProposalCount] = useState(3);
+  const [editTitleProposalCount, setEditTitleProposalCount] = useState(3);
   const [newMilestoneTitle, setNewMilestoneTitle] = useState("");
   const [newMilestoneDescription, setNewMilestoneDescription] = useState("");
   const [creatingWorkflow, setCreatingWorkflow] = useState(false);
@@ -428,7 +434,7 @@ function ProfessorDashboardContent() {
     useState("GROUP");
   const [newMilestoneTopicId, setNewMilestoneTopicId] = useState("");
   const [newMilestoneType, setNewMilestoneType] = useState<
-    "STANDARD" | "ADVISER_SELECTION" | "DEFENSE_ELIGIBILITY"
+    "STANDARD" | "ADVISER_SELECTION" | "DEFENSE_ELIGIBILITY" | "TITLE_PROPOSAL"
   >("STANDARD");
   const [newMilestoneRequired, setNewMilestoneRequired] = useState("");
   const [newMilestoneAttachments, setNewMilestoneAttachments] = useState<
@@ -505,7 +511,7 @@ function ProfessorDashboardContent() {
   const [milestoneEditTopicId, setMilestoneEditTopicId] = useState("");
   const [milestoneEditRequired, setMilestoneEditRequired] = useState("");
   const [milestoneEditType, setMilestoneEditType] = useState<
-    "STANDARD" | "ADVISER_SELECTION" | "DEFENSE_ELIGIBILITY"
+    "STANDARD" | "ADVISER_SELECTION" | "DEFENSE_ELIGIBILITY" | "TITLE_PROPOSAL"
   >("STANDARD");
   const [topicDialogOpen, setTopicDialogOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<any | null>(null);
@@ -638,7 +644,7 @@ function ProfessorDashboardContent() {
   };
 
   const openNewMilestone = (
-    kind: "submission" | "approval" | "event" | "adviser" = "submission",
+    kind: "submission" | "approval" | "event" | "adviser" | "title" = "submission",
     preferredTopicId?: string,
   ) => {
     if (!selectedWorkflowTopics.length) {
@@ -650,9 +656,11 @@ function ProfessorDashboardContent() {
       triggerToast("Create a topic before adding its first milestone.");
       return;
     }
+    const titleProposal = kind === "title";
+    setNewTitleProposalCount(3);
     const adviserMilestone = kind === "adviser";
     const topicId = preferredTopicId || selectedWorkflowTopics[0].id;
-    setNewMilestoneTitle(adviserMilestone ? "Secure faculty adviser" : "");
+    setNewMilestoneTitle(titleProposal ? "Title Proposal" : adviserMilestone ? "Secure faculty adviser" : "");
     setNewMilestoneDescription(
       adviserMilestone
         ? "The research group leader must request an eligible faculty adviser. This milestone is approved automatically when the adviser accepts."
@@ -661,12 +669,12 @@ function ProfessorDashboardContent() {
     setTargetCompletionDate("");
     setNewMilestoneSubmissionMode("GROUP");
     setNewMilestoneRequiresDocument(kind === "submission");
-    setNewMilestoneRequiresApproval(kind === "approval" || adviserMilestone);
+    setNewMilestoneRequiresApproval(titleProposal || kind === "approval" || adviserMilestone);
     setNewMilestoneScope(
       kind === "approval" || adviserMilestone ? "Pre-requisite" : "Milestone",
     );
     setNewMilestoneTopicId(topicId);
-    setNewMilestoneType(adviserMilestone ? "ADVISER_SELECTION" : "STANDARD");
+    setNewMilestoneType(titleProposal ? "TITLE_PROPOSAL" : adviserMilestone ? "ADVISER_SELECTION" : "STANDARD");
     setNewMilestoneRequired("");
     setNewMilestoneAttachments([]);
     setShowAdvancedMilestoneOptions(false);
@@ -696,6 +704,7 @@ function ProfessorDashboardContent() {
           requiresDocument: newMilestoneRequiresDocument,
           submissionMode: newMilestoneSubmissionMode,
           milestoneType: newMilestoneType,
+          titleProposalCount: newTitleProposalCount,
           requiredMilestoneId: newMilestoneRequired || null,
         },
       );
@@ -1049,6 +1058,7 @@ function ProfessorDashboardContent() {
     setMilestoneEditSubmissionMode(milestone.submissionMode || "EITHER");
     setMilestoneEditTopicId(milestone.topicId || "");
     setMilestoneEditType(milestone.milestoneType || "STANDARD");
+    setEditTitleProposalCount(milestone.titleProposalCount || 3);
     setMilestoneEditRequired(milestone.requiredMilestoneId || "");
     setMilestoneSaveStatus("idle");
     setSelectedMilestoneId(milestone.id);
@@ -1066,6 +1076,7 @@ function ProfessorDashboardContent() {
           topicId: milestoneEditTopicId,
           category: milestoneEditCategory,
           milestoneType: milestoneEditType,
+          titleProposalCount: editTitleProposalCount,
           ...(milestoneEditTargetChanged && {
             targetCompletionDate: milestoneEditDeadline || null,
           }),
@@ -1324,7 +1335,7 @@ function ProfessorDashboardContent() {
           .sort((left, right) => left.sequence - right.sequence)
           .findIndex((candidate) => candidate.id === milestone.id) + 1
       : milestone.sequence;
-    const typeLabel = milestone.milestoneType === "ADVISER_SELECTION"
+    const typeLabel = milestone.milestoneType === "TITLE_PROPOSAL" ? "Title Proposal" : milestone.milestoneType === "ADVISER_SELECTION"
       ? "Adviser Milestone"
       : milestone.milestoneType === "DEFENSE_ELIGIBILITY"
         ? "Defense Eligibility"
@@ -1343,7 +1354,7 @@ function ProfessorDashboardContent() {
             ? "bg-violet-50 text-violet-700"
             : "bg-amber-50 text-amber-700";
     return (
-      <article key={milestone.id} className="group flex items-start gap-3 border-t border-[var(--color-border-subtle)] px-4 py-4 first:border-t-0 sm:px-5">
+      <article key={milestone.id} className="group flex flex-wrap items-start gap-3 border-t border-[var(--color-border-subtle)] px-4 py-4 first:border-t-0 sm:px-5">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-sm font-extrabold text-[var(--color-primary)]">
           {topicPosition}
         </span>
@@ -1373,9 +1384,11 @@ function ProfessorDashboardContent() {
           </span>
         </button>
         <span className="flex shrink-0 items-center gap-1 pt-1 text-[var(--color-text-muted)]" aria-hidden="true"><i className="ti ti-dots text-lg" /><i className="ti ti-grip-vertical text-lg" /></span>
+        {milestone.milestoneType === "TITLE_PROPOSAL" && <TitleProposalPanel stageId={milestone.id} count={milestone.titleProposalCount || 3} review />}
       </article>
     );
   };
+  const registeredProjects = projects.filter(project => !project.workflowDraft && (project.registeredAt || !project.workflowStages.some((stage: any) => stage.milestoneType === "TITLE_PROPOSAL" && stage.category !== "Archived")));
   const scopedSubmissions = submissions.filter(
     (submission) =>
       submissionWorkflowId === "ALL" ||
@@ -2188,6 +2201,8 @@ function ProfessorDashboardContent() {
           requiresDocument={milestoneEditRequiresDocument}
           requiresApproval={milestoneEditRequiresApproval}
           category={milestoneEditCategory}
+          titleProposalCount={editTitleProposalCount}
+          onTitleProposalCountChange={value => { setEditTitleProposalCount(value); setMilestoneSaveStatus("idle"); }}
           milestoneType={milestoneEditType}
           onMilestoneTypeChange={(value) => {
             setMilestoneEditType(value);
@@ -3005,6 +3020,8 @@ function ProfessorDashboardContent() {
           requiresDocument={newMilestoneRequiresDocument}
           requiresApproval={newMilestoneRequiresApproval}
           category={newMilestoneScope}
+          titleProposalCount={newTitleProposalCount}
+          onTitleProposalCountChange={setNewTitleProposalCount}
           milestoneType={newMilestoneType}
           onMilestoneTypeChange={setNewMilestoneType}
           requiredMilestoneId={newMilestoneRequired}
@@ -5642,7 +5659,7 @@ function ProfessorDashboardContent() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3.5 mt-2">
-                    {projects
+                    {registeredProjects
                       .filter((project: any) => {
                         const query = monitoringSearch.trim().toLowerCase();
                         if (!query) return true;
@@ -5700,6 +5717,7 @@ function ProfessorDashboardContent() {
                           </div>
                         </div>
                       ))}
+                    {!registeredProjects.length && projects.length > 0 && <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"><h3 className="font-bold">Research titles not registered yet</h3><p className="mt-2 text-sm">Researchers can begin milestones before registering a title. If the workflow uses Title Proposal, accept a submitted title to register their project.</p><button type="button" onClick={() => router.push("/professor/dashboard?tab=builder")} className="mt-3 text-sm font-bold text-[var(--color-primary)]">View workflow</button></div>}
                     {!projects.length &&
                       !projectsError &&
                       !workflowsError &&
@@ -5721,8 +5739,8 @@ function ProfessorDashboardContent() {
                           }
                         />
                       )}
-                    {projects.length > 0 &&
-                      !projects.some((project: any) => {
+                    {registeredProjects.length > 0 &&
+                      !registeredProjects.some((project: any) => {
                         const query = monitoringSearch.trim().toLowerCase();
                         if (!query) return true;
                         return [
@@ -6157,6 +6175,7 @@ function ProfessorDashboardContent() {
                                     </button>
                                     <div className="my-1 border-t border-slate-100" />
                                     {[
+                                      ["title", "ti-writing", "Title Proposal", "Approve one title to register the research project"],
                                       [
                                         "submission",
                                         "ti-file-upload",
@@ -6189,10 +6208,7 @@ function ProfessorDashboardContent() {
                                           key={kind}
                                           type="button"
                                           role="menuitem"
-                                          disabled={
-                                            kind === "adviser" &&
-                                            hasAdviserMilestone
-                                          }
+                                          disabled={(kind === "adviser" && hasAdviserMilestone) || (kind === "title" && selectedWorkflowMilestones.some(item => item.milestoneType === "TITLE_PROPOSAL"))}
                                           onClick={() => {
                                             if (
                                               kind === "adviser" &&
@@ -6204,7 +6220,8 @@ function ProfessorDashboardContent() {
                                                 | "submission"
                                                 | "approval"
                                                 | "event"
-                                                | "adviser",
+                                                | "adviser"
+                                                | "title",
                                             );
                                           }}
                                           className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"

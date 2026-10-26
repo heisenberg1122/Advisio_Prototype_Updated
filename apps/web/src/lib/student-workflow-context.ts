@@ -12,6 +12,7 @@ export function resolveStudentWorkflow<T extends Enrollment, P extends Project>(
   enrollments: T[],
   project?: P | null,
   requestedWorkflowId?: string | null,
+  projects: P[] = [],
 ) {
   const activeEnrollment =
     enrollments.find((entry) => entry.workflowId === requestedWorkflowId) ||
@@ -19,11 +20,18 @@ export function resolveStudentWorkflow<T extends Enrollment, P extends Project>(
       (entry) => entry.workflowId === project?.workflowInstance?.workflowId,
     ) ||
     enrollments[0];
+  const matches = projects.filter(
+    (candidate) =>
+      !candidate.workflowAccessRemoved &&
+      candidate.workflowInstance?.workflowId === activeEnrollment?.workflowId,
+  );
   const workflowProject =
     activeEnrollment &&
     !project?.workflowAccessRemoved &&
     project?.workflowInstance?.workflowId === activeEnrollment.workflowId
       ? project
-      : null;
+      : matches.length === 1 && activeEnrollment
+        ? matches[0]
+        : null;
   return { activeEnrollment, workflowProject };
 }

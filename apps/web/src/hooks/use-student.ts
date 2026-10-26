@@ -5,6 +5,7 @@ import {
   nextConsultation,
 } from "@/lib/consultation-view";
 import { useActiveProject } from "@/providers/active-project-provider";
+import { resolveStudentWorkflow } from "@/lib/student-workflow-context";
 import { projectAdviserRequests } from "@/lib/project-adviser-requests";
 
 import { useAuth } from "@/providers/auth-provider";
@@ -134,80 +135,73 @@ export function useStudentGroup() {
 }
 
 // ── Advisers ───────────────────────────────────────────────────
-export function useAdvisers(explicitProjectId?: string | null) {
+export function useAdvisers(explicitProjectId?: string | null, explicitWorkflowId?: string | null) {
   const { activeProjectId } = useActiveProjectContext();
   const targetProjectId = explicitProjectId || activeProjectId;
   return useQuery({
-    queryKey: [...studentKeys.advisers(), targetProjectId],
+    queryKey: [...studentKeys.advisers(), targetProjectId, explicitWorkflowId],
     queryFn: async () => {
-      try {
-        const research = await apiClient.get<{ projects: any[] }>(
-          "/api/research",
-        );
-        const projects = research.projects || [];
-        const project = targetProjectId
-          ? projects.find((candidate: any) => candidate.id === targetProjectId)
-          : projects.length === 1
-            ? projects[0]
-            : null;
-        const adviserParams = new URLSearchParams({
-          role: "ADVISER",
-          status: "ACTIVE",
-        });
-        if (project?.programId)
-          adviserParams.set("programId", project.programId);
-        const res = await apiClient.get<{ users: any[] }>(
-          `/api/users?${adviserParams.toString()}`,
-        );
-        const assignedMember = project?.members?.find(
-          (m: any) => m.projectRole === "ADVISER" && !m.leftAt,
-        );
-        const requests = await apiClient
-          .get<{ requests: any[] }>("/api/adviser-requests")
-          .catch(() => ({ requests: [] }));
-        const requestsList = Array.isArray(requests?.requests)
-          ? requests.requests
-          : [];
-        const usersList = Array.isArray(res?.users) ? res.users : [];
-        const mapAdviser = (adviser: any) => ({
-          ...adviser,
-          name:
-            adviser.name ||
-            `${adviser.firstName || ""} ${adviser.lastName || ""}`.trim() ||
-            adviser.email,
-          initials:
-            adviser.initials ||
-            `${adviser.firstName?.[0] || "F"}${adviser.lastName?.[0] || "A"}`.toUpperCase(),
-          college: adviser.college?.name || adviser.college || "Faculty",
-          adviseeCount: adviser.adviseeCount ?? 0,
-          maxAdviseeGroups: adviser.maxAdviseeGroups ?? 5,
-          availableSlots: adviser.availableSlots ?? 0,
-          isAcceptingAdvisees: adviser.isAcceptingAdvisees ?? true,
-          isFull: adviser.isFull ?? false,
-          avgResponseDays: adviser.avgResponseDays || "—",
-          requestStatus: requestsList.find(
-            (r: any) =>
-              r.adviserId === adviser.id && r.researchId === project?.id,
-          )?.status,
-        });
-        return {
-          projectId: project?.id || null,
-          project: project || null,
-          assigned: assignedMember ? mapAdviser(assignedMember.user) : null,
-          available: usersList.map(mapAdviser),
-          ...projectAdviserRequests(requestsList, project?.id),
-        };
-      } catch (err) {
-        console.error("Failed to load advisers:", err);
-        return {
-          projectId: null,
-          project: null,
-          assigned: null,
-          available: [],
-          requests: [],
-          pendingRequest: null,
-        };
-      }
+      const research = await apiClient.get<{ projects: any[] }>(
+        "/api/research",
+      );
+      const projects = research.projects || [];
+      const selectedProject = targetProjectId
+        ? projects.find((candidate: any) => candidate.id === targetProjectId)
+        : projects.length === 1
+          ? projects[0]
+          : null;
+      const { enrollments } = await apiClient.get<{ enrollments: any[] }>("/api/workflows/enrollments/me");
+      const { activeEnrollment, workflowProject } = resolveStudentWorkflow(enrollments, selectedProject, explicitWorkflowId, explicitProjectId && !selectedProject ? [] : projects);
+      const project = workflowProject || (explicitWorkflowId ? null : selectedProject);
+      const adviserParams = new URLSearchParams({
+        role: "ADVISER",
+        status: "ACTIVE",
+      });
+      if (project?.programId)
+        adviserParams.set("programId", project.programId);
+      const res = await apiClient.get<{ users: any[] }>(
+        `/api/users?${adviserParams.toString()}`,
+      );
+      const assignedMember = project?.members?.find(
+        (m: any) => m.projectRole === "ADVISER" && !m.leftAt,
+      );
+      const requests = await apiClient
+        .get<{ requests: any[] }>("/api/adviser-requests")
+        .catch(() => ({ requests: [] }));
+      const requestsList = Array.isArray(requests?.requests)
+        ? requests.requests
+        : [];
+      const usersList = Array.isArray(res?.users) ? res.users : [];
+      const mapAdviser = (adviser: any) => ({
+        ...adviser,
+        name:
+          adviser.name ||
+          `${adviser.firstName || ""} ${adviser.lastName || ""}`.trim() ||
+          adviser.email,
+        initials:
+          adviser.initials ||
+          `${adviser.firstName?.[0] || "F"}${adviser.lastName?.[0] || "A"}`.toUpperCase(),
+        college: adviser.college?.name || adviser.college || "Faculty",
+        adviseeCount: adviser.adviseeCount ?? 0,
+        maxAdviseeGroups: adviser.maxAdviseeGroups ?? 5,
+        availableSlots: adviser.availableSlots ?? 0,
+        isAcceptingAdvisees: adviser.isAcceptingAdvisees ?? true,
+        isFull: adviser.isFull ?? false,
+        avgResponseDays: adviser.avgResponseDays || "—",
+        requestStatus: requestsList.find(
+          (r: any) =>
+            r.adviserId === adviser.id && r.researchId === project?.id,
+        )?.status,
+      });
+      return {
+        workflow: activeEnrollment?.workflow || null,
+        workflowId: activeEnrollment?.workflowId || null,
+        projectId: project?.id || null,
+        project: project || null,
+        assigned: assignedMember ? mapAdviser(assignedMember.user) : null,
+        available: usersList.map(mapAdviser),
+        ...projectAdviserRequests(requestsList, project?.id),
+      };
     },
   });
 }

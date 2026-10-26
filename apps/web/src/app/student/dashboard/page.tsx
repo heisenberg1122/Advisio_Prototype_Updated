@@ -651,6 +651,7 @@ function StudentDashboardContent() {
     }
     if (activeProject) {
       setShowCreateModal(false);
+      if (activeProject.workflowDraft) { openEditProject(); return; }
       triggerToast(activeProject.status === "REJECTED"
         ? "Revise the rejected title from My Project instead of creating a replacement."
         : "You already have a registered research project.");
@@ -727,6 +728,8 @@ function StudentDashboardContent() {
 
   const openEditProject = () => {
     if (!activeProject) return;
+    const titleMilestone = activeProject.workflowInstance?.workflow?.stages?.find((stage: any) => stage.milestoneType === "TITLE_PROPOSAL" && stage.category !== "Archived");
+    if (titleMilestone) { router.push(studentTaskDetailsHref(`milestone-${titleMilestone.id}`, activeProject.id)); return; }
     setEditProjectTitle(activeProject.title || "");
     setEditProjectAbstract(activeProject.abstract || "");
     setEditProjectReason("");
