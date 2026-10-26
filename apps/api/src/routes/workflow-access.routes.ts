@@ -83,7 +83,11 @@ async function eligible(
     where: { id },
     include: { roles: { include: { role: true } } },
   });
-  if (w.status === "ARCHIVED") fail("This workflow is archived.", 409);
+  if (w.status !== "PUBLISHED")
+    fail(
+      "This workflow is still a draft and is not available to researchers.",
+      409,
+    );
   if (
     !user ||
     user.status !== "ACTIVE" ||
@@ -111,7 +115,9 @@ async function notify(
       type: "WORKFLOW_CHANGED",
       title,
       message,
-      audience: actionUrl.startsWith("/professor/") ? "coordinator" : "researcher",
+      audience: actionUrl.startsWith("/professor/")
+        ? "coordinator"
+        : "researcher",
       entityType: "WORKFLOW_ACCESS",
       entityId,
       actionUrl,
@@ -266,7 +272,9 @@ export const requestWorkflow = route(async (req, res) => {
 export const generateWorkflowCode = route(async (req, res) => {
   const invitation = await prisma.$transaction(async (tx) => {
     await lockWorkflowAccess(tx, String(req.params.id));
-    await managed(String(req.params.id), req.user!, tx);
+    const workflow = await managed(String(req.params.id), req.user!, tx);
+    if (workflow.status !== "PUBLISHED")
+      fail("Publish the workflow before inviting researchers.", 409);
     return tx.workflow.update({
       where: { id: String(req.params.id) },
       data: {

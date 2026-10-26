@@ -426,7 +426,7 @@ describe("workflow and released grade contracts", () => {
   const workflow = (id: string, researchTypeId = "type-a") => ({
     id,
     researchTypeId,
-    status: "DRAFT",
+    status: "PUBLISHED",
     stages: [{ id: "stage" }],
   });
   it("requires an explicit selection when multiple joined workflows are eligible", async () => {

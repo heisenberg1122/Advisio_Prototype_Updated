@@ -38,7 +38,7 @@ export async function resolveRegistrationWorkflow(
     });
     const eligible = enrollments.filter(
       ({ workflow }) =>
-        workflow.status !== "ARCHIVED" &&
+        workflow.status === "PUBLISHED" &&
         types.some((type) => type.id === workflow.researchTypeId) &&
         (!requestedResearchTypeId ||
           workflow.researchTypeId === requestedResearchTypeId),
@@ -73,7 +73,7 @@ export async function resolveRegistrationWorkflow(
         where: {
           id: requestedWorkflowId,
           researchTypeId: researchType.id,
-          status: { not: "ARCHIVED" },
+          status: "PUBLISHED",
         },
         include,
       })
@@ -83,7 +83,7 @@ export async function resolveRegistrationWorkflow(
   if (
     workflow &&
     (workflow.researchTypeId !== researchType.id ||
-      workflow.status === "ARCHIVED")
+      workflow.status !== "PUBLISHED")
   )
     fail("The research type's workflow is unavailable.");
   return { researchType, workflow };

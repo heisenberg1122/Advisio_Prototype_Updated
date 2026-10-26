@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
-  workflow: { findUnique: vi.fn(), findMany: vi.fn(), delete: vi.fn() },
-  researchType: { findUnique: vi.fn(), findMany: vi.fn() },
+  workflow: {
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
+  researchType: { findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn() },
   workflowEnrollment: {
     findFirst: vi.fn(),
     findUnique: vi.fn(),
@@ -10,9 +15,9 @@ const db = vi.hoisted(() => ({
     update: vi.fn(),
     upsert: vi.fn(),
   },
-  user: {findUnique: vi.fn()},
-  workflowAccessEntry: {findUnique:vi.fn(),updateMany:vi.fn()},
-  $executeRaw:vi.fn(),
+  user: { findUnique: vi.fn() },
+  workflowAccessEntry: { findUnique: vi.fn(), updateMany: vi.fn() },
+  $executeRaw: vi.fn(),
   researchMember: { findFirst: vi.fn() },
   researchProject: {
     findFirst: vi.fn(),
@@ -21,7 +26,14 @@ const db = vi.hoisted(() => ({
   },
   workflowInstance: { findUnique: vi.fn(), count: vi.fn() },
   workflowResource: { findMany: vi.fn() },
-  workflowStage: { findUnique: vi.fn(), findFirst: vi.fn() },
+  workflowTopic: { findMany: vi.fn(), update: vi.fn() },
+  workflowStage: {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    update: vi.fn(),
+    updateMany: vi.fn(),
+  },
   workflowStageAttachment: { findMany: vi.fn() },
   notification: { create: vi.fn(), createMany: vi.fn() },
   auditLog: { create: vi.fn() },
@@ -98,6 +110,7 @@ describe("workflow deletion", () => {
     db.workflow.findUnique.mockResolvedValue({
       id: "workflow",
       name: "Private workflow",
+      status: "PUBLISHED",
       researchTypeId: "type",
     });
     db.researchType.findUnique.mockResolvedValue({
@@ -197,14 +210,103 @@ describe("workflow deletion", () => {
   });
 });
 
+describe("workflow publication", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    db.$transaction.mockImplementation((callback) => callback(db));
+    db.researchType.findUnique.mockResolvedValue({
+      program: { id: "program", collegeId: "college" },
+    });
+    db.workflowEnrollment.findMany.mockResolvedValue([]);
+    db.researchProject.findMany.mockResolvedValue([]);
+    db.notification.createMany.mockResolvedValue({ count: 0 });
+    db.workflowTopic.findMany.mockResolvedValue([{ id: "topic" }]);
+    db.workflowStage.findMany.mockResolvedValue([
+      { id: "stage", topicId: "topic" },
+    ]);
+    db.workflowStage.findFirst.mockResolvedValue({ id: "stage" });
+  });
+
+  it("publishes a complete draft and makes it the research type workflow", async () => {
+    const draft = {
+      id: "workflow",
+      name: "Capstone workflow",
+      researchTypeId: "type",
+      createdBy: professor.id,
+      status: "DRAFT",
+      version: 2,
+    };
+    const complete = {
+      ...draft,
+      topics: [{ id: "topic", sequence: 1 }],
+      stages: [
+        {
+          id: "stage",
+          name: "Proposal",
+          topicId: "topic",
+          category: "Milestone",
+          requiresDocument: true,
+          tasks: [{ id: "task", isRequired: true }],
+        },
+      ],
+    };
+    db.workflow.findUnique
+      .mockResolvedValueOnce(draft)
+      .mockResolvedValueOnce(complete);
+    db.workflow.update.mockImplementation(({ data }) =>
+      Promise.resolve({ ...complete, ...data }),
+    );
+
+    const res = await request("/:id/publish", "post", { user: professor });
+
+    expect(res.statusCode).toBe(200);
+    expect(db.workflow.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "workflow" },
+        data: expect.objectContaining({ status: "PUBLISHED" }),
+      }),
+    );
+    expect(db.researchType.update).toHaveBeenCalledWith({
+      where: { id: "type" },
+      data: { workflowId: "workflow" },
+    });
+    expect(db.auditLog.create).toHaveBeenCalled();
+  });
+
+  it("keeps an incomplete draft private", async () => {
+    const draft = {
+      id: "workflow",
+      name: "Incomplete workflow",
+      researchTypeId: "type",
+      createdBy: professor.id,
+      status: "DRAFT",
+      version: 1,
+    };
+    db.workflow.findUnique
+      .mockResolvedValueOnce(draft)
+      .mockResolvedValueOnce({ ...draft, topics: [], stages: [] });
+
+    const res = await request("/:id/publish", "post", { user: professor });
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body.issues).toEqual([
+      "Add at least one workflow topic.",
+      "Add at least one milestone.",
+    ]);
+    expect(db.workflow.update).not.toHaveBeenCalled();
+  });
+});
+
 describe("removed workflow participant API access", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     db.workflow.findUnique.mockResolvedValue({
       id: "workflow",
       name: "Private workflow",
-      inviteCode:"INVITE",creator:{firstName:"Professor",lastName:"Test"},
+      inviteCode: "INVITE",
+      creator: { firstName: "Professor", lastName: "Test" },
       researchTypeId: "type",
+      status: "PUBLISHED",
       inviteExpiresAt: new Date(Date.now() + 60000),
     });
     db.researchType.findUnique.mockResolvedValue({
@@ -221,8 +323,15 @@ describe("removed workflow participant API access", () => {
       id: "stage",
       workflowId: "workflow",
     });
-    db.$transaction.mockImplementation((actions) => typeof actions === "function" ? actions(db) : Promise.all(actions));
-    db.user.findUnique.mockResolvedValue({status:"ACTIVE",collegeId:"college",programId:"program",roles:[{role:{name:"RESEARCHER"}}]});
+    db.$transaction.mockImplementation((actions) =>
+      typeof actions === "function" ? actions(db) : Promise.all(actions),
+    );
+    db.user.findUnique.mockResolvedValue({
+      status: "ACTIVE",
+      collegeId: "college",
+      programId: "program",
+      roles: [{ role: { name: "RESEARCHER" } }],
+    });
   });
 
   it("denies resource access despite remaining project membership", async () => {
@@ -387,7 +496,7 @@ describe("removed workflow participant API access", () => {
   });
 
   it("does not expose milestone previews through a removed participant's invitation", async () => {
-    db.workflowEnrollment.findUnique.mockResolvedValue({status:"REVOKED"});
+    db.workflowEnrollment.findUnique.mockResolvedValue({ status: "REVOKED" });
     const res = await request("/invitation/:code");
     expect(res.statusCode).toBe(403);
     expect(res.body.invitation).toBeUndefined();
@@ -400,7 +509,12 @@ describe("removed workflow participant API access", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           AND: expect.arrayContaining([
-            { enrollments: { some: { userId: "student", status: "ACTIVE" } } },
+            {
+              status: "PUBLISHED",
+              enrollments: {
+                some: { userId: "student", status: "ACTIVE" },
+              },
+            },
           ]),
         }),
       }),
