@@ -409,6 +409,7 @@ function ProfessorDashboardContent() {
   } | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deletingWorkflow, setDeletingWorkflow] = useState(false);
+  const deleteWorkflowInFlightRef = useRef(false);
   const [deleteWorkflowError, setDeleteWorkflowError] = useState("");
   const [newWorkflowName, setNewWorkflowName] = useState("");
   const [newWorkflowDescription, setNewWorkflowDescription] = useState("");
@@ -648,10 +649,12 @@ function ProfessorDashboardContent() {
     event.preventDefault();
     if (
       !workflowToDelete ||
+      deleteWorkflowInFlightRef.current ||
       deletingWorkflow ||
       deleteConfirmation !== `sudo delete "${workflowToDelete.name}"`
     )
       return;
+    deleteWorkflowInFlightRef.current = true;
     setDeletingWorkflow(true);
     setDeleteWorkflowError("");
     try {
@@ -663,16 +666,18 @@ function ProfessorDashboardContent() {
         error?.message || "Workflow could not be deleted.",
       );
       setDeletingWorkflow(false);
+      deleteWorkflowInFlightRef.current = false;
       return;
     }
     setWorkflowToDelete(null);
     setDeleteConfirmation("");
-    await Promise.all([
+    await Promise.allSettled([
       refetchWorkflows(),
       refetchEnrollments(),
       refetchResearch(),
     ]);
     setDeletingWorkflow(false);
+    deleteWorkflowInFlightRef.current = false;
     triggerToast(`Workflow "${workflowToDelete.name}" deleted.`);
   };
 
@@ -1415,6 +1420,9 @@ function ProfessorDashboardContent() {
   const selectedWorkflow =
     workflows.find((workflow: any) => workflow.id === selectedWorkflowId) ||
     null;
+  const selectedWorkflowProjectCount = projects.filter(
+    (project: any) => project.workflowId === selectedWorkflowId,
+  ).length;
   const selectedWorkflowTopics = selectedWorkflow?.topics || [];
   const selectedWorkflowInvitation = selectedWorkflow?.inviteCode
     ? {
@@ -2196,6 +2204,20 @@ function ProfessorDashboardContent() {
               enrollments. This cannot be undone. Workflows linked to research
               projects cannot be deleted.
             </p>
+            {selectedWorkflowProjectCount > 0 ? (
+              <div
+                role="alert"
+                className="flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
+              >
+                <i className="ti ti-lock mt-0.5 text-lg" aria-hidden="true" />
+                <p>
+                  <strong className="block">Deletion is blocked</strong>
+                  This workflow is used by {selectedWorkflowProjectCount}{" "}
+                  research project{selectedWorkflowProjectCount === 1 ? "" : "s"}.
+                  Advisio preserves those projects and their academic records.
+                </p>
+              </div>
+            ) : null}
             <div>
               <label
                 htmlFor="delete-workflow-confirmation"
@@ -2214,7 +2236,7 @@ function ProfessorDashboardContent() {
                 id="delete-workflow-confirmation"
                 value={deleteConfirmation}
                 onChange={(event) => setDeleteConfirmation(event.target.value)}
-                disabled={deletingWorkflow}
+                disabled={deletingWorkflow || selectedWorkflowProjectCount > 0}
                 autoComplete="off"
                 spellCheck={false}
                 aria-describedby="delete-workflow-phrase"
@@ -2239,6 +2261,7 @@ function ProfessorDashboardContent() {
                 type="submit"
                 disabled={
                   deletingWorkflow ||
+                  selectedWorkflowProjectCount > 0 ||
                   deleteConfirmation !==
                     `sudo delete "${workflowToDelete.name}"`
                 }
@@ -6221,6 +6244,36 @@ function ProfessorDashboardContent() {
                           : selectedWorkflow?.status === "PUBLISHED"
                             ? "Publish workflow"
                             : "Publish workflow"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={
+                          !selectedWorkflow ||
+                          deletingWorkflow ||
+                          topicOrderSaving
+                        }
+                        title={
+                          !selectedWorkflow
+                            ? "Select a workflow before deleting it."
+                            : topicOrderSaving
+                                ? "Wait for the workflow order to finish saving."
+                                : selectedWorkflowProjectCount > 0
+                                  ? "View why this workflow cannot be deleted"
+                                  : "Permanently delete this entire workflow"
+                        }
+                        onClick={() => {
+                          if (!selectedWorkflow) return;
+                          setDeleteConfirmation("");
+                          setDeleteWorkflowError("");
+                          setWorkflowToDelete({
+                            id: selectedWorkflow.id,
+                            name: selectedWorkflow.name,
+                          });
+                        }}
+                        className="rounded-xl border border-red-300 bg-[var(--color-surface)] px-4 py-2.5 text-sm font-extrabold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-45 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/30"
+                      >
+                        <i className="ti ti-trash mr-1.5" aria-hidden="true" />
+                        Delete workflow
                       </button>
                     </div>
                   </div>
