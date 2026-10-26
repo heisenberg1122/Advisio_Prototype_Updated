@@ -438,6 +438,8 @@ function StudentDashboardContent() {
         deadlineDays: stage.deadlineDays,
         targetCompletionDate: stage.targetCompletionDate,
         requiresApproval: stage.requiresApproval,
+        requiredMilestone: authoritative.get(stage.id)?.requiredMilestone,
+        isBlocked: authoritative.get(stage.id)?.isBlocked === true,
         sequence: stage.sequence,
         topicId: stage.topic?.id || null,
         topicTitle: stage.topic?.title || "Ungrouped milestones",
@@ -2494,6 +2496,7 @@ function StudentDashboardContent() {
                         <div className="min-w-0 flex-1">
                           <span className="font-bold text-[#1b4264] block">{m.sequence}. {m.title}</span>
                           <span className="mt-0.5 block text-xs text-slate-500">{m.category} · {formatMilestoneTarget(m)}{m.requiresApproval ? " · Adviser approval required" : ""}</span>
+                          {m.isBlocked && <p className="mt-2 text-sm font-semibold text-amber-700">Complete and obtain approval for {m.requiredMilestone?.name || "the required milestone"} first.</p>}
                           {m.description && <p className="mt-2 whitespace-pre-wrap text-base leading-5 text-slate-600">{m.description}</p>}
                         </div>
                         <Tag variant={m.status === 'completed' ? 'success' : m.status === 'in-progress' ? 'warn' : 'info'}>{m.status}</Tag>

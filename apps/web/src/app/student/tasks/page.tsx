@@ -55,6 +55,7 @@ const EMPTY_SUBMISSION_OPTIONS: TaskSubmissionOption[] = [];
 
 function taskDisplayStatus(task: any, currentSequence: number) {
   if (task.previewOnly) return "AWAITING_PROJECT";
+  if (task.conditionMessage) return "LOCKED";
   if (task.isAdviserMilestone) {
     if (task.adviserMilestone?.status === "APPROVED") return "APPROVED";
     if (task.locked) return "LOCKED";
@@ -143,6 +144,8 @@ export default function ResearchTasksPage() {
       );
       const tasks = stages.flatMap((stage: any) => {
         const progress = milestoneProgress.get(stage.id) as any;
+        const blockedByCondition = progress?.isBlocked === true;
+        const conditionMessage = blockedByCondition ? `Complete and obtain approval for “${progress?.requiredMilestone?.name || "the required milestone"}” first.` : null;
         if (stage.milestoneType === "ADVISER_SELECTION")
           return [
             {
@@ -156,7 +159,8 @@ export default function ResearchTasksPage() {
               isRequired: true,
               stage,
               submission: null,
-              locked: stage.sequence > currentSequence,
+              locked: blockedByCondition || stage.sequence > currentSequence,
+              conditionMessage,
               milestoneOnly: true,
               isAdviserMilestone: true,
               adviserMilestone: progress?.adviserMilestone || {
@@ -179,8 +183,8 @@ export default function ResearchTasksPage() {
               isRequired: true,
               stage,
               submission: null,
-              locked:
-                stage.sequence > currentSequence && stage.requiresApproval,
+              locked: blockedByCondition || (stage.sequence > currentSequence && stage.requiresApproval),
+              conditionMessage,
               milestoneOnly: true,
               requiresDocument: false,
               previewOnly: !project,
@@ -192,7 +196,8 @@ export default function ResearchTasksPage() {
             ...task,
             stage,
             submission: submissions.get(task.id),
-            locked: stage.sequence > currentSequence && stage.requiresApproval,
+            locked: blockedByCondition || (stage.sequence > currentSequence && stage.requiresApproval),
+            conditionMessage,
             milestoneOnly: false,
             requiresDocument: true,
             previewOnly: !project,
@@ -209,7 +214,8 @@ export default function ResearchTasksPage() {
             isRequired: true,
             stage,
             submission: null,
-            locked: stage.sequence > currentSequence && stage.requiresApproval,
+            locked: blockedByCondition || (stage.sequence > currentSequence && stage.requiresApproval),
+            conditionMessage,
             milestoneOnly: true,
             requiresDocument: true,
             previewOnly: !project,
@@ -855,6 +861,7 @@ export default function ResearchTasksPage() {
                         <h2 className="mt-1 text-lg font-semibold text-[var(--color-text-primary)] leading-snug">
                           {task.title}
                         </h2>
+                        {task.conditionMessage && <p className="mt-2 text-sm font-semibold text-amber-700 dark:text-amber-300">{task.conditionMessage}</p>}
                         <p className="mt-1 line-clamp-2 text-base text-[var(--color-text-secondary)] leading-relaxed">
                           {task.instructions}
                         </p>
@@ -1614,7 +1621,7 @@ function MilestoneDetailsWorkspace({
           {task.previewOnly ? (
             <Notice text="This milestone is available for review. Join or register a research project connected to this workflow before starting work or submitting files." />
           ) : task.locked ? (
-            <Notice text="This milestone is visible to your group, but submission opens when the preceding milestone is completed." />
+            <Notice text={task.conditionMessage || "This milestone is visible to your group, but submission opens when the preceding milestone is completed."} />
           ) : task.isAdviserMilestone ? (
             <AdviserMilestoneAction
               task={task}

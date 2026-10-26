@@ -28,7 +28,7 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
         ...stage,
         status: actual.completed
           ? "completed" as const
-          : actual.status === "NOT_STARTED"
+          : actual.status === "NOT_STARTED" || actual.status === "BLOCKED"
             ? "upcoming" as const
             : "active" as const,
       };

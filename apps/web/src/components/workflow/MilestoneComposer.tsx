@@ -14,8 +14,8 @@ type MilestoneComposerProps = {
   requiresApproval: boolean;
   category: string;
   milestoneType?: "STANDARD" | "ADVISER_SELECTION";
-  position?: string;
-  positionOptions?: Array<{ value: string; label: string }>;
+  requiredMilestoneId?: string;
+  milestoneConditions?: Array<{ value: string; label: string }>;
   saving: boolean;
   advancedOpen: boolean;
   requirementsContent?: React.ReactNode;
@@ -28,7 +28,7 @@ type MilestoneComposerProps = {
   onRequiresDocumentChange: (value: boolean) => void;
   onRequiresApprovalChange: (value: boolean) => void;
   onCategoryChange: (value: string) => void;
-  onPositionChange?: (value: string) => void;
+  onRequiredMilestoneChange: (value: string) => void;
   onAdvancedOpenChange: (value: boolean) => void;
   onClose: () => void;
   onSubmit: (event: React.FormEvent) => void;
@@ -52,8 +52,8 @@ export function MilestoneComposer({
   requiresApproval,
   category,
   milestoneType = "STANDARD",
-  position = "",
-  positionOptions = [],
+  requiredMilestoneId = "",
+  milestoneConditions = [],
   saving,
   advancedOpen,
   requirementsContent,
@@ -66,7 +66,7 @@ export function MilestoneComposer({
   onRequiresDocumentChange,
   onRequiresApprovalChange,
   onCategoryChange,
-  onPositionChange,
+  onRequiredMilestoneChange,
   onAdvancedOpenChange,
   onClose,
   onSubmit,
@@ -86,7 +86,7 @@ export function MilestoneComposer({
     requiresApproval,
     category,
     milestoneType,
-    position,
+    requiredMilestoneId,
   });
   const initialSignature = useRef(currentSignature);
   const hasUnsavedChanges =
@@ -345,26 +345,33 @@ export function MilestoneComposer({
                       </select>
                     </label>
                   )}
-                  {isCreate &&
-                    onPositionChange &&
-                    positionOptions.length > 0 && (
-                      <label className="block text-sm font-bold text-slate-700">
-                        Position in topic
-                        <select
-                          value={position}
-                          onChange={(event) =>
-                            onPositionChange(event.target.value)
-                          }
-                          className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
-                        >
-                          {positionOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
+                  <label className="block text-sm font-bold text-slate-700">
+                    Required Milestone Condition
+                    <select
+                      value={requiredMilestoneId}
+                      onChange={(event) =>
+                        onRequiredMilestoneChange(event.target.value)
+                      }
+                      aria-describedby="milestone-condition-help"
+                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
+                    >
+                      <option value="">No specific milestone required</option>
+                      {milestoneConditions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <span
+                      id="milestone-condition-help"
+                      className="mt-1.5 block text-xs font-normal leading-5 text-slate-500"
+                    >
+                      The selected milestone must be completed and approved
+                      first. An Adviser Milestone is satisfied when an eligible
+                      adviser accepts. Only earlier milestones in this workflow
+                      can be selected.
+                    </span>
+                  </label>
                   <label className="block text-sm font-bold text-slate-700">
                     Target completion
                     <div className="relative mt-1.5">
@@ -433,7 +440,7 @@ export function MilestoneComposer({
                   )}
                   <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3">
                     <span className="block text-sm font-bold text-[var(--color-text-primary)]">
-                      Prerequisite
+                      Workflow order
                     </span>
                     <span className="mt-1 block text-xs leading-5 text-[var(--color-text-secondary)]">
                       {prerequisiteLabel}

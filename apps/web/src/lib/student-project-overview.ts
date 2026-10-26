@@ -15,6 +15,8 @@ export interface ProjectMilestoneProgress {
   status?: string | null;
   requiresDocument?: boolean;
   requiresApproval?: boolean;
+  isBlocked?: boolean;
+  requiredMilestone?: { id: string; name: string; completed: boolean } | null;
   tasks?: ProjectTaskProgress[];
 }
 
@@ -145,6 +147,15 @@ export function resolveProjectNextStep({
       description:
         "No current milestone is available. Open Tasks & Requirements or contact your professor.",
       tone: "neutral",
+      action: { kind: "tasks" },
+      buttonLabel: "View requirements",
+    };
+  if (current.isBlocked)
+    return {
+      label: "Required milestone condition",
+      title: `Complete ${current.requiredMilestone?.name || "the required milestone"} first`,
+      description: `${current.name} opens after its required milestone is completed and approved.`,
+      tone: "pending",
       action: { kind: "tasks" },
       buttonLabel: "View requirements",
     };

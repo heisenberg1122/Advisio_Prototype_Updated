@@ -41,6 +41,12 @@ import {
 import { hasActiveWorkflowEnrollment } from "../services/workflow-enrollment-access.service.js";
 import { synchronizeAdviserMilestone } from "../services/adviser-milestone.service.js";
 import { workflowPublicationIssues } from "../services/workflow-publication.service.js";
+import {
+  parseRequiredMilestoneId,
+  validateMilestoneConditions,
+  assertMilestoneCondition,
+  assertMilestoneNotRequired,
+} from "../services/milestone-condition.service.js";
 
 const router = Router();
 router.use(workflowAccessRoutes);
@@ -433,6 +439,7 @@ async function normalizeWorkflowStageSequences(tx: any, workflowId: string) {
       data: { isFinal: true },
     });
   }
+  await validateMilestoneConditions(tx, workflowId);
 }
 
 async function normalizeWorkflowTopicSequences(tx: any, workflowId: string) {
@@ -585,6 +592,7 @@ async function resequenceWorkflowStagesByTopics(tx: any, workflowId: string) {
       data: { isFinal: true },
     });
   }
+  await validateMilestoneConditions(tx, workflowId);
 }
 
 async function positionWorkflowStageWithinTopic(
@@ -640,6 +648,7 @@ async function positionWorkflowStageWithinTopic(
       data: { sequence: index + 1, isFinal: index === ordered.length - 1 },
     });
   }
+  await validateMilestoneConditions(tx, workflowId);
 }
 
 // Workflow-wide reference files shared with every researcher in the workflow.
@@ -1600,6 +1609,10 @@ router.delete(
             { statusCode: 409 },
           );
         }
+        await tx.workflowStage.updateMany({
+          where: { workflowId: id },
+          data: { requiredMilestoneId: null },
+        });
         await tx.workflow.delete({ where: { id } });
         await tx.auditLog.create({
           data: {
@@ -2023,8 +2036,10 @@ router.post(
         submissionMode = "EITHER",
         isFinal = false,
         milestoneType = "STANDARD",
+        requiredMilestoneId,
         position,
       } = req.body;
+      const requiredCondition = parseRequiredMilestoneId(requiredMilestoneId);
       if (!["STANDARD", "ADVISER_SELECTION"].includes(milestoneType)) {
         return void res
           .status(400)
@@ -2103,6 +2118,24 @@ router.post(
         async (tx) => {
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${workflowId}))`;
           await normalizeWorkflowStageSequences(tx, workflowId);
+          if (
+            requiredCondition &&
+            !(await tx.workflowStage.findFirst({
+              where: {
+                id: requiredCondition,
+                workflowId,
+                category: { not: "Archived" },
+              },
+              select: { id: true },
+            }))
+          ) {
+            throw Object.assign(
+              new Error(
+                "Choose an active required milestone from this workflow.",
+              ),
+              { statusCode: 400 },
+            );
+          }
           if (milestoneType === "ADVISER_SELECTION") {
             const existingAdviserMilestone = await tx.workflowStage.findFirst({
               where: { workflowId, milestoneType: "ADVISER_SELECTION" },
@@ -2152,6 +2185,7 @@ router.post(
                   ? "GROUP"
                   : submissionMode,
               milestoneType,
+              requiredMilestoneId: requiredCondition,
             },
           });
           if (
@@ -2266,9 +2300,11 @@ router.post(
         error?.statusCode === 409 ||
         (error?.code === "P2002" &&
           String(error?.meta?.target || "").includes("adviser_selection"));
-      res.status(duplicateAdviserMilestone ? 409 : 500).json({
-        error: error.message || "Failed to create workflow milestone",
-      });
+      res
+        .status(error.statusCode || (duplicateAdviserMilestone ? 409 : 500))
+        .json({
+          error: error.message || "Failed to create workflow milestone",
+        });
     }
   },
 );
@@ -2294,18 +2330,26 @@ router.delete(
           .status(404)
           .json({ error: "Workflow milestone not found." });
 
-      const taskIds = stage.tasks.map((task) => task.id);
-      const [activeUsage, submissions, transitions] = await Promise.all([
-        prisma.workflowInstance.count({ where: { currentStageId: stageId } }),
-        taskIds.length
-          ? prisma.taskSubmission.count({ where: { taskId: { in: taskIds } } })
-          : 0,
-        prisma.workflowTransition.count({
-          where: { OR: [{ fromStageId: stageId }, { toStageId: stageId }] },
-        }),
-      ]);
+      await assertMilestoneNotRequired(prisma, stageId);
 
-      if (!activeUsage && !submissions && !transitions) {
+      const taskIds = stage.tasks.map((task) => task.id);
+      const [activeUsage, submissions, transitions, dependentRecords] =
+        await Promise.all([
+          prisma.workflowInstance.count({ where: { currentStageId: stageId } }),
+          taskIds.length
+            ? prisma.taskSubmission.count({
+                where: { taskId: { in: taskIds } },
+              })
+            : 0,
+          prisma.workflowTransition.count({
+            where: { OR: [{ fromStageId: stageId }, { toStageId: stageId }] },
+          }),
+          prisma.workflowStage.count({
+            where: { requiredMilestoneId: stageId },
+          }),
+        ]);
+
+      if (!activeUsage && !submissions && !transitions && !dependentRecords) {
         await prisma.workflowStage.delete({ where: { id: stageId } });
         await recordPublishedWorkflowChange(
           stage.workflowId,
@@ -2337,6 +2381,8 @@ router.delete(
         }));
 
       await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${stage.workflowId}))`;
+        await assertMilestoneNotRequired(tx, stageId);
         await tx.workflowInstance.updateMany({
           where: { currentStageId: stageId },
           data: { currentStageId: replacement?.id || null },
@@ -2367,9 +2413,11 @@ router.delete(
         res.status(404).json({ error: "Workflow milestone not found." });
         return;
       }
-      res.status(500).json({
-        error: error.message || "Failed to delete workflow milestone",
-      });
+      res
+        .status(error.statusCode || (error.code === "P2003" ? 409 : 500))
+        .json({
+          error: error.message || "Failed to delete workflow milestone",
+        });
     }
   },
 );
@@ -2418,6 +2466,7 @@ router.post(
 
       // Record transition and advance stage in transaction
       const updatedInstance = await prisma.$transaction(async (tx) => {
+        await assertMilestoneCondition(tx, instance.researchId, targetStage.id);
         await tx.workflowTransition.create({
           data: {
             workflowInstanceId: instance.id,
@@ -2458,9 +2507,11 @@ router.post(
 
       res.json({ workflowInstance: updatedInstance });
     } catch (error: any) {
-      res.status(500).json({
-        error: error.message || "Failed to execute workflow transition",
-      });
+      res
+        .status(error.statusCode || (error.code === "P2003" ? 409 : 500))
+        .json({
+          error: error.message || "Failed to execute workflow transition",
+        });
     }
   },
 );
@@ -2484,7 +2535,12 @@ router.patch(
         requiresDocument,
         isFinal,
         submissionMode,
+        requiredMilestoneId,
       } = req.body;
+      const requiredCondition =
+        requiredMilestoneId === undefined
+          ? undefined
+          : parseRequiredMilestoneId(requiredMilestoneId);
 
       const existing = await prisma.workflowStage.findUnique({
         where: { id: stageId },
@@ -2544,6 +2600,26 @@ router.patch(
       }
 
       const stage = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${existing.workflowId}))`;
+        if (
+          requiredCondition &&
+          (requiredCondition === stageId ||
+            !(await tx.workflowStage.findFirst({
+              where: {
+                id: requiredCondition,
+                workflowId: existing.workflowId,
+                category: { not: "Archived" },
+              },
+              select: { id: true },
+            })))
+        ) {
+          throw Object.assign(
+            new Error(
+              "Choose a different active milestone from this workflow as the required condition.",
+            ),
+            { statusCode: 400 },
+          );
+        }
         await tx.workflowStage.update({
           where: { id: stageId },
           data: {
@@ -2551,6 +2627,9 @@ router.patch(
             ...(description !== undefined && { description }),
             ...(topicId !== undefined && { topicId }),
             ...(category !== undefined && { category }),
+            ...(requiredCondition !== undefined && {
+              requiredMilestoneId: requiredCondition,
+            }),
             ...(targetCompletionDate !== undefined
               ? {
                   targetCompletionDate: targetDate.data
@@ -2595,6 +2674,7 @@ router.patch(
         if (topicId !== undefined && topicId !== existing.topicId) {
           await resequenceWorkflowStagesByTopics(tx, existing.workflowId);
         }
+        await validateMilestoneConditions(tx, existing.workflowId);
         return tx.workflowStage.findUniqueOrThrow({ where: { id: stageId } });
       });
 
@@ -2608,7 +2688,7 @@ router.patch(
       res.json({ stage });
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || (error.code === "P2003" ? 409 : 500))
         .json({ error: error.message || "Failed to update workflow stage" });
     }
   },
@@ -2788,6 +2868,7 @@ router.post(
         return void res.status(404).json({
           error: "This milestone is not part of the project workflow.",
         });
+      await assertMilestoneCondition(prisma, researchId, stage.id);
       if (stage.milestoneType === "ADVISER_SELECTION") {
         return void res.status(409).json({
           error:
@@ -2827,7 +2908,7 @@ router.post(
       res.status(201).json({ task, requiresDocument: true, stage });
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({ error: error.message || "Failed to start milestone task" });
     }
   },

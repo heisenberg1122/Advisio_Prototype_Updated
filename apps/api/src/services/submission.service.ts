@@ -6,6 +6,7 @@ import {
 } from "../lib/prisma.js";
 import { createHash } from "node:crypto";
 import type { AuthenticatedUser } from "../middleware/auth.js";
+import { assertMilestoneCondition } from "./milestone-condition.service.js";
 import { documentAccessService } from "./document-access.service.js";
 import { createConfiguredAssignmentsForSubmission } from "./reviewer-assignment.service.js";
 
@@ -456,6 +457,7 @@ export async function authorizeTaskSubmission(options: {
     );
   }
   const currentStage = project.workflowInstance.currentStage;
+  await assertMilestoneCondition(prisma, options.researchId, task.stage.id);
   if (
     currentStage &&
     task.stage.sequence > currentStage.sequence &&
@@ -673,6 +675,7 @@ export async function configureTaskSubmissionReview(
     reason?: string | null;
   },
 ) {
+  await assertMilestoneCondition(tx, options.researchId, options.milestoneId);
   await tx.manuscriptStatusEvent.create({
     data: {
       documentId: options.documentId,
