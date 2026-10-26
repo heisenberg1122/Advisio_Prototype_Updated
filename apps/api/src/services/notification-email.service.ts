@@ -2,6 +2,7 @@ import {
   notificationTemplateOverrides,
   renderNotificationEmail,
   sendEmail,
+  emailDeliveryDiagnostic,
 } from "@research-management/email";
 import { readFile } from "node:fs/promises";
 import { getWorkspaceById } from "@research-management/auth";
@@ -99,6 +100,7 @@ export async function processNotificationEmails() {
         });
         continue;
       }
+      let diagnostic = "Email rendering or configuration failed. Check WEB_URL, logo URL, and required template variables.";
       try {
         const webUrl = process.env.WEB_URL || "";
         if (
@@ -300,10 +302,11 @@ export async function processNotificationEmails() {
           to: job.recipient.email,
           ...rendered,
         });
-        if (!result.success)
-          throw new Error(
-            "Provider rejected delivery. Check sender configuration, authorization, and quota.",
-          );
+        if (!result.success) {
+          diagnostic = emailDeliveryDiagnostic(result);
+          throw new Error("Provider delivery failed.");
+        }
+        diagnostic = "Provider accepted the email, but its delivery acknowledgement could not be saved.";
         await prisma.notification.updateMany({
           where: owned,
           data: {
@@ -320,11 +323,10 @@ export async function processNotificationEmails() {
               job.emailAttempts + 1 >= 5
                 ? null
                 : new Date(Date.now() + 60_000 * 2 ** job.emailAttempts),
-            emailLastError:
-              "Email delivery failed. Check template variables, sender authorization, and provider quota.",
+            emailLastError: diagnostic,
           },
         });
-        console.warn("[NotificationEmail] Delivery failed", job.id);
+        console.warn("[NotificationEmail] Delivery failed", job.id, diagnostic);
       }
     }
   } finally {

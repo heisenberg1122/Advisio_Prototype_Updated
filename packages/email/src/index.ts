@@ -1,4 +1,5 @@
 export * from "./client.js";
+export * from "./delivery-diagnostics.js";
 export * from "./templates/notifications.js";
 export * from "./template-config.js";
 export * from "./templates/welcome.js";
