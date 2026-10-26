@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { apiClient, ApiError } from "@/lib/api-client";
+import { clearGoogleOnboardingSession, storeGoogleOnboardingSession, type GoogleOnboardingSession } from "@/lib/google-onboarding";
 
 export interface UserProfile {
   id: string;
@@ -145,11 +146,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const data = await apiClient.post<{
         message: string;
-        token: string;
+        token?: string;
         needsAcademicSetup?: boolean;
+        onboardingToken?: string;
+        onboardingStage?: GoogleOnboardingSession["onboardingStage"];
+        facultyProfile?: GoogleOnboardingSession["facultyProfile"];
         user: { id: string; universityId: string; email: string; firstName: string; lastName: string; roles: string[] };
       }>("/api/auth/google", { credential });
 
+      if (data.needsAcademicSetup && data.onboardingToken && data.onboardingStage) {
+        localStorage.removeItem("advisio_token");
+        setToken(null); setUser(null); hydratedToken.current = null; setSessionError(null);
+        storeGoogleOnboardingSession({ ...data, onboardingToken: data.onboardingToken, onboardingStage: data.onboardingStage });
+        return { success: true, needsAcademicSetup: true };
+      }
+      if (!data.token) return { success: false, error: "Google sign-in did not return a valid session. Please try again." };
+      clearGoogleOnboardingSession();
       const hydrated = await hydrateSession(data.token);
 
       return {

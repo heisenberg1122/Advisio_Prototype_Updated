@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { apiClient } from "@/lib/api-client";
+import { clearGoogleOnboardingSession } from "@/lib/google-onboarding";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
   MAX_RESEARCH_INTERESTS,
@@ -172,7 +173,7 @@ export default function ResearcherOnboardingPage() {
     );
     if (!onboardingToken) {
       setError(
-        "Your onboarding session has expired. Please register again to continue.",
+        "Your onboarding session has expired. Sign in with Google again to resume Google registration, or contact the administrator.",
       );
       return;
     }
@@ -193,6 +194,7 @@ export default function ResearcherOnboardingPage() {
       });
       sessionStorage.removeItem("advisio_researcher_onboarding_token");
       sessionStorage.removeItem("advisio_researcher_onboarding_draft");
+      clearGoogleOnboardingSession();
       setComplete(true);
     } catch (err: any) {
       setError(err.message || "Unable to submit your researcher profile.");
