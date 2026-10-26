@@ -116,12 +116,15 @@ export function MilestoneComposer({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex flex-col bg-[var(--color-background)]"
+      className={isCreate
+        ? "fixed inset-0 z-[70] flex flex-col bg-[var(--color-background)]"
+        : "pointer-events-none fixed inset-y-0 right-0 z-[70] flex w-full max-w-[430px] flex-col pt-14"
+      }
       role="dialog"
       aria-modal="true"
       aria-labelledby="milestone-composer-title"
     >
-      <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+      <form onSubmit={onSubmit} className={`flex min-h-0 flex-1 flex-col ${isCreate ? "" : "pointer-events-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"}`}>
         <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-xs sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button
@@ -138,11 +141,9 @@ export function MilestoneComposer({
                 id="milestone-composer-title"
                 className="truncate text-lg font-extrabold text-[#102f49] sm:text-xl"
               >
-                {isCreate ? "New milestone" : "Edit milestone"}
+                {isCreate ? "New milestone" : "Milestone details"}
               </h2>
-              <p className="truncate text-sm text-slate-500">
-                {workflowName || "Research workflow"}
-              </p>
+              {isCreate && <p className="truncate text-sm text-slate-500">{workflowName || "Research workflow"}</p>}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -152,18 +153,18 @@ export function MilestoneComposer({
                 Saved
               </span>
             )}
-            <button
+            {isCreate && <button
               type="submit"
               disabled={saving || title.trim().length < 3 || !topicId}
               className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#102f49] disabled:cursor-not-allowed disabled:opacity-50 sm:px-5"
             >
               {saving ? "Saving…" : isCreate ? "Add milestone" : "Save changes"}
-            </button>
+            </button>}
           </div>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto grid w-full max-w-[1180px] gap-5 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_330px] lg:gap-6 lg:p-8">
+          <div className={`mx-auto grid w-full gap-5 p-4 sm:p-6 ${isCreate ? "max-w-[1180px] lg:grid-cols-[minmax(0,1fr)_330px] lg:gap-6 lg:p-8" : "max-w-none"}`}>
             <main className="space-y-5">
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                 <label
@@ -290,7 +291,7 @@ export function MilestoneComposer({
               )}
             </main>
 
-            <aside className="h-fit space-y-4 lg:sticky lg:top-6">
+            <aside className={`h-fit space-y-4 ${isCreate ? "lg:sticky lg:top-6" : ""}`}>
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h3 className="font-extrabold text-[#102f49]">
                   Milestone settings
@@ -535,6 +536,16 @@ export function MilestoneComposer({
             </aside>
           </div>
         </div>
+        {!isCreate && (
+          <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
+            <button type="button" onClick={requestClose} disabled={saving} className="min-h-10 rounded-xl border border-[var(--color-border)] px-5 text-sm font-bold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)] disabled:opacity-50">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving || title.trim().length < 3 || !topicId} className="min-h-10 rounded-xl bg-[var(--color-primary)] px-6 text-sm font-extrabold text-[var(--college-on-primary)] shadow-sm hover:bg-[var(--color-primary-dark)] disabled:cursor-not-allowed disabled:opacity-50 dark:text-[var(--college-on-primary-dark)]">
+              {saving ? "Saving..." : "Save changes"}
+            </button>
+          </footer>
+        )}
       </form>
     </div>
   );
