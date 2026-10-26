@@ -540,6 +540,7 @@ function ProfessorDashboardContent() {
   const [milestonePendingDelete, setMilestonePendingDelete] = useState<
     any | null
   >(null);
+  const [milestoneDeleting, setMilestoneDeleting] = useState(false);
 
   const [toast, setToast] = useState<string | null>(null);
   const triggerToast = (msg: string) => {
@@ -1138,6 +1139,8 @@ function ProfessorDashboardContent() {
   };
 
   const handleDeleteTask = async (id: string) => {
+    if (milestoneDeleting) return;
+    setMilestoneDeleting(true);
     try {
       const result = await apiClient.delete<{
         archived?: boolean;
@@ -1154,6 +1157,8 @@ function ProfessorDashboardContent() {
       );
     } catch (error: any) {
       triggerToast(error?.message || "Milestone could not be deleted.");
+    } finally {
+      setMilestoneDeleting(false);
     }
   };
 
@@ -1670,6 +1675,33 @@ function ProfessorDashboardContent() {
                   <option value="__unassigned__">Needs organization</option>
                 </select>
               </label>
+              <div className="mt-2 border-t border-[var(--color-border-subtle)] pt-2">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpenMilestoneMoveMenuId(null);
+                    setShowAdvancedMilestoneOptions(false);
+                    openMilestoneEditor(milestone);
+                  }}
+                  className="w-full rounded-lg px-3 py-2 text-left text-sm font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]"
+                >
+                  Edit milestone
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={selectedWorkflow?.status === "ARCHIVED"}
+                  title={selectedWorkflow?.status === "ARCHIVED" ? "Archived workflows are read-only." : "Delete or remove this milestone"}
+                  onClick={() => {
+                    setOpenMilestoneMoveMenuId(null);
+                    setMilestonePendingDelete(milestone);
+                  }}
+                  className="w-full rounded-lg px-3 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-950/30"
+                >
+                  Delete milestone
+                </button>
+              </div>
             </div>
           ) : null}
         </div>
@@ -3025,6 +3057,7 @@ function ProfessorDashboardContent() {
               <button
                 type="button"
                 onClick={() => setMilestonePendingDelete(null)}
+                disabled={milestoneDeleting}
                 className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600"
               >
                 Keep milestone
@@ -3032,10 +3065,11 @@ function ProfessorDashboardContent() {
               <button
                 type="button"
                 onClick={() => handleDeleteTask(milestonePendingDelete.id)}
-                className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white"
+                disabled={milestoneDeleting}
+                className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:cursor-wait disabled:opacity-60"
               >
-                <i className="ti ti-trash mr-1.5" />
-                Remove milestone
+                <i className={`ti ${milestoneDeleting ? "ti-loader-2 animate-spin" : "ti-trash"} mr-1.5`} />
+                {milestoneDeleting ? "Removing…" : "Remove milestone"}
               </button>
             </div>
           </div>
