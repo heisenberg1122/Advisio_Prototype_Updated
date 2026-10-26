@@ -1,4 +1,5 @@
 import { changeAccountStatus } from "../services/account-status.service.js";
+import { previewUserDeletion, permanentlyDeleteUser } from "../services/user-deletion.service.js";
 import { Router, Request, Response, NextFunction } from "express";
 import { prisma, InstitutionalRole, AuditAction } from "../lib/prisma.js";
 import { Permissions } from "@research-management/auth";
@@ -404,7 +405,29 @@ router.patch(
   },
 );
 
-// DELETE /api/users/:id — destructive action guarded by an exact confirmation phrase
+router.get(
+  "/:id/deletion-preview",
+  requireAuth,
+  requirePermission(Permissions.USER_MANAGE),
+  requirePermission(Permissions.ROLE_MANAGE),
+  async (req: Request, res: Response) => {
+    try {
+      res.json({
+        preview: await previewUserDeletion(req.user!, String(req.params.id)),
+      });
+    } catch (error: any) {
+      res
+        .status(error.statusCode || 500)
+        .json({
+          error: error.statusCode
+            ? error.message
+            : "Failed to prepare the account deletion preview.",
+        });
+    }
+  },
+);
+
+// Permanent deletion requires both the exact phrase and a current impact preview.
 router.delete(
   "/:id",
   requireAuth,
@@ -412,72 +435,38 @@ router.delete(
   requirePermission(Permissions.ROLE_MANAGE),
   async (req: Request, res: Response) => {
     try {
-      const id = req.params.id as string;
-      if (id === req.user!.id) {
-        res.status(409).json({ error: "You cannot delete your own signed-in account" });
-        return;
-      }
-
-      const target = await prisma.user.findUnique({
-        where: { id },
-        include: { roles: { include: { role: true } } },
-      });
-      if (!target) {
-        res.status(404).json({ error: "User not found" });
-        return;
-      }
-
-      const requiredConfirmation = `delete ${target.universityId} sudo`;
-      if (req.body.confirmation !== requiredConfirmation) {
-        res.status(400).json({ error: "Confirmation phrase does not match", requiredConfirmation });
-        return;
-      }
-
-      if (target.roles.some((item) => item.role.name === InstitutionalRole.SYSTEM_ADMIN)) {
-        const systemAdminCount = await prisma.user.count({
-          where: { status: "ACTIVE", roles: { some: { role: { name: InstitutionalRole.SYSTEM_ADMIN } } } },
-        });
-        if (systemAdminCount <= 1) {
-          res.status(409).json({ error: "The last active System Administrator cannot be deleted" });
-          return;
-        }
-      }
-
-      await prisma.$transaction(async (tx) => {
-        await tx.auditLog.create({
-          data: {
-            userId: req.user!.id,
-            action: AuditAction.DELETE,
-            entityType: "USER",
-            entityId: target.id,
-            oldValues: {
-              universityId: target.universityId,
-              email: target.email,
-              name: `${target.firstName} ${target.lastName}`,
-              roles: target.roles.map((item) => item.role.name),
-            },
-            ipAddress: req.ip,
-            userAgent: req.get("user-agent") || null,
-          },
-        });
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(72401801)`;
-        const current = await tx.user.findUnique({ where: { id }, include: { roles: { include: { role: true } } } });
-        if (current?.status === "ACTIVE" && current.roles.some(({ role }) => role.name === "SYSTEM_ADMIN") &&
-          await tx.user.count({ where: { status: "ACTIVE", roles: { some: { role: { name: "SYSTEM_ADMIN" } } } } }) <= 1) {
-          throw Object.assign(new Error("The last active System Administrator cannot be deleted"), { statusCode: 409 });
-        }
-        await tx.user.delete({ where: { id } });
-      });
-
-      res.json({ message: `User ${target.universityId} was permanently deleted` });
+      res.json(
+        await permanentlyDeleteUser({
+          actor: req.user!,
+          userId: String(req.params.id),
+          confirmation: req.body.confirmation,
+          previewToken: req.body.previewToken,
+          deleteAllData: req.body.deleteAllData,
+          ipAddress: req.ip,
+          userAgent: req.get("user-agent"),
+        }),
+      );
     } catch (error: any) {
       if (error.code === "P2003") {
-        res.status(409).json({ error: "This user owns protected institutional records and cannot be permanently deleted. Suspend the account instead." });
+        res
+          .status(409)
+          .json({
+            error:
+              "Linked records changed or could not be removed. No data was deleted. Reload the deletion preview and try again.",
+          });
         return;
       }
-      res.status(error.statusCode || 500).json({ error: error.message || "Failed to delete user" });
+      res
+        .status(error.statusCode || (error.code === "P2034" ? 409 : 500))
+        .json({
+          error: error.statusCode
+            ? error.message
+            : error.code === "P2034"
+              ? "Records changed during deletion. Reload the preview and try again. No data was deleted."
+              : "Failed to delete user. No data was deleted.",
+        });
     }
-  }
+  },
 );
 
 export default router;
