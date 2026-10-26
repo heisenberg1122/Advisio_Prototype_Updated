@@ -52,8 +52,6 @@ export default function LoginPage() {
   const { login, loginWithGoogle } = useAuth();
   const googleClientId =
     import.meta.env.VITE_GOOGLE_SIGN_IN_CLIENT_ID?.trim() || "";
-  const googleSelfSignupEnabled =
-    import.meta.env.VITE_GOOGLE_SIGN_IN_ALLOW_SELF_SIGNUP === "true";
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const googleCredentialHandlerRef = useRef<(credential: string) => void>(
     () => undefined,
@@ -486,9 +484,9 @@ export default function LoginPage() {
                 aria-busy={googleLoading}
                 className={`flex min-h-11 w-full justify-center overflow-hidden rounded-full transition-opacity ${googleLoading ? "pointer-events-none opacity-60" : ""}`}
               />
-              {googleSelfSignupEnabled && (
+              {googleClientId && (
                 <p className="mt-2 text-center text-base text-slate-500">
-                  First-time Google sign-in creates a researcher test account.
+                  New to Advisio? Continue with Google to create an account and complete researcher or faculty onboarding.
                 </p>
               )}
               {googleButtonError && (

@@ -31,6 +31,15 @@ import {
 } from "@research-management/validations";
 import { validateBody } from "../middleware/validate";
 import { requireAuth, generateToken } from "../middleware/auth";
+import {
+  googleOnboardingSessionSchema,
+  googleOnboardingIdentitySchema,
+  googleFacultyOnboardingSchema,
+  issueGoogleOnboardingSession,
+  getGoogleOnboardingSession,
+  saveGoogleOnboardingIdentity,
+  submitGoogleFacultyOnboarding,
+} from "../services/google-onboarding.service.js";
 
 const router = Router();
 const googleSignInClient = new OAuth2Client();
@@ -252,13 +261,17 @@ router.post(
           onboardingTokenExpiresAt: { gt: new Date() },
           status: "PENDING",
           roles: { some: { role: { name: "RESEARCHER" } } },
+          OR: [
+            { googleOnboardingStage: null },
+            { googleOnboardingStage: "RESEARCHER" },
+          ],
         },
       });
 
       if (!user) {
         res.status(401).json({
           error:
-            "This onboarding link is invalid or has expired. Please register again or contact the administrator.",
+            "This onboarding link is invalid or has expired. Sign in with Google again to resume Google registration, or contact the administrator.",
         });
         return;
       }
@@ -319,17 +332,32 @@ router.post(
         return;
       }
 
-      await prisma.$transaction([
-        prisma.user.update({
-          where: { id: user.id },
+      await prisma.$transaction(async (tx) => {
+        const claimed = await tx.user.updateMany({
+          where: {
+            id: user.id,
+            status: "PENDING",
+            onboardingTokenHash: tokenHash,
+            onboardingTokenExpiresAt: { gt: new Date() },
+          },
           data: {
             collegeId: resolvedCollegeId,
             programId: resolvedProgramId,
             onboardingTokenHash: null,
             onboardingTokenExpiresAt: null,
+            ...(user.googleOnboardingStage
+              ? { googleOnboardingStage: "COMPLETE" }
+              : {}),
           },
-        }),
-        prisma.researcherProfile.upsert({
+        });
+        if (!claimed.count)
+          throw Object.assign(
+            new Error(
+              "Your onboarding session changed. Sign in again to continue.",
+            ),
+            { statusCode: 409 },
+          );
+        await tx.researcherProfile.upsert({
           where: { userId: user.id },
           create: {
             userId: user.id,
@@ -344,17 +372,21 @@ router.post(
             status: "SUBMITTED",
             submittedAt: new Date(),
           },
-        }),
-      ]);
+        });
+      });
 
       res.json({
         message: "Researcher profile submitted for verification.",
         status: "SUBMITTED",
       });
-    } catch {
+    } catch (error: any) {
       res
-        .status(500)
-        .json({ error: "Researcher onboarding is temporarily unavailable." });
+        .status(error.statusCode || 500)
+        .json({
+          error: error.statusCode
+            ? error.message
+            : "Researcher onboarding is temporarily unavailable.",
+        });
     }
   },
 );
@@ -463,7 +495,7 @@ router.post(
 
 // POST /api/auth/google
 // Verifies a Google Identity Services ID token and issues an Advisio session.
-router.post("/google", async (req: Request, res: Response) => {
+router.post("/google", loginRateLimit, async (req: Request, res: Response) => {
   try {
     const clientId = process.env.GOOGLE_SIGN_IN_CLIENT_ID?.trim();
     const idToken =
@@ -515,51 +547,90 @@ router.post("/google", async (req: Request, res: Response) => {
         }
         user = await prisma.user.update({
           where: { id: user.id },
-          data: { googleSubject: identity.sub, lastLoginAt: new Date() },
+          data: { googleSubject: identity.sub },
           include: includeRoles,
         });
       }
     }
 
     if (!user) {
-      if (process.env.GOOGLE_SIGN_IN_ALLOW_SELF_SIGNUP !== "true") {
-        return void res.status(403).json({
-          error:
-            "No Advisio account is linked to this Google email. Ask an administrator to enable test sign-up or register first.",
-        });
-      }
-
-      const researcherRole = await prisma.role.findUnique({
-        where: { name: "RESEARCHER" },
-      });
-      if (!researcherRole) {
-        return void res
-          .status(503)
-          .json({ error: "Researcher accounts are not available right now." });
-      }
-
-      const firstName =
-        identity.given_name?.trim() ||
-        identity.name?.trim().split(/\s+/)[0] ||
-        "Google";
-      const lastName =
-        identity.family_name?.trim() ||
-        identity.name?.trim().split(/\s+/).slice(1).join(" ") ||
-        "Researcher";
       user = await prisma.user.create({
         data: {
-          universityId: `TEST-${randomUUID().replace(/-/g, "")}`,
+          universityId: `GOOGLE-${randomUUID().replace(/-/g, "")}`,
           email,
           googleSubject: identity.sub,
-          firstName: firstName.slice(0, 100),
-          lastName: lastName.slice(0, 100),
-          status: "ACTIVE",
-          lastLoginAt: new Date(),
-          roles: { create: { roleId: researcherRole.id } },
+          firstName: (
+            identity.given_name?.trim() ||
+            identity.name?.trim().split(/\s+/)[0] ||
+            "Google"
+          ).slice(0, 100),
+          lastName: (
+            identity.family_name?.trim() ||
+            identity.name?.trim().split(/\s+/).slice(1).join(" ") ||
+            "User"
+          ).slice(0, 100),
+          status: "PENDING",
+          googleOnboardingStage: "IDENTITY",
         },
         include: includeRoles,
       });
-    } else if (user.status !== "ACTIVE") {
+    }
+
+    // Move older, unfinished Google test accounts into the registration flow.
+    if (
+      user.status === "ACTIVE" &&
+      !user.googleOnboardingStage &&
+      user.universityId.startsWith("TEST-") &&
+      user.roles.length === 1 &&
+      user.roles[0].role.name === "RESEARCHER"
+    ) {
+      const moved = await prisma.user.updateMany({
+        where: {
+          id: user.id,
+          status: "ACTIVE",
+          googleOnboardingStage: null,
+          universityId: user.universityId,
+        },
+        data: {
+          status: "PENDING",
+          googleOnboardingStage: "IDENTITY",
+          sessionVersion: { increment: 1 },
+        },
+      });
+      if (!moved.count)
+        return void res
+          .status(409)
+          .json({
+            error: "Your account status changed. Please sign in again.",
+          });
+      user = await prisma.user.findUniqueOrThrow({
+        where: { id: user.id },
+        include: includeRoles,
+      });
+    }
+    const unfinishedGoogleRegistration = [
+      "IDENTITY",
+      "RESEARCHER",
+      "FACULTY",
+    ].includes(user.googleOnboardingStage || "");
+    const unfinishedRegisteredResearcher =
+      !user.googleOnboardingStage &&
+      !!user.onboardingTokenHash &&
+      user.roles.some(({ role }) => role.name === "RESEARCHER");
+    if (
+      user.status === "PENDING" &&
+      (unfinishedGoogleRegistration || unfinishedRegisteredResearcher)
+    ) {
+      return void res.json({
+        message: "Continue your Advisio registration.",
+        ...(await issueGoogleOnboardingSession(
+          user.id,
+          user.googleOnboardingStage || "RESEARCHER",
+          user.googleOnboardingStage,
+        )),
+      });
+    }
+    if (user.status !== "ACTIVE") {
       const message =
         user.status === "PENDING"
           ? "Your Advisio account is pending approval. Please contact an administrator."
@@ -567,20 +638,17 @@ router.post("/google", async (req: Request, res: Response) => {
             ? "Your Advisio account is suspended. Please contact an administrator."
             : "Your Advisio account is not active. Please contact an administrator.";
       return void res.status(403).json({ error: message, status: user.status });
-    } else {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { lastLoginAt: new Date() },
-      });
     }
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
 
     const token = generateToken(user.id, user.sessionVersion);
     return void res.json({
       message: "Google sign-in successful",
       token,
-      needsAcademicSetup:
-        user.roles.some((userRole) => userRole.role.name === "RESEARCHER") &&
-        (!user.collegeId || !user.programId),
+      needsAcademicSetup: false,
       user: {
         id: user.id,
         universityId: user.universityId,
@@ -591,6 +659,8 @@ router.post("/google", async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
+    if (error.statusCode)
+      return void res.status(error.statusCode).json({ error: error.message });
     if (error?.code === "P2002") {
       return void res.status(409).json({
         error: "An account already exists for this Google identity or email.",
@@ -602,6 +672,69 @@ router.post("/google", async (req: Request, res: Response) => {
     });
   }
 });
+
+// Onboarding tokens can only access these registration endpoints, never dashboards.
+router.post(
+  "/google/onboarding-session",
+  loginRateLimit,
+  validateBody(googleOnboardingSessionSchema),
+  async (req, res) => {
+    try {
+      res.json(await getGoogleOnboardingSession(req.body.onboardingToken));
+    } catch (error: any) {
+      res
+        .status(error.statusCode || 500)
+        .json({
+          error: error.statusCode
+            ? error.message
+            : "Could not restore Google onboarding. Please try again.",
+        });
+    }
+  },
+);
+router.post(
+  "/google/onboarding-identity",
+  loginRateLimit,
+  validateBody(googleOnboardingIdentitySchema),
+  async (req, res) => {
+    try {
+      res.json(await saveGoogleOnboardingIdentity(req.body));
+    } catch (error: any) {
+      res
+        .status(
+          error.statusCode ||
+            (error.code === "P2002" || error.code === "P2034" ? 409 : 500),
+        )
+        .json({
+          error: error.statusCode
+            ? error.message
+            : error.code === "P2002"
+              ? "That institutional ID is already registered. Contact the administrator."
+              : error.code === "P2034"
+                ? "Your registration changed. Please try again."
+                : "Could not save your registration details.",
+        });
+    }
+  },
+);
+router.post(
+  "/google/faculty-onboarding",
+  loginRateLimit,
+  validateBody(googleFacultyOnboardingSchema),
+  async (req, res) => {
+    try {
+      res.json(await submitGoogleFacultyOnboarding(req.body));
+    } catch (error: any) {
+      res
+        .status(error.statusCode || (error.code === "P2034" ? 409 : 500))
+        .json({
+          error: error.statusCode
+            ? error.message
+            : "Could not submit your faculty profile. Please try again.",
+        });
+    }
+  },
+);
 
 // PATCH /api/auth/google/academic-profile
 // Lets newly created Google researchers choose their academic affiliation before entering the dashboard.

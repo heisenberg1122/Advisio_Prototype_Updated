@@ -504,6 +504,7 @@ model User {
   middleName               String?              @map("middle_name") @db.VarChar(100)
   lastName                 String               @map("last_name") @db.VarChar(100)
   googleSubject            String?              @unique @map("google_subject") @db.VarChar(255)
+  googleOnboardingStage     String?              @map("google_onboarding_stage") @db.VarChar(20)
   sessionVersion           Int                  @default(0) @map("session_version")
   passwordResetTokenHash   String?              @unique @map("password_reset_token_hash") @db.VarChar(64)
   passwordResetExpiresAt   DateTime?            @map("password_reset_expires_at")

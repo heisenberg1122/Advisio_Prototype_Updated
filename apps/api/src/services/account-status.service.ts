@@ -39,6 +39,15 @@ export async function changeAccountStatus(options: {
           : "";
       if (
         options.status === "ACTIVE" &&
+        user.googleOnboardingStage &&
+        user.googleOnboardingStage !== "COMPLETE"
+      ) {
+        throw new AccountStatusError(
+          "The user must complete Google registration and onboarding before the account can be approved.",
+        );
+      }
+      if (
+        options.status === "ACTIVE" &&
         user.status !== "ACTIVE" &&
         (options.verificationConfirmed !== true ||
           verificationNote.length < 10 ||
