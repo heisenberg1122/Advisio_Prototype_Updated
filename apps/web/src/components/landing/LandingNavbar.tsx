@@ -1,17 +1,24 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X, ArrowRight } from "lucide-react";
 
 export function LandingNavbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileMenuOpen(false);
+      if (
+        event.key === "Escape" &&
+        menuButtonRef.current?.getAttribute("aria-expanded") === "true"
+      ) {
+        setMobileMenuOpen(false);
+        menuButtonRef.current.focus();
+      }
     };
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -33,10 +40,10 @@ export function LandingNavbar() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`landing-navbar fixed top-0 left-0 right-0 z-50 ${
         isScrolled
           ? "bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-200/80 py-3"
-          : "bg-white/80 backdrop-blur-xs border-b border-slate-100 py-4.5"
+          : "bg-white/80 backdrop-blur-xs border-b border-slate-100 py-3"
       }`}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -97,6 +104,7 @@ export function LandingNavbar() {
 
         {/* Mobile Menu Button */}
         <button
+          ref={menuButtonRef}
           type="button"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="xl:hidden flex h-10 w-10 items-center justify-center rounded-xl text-slate-700 hover:bg-slate-100"
@@ -104,43 +112,54 @@ export function LandingNavbar() {
           aria-expanded={mobileMenuOpen}
           aria-controls="landing-mobile-menu"
         >
-          {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          {mobileMenuOpen ? (
+            <X className="h-6 w-6" />
+          ) : (
+            <Menu className="h-6 w-6" />
+          )}
         </button>
       </div>
 
       {/* Mobile Drawer */}
-      {mobileMenuOpen && (
-        <div id="landing-mobile-menu" className="xl:hidden max-h-[calc(100dvh-5rem)] overflow-y-auto border-b border-slate-200 bg-white/98 backdrop-blur-xl px-6 py-5 shadow-xl">
-          <nav aria-label="Mobile navigation" className="flex flex-col gap-4 text-base font-semibold text-slate-700 pb-4 border-b border-slate-100">
-            {navLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className="py-1 hover:text-[#0b3553]"
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
-          <div className="pt-4 flex flex-col gap-2.5">
-            <Link
-              to="/login"
+      <div
+        id="landing-mobile-menu"
+        aria-hidden={!mobileMenuOpen}
+        inert={!mobileMenuOpen}
+        data-open={mobileMenuOpen}
+        className="landing-mobile-drawer xl:hidden max-h-[calc(100dvh-5rem)] overflow-y-auto border-b border-slate-200 bg-white/98 backdrop-blur-xl px-6 py-5 shadow-xl"
+      >
+        <nav
+          aria-label="Mobile navigation"
+          className="flex flex-col gap-4 text-base font-semibold text-slate-700 pb-4 border-b border-slate-100"
+        >
+          {navLinks.map((link) => (
+            <a
+              key={link.label}
+              href={link.href}
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full text-center py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-[#0b3553]"
+              className="py-1 hover:text-[#0b3553]"
             >
-              Sign In
-            </Link>
-            <Link
-              to="/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full text-center py-2.5 rounded-xl bg-[#0b3553] text-sm font-bold text-white shadow-sm"
-            >
-              Get Started
-            </Link>
-          </div>
+              {link.label}
+            </a>
+          ))}
+        </nav>
+        <div className="pt-4 flex flex-col gap-2.5">
+          <Link
+            to="/login"
+            onClick={() => setMobileMenuOpen(false)}
+            className="w-full text-center py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-[#0b3553]"
+          >
+            Sign In
+          </Link>
+          <Link
+            to="/login"
+            onClick={() => setMobileMenuOpen(false)}
+            className="w-full text-center py-2.5 rounded-xl bg-[#0b3553] text-sm font-bold text-white shadow-sm"
+          >
+            Get Started
+          </Link>
         </div>
-      )}
+      </div>
     </header>
   );
 }

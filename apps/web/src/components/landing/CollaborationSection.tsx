@@ -50,8 +50,23 @@ export function CollaborationSection() {
     },
   ];
 
+  const activeVersion = versions.find(
+    (version) => version.id === selectedVersion,
+  )!;
+  const passages: Record<string, string> = {
+    "v1.2":
+      "This study uses stratified random sampling to represent students and faculty across four colleges. The revised procedure defines the population, sample allocation, and response criteria for each group.",
+    "v1.1":
+      "The study will use stratified sampling across four colleges. Adviser feedback asks the group to explain how the sample is allocated between students and faculty.",
+    "v1.0":
+      "The study will survey students and faculty across four colleges to understand research advising practices. The initial draft proposes an online questionnaire.",
+  };
+
   return (
-    <section id="collaboration" className="relative py-24 sm:py-32 bg-white overflow-hidden">
+    <section
+      id="collaboration"
+      className="relative py-24 sm:py-32 bg-white overflow-hidden"
+    >
       {/* Decorative subtle background grid */}
       <div
         aria-hidden="true"
@@ -63,13 +78,14 @@ export function CollaborationSection() {
         <div className="mx-auto max-w-3xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-[#0b3553]/15 bg-[#0b3553]/5 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-[#0b3553]">
             <Sparkles className="h-3.5 w-3.5 text-[#ffad14]" />
-            <span>Manuscript Collaboration · Interactive Preview</span>
+            <span>Manuscript review · Interactive sample</span>
           </div>
           <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-[#0b3553] sm:text-4xl lg:text-5xl text-balance">
             Clear feedback. No lost revisions.
           </h2>
           <p className="mt-4 text-base sm:text-lg leading-relaxed text-slate-600">
-            Advisio eliminates messy email threads and conflicting document copies with an integrated chapter review canvas. Advisers annotate directly in the margin, student researchers resolve points systematically, and the complete revision history remains permanently accountable.
+            Read the draft, follow the feedback, and return to earlier versions.
+            A shared review workspace keeps every conversation in context.
           </p>
         </div>
 
@@ -82,16 +98,17 @@ export function CollaborationSection() {
                 <FileText className="h-5 w-5" />
               </div>
               <div>
-                <div className="flex items-center gap-2.5">
+                <div className="landing-document-title flex items-center gap-2.5">
                   <h3 className="font-sans text-sm font-bold text-[#0b3553]">
                     Chapter 3 – Research Methodology.docx
                   </h3>
                   <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
-                    v1.2 Current
+                    {activeVersion.label}{" "}
+                    {activeVersion.active ? "Current" : "Historical"}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500 font-medium">
-                  Last updated Oct 26, 2026 · Advised by Dr. Evelyn Vance · 4,820 words
+                  Sample manuscript · {activeVersion.timestamp}
                 </p>
               </div>
             </div>
@@ -101,15 +118,11 @@ export function CollaborationSection() {
                 <Eye className="h-3.5 w-3.5 text-slate-400" />
                 <span>2 Active Reviewers</span>
               </span>
-              <span
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700 shadow-2xs hover:bg-slate-50"
-              >
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700 shadow-2xs hover:bg-slate-50">
                 <Share2 className="h-3.5 w-3.5" />
                 <span>Share Packet</span>
               </span>
-              <span
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0b3553] px-3.5 py-1.5 font-bold text-white shadow-2xs hover:bg-[#124569]"
-              >
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#0b3553] px-3.5 py-1.5 font-bold text-white shadow-2xs hover:bg-[#124569]">
                 <Download className="h-3.5 w-3.5" />
                 <span>Export PDF</span>
               </span>
@@ -119,7 +132,10 @@ export function CollaborationSection() {
           {/* Main Document & Annotation Split View */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
             {/* Left: Document Excerpt & Inline Highlighting */}
-            <div className="p-6 sm:p-8 bg-white font-sans text-slate-800">
+            <div
+              key={selectedVersion}
+              className="landing-manuscript-excerpt landing-preview-change p-6 sm:p-8 bg-white font-sans text-slate-800"
+            >
               {/* Academic Paper Header */}
               <div className="border-b border-slate-100 pb-5 mb-6">
                 <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#0b3553]/70">
@@ -132,30 +148,48 @@ export function CollaborationSection() {
 
               {/* Manuscript Text with Callout and Highlight */}
               <div className="space-y-4 text-sm leading-relaxed text-slate-700 font-serif">
-                <p>
-                  To rigorously evaluate the adoption curve of distributed institutional advisory platforms, this study employed a multi-stage stratified random sampling framework. The target population comprised undergraduate seniors, faculty mentors, and academic administrators across four degree-granting colleges.
+                <p className="landing-version-passage">
+                  {Object.entries(passages).map(([version, text]) => (
+                    <span
+                      key={version}
+                      aria-hidden={version !== selectedVersion}
+                      className={version === selectedVersion ? "is-active" : ""}
+                    >
+                      {text}
+                    </span>
+                  ))}
                 </p>
 
                 {/* Highlighted text passage */}
                 <div className="relative rounded-lg bg-amber-50/80 p-3.5 border-l-4 border-amber-400 font-serif text-slate-900 transition-colors">
                   <span className="inline-block bg-amber-200/60 px-1 py-0.5 rounded font-medium">
-                    "A stratified sampling formula was determined to establish proportional representation across engineering, computing, and social sciences cohorts (N = 450, 95% confidence interval, 5% margin of error)."
+                    "A stratified sampling formula was determined to establish
+                    proportional representation across engineering, computing,
+                    and social sciences cohorts (N = 450, 95% confidence
+                    interval, 5% margin of error)."
                   </span>
-                  <div className="mt-2 flex items-center justify-between font-sans text-[11px] font-semibold text-amber-800">
+                  <div className="landing-comment-reference mt-2 flex items-center justify-between font-sans text-[11px] font-semibold text-amber-800">
                     <span className="flex items-center gap-1">
                       <MessageSquare className="h-3.5 w-3.5 text-amber-600" />
                       <span>1 Margin Comment Linked</span>
                     </span>
-                    <span className="text-amber-700">Adviser Revision Note #04</span>
+                    <span className="text-amber-700">
+                      Adviser Revision Note #04
+                    </span>
                   </div>
                 </div>
 
                 <p>
-                  Data collection instruments were administered digitally via university single sign-on credentials. Instrument validity was established through panel evaluation using a 5-point Likert alignment rubric, yielding an average content validity index (CVI) of 0.94 across five domain experts.
+                  Data collection instruments were administered digitally via
+                  university single sign-on credentials. Instrument validity was
+                  established through panel evaluation using a 5-point Likert
+                  alignment rubric, yielding an average content validity index
+                  (CVI) of 0.94 across five domain experts.
                 </p>
 
                 <p className="text-slate-500 italic">
-                  [Section 3.3 Data Analysis & Statistical Treatment continues...]
+                  [Section 3.3 Data Analysis & Statistical Treatment
+                  continues...]
                 </p>
               </div>
 
@@ -169,13 +203,25 @@ export function CollaborationSection() {
                     <h5 className="text-xs font-bold text-emerald-950">
                       Adviser Endorsement Status
                     </h5>
-                    <p className="text-[11px] text-emerald-800">
-                      Chapter 3 revisions approved by Dr. Evelyn Vance. Eligible for Pre-Oral Defense Packet.
+                    <p className="landing-version-decision text-[11px] text-emerald-800">
+                      <span
+                        aria-hidden={!activeVersion.active}
+                        className={activeVersion.active ? "is-active" : ""}
+                      >
+                        Sample approval recorded for the current draft.
+                      </span>
+                      <span
+                        aria-hidden={activeVersion.active}
+                        className={!activeVersion.active ? "is-active" : ""}
+                      >
+                        Historical draft. Review decisions belong to their
+                        submitted version.
+                      </span>
                     </p>
                   </div>
                 </div>
                 <span className="hidden sm:inline-block rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-2xs">
-                  Endorsed
+                  {activeVersion.active ? "Approved" : "Archived"}
                 </span>
               </div>
             </div>
@@ -216,18 +262,25 @@ export function CollaborationSection() {
                   </div>
 
                   <p className="mt-3 text-xs leading-relaxed text-slate-700">
-                    "Please revise the sampling procedure before the next consultation. Ensure the stratification formula explicitly accounts for faculty vs. undergraduate response rates."
+                    "Please revise the sampling procedure before the next
+                    consultation. Ensure the stratification formula explicitly
+                    accounts for faculty vs. undergraduate response rates."
                   </p>
 
                   {/* Student Response Thread */}
                   <div className="mt-3.5 rounded-lg border-l-2 border-[#0b3553] bg-slate-50 p-2.5 text-xs">
                     <div className="flex items-center gap-1.5">
                       <CornerDownRight className="h-3 w-3 text-slate-400" />
-                      <span className="font-bold text-[#0b3553]">Nicole Santos</span>
-                      <span className="text-[10px] text-slate-400">Oct 26 · 11:30 AM</span>
+                      <span className="font-bold text-[#0b3553]">
+                        Nicole Santos
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        Oct 26 · 11:30 AM
+                      </span>
                     </div>
                     <p className="mt-1 text-[11px] text-slate-600 leading-normal pl-4.5">
-                      "Updated in Section 3.2 with proportional weighting formula and verified response coefficients."
+                      "Updated in Section 3.2 with proportional weighting
+                      formula and verified response coefficients."
                     </p>
                   </div>
 
@@ -248,12 +301,20 @@ export function CollaborationSection() {
                             : "border-slate-300 bg-white"
                         }`}
                       >
-                        {resolvedStatus && <Check className="h-3 w-3 stroke-[3]" />}
+                        {resolvedStatus && (
+                          <Check className="h-3 w-3 stroke-[3]" />
+                        )}
                       </span>
-                      <span>{resolvedStatus ? "Marked as Resolved" : "Pending Verification"}</span>
+                      <span>
+                        {resolvedStatus
+                          ? "Marked as Resolved"
+                          : "Pending Verification"}
+                      </span>
                     </button>
                     <span className="text-[10px] font-mono text-slate-400">
-                      Sign-off Ready
+                      {resolvedStatus
+                        ? "Resolved in sample"
+                        : "Awaiting response"}
                     </span>
                   </div>
                 </div>
@@ -265,7 +326,9 @@ export function CollaborationSection() {
                       <History className="h-3.5 w-3.5 text-slate-400" />
                       <span>Version History</span>
                     </span>
-                    <span className="text-[11px] text-slate-500">3 Revisions</span>
+                    <span className="text-[11px] text-slate-500">
+                      3 Revisions
+                    </span>
                   </div>
 
                   <div className="space-y-2">
@@ -282,7 +345,9 @@ export function CollaborationSection() {
                         }`}
                       >
                         <span className="flex items-center justify-between">
-                          <span className="font-bold text-[#0b3553]">{ver.label}</span>
+                          <span className="font-bold text-[#0b3553]">
+                            {ver.label}
+                          </span>
                           <span
                             className={`rounded px-1.5 py-0.5 text-[10px] font-bold border ${ver.badgeColor}`}
                           >
@@ -306,10 +371,10 @@ export function CollaborationSection() {
               <div className="rounded-xl border border-slate-200 bg-white p-3 text-[11px] text-slate-600 shadow-2xs">
                 <div className="flex items-center gap-1.5 font-bold text-[#0b3553]">
                   <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>Immutable Audit Record</span>
+                  <span>Sample document integrity record</span>
                 </div>
                 <p className="mt-0.5 text-[10px] text-slate-500 font-mono">
-                  SHA-256: 7f8a92...c014d (Verified Institutional Ledger)
+                  Example fingerprint: 7f8a92...c014d
                 </p>
               </div>
             </div>
@@ -318,28 +383,31 @@ export function CollaborationSection() {
 
         {/* Feature Highlights Grid */}
         <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-6">
+          <div className="landing-review-summary">
             <h4 className="font-bold text-[#0b3553] text-base">
               Line-by-Line Context
             </h4>
             <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
-              Every note links directly to exact sentences and equations in the draft. No ambiguous bullet points or misplaced feedback.
+              Contextual annotations keep adviser comments connected to the
+              passage under review.
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-6">
+          <div className="landing-review-summary">
             <h4 className="font-bold text-[#0b3553] text-base">
-              Complete Revision Diff
+              An accessible version history
             </h4>
             <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
-              Advisers can compare any draft with previous submissions to inspect additions, deletions, and structural amendments instantly.
+              Return to recorded versions to follow how a manuscript developed
+              across submissions.
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-6">
+          <div className="landing-review-summary">
             <h4 className="font-bold text-[#0b3553] text-base">
-              Digital Signature Endorsement
+              Recorded review decisions
             </h4>
             <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed">
-              Once required revisions are met, faculty mentors sign off digitally to officially release defense packets to the examination panel.
+              Faculty decisions and official copies remain linked to the
+              research workflow.
             </p>
           </div>
         </div>

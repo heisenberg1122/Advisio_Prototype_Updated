@@ -13,8 +13,10 @@ import { SecurityTrustSection } from "@/components/landing/SecurityTrustSection"
 import { FinalCtaSection } from "@/components/landing/FinalCtaSection";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import "@/components/landing/landing.css";
+import { useLandingMotion } from "@/components/landing/useLandingMotion";
 
 export default function HomePage() {
+  const landingRef = useLandingMotion();
   useEffect(() => {
     const prevTitle = document.title;
     document.title = "Advisio: A Research Advising and Management Platform";
@@ -29,7 +31,10 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="landing-page min-h-screen bg-white font-sans text-slate-900 flex flex-col selection:bg-[#ffad14]/30 selection:text-[#0b3553]">
+    <div
+      ref={landingRef}
+      className="landing-page min-h-screen bg-white font-sans text-slate-900 flex flex-col selection:bg-[#ffad14]/30 selection:text-[#0b3553]"
+    >
       {/* Skip to Content for Accessibility */}
       <a
         href="#main-content"
