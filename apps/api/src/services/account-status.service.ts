@@ -28,6 +28,11 @@ export async function changeAccountStatus(options: {
         include: { roles: { include: { role: true } } },
       });
       if (!user) throw new AccountStatusError("User not found", 404);
+      if (options.actor.id === user.id && options.status !== "ACTIVE") {
+        throw new AccountStatusError(
+          "You cannot suspend or deactivate your own signed-in account.",
+        );
+      }
       const verificationNote =
         typeof options.verificationNote === "string"
           ? options.verificationNote.trim()
@@ -60,9 +65,23 @@ export async function changeAccountStatus(options: {
             "The last active System Administrator cannot be deactivated or suspended.",
           );
       }
+      if (
+        options.status === "SUSPENDED" &&
+        (verificationNote.length < 10 || verificationNote.length > 2000)
+      ) {
+        throw new AccountStatusError(
+          "Provide a suspension reason of 10–2000 characters.",
+          400,
+        );
+      }
       const updated = await tx.user.update({
         where: { id: user.id },
-        data: { status: options.status },
+        data: {
+          status: options.status,
+          ...(options.status !== user.status
+            ? { sessionVersion: { increment: 1 } }
+            : {}),
+        },
         select: {
           id: true,
           universityId: true,

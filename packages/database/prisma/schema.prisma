@@ -2218,6 +2218,23 @@ model AuditLog {
 
 // Institution-level connections to external storage providers. Secrets are
 // encrypted by the API before they are persisted.
+// Outbox: committed with account deletion, retried until managed files are removed.
+// No user FK: jobs must survive the deleted account and API restarts.
+model FileDeletionJob {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  fileId        String   @unique @map("file_id") @db.VarChar(255)
+  provider      String   @default("GOOGLE_DRIVE") @db.VarChar(40)
+  storagePath   String?  @map("storage_path") @db.Text
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at")
+  lastError     String?  @map("last_error") @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([nextAttemptAt])
+  @@map("file_deletion_jobs")
+}
+
 model StorageIntegration {
   id                    String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   provider              String            @unique @db.VarChar(40)
