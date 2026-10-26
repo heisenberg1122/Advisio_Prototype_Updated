@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { assertMilestoneCondition } from "../services/milestone-condition.service.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { countActiveAdviseeGroups } from "../lib/adviser-capacity.js";
@@ -169,6 +170,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
 
     const request = await prisma.$transaction(
       async (tx) => {
+        if (adviserMilestone) await assertMilestoneCondition(tx, researchId, adviserMilestone.id);
         const pendingRequest = await tx.adviserRequest.findFirst({
           where: { researchId, status: "PENDING" },
           select: { id: true, adviserId: true },
@@ -223,7 +225,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
           "The adviser request changed while you were submitting. Refresh and try again.",
       });
     res
-      .status(500)
+      .status(error.statusCode || 500)
       .json({ error: error.message || "Failed to create adviser request" });
   }
 });

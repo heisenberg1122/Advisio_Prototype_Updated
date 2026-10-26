@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { assertMilestoneCondition } from "./milestone-condition.service.js";
 import type { AuthenticatedUser } from "../middleware/auth.js";
 import { ManuscriptLifecycleStatus, prisma } from "../lib/prisma.js";
 import {
@@ -174,6 +175,7 @@ class ManuscriptLifecycleService {
         "INVALID_MILESTONE",
       );
 
+    await assertMilestoneCondition(prisma, document.researchId, milestone.id);
     let task: { id: string; title: string; allowedFileTypes: string } | null =
       null;
     if (options.taskId) {
@@ -311,6 +313,7 @@ class ManuscriptLifecycleService {
       uploadedFileId = uploaded.fileId;
 
       const result = await runSubmissionTransaction(async (tx) => {
+        await assertMilestoneCondition(tx, document.researchId, milestone.id);
         const locked = await tx.document.findFirst({
           where: {
             id: document.id,

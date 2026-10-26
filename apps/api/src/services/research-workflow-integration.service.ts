@@ -9,6 +9,7 @@ import { notificationDeliveries } from "./notification.service.js";
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
 export type MilestoneDisplayStatus =
+  | "BLOCKED"
   | "NOT_STARTED"
   | "IN_PROGRESS"
   | "AWAITING_REVIEW"
@@ -287,6 +288,7 @@ export async function getMilestoneProgress(
                   requiresDocument: true,
                   requiresApproval: true,
                   milestoneType: true,
+                  requiredMilestoneId: true,
                   isFinal: true,
                   tasks: {
                     orderBy: { sequence: "asc" },
@@ -322,6 +324,7 @@ export async function getMilestoneProgress(
                   },
                   submittedVersions: {
                     where: {
+                      document: { researchId },
                       isImmutable: true,
                       manuscriptStatus: { in: ["APPROVED", "FINALIZED"] },
                     },
@@ -338,7 +341,7 @@ export async function getMilestoneProgress(
   });
   const instance = project?.workflowInstance;
   if (!instance) return [];
-  return instance.workflow.stages.map((stage) => {
+  const progress = instance.workflow.stages.map((stage) => {
     const tasks = stage.tasks.map((task) => {
       const submission = task.submissions[0] || null;
       return {
@@ -430,6 +433,7 @@ export async function getMilestoneProgress(
       requiresDocument: stage.requiresDocument,
       requiresApproval: stage.requiresApproval,
       milestoneType: stage.milestoneType,
+      requiredMilestoneId: stage.requiredMilestoneId,
       isFinal: stage.isFinal,
       isCurrent: instance.currentStageId === stage.id,
       completed: effectiveCompleted,
@@ -475,6 +479,38 @@ export async function getMilestoneProgress(
       tasks,
     };
   });
+  const byId = new Map(progress.map((stage) => [stage.id, stage]));
+  const satisfied = (id: string, visited = new Set<string>()): boolean => {
+    if (visited.has(id)) return false;
+    const stage = byId.get(id);
+    if (!stage?.completed) return false;
+    visited.add(id);
+    return (
+      !stage.requiredMilestoneId ||
+      satisfied(stage.requiredMilestoneId, visited)
+    );
+  };
+  return progress.map((stage) => {
+    const required = stage.requiredMilestoneId
+      ? byId.get(stage.requiredMilestoneId)
+      : null;
+    const conditionSatisfied =
+      !stage.requiredMilestoneId || satisfied(stage.requiredMilestoneId);
+    return {
+      ...stage,
+      requiredMilestone: required
+        ? {
+            id: required.id,
+            name: required.name,
+            completed: satisfied(required.id),
+          }
+        : null,
+      requiredMilestoneSatisfied: conditionSatisfied,
+      isBlocked: !conditionSatisfied,
+      completed: stage.completed && conditionSatisfied,
+      status: !conditionSatisfied ? ("BLOCKED" as const) : stage.status,
+    };
+  });
 }
 
 export async function advanceMilestoneIfSatisfied(
@@ -482,14 +518,21 @@ export async function advanceMilestoneIfSatisfied(
   options: { researchId: string; milestoneId: string; actorId: string },
 ) {
   const progress = await getMilestoneProgress(tx, options.researchId);
-  const milestone = progress.find(({ id }) => id === options.milestoneId);
+  const changedMilestone = progress.find(
+    ({ id }) => id === options.milestoneId,
+  );
+  const milestone = changedMilestone?.isCurrent
+    ? changedMilestone
+    : changedMilestone?.completed
+      ? progress.find((stage) => stage.isCurrent && stage.completed)
+      : null;
   if (!milestone?.completed || !milestone.isCurrent)
     return { advanced: false, completed: false, milestone };
   const instance = await tx.workflowInstance.findUnique({
     where: { researchId: options.researchId },
     include: { workflow: true },
   });
-  if (!instance || instance.currentStageId !== options.milestoneId)
+  if (!instance || instance.currentStageId !== milestone.id)
     return { advanced: false, completed: false, milestone };
   const completedMilestones: Array<{
     milestone: (typeof progress)[number];

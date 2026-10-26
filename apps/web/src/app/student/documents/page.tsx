@@ -272,6 +272,7 @@ type MilestoneProgress = {
   description?: string | null;
   sequence: number;
   status:
+    | "BLOCKED"
     | "NOT_STARTED"
     | "IN_PROGRESS"
     | "AWAITING_REVIEW"
@@ -279,6 +280,8 @@ type MilestoneProgress = {
     | "APPROVED"
     | "COMPLETED";
   isCurrent: boolean;
+  isBlocked?: boolean;
+  requiredMilestone?: { id: string; name: string; completed: boolean } | null;
   completed: boolean;
   completionPercent: number;
   completedRequirements: number;
@@ -1435,6 +1438,7 @@ export default function DocumentWorkspacePage() {
                               </Tag>
                             </div>
 
+                            {milestone.isBlocked && <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">Complete and obtain approval for {milestone.requiredMilestone?.name || "the required milestone"} first.</p>}
                             <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--color-border)]">
                               <div
                                 className="h-full rounded-full bg-[var(--color-primary)] transition-[width]"

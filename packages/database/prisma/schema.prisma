@@ -998,6 +998,7 @@ model WorkflowStage {
   isFinal              Boolean           @default(false) @map("is_final")
   submissionMode       String            @default("EITHER") @map("submission_mode") @db.VarChar(20)
   milestoneType        WorkflowStageType @default(STANDARD) @map("milestone_type")
+  requiredMilestoneId  String?           @map("required_milestone_id") @db.Uuid
 
   workflow               Workflow                  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   topic                  WorkflowTopic?            @relation(fields: [topicId], references: [id], onDelete: SetNull)
@@ -1011,9 +1012,12 @@ model WorkflowStage {
   submittedVersions      DocumentVersion[]         @relation("DocumentVersionMilestone")
   taskSubmissionAttempts TaskSubmissionAttempt[]
   adviserRequests        AdviserRequest[]
+  requiredMilestone      WorkflowStage?             @relation("MilestoneCondition", fields: [requiredMilestoneId], references: [id], onDelete: Restrict)
+  dependentMilestones    WorkflowStage[]            @relation("MilestoneCondition")
 
   @@unique([workflowId, sequence])
   @@index([topicId])
+  @@index([requiredMilestoneId])
   @@map("workflow_stages")
 }
 

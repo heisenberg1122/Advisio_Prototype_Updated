@@ -356,7 +356,7 @@ function ProfessorDashboardContent() {
               ? ""
               : s.description || "",
             locked: Boolean(s.requiresApproval),
-            prerequisiteTaskId: "",
+            requiredMilestoneId: s.requiredMilestoneId || null,
             deadlineDays: s.deadlineDays,
             targetCompletionDate: s.targetCompletionDate,
             requiresDocument: s.requiresDocument !== false,
@@ -406,7 +406,7 @@ function ProfessorDashboardContent() {
   const [newMilestoneType, setNewMilestoneType] = useState<
     "STANDARD" | "ADVISER_SELECTION"
   >("STANDARD");
-  const [newMilestonePosition, setNewMilestonePosition] = useState("1");
+  const [newMilestoneRequired, setNewMilestoneRequired] = useState("");
   const [newMilestoneAttachments, setNewMilestoneAttachments] = useState<
     PendingMilestoneAttachment[]
   >([]);
@@ -479,6 +479,7 @@ function ProfessorDashboardContent() {
   const [milestoneEditSubmissionMode, setMilestoneEditSubmissionMode] =
     useState("EITHER");
   const [milestoneEditTopicId, setMilestoneEditTopicId] = useState("");
+  const [milestoneEditRequired, setMilestoneEditRequired] = useState("");
   const [milestoneEditType, setMilestoneEditType] = useState<
     "STANDARD" | "ADVISER_SELECTION"
   >("STANDARD");
@@ -627,11 +628,6 @@ function ProfessorDashboardContent() {
     }
     const adviserMilestone = kind === "adviser";
     const topicId = preferredTopicId || selectedWorkflowTopics[0].id;
-    const siblingCount = milestones.filter(
-      (milestone) =>
-        milestone.workflowId === selectedWorkflowId &&
-        milestone.topicId === topicId,
-    ).length;
     setNewMilestoneTitle(adviserMilestone ? "Secure faculty adviser" : "");
     setNewMilestoneDescription(
       adviserMilestone
@@ -647,7 +643,7 @@ function ProfessorDashboardContent() {
     );
     setNewMilestoneTopicId(topicId);
     setNewMilestoneType(adviserMilestone ? "ADVISER_SELECTION" : "STANDARD");
-    setNewMilestonePosition(String(siblingCount + 1));
+    setNewMilestoneRequired("");
     setNewMilestoneAttachments([]);
     setShowAdvancedMilestoneOptions(false);
     setShowWorkflowCreateMenu(false);
@@ -676,7 +672,7 @@ function ProfessorDashboardContent() {
           requiresDocument: newMilestoneRequiresDocument,
           submissionMode: newMilestoneSubmissionMode,
           milestoneType: newMilestoneType,
-          position: Number(newMilestonePosition),
+          requiredMilestoneId: newMilestoneRequired || null,
         },
       );
       const attachmentResults = await Promise.allSettled(
@@ -722,7 +718,7 @@ function ProfessorDashboardContent() {
       setNewMilestoneSubmissionMode("GROUP");
       setNewMilestoneTopicId("");
       setNewMilestoneType("STANDARD");
-      setNewMilestonePosition("1");
+      setNewMilestoneRequired("");
       setNewMilestoneAttachments([]);
       setNewMilestoneScope("Milestone");
       setCreatingMilestone(false);
@@ -1028,6 +1024,7 @@ function ProfessorDashboardContent() {
     setMilestoneEditSubmissionMode(milestone.submissionMode || "EITHER");
     setMilestoneEditTopicId(milestone.topicId || "");
     setMilestoneEditType(milestone.milestoneType || "STANDARD");
+    setMilestoneEditRequired(milestone.requiredMilestoneId || "");
     setMilestoneSaveStatus("idle");
     setSelectedMilestoneId(milestone.id);
   };
@@ -1049,6 +1046,7 @@ function ProfessorDashboardContent() {
           requiresDocument: milestoneEditRequiresDocument,
           requiresApproval: milestoneEditRequiresApproval,
           submissionMode: milestoneEditSubmissionMode,
+          requiredMilestoneId: milestoneEditRequired || null,
         },
       );
       const refreshed = await refetchWorkflows();
@@ -1203,21 +1201,41 @@ function ProfessorDashboardContent() {
   const selectedWorkflowMilestones = milestones.filter(
     (item) => item.workflowId === selectedWorkflowId,
   );
-  const selectedTopicMilestones = selectedWorkflowMilestones
-    .filter((item) => item.topicId === newMilestoneTopicId)
-    .sort((a, b) => a.sequence - b.sequence);
-  const newMilestonePositionOptions = [
-    ...selectedTopicMilestones.map((item, index) => ({
-      value: String(index + 1),
-      label: `Before ${item.title}`,
-    })),
-    {
-      value: String(selectedTopicMilestones.length + 1),
-      label: selectedTopicMilestones.length
-        ? "At the end of this topic"
-        : "First milestone in this topic",
-    },
-  ];
+  const milestoneConditionOptions = (topicId: string, editingId?: string) => {
+    const editing = selectedWorkflowMilestones.find(
+      (item) => item.id === editingId,
+    );
+    const topicIndex = selectedWorkflowTopics.findIndex(
+      (topic: any) => topic.id === topicId,
+    );
+    return selectedWorkflowMilestones
+      .filter(
+        (item) =>
+          item.id !== editingId &&
+          item.scope !== "Archived" &&
+          item.sequence > 0,
+      )
+      .filter((item) => {
+        if (editing && editing.topicId === topicId)
+          return item.sequence < editing.sequence;
+        const candidateTopicIndex = selectedWorkflowTopics.findIndex(
+          (topic: any) => topic.id === item.topicId,
+        );
+        return (
+          topicIndex >= 0 &&
+          (!item.topicId ||
+            (candidateTopicIndex >= 0 && candidateTopicIndex <= topicIndex))
+        );
+      })
+      .sort((a, b) => a.sequence - b.sequence)
+      .map((item) => ({
+        value: item.id,
+        label:
+          item.milestoneType === "ADVISER_SELECTION"
+            ? `Adviser Milestone: ${item.title}`
+            : item.title,
+      }));
+  };
   const hasAdviserMilestone = selectedWorkflowMilestones.some(
     (item) => item.milestoneType === "ADVISER_SELECTION",
   );
@@ -1333,6 +1351,14 @@ function ProfessorDashboardContent() {
               </>
             )}
           </span>
+          {milestone.requiredMilestoneId && (
+            <span className="mt-2 block text-xs font-semibold text-amber-700">
+              Required milestone:{" "}
+              {selectedWorkflowMilestones.find(
+                (item) => item.id === milestone.requiredMilestoneId,
+              )?.title || "earlier milestone"}
+            </span>
+          )}
           <span className="mt-2 block text-xs font-semibold text-[var(--color-text-muted)]">
             <i className="ti ti-link mr-1" aria-hidden="true" />
             {prerequisite
@@ -1975,7 +2001,9 @@ function ProfessorDashboardContent() {
                                 <p className="mt-2 text-xs font-semibold text-[var(--color-text-muted)]">
                                   {formatMilestoneTarget(milestone)} ·{" "}
                                   {milestone.tasks?.length || 0} requirement
-                                  {milestone.tasks?.length === 1 ? "" : "s"} ·{" "}
+                                  {milestone.tasks?.length === 1
+                                    ? ""
+                                    : "s"} ·{" "}
                                   {milestone.locked
                                     ? "Faculty approval required"
                                     : "Sequential completion"}
@@ -2097,6 +2125,15 @@ function ProfessorDashboardContent() {
           requiresApproval={milestoneEditRequiresApproval}
           category={milestoneEditCategory}
           milestoneType={milestoneEditType}
+          requiredMilestoneId={milestoneEditRequired}
+          milestoneConditions={milestoneConditionOptions(
+            milestoneEditTopicId,
+            editingMilestone.id,
+          )}
+          onRequiredMilestoneChange={(value) => {
+            setMilestoneEditRequired(value);
+            setMilestoneSaveStatus("idle");
+          }}
           saving={milestoneSaveStatus === "saving"}
           saveStatus={milestoneSaveStatus}
           prerequisiteLabel={
@@ -2901,18 +2938,15 @@ function ProfessorDashboardContent() {
           requiresApproval={newMilestoneRequiresApproval}
           category={newMilestoneScope}
           milestoneType={newMilestoneType}
-          position={newMilestonePosition}
-          positionOptions={newMilestonePositionOptions}
+          requiredMilestoneId={newMilestoneRequired}
+          milestoneConditions={milestoneConditionOptions(newMilestoneTopicId)}
           saving={saving}
           advancedOpen={showAdvancedMilestoneOptions}
           prerequisiteLabel="The previous milestone in this workflow sequence"
           onTitleChange={setNewMilestoneTitle}
           onTopicIdChange={(topicId) => {
             setNewMilestoneTopicId(topicId);
-            const count = selectedWorkflowMilestones.filter(
-              (milestone) => milestone.topicId === topicId,
-            ).length;
-            setNewMilestonePosition(String(count + 1));
+            setNewMilestoneRequired("");
           }}
           onInstructionsChange={setNewMilestoneDescription}
           onTargetCompletionDateChange={setTargetCompletionDate}
@@ -2920,7 +2954,7 @@ function ProfessorDashboardContent() {
           onRequiresDocumentChange={setNewMilestoneRequiresDocument}
           onRequiresApprovalChange={setNewMilestoneRequiresApproval}
           onCategoryChange={setNewMilestoneScope}
-          onPositionChange={setNewMilestonePosition}
+          onRequiredMilestoneChange={setNewMilestoneRequired}
           onAdvancedOpenChange={setShowAdvancedMilestoneOptions}
           onClose={() => setCreatingMilestone(false)}
           onSubmit={handleCreateMilestone}
