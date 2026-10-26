@@ -501,6 +501,7 @@ function ProfessorDashboardContent() {
   const [openMilestoneMoveMenuId, setOpenMilestoneMoveMenuId] = useState<
     string | null
   >(null);
+  const [openTopicMenuId, setOpenTopicMenuId] = useState<string | null>(null);
   const [topicOrderSaving, setTopicOrderSaving] = useState(false);
   const workflowOrderSavingRef = useRef(false);
   const [workflowOrderFeedback, setWorkflowOrderFeedback] = useState<{
@@ -1642,7 +1643,7 @@ function ProfessorDashboardContent() {
                 <i className="ti ti-arrow-down" aria-hidden="true" /> Move down
               </button>
               <label className="mt-2 block border-t border-[var(--color-border-subtle)] px-2 pt-2 text-xs font-bold text-[var(--color-text-secondary)]">
-                Move to
+                Move to (first position)
                 <select
                   value={milestone.topicId || "__unassigned__"}
                   disabled={Boolean(moveDisabledReason)}
@@ -1656,8 +1657,7 @@ function ProfessorDashboardContent() {
                     void handleMoveMilestone(
                       milestone.id,
                       topicId,
-                      milestonesInGroup(selectedWorkflowMilestones, topicId)
-                        .length,
+                      0,
                     );
                   }}
                   className="mt-1.5 h-10 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-sm font-semibold text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
@@ -6421,7 +6421,7 @@ function ProfessorDashboardContent() {
                                 Workflow structure
                               </h3>
                               <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
-                                Drag handles to reorder. Open a milestone to edit details.
+                                Drag to reorder. Open a milestone to edit details. Prerequisites must stay before the milestones they unlock.
                               </p>
                             </div>
                             <div className="flex shrink-0 flex-wrap items-center gap-3 self-end sm:self-auto">
@@ -6571,8 +6571,6 @@ function ProfessorDashboardContent() {
                               {selectedWorkflowMilestones.length} milestone{selectedWorkflowMilestones.length === 1 ? "" : "s"}
                               <span className="mx-2" aria-hidden="true">·</span>
                               {ungroupedWorkflowMilestones.length} unassigned
-                              <span className="mx-2" aria-hidden="true">·</span>
-                              {workflowApprovalCount} approval gate{workflowApprovalCount === 1 ? "" : "s"}
                             </p>
                             <div aria-live="polite" aria-atomic="true">
                               {topicOrderSaving ? (
@@ -6662,10 +6660,17 @@ function ProfessorDashboardContent() {
                                           >
                                             <i className="ti ti-plus mr-1" aria-hidden="true" /> Milestone
                                           </button>
-                                          <button type="button" onClick={() => void handleMoveTopic(topic.id, -1)} disabled={Boolean(workflowOrderDisabledReason) || topicIndex === 0} title={workflowOrderDisabledReason || (topicIndex === 0 ? "Already the first topic" : "Move topic up")} aria-label={`Move ${topic.title} up`} className="grid h-9 w-9 place-items-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)] disabled:cursor-not-allowed disabled:opacity-30"><i className="ti ti-arrow-up" aria-hidden="true" /></button>
-                                          <button type="button" onClick={() => void handleMoveTopic(topic.id, 1)} disabled={Boolean(workflowOrderDisabledReason) || topicIndex === selectedWorkflowTopics.length - 1} title={workflowOrderDisabledReason || (topicIndex === selectedWorkflowTopics.length - 1 ? "Already the last topic" : "Move topic down")} aria-label={`Move ${topic.title} down`} className="grid h-9 w-9 place-items-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)] disabled:cursor-not-allowed disabled:opacity-30"><i className="ti ti-arrow-down" aria-hidden="true" /></button>
-                                          <button type="button" onClick={() => openTopicEditor(topic)} disabled={selectedWorkflow?.status === "ARCHIVED"} title={selectedWorkflow?.status === "ARCHIVED" ? "Archived workflows are read-only." : "Edit topic"} aria-label={`Edit ${topic.title}`} className="grid h-9 w-9 place-items-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)] disabled:cursor-not-allowed disabled:opacity-30"><i className="ti ti-pencil" aria-hidden="true" /></button>
-                                          <button type="button" onClick={() => void handleDeleteTopic(topic)} disabled={topicMilestones.length > 0 || selectedWorkflow?.status === "ARCHIVED"} title={selectedWorkflow?.status === "ARCHIVED" ? "Archived workflows are read-only." : topicMilestones.length ? "Move the topic's milestones before deleting it" : "Delete topic"} aria-label={`Delete ${topic.title}`} className="grid h-9 w-9 place-items-center rounded-lg text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30"><i className="ti ti-trash" aria-hidden="true" /></button>
+                                          <div className="relative">
+                                            <button type="button" onClick={() => setOpenTopicMenuId((current) => current === topic.id ? null : topic.id)} aria-expanded={openTopicMenuId === topic.id} aria-haspopup="menu" aria-label={`Options for ${topic.title}`} className="grid h-9 w-9 place-items-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)]"><i className="ti ti-dots-vertical" aria-hidden="true" /></button>
+                                            {openTopicMenuId === topic.id && (
+                                              <div role="menu" className="absolute right-0 top-10 z-30 w-48 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-xl">
+                                                <button type="button" role="menuitem" onClick={() => { setOpenTopicMenuId(null); void handleMoveTopic(topic.id, -1); }} disabled={Boolean(workflowOrderDisabledReason) || topicIndex === 0} className="w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)] disabled:opacity-40">Move up</button>
+                                                <button type="button" role="menuitem" onClick={() => { setOpenTopicMenuId(null); void handleMoveTopic(topic.id, 1); }} disabled={Boolean(workflowOrderDisabledReason) || topicIndex === selectedWorkflowTopics.length - 1} className="w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)] disabled:opacity-40">Move down</button>
+                                                <button type="button" role="menuitem" onClick={() => { setOpenTopicMenuId(null); openTopicEditor(topic); }} disabled={selectedWorkflow?.status === "ARCHIVED"} className="w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)] disabled:opacity-40">Edit topic</button>
+                                                <button type="button" role="menuitem" onClick={() => { setOpenTopicMenuId(null); void handleDeleteTopic(topic); }} disabled={topicMilestones.length > 0 || selectedWorkflow?.status === "ARCHIVED"} title={topicMilestones.length ? "Move milestones out before deleting this topic" : undefined} className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-40">Delete empty topic</button>
+                                              </div>
+                                            )}
+                                          </div>
                                           <button
                                             type="button"
                                             onClick={() =>
@@ -6709,6 +6714,7 @@ function ProfessorDashboardContent() {
                                   <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"><i className="ti ti-folder-question" aria-hidden="true" /></span>
                                   <h4 className="font-extrabold text-[var(--color-text-primary)]">Needs organization</h4>
                                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">{ungroupedWorkflowMilestones.length}</span>
+                                  <span className="ml-auto text-xs text-[var(--color-text-secondary)]">Assign prerequisites before later steps</span>
                                 </header>
                                 <div>
                                   {ungroupedWorkflowMilestones.map((milestone, index) => renderWorkflowMilestone(milestone, index, ungroupedWorkflowMilestones))}
