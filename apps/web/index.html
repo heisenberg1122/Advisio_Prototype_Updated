@@ -9,7 +9,9 @@
   <script>
     (() => {
       try {
-        const authenticated = Boolean(localStorage.getItem("advisio_token"));
+        // Keep in sync with src/lib/auth-appearance.ts to avoid a themed flash.
+        const defaultAuthAppearance = /^\/(login|register|forgot-password|reset-password|first-login-setup|google-onboarding|researcher-onboarding|choose-dashboard)\/*$/.test(window.location.pathname);
+        const authenticated = !defaultAuthAppearance && Boolean(localStorage.getItem("advisio_token"));
         const appearance = authenticated
           ? localStorage.getItem("advisio_theme:active") || "system"
           : "light";

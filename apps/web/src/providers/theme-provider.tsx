@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import {
   COLLEGE_THEMES,
@@ -26,6 +26,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 interface ThemeProviderProps {
   children: React.ReactNode;
+  useDefaultAppearance?: boolean;
   userId?: string | null;
   college?: { code?: string | null; name?: string | null } | null;
   program?: { code?: string | null; name?: string | null } | null;
@@ -70,6 +71,7 @@ function storedActiveColorThemePreference(): ColorThemePreference {
 
 export function ThemeProvider({
   children,
+  useDefaultAppearance = false,
   userId = null,
   college = null,
   program = null,
@@ -187,18 +189,21 @@ export function ThemeProvider({
 
   const isDark = theme === 'dark' || (theme === 'system' && systemIsDark);
 
-  useEffect(() => {
+  // Override only the rendered appearance on auth routes. Keep account state and
+  // storage intact so navigating back to a workspace restores its saved theme.
+  useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
     const root = document.documentElement;
-    root.classList.toggle('dark', Boolean(isDark));
-    root.dataset.collegeTheme = collegeTheme.key;
-    root.dataset.appearance = theme;
-    root.style.colorScheme = isDark ? 'dark' : 'light';
+    const pageIsDark = !useDefaultAppearance && isDark;
+    root.classList.toggle('dark', Boolean(pageIsDark));
+    root.dataset.collegeTheme = useDefaultAppearance ? 'default' : collegeTheme.key;
+    root.dataset.appearance = useDefaultAppearance ? 'light' : theme;
+    root.style.colorScheme = pageIsDark ? 'dark' : 'light';
 
     if (userId) {
       localStorage.setItem('advisio_college-theme:active', collegeTheme.key);
     }
-  }, [collegeTheme.key, isDark, theme, userId]);
+  }, [collegeTheme.key, isDark, theme, userId, useDefaultAppearance]);
 
   const saveTheme = (newTheme: Theme) => {
     setThemeState(newTheme);

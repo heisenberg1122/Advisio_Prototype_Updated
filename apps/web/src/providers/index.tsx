@@ -3,14 +3,17 @@ import { useLocation } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { makeQueryClient } from "@/lib/query/query-client";
+import { usesDefaultAuthAppearance } from "@/lib/auth-appearance";
 import { ThemeProvider } from "./theme-provider";
 import { AuthProvider, useAuth } from "./auth-provider";
 
 function UserThemeProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { pathname } = useLocation();
 
   return (
     <ThemeProvider
+      useDefaultAppearance={usesDefaultAuthAppearance(pathname)}
       userId={user?.id}
       college={user?.college}
       program={user?.program}
