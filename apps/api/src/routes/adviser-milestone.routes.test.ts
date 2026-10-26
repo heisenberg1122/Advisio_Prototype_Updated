@@ -5,10 +5,10 @@ const mocks = vi.hoisted(() => ({
   synchronizeAdviserMilestone: vi.fn(),
 }));
 const db = vi.hoisted(() => ({
-  researchProject: { findFirst: vi.fn() },
+  researchProject: { findFirst: vi.fn(), findUnique: vi.fn() },
   user: { findFirst: vi.fn(), findUnique: vi.fn() },
   document: { findFirst: vi.fn() },
-  workflowStage: { findFirst: vi.fn() },
+  workflowStage: { findFirst: vi.fn(), findUnique: vi.fn() },
   adviserRequest: {
     findFirst: vi.fn(),
     findUnique: vi.fn(),
@@ -103,6 +103,7 @@ describe("adviser milestone request authorization and synchronization", () => {
       maxAdviseeGroups: 5,
     });
     db.workflowStage.findFirst.mockResolvedValue({ id: "adviser-stage" });
+    db.workflowStage.findUnique.mockResolvedValue({ requiredMilestoneId: null });
     mocks.countActiveAdviseeGroups.mockResolvedValue(0);
     db.adviserRequest.findFirst.mockResolvedValue(null);
     db.adviserRequest.upsert.mockResolvedValue({ id: "request" });
@@ -129,6 +130,10 @@ describe("adviser milestone request authorization and synchronization", () => {
     });
 
     expect(response.statusCode).toBe(201);
+    expect(db.workflowStage.findUnique).toHaveBeenCalledWith({
+      where: { id: "adviser-stage" },
+      select: { requiredMilestoneId: true },
+    });
     expect(db.adviserRequest.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({ workflowStageId: "adviser-stage" }),
@@ -136,6 +141,64 @@ describe("adviser milestone request authorization and synchronization", () => {
       }),
     );
   });
+
+  it.each([false, true])(
+    "enforces required milestone approval before requesting an adviser (approved: %s)",
+    async (approved) => {
+      db.workflowStage.findUnique.mockResolvedValue({
+        requiredMilestoneId: "required-stage",
+      });
+      db.researchProject.findUnique.mockResolvedValue({
+        members: [],
+        adviserRequests: [],
+        workflowInstance: {
+          currentStageId: "adviser-stage",
+          workflow: {
+            stages: [
+              {
+                id: "required-stage",
+                name: "Title Defense",
+                sequence: 1,
+                milestoneType: "STANDARD",
+                requiresDocument: true,
+                requiredMilestoneId: null,
+                tasks: [],
+                submittedVersions: approved ? [{ id: "approved-version" }] : [],
+              },
+              {
+                id: "adviser-stage",
+                name: "Adviser Selection",
+                sequence: 2,
+                milestoneType: "ADVISER_SELECTION",
+                requiresDocument: false,
+                requiredMilestoneId: "required-stage",
+                tasks: [],
+                submittedVersions: [],
+              },
+            ],
+          },
+        },
+      });
+
+      const response = await request("/", "post", {
+        body: {
+          researchId: "project",
+          adviserId: "adviser",
+          workflowStageId: "adviser-stage",
+        },
+      });
+
+      expect(response.statusCode).toBe(approved ? 201 : 409);
+      if (approved) {
+        expect(db.adviserRequest.upsert).toHaveBeenCalledOnce();
+        expect(db.notification.create).toHaveBeenCalledOnce();
+      } else {
+        expect(response.body.error).toContain("Title Defense");
+        expect(db.adviserRequest.upsert).not.toHaveBeenCalled();
+        expect(db.notification.create).not.toHaveBeenCalled();
+      }
+    },
+  );
 
   it("rejects a milestone that is not part of the project's workflow", async () => {
     const response = await request("/", "post", {
