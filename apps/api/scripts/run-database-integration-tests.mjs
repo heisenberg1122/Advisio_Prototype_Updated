@@ -134,6 +134,7 @@ const tests = spawnSync(
     "src/routes/workflow-access.integration.test.ts",
     "src/services/audit-remediation.integration.test.ts",
     "src/services/user-deletion.integration.test.ts",
+    "src/services/notification-email.integration.test.ts",
     "--no-file-parallelism",
     "--pool=threads",
   ],

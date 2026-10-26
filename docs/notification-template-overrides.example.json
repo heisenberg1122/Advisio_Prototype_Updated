@@ -1,0 +1,18 @@
+{
+  "account_approved": {
+    "heading": "Welcome to Advisio",
+    "paragraphs": [
+      "Your account has been approved. You can now sign in with your Google account and open your assigned workspace."
+    ],
+    "button": "Sign In"
+  },
+  "announcement": {
+    "subject": "Advisio notice: {title}",
+    "heading": "{title}",
+    "paragraphs": [
+      "A message from {actorName} for {scope}.",
+      "{message}"
+    ],
+    "button": "Read Announcement"
+  }
+}

@@ -3,9 +3,20 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { getCollegeScope } from "../lib/college-scope.js";
+import { inviteTeamMember, queueTeamJoined } from "../services/team-email.service.js";
 
 const router = Router();
 const makeInviteCode = () => randomBytes(6).toString("hex").toUpperCase();
+
+router.post("/:id/invitations", requireAuth, async (req, res) => {
+  try {
+    const result = await prisma.$transaction((tx) => inviteTeamMember(tx, {
+      kind: "workspace", id: String(req.params.id), actorId: req.user!.id,
+      actorName: [req.user!.firstName, req.user!.lastName].filter(Boolean).join(" ") || "Your team leader", email: req.body.email,
+    }));
+    res.status(201).json({ queued: result.count });
+  } catch (error: any) { res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : "Unable to send team invitation." }); }
+});
 
 router.get("/me", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -206,10 +217,16 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
       if (!current?.inviteCodeEnabled || current.inviteCode !== String(req.params.code).toUpperCase()) throw Object.assign(new Error("This workspace invitation is no longer active."), { statusCode: 409 });
       const projects = await tx.researchProject.count({ where: { workspaceId: workspace.id, status: { not: "ARCHIVED" } } });
       if (projects) throw Object.assign(new Error("This workspace has a registered project. Ask its leader for the current project invitation code."), { statusCode: 409 });
-      return tx.workspaceMember.upsert({
+      const existing = await tx.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: workspace.id, userId: req.user!.id } } });
+      const joined = await tx.workspaceMember.upsert({
         where: { workspaceId_userId: { workspaceId: workspace.id, userId: req.user!.id } },
         update: { leftAt: null }, create: { workspaceId: workspace.id, userId: req.user!.id, role: "MEMBER" },
       });
+      if (!existing || existing.leftAt) {
+        const leaders = await tx.workspaceMember.findMany({ where: { workspaceId: workspace.id, leftAt: null, role: "LEADER" }, select: { userId: true } });
+        await queueTeamJoined(tx, { userId: req.user!.id, actorName: [req.user!.firstName, req.user!.lastName].filter(Boolean).join(" ") || "A researcher", teamId: workspace.id, teamName: workspace.name, leaderIds: leaders.map((member) => member.userId) });
+      }
+      return joined;
     });
     res.json({ member, workspace: { id: workspace.id, name: workspace.name } });
   } catch (error: any) {

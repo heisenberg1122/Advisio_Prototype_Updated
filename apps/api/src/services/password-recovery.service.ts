@@ -12,7 +12,11 @@ const neutralMessage =
   "If an eligible account exists, a password reset link will be sent to its email address.";
 
 export async function requestPasswordRecovery(email: string) {
-  if (!process.env.RESEND_API_KEY || !process.env.WEB_URL)
+  const provider = process.env.EMAIL_PROVIDER || (process.env.RESEND_API_KEY ? "resend" : "mock");
+  const configured = provider === "gmail"
+    ? ["GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN", "GMAIL_SENDER_EMAIL"].every((key) => Boolean(process.env[key]?.trim()))
+    : provider === "resend" && Boolean(process.env.RESEND_API_KEY);
+  if (!configured || !process.env.WEB_URL)
     fail(
       "Password recovery email is not configured. Contact your administrator.",
       503,

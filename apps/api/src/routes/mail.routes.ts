@@ -1,6 +1,7 @@
 import path from "node:path";
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
+import { notifyMailRecipients } from "../services/mail-email.service.js";
 import { Router, type RequestHandler } from "express";
 import multer from "multer";
 import { MailRecipientType, type Prisma } from "@prisma/client";
@@ -738,6 +739,7 @@ router.post("/messages", requireAuth, mailFiles, async (req, res) => {
     }
     return { thread, message };
   });
+  if (!isDraft) await notifyMailRecipients(recipients);
   res.status(201).json(result);
 });
 
@@ -880,6 +882,7 @@ router.post("/threads/:id/reply", requireAuth, mailFiles, async (req, res) => {
     }
     return created;
   });
+  await notifyMailRecipients(thread.participants.filter((item) => item.userId !== req.user!.id).map((item) => item.userId));
   res.status(201).json({ message });
 });
 
@@ -943,6 +946,7 @@ router.post("/drafts/:messageId/send", requireAuth, async (req, res) => {
     });
     return message;
   });
+  await notifyMailRecipients(recipients);
   res.json({ message: sent });
 });
 

@@ -1,4 +1,5 @@
 import { removeResearcherMembership, transferResearchLeadership } from "../services/group-membership.service.js";
+import { inviteTeamMember, queueTeamJoined } from "../services/team-email.service.js";
 import { assignResearchMember } from "../services/member-assignment.service.js";
 import { resolveRegistrationWorkflow } from "../services/registration-workflow.service.js";
 import { jsonSafe } from "../lib/json-response.js";
@@ -19,6 +20,16 @@ import { getCollegeScope } from "../lib/college-scope.js";
 import { filterResearchWorkflowDetails } from "../services/workflow-enrollment-access.service.js";
 
 const router = Router();
+
+router.post("/:id/team-invitations", requireAuth, async (req, res) => {
+  try {
+    const result = await prisma.$transaction((tx) => inviteTeamMember(tx, {
+      kind: "project", id: String(req.params.id), actorId: req.user!.id,
+      actorName: [req.user!.firstName, req.user!.lastName].filter(Boolean).join(" ") || "Your team leader", email: req.body.email,
+    }));
+    res.status(201).json({ queued: result.count });
+  } catch (error: any) { res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : "Unable to send team invitation." }); }
+});
 
 function researchScopeWhere(user: AuthenticatedUser) {
   const scope = getCollegeScope(user);
@@ -1147,6 +1158,7 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
         where: { id: project.id },
         data: { participationMode: "GROUP" },
       });
+      await queueTeamJoined(tx, { userId: req.user!.id, actorName: [req.user!.firstName, req.user!.lastName].filter(Boolean).join(" ") || "A researcher", teamId: project.id, teamName: project.groupName || project.title, leaderIds: project.members.filter((member) => member.projectRole === "LEADER").map((member) => member.userId) });
       return { member, enrollment };
     });
     res.status(201).json({
@@ -1352,6 +1364,9 @@ router.patch(
             entityId: researchId,
           },
         });
+        const leaders = await tx.researchMember.findMany({ where: { researchId, leftAt: null, projectRole: "LEADER" }, select: { userId: true } });
+        const researcher = await tx.user.findUnique({ where: { id: joinRequest.requesterId }, select: { firstName: true, lastName: true } });
+        await queueTeamJoined(tx, { userId: joinRequest.requesterId, actorName: researcher ? `${researcher.firstName} ${researcher.lastName}` : "A researcher", teamId: researchId, teamName: project.groupName || project.title, leaderIds: leaders.map((member) => member.userId) });
         return { member, enrollment, request };
       });
       res.json(result);

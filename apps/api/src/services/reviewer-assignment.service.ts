@@ -1,4 +1,5 @@
 import type { AuthenticatedUser } from "../middleware/auth.js";
+import { emailNotification } from "./notification-email.service.js";
 import {
   ManuscriptLifecycleStatus,
   Prisma,
@@ -1187,6 +1188,8 @@ class ReviewerAssignmentService {
               entityId: assignment.documentVersionId,
               actionUrl: `/research/manuscript?projectId=${assignment.researchId}&documentId=${assignment.documentId}&versionId=${assignment.documentVersionId}`,
               deduplicationKey: `manuscript:${assignment.documentVersionId}:decision:${lifecycleStatus}:${recipientId}`,
+              ...(["APPROVED", "REVISION_REQUIRED"].includes(lifecycleStatus)
+                ? emailNotification(lifecycleStatus === "APPROVED" ? "submission_approved" : "submission_revision", { title: assignment.document.title }) : {}),
             })),
           );
         }

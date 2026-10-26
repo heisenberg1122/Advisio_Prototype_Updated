@@ -1,4 +1,5 @@
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
+import { TeamEmailInvitation } from "@/components/workflow/TeamEmailInvitation";
 import React, { useState, Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -2196,7 +2197,10 @@ function StudentDashboardContent() {
                   ) : <div><h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Group members</h4><div className="mt-3 space-y-2">{(activeWorkspace.members || []).filter((member: any) => !member.leftAt).map((member: any) => <div key={member.id} className="rounded-xl border border-slate-200 p-3"><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{member.userId === user?.id ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.role === "LEADER" ? "Group Leader" : "Member"}</p></div>)}</div></div>}
 
                   {activeProject && <div className="flex flex-wrap gap-3"><button onClick={() => handleTabChange("group-chats")} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Group messages</button><button onClick={() => router.push(projectSelection.projectHref("/student/tasks"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Tasks</button><button onClick={() => router.push(projectSelection.projectHref("/student/group-files"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Shared files</button></div>}
+                  {!activeProject && isWorkspaceLeader && activeWorkspace?.participationMode === "GROUP" && <TeamEmailInvitation teamId={activeWorkspace.id} kind="workspace" />}
                   {activeProject && <div className="space-y-4">{isGroupLeader && (
+                        <TeamEmailInvitation teamId={activeProject.id} kind="project" />
+                      )}{isGroupLeader && (
                         <div className="grid gap-4 lg:grid-cols-2">
                           <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
                             <h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Group access</h4>

@@ -194,6 +194,7 @@ databaseDescribe(
       });
       expect(entries).toHaveLength(2);
       const invitation = entries.find((e) => e.userId === one)!;
+      expect(await prisma.notification.findFirst({ where: { recipientId: one, entityId: invitation.id, emailTemplate: "workflow_invitation" } })).toMatchObject({ emailNextAttemptAt: expect.any(Date) });
       const inbox = await fetch(
         `${base}/api/mail/threads/${invitation.mailThreadId}`,
         { headers: { Authorization: `Bearer ${generateToken(one)}` } },

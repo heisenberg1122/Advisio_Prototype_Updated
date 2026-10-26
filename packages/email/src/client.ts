@@ -1,3 +1,5 @@
+import { sendGmail } from "./gmail.js";
+
 export interface SendEmailOptions {
   to: string | string[];
   subject: string;
@@ -13,12 +15,16 @@ export interface SendEmailResult {
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
+  const provider = process.env.EMAIL_PROVIDER || (process.env.RESEND_API_KEY ? "resend" : "mock");
+  if (provider === "gmail") return sendGmail(options);
+  if (!["mock", "resend"].includes(provider)) return { success: false, error: "Unknown email provider." };
   const apiKey = process.env.RESEND_API_KEY;
   const from = options.from || process.env.EMAIL_FROM || "Advisio Notifications <notifications@advisio.edu.ph>";
   const recipients = Array.isArray(options.to) ? options.to : [options.to];
 
   // If no API key is provided (local development or tests), use mock delivery
-  if (!apiKey) {
+  if (provider === "mock") {
+    if (process.env.NODE_ENV === "production") return { success: false, error: "A real email provider must be configured in production." };
     console.log(`\n📧 [Advisio Mock Email Delivery]`);
     console.log(`   To:      ${recipients.join(", ")}`);
     console.log(`   From:    ${from}`);
@@ -31,6 +37,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<SendEmailRes
   }
 
   // Real delivery via Resend API
+  if (!apiKey) return { success: false, error: "Resend delivery is not configured." };
   try {
     const response = await fetch("https://api.resend.com/emails", {
       method: "POST",

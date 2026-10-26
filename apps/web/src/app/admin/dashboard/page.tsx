@@ -31,6 +31,7 @@ import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Button } from "@/components/ui/Button";
 import { useAsyncAction } from "@/hooks/use-async-action";
+import { DeanAnnouncements } from "@/components/workflow/DeanAnnouncements";
 
 type Program = { id: string; code: string; name: string };
 type AcademicYear = { id: string; name: string; isCurrent: boolean };
@@ -262,7 +263,7 @@ function DeanDashboardContent() {
             summary="Here's an overview of research progress, programs, and academic activity across your college."
           />
         )}
-        {activeView !== "messages" && (
+        {activeView !== "messages" && activeView !== "announcements" && (
           <div className="flex flex-wrap items-center justify-end gap-3">
               <label className="relative min-w-44 flex-1 sm:flex-none">
                 <span className="sr-only">Academic year</span>
@@ -556,8 +557,9 @@ function DeanDashboardContent() {
         )}
 
         {activeView === "messages" && <FacultyGroupChats triggerToast={setNotice} />}
+        {activeView === "announcements" && <DeanAnnouncements programs={data.scope.programs} assignedProgramId={user?.program?.id} />}
 
-        {!["overview", "students", "research", "progress", "advisers", "messages"].includes(activeView) && (
+        {!["overview", "students", "research", "progress", "advisers", "messages", "announcements"].includes(activeView) && (
           <EmptyState
             title="Module coming in the next operational phase"
             detail="Defense scheduling, institutional calendar, and report exports will be connected after the dean monitoring foundation."

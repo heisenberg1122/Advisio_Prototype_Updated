@@ -5,6 +5,7 @@ import {
   prisma,
 } from "../lib/prisma.js";
 import { notificationDeliveries } from "./notification.service.js";
+import { emailNotification } from "./notification-email.service.js";
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -43,6 +44,9 @@ export function taskStatusForManuscript(
 export async function createNotificationsOnce(
   tx: DbClient,
   notifications: Array<{
+    emailTemplate?: string;
+    emailData?: Record<string, string>;
+    emailNextAttemptAt?: Date;
     recipientId: string;
     type: string;
     title: string;
@@ -603,7 +607,7 @@ export async function advanceMilestoneIfSatisfied(
     select: {
       members: {
         where: { leftAt: null },
-        select: { userId: true },
+        select: { userId: true, projectRole: true },
       },
       workflowInstance: {
         select: { workflow: { select: { createdBy: true } } },
@@ -630,6 +634,9 @@ export async function advanceMilestoneIfSatisfied(
           entityId: completedMilestone.id,
           actionUrl: `/research/manuscript?projectId=${options.researchId}&milestoneId=${completedMilestone.id}`,
           deduplicationKey: `milestone:${options.researchId}:${completedMilestone.id}:completed:${recipientId}`,
+          ...(project?.members.some((member) => member.userId === recipientId && ["LEADER", "MEMBER"].includes(member.projectRole))
+            ? !followingStage ? emailNotification("workflow_completed", { workflowName: instance.workflow.name })
+              : emailNotification("submission_approved", { title: completedMilestone.name }) : {}),
         })),
     ),
   );

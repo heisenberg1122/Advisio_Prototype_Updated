@@ -7,6 +7,8 @@
     "packages/*"
   ],
   "scripts": {
+    "email:test": "node scripts/test-email.mjs",
+    "email:preview": "npm --workspace=@research-management/email run build && node scripts/preview-notification-emails.mjs",
     "dev": "node scripts/dev.mjs",
     "build": "turbo run build",
     "db:push": "npm --workspace=@research-management/database run db:push",

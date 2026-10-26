@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { emailNotification } from "../services/notification-email.service.js";
 import { storageHierarchyService } from "../services/storage-hierarchy.service.js";
 import { ManuscriptLifecycleStatus, prisma } from "../lib/prisma.js";
 import {
@@ -469,6 +470,7 @@ async function recordPublishedWorkflowChange(
   summary: string,
   entityType: string,
   entityId: string,
+  createdRequirement?: { title: string; dueDate: string },
 ) {
   try {
     const workflow = await prisma.workflow.findUnique({
@@ -485,7 +487,7 @@ async function recordPublishedWorkflowChange(
             research: {
               select: {
                 members: {
-                  where: { leftAt: null },
+                  where: { leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } },
                   select: { userId: true },
                 },
               },
@@ -530,6 +532,7 @@ async function recordPublishedWorkflowChange(
           actionUrl: "/student/tasks",
           audience: "researcher",
           deduplicationKey: `workflow:${workflowId}:change:${entityType}:${entityId}:${changedAt.toISOString()}:${recipientId}`,
+          ...(createdRequirement && workflow.enrollments.some((enrollment) => enrollment.userId === recipientId) ? emailNotification("requirement_created", { workflowId, workflowName: workflow.name, title: createdRequirement.title, dueDate: createdRequirement.dueDate }) : {}),
         })),
       );
     });
@@ -1546,6 +1549,7 @@ router.post(
               actionUrl: "/student/tasks",
               audience: "researcher",
               deduplicationKey: `workflow:${workflow.id}:published:${publishedAt.toISOString()}:${recipientId}`,
+              ...(enrollments.some((enrollment) => enrollment.userId === recipientId) ? emailNotification("requirement_created", { workflowId: workflow.id, title: `${workflow.stages.length} milestones in ${workflow.name}`, workflowName: workflow.name, message: workflow.stages.map((stage) => stage.name).join("\n"), dueDate: "See each requirement’s schedule in Advisio" }) : {}),
             })),
           );
           await tx.auditLog.create({
@@ -1991,6 +1995,7 @@ router.post(
             message: `${project.title}: ${task.title} still needs your attention. Please check the workflow deadline tracker for the current schedule.`,
             entityType: "WorkflowTask",
             entityId: task.id,
+            ...emailNotification("requirement_due", { title: task.title, dueDate: "Check the current schedule in Advisio" }),
           });
         }
       }
@@ -2273,6 +2278,7 @@ router.post(
         `A new milestone, ${stage.name}, was added and is now visible in the shared research process.`,
         "WorkflowStage",
         stage.id,
+        { title: stage.name, dueDate: stage.targetCompletionDate ? stage.targetCompletionDate.toISOString().slice(0, 10) + " (Asia/Manila)" : stage.deadlineDays != null ? `Within ${stage.deadlineDays} days of availability` : "No deadline set" },
       );
       res.status(201).json({
         stage,
@@ -2863,6 +2869,7 @@ router.post(
         `A submission requirement was added to ${stage.name}.`,
         "WorkflowTask",
         task.id,
+        { title: task.title, dueDate: stage.targetCompletionDate ? stage.targetCompletionDate.toISOString().slice(0, 10) + " (Asia/Manila)" : (task.dueDays ?? stage.deadlineDays) != null ? `Within ${task.dueDays ?? stage.deadlineDays} days of availability` : "No deadline set" },
       );
       res.status(201).json({ task });
     } catch (error: any) {
@@ -3315,7 +3322,9 @@ router.patch(
               entityType: "TaskSubmission",
               entityId: updated.id,
               actionUrl: `/research/manuscript?projectId=${existing.researchId}&milestoneId=${existing.task.stage.id}&taskId=${existing.task.id}&documentId=${existing.documentId}${existing.documentVersionId ? `&versionId=${existing.documentVersionId}` : ""}`,
-              deduplicationKey: `task:${updated.id}:review:${status}:${recipientId}`,
+              deduplicationKey: `task:${updated.id}:review:${existing.documentVersionId || updated.reviewedAt?.toISOString() || "legacy"}:${status}:${recipientId}`,
+              ...(["APPROVED", "REJECTED", "REVISION_REQUIRED"].includes(status) && existing.research.members.some((member) => member.userId === recipientId && ["LEADER", "MEMBER"].includes(member.projectRole))
+                ? emailNotification(status === "APPROVED" ? "submission_approved" : status === "REJECTED" ? "submission_rejected" : "submission_revision", { title: existing.task.title, message: reviewNote?.trim() || "Review the recorded decision in Advisio." }) : {}),
             })),
           );
         }

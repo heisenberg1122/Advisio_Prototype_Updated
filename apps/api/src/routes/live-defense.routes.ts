@@ -3,6 +3,7 @@ import {
   defenseSchedulerAudience,
 } from "../services/notification.service.js";
 import { createHash } from "node:crypto";
+import { emailNotification } from "../services/notification-email.service.js";
 import { Router, Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -153,6 +154,7 @@ router.post(
           "Defense eligibility approved",
           "Your group is approved for one defense cycle. A signed Dean approval is required before scheduling.",
           approval.id,
+          emailNotification("defense_eligible"),
         );
         return approval;
       });
@@ -523,6 +525,7 @@ async function notifyResearchGroup(
   title: string,
   message: string,
   sessionId: string,
+  email?: ReturnType<typeof emailNotification>,
 ) {
   const members = await tx.researchMember.findMany({
     where: {
@@ -542,6 +545,10 @@ async function notifyResearchGroup(
         message,
         entityType: "DefenseSession",
         entityId: sessionId,
+        ...email,
+        actionUrl: email?.emailTemplate === "title_defended" || email?.emailTemplate === "thesis_defended"
+          ? `/student/defense/${sessionId}?projectId=${researchId}`
+          : `/student/dashboard?tab=defense&projectId=${researchId}`,
       })),
     });
 }
@@ -2276,6 +2283,7 @@ router.post(
         where: { id: req.params.id as string },
         include: {
           research: true,
+          defenseEvent: { select: { defenseType: true } },
           invitations: {
             where: {
               status: "ACCEPTED",
@@ -2377,6 +2385,10 @@ router.post(
             .replace(/_/g, " ")
             .toLowerCase()}.`,
           session.id,
+          decision === "APPROVED" && defenseBadgeKind(session.defenseEvent?.defenseType)
+            ? emailNotification(defenseBadgeKind(session.defenseEvent?.defenseType) === "TITLE_DEFENSE" ? "title_defended" : "thesis_defended", {
+                researchTitle: session.research.title, result: "Approved",
+              }) : undefined,
         );
         if (revisionsRequired) {
           const sourceVersion = publishedPacket.manuscriptVersion;
