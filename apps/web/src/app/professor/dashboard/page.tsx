@@ -313,6 +313,9 @@ function ProfessorDashboardContent() {
         description: w.description,
         status: w.status,
         version: w.version,
+        createdAt: w.createdAt,
+        updatedAt: w.updatedAt,
+        publishedAt: w.publishedAt,
         inviteCode: w.inviteCode,
         inviteExpiresAt: w.inviteExpiresAt,
         topics: w.topics || [],
@@ -451,6 +454,14 @@ function ProfessorDashboardContent() {
   const [saving, setSaving] = useState(false);
   const [creatingMilestone, setCreatingMilestone] = useState(false);
   const [showWorkflowCreateMenu, setShowWorkflowCreateMenu] = useState(false);
+  const [publishingWorkflow, setPublishingWorkflow] = useState(false);
+  const [showPublishConfirmation, setShowPublishConfirmation] = useState(false);
+  const [showStudentPreview, setShowStudentPreview] = useState(false);
+  const [collapsedTopicIds, setCollapsedTopicIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [draggedTopicId, setDraggedTopicId] = useState<string | null>(null);
+  const [topicOrderSaving, setTopicOrderSaving] = useState(false);
   const [showAdvancedMilestoneOptions, setShowAdvancedMilestoneOptions] =
     useState(false);
   const [editingMilestone, setEditingMilestone] = useState<any | null>(null);
@@ -770,6 +781,24 @@ function ProfessorDashboardContent() {
     }
   };
 
+  const saveTopicOrder = async (reordered: any[]) => {
+    if (!selectedWorkflowId || topicOrderSaving) return;
+    setTopicOrderSaving(true);
+    try {
+      await apiClient.patch(
+        `/api/workflows/${selectedWorkflowId}/topics/reorder`,
+        { topicIds: reordered.map((topic: any) => topic.id) },
+      );
+      await refetchWorkflows();
+      triggerToast("Topic order updated.");
+    } catch (error: any) {
+      triggerToast(error?.message || "The topic could not be moved.");
+    } finally {
+      setTopicOrderSaving(false);
+      setDraggedTopicId(null);
+    }
+  };
+
   const handleMoveTopic = async (topicId: string, direction: -1 | 1) => {
     const index = selectedWorkflowTopics.findIndex(
       (topic: any) => topic.id === topicId,
@@ -786,18 +815,25 @@ function ProfessorDashboardContent() {
       reordered[nextIndex],
       reordered[index],
     ];
-    try {
-      await apiClient.patch(
-        `/api/workflows/${selectedWorkflowId}/topics/reorder`,
-        {
-          topicIds: reordered.map((topic: any) => topic.id),
-        },
-      );
-      await refetchWorkflows();
-      triggerToast("Topic order updated.");
-    } catch (error: any) {
-      triggerToast(error?.message || "The topic could not be moved.");
+    await saveTopicOrder(reordered);
+  };
+
+  const handleDropTopic = async (targetTopicId: string) => {
+    if (!draggedTopicId || draggedTopicId === targetTopicId) {
+      setDraggedTopicId(null);
+      return;
     }
+    const reordered = [...selectedWorkflowTopics];
+    const sourceIndex = reordered.findIndex(
+      (topic: any) => topic.id === draggedTopicId,
+    );
+    const targetIndex = reordered.findIndex(
+      (topic: any) => topic.id === targetTopicId,
+    );
+    if (sourceIndex < 0 || targetIndex < 0) return setDraggedTopicId(null);
+    const [moved] = reordered.splice(sourceIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+    await saveTopicOrder(reordered);
   };
 
   const handleDeleteTopic = async (topic: any) => {
@@ -999,26 +1035,22 @@ function ProfessorDashboardContent() {
   const handleSaveMilestoneDetails = async () => {
     if (!editingMilestone || !milestoneEditTitle.trim()) return;
     setMilestoneSaveStatus("saving");
-    const minimumDelay = new Promise((resolve) => setTimeout(resolve, 1500));
     try {
-      const [result] = await Promise.all([
-        apiClient.patch<{ stage: any }>(
-          `/api/workflows/stages/${editingMilestone.id}`,
-          {
-            name: milestoneEditTitle.trim(),
-            description: milestoneEditDescription.trim() || null,
-            topicId: milestoneEditTopicId,
-            category: milestoneEditCategory,
-            ...(milestoneEditTargetChanged && {
-              targetCompletionDate: milestoneEditDeadline || null,
-            }),
-            requiresDocument: milestoneEditRequiresDocument,
-            requiresApproval: milestoneEditRequiresApproval,
-            submissionMode: milestoneEditSubmissionMode,
-          },
-        ),
-        minimumDelay,
-      ]);
+      const result = await apiClient.patch<{ stage: any }>(
+        `/api/workflows/stages/${editingMilestone.id}`,
+        {
+          name: milestoneEditTitle.trim(),
+          description: milestoneEditDescription.trim() || null,
+          topicId: milestoneEditTopicId,
+          category: milestoneEditCategory,
+          ...(milestoneEditTargetChanged && {
+            targetCompletionDate: milestoneEditDeadline || null,
+          }),
+          requiresDocument: milestoneEditRequiresDocument,
+          requiresApproval: milestoneEditRequiresApproval,
+          submissionMode: milestoneEditSubmissionMode,
+        },
+      );
       const refreshed = await refetchWorkflows();
       const refreshedStage = refreshed.data?.workflows
         ?.flatMap((workflow: any) => workflow.stages || [])
@@ -1032,9 +1064,39 @@ function ProfessorDashboardContent() {
       setMilestoneEditTargetChanged(false);
       setMilestoneSaveStatus("saved");
     } catch (error: any) {
-      await minimumDelay;
       setMilestoneSaveStatus("idle");
       triggerToast(error?.message || "Milestone details could not be saved.");
+    }
+  };
+
+  const handlePublishWorkflow = async () => {
+    if (!selectedWorkflowId || publishingWorkflow) return;
+    setPublishingWorkflow(true);
+    try {
+      const result = await apiClient.post<{
+        alreadyPublished: boolean;
+        recipients: number;
+      }>(`/api/workflows/${selectedWorkflowId}/publish`, {});
+      await Promise.all([
+        refetchWorkflows(),
+        refetchEnrollments(),
+        refetchResearch(),
+      ]);
+      setShowPublishConfirmation(false);
+      triggerToast(
+        result.alreadyPublished
+          ? "This workflow is already published."
+          : `Workflow published${result.recipients ? ` and ${result.recipients} affected researcher${result.recipients === 1 ? " was" : "s were"} notified` : ""}.`,
+      );
+    } catch (error: any) {
+      const details = Array.isArray(error?.issues)
+        ? ` ${error.issues.join(" ")}`
+        : "";
+      triggerToast(
+        `${error?.message || "Workflow could not be published."}${details}`,
+      );
+    } finally {
+      setPublishingWorkflow(false);
     }
   };
 
@@ -1169,6 +1231,28 @@ function ProfessorDashboardContent() {
   const workflowApprovalCount = selectedWorkflowMilestones.filter(
     (item) => item.locked,
   ).length;
+  const workflowDocumentMilestoneCount = selectedWorkflowMilestones.filter(
+    (item) => item.requiresDocument,
+  ).length;
+  const workflowReadyToPublish = Boolean(
+    selectedWorkflow &&
+    selectedWorkflowTopics.length &&
+    selectedWorkflowMilestones.length &&
+    selectedWorkflowMilestones.every(
+      (item) =>
+        item.topicId &&
+        (!item.requiresDocument ||
+          item.tasks?.some((task: any) => task.isRequired !== false)),
+    ),
+  );
+  const workflowSavedLabel = selectedWorkflow?.updatedAt
+    ? new Date(selectedWorkflow.updatedAt).toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null;
   const workflowEnrollmentCount = acceptedResearchers.filter(
     (item: any) =>
       item.workflowId === selectedWorkflowId ||
@@ -1179,74 +1263,86 @@ function ProfessorDashboardContent() {
       item.workflowId === selectedWorkflowId ||
       item.workflow?.id === selectedWorkflowId,
   );
-  const renderWorkflowMilestone = (milestone: any) => (
-    <div key={milestone.id} className="relative pl-12">
-      <div
-        className="absolute bottom-0 left-[19px] top-11 w-px bg-slate-200"
-        aria-hidden="true"
-      />
-      <span className="absolute left-0 top-4 grid h-10 w-10 place-items-center rounded-full border-2 border-[#173f63] bg-white text-sm font-extrabold text-[#173f63]">
-        {milestone.sequence}
-      </span>
-      <button
-        type="button"
-        onClick={() => {
-          setShowAdvancedMilestoneOptions(false);
-          openMilestoneEditor(milestone);
-        }}
-        className="mb-3 w-full rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-[#f6a800] hover:shadow-sm"
-      >
-        <span className="flex items-start justify-between gap-4">
-          <span>
-            <span className="block text-[15px] font-extrabold text-[#102f49]">
-              {milestone.title}
-            </span>
-            <span className="mt-1 block text-sm text-slate-500">
-              {milestone.description || "No student instructions added yet."}
-            </span>
-          </span>
-          <i className="ti ti-chevron-right mt-1 text-slate-400" />
+  const renderWorkflowMilestone = (milestone: any) => {
+    const prerequisite = selectedWorkflowMilestones
+      .filter((candidate) => candidate.sequence < milestone.sequence)
+      .sort((left, right) => right.sequence - left.sequence)[0];
+    return (
+      <div key={milestone.id} className="relative pl-12">
+        <div
+          className="absolute bottom-0 left-[19px] top-11 w-px bg-[var(--color-border)]"
+          aria-hidden="true"
+        />
+        <span className="absolute left-0 top-4 grid h-10 w-10 place-items-center rounded-full border-2 border-[var(--color-primary)] bg-[var(--color-surface)] text-sm font-extrabold text-[var(--color-primary)]">
+          {milestone.sequence}
         </span>
-        <span className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-slate-500">
-          <span>
-            {milestone.submissionMode === "INDIVIDUAL"
-              ? "Individual researcher"
-              : milestone.submissionMode === "GROUP"
-                ? "Research group"
-                : "Individual or group"}
-          </span>
-          <span aria-hidden="true">·</span>
-          <span>{formatMilestoneTarget(milestone)}</span>
-          <span aria-hidden="true">·</span>
-          <span>
-            {milestone.requiresDocument === false
-              ? milestone.milestoneType === "ADVISER_SELECTION"
-                ? "Adviser acceptance"
-                : "No upload"
-              : `${milestone.tasks?.length || 1} submission requirement${(milestone.tasks?.length || 1) === 1 ? "" : "s"}`}
-          </span>
-          {milestone.milestoneType === "ADVISER_SELECTION" && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">
-                <i className="ti ti-user-check mr-1" />
-                Adviser Milestone
+        <button
+          type="button"
+          onClick={() => {
+            setShowAdvancedMilestoneOptions(false);
+            openMilestoneEditor(milestone);
+          }}
+          aria-label={`Edit milestone ${milestone.title}`}
+          className="mb-3 w-full rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+        >
+          <span className="flex items-start justify-between gap-4">
+            <span>
+              <span className="block text-[15px] font-extrabold text-[#102f49]">
+                {milestone.title}
               </span>
-            </>
-          )}
-          {milestone.locked && (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="text-amber-700">
-                <i className="ti ti-lock mr-1" />
-                Approval required
+              <span className="mt-1 block text-sm text-slate-500">
+                {milestone.description || "No student instructions added yet."}
               </span>
-            </>
-          )}
-        </span>
-      </button>
-    </div>
-  );
+            </span>
+            <i className="ti ti-chevron-right mt-1 text-slate-400" />
+          </span>
+          <span className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-slate-500">
+            <span>
+              {milestone.submissionMode === "INDIVIDUAL"
+                ? "Individual researcher"
+                : milestone.submissionMode === "GROUP"
+                  ? "Research group"
+                  : "Individual or group"}
+            </span>
+            <span aria-hidden="true">·</span>
+            <span>{formatMilestoneTarget(milestone)}</span>
+            <span aria-hidden="true">·</span>
+            <span>
+              {milestone.requiresDocument === false
+                ? milestone.milestoneType === "ADVISER_SELECTION"
+                  ? "Adviser acceptance"
+                  : "No upload"
+                : `${milestone.tasks?.length || 1} submission requirement${(milestone.tasks?.length || 1) === 1 ? "" : "s"}`}
+            </span>
+            {milestone.milestoneType === "ADVISER_SELECTION" && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-emerald-700">
+                  <i className="ti ti-user-check mr-1" />
+                  Adviser Milestone
+                </span>
+              </>
+            )}
+            {milestone.locked && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span className="text-amber-700">
+                  <i className="ti ti-lock mr-1" />
+                  Approval required
+                </span>
+              </>
+            )}
+          </span>
+          <span className="mt-2 block text-xs font-semibold text-[var(--color-text-muted)]">
+            <i className="ti ti-link mr-1" aria-hidden="true" />
+            {prerequisite
+              ? `Unlocks after ${prerequisite.title} is completed`
+              : "Available when the workflow begins"}
+          </span>
+        </button>
+      </div>
+    );
+  };
   const scopedSubmissions = submissions.filter(
     (submission) =>
       submissionWorkflowId === "ALL" ||
@@ -1713,6 +1809,191 @@ function ProfessorDashboardContent() {
         </div>
       )}
 
+      {showPublishConfirmation && selectedWorkflow && (
+        <div
+          className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/55 p-4 backdrop-blur-sm"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="publish-workflow-title"
+          aria-describedby="publish-workflow-description"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !publishingWorkflow)
+              setShowPublishConfirmation(false);
+          }}
+        >
+          <div className="w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-2xl">
+            <span className="grid h-12 w-12 place-items-center rounded-full bg-amber-100 text-amber-800">
+              <i className="ti ti-send text-xl" aria-hidden="true" />
+            </span>
+            <h2
+              id="publish-workflow-title"
+              className="mt-4 text-xl font-extrabold text-[var(--color-text-primary)]"
+            >
+              Publish “{selectedWorkflow.name}”?
+            </h2>
+            <p
+              id="publish-workflow-description"
+              className="mt-2 text-base leading-6 text-[var(--color-text-secondary)]"
+            >
+              Researchers will see these milestones, deadlines, resources,
+              submission rules, and approval gates across Tasks, Documents, and
+              their project workspace.
+            </p>
+            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+              {[
+                ["Topics", selectedWorkflowTopics.length],
+                ["Milestones", selectedWorkflowMilestones.length],
+                ["Approvals", workflowApprovalCount],
+              ].map(([label, value]) => (
+                <div
+                  key={String(label)}
+                  className="rounded-xl bg-[var(--color-surface-subtle)] p-3"
+                >
+                  <strong className="block text-lg text-[var(--color-text-primary)]">
+                    {value}
+                  </strong>
+                  <span className="text-xs text-[var(--color-text-secondary)]">
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {!workflowReadyToPublish && (
+              <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+                Add a topic, milestone, and required submission details before
+                publishing.
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={publishingWorkflow}
+                onClick={() => setShowPublishConfirmation(false)}
+                className="rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-sm font-bold text-[var(--color-text-secondary)]"
+              >
+                Keep editing
+              </button>
+              <button
+                type="button"
+                disabled={publishingWorkflow || !workflowReadyToPublish}
+                onClick={() => void handlePublishWorkflow()}
+                className="rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] disabled:opacity-50"
+              >
+                <i
+                  className={`ti ${publishingWorkflow ? "ti-loader-2 animate-spin" : "ti-send"} mr-1.5`}
+                  aria-hidden="true"
+                />
+                {publishingWorkflow ? "Publishing…" : "Publish workflow"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showStudentPreview && selectedWorkflow && (
+        <div
+          className="fixed inset-0 z-[100] bg-slate-950/55 p-3 backdrop-blur-sm sm:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="student-workflow-preview-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget)
+              setShowStudentPreview(false);
+          }}
+        >
+          <section className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-background)] shadow-2xl">
+            <header className="flex items-start justify-between gap-4 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--color-primary)]">
+                  Student preview
+                </p>
+                <h2
+                  id="student-workflow-preview-title"
+                  className="mt-1 text-xl font-black text-[var(--color-text-primary)]"
+                >
+                  {selectedWorkflow.name}
+                </h2>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                  This is how the published sequence and unlock rules will read
+                  to a research group.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowStudentPreview(false)}
+                aria-label="Close student preview"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-[var(--color-surface-subtle)]"
+              >
+                <i className="ti ti-x text-xl" aria-hidden="true" />
+              </button>
+            </header>
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="space-y-5">
+                {selectedWorkflowTopics.map(
+                  (topic: any, topicIndex: number) => {
+                    const topicMilestones = selectedWorkflowMilestones.filter(
+                      (milestone) => milestone.topicId === topic.id,
+                    );
+                    return (
+                      <section
+                        key={topic.id}
+                        className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5"
+                      >
+                        <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--color-primary)]">
+                          Phase {topicIndex + 1}
+                        </p>
+                        <h3 className="mt-1 text-lg font-extrabold text-[var(--color-text-primary)]">
+                          {topic.title}
+                        </h3>
+                        {topic.description && (
+                          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                            {topic.description}
+                          </p>
+                        )}
+                        <div className="mt-4 space-y-3">
+                          {topicMilestones.map((milestone, milestoneIndex) => (
+                            <article
+                              key={milestone.id}
+                              className="flex gap-3 rounded-xl bg-[var(--color-surface-subtle)] p-4"
+                            >
+                              <span
+                                className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${topicIndex === 0 && milestoneIndex === 0 ? "bg-[var(--color-primary)] text-[var(--college-on-primary)]" : "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]"}`}
+                              >
+                                <i
+                                  className={`ti ${topicIndex === 0 && milestoneIndex === 0 ? "ti-player-play" : "ti-lock"}`}
+                                  aria-hidden="true"
+                                />
+                              </span>
+                              <div className="min-w-0">
+                                <h4 className="font-bold text-[var(--color-text-primary)]">
+                                  {milestone.sequence}. {milestone.title}
+                                </h4>
+                                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                                  {milestone.description ||
+                                    "Follow the milestone instructions provided by your professor."}
+                                </p>
+                                <p className="mt-2 text-xs font-semibold text-[var(--color-text-muted)]">
+                                  {formatMilestoneTarget(milestone)} ·{" "}
+                                  {milestone.tasks?.length || 0} requirement
+                                  {milestone.tasks?.length === 1 ? "" : "s"} ·{" "}
+                                  {milestone.locked
+                                    ? "Faculty approval required"
+                                    : "Sequential completion"}
+                                </p>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  },
+                )}
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
       {monitoringPendingRemoval && (
         <div
           className="fixed inset-0 z-[95] grid place-items-center bg-slate-950/50 p-4"
@@ -1818,6 +2099,14 @@ function ProfessorDashboardContent() {
           milestoneType={milestoneEditType}
           saving={milestoneSaveStatus === "saving"}
           saveStatus={milestoneSaveStatus}
+          prerequisiteLabel={
+            selectedWorkflowMilestones
+              .filter(
+                (milestone) => milestone.sequence < editingMilestone.sequence,
+              )
+              .sort((left, right) => right.sequence - left.sequence)[0]
+              ?.title || "Available when the workflow begins"
+          }
           advancedOpen={showAdvancedMilestoneOptions}
           onTitleChange={(value) => {
             setMilestoneEditTitle(value);
@@ -2616,6 +2905,7 @@ function ProfessorDashboardContent() {
           positionOptions={newMilestonePositionOptions}
           saving={saving}
           advancedOpen={showAdvancedMilestoneOptions}
+          prerequisiteLabel="The previous milestone in this workflow sequence"
           onTitleChange={setNewMilestoneTitle}
           onTopicIdChange={(topicId) => {
             setNewMilestoneTopicId(topicId);
@@ -3834,8 +4124,15 @@ function ProfessorDashboardContent() {
                 </section>
                 <DefenseBadgeIssuance
                   sessions={defenseSessions}
-                  canIssue={Boolean(user?.roles.includes("RESEARCH_COORDINATOR"))}
-                  onIssued={() => Promise.all([refetchDefenseManagement(), refetchDefenseEvents()])}
+                  canIssue={Boolean(
+                    user?.roles.includes("RESEARCH_COORDINATOR"),
+                  )}
+                  onIssued={() =>
+                    Promise.all([
+                      refetchDefenseManagement(),
+                      refetchDefenseEvents(),
+                    ])
+                  }
                 />
                 {liveDefense && (
                   <section className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
@@ -4379,7 +4676,9 @@ function ProfessorDashboardContent() {
                                 }
                                 className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base"
                               >
-                                <option value="TITLE_DEFENSE">Title defense</option>
+                                <option value="TITLE_DEFENSE">
+                                  Title defense
+                                </option>
                                 <option value="PROPOSAL_DEFENSE">
                                   Proposal defense
                                 </option>
@@ -5263,15 +5562,17 @@ function ProfessorDashboardContent() {
               </div>
             ),
             builder: (
-              <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5 text-slate-800">
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+              <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-5 text-[var(--color-text-primary)]">
+                <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] lg:p-6">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h2 className="text-xl font-extrabold text-[#102f49]">
+                        <h2 className="text-xl font-extrabold text-[var(--color-text-primary)]">
                           Research workflow
                         </h2>
-                        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${selectedWorkflow?.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
+                        >
                           {selectedWorkflow?.status
                             ? selectedWorkflow.status
                                 .toLowerCase()
@@ -5289,11 +5590,41 @@ function ProfessorDashboardContent() {
                     <div className="flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto">
                       <button
                         type="button"
-                        onClick={() => setCreatingWorkflow(true)}
-                        className="shrink-0 self-start rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#102f49] lg:self-auto"
+                        disabled={!selectedWorkflow}
+                        onClick={() => setShowStudentPreview(true)}
+                        className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-extrabold text-[var(--color-primary)] transition hover:bg-[var(--color-surface-subtle)] disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        <i className="ti ti-plus mr-1.5" />
-                        Create workflow
+                        <i className="ti ti-eye mr-1.5" aria-hidden="true" />
+                        Preview as Student
+                      </button>
+                      <button
+                        type="button"
+                        disabled={
+                          !selectedWorkflow ||
+                          selectedWorkflow.status === "PUBLISHED" ||
+                          publishingWorkflow
+                        }
+                        onClick={() => setShowPublishConfirmation(true)}
+                        className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] shadow-sm transition hover:bg-[var(--color-primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <i
+                          className={`ti ${publishingWorkflow ? "ti-loader-2 animate-spin" : selectedWorkflow?.status === "PUBLISHED" ? "ti-circle-check" : "ti-send"} mr-1.5`}
+                          aria-hidden="true"
+                        />
+                        {publishingWorkflow
+                          ? "Publishing…"
+                          : selectedWorkflow?.status === "PUBLISHED"
+                            ? "Published"
+                            : "Publish"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCreatingWorkflow(true)}
+                        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)] transition hover:bg-[var(--color-surface-subtle)]"
+                        aria-label="Create another workflow"
+                        title="Create workflow"
+                      >
+                        <i className="ti ti-plus" aria-hidden="true" />
                       </button>
                       <button
                         type="button"
@@ -5314,7 +5645,7 @@ function ProfessorDashboardContent() {
                       </button>
                     </div>
                   </div>
-                  <div className="mt-5 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center">
+                  <div className="mt-5 flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center">
                     <label className="text-sm font-bold text-slate-600">
                       Workflow
                     </label>
@@ -5323,7 +5654,7 @@ function ProfessorDashboardContent() {
                       onChange={(event) => {
                         setSelectedWorkflowId(event.target.value);
                       }}
-                      className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-base font-semibold text-[#102f49] sm:max-w-md"
+                      className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-base font-semibold text-[var(--color-text-primary)] sm:max-w-md"
                     >
                       {!workflows.length && (
                         <option value="">No workflow created yet</option>
@@ -5334,13 +5665,30 @@ function ProfessorDashboardContent() {
                         </option>
                       ))}
                     </select>
-                    <span className="text-xs text-slate-400">
-                      Changes are saved directly to this workflow.
+                    <span
+                      className="flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text-muted)]"
+                      role="status"
+                    >
+                      <i
+                        className="ti ti-cloud-check text-emerald-600"
+                        aria-hidden="true"
+                      />
+                      {workflowSavedLabel
+                        ? `Saved ${workflowSavedLabel}`
+                        : "All changes save to this workflow"}
                     </span>
                   </div>
+                  {selectedWorkflow?.status === "DRAFT" && (
+                    <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+                      <i className="ti ti-lock mt-0.5" aria-hidden="true" />
+                      Draft milestones remain private until you publish.
+                      Existing student submissions are never changed by
+                      publishing.
+                    </p>
+                  )}
                 </section>
                 <div
-                  className="overflow-x-auto border-b border-slate-200 bg-white px-2 shadow-sm"
+                  className="overflow-x-auto rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-sm"
                   role="tablist"
                   aria-label="Workflow sections"
                 >
@@ -5575,11 +5923,16 @@ function ProfessorDashboardContent() {
                   >
                     {(workflowsError || workflowsLoading) && (
                       <section
-                        className={`rounded-2xl border p-5 text-sm ${workflowsError ? "border-red-200 bg-red-50 text-red-700" : "border-slate-200 bg-white text-slate-500"}`}
+                        className={`rounded-2xl border p-5 text-sm ${workflowsError ? "border-red-200 bg-red-50 text-red-700" : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]"}`}
+                        role="status"
+                        aria-live="polite"
+                        aria-busy={workflowsLoading}
                       >
-                        {workflowsError
-                          ? "The workflow could not be loaded. Check the API connection and try again."
-                          : "Loading workflow…"}
+                        {workflowsError ? (
+                          "The workflow could not be loaded. Check the API connection and try again."
+                        ) : (
+                          <ListRowsSkeleton rows={4} avatars={false} />
+                        )}
                       </section>
                     )}
                     {!workflowsLoading && !workflowsError && (
@@ -5767,15 +6120,38 @@ function ProfessorDashboardContent() {
                                 return (
                                   <section
                                     key={topic.id}
-                                    className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/50"
+                                    onDragOver={(event) =>
+                                      event.preventDefault()
+                                    }
+                                    onDrop={() =>
+                                      void handleDropTopic(topic.id)
+                                    }
+                                    className={`overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)]/60 transition ${draggedTopicId === topic.id ? "opacity-60 ring-2 ring-[var(--college-focus-ring)]" : ""}`}
                                   >
-                                    <header className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <header className="flex flex-col gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                       <div className="flex min-w-0 items-start gap-3">
-                                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#173f63] text-white">
-                                          <i className="ti ti-folders" />
+                                        <span
+                                          draggable={!topicOrderSaving}
+                                          onDragStart={() =>
+                                            setDraggedTopicId(topic.id)
+                                          }
+                                          onDragEnd={() =>
+                                            setDraggedTopicId(null)
+                                          }
+                                          className="grid h-10 w-10 shrink-0 cursor-grab place-items-center rounded-xl bg-[var(--color-primary)] text-[var(--college-on-primary)] active:cursor-grabbing"
+                                          aria-hidden="true"
+                                          title="Drag to reorder"
+                                        >
+                                          <i
+                                            className="ti ti-grip-vertical"
+                                            aria-hidden="true"
+                                          />
                                         </span>
                                         <div className="min-w-0">
                                           <h4 className="font-extrabold text-[#102f49]">
+                                            <span className="mr-2 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
+                                              Phase {topicIndex + 1}
+                                            </span>
                                             {topic.title}
                                           </h4>
                                           {topic.description && (
@@ -5792,6 +6168,28 @@ function ProfessorDashboardContent() {
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setCollapsedTopicIds((current) => {
+                                              const next = new Set(current);
+                                              if (next.has(topic.id))
+                                                next.delete(topic.id);
+                                              else next.add(topic.id);
+                                              return next;
+                                            })
+                                          }
+                                          aria-expanded={
+                                            !collapsedTopicIds.has(topic.id)
+                                          }
+                                          aria-controls={`workflow-topic-${topic.id}`}
+                                          aria-label={`${collapsedTopicIds.has(topic.id) ? "Expand" : "Collapse"} ${topic.title}`}
+                                          className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-white"
+                                        >
+                                          <i
+                                            className={`ti ${collapsedTopicIds.has(topic.id) ? "ti-chevron-down" : "ti-chevron-up"}`}
+                                          />
+                                        </button>
                                         <button
                                           type="button"
                                           onClick={() =>
@@ -5856,7 +6254,11 @@ function ProfessorDashboardContent() {
                                         </button>
                                       </div>
                                     </header>
-                                    <div className="p-4">
+                                    <div
+                                      id={`workflow-topic-${topic.id}`}
+                                      hidden={collapsedTopicIds.has(topic.id)}
+                                      className="p-4"
+                                    >
                                       {topicMilestones.length ? (
                                         topicMilestones.map(
                                           renderWorkflowMilestone,
@@ -5917,9 +6319,23 @@ function ProfessorDashboardContent() {
                         </section>
                         <aside className="space-y-4">
                           <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                            <h3 className="font-extrabold text-[#102f49]">
-                              Workflow summary
-                            </h3>
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <h3 className="font-extrabold text-[#102f49]">
+                                  Workflow summary
+                                </h3>
+                                <p className="mt-0.5 text-xs text-slate-500">
+                                  Version {selectedWorkflow?.version || 1}
+                                </p>
+                              </div>
+                              <span
+                                className={`rounded-full px-2 py-1 text-xs font-bold ${workflowReadyToPublish ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
+                              >
+                                {workflowReadyToPublish
+                                  ? "Ready"
+                                  : "Needs setup"}
+                              </span>
+                            </div>
                             <div className="mt-4 space-y-3">
                               <div className="flex justify-between text-sm">
                                 <span className="text-slate-500">Topics</span>
@@ -5942,19 +6358,18 @@ function ProfessorDashboardContent() {
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-slate-500">
-                                  Student submissions
+                                  Document milestones
                                 </span>
                                 <strong className="text-[#102f49]">
-                                  {milestones
-                                    .filter(
-                                      (item) =>
-                                        item.workflowId === selectedWorkflowId,
-                                    )
-                                    .reduce(
-                                      (sum, item) =>
-                                        sum + (item.tasks?.length || 0),
-                                      0,
-                                    )}
+                                  {workflowDocumentMilestoneCount}
+                                </strong>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">
+                                  Submission requirements
+                                </span>
+                                <strong className="text-[#102f49]">
+                                  {workflowRequirementCount}
                                 </strong>
                               </div>
                               <div className="flex justify-between text-sm">
@@ -5969,6 +6384,14 @@ function ProfessorDashboardContent() {
                                           selectedWorkflowId && item.locked,
                                     ).length
                                   }
+                                </strong>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">
+                                  Active researchers
+                                </span>
+                                <strong className="text-[#102f49]">
+                                  {workflowEnrollmentCount}
                                 </strong>
                               </div>
                             </div>

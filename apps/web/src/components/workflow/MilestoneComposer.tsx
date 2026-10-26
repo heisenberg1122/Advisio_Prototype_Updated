@@ -34,6 +34,8 @@ type MilestoneComposerProps = {
   onSubmit: (event: React.FormEvent) => void;
   onDelete?: () => void;
   saveStatus?: "idle" | "saving" | "saved";
+  prerequisiteLabel?: string;
+  reviewerLabel?: string;
 };
 
 export function MilestoneComposer({
@@ -70,6 +72,8 @@ export function MilestoneComposer({
   onSubmit,
   onDelete,
   saveStatus = "idle",
+  prerequisiteLabel = "Previous milestone in the published sequence",
+  reviewerLabel = "Professor / Research Coordinator",
 }: MilestoneComposerProps) {
   const currentSignature = JSON.stringify({
     title,
@@ -427,6 +431,26 @@ export function MilestoneComposer({
                       </span>
                     </label>
                   )}
+                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3">
+                    <span className="block text-sm font-bold text-[var(--color-text-primary)]">
+                      Prerequisite
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-[var(--color-text-secondary)]">
+                      {prerequisiteLabel}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3">
+                    <span className="block text-sm font-bold text-[var(--color-text-primary)]">
+                      Reviewer and approval rule
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-[var(--color-text-secondary)]">
+                      {isAdviserMilestone
+                        ? "The selected faculty adviser completes this gate only by accepting the official adviser request."
+                        : requiresApproval
+                          ? `${reviewerLabel} must approve every required submission before the next milestone unlocks.`
+                          : "Required submissions must be completed before the next milestone unlocks; no separate faculty approval gate is added."}
+                    </span>
+                  </div>
                 </div>
               </section>
 

@@ -40,6 +40,7 @@ import {
 
 import { hasActiveWorkflowEnrollment } from "../services/workflow-enrollment-access.service.js";
 import { synchronizeAdviserMilestone } from "../services/adviser-milestone.service.js";
+import { workflowPublicationIssues } from "../services/workflow-publication.service.js";
 
 const router = Router();
 router.use(workflowAccessRoutes);
@@ -454,6 +455,83 @@ async function normalizeWorkflowTopicSequences(tx: any, workflowId: string) {
   }
 }
 
+async function recordPublishedWorkflowChange(
+  workflowId: string,
+  actorId: string,
+  summary: string,
+  entityType: string,
+  entityId: string,
+) {
+  try {
+    const workflow = await prisma.workflow.findUnique({
+      where: { id: workflowId },
+      select: {
+        name: true,
+        status: true,
+        enrollments: {
+          where: { status: "ACTIVE" },
+          select: { userId: true },
+        },
+        instances: {
+          select: {
+            research: {
+              select: {
+                members: {
+                  where: { leftAt: null },
+                  select: { userId: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!workflow || workflow.status !== "PUBLISHED") return;
+    const changedAt = new Date();
+    await prisma.workflow.update({
+      where: { id: workflowId },
+      data: { updatedAt: changedAt },
+    });
+
+    const recipients = new Set(
+      workflow.enrollments.map(({ userId }) => userId),
+    );
+    for (const instance of workflow.instances)
+      for (const member of instance.research?.members || [])
+        recipients.add(member.userId);
+
+    await prisma.$transaction(async (tx) => {
+      await tx.auditLog.create({
+        data: {
+          userId: actorId,
+          action: "UPDATE",
+          entityType,
+          entityId,
+          newValues: { workflowId, summary },
+        },
+      });
+      await createNotificationsOnce(
+        tx,
+        Array.from(recipients).map((recipientId) => ({
+          recipientId,
+          type: "WORKFLOW_CHANGED",
+          title: "Published workflow updated",
+          message: `${workflow.name}: ${summary}`,
+          entityType: "Workflow",
+          entityId: workflowId,
+          actionUrl: "/student/tasks",
+          audience: "researcher",
+          deduplicationKey: `workflow:${workflowId}:change:${entityType}:${entityId}:${changedAt.toISOString()}:${recipientId}`,
+        })),
+      );
+    });
+  } catch (error) {
+    // The academic change has already committed. Notification delivery must
+    // never turn a successful, authoritative update into a false UI error.
+    console.error("Published workflow change notification failed", error);
+  }
+}
+
 async function resequenceWorkflowStagesByTopics(tx: any, workflowId: string) {
   const [topics, stages] = await Promise.all([
     tx.workflowTopic.findMany({
@@ -664,7 +742,8 @@ router.post(
         if (recipients.length)
           await tx.notification.createMany({
             data: recipients.map(({ userId }) => ({
-              audience: "researcher", recipientId: userId,
+              audience: "researcher",
+              recipientId: userId,
               type: "WORKFLOW_CHANGED" as const,
               title: "New workflow resource",
               message: `${title} was added to ${access.workflow.name}.`,
@@ -816,7 +895,8 @@ router.post(
         if (recipients.length)
           await tx.notification.createMany({
             data: recipients.map(({ userId }) => ({
-              audience: "researcher", recipientId: userId,
+              audience: "researcher",
+              recipientId: userId,
               type: "WORKFLOW_CHANGED" as const,
               title: "Workflow resource updated",
               message: `${existing.title} was updated to Version ${nextVersion}.`,
@@ -967,6 +1047,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
           ...(req.user!.roles.includes("RESEARCHER")
             ? [
                 {
+                  status: "PUBLISHED" as const,
                   enrollments: {
                     some: { userId: req.user!.id, status: "ACTIVE" },
                   },
@@ -1042,6 +1123,13 @@ router.post(
           },
         });
       });
+      await recordPublishedWorkflowChange(
+        workflowId,
+        req.user!.id,
+        `A new phase, ${topic.title}, was added.`,
+        "WorkflowTopic",
+        topic.id,
+      );
       res.status(201).json({ topic });
     } catch (error: any) {
       res
@@ -1093,6 +1181,13 @@ router.patch(
           }),
         },
       });
+      await recordPublishedWorkflowChange(
+        existing.workflowId,
+        req.user!.id,
+        `The ${topic.title} phase was updated.`,
+        "WorkflowTopic",
+        topic.id,
+      );
       res.json({ topic });
     } catch (error: any) {
       res
@@ -1146,6 +1241,13 @@ router.patch(
         }
         await resequenceWorkflowStagesByTopics(tx, workflowId);
       });
+      await recordPublishedWorkflowChange(
+        workflowId,
+        req.user!.id,
+        "The order of research phases and milestones changed.",
+        "Workflow",
+        workflowId,
+      );
       res.json({ success: true });
     } catch (error: any) {
       res
@@ -1187,6 +1289,13 @@ router.delete(
         await tx.workflowTopic.delete({ where: { id: topic.id } });
         await normalizeWorkflowTopicSequences(tx, topic.workflowId);
       });
+      await recordPublishedWorkflowChange(
+        topic.workflowId,
+        req.user!.id,
+        `The empty ${topic.title} phase was removed.`,
+        "WorkflowTopic",
+        topic.id,
+      );
       res.status(204).send();
     } catch (error: any) {
       res
@@ -1322,6 +1431,141 @@ router.post(
 );
 
 // DELETE /api/workflows/:id — only unused workflows can be permanently removed.
+// A draft is private until this endpoint makes it authoritative. Publication
+// updates the research type's shared pointer; project instances and immutable
+// submission history are preserved in place.
+router.post(
+  "/:id/publish",
+  requireAuth,
+  requirePermission(Permissions.WORKFLOW_PUBLISH),
+  async (req: Request, res: Response) => {
+    try {
+      const workflowId = req.params.id as string;
+      const access = await workflowAccess(workflowId, req.user!);
+      if (!access?.manages)
+        return void res
+          .status(404)
+          .json({ error: "Workflow not found in your academic scope." });
+      if (access.workflow.status === "ARCHIVED")
+        return void res
+          .status(409)
+          .json({ error: "Archived workflows cannot be published." });
+
+      const result = await prisma.$transaction(
+        async (tx) => {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`workflow-publish:${workflowId}`}))`;
+          const current = await tx.workflow.findUnique({
+            where: { id: workflowId },
+            include: {
+              topics: { orderBy: { sequence: "asc" } },
+              stages: {
+                orderBy: { sequence: "asc" },
+                include: { tasks: { orderBy: { sequence: "asc" } } },
+              },
+            },
+          });
+          if (!current)
+            throw Object.assign(new Error("Workflow not found."), {
+              statusCode: 404,
+            });
+          if (current.status === "PUBLISHED")
+            return { workflow: current, alreadyPublished: true, recipients: 0 };
+
+          const issues = workflowPublicationIssues(current);
+          if (issues.length)
+            throw Object.assign(
+              new Error("Complete the workflow before publishing."),
+              { statusCode: 409, issues },
+            );
+
+          await resequenceWorkflowStagesByTopics(tx, workflowId);
+          const publishedAt = new Date();
+          const workflow = await tx.workflow.update({
+            where: { id: workflowId },
+            data: { status: "PUBLISHED", publishedAt },
+            include: {
+              topics: { orderBy: { sequence: "asc" } },
+              stages: {
+                where: { category: { not: "Archived" } },
+                orderBy: { sequence: "asc" },
+                include: {
+                  topic: true,
+                  tasks: { orderBy: { sequence: "asc" } },
+                },
+              },
+            },
+          });
+          await tx.researchType.update({
+            where: { id: workflow.researchTypeId },
+            data: { workflowId: workflow.id },
+          });
+
+          const [enrollments, projects] = await Promise.all([
+            tx.workflowEnrollment.findMany({
+              where: { workflowId, status: "ACTIVE" },
+              select: { userId: true },
+            }),
+            tx.researchProject.findMany({
+              where: { workflowInstance: { is: { workflowId } } },
+              select: {
+                members: {
+                  where: { leftAt: null },
+                  select: { userId: true },
+                },
+              },
+            }),
+          ]);
+          const recipients = new Set(enrollments.map(({ userId }) => userId));
+          for (const project of projects)
+            for (const member of project.members) recipients.add(member.userId);
+
+          await createNotificationsOnce(
+            tx,
+            Array.from(recipients).map((recipientId) => ({
+              recipientId,
+              type: "WORKFLOW_CHANGED",
+              title: "Research workflow published",
+              message: `${workflow.name} is now available. Review your milestones, deadlines, and submission requirements.`,
+              entityType: "Workflow",
+              entityId: workflow.id,
+              actionUrl: "/student/tasks",
+              audience: "researcher",
+              deduplicationKey: `workflow:${workflow.id}:published:${publishedAt.toISOString()}:${recipientId}`,
+            })),
+          );
+          await tx.auditLog.create({
+            data: {
+              userId: req.user!.id,
+              action: "UPDATE",
+              entityType: "Workflow",
+              entityId: workflow.id,
+              oldValues: { status: current.status },
+              newValues: {
+                status: workflow.status,
+                version: workflow.version,
+                publishedAt,
+              },
+            },
+          });
+          return {
+            workflow,
+            alreadyPublished: false,
+            recipients: recipients.size,
+          };
+        },
+        { isolationLevel: "Serializable" },
+      );
+
+      res.json(result);
+    } catch (error: any) {
+      res.status(error?.statusCode || 500).json({
+        error: error.message || "Workflow could not be published.",
+        ...(error?.issues ? { issues: error.issues } : {}),
+      });
+    }
+  },
+);
+
 router.delete(
   "/:id",
   requireAuth,
@@ -1402,7 +1646,11 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const enrollments = await prisma.workflowEnrollment.findMany({
-        where: { userId: req.user!.id, status: "ACTIVE" },
+        where: {
+          userId: req.user!.id,
+          status: "ACTIVE",
+          workflow: { status: "PUBLISHED" },
+        },
         include: {
           workflow: {
             include: {
@@ -1582,7 +1830,8 @@ router.delete(
           }),
           tx.notification.create({
             data: {
-              audience: "account", recipientId: enrollment.user.id,
+              audience: "account",
+              recipientId: enrollment.user.id,
               type: "WORKFLOW_CHANGED",
               title: "Workflow access removed",
               message: `Your enrollment in ${enrollment.workflow.name} was removed by the research coordinator. Reason: ${reason}`,
@@ -1734,7 +1983,10 @@ router.post(
         });
       }
       const result = await prisma.notification.createMany({
-        data: Array.from(notifications.values()).map((notification) => ({ ...notification, audience: "researcher" })),
+        data: Array.from(notifications.values()).map((notification) => ({
+          ...notification,
+          audience: "researcher",
+        })),
       });
       res.json({ success: true, recipientCount: result.count });
     } catch (error: any) {
@@ -1967,6 +2219,13 @@ router.post(
           (result) => result.status === "rejected",
         ).length;
       }
+      await recordPublishedWorkflowChange(
+        workflowId,
+        req.user!.id,
+        `A new milestone, ${stage.name}, was added and is now visible in the shared research process.`,
+        "WorkflowStage",
+        stage.id,
+      );
       res.status(201).json({
         stage,
         adviserSynchronizationFailures,
@@ -2048,6 +2307,13 @@ router.delete(
 
       if (!activeUsage && !submissions && !transitions) {
         await prisma.workflowStage.delete({ where: { id: stageId } });
+        await recordPublishedWorkflowChange(
+          stage.workflowId,
+          req.user!.id,
+          `The unused milestone ${stage.name} was removed.`,
+          "WorkflowStage",
+          stage.id,
+        );
         res.status(204).send();
         return;
       }
@@ -2081,6 +2347,13 @@ router.delete(
         });
         await normalizeWorkflowStageSequences(tx, stage.workflowId);
       });
+      await recordPublishedWorkflowChange(
+        stage.workflowId,
+        req.user!.id,
+        `The milestone ${stage.name} was retired. Existing submissions and review history were preserved.`,
+        "WorkflowStage",
+        stage.id,
+      );
       res.status(200).json({
         archived: true,
         preservedSubmissions: submissions,
@@ -2325,6 +2598,13 @@ router.patch(
         return tx.workflowStage.findUniqueOrThrow({ where: { id: stageId } });
       });
 
+      await recordPublishedWorkflowChange(
+        existing.workflowId,
+        req.user!.id,
+        `The milestone ${stage.name} was updated.`,
+        "WorkflowStage",
+        stage.id,
+      );
       res.json({ stage });
     } catch (error: any) {
       res
@@ -2444,6 +2724,13 @@ router.post(
           isRequired: Boolean(isRequired),
         },
       });
+      await recordPublishedWorkflowChange(
+        stage.workflowId,
+        req.user!.id,
+        `A submission requirement was added to ${stage.name}.`,
+        "WorkflowTask",
+        task.id,
+      );
       res.status(201).json({ task });
     } catch (error: any) {
       res
@@ -2555,7 +2842,10 @@ router.delete(
       const taskId = req.params.taskId as string;
       const task = await prisma.workflowTask.findUnique({
         where: { id: taskId },
-        select: { stage: { select: { workflowId: true } } },
+        select: {
+          title: true,
+          stage: { select: { workflowId: true, name: true } },
+        },
       });
       if (
         !task ||
@@ -2570,6 +2860,13 @@ router.delete(
           error: "A task with student submissions cannot be deleted.",
         });
       await prisma.workflowTask.delete({ where: { id: taskId } });
+      await recordPublishedWorkflowChange(
+        task.stage.workflowId,
+        req.user!.id,
+        `The ${task.title} requirement was removed from ${task.stage.name}.`,
+        "WorkflowTask",
+        taskId,
+      );
       res.status(204).send();
     } catch (error: any) {
       if (error?.code === "P2025")

@@ -8,6 +8,7 @@ import { apiClient } from "@/lib/api-client";
 import { calculateMilestoneProgress } from "@/lib/workflow-progress";
 import { formatMilestoneTarget } from "@/lib/workflow-deadlines";
 import { Tag } from "@/components/ui/Tag";
+import { Button } from "@/components/ui/Button";
 import { CourseCard } from "@/components/ui/CourseCard";
 import { StatCard } from "@/components/ui/StatCard";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
@@ -2314,7 +2315,7 @@ function StudentDashboardContent() {
                       <p className="mt-5 text-base text-slate-500">{isWorkspaceLoading ? "Loading your workspace…" : "Unable to load your workspace. Refresh to try again."}</p>
                     ) : (
                       <div className="mt-5 grid gap-4 md:grid-cols-2">
-                        <button onClick={() => { setCreateTitle(""); setCreateGroupName(""); setShowCreateModal(true); }} className="rounded-2xl border-2 border-[#173f63] bg-[#173f63] p-6 text-left text-white transition hover:-translate-y-0.5"><span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10"><i className="ti ti-folder-plus text-xl text-[#ffa400]" /></span><span className="mt-4 block text-base font-extrabold">Create a workspace</span><span className="mt-1 block text-sm leading-5 text-blue-100">Start Solo or create a group. Add a research title now or later.</span></button>
+                        <button onClick={() => { setCreateTitle(""); setCreateGroupName(""); setShowCreateModal(true); }} className="rounded-2xl border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-6 text-left text-[var(--color-text-primary)] shadow-sm transition hover:-translate-y-0.5 hover:bg-[var(--color-surface-subtle)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)]"><i className="ti ti-folder-plus text-xl" /></span><span className="mt-4 block text-base font-extrabold">Create a workspace</span><span className="mt-1 block text-sm leading-5 text-[var(--color-text-secondary)]">Start Solo or create a group. Add a research title now or later.</span></button>
                         <button onClick={() => router.push("/join-group")} className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-6 text-left transition hover:-translate-y-0.5 hover:border-[#173f63]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100"><i className="ti ti-users-plus text-xl text-[#173f63]" /></span><span className="mt-4 block text-base font-extrabold text-[#102f49]">Join a group</span><span className="mt-1 block text-sm leading-5 text-slate-500">Enter a group invitation code to join a research workspace.</span></button>
                       </div>
                     )}
@@ -2782,48 +2783,55 @@ function StudentDashboardContent() {
       {/* CREATE RESEARCH PROJECT MODAL */}
       {showCreateModal && canCreateResearch && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 max-w-lg w-full p-6 shadow-2xl animate-fade-in-up flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-extrabold text-[#1b4264] text-lg flex items-center gap-2">
-                <i className="ti ti-folder-plus text-[#ffa400] text-xl" />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-research-workspace-title"
+            className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg animate-fade-in-up flex-col gap-4 overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-[var(--color-text-primary)] shadow-2xl sm:p-6"
+          >
+            <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-3">
+              <h3 id="create-research-workspace-title" className="flex items-center gap-2 text-lg font-extrabold text-[var(--color-text-primary)]">
+                <i className="ti ti-folder-plus text-xl text-[var(--color-primary)]" aria-hidden="true" />
                 {activeWorkspace ? "Add research project" : "Create research workspace"}
               </h3>
               <button
+                type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                aria-label="Close create research workspace dialog"
+                className="grid h-9 w-9 cursor-pointer place-items-center rounded-full text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
               >
-                <i className="ti ti-x text-lg" />
+                <i className="ti ti-x text-lg" aria-hidden="true" />
               </button>
             </div>
             <form onSubmit={handleCreateResearch} className="flex flex-col gap-4 text-xs">
               {!activeWorkspace && <fieldset>
-                <legend className="font-bold text-slate-700">How will you conduct this research?</legend>
+                <legend className="font-bold text-[var(--color-text-primary)]">How will you conduct this research?</legend>
                 <div className="mt-2 grid gap-3 sm:grid-cols-2">
                   {([
                     { value: "SOLO", title: "Work solo", text: "Start with one researcher. You can convert it to a group later.", icon: "ti-user" },
                     { value: "GROUP", title: "Create a group", text: "Become the leader and invite researchers using a code or link.", icon: "ti-users-group" },
                   ] as const).map((option) => (
-                    <button key={option.value} type="button" onClick={() => setCreateParticipationMode(option.value)} className={`rounded-xl border-2 p-4 text-left transition ${createParticipationMode === option.value ? "border-[#173f63] bg-blue-50" : "border-slate-200 bg-white"}`}>
-                      <i className={`ti ${option.icon} text-xl text-[#173f63]`} />
-                      <span className="mt-2 block font-extrabold text-[#102f49]">{option.title}</span>
-                      <span className="mt-1 block text-sm leading-4 text-slate-500">{option.text}</span>
+                    <button key={option.value} type="button" aria-pressed={createParticipationMode === option.value} onClick={() => setCreateParticipationMode(option.value)} className={`rounded-xl border-2 p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] ${createParticipationMode === option.value ? "border-[var(--color-primary)] bg-[var(--color-primary-light)]" : "border-[var(--color-border)] bg-[var(--color-surface-subtle)] hover:border-[var(--color-border-strong)]"}`}>
+                      <i className={`ti ${option.icon} text-xl text-[var(--color-primary)]`} aria-hidden="true" />
+                      <span className="mt-2 block font-extrabold text-[var(--color-text-primary)]">{option.title}</span>
+                      <span className="mt-1 block text-sm leading-4 text-[var(--color-text-secondary)]">{option.text}</span>
                     </button>
                   ))}
                 </div>
               </fieldset>}
               <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-700">Research title {!activeWorkspace && <span className="font-normal text-slate-400">(optional — you can add it later)</span>}</label>
+                <label className="font-bold text-[var(--color-text-primary)]">Research title {!activeWorkspace && <span className="font-normal text-[var(--color-text-muted)]">(optional — you can add it later)</span>}</label>
                 <input
                   type="text"
                   placeholder="e.g. Real-Time Water Quality Monitoring Using IoT"
                   value={createTitle}
                   onChange={(e) => setCreateTitle(e.target.value)}
-                  className="p-3 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-[#ffa400]"
+                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
                 />
               </div>
               {needsRegistrationWorkflow && (
                 isWorkflowEnrollmentLoading ? (
-                  <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">Checking your workflow enrollment…</p>
+                  <p role="status" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-sm text-[var(--color-text-secondary)]">Checking your workflow enrollment…</p>
                 ) : !hasRegistrationWorkflow ? (
                   <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
                     <p className="font-bold"><i className="ti ti-alert-triangle mr-1.5" />{isWorkflowEnrollmentError ? "Unable to verify workflow enrollment" : "Join a workflow first"}</p>
@@ -2834,44 +2842,47 @@ function StudentDashboardContent() {
                   <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">This project will use your {workflowEnrollmentData!.enrollments.length > 1 ? "most recently joined workflow" : "joined workflow"}: <strong>{registrationWorkflow?.name || "Research workflow"}</strong>.</p>
                 )
               )}
-              {!activeWorkspace && <div className="grid gap-4 rounded-xl border border-blue-100 bg-blue-50 p-4 sm:grid-cols-2">
-                <label className="flex flex-col gap-1.5 font-bold text-slate-700">
+              {!activeWorkspace && <div className="grid gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-primary-subtle)] p-4 sm:grid-cols-2">
+                <label className="flex flex-col gap-1.5 font-bold text-[var(--color-text-primary)]">
                   {createParticipationMode === "GROUP" ? "Group name" : "Workspace name"}
-                  <input type="text" required maxLength={120} value={createGroupName} onChange={(event) => setCreateGroupName(event.target.value)} placeholder={createParticipationMode === "GROUP" ? "e.g. Team Innovators" : "e.g. My Thesis Workspace"} className="rounded-xl border border-blue-200 bg-white p-3 font-normal text-slate-800 outline-none focus:border-[#173f63]" />
+                  <input type="text" required maxLength={120} value={createGroupName} onChange={(event) => setCreateGroupName(event.target.value)} placeholder={createParticipationMode === "GROUP" ? "e.g. Team Innovators" : "e.g. My Thesis Workspace"} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 font-normal text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]" />
                 </label>
-                {createParticipationMode === "GROUP" && <label className="flex flex-col gap-1.5 font-bold text-slate-700">
+                {createParticipationMode === "GROUP" && <label className="flex flex-col gap-1.5 font-bold text-[var(--color-text-primary)]">
                   Joining permission
-                  <select value={createAccessMode} onChange={(event) => setCreateAccessMode(event.target.value as typeof createAccessMode)} className="h-[42px] rounded-xl border border-blue-200 bg-white px-3 font-normal text-slate-800 outline-none focus:border-[#173f63]">
+                  <select value={createAccessMode} onChange={(event) => setCreateAccessMode(event.target.value as typeof createAccessMode)} className="h-[42px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 font-normal text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]">
                     <option value="INVITE_ONLY">Invite code</option>
                     <option value="PUBLIC_OPEN">Open code joining</option>
                   </select>
                 </label>}
               </div>}
               <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-slate-700">Abstract / Problem Scope (Optional)</label>
+                <label className="font-bold text-[var(--color-text-primary)]">Abstract / Problem Scope (Optional)</label>
                 <textarea
                   rows={4}
                   placeholder="Provide an overview of the proposed study, methodology, or objectives..."
                   value={createAbstract}
                   onChange={(e) => setCreateAbstract(e.target.value)}
-                  className="p-3 bg-white border border-slate-300 rounded-xl text-slate-800 focus:outline-none focus:border-[#ffa400] resize-none"
+                  className="resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
                 />
               </div>
-              <div className="flex justify-end gap-2.5 border-t border-slate-100 pt-4">
-                <button
+              <div className="flex flex-col-reverse gap-2.5 border-t border-[var(--color-border-subtle)] pt-4 sm:flex-row sm:justify-end">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  className="w-full sm:w-auto"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
+                  isLoading={isCreatingProject}
+                  loadingText="Creating workspace..."
                   disabled={isCreatingProject || (needsRegistrationWorkflow && !hasRegistrationWorkflow) || (activeWorkspace ? !createTitle.trim() : !createGroupName.trim())}
-                  className="px-5 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-extrabold rounded-xl shadow cursor-pointer disabled:opacity-50"
+                  className="w-full disabled:border-[var(--color-border)] disabled:bg-[var(--color-surface-muted)] disabled:text-[var(--color-text-secondary)] disabled:opacity-100 disabled:shadow-none sm:w-auto"
                 >
-                  {isCreatingProject ? "Creating..." : activeWorkspace ? "Create research project" : createTitle.trim() ? "Create workspace and project" : "Create workspace"}
-                </button>
+                  {activeWorkspace ? "Create research project" : createTitle.trim() ? "Create workspace and project" : "Create workspace"}
+                </Button>
               </div>
             </form>
           </div>
