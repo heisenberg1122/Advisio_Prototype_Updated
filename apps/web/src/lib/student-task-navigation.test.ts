@@ -6,6 +6,19 @@ import {
 } from "./student-task-navigation";
 
 describe("student task navigation", () => {
+  it("preserves the browsed workflow in details and back links", () => {
+    expect(studentTaskDetailsHref("task", "project", "new/workflow")).toBe(
+      "/student/tasks/task?projectId=project&workflowId=new%2Fworkflow",
+    );
+    expect(studentTasksHref("project", "new/workflow")).toBe(
+      "/student/tasks?projectId=project&workflowId=new%2Fworkflow",
+    );
+    expect(studentTasksHref(null, "new")).toBe("/student/tasks?workflowId=new");
+    expect(legacyTaskDetailsHref("?taskId=task&workflowId=new")).toBe(
+      "/student/tasks/task?workflowId=new",
+    );
+  });
+
   it("creates a bookmarkable task details URL with project context", () => {
     expect(studentTaskDetailsHref("task/one", "project-1")).toBe(
       "/student/tasks/task%2Fone?projectId=project-1",

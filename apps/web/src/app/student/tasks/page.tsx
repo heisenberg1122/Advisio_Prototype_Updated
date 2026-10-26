@@ -1,6 +1,7 @@
 "use client";
 
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
+import { resolveStudentWorkflow } from "@/lib/student-workflow-context";
 
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -76,7 +77,8 @@ export default function ResearchTasksPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { taskId: routeTaskId } = useParams<{ taskId: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedWorkflowId = searchParams.get("workflowId");
   const { activeProjectId: sharedProjectId } = useActiveProjectContext();
   const legacyTaskId = searchParams.get("taskId");
   const requestedTaskId = routeTaskId || legacyTaskId;
@@ -97,7 +99,7 @@ export default function ResearchTasksPage() {
   >("requirements");
 
   const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ["student", "workflow-tasks", sharedProjectId],
+    queryKey: ["student", "workflow-tasks", sharedProjectId, requestedWorkflowId],
     queryFn: async () => {
       const [list, enrollmentList] = await Promise.all([
         apiClient.get<{ projects: any[] }>("/api/research"),
@@ -112,22 +114,19 @@ export default function ResearchTasksPage() {
           ? projects[0]
           : undefined;
       const enrollments = enrollmentList.enrollments || [];
-      const activeEnrollment = project
-        ? enrollments.find(
-            (enrollment: any) =>
-              enrollment.workflowId === project.workflowInstance?.workflowId,
-          )
-        : enrollments[0];
+      const { activeEnrollment, workflowProject } = resolveStudentWorkflow(
+        enrollments, project, requestedWorkflowId,
+      );
       const stages = activeEnrollment
-        ? (project
-            ? project.workflowInstance?.workflow?.stages
+        ? (workflowProject
+            ? workflowProject.workflowInstance?.workflow?.stages
             : activeEnrollment.workflow?.stages) || []
         : [];
       const currentSequence =
-        project?.workflowInstance?.currentStage?.sequence || 0;
-      const workflowProjection = project
+        workflowProject?.workflowInstance?.currentStage?.sequence || 0;
+      const workflowProjection = workflowProject
         ? await apiClient.get<{ milestones: any[] }>(
-            `/api/research/${project.id}/manuscript-workflow`,
+            `/api/research/${workflowProject.id}/manuscript-workflow`,
           )
         : null;
       const milestoneProgress = new Map(
@@ -137,7 +136,7 @@ export default function ResearchTasksPage() {
         ]),
       );
       const submissions = new Map(
-        (project?.taskSubmissions || []).map((submission: any) => [
+        (workflowProject?.taskSubmissions || []).map((submission: any) => [
           submission.taskId,
           submission,
         ]),
@@ -167,7 +166,7 @@ export default function ResearchTasksPage() {
                 status: "NOT_STARTED",
               },
               requiresDocument: false,
-              previewOnly: !project,
+              previewOnly: !workflowProject,
             },
           ];
         if (stage.requiresDocument === false)
@@ -187,7 +186,7 @@ export default function ResearchTasksPage() {
               conditionMessage,
               milestoneOnly: true,
               requiresDocument: false,
-              previewOnly: !project,
+              previewOnly: !workflowProject,
             },
           ];
         const requirements = stage.tasks || [];
@@ -200,7 +199,7 @@ export default function ResearchTasksPage() {
             conditionMessage,
             milestoneOnly: false,
             requiresDocument: true,
-            previewOnly: !project,
+            previewOnly: !workflowProject,
           }));
         return [
           {
@@ -218,7 +217,7 @@ export default function ResearchTasksPage() {
             conditionMessage,
             milestoneOnly: true,
             requiresDocument: true,
-            previewOnly: !project,
+            previewOnly: !workflowProject,
           },
         ];
       });
@@ -227,6 +226,8 @@ export default function ResearchTasksPage() {
         projects,
         tasks,
         enrollments,
+        activeEnrollment,
+        workflowProject,
         removedWorkflowIds: enrollmentList.removedWorkflowIds || [],
       };
     },
@@ -242,11 +243,7 @@ export default function ResearchTasksPage() {
       ? startedTaskOverride
       : projectedSelectedTask;
 
-  const workflowId = data?.project
-    ? data.project.workflowAccessRemoved
-      ? undefined
-      : data.project.workflowInstance?.workflowId
-    : data?.enrollments?.[0]?.workflowId;
+  const workflowId = data?.activeEnrollment?.workflowId;
   const { data: workflowResources } = useQuery({
     queryKey: ["workflow-resources", workflowId],
     queryFn: () =>
@@ -274,7 +271,7 @@ export default function ResearchTasksPage() {
 
   const openTask = (task: any) => {
     setStartedTaskOverride(null);
-    navigate(studentTaskDetailsHref(task.id, data?.project?.id));
+    navigate(studentTaskDetailsHref(task.id, data?.project?.id, workflowId));
   };
 
   const selectSubmissionFile = (nextFile: File | null) => {
@@ -309,7 +306,7 @@ export default function ResearchTasksPage() {
   };
 
   const submitUploadedRequirement = async () => {
-    if (!selectedTask || !data?.project || !file || selectedTask.milestoneOnly)
+    if (!selectedTask || !data?.workflowProject || selectedTask.previewOnly || !file || selectedTask.milestoneOnly)
       throw new Error("Choose a file before submitting.");
     const allowed = String(selectedTask.allowedFileTypes || "PDF,DOCX")
       .split(",")
@@ -353,7 +350,7 @@ export default function ResearchTasksPage() {
     option: TaskSubmissionOption,
     idempotencyKey: string,
   ) => {
-    if (!selectedTask || !data?.project || selectedTask.milestoneOnly)
+    if (!selectedTask || !data?.workflowProject || selectedTask.previewOnly || selectedTask.milestoneOnly)
       throw new Error("The task submission context is unavailable.");
     if (submissionInFlightRef.current)
       throw new Error("This submission is already being processed.");
@@ -384,7 +381,7 @@ export default function ResearchTasksPage() {
   };
 
   const startMilestoneTask = async () => {
-    if (!selectedTask?.milestoneOnly || !data?.project) return;
+    if (!selectedTask?.milestoneOnly || !data?.workflowProject || selectedTask.previewOnly) return;
     setStarting(true);
     setMessage(null);
     try {
@@ -461,30 +458,26 @@ export default function ResearchTasksPage() {
   const tasks = data?.tasks || [];
   const project = data?.project;
   const enrollments = data?.enrollments || [];
-  const activeEnrollment = project
-    ? enrollments.find(
-        (enrollment: any) =>
-          enrollment.workflowId === project.workflowInstance?.workflowId,
-      )
-    : enrollments[0];
+  const activeEnrollment = data?.activeEnrollment;
+  const workflowProject = data?.workflowProject;
   const workflowAccessRemoved =
-    project?.workflowAccessRemoved ||
-    (!activeEnrollment && !!data?.removedWorkflowIds?.length);
+    !activeEnrollment &&
+    (project?.workflowAccessRemoved || !!data?.removedWorkflowIds?.length);
   const acceptedWorkflowName = searchParams.get("workflowAccepted");
   const invitationDeclined = searchParams.get("invitation") === "declined";
   const currentSequence =
-    project?.workflowInstance?.currentStage?.sequence || 0;
+    workflowProject?.workflowInstance?.currentStage?.sequence || 0;
   const completed = tasks.filter(
     (task: any) =>
       task.submission?.status === "APPROVED" ||
       task.adviserMilestone?.status === "APPROVED" ||
       task.stage.sequence < currentSequence,
   ).length;
-  const activeMembers = (project?.members || []).filter(
+  const activeMembers = (workflowProject?.members || []).filter(
     (member: any) =>
       !member.leftAt && ["LEADER", "MEMBER"].includes(member.projectRole),
   );
-  const adviser = (project?.members || []).find(
+  const adviser = (workflowProject?.members || []).find(
     (member: any) => !member.leftAt && member.projectRole === "ADVISER",
   );
   const isLeader = activeMembers.some(
@@ -504,7 +497,7 @@ export default function ResearchTasksPage() {
   }
 
   if (requestedTaskId) {
-    if (!project) {
+    if (!workflowProject && !selectedTask?.previewOnly) {
       const explanation = projectSelection.invalidRequestedProjectId
         ? "That project is unavailable or you do not have access to it."
         : "Select an authorized research project before opening this milestone.";
@@ -528,7 +521,8 @@ export default function ResearchTasksPage() {
     return (
       <MilestoneDetailsWorkspace
         task={selectedTask}
-        project={project}
+        project={workflowProject}
+        backHref={studentTasksHref(project?.id, workflowId)}
         members={activeMembers}
         adviser={adviser}
         isLeader={isLeader}
@@ -681,17 +675,33 @@ export default function ResearchTasksPage() {
                 icon="ti-progress"
                 label="Current status"
                 value={
-                  project?.workflowInstance?.currentStage?.name ||
-                  "Awaiting project registration"
+                  workflowProject?.workflowInstance?.currentStage?.name ||
+                  "Awaiting a linked research project"
                 }
               />
             </div>
           )}
           {enrollments.length > 1 && (
-            <p className="mt-4 text-base font-semibold text-slate-500">
-              You have joined {enrollments.length} workflows. The workflow
-              linked to your current project is shown first.
-            </p>
+            <label className="mt-4 block text-sm font-semibold">
+              Joined workflow
+              <select
+                value={workflowId || ""}
+                onChange={(event) => {
+                  setStartedTaskOverride(null);
+                  setSearchParams((params) => {
+                    params.set("workflowId", event.target.value);
+                    return params;
+                  });
+                }}
+                className="mt-2 block w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
+              >
+                {enrollments.map((enrollment: any) => (
+                  <option key={enrollment.workflowId} value={enrollment.workflowId}>
+                    {enrollment.workflow.name}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
         </div>
 
@@ -804,7 +814,7 @@ export default function ResearchTasksPage() {
             />
           ) : (
             <section className="space-y-3.5">
-              {!project && (
+              {!workflowProject && (
                 <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
                   <i className="ti ti-eye mt-0.5 text-lg" />
                   <div>
@@ -1260,6 +1270,7 @@ function AdviserMilestoneAction({ task, project, isLeader }: any) {
 }
 
 function MilestoneDetailsWorkspace({
+  backHref,
   task,
   project,
   members,
@@ -1400,7 +1411,7 @@ function MilestoneDetailsWorkspace({
   return (
     <div className="mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8">
       <Link
-        to={studentTasksHref(project.id)}
+        to={backHref}
         className="inline-flex items-center gap-2 rounded-lg text-sm font-semibold text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
       >
         <i className="ti ti-arrow-left" aria-hidden="true" />
@@ -1412,7 +1423,7 @@ function MilestoneDetailsWorkspace({
           className="text-xs font-semibold text-[var(--color-text-secondary)]"
         >
           <Link
-            to={studentTasksHref(project.id)}
+            to={backHref}
             className="hover:text-[var(--color-primary)]"
           >
             Tasks &amp; Milestones
@@ -1435,7 +1446,7 @@ function MilestoneDetailsWorkspace({
             </h1>
             <p className="mt-2 text-base text-[var(--color-text-secondary)]">
               {task.stage.topic?.title ||
-                project.workflowInstance?.workflow?.name ||
+                project?.workflowInstance?.workflow?.name ||
                 "Research workflow"}
             </p>
           </div>
@@ -2195,10 +2206,10 @@ function MilestoneInformationPanel({
           Research group
         </h2>
         <p className="mt-1 text-base font-semibold text-[var(--color-primary)]">
-          {project.groupName || project.title}
+          {project?.groupName || project?.title || "No project linked to this workflow"}
         </p>
         <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-          {members.length || 1} active member{members.length === 1 ? "" : "s"}
+          {members.length} active member{members.length === 1 ? "" : "s"}
         </p>
         {members.length > 0 && (
           <ul className="mt-4 space-y-2">
