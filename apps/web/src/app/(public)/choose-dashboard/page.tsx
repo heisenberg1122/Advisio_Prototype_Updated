@@ -34,8 +34,6 @@ const WORKSPACE_ICONS: Record<DashboardWorkspaceId, React.ComponentType<{ classN
   panelist: Award,
   coordinator: BookOpen,
   dean: Landmark,
-  ethics: ShieldCheck,
-  "academic-affairs": BookOpenCheck,
   "system-admin": Settings,
 };
 

@@ -19,10 +19,6 @@ export function getRoleBadgeLabel(workspace: DashboardWorkspace | null): string 
       return "PROFESSOR COORDINATOR";
     case "dean":
       return "DEAN'S OFFICE";
-    case "ethics":
-      return "ETHICS BOARD";
-    case "academic-affairs":
-      return "ACADEMIC AFFAIRS";
     case "system-admin":
       return "SYSTEM ADMINISTRATION";
     default:
@@ -42,11 +38,7 @@ export function getRolePortalBadge(workspace: DashboardWorkspace | null): string
     case "coordinator":
       return "RESEARCH COORDINATOR PORTAL";
     case "dean":
-      return "DEAN / RPO PORTAL";
-    case "ethics":
-      return "REB ETHICS PORTAL";
-    case "academic-affairs":
-      return "VPAA PORTAL";
+      return "DEAN PORTAL";
     case "system-admin":
       return "SYSTEM ADMIN PORTAL";
     default:
@@ -66,11 +58,7 @@ export function getRoleTitle(workspace: DashboardWorkspace | null): string {
     case "coordinator":
       return "Professor Coordinator";
     case "dean":
-      return "Dean / RPO Office";
-    case "ethics":
-      return "Research Ethics Board";
-    case "academic-affairs":
-      return "Office of the VPAA";
+      return "Dean's Office";
     case "system-admin":
       return "System Administration";
     default:
@@ -97,11 +85,5 @@ export function formatAdminLink(
   if (!href.startsWith("/admin")) return href;
   if (!workspaceId) return href;
 
-  // If href already has a workspace query param, preserve it
-  if (href.includes("workspace=")) return href;
-
-  const [base, query] = href.split("?");
-  const params = new URLSearchParams(query || "");
-  params.set("workspace", workspaceId);
-  return `${base}?${params.toString()}`;
+  return getCanonicalAdminUrl("dean", href);
 }

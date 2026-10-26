@@ -39,7 +39,7 @@ export async function assignResearchMember(
       if (!project || !canAccessCollege(actor, project.collegeId))
         fail("Research project not found in your academic scope.", 404);
       if (
-        !["SYSTEM_ADMIN", "VPAA", "RPO"].some((role) =>
+        !["SYSTEM_ADMIN", "DEAN"].some((role) =>
           actor.roles.includes(role as any),
         ) &&
         !(

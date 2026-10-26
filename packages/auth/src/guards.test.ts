@@ -67,7 +67,7 @@ describe("Auth RBAC Guards", () => {
     const researcher = getPermissionsForRole("RESEARCHER");
     const adviser = getPermissionsForRole("ADVISER");
     const panelist = getPermissionsForRole("PANELIST");
-    const rpo = getPermissionsForRole("RPO");
+    const dean = getPermissionsForRole("DEAN");
 
     expect(researcher).toContain(Permissions.CALENDAR_VIEW);
     expect(researcher).not.toContain(Permissions.CALENDAR_CREATE);
@@ -75,6 +75,6 @@ describe("Auth RBAC Guards", () => {
     expect(adviser).toContain(Permissions.CALENDAR_AVAILABILITY_MANAGE);
     expect(panelist).not.toContain(Permissions.CALENDAR_CREATE);
     expect(panelist).toContain(Permissions.CALENDAR_AVAILABILITY_MANAGE);
-    expect(rpo).toContain(Permissions.CALENDAR_MANAGE);
+    expect(dean).toContain(Permissions.CALENDAR_MANAGE);
   });
 });

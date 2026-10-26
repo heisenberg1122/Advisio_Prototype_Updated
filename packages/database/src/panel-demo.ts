@@ -23,7 +23,7 @@ const REQUIRED_ROLE_NAMES: InstitutionalRole[] = [
   "ADVISER",
   "RESEARCH_COORDINATOR",
   "PANELIST",
-  "RPO",
+  "DEAN",
   "SYSTEM_ADMIN",
 ];
 const REQUIRED_COLLEGE_CODES = [
@@ -137,11 +137,11 @@ const accountDefinitions: Array<{
     faculty: true,
   },
   {
-    key: "rpo",
-    universitySuffix: "RPO",
+    key: "dean",
+    universitySuffix: "DEAN",
     firstName: "Aurelia",
     lastName: "Mendoza",
-    role: "RPO",
+    role: "DEAN",
     faculty: true,
   },
 ];
@@ -645,7 +645,7 @@ async function createPanelDemo(context: VerifiedContext): Promise<void> {
       const student = users.get("student")!;
       const adviser = users.get("adviser")!;
       const coordinator = users.get("coordinator")!;
-      const rpo = users.get("rpo")!;
+      const dean = users.get("dean")!;
       await tx.researcherProfile.create({
         data: {
           userId: student.id,
@@ -695,10 +695,10 @@ async function createPanelDemo(context: VerifiedContext): Promise<void> {
         [1, "Topic Proposal", "RESEARCHER", true],
         [2, "Adviser Review & Endorsement", "ADVISER", true],
         [3, "Proposal Defense", "PANELIST", true],
-        [4, "Ethics Readiness", "RPO", false],
+        [4, "Ethics Readiness", "DEAN", false],
         [5, "Implementation & Manuscript Revision", "RESEARCHER", true],
         [6, "Final Oral Defense", "PANELIST", true],
-        [7, "Final Manuscript Approval & Archiving", "RPO", true],
+        [7, "Final Manuscript Approval & Archiving", "DEAN", true],
       ];
       const stages = await Promise.all(
         stageDefinitions.map(([sequence, name, role, requiresDocument]) =>
@@ -854,7 +854,7 @@ async function createPanelDemo(context: VerifiedContext): Promise<void> {
           scheduledEnd: new Date(
             Date.now() + 7 * 24 * 60 * 60 * 1000 + 90 * 60 * 1000,
           ),
-          createdBy: rpo.id,
+          createdBy: dean.id,
         },
       });
       await tx.defenseInvitation.createMany({

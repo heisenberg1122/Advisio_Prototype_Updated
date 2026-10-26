@@ -1,10 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import { adviserRequestNotificationLink, notificationLink } from "@/lib/notification-navigation";
+import {
+  adviserRequestNotificationLink,
+  notificationLink,
+} from "@/lib/notification-navigation";
 import { useAuth } from "@/providers/auth-provider";
+import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
 
 export interface AppNotification {
   id: string;
@@ -12,110 +16,146 @@ export interface AppNotification {
   message: string;
   time: string;
   read: boolean;
+  audience: string;
   type: "success" | "info" | "warning" | "danger";
-  module?: "Documents" | "Consultation" | "Defense" | "Milestones" | "Announcements" | "Adviser Requests";
+  module?:
+    | "Documents"
+    | "Consultation"
+    | "Defense"
+    | "Milestones"
+    | "Announcements"
+    | "Adviser Requests";
   link?: string;
 }
 
-export function useNotifications() {
-  const pathname = usePathname() || "";
+export function useNotifications(selectedInbox?: "account" | "earlier") {
   const { user } = useAuth();
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Determine active role from pathname
-  let role = "student";
-  if (pathname.includes("/system-admin")) {
-    role = "system_admin";
-  } else if (pathname.includes("/admin")) {
-    role = "admin";
-  } else if (pathname.includes("/adviser")) {
-    role = "adviser";
-  } else if (pathname.includes("/professor")) {
-    role = "professor";
-  } else if (pathname.includes("/panelist")) {
-    role = "panelist";
-  }
-
-  // Load notifications helper
-  const loadNotifications = useCallback(async () => {
-    try {
-      const response = await apiClient.get<{ notifications: any[] }>("/api/notifications");
-      const apiItems: AppNotification[] = (response.notifications || []).map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        message: item.message,
-        time: new Date(item.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }),
-        read: item.isRead,
-        type:
-          item.type === "SYSTEM_ANNOUNCEMENT" || item.type === "ADVISER_REQUESTED" || item.type === "REVISION_REQUESTED"
-            ? "warning"
-            : item.type === "ADVISER_REQUEST_DECIDED" || item.type === "MANUSCRIPT_APPROVED"
-              ? "success"
-              : "info",
-        module:
-          item.type === "SYSTEM_ANNOUNCEMENT"
-            ? "Announcements"
-            : item.type?.startsWith("ADVISER_")
-              ? "Adviser Requests"
-              : item.entityType === "WorkflowStage"
-                ? "Milestones"
-                : item.actionUrl
-                  ? "Documents"
-                  : undefined,
-        link:
-          notificationLink(item.actionUrl, role, user?.roles || []) ||
-          (item.type === "ADVISER_REQUESTED" ? adviserRequestNotificationLink(item.entityId) : undefined),
-      }));
-      setNotifications(apiItems);
-    } catch {
-      setNotifications([]);
-    }
-  }, [role, user?.roles]);
+  const { activeWorkspace } = useDashboardWorkspace();
+  const inbox = selectedInbox || activeWorkspace?.id;
+  const inboxLabel =
+    selectedInbox === "account"
+      ? "Account notices"
+      : selectedInbox === "earlier"
+        ? "Earlier notifications"
+        : `${activeWorkspace?.label || "Dashboard"} updates`;
+  const role =
+    inbox === "researcher"
+      ? "student"
+      : inbox === "coordinator"
+        ? "professor"
+        : inbox === "dean"
+          ? "admin"
+          : inbox || "";
+  const queryClient = useQueryClient();
+  const scopeKey = `${user?.id || ""}:${inbox || ""}`;
+  const [mutationError, setMutationError] = useState<{
+    scopeKey: string;
+    message: string;
+  } | null>(null);
+  const query = useQuery({
+    queryKey: ["notifications", user?.id, inbox, user?.roles.join(",")],
+    enabled: Boolean(user?.id && inbox),
+    refetchInterval: 15_000,
+    queryFn: async ({ signal }) => {
+      const response = await apiClient.get<{
+        notifications: any[];
+        unreadCount: number;
+      }>("/api/notifications", { params: { inbox }, signal });
+      return {
+        unreadCount: response.unreadCount,
+        notifications: (response.notifications || []).map(
+          (item: any): AppNotification => ({
+            id: item.id,
+            title: item.title,
+            message: item.message,
+            audience: item.audience,
+            time: new Date(item.createdAt).toLocaleString(undefined, {
+              month: "short",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            }),
+            read: item.isRead,
+            type:
+              item.type === "SYSTEM_ANNOUNCEMENT" ||
+              item.type === "ADVISER_REQUESTED" ||
+              item.type === "REVISION_REQUESTED"
+                ? "warning"
+                : item.type === "ADVISER_REQUEST_DECIDED" ||
+                    item.type === "MANUSCRIPT_APPROVED"
+                  ? "success"
+                  : "info",
+            module:
+              item.type === "SYSTEM_ANNOUNCEMENT"
+                ? "Announcements"
+                : item.type?.startsWith("ADVISER_")
+                  ? "Adviser Requests"
+                  : item.entityType === "WorkflowStage"
+                    ? "Milestones"
+                    : item.actionUrl
+                      ? "Documents"
+                      : undefined,
+            link:
+              notificationLink(item.actionUrl, role, user?.roles || []) ||
+              (item.type === "ADVISER_REQUESTED" && inbox === "adviser"
+                ? adviserRequestNotificationLink(item.entityId)
+                : undefined),
+          }),
+        ),
+      };
+    },
+  });
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      loadNotifications().finally(() => setLoading(false));
+    setMutationError(null);
+  }, [user?.id, inbox]);
+  useEffect(() => {
+    const refresh = () => {
+      void queryClient.invalidateQueries({
+        queryKey: ["notifications", user?.id],
+      });
+    };
+    window.addEventListener("notifications-updated", refresh);
+    return () => window.removeEventListener("notifications-updated", refresh);
+  }, [queryClient, user?.id]);
 
-      // Listen for notifications-updated events
-      const handleUpdate = () => {
-        void loadNotifications();
-      };
-      const refreshInterval = window.setInterval(() => void loadNotifications(), 15_000);
-      window.addEventListener("notifications-updated", handleUpdate);
-      return () => {
-        window.clearInterval(refreshInterval);
-        window.removeEventListener("notifications-updated", handleUpdate);
-      };
+  const update = async (endpoint: string): Promise<boolean> => {
+    if (!user || !inbox) return false;
+    try {
+      await apiClient.patch(endpoint, { inbox });
+      setMutationError((current) =>
+        current?.scopeKey === scopeKey ? null : current,
+      );
+      window.dispatchEvent(new Event("notifications-updated"));
+      return true;
+    } catch (error) {
+      setMutationError({
+        scopeKey,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not update the notification. Try again.",
+      });
+      return false;
     }
-  }, [loadNotifications]);
-
-  const markAsRead = async (id: string) => {
-    await apiClient.patch(`/api/notifications/${id}/read`);
-    setNotifications((current) => current.map((item) => item.id === id ? { ...item, read: true } : item));
-    window.dispatchEvent(new Event("notifications-updated"));
   };
-
-  const markAllAsRead = async () => {
-    await apiClient.patch("/api/notifications/read-all");
-    setNotifications((current) => current.map((item) => ({ ...item, read: true })));
-    window.dispatchEvent(new Event("notifications-updated"));
-  };
-
-  const deleteNotification = async (id: string) => {
-    await apiClient.patch(`/api/notifications/${id}/archive`);
-    setNotifications((current) => current.filter((item) => item.id !== id));
-    window.dispatchEvent(new Event("notifications-updated"));
-  };
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return {
-    notifications,
-    unreadCount,
-    loading,
-    markAsRead,
-    markAllAsRead,
-    deleteNotification,
+    notifications: query.data?.notifications || [],
+    unreadCount: query.data?.unreadCount || 0,
+    loading: Boolean(user && inbox) && query.isPending,
+    error:
+      (mutationError?.scopeKey === scopeKey ? mutationError.message : null) ||
+      query.error?.message ||
+      null,
+    retry: () => {
+      void query.refetch();
+    },
+    inboxLabel,
+    inbox,
+    markAsRead: (id: string) => update(`/api/notifications/${id}/read`),
+    markAllAsRead: () => update("/api/notifications/read-all"),
+    deleteNotification: (id: string) =>
+      update(`/api/notifications/${id}/archive`),
   };
 }

@@ -1,10 +1,8 @@
 import type { Request, Response } from "express";
 import type { AuthenticatedUser } from "../middleware/auth.js";
 
-// System administrators need institution-wide operational visibility and the
-// VPAA has institution-wide academic scope. RPO/Dean access is college-bound
-// and must never become global simply because the account lacks a college.
-export const INSTITUTION_WIDE_ROLES = new Set(["SYSTEM_ADMIN", "VPAA"]);
+// Dean authority is college-bound; only system administrators have global scope.
+export const INSTITUTION_WIDE_ROLES = new Set(["SYSTEM_ADMIN"]);
 
 export type CollegeScope =
   | { kind: "institution"; collegeId: null }

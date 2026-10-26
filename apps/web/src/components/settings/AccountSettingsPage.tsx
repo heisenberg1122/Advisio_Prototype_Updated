@@ -37,9 +37,7 @@ const ROLE_LABELS: Record<string, string> = {
   RESEARCH_COORDINATOR: "Research Coordinator",
   PANELIST: "Defense Panelist",
   ADMIN: "Administrator",
-  RPO: "Research Program Officer",
-  REB: "Research Ethics Board",
-  VPAA: "VPAA",
+  DEAN: "Research Program Officer",
 };
 
 const ROLE_NOTIFICATIONS: Record<string, Array<[string, string, string]>> = {
@@ -78,7 +76,7 @@ const ROLE_NOTIFICATIONS: Record<string, Array<[string, string, string]>> = {
 function preferenceRole(role: string) {
   if (["STUDENT", "RESEARCHER"].includes(role)) return "RESEARCHER";
   if (["PROFESSOR", "RESEARCH_COORDINATOR"].includes(role)) return "PROFESSOR";
-  if (["ADMIN", "RPO", "REB", "VPAA"].includes(role)) return "ADMIN";
+  if (["ADMIN", "DEAN"].includes(role)) return "ADMIN";
   return role;
 }
 

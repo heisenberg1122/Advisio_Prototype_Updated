@@ -41,7 +41,7 @@ interface FixtureState {
   evaluationTemplateId: string;
   criterionIds: string[];
   professor: FixtureUser;
-  rpo: FixtureUser;
+  dean: FixtureUser;
   chair: FixtureUser;
   panelistOne: FixtureUser;
   panelistTwo: FixtureUser;
@@ -228,7 +228,7 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
           "RESEARCHER",
           "PANELIST",
           "RESEARCH_COORDINATOR",
-          "RPO",
+          "DEAN",
         ] as const;
         for (const name of roleNames) {
           await tx.role.upsert({
@@ -285,7 +285,7 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
         };
 
         const professor = await createUser("professor", "RESEARCH_COORDINATOR");
-        const rpo = await createUser("rpo", "RPO");
+        const dean = await createUser("dean", "DEAN");
         const chair = await createUser("chair", "PANELIST");
         const panelistOne = await createUser("panelist-one", "PANELIST");
         const panelistTwo = await createUser("panelist-two", "PANELIST");
@@ -483,7 +483,7 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
               fileSize: BigInt(pdf.length),
               storagePath: `test://defense-e2e-${fixtureSuffix}-${mode}-approval-signed`,
               googleDriveFileId: `defense-e2e-${fixtureSuffix}-${mode}-approval-signed`,
-              uploadedBy: rpo.id,
+              uploadedBy: dean.id,
               status: "ACTIVE",
             },
           });
@@ -492,7 +492,7 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
             data: {
               sourceVersionId: approvalSource.id,
               signedVersionId: approvalSigned.id,
-              signedById: rpo.id,
+              signedById: dean.id,
               originalFileHash: manuscriptChecksum,
               signedFileHash: manuscriptChecksum,
               placements: [
@@ -560,7 +560,7 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
           evaluationTemplateId: evaluationTemplate.id,
           criterionIds: evaluationTemplate.criteria.map(({ id }) => id),
           professor,
-          rpo,
+          dean,
           chair,
           panelistOne,
           panelistTwo,
@@ -577,7 +577,7 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
     fixtureScope.workflowIds.push(fixture.workflowId);
     fixtureScope.userIds.push(
       fixture.professor.id,
-      fixture.rpo.id,
+      fixture.dean.id,
       fixture.chair.id,
       fixture.panelistOne.id,
       fixture.panelistTwo.id,
@@ -1175,7 +1175,7 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
         },
       });
       const notifications = await request(
-        "/api/notifications",
+        "/api/notifications?inbox=researcher",
         project.student.token,
       );
       expect(notifications.status).toBe(200);

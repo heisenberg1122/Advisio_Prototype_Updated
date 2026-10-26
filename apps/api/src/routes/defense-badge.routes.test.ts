@@ -78,7 +78,7 @@ describe("coordinator defense badge issuance", () => {
     db.researchMember.findMany.mockResolvedValue([{ userId: "student" }]);
   });
 
-  it.each(["RESEARCHER", "PANELIST", "ADVISER", "RPO", "SYSTEM_ADMIN"])(
+  it.each(["RESEARCHER", "PANELIST", "ADVISER", "DEAN", "SYSTEM_ADMIN"])(
     "rejects %s issuance",
     async (role) => {
       expect((await issue({ ...coordinator, roles: [role] })).statusCode).toBe(

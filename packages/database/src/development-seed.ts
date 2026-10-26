@@ -37,12 +37,8 @@ async function main() {
       name: "RESEARCH_COORDINATOR",
       description: "College / Program Research Coordinator",
     },
-    { name: "RPO", description: "Research & Publications Office Staff" },
-    { name: "REB", description: "Research Ethics Board Reviewer / Admin" },
-    {
-      name: "VPAA",
-      description: "Vice President for Academic Affairs / Institutional Exec",
-    },
+    { name: "DEAN", description: "Dean" },
+
     { name: "SYSTEM_ADMIN", description: "Platform Super Administrator" },
   ];
 
@@ -187,51 +183,18 @@ async function main() {
       module: "Calendar",
       description: "Manage personal availability blocks",
     },
-    // REB
+    // DEAN
     {
-      key: "reb.review",
-      module: "REB",
-      description: "Review REB applications",
-    },
-    {
-      key: "reb.approve",
-      module: "REB",
-      description: "Approve REB application",
-    },
-    { key: "reb.reject", module: "REB", description: "Reject REB application" },
-    {
-      key: "reb.request_revision",
-      module: "REB",
-      description: "Request REB revision",
-    },
-    {
-      key: "reb.issue_certificate",
-      module: "REB",
-      description: "Issue REB clearance certificate",
-    },
-    // RPO
-    {
-      key: "rpo.assign",
-      module: "RPO",
+      key: "dean.assign",
+      module: "DEAN",
       description: "Assign advisers and panelists",
     },
     {
-      key: "rpo.monitor",
-      module: "RPO",
+      key: "dean.monitor",
+      module: "DEAN",
       description: "Monitor institution-wide research",
     },
-    { key: "rpo.report", module: "RPO", description: "Generate RPO reports" },
-    // VPAA
-    {
-      key: "vpaa.view",
-      module: "VPAA",
-      description: "View executive statistics",
-    },
-    {
-      key: "vpaa.approve",
-      module: "VPAA",
-      description: "Institutional high-level approval",
-    },
+    { key: "dean.report", module: "DEAN", description: "Generate DEAN reports" },
     // System & Admin
     {
       key: "user.manage",
@@ -405,8 +368,8 @@ async function main() {
     },
     {
       sequence: 4,
-      name: "REB Ethics Evaluation",
-      responsibleRoleId: rolesMap["REB"],
+      name: "Research Compliance Review",
+      responsibleRoleId: rolesMap["RESEARCH_COORDINATOR"],
       requiresApproval: true,
     },
     {
@@ -424,7 +387,7 @@ async function main() {
     {
       sequence: 7,
       name: "Final Manuscript Approval & Archiving",
-      responsibleRoleId: rolesMap["RPO"],
+      responsibleRoleId: rolesMap["DEAN"],
       requiresApproval: true,
       isFinal: true,
     },
@@ -612,28 +575,28 @@ async function main() {
       email: "dean01@university.edu.ph",
       firstName: "Dr. Manuel",
       lastName: "Soriano",
-      roleName: "RPO",
+      roleName: "DEAN",
     },
     {
       universityId: "DEAN-DEMO-002",
       email: "dean.cit@university.edu.ph",
       firstName: "Dr. Angelica",
       lastName: "Flores",
-      roleName: "RPO",
+      roleName: "DEAN",
     },
     {
       universityId: "DEAN-001",
       email: "dean@advisio.edu.ph",
       firstName: "Dr. Ernesto",
       lastName: "Valerio",
-      roleName: "RPO",
+      roleName: "DEAN",
     },
     {
       universityId: "ADMIN-001",
       email: "admin01@university.edu.ph",
       firstName: "Admin",
       lastName: "Officer",
-      roleName: "RPO",
+      roleName: "DEAN",
     },
     {
       universityId: "SYSADMIN-001",

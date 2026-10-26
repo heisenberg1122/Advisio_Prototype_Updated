@@ -8,9 +8,7 @@ import { requirePermission } from "../middleware/rbac.js";
 const router = Router();
 const SCOPE_MANAGER_ROLES = new Set([
   "RESEARCH_COORDINATOR",
-  "RPO",
-  "REB",
-  "VPAA",
+  "DEAN",
   "SYSTEM_ADMIN",
 ]);
 const EVENT_TYPES = new Set([

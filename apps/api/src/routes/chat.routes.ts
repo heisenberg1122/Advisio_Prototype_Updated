@@ -5,7 +5,7 @@ import { sseManager } from "../realtime/sse";
 
 const router = Router();
 
-const FACULTY_ROLES = ["ADVISER", "RESEARCH_COORDINATOR", "PANELIST", "RPO", "REB", "VPAA"] as const;
+const FACULTY_ROLES = ["ADVISER", "RESEARCH_COORDINATOR", "PANELIST", "DEAN"] as const;
 const FACULTY_ROLE_SET = new Set<string>(FACULTY_ROLES);
 
 const personSelect = {
@@ -27,13 +27,9 @@ function primaryRole(roles: string[]) {
     ? "Professor"
     : role === "RESEARCHER"
       ? "Student"
-      : role === "RPO"
-        ? "Research Office"
-        : role === "REB"
-          ? "Ethics Board"
-          : role === "VPAA"
-            ? "VPAA"
-            : role.charAt(0) + role.slice(1).toLowerCase();
+      : role === "DEAN"
+        ? "Dean"
+        : role.charAt(0) + role.slice(1).toLowerCase();
 }
 
 function isFaculty(roles: string[]) {

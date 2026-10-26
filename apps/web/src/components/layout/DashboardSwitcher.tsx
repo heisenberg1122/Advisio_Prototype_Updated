@@ -31,8 +31,6 @@ const WORKSPACE_ICONS: Record<
   panelist: Award,
   coordinator: BookOpen,
   dean: Landmark,
-  ethics: ShieldCheck,
-  "academic-affairs": BookOpenCheck,
   "system-admin": Settings,
 };
 

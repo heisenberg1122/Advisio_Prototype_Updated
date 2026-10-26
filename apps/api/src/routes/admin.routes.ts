@@ -56,11 +56,11 @@ router.post(
       } });
       if (!research || !canAccessCollege(req.user, research.collegeId)) return void res.status(404).json({ error: "Research project not found." });
       const roles = req.user.roles;
-      const institutionalIssuer = roles.includes("RPO") || roles.includes("VPAA");
+      const institutionalIssuer = roles.includes("DEAN");
       const coordinator = roles.includes("RESEARCH_COORDINATOR") && research.workflowInstance?.workflow.createdBy === req.user!.id;
       const isResearcher = research.members.some(({ projectRole }) => ["LEADER", "MEMBER"].includes(projectRole));
       const allowed = !isResearcher && (certificateType === "REB_APPROVAL"
-        ? req.user.permissions.includes(Permissions.REB_ISSUE_CERTIFICATE)
+        ? false
         : certificateType === "PANEL_RECOMMENDATION"
           ? roles.includes("PANELIST")
           : institutionalIssuer || coordinator);

@@ -4,6 +4,7 @@ import {
   TaskSubmissionStatus,
   prisma,
 } from "../lib/prisma.js";
+import { notificationDeliveries } from "./notification.service.js";
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -49,14 +50,12 @@ export async function createNotificationsOnce(
     entityId?: string | null;
     actionUrl?: string | null;
     deduplicationKey: string;
+    audience?: string;
   }>,
 ) {
   if (!notifications.length) return 0;
   const result = await tx.notification.createMany({
-    data: notifications.map((notification) => ({
-      ...notification,
-      type: notification.type as any,
-    })),
+    data: await notificationDeliveries(tx, notifications),
     skipDuplicates: true,
   });
   return result.count;

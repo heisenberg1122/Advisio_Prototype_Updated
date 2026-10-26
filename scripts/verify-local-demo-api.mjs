@@ -8,9 +8,7 @@ const REQUIRED_PERMISSION = Object.freeze({
   ADVISER: "document.upload",
   PANELIST: "evaluation.submit",
   RESEARCH_COORDINATOR: "workflow.create",
-  RPO: "rpo.monitor",
-  REB: "reb.review",
-  VPAA: "vpaa.view",
+  DEAN: "dean.monitor",
   SYSTEM_ADMIN: "system.configure",
 });
 

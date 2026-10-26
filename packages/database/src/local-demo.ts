@@ -41,9 +41,7 @@ const REQUIRED_ROLES: InstitutionalRole[] = [
   "ADVISER",
   "PANELIST",
   "RESEARCH_COORDINATOR",
-  "RPO",
-  "REB",
-  "VPAA",
+  "DEAN",
   "SYSTEM_ADMIN",
 ];
 
@@ -104,9 +102,7 @@ const roleAccountTuples = [
     "BSHM",
     true,
   ],
-  ["dean", "DEAN", "Aurelia", "Mendoza", "RPO", "CHTM", undefined, true],
-  ["reb", "REB", "Rafael", "Bautista", "REB", "CNP", undefined, true],
-  ["vpaa", "VPAA", "Isabel", "Ramos", "VPAA", undefined, undefined, true],
+  ["dean", "DEAN", "Aurelia", "Mendoza", "DEAN", "CHTM", undefined, true],
   [
     "system-admin",
     "SYSTEM-ADMIN",
@@ -803,10 +799,10 @@ async function seedLocalDemo() {
             [1, "Topic Proposal", "RESEARCHER", true],
             [2, "Adviser Review and Endorsement", "ADVISER", true],
             [3, "Proposal Defense", "PANELIST", true],
-            [4, "Ethics Readiness", "REB", false],
+            [4, "Ethics Readiness", "RESEARCH_COORDINATOR", false],
             [5, "Implementation and Manuscript Revision", "RESEARCHER", true],
             [6, "Final Oral Defense", "PANELIST", true],
-            [7, "Final Manuscript Approval and Archiving", "RPO", true],
+            [7, "Final Manuscript Approval and Archiving", "DEAN", true],
           ];
           const stages = [];
           const tasks = [];

@@ -1,3 +1,4 @@
+import { defenseAudience, defenseSchedulerAudience } from "../services/notification.service.js";
 import { createHash } from "node:crypto";
 import { Router, Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma.js";
@@ -281,7 +282,7 @@ async function notifyResearchGroup(
   if (members.length)
     await tx.notification.createMany({
       data: members.map(({ userId }: any) => ({
-        recipientId: userId,
+        audience: "researcher", recipientId: userId,
         type,
         title,
         message,
@@ -499,7 +500,7 @@ router.post(
                       revokedAt: null,
                       signedBy: {
                         roles: {
-                          some: { role: { name: { in: ["RPO", "VPAA"] } } },
+                          some: { role: { name: { in: ["DEAN"] } } },
                         },
                       },
                     },
@@ -634,7 +635,7 @@ router.post(
         }
         await tx.notification.createMany({
           data: uniqueInvitees.map((item) => ({
-            recipientId: item.userId,
+            audience: defenseAudience(item.role), recipientId: item.userId,
             type: "DEFENSE_INVITATION" as const,
             title: `${code} panel invitation`,
             message: `You are invited to a defense event with ${researchIds.length} research ${researchIds.length === 1 ? "group" : "groups"} on ${scheduledStart.toLocaleString()}. One response confirms the full event.`,
@@ -1064,7 +1065,7 @@ router.get(
                       revokedAt: null,
                       signedBy: {
                         roles: {
-                          some: { role: { name: { in: ["RPO", "VPAA"] } } },
+                          some: { role: { name: { in: ["DEAN"] } } },
                         },
                       },
                     },
@@ -1213,7 +1214,7 @@ router.post(
         });
         await tx.notification.createMany({
           data: uniqueInvitees.map((item) => ({
-            recipientId: item.userId,
+            audience: defenseAudience(item.role), recipientId: item.userId,
             type: "DEFENSE_INVITATION" as const,
             title: "Defense panel invitation",
             message: `You are invited to the defense of ${research.title} on ${scheduledStart.toLocaleString()}.`,
@@ -1344,7 +1345,7 @@ router.patch(
         if (existing.defenseSession.createdBy)
           await tx.notification.create({
             data: {
-              recipientId: existing.defenseSession.createdBy,
+              audience: await defenseSchedulerAudience(tx, existing.defenseSession.createdBy, existing.defenseSession.researchId), recipientId: existing.defenseSession.createdBy,
               type: "DEFENSE_RESPONSE",
               title:
                 response === "ACCEPTED"
@@ -1417,7 +1418,7 @@ router.patch(
           data: existing.invitations
             .filter((item) => item.status !== "REMOVED")
             .map((item) => ({
-              recipientId: item.inviteeId,
+              audience: defenseAudience(item.role), recipientId: item.inviteeId,
               type: "DEFENSE_RESCHEDULED" as const,
               title: "Defense schedule changed",
               message: `Please confirm the updated defense schedule for ${existing.research.title}.`,
@@ -1534,7 +1535,7 @@ router.patch(
         });
         await tx.notification.create({
           data: {
-            recipientId: replacementUserId,
+            audience: defenseAudience(existing.role), recipientId: replacementUserId,
             type: "DEFENSE_INVITATION",
             title: "Defense panel invitation",
             message: `You are invited to the defense of ${existing.defenseSession.research.title}.`,

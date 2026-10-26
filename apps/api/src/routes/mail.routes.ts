@@ -65,8 +65,7 @@ const SIGNER_ROLES = new Set([
   "RESEARCH_COORDINATOR",
   "ADVISER",
   "PANELIST",
-  "RPO",
-  "VPAA",
+  "DEAN",
 ]);
 
 const person = {
@@ -478,7 +477,7 @@ router.post("/sync-dean-approvals", requireAuth, async (req, res) => {
         });
         await tx.notification.create({
           data: {
-            recipientId: req.user!.id,
+            audience: "coordinator", recipientId: req.user!.id,
             type: "DOCUMENT_REVIEWED",
             title: "Dean signed your request",
             message: `${signerName} signed ${document.title}. The official signed PDF is available in your Inbox.`,
@@ -728,8 +727,7 @@ router.post("/messages", requireAuth, mailFiles, async (req, res) => {
     });
     if (!isDraft && recipients.length) {
       await tx.notification.createMany({
-        data: recipients.map((recipientId) => ({
-          recipientId,
+        data: recipients.map((recipientId) => ({ audience: "account", recipientId,
           type: "SYSTEM_ANNOUNCEMENT" as const,
           title: `New message: ${subject}`,
           message: body.slice(0, 180),
@@ -871,7 +869,7 @@ router.post("/threads/:id/reply", requireAuth, mailFiles, async (req, res) => {
     if (others.length) {
       await tx.notification.createMany({
         data: others.map((item) => ({
-          recipientId: item.userId,
+          audience: "account", recipientId: item.userId,
           type: "SYSTEM_ANNOUNCEMENT" as const,
           title: `Reply: ${thread.subject}`,
           message: body.slice(0, 180),
@@ -935,8 +933,7 @@ router.post("/drafts/:messageId/send", requireAuth, async (req, res) => {
       }),
     ]);
     await tx.notification.createMany({
-      data: recipients.map((recipientId) => ({
-        recipientId,
+      data: recipients.map((recipientId) => ({ audience: "account", recipientId,
         type: "SYSTEM_ANNOUNCEMENT" as const,
         title: `New message: ${draft.thread.subject}`,
         message: draft.body.slice(0, 180),
@@ -1178,7 +1175,7 @@ router.post("/attachments/:id/sign", requireAuth, async (req, res) => {
       if (recipients.length)
         await tx.notification.createMany({
           data: recipients.map((item) => ({
-            recipientId: item.userId,
+            audience: "account", recipientId: item.userId,
             type: "DOCUMENT_REVIEWED" as const,
             title: "Message attachment signed",
             message: `${signerName} signed ${attachment.fileName}. The signed copy is available in your conversation.`,

@@ -17,7 +17,7 @@ function user(
 }
 
 describe("college scope", () => {
-  it.each(["SYSTEM_ADMIN", "VPAA"] as const)(
+  it.each(["SYSTEM_ADMIN"] as const)(
     "gives %s institution-wide scope",
     (role) => {
       expect(getCollegeScope(user([role], "cit"))).toEqual({
@@ -28,12 +28,12 @@ describe("college scope", () => {
     },
   );
 
-  it("keeps RPO authority within the assigned college", () => {
-    const rpo = user(["RPO"], "cit");
-    expect(getCollegeScope(rpo)).toEqual({ kind: "college", collegeId: "cit" });
-    expect(canAccessCollege(rpo, "cit")).toBe(true);
-    expect(canAccessCollege(rpo, "accountancy")).toBe(false);
-    expect(getCollegeScope(user(["RPO"], null)).kind).toBe("unassigned");
+  it("keeps DEAN authority within the assigned college", () => {
+    const dean = user(["DEAN"], "cit");
+    expect(getCollegeScope(dean)).toEqual({ kind: "college", collegeId: "cit" });
+    expect(canAccessCollege(dean, "cit")).toBe(true);
+    expect(canAccessCollege(dean, "accountancy")).toBe(false);
+    expect(getCollegeScope(user(["DEAN"], null)).kind).toBe("unassigned");
   });
 
   it("limits a college role to its assigned college", () => {

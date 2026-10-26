@@ -8,13 +8,36 @@ import { useRouter } from "next/navigation";
 import { NotificationListSkeleton } from "@/components/ui/Skeleton";
 
 const iconMap = {
-  success: { icon: "ti-circle-check", bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-100" },
-  info:    { icon: "ti-info-circle",   bg: "bg-blue-50",    text: "text-blue-600",    border: "border-blue-100"    },
-  warning: { icon: "ti-alert-triangle", bg: "bg-amber-50",   text: "text-amber-600",   border: "border-amber-100" },
-  danger:  { icon: "ti-alert-circle",   bg: "bg-rose-50",    text: "text-rose-600",    border: "border-rose-100"  },
+  success: {
+    icon: "ti-circle-check",
+    bg: "bg-emerald-50",
+    text: "text-emerald-600",
+    border: "border-emerald-100",
+  },
+  info: {
+    icon: "ti-info-circle",
+    bg: "bg-blue-50",
+    text: "text-blue-600",
+    border: "border-blue-100",
+  },
+  warning: {
+    icon: "ti-alert-triangle",
+    bg: "bg-amber-50",
+    text: "text-amber-600",
+    border: "border-amber-100",
+  },
+  danger: {
+    icon: "ti-alert-circle",
+    bg: "bg-rose-50",
+    text: "text-rose-600",
+    border: "border-rose-100",
+  },
 };
 
-const moduleVariantMap: Record<string, "info" | "success" | "warn" | "danger" | "neutral"> = {
+const moduleVariantMap: Record<
+  string,
+  "info" | "success" | "warn" | "danger" | "neutral"
+> = {
   Documents: "info",
   Consultation: "success",
   Defense: "warn",
@@ -25,14 +48,18 @@ const moduleVariantMap: Record<string, "info" | "success" | "warn" | "danger" | 
 
 export function NotificationList() {
   const router = useRouter();
+  const [inbox, setInbox] = useState<"account" | "earlier" | undefined>();
   const {
     notifications,
     unreadCount,
     loading,
+    error,
+    retry,
+    inboxLabel,
     markAsRead,
     markAllAsRead,
     deleteNotification,
-  } = useNotifications();
+  } = useNotifications(inbox);
 
   const [activeTab, setActiveTab] = useState<"all" | "unread" | "read">("all");
 
@@ -46,10 +73,8 @@ export function NotificationList() {
     return true;
   });
 
-  const handleNotificationClick = (n: AppNotification) => {
-    if (!n.read) {
-      markAsRead(n.id);
-    }
+  const handleNotificationClick = async (n: AppNotification) => {
+    if (!n.read && !(await markAsRead(n.id))) return;
     if (n.link) {
       router.push(n.link);
     }
@@ -57,10 +82,34 @@ export function NotificationList() {
 
   return (
     <div className="flex flex-col gap-4 text-[12.5px]">
-      
+      <div className="flex flex-wrap gap-2" aria-label="Notification inbox">
+        {([undefined, "account", "earlier"] as const).map((value) => (
+          <button
+            key={value || "dashboard"}
+            type="button"
+            aria-pressed={inbox === value}
+            onClick={() => setInbox(value)}
+            className={`rounded-lg border px-3 py-2 font-bold ${inbox === value ? "bg-blue-100 text-blue-900" : "bg-white text-slate-600"}`}
+          >
+            {value === "account"
+              ? "Account notices"
+              : value === "earlier"
+                ? "Earlier notifications"
+                : "Dashboard updates"}
+          </button>
+        ))}
+      </div>
+      <p className="font-bold">{inboxLabel}</p>
+      {error && (
+        <div role="alert" className="rounded-lg bg-rose-50 p-3 text-rose-800">
+          {error}{" "}
+          <button type="button" onClick={retry} className="underline">
+            Retry
+          </button>
+        </div>
+      )}
       {/* Controls Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-        
         {/* Filter Tabs */}
         <div className="flex gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
           {(["all", "unread", "read"] as const).map((tab) => (
@@ -71,7 +120,7 @@ export function NotificationList() {
                 "px-3 py-1.5 rounded-md font-bold transition capitalize cursor-pointer",
                 activeTab === tab
                   ? "bg-white text-[#1b4264] shadow-sm border border-slate-200"
-                  : "text-slate-500 hover:text-slate-800"
+                  : "text-slate-500 hover:text-slate-800",
               )}
             >
               {tab}
@@ -90,19 +139,23 @@ export function NotificationList() {
             onClick={markAllAsRead}
             className="px-3.5 py-1.5 border border-[#1b4264]/20 hover:border-[#1b4264] hover:bg-slate-50 text-[#1b4264] font-bold rounded-lg transition active:scale-[0.98] cursor-pointer"
           >
-            Mark all as read
+            Mark {inboxLabel.toLowerCase()} as read
           </button>
         )}
       </div>
 
       {/* Notifications List */}
-      {filtered.length === 0 ? (
+      {error ? null : filtered.length === 0 ? (
         <div className="text-center py-12 border border-dashed border-slate-200 bg-slate-50/50 rounded-2xl flex flex-col items-center gap-3">
           <div className="w-12 h-12 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-400">
             <i className="ti ti-bell-off text-xl" />
           </div>
-          <div className="font-bold text-slate-500">No {activeTab !== "all" ? activeTab : ""} notifications found</div>
-          <p className="text-base text-slate-400 font-medium">You are all caught up!</p>
+          <div className="font-bold text-slate-500">
+            No {activeTab !== "all" ? activeTab : ""} notifications found
+          </div>
+          <p className="text-base text-slate-400 font-medium">
+            You are all caught up!
+          </p>
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
@@ -114,7 +167,7 @@ export function NotificationList() {
                 onClick={() => handleNotificationClick(n)}
                 className={cn(
                   "p-4 rounded-xl border border-slate-200 flex items-start gap-4 transition-all duration-150 relative group cursor-pointer hover:border-slate-350 hover:shadow-sm",
-                  n.read ? "bg-white" : "bg-slate-50/60 font-semibold"
+                  n.read ? "bg-white" : "bg-slate-50/60 font-semibold",
                 )}
               >
                 {/* Unread Indicator Dot */}
@@ -123,7 +176,14 @@ export function NotificationList() {
                 )}
 
                 {/* Left Icon */}
-                <div className={cn("w-9 h-9 rounded-xl border flex items-center justify-center text-lg flex-shrink-0", styles.bg, styles.text, styles.border)}>
+                <div
+                  className={cn(
+                    "w-9 h-9 rounded-xl border flex items-center justify-center text-lg flex-shrink-0",
+                    styles.bg,
+                    styles.text,
+                    styles.border,
+                  )}
+                >
                   <i className={cn("ti", styles.icon)} />
                 </div>
 
@@ -134,7 +194,10 @@ export function NotificationList() {
                       {n.title}
                     </span>
                     {n.module && (
-                      <Tag variant={moduleVariantMap[n.module] || "neutral"} size="sm">
+                      <Tag
+                        variant={moduleVariantMap[n.module] || "neutral"}
+                        size="sm"
+                      >
                         {n.module}
                       </Tag>
                     )}
@@ -172,7 +235,6 @@ export function NotificationList() {
                     <i className="ti ti-trash text-base" />
                   </button>
                 </div>
-
               </div>
             );
           })}

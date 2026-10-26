@@ -107,7 +107,7 @@ async function workflowAccess(
   const scope = getCollegeScope(user);
   const manages =
     user.roles.some((role) =>
-      ["RESEARCH_COORDINATOR", "RPO", "SYSTEM_ADMIN"].includes(role),
+      ["RESEARCH_COORDINATOR", "DEAN", "SYSTEM_ADMIN"].includes(role),
     ) &&
     (scope.kind === "institution" ||
       Boolean(
@@ -664,7 +664,7 @@ router.post(
         if (recipients.length)
           await tx.notification.createMany({
             data: recipients.map(({ userId }) => ({
-              recipientId: userId,
+              audience: "researcher", recipientId: userId,
               type: "WORKFLOW_CHANGED" as const,
               title: "New workflow resource",
               message: `${title} was added to ${access.workflow.name}.`,
@@ -816,7 +816,7 @@ router.post(
         if (recipients.length)
           await tx.notification.createMany({
             data: recipients.map(({ userId }) => ({
-              recipientId: userId,
+              audience: "researcher", recipientId: userId,
               type: "WORKFLOW_CHANGED" as const,
               title: "Workflow resource updated",
               message: `${existing.title} was updated to Version ${nextVersion}.`,
@@ -1582,7 +1582,7 @@ router.delete(
           }),
           tx.notification.create({
             data: {
-              recipientId: enrollment.user.id,
+              audience: "account", recipientId: enrollment.user.id,
               type: "WORKFLOW_CHANGED",
               title: "Workflow access removed",
               message: `Your enrollment in ${enrollment.workflow.name} was removed by the research coordinator. Reason: ${reason}`,
@@ -1734,7 +1734,7 @@ router.post(
         });
       }
       const result = await prisma.notification.createMany({
-        data: Array.from(notifications.values()),
+        data: Array.from(notifications.values()).map((notification) => ({ ...notification, audience: "researcher" })),
       });
       res.json({ success: true, recipientCount: result.count });
     } catch (error: any) {

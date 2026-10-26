@@ -72,9 +72,9 @@ describe("Post-login Navigation Resolver", () => {
   });
 
   it("routes multi-role users to /choose-dashboard with preselection", () => {
-    // RPO + RESEARCH_COORDINATOR (Dean + Coordinator)
+    // DEAN + RESEARCH_COORDINATOR (Dean + Coordinator)
     const action = resolvePostLoginAction({
-      roles: ["RPO", "RESEARCH_COORDINATOR"],
+      roles: ["DEAN", "RESEARCH_COORDINATOR"],
     });
     expect(action.type).toBe("CHOOSE_DASHBOARD");
     if (action.type === "CHOOSE_DASHBOARD") {
@@ -89,7 +89,7 @@ describe("Post-login Navigation Resolver", () => {
 
   it("preselects valid remembered workspace for multi-role accounts", () => {
     const action = resolvePostLoginAction({
-      roles: ["RPO", "RESEARCH_COORDINATOR"],
+      roles: ["DEAN", "RESEARCH_COORDINATOR"],
       rememberedWorkspaceId: "dean",
     });
     expect(action.type).toBe("CHOOSE_DASHBOARD");

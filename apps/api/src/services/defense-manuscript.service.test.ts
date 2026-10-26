@@ -15,7 +15,7 @@ describe("defense facilitator authorization", () => {
       }),
     ).toBe(true);
     expect(
-      hasDefenseFacilitatorAccess({ roles: ["RPO"], collegeId: null }),
+      hasDefenseFacilitatorAccess({ roles: ["DEAN"], collegeId: null }),
     ).toBe(false);
     expect(
       hasDefenseFacilitatorAccess({

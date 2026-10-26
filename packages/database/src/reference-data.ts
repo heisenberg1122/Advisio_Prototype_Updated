@@ -9,12 +9,8 @@ const roles: { name: InstitutionalRole; description: string }[] = [
     name: "RESEARCH_COORDINATOR",
     description: "College / Program Research Coordinator",
   },
-  { name: "RPO", description: "Research & Publications Office Staff" },
-  { name: "REB", description: "Research Ethics Board Reviewer / Admin" },
-  {
-    name: "VPAA",
-    description: "Vice President for Academic Affairs / Institutional Exec",
-  },
+  { name: "DEAN", description: "Dean" },
+
   { name: "SYSTEM_ADMIN", description: "Platform Super Administrator" },
 ];
 
@@ -133,40 +129,17 @@ const permissions = [
     module: "Calendar",
     description: "Manage personal availability blocks",
   },
-  { key: "reb.review", module: "REB", description: "Review REB applications" },
-  { key: "reb.approve", module: "REB", description: "Approve REB application" },
-  { key: "reb.reject", module: "REB", description: "Reject REB application" },
   {
-    key: "reb.request_revision",
-    module: "REB",
-    description: "Request REB revision",
-  },
-  {
-    key: "reb.issue_certificate",
-    module: "REB",
-    description: "Issue REB clearance certificate",
-  },
-  {
-    key: "rpo.assign",
-    module: "RPO",
+    key: "dean.assign",
+    module: "DEAN",
     description: "Assign advisers and panelists",
   },
   {
-    key: "rpo.monitor",
-    module: "RPO",
+    key: "dean.monitor",
+    module: "DEAN",
     description: "Monitor institution-wide research",
   },
-  { key: "rpo.report", module: "RPO", description: "Generate RPO reports" },
-  {
-    key: "vpaa.view",
-    module: "VPAA",
-    description: "View executive statistics",
-  },
-  {
-    key: "vpaa.approve",
-    module: "VPAA",
-    description: "Institutional high-level approval",
-  },
+  { key: "dean.report", module: "DEAN", description: "Generate DEAN reports" },
   {
     key: "user.manage",
     module: "System",

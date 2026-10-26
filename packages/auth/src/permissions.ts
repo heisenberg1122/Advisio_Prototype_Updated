@@ -31,18 +31,11 @@ export const Permissions = {
   CALENDAR_MANAGE: "calendar.manage",
   CALENDAR_AVAILABILITY_MANAGE: "calendar.availability.manage",
 
-  REB_REVIEW: "reb.review",
-  REB_APPROVE: "reb.approve",
-  REB_REJECT: "reb.reject",
-  REB_REQUEST_REVISION: "reb.request_revision",
-  REB_ISSUE_CERTIFICATE: "reb.issue_certificate",
 
-  RPO_ASSIGN: "rpo.assign",
-  RPO_MONITOR: "rpo.monitor",
-  RPO_REPORT: "rpo.report",
+  DEAN_ASSIGN: "dean.assign",
+  DEAN_MONITOR: "dean.monitor",
+  DEAN_REPORT: "dean.report",
 
-  VPAA_VIEW: "vpaa.view",
-  VPAA_APPROVE: "vpaa.approve",
 
   USER_MANAGE: "user.manage",
   ROLE_MANAGE: "role.manage",

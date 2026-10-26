@@ -1,7 +1,7 @@
 import { prisma } from "../lib/prisma.js";
 
 const PANEL_ROLES = new Set(["PANELIST", "PANEL_CHAIR"]);
-const DEFENSE_FACILITATOR_ROLES = new Set(["RESEARCH_COORDINATOR", "RPO"]);
+const DEFENSE_FACILITATOR_ROLES = new Set(["RESEARCH_COORDINATOR", "DEAN"]);
 
 export function hasDefenseFacilitatorAccess(user: {
   roles: string[];
@@ -172,7 +172,7 @@ class DefenseManuscriptService {
                         signedBy: {
                           roles: {
                             some: {
-                              role: { name: { in: ["RPO", "VPAA"] } },
+                              role: { name: { in: ["DEAN"] } },
                             },
                           },
                         },

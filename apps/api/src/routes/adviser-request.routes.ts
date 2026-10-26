@@ -198,7 +198,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
         });
         await tx.notification.create({
           data: {
-            recipientId: adviserId,
+            audience: "adviser", recipientId: adviserId,
             type: "ADVISER_REQUESTED",
             title: "New adviser request",
             message: `${project.title} would like you to serve as their adviser.`,
@@ -274,7 +274,7 @@ router.patch(
         });
         await tx.notification.create({
           data: {
-            recipientId: existing.adviserId,
+            audience: "adviser", recipientId: existing.adviserId,
             type: "ADVISER_REQUEST_DECIDED",
             title: "Adviser request cancelled",
             message: `${existing.research.title} cancelled its adviser request.${req.body?.reason ? ` Note: ${req.body.reason.trim()}` : ""}`,
@@ -444,7 +444,7 @@ router.patch(
           if (researchers.length) {
             await tx.notification.createMany({
               data: researchers.map((member) => ({
-                recipientId: member.userId,
+                audience: "researcher", recipientId: member.userId,
                 type: "ADVISER_REQUEST_DECIDED" as const,
                 title: accepted
                   ? "Adviser request accepted"

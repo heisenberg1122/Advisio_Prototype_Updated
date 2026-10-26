@@ -100,25 +100,25 @@ describe("officialCopyAccessPolicy", () => {
     ).toBe(true);
   });
 
-  it("applies college scope to the Dean/RPO role", () => {
-    const scoped = officialCopyAccessPolicy(user(["RPO"]), context());
+  it("applies college scope to the Dean/DEAN role", () => {
+    const scoped = officialCopyAccessPolicy(user(["DEAN"]), context());
     expect(scoped.canView).toBe(true);
     expect(scoped.canFinalize).toBe(true);
     expect(scoped.canRevoke).toBe(true);
     expect(
       officialCopyAccessPolicy(
-        user(["RPO"], "college-b"),
+        user(["DEAN"], "college-b"),
         context(),
       ).canView,
     ).toBe(false);
   });
 
-  it("permits institution-level VPAA archival authority", () => {
+  it("rejects retired VPAA archival authority", () => {
     const access = officialCopyAccessPolicy(user(["VPAA"], null), context());
-    expect(access.canView).toBe(true);
-    expect(access.canFinalize).toBe(true);
-    expect(access.canSign).toBe(true);
-    expect(access.canRevoke).toBe(true);
+    expect(access.canView).toBe(false);
+    expect(access.canFinalize).toBe(false);
+    expect(access.canSign).toBe(false);
+    expect(access.canRevoke).toBe(false);
   });
 
   it("does not grant private academic-record access to a system administrator", () => {

@@ -149,7 +149,7 @@ export function portalQuickLinks(
         href: "/admin/inbox",
       },
     ];
-    if (roles.some((role) => role === "RPO" || role === "VPAA")) {
+    if (roles.some((role) => role === "DEAN")) {
       links.splice(2, 0, {
         id: "documents",
         label: "Official Documents",
