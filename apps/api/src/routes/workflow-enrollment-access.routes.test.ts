@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getPermissionsForRoles } from "@research-management/auth";
 
 const db = vi.hoisted(() => ({
   workflow: {
@@ -211,6 +212,34 @@ describe("workflow deletion", () => {
 });
 
 describe("workflow publication", () => {
+  // Exercise the actual route's permission gate as well as its scoped handler.
+  async function publish(user: any = professor) {
+    const permissionGate = (router as any).stack.find(
+      (layer: any) =>
+        layer.route?.path === "/:id/publish" && layer.route.methods.post,
+    ).route.stack[1].handle;
+    const next = vi.fn();
+    const res = {
+      statusCode: 200,
+      body: null as any,
+      status(code: number) {
+        this.statusCode = code;
+        return this;
+      },
+      json(body: any) {
+        this.body = body;
+        return this;
+      },
+    };
+    const authenticatedUser = {
+      ...user,
+      permissions: getPermissionsForRoles(user.roles),
+    };
+    permissionGate({ user: authenticatedUser }, res, next);
+    if (!next.mock.calls.length) return res;
+    return request("/:id/publish", "post", { user: authenticatedUser });
+  }
+
   beforeEach(() => {
     vi.resetAllMocks();
     db.$transaction.mockImplementation((callback) => callback(db));
@@ -257,7 +286,7 @@ describe("workflow publication", () => {
       Promise.resolve({ ...complete, ...data }),
     );
 
-    const res = await request("/:id/publish", "post", { user: professor });
+    const res = await publish();
 
     expect(res.statusCode).toBe(200);
     expect(db.workflow.update).toHaveBeenCalledWith(
@@ -286,7 +315,7 @@ describe("workflow publication", () => {
       .mockResolvedValueOnce(draft)
       .mockResolvedValueOnce({ ...draft, topics: [], stages: [] });
 
-    const res = await request("/:id/publish", "post", { user: professor });
+    const res = await publish();
 
     expect(res.statusCode).toBe(409);
     expect(res.body.issues).toEqual([
@@ -294,6 +323,33 @@ describe("workflow publication", () => {
       "Add at least one milestone.",
     ]);
     expect(db.workflow.update).not.toHaveBeenCalled();
+  });
+
+  it.each(["RESEARCHER", "ADVISER", "PANELIST"])(
+    "rejects publication by %s before touching the workflow",
+    async (role) => {
+      const res = await publish({ ...student, roles: [role] });
+      expect(res.statusCode).toBe(403);
+      expect(res.body.requiredPermission).toBe("workflow.publish");
+      expect(db.workflow.findUnique).not.toHaveBeenCalled();
+      expect(db.workflow.update).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    { collegeId: "other-college" },
+    { programId: "other-program" },
+    { collegeId: null },
+  ])("rejects publication outside the coordinator's scope: %s", async (scope) => {
+    db.workflow.findUnique.mockResolvedValue({
+      id: "workflow",
+      researchTypeId: "type",
+      status: "DRAFT",
+    });
+    const res = await publish({ ...professor, ...scope });
+    expect(res.statusCode).toBe(404);
+    expect(db.workflow.update).not.toHaveBeenCalled();
+    expect(db.$transaction).not.toHaveBeenCalled();
   });
 });
 

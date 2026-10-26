@@ -47,6 +47,7 @@ export const ROLE_PERMISSIONS_MATRIX: Record<InstitutionalRole, Permission[]> = 
     Permissions.RESEARCH_ASSIGN,
     Permissions.WORKFLOW_VIEW,
     Permissions.WORKFLOW_EDIT,
+    Permissions.WORKFLOW_PUBLISH,
     Permissions.DOCUMENT_VIEW,
     Permissions.DOCUMENT_DOWNLOAD,
     Permissions.FORM_VIEW,

@@ -9,6 +9,15 @@ import {
 import { Permissions } from "./permissions.js";
 
 describe("Auth RBAC Guards", () => {
+  it("allows workflow managers to publish while keeping other roles read-only", () => {
+    for (const role of ["RESEARCH_COORDINATOR", "DEAN", "SYSTEM_ADMIN"] as const) {
+      expect(getPermissionsForRole(role)).toContain(Permissions.WORKFLOW_PUBLISH);
+    }
+    for (const role of ["RESEARCHER", "ADVISER", "PANELIST"] as const) {
+      expect(getPermissionsForRole(role)).not.toContain(Permissions.WORKFLOW_PUBLISH);
+    }
+  });
+
   it("should correctly check a single permission with hasPermission", () => {
     const userPerms = [Permissions.RESEARCH_VIEW, Permissions.RESEARCH_CREATE];
     expect(hasPermission(userPerms, Permissions.RESEARCH_VIEW)).toBe(true);
