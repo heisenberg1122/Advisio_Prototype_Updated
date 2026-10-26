@@ -21,6 +21,8 @@ export interface ProjectMilestoneProgress {
 }
 
 export interface OverviewProject {
+  workflowDraft?: boolean;
+  registeredAt?: string | Date | null;
   id: string;
   title?: string | null;
   status?: string;
@@ -54,8 +56,10 @@ export interface ProjectNextStep {
 }
 
 export function researchTitleLabel(
-  project: Pick<OverviewProject, "title" | "titleRevisions">,
+  project: Pick<OverviewProject, "title" | "titleRevisions" | "registeredAt" | "workflowDraft">,
 ) {
+  if (project.workflowDraft) return "Research title not registered";
+  if (project.registeredAt) return "Registered Research Project";
   if (!project.title?.trim()) return "Research title not added";
   const approved = project.titleRevisions?.some(
     (revision) =>

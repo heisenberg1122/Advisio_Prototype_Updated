@@ -57,7 +57,7 @@ export function StudentProjectOverview({
     isLeader,
   });
   const titleLabel = researchTitleLabel(project);
-  const approvedTitle = titleLabel === "Approved research title";
+  const approvedTitle = titleLabel === "Approved research title" || titleLabel === "Registered Research Project";
   const current = milestones?.find(
     (stage) =>
       stage.id === project.workflowInstance?.currentStage?.id ||
@@ -95,7 +95,7 @@ export function StudentProjectOverview({
               </p>
             )}
             <h2 className="mt-4 break-words text-2xl font-bold leading-tight tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
-              {project.title || "Research title not added"}
+              {project.title || "Research workflow in progress"}
             </h2>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
               <span

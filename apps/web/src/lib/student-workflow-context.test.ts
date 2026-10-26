@@ -39,6 +39,24 @@ describe("researcher workflow visibility and project isolation", () => {
     });
   });
 
+  it("selects an existing participation for the chosen workflow without mixing progress", () => {
+    const other = { workflowInstance: { workflowId: "existing" } };
+    const working = { workflowInstance: { workflowId: "new" } };
+    expect(
+      resolveStudentWorkflow(joined, other, "new", [other, working])
+        .workflowProject,
+    ).toBe(working);
+  });
+  it("never guesses between multiple participations in the same workflow", () => {
+    const candidates = [
+      { workflowInstance: { workflowId: "new" } },
+      { workflowInstance: { workflowId: "new" } },
+    ];
+    expect(
+      resolveStudentWorkflow(joined, undefined, "new", candidates)
+        .workflowProject,
+    ).toBeNull();
+  });
   it("never grants visibility through a project without active enrollment", () => {
     expect(
       resolveStudentWorkflow([], { workflowInstance: { workflowId: "old" } }),

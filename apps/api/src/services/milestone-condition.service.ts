@@ -83,3 +83,15 @@ export async function assertMilestoneNotRequired(
       `This milestone is required by ${dependents.map((stage) => `“${stage.name}”`).join(", ")}. Change their Required Milestone Condition before removing it.`,
     );
 }
+
+// Optional parallel work may not jump over a professor's approval checkpoint.
+export async function assertMilestoneOrder(db: DbClient, options: {
+  workflowId: string; currentSequence?: number; sequence: number; requiresApproval: boolean;
+}) {
+  if (options.currentSequence === undefined || options.sequence <= options.currentSequence) return;
+  const blocked = options.requiresApproval || await db.workflowStage.findFirst({
+    where: { workflowId: options.workflowId, category: { not: "Archived" }, requiresApproval: true, sequence: { gte: options.currentSequence, lt: options.sequence } },
+    select: { id: true },
+  });
+  if (blocked) throw new MilestoneConditionError("Complete the preceding approval milestones before starting this task.");
+}

@@ -1,4 +1,6 @@
 "use client";
+import { WorkflowStartPanel } from "@/components/workflow/WorkflowStartPanel";
+import { TitleProposalPanel } from "@/components/workflow/TitleProposalPanel";
 
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
 import { resolveStudentWorkflow } from "@/lib/student-workflow-context";
@@ -55,7 +57,8 @@ const userName = (user: any) =>
 const EMPTY_SUBMISSION_OPTIONS: TaskSubmissionOption[] = [];
 
 function taskDisplayStatus(task: any, currentSequence: number) {
-  if (task.previewOnly) return "AWAITING_PROJECT";
+  if (task.isTitleProposal && task.titleProposal) return task.titleProposal.status;
+  if (task.previewOnly) return task.locked ? "LOCKED" : "READY_TO_START";
   if (task.conditionMessage) return "LOCKED";
   if (task.isAdviserMilestone) {
     if (task.adviserMilestone?.status === "APPROVED") return "APPROVED";
@@ -108,22 +111,23 @@ export default function ResearchTasksPage() {
         ),
       ]);
       const projects = list.projects || [];
-      const project = sharedProjectId
+      const selectedProject = sharedProjectId
         ? projects.find((candidate: any) => candidate.id === sharedProjectId)
         : projects.length === 1
           ? projects[0]
           : undefined;
       const enrollments = enrollmentList.enrollments || [];
       const { activeEnrollment, workflowProject } = resolveStudentWorkflow(
-        enrollments, project, requestedWorkflowId,
+        enrollments, selectedProject, requestedWorkflowId, !sharedProjectId || selectedProject ? projects : [],
       );
+      const project = workflowProject || selectedProject;
       const stages = activeEnrollment
         ? (workflowProject
             ? workflowProject.workflowInstance?.workflow?.stages
             : activeEnrollment.workflow?.stages) || []
         : [];
       const currentSequence =
-        workflowProject?.workflowInstance?.currentStage?.sequence || 0;
+        workflowProject?.workflowInstance?.currentStage?.sequence || stages[0]?.sequence || 0;
       const workflowProjection = workflowProject
         ? await apiClient.get<{ milestones: any[] }>(
             `/api/research/${workflowProject.id}/manuscript-workflow`,
@@ -143,8 +147,9 @@ export default function ResearchTasksPage() {
       );
       const tasks = stages.flatMap((stage: any) => {
         const progress = milestoneProgress.get(stage.id) as any;
-        const blockedByCondition = progress?.isBlocked === true;
-        const conditionMessage = blockedByCondition ? `Complete and obtain approval for “${progress?.requiredMilestone?.name || "the required milestone"}” first.` : null;
+        const blockedByCondition = progress?.isBlocked === true || (!workflowProject && Boolean(stage.requiredMilestoneId));
+        const earlierApprovalGate = stages.some((prior: any) => prior.sequence >= currentSequence && prior.sequence < stage.sequence && prior.requiresApproval);
+        const conditionMessage = blockedByCondition ? `Complete and obtain approval for “${progress?.requiredMilestone?.name || stages.find((item: any) => item.id === stage.requiredMilestoneId)?.name || "the required milestone"}” first.` : null;
         if (stage.milestoneType === "ADVISER_SELECTION")
           return [
             {
@@ -169,6 +174,8 @@ export default function ResearchTasksPage() {
               previewOnly: !workflowProject,
             },
           ];
+        if (stage.milestoneType === "TITLE_PROPOSAL")
+          return [{ id: `milestone-${stage.id}`, title: stage.name, instructions: stage.description, stage, milestoneOnly: true, requiresDocument: false, isTitleProposal: true, locked: blockedByCondition || (workflowProject ? stage.sequence > currentSequence : stage.id !== stages[0]?.id), previewOnly: !workflowProject, titleProposal: progress?.titleProposal }];
         if (stage.requiresDocument === false)
           return [
             {
@@ -182,7 +189,7 @@ export default function ResearchTasksPage() {
               isRequired: true,
               stage,
               submission: null,
-              locked: blockedByCondition || (stage.sequence > currentSequence && stage.requiresApproval),
+              locked: blockedByCondition || (stage.sequence > currentSequence && (stage.requiresApproval || earlierApprovalGate)),
               conditionMessage,
               milestoneOnly: true,
               requiresDocument: false,
@@ -195,7 +202,7 @@ export default function ResearchTasksPage() {
             ...task,
             stage,
             submission: submissions.get(task.id),
-            locked: blockedByCondition || (stage.sequence > currentSequence && stage.requiresApproval),
+            locked: blockedByCondition || (stage.sequence > currentSequence && (stage.requiresApproval || earlierApprovalGate)),
             conditionMessage,
             milestoneOnly: false,
             requiresDocument: true,
@@ -213,7 +220,7 @@ export default function ResearchTasksPage() {
             isRequired: true,
             stage,
             submission: null,
-            locked: blockedByCondition || (stage.sequence > currentSequence && stage.requiresApproval),
+            locked: blockedByCondition || (stage.sequence > currentSequence && (stage.requiresApproval || earlierApprovalGate)),
             conditionMessage,
             milestoneOnly: true,
             requiresDocument: true,
@@ -329,7 +336,7 @@ export default function ResearchTasksPage() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("title", `${selectedTask.title} - ${data.project.title}`);
-      formData.append("researchId", data.project.id);
+      formData.append("researchId", data.workflowProject.id);
       formData.append("idempotencyKey", submissionKey || crypto.randomUUID());
       if (note.trim()) formData.append("note", note.trim());
       await apiClient.upload(
@@ -356,7 +363,7 @@ export default function ResearchTasksPage() {
       throw new Error("This submission is already being processed.");
     const request = buildDocumentSubmissionRequest(option, {
       taskId: selectedTask.id,
-      researchId: data.project.id,
+      researchId: data.workflowProject.id,
       milestoneId: selectedTask.stage.id,
       idempotencyKey,
       note: note.trim() || undefined,
@@ -389,7 +396,7 @@ export default function ResearchTasksPage() {
         task: any | null;
         requiresDocument: boolean;
       }>(`/api/workflows/stages/${selectedTask.stage.id}/start`, {
-        researchId: data.project.id,
+        researchId: data.workflowProject.id,
       });
       const startedTask = response.task
         ? {
@@ -410,7 +417,7 @@ export default function ResearchTasksPage() {
       await queryClient.invalidateQueries({
         queryKey: ["student", "workflow-tasks"],
       });
-      navigate(studentTaskDetailsHref(startedTask.id, data.project.id), {
+      navigate(studentTaskDetailsHref(startedTask.id, data.workflowProject.id), {
         replace: true,
       });
       setMessage(
@@ -589,7 +596,7 @@ export default function ResearchTasksPage() {
             htmlFor="task-project"
             className="mb-2 block text-sm font-extrabold uppercase tracking-wider text-slate-500"
           >
-            Research project
+            Workflow or research project
           </label>
           <select
             id="task-project"
@@ -601,10 +608,10 @@ export default function ResearchTasksPage() {
             }}
             className="h-11 w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
           >
-            <option value="">Select a project</option>
+            <option value="">Select a workflow or project</option>
             {data.projects.map((candidate: any) => (
               <option key={candidate.id} value={candidate.id}>
-                {candidate.groupName || candidate.title}
+                {candidate.groupName || candidate.title || candidate.workflowInstance?.workflow?.name || "Research workflow"}
               </option>
             ))}
           </select>
@@ -676,7 +683,7 @@ export default function ResearchTasksPage() {
                 label="Current status"
                 value={
                   workflowProject?.workflowInstance?.currentStage?.name ||
-                  "Awaiting a linked research project"
+                  activeEnrollment?.workflow?.stages?.[0]?.name || "Ready to begin"
                 }
               />
             </div>
@@ -818,11 +825,10 @@ export default function ResearchTasksPage() {
                 <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
                   <i className="ti ti-eye mt-0.5 text-lg" />
                   <div>
-                    <strong className="block">Milestone preview</strong>
+                    <strong className="block">Ready to begin</strong>
                     <span>
-                      You can review the professor&apos;s current milestones
-                      now. Register or join a research project before starting
-                      tasks or submitting files.
+                      Open a milestone and start working with your group or individually.
+                      A registered research title is not required. Follow your professor&apos;s milestone order.
                     </span>
                   </div>
                 </div>
@@ -1170,7 +1176,7 @@ function AdviserMilestoneAction({ task, project, isLeader }: any) {
               <div>
                 <strong className="block font-bold">Milestone Completed</strong>
                 <p className="mt-0.5 text-xs text-emerald-800 dark:text-emerald-300">
-                  {adviserName} officially accepted this research project. This
+                  {adviserName} accepted your adviser request. This
                   milestone was approved automatically without requiring
                   document submission. Your group may proceed to the next
                   milestone.
@@ -1219,7 +1225,7 @@ function AdviserMilestoneAction({ task, project, isLeader }: any) {
                   : "Browse verified faculty members in the Adviser Pool to submit an official adviser request."}
               </p>
               <Link
-                to={`/student/adviser-pool?projectId=${encodeURIComponent(project?.id || "")}&milestoneId=${encodeURIComponent(task.stage.id)}`}
+                to={`/student/adviser-pool?projectId=${encodeURIComponent(project?.id || "")}&milestoneId=${encodeURIComponent(task.stage.id)}&workflowId=${encodeURIComponent(task.stage.workflowId)}`}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 py-3 text-sm font-extrabold text-white shadow-xs transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] cursor-pointer"
               >
                 <i className="ti ti-user-search text-base" aria-hidden="true" />
@@ -1630,7 +1636,10 @@ function MilestoneDetailsWorkspace({
             </section>
           )}
           {task.previewOnly ? (
-            <Notice text="This milestone is available for review. Join or register a research project connected to this workflow before starting work or submitting files." />
+            <WorkflowStartPanel workflowId={task.stage.workflowId} locked={task.locked} message={task.conditionMessage} />
+          ) : task.isTitleProposal ? (
+            <TitleProposalPanel key={task.stage.id} stageId={task.stage.id} count={task.stage.titleProposalCount || 3} researchId={project?.id} workflowId={task.stage.workflowId} canSubmit={!project || isLeader} locked={task.locked} />
+
           ) : task.locked ? (
             <Notice text={task.conditionMessage || "This milestone is visible to your group, but submission opens when the preceding milestone is completed."} />
           ) : task.isAdviserMilestone ? (
@@ -1890,7 +1899,7 @@ function MilestoneDetailsWorkspace({
           adviser={adviser}
           status={status}
           progress={milestoneProgress}
-          progressLoading={workflowProjectionQuery.isPending}
+          progressLoading={Boolean(project?.id) && workflowProjectionQuery.isPending}
         />
       </div>
 

@@ -35,6 +35,12 @@ const resolve = (
   });
 
 describe("research title labels", () => {
+  it("does not present workflow participation as a registered project", () => {
+    expect(researchTitleLabel({ title: "", workflowDraft: true })).toBe("Research title not registered");
+  });
+  it("identifies a title registered through proposal approval", () => {
+    expect(researchTitleLabel({ ...project, registeredAt: "2026-10-27" })).toBe("Registered Research Project");
+  });
   it("distinguishes absent and proposed titles", () => {
     expect(researchTitleLabel({ title: " " })).toBe("Research title not added");
     expect(researchTitleLabel(project)).toBe("Proposed research title");

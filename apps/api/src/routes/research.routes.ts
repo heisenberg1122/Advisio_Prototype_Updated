@@ -319,6 +319,7 @@ router.post(
         ? await prisma.researchProject.findFirst({
             where: {
               academicYearId,
+              ...(typeof req.body.workflowId === "string" && { workflowInstance: { is: { workflowId: req.body.workflowId } } }),
               // A disbanded group is retained as an archived academic record,
               // but must not prevent its former leader from registering a
               // replacement project in the same academic year.
@@ -328,11 +329,11 @@ router.post(
                 { members: { some: { userId: req.user.id, leftAt: null } } },
               ],
             },
-            select: { id: true, title: true, status: true },
+            select: { id: true, title: true, status: true, workflowDraft: true, workspaceId: true, workflowInstance: { select: { workflowId: true } } },
           })
         : null;
 
-      if (existingProject) {
+      if (existingProject && !existingProject.workflowDraft) {
         res.status(409).json({
           error:
             existingProject.status === "REJECTED"
@@ -353,6 +354,18 @@ router.post(
 
       // Create project in a transaction
       const project = await prisma.$transaction(async (tx) => {
+        if (existingProject?.workflowDraft) {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${existingProject.id}))`;
+          const draft = await tx.researchProject.findUnique({ where: { id: existingProject.id } });
+          if (!draft?.workflowDraft) throw Object.assign(new Error("This research title was already registered. Refresh before continuing."), { statusCode: 409 });
+          if (existingProject.workflowInstance?.workflowId !== selectedWorkflow?.id || (workspaceId && existingProject.workspaceId !== workspaceId))
+            throw Object.assign(new Error("Register the title in the workflow and workspace where your work was started."), { statusCode: 409 });
+          const leader = await tx.researchMember.findFirst({ where: { researchId: draft.id, userId: req.user!.id, projectRole: "LEADER", leftAt: null } });
+          if (!leader) throw Object.assign(new Error("Only the active group leader may register the research title."), { statusCode: 403 });
+          if (selectedWorkflow?.stages.some(stage => stage.milestoneType === "TITLE_PROPOSAL"))
+            throw Object.assign(new Error("Submit titles through Title Proposal. Your professor selects the registered title."), { statusCode: 409 });
+          return tx.researchProject.update({ where: { id: draft.id }, data: { title: title.trim(), abstract: abstract?.trim() || null, workflowDraft: false, registeredAt: new Date() } });
+        }
         if (workspace) {
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${workspace.id}))`;
           const workspaceLeader = await tx.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: workspace.id, userId: req.user!.id } } });
@@ -647,14 +660,16 @@ router.patch(
         res.status(403).json({ error: "Your account has not been assigned to a college or school. Contact the System Administrator." });
         return;
       }
-      const accessible = await prisma.researchProject.findFirst({ where: { id, ...researchScopeWhere(req.user!) }, select: { id: true } });
+      const accessible = await prisma.researchProject.findFirst({ where: { id, ...researchScopeWhere(req.user!) }, select: { id: true, workflowDraft: true } });
       if (!accessible) {
         res.status(404).json({ error: "Research project not found in your college scope." });
         return;
       }
+      if ((req.body.title !== undefined || req.body.status === "APPROVED") && await prisma.workflowStage.findFirst({ where: { workflow: { instances: { some: { researchId: id } } }, milestoneType: "TITLE_PROPOSAL", category: { not: "Archived" } } }))
+        return void res.status(409).json({ error: "Use the Title Proposal milestone to select and register the research title." });
       const updatedProject = await prisma.researchProject.update({
         where: { id },
-        data: req.body,
+        data: { ...req.body, ...(accessible.workflowDraft && typeof req.body.title === "string" && { workflowDraft: false, registeredAt: new Date() }) },
       });
 
       res.json({ project: updatedProject });
@@ -1426,6 +1441,8 @@ router.patch(
           error: "Research title must be at least 5 characters long.",
         });
       const titleChanged = title !== project.title;
+      if (titleChanged && project.workflowInstanceId && await prisma.workflowStage.findFirst({ where: { workflow: { instances: { some: { id: project.workflowInstanceId } } }, milestoneType: "TITLE_PROPOSAL", category: { not: "Archived" } } }))
+        return void res.status(409).json({ error: "Submit or revise titles through the Title Proposal milestone. The professor selects the registered title." });
       if (titleChanged && ["DEFENSE", "COMPLETED", "ARCHIVED"].includes(project.status))
         return void res.status(409).json({
           error: "The research title is locked at this project stage. Ask the coordinator for an amendment.",
@@ -1476,6 +1493,7 @@ router.patch(
           where: { id: researchId },
           data: {
             title,
+            ...(titleChanged && project.workflowDraft && { workflowDraft: false, registeredAt: new Date() }),
             groupName: groupName || null,
             abstract: abstract || null,
             ...(titleChanged && project.status === "REJECTED"

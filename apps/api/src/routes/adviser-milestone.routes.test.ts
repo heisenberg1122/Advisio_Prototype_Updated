@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  startWorkflowParticipation: vi.fn(),
   countActiveAdviseeGroups: vi.fn(),
   synchronizeAdviserMilestone: vi.fn(),
 }));
@@ -8,6 +9,7 @@ const db = vi.hoisted(() => ({
   researchProject: { findFirst: vi.fn(), findUnique: vi.fn() },
   user: { findFirst: vi.fn(), findUnique: vi.fn() },
   document: { findFirst: vi.fn() },
+  workflowEnrollment: { findFirst: vi.fn() },
   workflowStage: { findFirst: vi.fn(), findUnique: vi.fn() },
   adviserRequest: {
     findFirst: vi.fn(),
@@ -26,6 +28,7 @@ const db = vi.hoisted(() => ({
   $transaction: vi.fn(),
 }));
 
+vi.mock("../services/workflow-participation.service.js", () => ({ startWorkflowParticipation: mocks.startWorkflowParticipation }));
 vi.mock("../lib/prisma.js", async (importOriginal) => ({
   ...(await importOriginal<any>()),
   prisma: db,
@@ -88,6 +91,7 @@ async function request(
 describe("adviser milestone request authorization and synchronization", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    db.workflowEnrollment.findFirst.mockResolvedValue({ id: "enrollment", status: "ACTIVE" });
     db.$transaction.mockImplementation((callback) => callback(db));
     db.researchProject.findFirst.mockResolvedValue({
       id: "project",
@@ -110,6 +114,19 @@ describe("adviser milestone request authorization and synchronization", () => {
     db.notification.create.mockResolvedValue({ id: "notification" });
   });
 
+  it("starts adviser selection from enrollment when no registered project exists", async () => {
+    mocks.startWorkflowParticipation.mockResolvedValue({ id: "working-record" });
+    const response = await request("/", "post", { body: { workflowId: "workflow", adviserId: "adviser" } });
+    expect(response.statusCode).toBe(201);
+    expect(mocks.startWorkflowParticipation).toHaveBeenCalledWith({ user: leader, workflowId: "workflow", workspaceId: undefined });
+    expect(db.adviserRequest.upsert).toHaveBeenCalledWith(expect.objectContaining({ create: expect.objectContaining({ researchId: "working-record" }) }));
+  });
+  it("does not allow workflow startup to restore revoked enrollment", async () => {
+    mocks.startWorkflowParticipation.mockRejectedValue(Object.assign(new Error("Enrollment removed"), { statusCode: 403 }));
+    const response = await request("/", "post", { body: { workflowId: "workflow", adviserId: "adviser" } });
+    expect(response.statusCode).toBe(403);
+    expect(db.adviserRequest.upsert).not.toHaveBeenCalled();
+  });
   it("rejects adviser requests from anyone except the active group leader", async () => {
     db.researchProject.findFirst.mockResolvedValue(null);
     const response = await request("/", "post", {

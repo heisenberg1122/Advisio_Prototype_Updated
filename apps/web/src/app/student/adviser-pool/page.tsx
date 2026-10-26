@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { WorkflowStartPanel } from "@/components/workflow/WorkflowStartPanel";
 import { useAdvisers } from "@/hooks/use-student";
 import { useAuth } from "@/hooks/use-auth";
 import { apiClient, panelRequestHeaders } from "@/lib/api-client";
@@ -22,7 +23,7 @@ export default function AdviserPoolPage() {
   const searchParams = useSearchParams();
   const milestoneId = searchParams.get("milestoneId");
   const projectIdParam = searchParams.get("projectId");
-  const { data, isPending, isError, refetch } = useAdvisers(projectIdParam);
+  const { data, isPending, isError, refetch } = useAdvisers(projectIdParam, searchParams.get("workflowId"));
   const { user } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -46,11 +47,7 @@ export default function AdviserPoolPage() {
       (member.userId === user?.id || member.user?.id === user?.id),
   );
 
-  useEffect(() => {
-    if (!isPending && data && user && !project) {
-      router.replace("/student/dashboard?tab=group");
-    }
-  }, [data, isPending, project, router, user]);
+
 
   const openRequest = (adviser: any) => {
     if (adviser.isFull || !adviser.isAcceptingAdvisees) {
@@ -77,7 +74,7 @@ export default function AdviserPoolPage() {
     mutationFn: async () => {
       if (!data?.projectId || !selectedAdviser?.id)
         throw new Error(
-          "Register a research project before requesting an adviser.",
+          "Start your workflow before requesting an adviser. No research title is required.",
         );
       if (requestMethod === "pdf" && !requestPdf)
         throw new Error(
@@ -143,7 +140,7 @@ export default function AdviserPoolPage() {
       setMessage(error?.message || "Unable to send adviser request."),
   });
 
-  if (isPending || !user || (data && !project))
+  if (isPending || !user)
     return <CardsPageSkeleton cards={4} />;
   if (isError || !data) {
     return (
@@ -171,7 +168,7 @@ export default function AdviserPoolPage() {
             <div>
               <strong className="block">Adviser Milestone</strong>
               <span>
-                Select an adviser for {project.groupName || project.title}.
+                Select an adviser for {project.groupName || project.title || "your workflow"}.
                 Acceptance will complete the milestone automatically.
               </span>
             </div>
@@ -197,14 +194,11 @@ export default function AdviserPoolPage() {
           </span>
         </div>
       )}
-      {!project && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 p-4 text-xs sm:text-sm font-semibold text-amber-800 dark:text-amber-200 flex items-center gap-2">
-          <i className="ti ti-alert-circle text-base shrink-0 text-amber-600" />
-          <span>
-            Register a research project before sending an adviser request.
-          </span>
-        </div>
-      )}
+      {!project && (data.workflowId ? <WorkflowStartPanel workflowId={data.workflowId} label="Start adviser selection" locked={(() => {
+        const stages = data.workflow?.stages || [];
+        const adviserStage = stages.find((stage: any) => stage.id === milestoneId || (!milestoneId && stage.milestoneType === "ADVISER_SELECTION"));
+        return !!adviserStage && adviserStage.sequence > stages[0]?.sequence;
+      })()} /> : <div className="rounded-xl border border-[var(--color-border)] p-5 text-[var(--color-text-primary)]">Join your professor’s workflow in <Link to="/student/tasks" className="font-bold underline">Tasks &amp; Requirements</Link> to start adviser selection. No registered research title is required.</div>)}
 
       {message && !selectedAdviser && (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
@@ -531,7 +525,7 @@ export default function AdviserPoolPage() {
                   <div>
                     <dt className="font-bold text-slate-500">Project</dt>
                     <dd className="mt-1 font-extrabold text-[#17212B] dark:text-white">
-                      {project?.title}
+                      {project?.title || "Title not registered yet"}
                     </dd>
                   </div>
                   <div>
@@ -539,7 +533,7 @@ export default function AdviserPoolPage() {
                     <dd className="mt-1 font-extrabold text-[#17212B] dark:text-white">
                       {project?.groupName ||
                         (project?.participationMode === "SOLO"
-                          ? "Solo research project"
+                          ? "Individual researcher"
                           : "Research group")}
                     </dd>
                   </div>

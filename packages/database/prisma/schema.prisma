@@ -121,6 +121,7 @@ enum WorkflowStatus {
 }
 
 enum WorkflowStageType {
+  TITLE_PROPOSAL
   STANDARD
   ADVISER_SELECTION
   DEFENSE_ELIGIBILITY
@@ -498,6 +499,8 @@ model AcademicYear {
 // ─────────────────────────────────────────────────────────────
 
 model User {
+  titleProposalsSubmitted TitleProposalSubmission[] @relation("TitleProposalSubmitter")
+  titleProposalsReviewed TitleProposalSubmission[] @relation("TitleProposalReviewer")
   id                       String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   universityId             String               @unique @map("university_id") @db.VarChar(50)
   email                    String               @unique @db.Citext
@@ -737,6 +740,8 @@ model ResearchProject {
   programId           String                    @map("program_id") @db.Uuid
   collegeId           String                    @map("college_id") @db.Uuid
   academicYearId      String                    @map("academic_year_id") @db.Uuid
+  workflowDraft       Boolean                   @default(false) @map("workflow_draft")
+  registeredAt        DateTime?                 @map("registered_at")
   title               String                    @db.Text
   groupName           String?                   @map("group_name") @db.VarChar(120)
   inviteCode          String?                   @unique @map("invite_code") @db.VarChar(32)
@@ -776,6 +781,7 @@ model ResearchProject {
   groupFolders           GroupFolder[]
   groupFiles             GroupFile[]
   joinRequests           ResearchJoinRequest[]
+  titleProposals         TitleProposalSubmission[]
   titleRevisions         ResearchTitleRevision[]
   reviewerAssignments    ReviewerAssignment[]
   officialCopies         OfficialCopy[]
@@ -999,6 +1005,8 @@ model WorkflowStage {
   targetCompletionDate DateTime?         @map("target_completion_date") @db.Date
   isFinal              Boolean           @default(false) @map("is_final")
   submissionMode       String            @default("EITHER") @map("submission_mode") @db.VarChar(20)
+  titleProposalCount   Int               @default(3) @map("title_proposal_count")
+  titleProposals       TitleProposalSubmission[]
   milestoneType        WorkflowStageType @default(STANDARD) @map("milestone_type")
   requiredMilestoneId  String?           @map("required_milestone_id") @db.Uuid
 
@@ -2493,4 +2501,26 @@ model WorkflowAccessEntry {
   @@index([workflowId, kind, status])
   @@index([userId, status])
   @@map("workflow_access_entries")
+}
+
+model TitleProposalSubmission {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  researchId    String          @map("research_id") @db.Uuid
+  stageId       String          @map("stage_id") @db.Uuid
+  titles        String[]
+  status        String          @default("SUBMITTED") @db.VarChar(30)
+  version       Int             @default(1)
+  selectedIndex Int?            @map("selected_index")
+  submittedBy   String          @map("submitted_by") @db.Uuid
+  reviewedBy    String?         @map("reviewed_by") @db.Uuid
+  reviewNote    String?         @map("review_note") @db.Text
+  submittedAt   DateTime        @default(now()) @map("submitted_at")
+  reviewedAt    DateTime?       @map("reviewed_at")
+  submitter     User            @relation("TitleProposalSubmitter", fields: [submittedBy], references: [id], onDelete: Restrict)
+  reviewer      User?           @relation("TitleProposalReviewer", fields: [reviewedBy], references: [id], onDelete: Restrict)
+  research      ResearchProject @relation(fields: [researchId], references: [id], onDelete: Cascade)
+  stage         WorkflowStage   @relation(fields: [stageId], references: [id], onDelete: Restrict)
+
+  @@unique([researchId, stageId])
+  @@map("title_proposal_submissions")
 }

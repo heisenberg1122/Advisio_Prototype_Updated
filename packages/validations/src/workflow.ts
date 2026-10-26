@@ -17,8 +17,14 @@ export const workflowStageSchema = z.object({
   targetCompletionDate: targetCompletionDateSchema,
   isFinal: z.boolean().default(false),
   submissionMode: z.enum(["INDIVIDUAL", "GROUP", "EITHER"]).default("EITHER"),
+  titleProposalCount: z.number().int().min(1).max(10).default(3),
   milestoneType: z
-    .enum(["STANDARD", "ADVISER_SELECTION", "DEFENSE_ELIGIBILITY"])
+    .enum([
+      "STANDARD",
+      "ADVISER_SELECTION",
+      "DEFENSE_ELIGIBILITY",
+      "TITLE_PROPOSAL",
+    ])
     .default("STANDARD"),
 });
 
@@ -30,6 +36,15 @@ export const createWorkflowSchema = z
     stages: z.array(workflowStageSchema).default([]),
   })
   .superRefine((value, context) => {
+    if (
+      value.stages.filter((stage) => stage.milestoneType === "TITLE_PROPOSAL")
+        .length > 1
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["stages"],
+        message: "A workflow can contain only one Title Proposal milestone.",
+      });
     if (
       value.stages.filter(
         (stage) => stage.milestoneType === "ADVISER_SELECTION",

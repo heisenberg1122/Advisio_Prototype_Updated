@@ -13,8 +13,10 @@ type MilestoneComposerProps = {
   requiresDocument: boolean;
   requiresApproval: boolean;
   category: string;
-  milestoneType?: "STANDARD" | "ADVISER_SELECTION" | "DEFENSE_ELIGIBILITY";
+  milestoneType?: "STANDARD" | "ADVISER_SELECTION" | "DEFENSE_ELIGIBILITY" | "TITLE_PROPOSAL";
   onMilestoneTypeChange?: (value: "STANDARD" | "DEFENSE_ELIGIBILITY") => void;
+  titleProposalCount?: number;
+  onTitleProposalCountChange?: (value: number) => void;
   requiredMilestoneId?: string;
   milestoneConditions?: Array<{ value: string; label: string }>;
   saving: boolean;
@@ -53,6 +55,8 @@ export function MilestoneComposer({
   requiresApproval,
   category,
   milestoneType = "STANDARD",
+  titleProposalCount = 3,
+  onTitleProposalCountChange,
   onMilestoneTypeChange,
   requiredMilestoneId = "",
   milestoneConditions = [],
@@ -88,6 +92,7 @@ export function MilestoneComposer({
     requiresApproval,
     category,
     milestoneType,
+    titleProposalCount,
     requiredMilestoneId,
   });
   const initialSignature = useRef(currentSignature);
@@ -112,6 +117,7 @@ export function MilestoneComposer({
   }, [hasUnsavedChanges, onClose, saveStatus, saving]);
 
   const isCreate = mode === "create";
+  const isTitleProposal = milestoneType === "TITLE_PROPOSAL";
   const isAdviserMilestone = milestoneType === "ADVISER_SELECTION";
 
   return (
@@ -227,7 +233,7 @@ export function MilestoneComposer({
                       this milestone.
                     </p>
                   </div>
-                  {!isAdviserMilestone && (
+                  {!isAdviserMilestone && !isTitleProposal && (
                     <label className="relative inline-flex cursor-pointer items-center">
                       <input
                         type="checkbox"
@@ -241,7 +247,9 @@ export function MilestoneComposer({
                     </label>
                   )}
                 </div>
-                {isAdviserMilestone ? (
+                {isTitleProposal ? (
+                  <p className="text-sm text-slate-600">Collect proposed research titles as text. The professor selects one title to register the project.</p>
+                ) : isAdviserMilestone ? (
                   <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
                     <strong className="block">
                       No document upload required
@@ -321,7 +329,9 @@ export function MilestoneComposer({
                       ))}
                     </select>
                   </label>
-                  {isAdviserMilestone ? (
+                  {isTitleProposal ? (
+                    <label className="block text-sm font-bold">Number of title proposal fields<input type="number" min={1} max={10} required value={titleProposalCount} onChange={event => onTitleProposalCountChange?.(Number(event.target.value))} className="mt-2 block w-full rounded-xl border border-slate-300 p-3" /><span className="mt-2 block text-xs font-normal">Researchers fill every field with a different title. Accepting one registers their project.</span></label>
+                  ) : isAdviserMilestone ? (
                     <div>
                       <span className="block text-sm font-bold text-slate-700">
                         Completed by
@@ -425,7 +435,7 @@ export function MilestoneComposer({
                       <input
                         type="checkbox"
                         checked={requiresApproval}
-                        disabled={milestoneType === "DEFENSE_ELIGIBILITY"}
+                        disabled={isTitleProposal || milestoneType === "DEFENSE_ELIGIBILITY"}
                         onChange={(event) =>
                           onRequiresApprovalChange(event.target.checked)
                         }
@@ -486,7 +496,7 @@ export function MilestoneComposer({
                   />
                 </button>
                 {advancedOpen &&
-                  (isAdviserMilestone ? (
+                  (isTitleProposal ? <p className="mt-4 font-bold">Title Proposal</p> : isAdviserMilestone ? (
                     <div className="mt-4 rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-bold text-[#102f49]">
                       Adviser Milestone
                     </div>
