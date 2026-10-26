@@ -1,4 +1,6 @@
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
+import { JoinedWorkflows } from "@/components/workflow/JoinedWorkflows";
+import { resolveStudentWorkflow } from "@/lib/student-workflow-context";
 import { TeamEmailInvitation } from "@/components/workflow/TeamEmailInvitation";
 import React, { useState, Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -331,17 +333,16 @@ function StudentDashboardContent() {
     enabled: Boolean(activeProject?.id),
     refetchOnWindowFocus: true,
   });
+  const { activeEnrollment: activeWorkflowEnrollment, workflowProject } =
+    resolveStudentWorkflow(workflowEnrollmentData?.enrollments || [], activeProject);
   const { data: manuscriptWorkflowResponse, isLoading: isMilestoneLoading, isError: isMilestoneError, refetch: refetchMilestones } = useQuery({
     queryKey: ["student-manuscript-workflow", activeProject?.id],
     queryFn: () => apiClient.get<{ milestones: any[]; activity: any[] }>(`/api/research/${activeProject.id}/manuscript-workflow`),
-    enabled: Boolean(activeProject?.id && !activeProject?.workflowAccessRemoved),
+    enabled: Boolean(workflowProject?.id),
     refetchOnWindowFocus: true,
     refetchInterval: 5000,
   });
-  const manuscriptWorkflowData = activeProject?.workflowAccessRemoved ? undefined : manuscriptWorkflowResponse;
-  const activeWorkflowEnrollment = activeProject
-    ? workflowEnrollmentData?.enrollments?.find((enrollment: any) => enrollment.workflowId === activeProject.workflowInstance?.workflowId)
-    : workflowEnrollmentData?.enrollments?.[0];
+  const manuscriptWorkflowData = workflowProject ? manuscriptWorkflowResponse : undefined;
   const { data: defenseResultData } = useQuery({
     queryKey: ["student-defense-result", activeProject?.id],
     queryFn: () => apiClient.get<{ result: any | null }>(`/api/research/${activeProject.id}/defense-result`),
@@ -426,8 +427,12 @@ function StudentDashboardContent() {
         members: activeProject.members?.map((m: any) => `${m.user.firstName} ${m.user.lastName}`) || [],
         status: activeProject.status?.toLowerCase() || "draft",
       });
+    } else {
+      setGroup(null);
+    }
+    if (workflowProject) {
       const authoritative = new Map((manuscriptWorkflowData?.milestones || []).map((milestone: any) => [milestone.id, milestone]));
-      setMilestones(getOrderedWorkflowStages(activeProject).map((stage) => ({
+      setMilestones(getOrderedWorkflowStages(workflowProject).map((stage) => ({
         id: stage.id,
         title: stage.name,
         status: authoritative.get(stage.id)?.completed
@@ -448,7 +453,6 @@ function StudentDashboardContent() {
         category: stage.category || "Milestone",
       })));
     } else if (activeWorkflowEnrollment?.workflow?.stages) {
-      setGroup(null);
       setMilestones(
         activeWorkflowEnrollment.workflow.stages.map(
           (stage: any, index: number) => ({
@@ -468,10 +472,9 @@ function StudentDashboardContent() {
         ),
       );
     } else {
-      setGroup(null);
       setMilestones([]);
     }
-  }, [activeProject, activeWorkflowEnrollment, manuscriptWorkflowData?.milestones]);
+  }, [activeProject, activeWorkflowEnrollment, workflowProject, manuscriptWorkflowData?.milestones]);
 
   const [aiMatches, setAiMatches] = useState<any[]>([]);
   const combinedSubmissions = (dashboardDocumentData?.documents || []).flatMap(
@@ -1483,6 +1486,9 @@ function StudentDashboardContent() {
       {/* MAIN CONTAINER */}
       <div className={`w-full flex-1 space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
         {activeTab === "overview" && <WorkflowAccessInbox/>}
+        {activeTab === "overview" && (
+          <JoinedWorkflows enrollments={workflowEnrollmentData?.enrollments || []} />
+        )}
         {((researchData?.projects?.length || 0) > 1 || projectSelection.invalidRequestedProjectId) && (
           <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-5">
             <label htmlFor="dashboard-project" className="mb-2 block text-sm font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">Active research project</label>
@@ -2232,7 +2238,7 @@ function StudentDashboardContent() {
                     project={activeProject}
                     isLeader={isGroupLeader}
                     workflowName={activeProject.workflowInstance?.workflow?.name}
-                    coordinator={activeWorkflowEnrollment?.workflow?.creator ? [activeWorkflowEnrollment.workflow.creator.firstName, activeWorkflowEnrollment.workflow.creator.lastName].filter(Boolean).join(" ") || activeWorkflowEnrollment.workflow.creator.email : undefined}
+                    coordinator={workflowProject && activeWorkflowEnrollment?.workflow?.creator ? [activeWorkflowEnrollment.workflow.creator.firstName, activeWorkflowEnrollment.workflow.creator.lastName].filter(Boolean).join(" ") || activeWorkflowEnrollment.workflow.creator.email : undefined}
                     academicYear={activeProject.academicYear?.name}
                     teamName={activeProject.groupName || (activeStudentMembers.length === 1 ? "Solo research" : "Research team")}
                     memberCount={activeStudentMembers.length}
