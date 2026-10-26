@@ -5,7 +5,6 @@ import { ManuscriptLifecycleStatus, prisma } from "../lib/prisma.js";
 import {
   createWorkflowTopicSchema,
   createWorkflowSchema,
-  reorderWorkflowMilestonesSchema,
   reorderWorkflowTopicsSchema,
   updateWorkflowTopicSchema,
   workflowTransitionSchema,
@@ -1267,115 +1266,6 @@ router.patch(
       res
         .status(500)
         .json({ error: error.message || "Failed to reorder workflow topics." });
-    }
-  },
-);
-
-router.patch(
-  "/:id/stages/reorder",
-  requireAuth,
-  requirePermission(Permissions.WORKFLOW_EDIT),
-  validateBody(reorderWorkflowMilestonesSchema),
-  async (req: Request, res: Response) => {
-    try {
-      const workflowId = req.params.id as string;
-      const access = await workflowAccess(workflowId, req.user!);
-      if (!access?.manages) {
-        return void res
-          .status(404)
-          .json({ error: "Workflow not found in your academic scope." });
-      }
-      if (access.workflow.status === "ARCHIVED") {
-        return void res.status(409).json({
-          error: "Archived workflows cannot be reordered.",
-        });
-      }
-
-      const requested = req.body.milestones as Array<{
-        id: string;
-        topicId: string | null;
-      }>;
-      const stages = await prisma.$transaction(
-        async (tx) => {
-          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${workflowId}))`;
-          const [currentStages, topics] = await Promise.all([
-            tx.workflowStage.findMany({
-              where: { workflowId, category: { not: "Archived" } },
-              orderBy: [{ sequence: "asc" }, { id: "asc" }],
-              select: { id: true },
-            }),
-            tx.workflowTopic.findMany({
-              where: { workflowId },
-              select: { id: true },
-            }),
-          ]);
-          const currentIds = new Set(currentStages.map((stage) => stage.id));
-          const requestedIds = requested.map((stage) => stage.id);
-          const topicIds = new Set(topics.map((topic) => topic.id));
-          if (
-            requestedIds.length !== currentIds.size ||
-            new Set(requestedIds).size !== requestedIds.length ||
-            requestedIds.some((id) => !currentIds.has(id))
-          ) {
-            throw Object.assign(
-              new Error(
-                "Milestone order changed elsewhere. Refresh and try again.",
-              ),
-              { statusCode: 409 },
-            );
-          }
-          if (
-            requested.some(
-              (stage) => stage.topicId && !topicIds.has(stage.topicId),
-            )
-          ) {
-            throw Object.assign(
-              new Error("Choose a valid topic for every moved milestone."),
-              { statusCode: 400 },
-            );
-          }
-
-          for (let index = 0; index < requested.length; index += 1) {
-            await tx.workflowStage.update({
-              where: { id: requested[index].id },
-              data: { sequence: 3_000_000 + index },
-            });
-          }
-          for (let index = 0; index < requested.length; index += 1) {
-            await tx.workflowStage.update({
-              where: { id: requested[index].id },
-              data: {
-                topicId: requested[index].topicId,
-                sequence: index + 1,
-                isFinal: index === requested.length - 1,
-              },
-            });
-          }
-          await validateMilestoneConditions(tx, workflowId);
-          await tx.workflow.update({
-            where: { id: workflowId },
-            data: { updatedAt: new Date() },
-          });
-          return tx.workflowStage.findMany({
-            where: { workflowId, category: { not: "Archived" } },
-            orderBy: [{ sequence: "asc" }, { id: "asc" }],
-            select: { id: true, topicId: true, sequence: true },
-          });
-        },
-        { isolationLevel: "Serializable" },
-      );
-      await recordPublishedWorkflowChange(
-        workflowId,
-        req.user!.id,
-        "The milestone order and phase assignments changed.",
-        "Workflow",
-        workflowId,
-      );
-      res.json({ milestones: stages });
-    } catch (error: any) {
-      res.status(error.statusCode || 500).json({
-        error: error.message || "Failed to reorder workflow milestones.",
-      });
     }
   },
 );

@@ -1,4 +1,4 @@
-import React, { useState, Suspense, useEffect, useRef } from "react";
+import React, { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
@@ -37,11 +37,6 @@ import {
   type WorkflowDeadlineRow,
 } from "@/components/workflow/WorkflowDeadlineTracker";
 import { ResearchProjectsOnboarding } from "@/components/workflow/ResearchProjectsOnboarding";
-import {
-  milestonesInGroup,
-  moveWorkflowMilestone,
-  moveWorkflowTopic,
-} from "@/lib/workflow-builder-order";
 
 const EMPTY_MILESTONE_PROGRESS_BY_PROJECT: Record<string, any[]> = {};
 
@@ -409,7 +404,6 @@ function ProfessorDashboardContent() {
   } | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deletingWorkflow, setDeletingWorkflow] = useState(false);
-  const deleteWorkflowInFlightRef = useRef(false);
   const [deleteWorkflowError, setDeleteWorkflowError] = useState("");
   const [newWorkflowName, setNewWorkflowName] = useState("");
   const [newWorkflowDescription, setNewWorkflowDescription] = useState("");
@@ -491,33 +485,7 @@ function ProfessorDashboardContent() {
     () => new Set(),
   );
   const [draggedTopicId, setDraggedTopicId] = useState<string | null>(null);
-  const [topicDropIndex, setTopicDropIndex] = useState<number | null>(null);
-  const [draggedMilestoneId, setDraggedMilestoneId] = useState<string | null>(
-    null,
-  );
-  const [milestoneDropTarget, setMilestoneDropTarget] = useState<{
-    topicId: string | null;
-    index: number;
-  } | null>(null);
-  const [openMilestoneMoveMenuId, setOpenMilestoneMoveMenuId] = useState<
-    string | null
-  >(null);
-  const [openTopicMenuId, setOpenTopicMenuId] = useState<string | null>(null);
   const [topicOrderSaving, setTopicOrderSaving] = useState(false);
-  const workflowOrderSavingRef = useRef(false);
-  const [workflowOrderFeedback, setWorkflowOrderFeedback] = useState<{
-    tone: "success" | "error";
-    message: string;
-  } | null>(null);
-
-  useEffect(() => {
-    if (workflowOrderFeedback?.tone !== "success") return;
-    const timeout = window.setTimeout(
-      () => setWorkflowOrderFeedback(null),
-      3000,
-    );
-    return () => window.clearTimeout(timeout);
-  }, [workflowOrderFeedback]);
   const [showAdvancedMilestoneOptions, setShowAdvancedMilestoneOptions] =
     useState(false);
   const [editingMilestone, setEditingMilestone] = useState<any | null>(null);
@@ -545,19 +513,11 @@ function ProfessorDashboardContent() {
   const [topicDescription, setTopicDescription] = useState("");
   const [topicSaving, setTopicSaving] = useState(false);
   const [milestoneSaveStatus, setMilestoneSaveStatus] = useState<
-    "idle" | "saving" | "saved" | "error"
+    "idle" | "saving" | "saved"
   >("idle");
-  const milestoneSavingRef = useRef(false);
-
-  useEffect(() => {
-    if (milestoneSaveStatus !== "saved") return;
-    const timeout = window.setTimeout(() => setMilestoneSaveStatus("idle"), 3000);
-    return () => window.clearTimeout(timeout);
-  }, [milestoneSaveStatus]);
   const [milestonePendingDelete, setMilestonePendingDelete] = useState<
     any | null
   >(null);
-  const [milestoneDeleting, setMilestoneDeleting] = useState(false);
 
   const [toast, setToast] = useState<string | null>(null);
   const triggerToast = (msg: string) => {
@@ -649,12 +609,10 @@ function ProfessorDashboardContent() {
     event.preventDefault();
     if (
       !workflowToDelete ||
-      deleteWorkflowInFlightRef.current ||
       deletingWorkflow ||
       deleteConfirmation !== `sudo delete "${workflowToDelete.name}"`
     )
       return;
-    deleteWorkflowInFlightRef.current = true;
     setDeletingWorkflow(true);
     setDeleteWorkflowError("");
     try {
@@ -666,18 +624,16 @@ function ProfessorDashboardContent() {
         error?.message || "Workflow could not be deleted.",
       );
       setDeletingWorkflow(false);
-      deleteWorkflowInFlightRef.current = false;
       return;
     }
     setWorkflowToDelete(null);
     setDeleteConfirmation("");
-    await Promise.allSettled([
+    await Promise.all([
       refetchWorkflows(),
       refetchEnrollments(),
       refetchResearch(),
     ]);
     setDeletingWorkflow(false);
-    deleteWorkflowInFlightRef.current = false;
     triggerToast(`Workflow "${workflowToDelete.name}" deleted.`);
   };
 
@@ -846,56 +802,20 @@ function ProfessorDashboardContent() {
   };
 
   const saveTopicOrder = async (reordered: any[]) => {
-    if (!selectedWorkflowId || workflowOrderSavingRef.current) return;
-    if (selectedWorkflow?.status === "ARCHIVED") {
-      setWorkflowOrderFeedback({
-        tone: "error",
-        message: "Archived workflows cannot be reordered.",
-      });
-      return;
-    }
-    const previousTopics = selectedWorkflowTopics;
-    const optimisticTopics = reordered.map((topic, index) => ({
-      ...topic,
-      sequence: index + 1,
-    }));
-    workflowOrderSavingRef.current = true;
+    if (!selectedWorkflowId || topicOrderSaving) return;
     setTopicOrderSaving(true);
-    setWorkflowOrderFeedback(null);
-    setWorkflows((current) =>
-      current.map((workflow) =>
-        workflow.id === selectedWorkflowId
-          ? { ...workflow, topics: optimisticTopics }
-          : workflow,
-      ),
-    );
     try {
       await apiClient.patch(
         `/api/workflows/${selectedWorkflowId}/topics/reorder`,
-        { topicIds: optimisticTopics.map((topic: any) => topic.id) },
+        { topicIds: reordered.map((topic: any) => topic.id) },
       );
       await refetchWorkflows();
-      setWorkflowOrderFeedback({
-        tone: "success",
-        message: "Topic order saved.",
-      });
+      triggerToast("Topic order updated.");
     } catch (error: any) {
-      setWorkflows((current) =>
-        current.map((workflow) =>
-          workflow.id === selectedWorkflowId
-            ? { ...workflow, topics: previousTopics }
-            : workflow,
-        ),
-      );
-      setWorkflowOrderFeedback({
-        tone: "error",
-        message: `${error?.message || "The topic could not be moved."} The previous order was restored.`,
-      });
+      triggerToast(error?.message || "The topic could not be moved.");
     } finally {
       setTopicOrderSaving(false);
-      workflowOrderSavingRef.current = false;
       setDraggedTopicId(null);
-      setTopicDropIndex(null);
     }
   };
 
@@ -910,142 +830,30 @@ function ProfessorDashboardContent() {
       nextIndex >= selectedWorkflowTopics.length
     )
       return;
-    const dropIndex = direction < 0 ? index - 1 : index + 2;
-    const reordered = moveWorkflowTopic(
-      selectedWorkflowTopics,
-      topicId,
-      dropIndex,
-    );
+    const reordered = [...selectedWorkflowTopics];
+    [reordered[index], reordered[nextIndex]] = [
+      reordered[nextIndex],
+      reordered[index],
+    ];
     await saveTopicOrder(reordered);
   };
 
-  const handleDropTopic = async (targetIndex: number) => {
-    if (!draggedTopicId) {
+  const handleDropTopic = async (targetTopicId: string) => {
+    if (!draggedTopicId || draggedTopicId === targetTopicId) {
       setDraggedTopicId(null);
       return;
     }
-    const reordered = moveWorkflowTopic(
-      selectedWorkflowTopics,
-      draggedTopicId,
-      targetIndex,
+    const reordered = [...selectedWorkflowTopics];
+    const sourceIndex = reordered.findIndex(
+      (topic: any) => topic.id === draggedTopicId,
     );
-    if (
-      reordered.every(
-        (topic, index) => topic.id === selectedWorkflowTopics[index]?.id,
-      )
-    ) {
-      setDraggedTopicId(null);
-      setTopicDropIndex(null);
-      return;
-    }
+    const targetIndex = reordered.findIndex(
+      (topic: any) => topic.id === targetTopicId,
+    );
+    if (sourceIndex < 0 || targetIndex < 0) return setDraggedTopicId(null);
+    const [moved] = reordered.splice(sourceIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
     await saveTopicOrder(reordered);
-  };
-
-  const saveMilestoneOrder = async (reordered: any[]) => {
-    if (!selectedWorkflowId || workflowOrderSavingRef.current) return;
-    if (selectedWorkflow?.status === "ARCHIVED") {
-      setWorkflowOrderFeedback({
-        tone: "error",
-        message: "Archived workflows cannot be reordered.",
-      });
-      return;
-    }
-    const previousMilestones = selectedWorkflowMilestones;
-    const optimisticById = new Map(
-      reordered.map((milestone) => [milestone.id, milestone]),
-    );
-    const previousEditingMilestone = editingMilestone;
-    const previousEditorTopicId = milestoneEditTopicId;
-    workflowOrderSavingRef.current = true;
-    setTopicOrderSaving(true);
-    setWorkflowOrderFeedback(null);
-    setMilestones((current) =>
-      current.map((milestone) =>
-        milestone.workflowId === selectedWorkflowId
-          ? optimisticById.get(milestone.id) || milestone
-          : milestone,
-      ),
-    );
-    if (editingMilestone) {
-      const optimisticEditingMilestone = optimisticById.get(
-        editingMilestone.id,
-      );
-      if (optimisticEditingMilestone) {
-        setEditingMilestone(optimisticEditingMilestone);
-        setMilestoneEditTopicId(optimisticEditingMilestone.topicId || "");
-      }
-    }
-    try {
-      await apiClient.patch(
-        `/api/workflows/${selectedWorkflowId}/stages/reorder`,
-        {
-          milestones: reordered.map((milestone) => ({
-            id: milestone.id,
-            topicId: milestone.topicId,
-          })),
-        },
-      );
-      await refetchWorkflows();
-      setWorkflowOrderFeedback({
-        tone: "success",
-        message: "Milestone order saved.",
-      });
-    } catch (error: any) {
-      const previousById = new Map(
-        previousMilestones.map((milestone) => [milestone.id, milestone]),
-      );
-      setMilestones((current) =>
-        current.map((milestone) =>
-          milestone.workflowId === selectedWorkflowId
-            ? previousById.get(milestone.id) || milestone
-            : milestone,
-        ),
-      );
-      if (previousEditingMilestone) {
-        setEditingMilestone(previousEditingMilestone);
-        setMilestoneEditTopicId(previousEditorTopicId);
-      }
-      setWorkflowOrderFeedback({
-        tone: "error",
-        message: `${error?.message || "The milestone could not be moved."} The previous order was restored.`,
-      });
-    } finally {
-      setTopicOrderSaving(false);
-      workflowOrderSavingRef.current = false;
-      setDraggedMilestoneId(null);
-      setMilestoneDropTarget(null);
-      setOpenMilestoneMoveMenuId(null);
-    }
-  };
-
-  const handleMoveMilestone = async (
-    milestoneId: string,
-    targetTopicId: string | null,
-    targetIndex: number,
-  ) => {
-    if (workflowOrderSavingRef.current) return;
-    const reordered = moveWorkflowMilestone(
-      selectedWorkflowMilestones,
-      selectedWorkflowTopics.map((topic: any) => topic.id),
-      milestoneId,
-      targetTopicId,
-      targetIndex,
-    );
-    if (
-      reordered.every((milestone, index) => {
-        const current = selectedWorkflowMilestones
-          .slice()
-          .sort((left, right) => left.sequence - right.sequence)[index];
-        return (
-          milestone.id === current?.id && milestone.topicId === current?.topicId
-        );
-      })
-    ) {
-      setDraggedMilestoneId(null);
-      setMilestoneDropTarget(null);
-      return;
-    }
-    await saveMilestoneOrder(reordered);
   };
 
   const handleDeleteTopic = async (topic: any) => {
@@ -1175,8 +983,6 @@ function ProfessorDashboardContent() {
   };
 
   const handleDeleteTask = async (id: string) => {
-    if (milestoneDeleting) return;
-    setMilestoneDeleting(true);
     try {
       const result = await apiClient.delete<{
         archived?: boolean;
@@ -1193,8 +999,6 @@ function ProfessorDashboardContent() {
       );
     } catch (error: any) {
       triggerToast(error?.message || "Milestone could not be deleted.");
-    } finally {
-      setMilestoneDeleting(false);
     }
   };
 
@@ -1251,13 +1055,7 @@ function ProfessorDashboardContent() {
   };
 
   const handleSaveMilestoneDetails = async () => {
-    if (
-      milestoneSavingRef.current ||
-      !editingMilestone ||
-      !milestoneEditTitle.trim()
-    )
-      return;
-    milestoneSavingRef.current = true;
+    if (!editingMilestone || !milestoneEditTitle.trim()) return;
     setMilestoneSaveStatus("saving");
     try {
       const result = await apiClient.patch<{ stage: any }>(
@@ -1290,10 +1088,8 @@ function ProfessorDashboardContent() {
       setMilestoneEditTargetChanged(false);
       setMilestoneSaveStatus("saved");
     } catch (error: any) {
-      setMilestoneSaveStatus("error");
+      setMilestoneSaveStatus("idle");
       triggerToast(error?.message || "Milestone details could not be saved.");
-    } finally {
-      milestoneSavingRef.current = false;
     }
   };
 
@@ -1420,9 +1216,6 @@ function ProfessorDashboardContent() {
   const selectedWorkflow =
     workflows.find((workflow: any) => workflow.id === selectedWorkflowId) ||
     null;
-  const selectedWorkflowProjectCount = projects.filter(
-    (project: any) => project.workflowId === selectedWorkflowId,
-  ).length;
   const selectedWorkflowTopics = selectedWorkflow?.topics || [];
   const selectedWorkflowInvitation = selectedWorkflow?.inviteCode
     ? {
@@ -1431,9 +1224,9 @@ function ProfessorDashboardContent() {
         link: `${typeof window !== "undefined" ? window.location.origin : ""}/student/workflows/join/${selectedWorkflow.inviteCode}`,
       }
     : null;
-  const selectedWorkflowMilestones = milestones
-    .filter((item) => item.workflowId === selectedWorkflowId)
-    .sort((left, right) => left.sequence - right.sequence);
+  const selectedWorkflowMilestones = milestones.filter(
+    (item) => item.workflowId === selectedWorkflowId,
+  );
   const milestoneConditionOptions = (topicId: string, editingId?: string) => {
     const editing = selectedWorkflowMilestones.find(
       (item) => item.id === editingId,
@@ -1482,6 +1275,9 @@ function ProfessorDashboardContent() {
   const workflowApprovalCount = selectedWorkflowMilestones.filter(
     (item) => item.locked,
   ).length;
+  const workflowDocumentMilestoneCount = selectedWorkflowMilestones.filter(
+    (item) => item.requiresDocument,
+  ).length;
   const workflowReadyToPublish = Boolean(
     selectedWorkflow &&
     selectedWorkflowTopics.length &&
@@ -1493,6 +1289,13 @@ function ProfessorDashboardContent() {
           item.tasks?.some((task: any) => task.isRequired !== false)),
     ),
   );
+  const workflowConfigurationPercent = selectedWorkflowMilestones.length
+    ? Math.round(
+        (selectedWorkflowMilestones.filter((item) => item.topicId).length /
+          selectedWorkflowMilestones.length) *
+          100,
+      )
+    : 0;
   const workflowSavedLabel = selectedWorkflow?.updatedAt
     ? new Date(selectedWorkflow.updatedAt).toLocaleString([], {
         month: "short",
@@ -1511,54 +1314,16 @@ function ProfessorDashboardContent() {
       item.workflowId === selectedWorkflowId ||
       item.workflow?.id === selectedWorkflowId,
   );
-  const workflowOrderDisabledReason = !selectedWorkflow
-    ? "Select a workflow before changing its order."
-    : selectedWorkflow.status === "ARCHIVED"
-      ? "Archived workflows are read-only."
-      : topicOrderSaving
-        ? "Wait for the current order to finish saving."
-        : null;
-  const renderMilestoneDropTarget = (
-    topicId: string | null,
-    index: number,
-    key: string,
-  ) => {
-    const active =
-      draggedMilestoneId &&
-      milestoneDropTarget?.topicId === topicId &&
-      milestoneDropTarget.index === index;
-    return (
-      <div
-        key={key}
-        onDragEnter={(event) => {
-          if (!draggedMilestoneId || workflowOrderDisabledReason) return;
-          event.preventDefault();
-          setMilestoneDropTarget({ topicId, index });
-        }}
-        onDragOver={(event) => {
-          if (!draggedMilestoneId || workflowOrderDisabledReason) return;
-          event.preventDefault();
-          event.dataTransfer.dropEffect = "move";
-          setMilestoneDropTarget({ topicId, index });
-        }}
-        onDrop={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          if (!draggedMilestoneId || workflowOrderDisabledReason) return;
-          void handleMoveMilestone(draggedMilestoneId, topicId, index);
-        }}
-        className={`grid overflow-hidden text-center text-xs font-bold transition-all ${active ? "h-11 border-2 border-dashed border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]" : draggedMilestoneId ? "h-3 border-y border-transparent" : "h-0"}`}
-      >
-        {active ? <span className="place-self-center">Drop here</span> : null}
-      </div>
-    );
-  };
-  const renderWorkflowMilestone = (
-    milestone: any,
-    index: number,
-    siblings: any[],
-  ) => {
-    const topicPosition = index + 1;
+  const renderWorkflowMilestone = (milestone: any) => {
+    const prerequisite = selectedWorkflowMilestones
+      .filter((candidate) => candidate.sequence < milestone.sequence)
+      .sort((left, right) => right.sequence - left.sequence)[0];
+    const topicPosition = milestone.topicId
+      ? selectedWorkflowMilestones
+          .filter((candidate) => candidate.topicId === milestone.topicId)
+          .sort((left, right) => left.sequence - right.sequence)
+          .findIndex((candidate) => candidate.id === milestone.id) + 1
+      : milestone.sequence;
     const typeLabel = milestone.milestoneType === "ADVISER_SELECTION"
       ? "Adviser Milestone"
       : milestone.milestoneType === "DEFENSE_ELIGIBILITY"
@@ -1569,54 +1334,16 @@ function ProfessorDashboardContent() {
             ? "Approval"
             : "Academic Event";
     const typeStyle = milestone.milestoneType === "ADVISER_SELECTION"
-      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+      ? "bg-emerald-50 text-emerald-700"
       : milestone.milestoneType === "DEFENSE_ELIGIBILITY"
         ? "bg-[var(--color-primary-light)] text-[var(--color-primary)]"
         : milestone.requiresDocument !== false
-          ? "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
+          ? "bg-blue-50 text-blue-700"
           : milestone.locked
-            ? "bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300"
-            : "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300";
-    const prerequisite = milestone.requiredMilestoneId
-      ? selectedWorkflowMilestones.find(
-          (item) => item.id === milestone.requiredMilestoneId,
-        )
-      : null;
-    const requirementCount = milestone.tasks?.length || 0;
-    const moveDisabledReason = workflowOrderDisabledReason;
+            ? "bg-violet-50 text-violet-700"
+            : "bg-amber-50 text-amber-700";
     return (
-      <React.Fragment key={milestone.id}>
-        {renderMilestoneDropTarget(
-          milestone.topicId || null,
-          index,
-          `drop-before-${milestone.id}`,
-        )}
-      <article className={`group flex min-h-14 items-center gap-2 border-t border-[var(--color-border-subtle)] px-3 py-2.5 transition sm:px-4 ${editingMilestone?.id === milestone.id ? "bg-[var(--color-primary-light)]/60" : "hover:bg-[var(--color-surface-subtle)]"} ${draggedMilestoneId === milestone.id ? "opacity-45" : ""}`}>
-        <button
-          type="button"
-          draggable={!moveDisabledReason}
-          disabled={Boolean(moveDisabledReason)}
-          title={moveDisabledReason || "Drag to reorder this milestone"}
-          aria-label={`Drag ${milestone.title} to reorder`}
-          onDragStart={(event) => {
-            if (moveDisabledReason) {
-              event.preventDefault();
-              return;
-            }
-            event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", milestone.id);
-            setDraggedTopicId(null);
-            setDraggedMilestoneId(milestone.id);
-            setOpenMilestoneMoveMenuId(null);
-          }}
-          onDragEnd={() => {
-            setDraggedMilestoneId(null);
-            setMilestoneDropTarget(null);
-          }}
-          className="grid h-9 w-7 shrink-0 cursor-grab place-items-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-primary)] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <i className="ti ti-grip-vertical text-lg" aria-hidden="true" />
-        </button>
+      <article key={milestone.id} className="group flex items-start gap-3 border-t border-[var(--color-border-subtle)] px-4 py-4 first:border-t-0 sm:px-5">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-sm font-extrabold text-[var(--color-primary)]">
           {topicPosition}
         </span>
@@ -1626,153 +1353,27 @@ function ProfessorDashboardContent() {
             setShowAdvancedMilestoneOptions(false);
             openMilestoneEditor(milestone);
           }}
-          aria-current={editingMilestone?.id === milestone.id ? "true" : undefined}
           aria-label={`Edit milestone ${milestone.title}`}
-          className="min-w-0 flex-1 rounded-lg py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+          className="min-w-0 flex-1 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
         >
-          <span className="flex flex-wrap items-center gap-2.5">
+          <span className="flex flex-wrap items-center gap-2">
             <span className="text-[15px] font-extrabold text-[var(--color-text-primary)]">{milestone.title}</span>
             <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${typeStyle}`}>{typeLabel}</span>
           </span>
-          <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[var(--color-text-secondary)]">
-            {milestone.requiresDocument !== false ? (
-              <span><i className="ti ti-file-upload mr-1" aria-hidden="true" />{requirementCount ? `${requirementCount} requirement${requirementCount === 1 ? "" : "s"}` : "Document required"}</span>
-            ) : null}
-            {milestone.locked ? (
-              <span><i className="ti ti-lock-check mr-1" aria-hidden="true" />Approval required</span>
-            ) : null}
-            {prerequisite ? (
-              <span className="max-w-full truncate"><i className="ti ti-link mr-1" aria-hidden="true" />After {prerequisite.title}</span>
-            ) : null}
-            <span className="sm:hidden"><i className="ti ti-calendar mr-1" aria-hidden="true" />{formatMilestoneTarget(milestone)}</span>
+          <span className="mt-1.5 block line-clamp-2 text-sm leading-5 text-[var(--color-text-secondary)]">
+            {milestone.description || "No student instructions added yet."}
+          </span>
+          <span className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--color-text-secondary)]">
+            <span className="rounded-lg bg-[var(--color-surface-subtle)] px-2.5 py-1.5"><i className="ti ti-users mr-1" />{milestone.submissionMode === "INDIVIDUAL" ? "Individual" : milestone.submissionMode === "GROUP" ? "Research group" : "Individual or group"}</span>
+            <span className="rounded-lg bg-[var(--color-surface-subtle)] px-2.5 py-1.5"><i className="ti ti-calendar mr-1" />{formatMilestoneTarget(milestone)}</span>
+            {milestone.requiredMilestoneId && <span className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-amber-700"><i className="ti ti-lock-check mr-1" />Required: {selectedWorkflowMilestones.find((item) => item.id === milestone.requiredMilestoneId)?.title || "earlier milestone"}</span>}
+            {prerequisite && <span className="rounded-lg bg-[var(--color-surface-subtle)] px-2.5 py-1.5"><i className="ti ti-link mr-1" />Prerequisite: {prerequisite.title}</span>}
+            {milestone.locked && <span className="rounded-lg bg-[var(--color-surface-subtle)] px-2.5 py-1.5"><i className="ti ti-lock mr-1" />Approval required</span>}
+            {milestone.milestoneType === "DEFENSE_ELIGIBILITY" && <span className="rounded-lg bg-[var(--color-primary-light)] px-2.5 py-1.5 text-[var(--color-primary)]"><i className="ti ti-shield-check mr-1" />One defense cycle</span>}
           </span>
         </button>
-        <span className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-[var(--color-text-secondary)] sm:flex">
-          <i className="ti ti-calendar" aria-hidden="true" />
-          {formatMilestoneTarget(milestone)}
-        </span>
-        <div className="relative shrink-0">
-          <button
-            type="button"
-            onClick={() =>
-              setOpenMilestoneMoveMenuId((current) =>
-                current === milestone.id ? null : milestone.id,
-              )
-            }
-            aria-haspopup="menu"
-            aria-expanded={openMilestoneMoveMenuId === milestone.id}
-            aria-label={`Move options for ${milestone.title}`}
-            className="grid h-9 w-9 place-items-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-primary)]"
-          >
-            <i className="ti ti-dots-vertical" aria-hidden="true" />
-          </button>
-          {openMilestoneMoveMenuId === milestone.id ? (
-            <div
-              role="menu"
-              className="absolute right-0 top-10 z-30 w-60 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 shadow-xl"
-            >
-              <button
-                type="button"
-                role="menuitem"
-                disabled={Boolean(moveDisabledReason) || index === 0}
-                title={
-                  moveDisabledReason ||
-                  (index === 0 ? "Already first in this topic" : "Move up")
-                }
-                onClick={() =>
-                  void handleMoveMilestone(
-                    milestone.id,
-                    milestone.topicId || null,
-                    index - 1,
-                  )
-                }
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <i className="ti ti-arrow-up" aria-hidden="true" /> Move up
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                disabled={
-                  Boolean(moveDisabledReason) || index === siblings.length - 1
-                }
-                title={
-                  moveDisabledReason ||
-                  (index === siblings.length - 1
-                    ? "Already last in this topic"
-                    : "Move down")
-                }
-                onClick={() =>
-                  void handleMoveMilestone(
-                    milestone.id,
-                    milestone.topicId || null,
-                    index + 2,
-                  )
-                }
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <i className="ti ti-arrow-down" aria-hidden="true" /> Move down
-              </button>
-              <label className="mt-2 block border-t border-[var(--color-border-subtle)] px-2 pt-2 text-xs font-bold text-[var(--color-text-secondary)]">
-                Move to (first position)
-                <select
-                  value={milestone.topicId || "__unassigned__"}
-                  disabled={Boolean(moveDisabledReason)}
-                  title={moveDisabledReason || "Move milestone to another topic"}
-                  onChange={(event) => {
-                    const topicId =
-                      event.target.value === "__unassigned__"
-                        ? null
-                        : event.target.value;
-                    if (topicId === (milestone.topicId || null)) return;
-                    void handleMoveMilestone(
-                      milestone.id,
-                      topicId,
-                      0,
-                    );
-                  }}
-                  className="mt-1.5 h-10 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-sm font-semibold text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {selectedWorkflowTopics.map((topic: any) => (
-                    <option key={topic.id} value={topic.id}>
-                      {topic.title}
-                    </option>
-                  ))}
-                  <option value="__unassigned__">Needs organization</option>
-                </select>
-              </label>
-              <div className="mt-2 border-t border-[var(--color-border-subtle)] pt-2">
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setOpenMilestoneMoveMenuId(null);
-                    setShowAdvancedMilestoneOptions(false);
-                    openMilestoneEditor(milestone);
-                  }}
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)]"
-                >
-                  Edit milestone
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  disabled={selectedWorkflow?.status === "ARCHIVED"}
-                  title={selectedWorkflow?.status === "ARCHIVED" ? "Archived workflows are read-only." : "Delete or remove this milestone"}
-                  onClick={() => {
-                    setOpenMilestoneMoveMenuId(null);
-                    setMilestonePendingDelete(milestone);
-                  }}
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-950/30"
-                >
-                  Delete milestone
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </div>
+        <span className="flex shrink-0 items-center gap-1 pt-1 text-[var(--color-text-muted)]" aria-hidden="true"><i className="ti ti-dots text-lg" /><i className="ti ti-grip-vertical text-lg" /></span>
       </article>
-      </React.Fragment>
     );
   };
   const scopedSubmissions = submissions.filter(
@@ -2204,20 +1805,6 @@ function ProfessorDashboardContent() {
               enrollments. This cannot be undone. Workflows linked to research
               projects cannot be deleted.
             </p>
-            {selectedWorkflowProjectCount > 0 ? (
-              <div
-                role="alert"
-                className="flex gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200"
-              >
-                <i className="ti ti-lock mt-0.5 text-lg" aria-hidden="true" />
-                <p>
-                  <strong className="block">Deletion is blocked</strong>
-                  This workflow is used by {selectedWorkflowProjectCount}{" "}
-                  research project{selectedWorkflowProjectCount === 1 ? "" : "s"}.
-                  Advisio preserves those projects and their academic records.
-                </p>
-              </div>
-            ) : null}
             <div>
               <label
                 htmlFor="delete-workflow-confirmation"
@@ -2236,7 +1823,7 @@ function ProfessorDashboardContent() {
                 id="delete-workflow-confirmation"
                 value={deleteConfirmation}
                 onChange={(event) => setDeleteConfirmation(event.target.value)}
-                disabled={deletingWorkflow || selectedWorkflowProjectCount > 0}
+                disabled={deletingWorkflow}
                 autoComplete="off"
                 spellCheck={false}
                 aria-describedby="delete-workflow-phrase"
@@ -2261,7 +1848,6 @@ function ProfessorDashboardContent() {
                 type="submit"
                 disabled={
                   deletingWorkflow ||
-                  selectedWorkflowProjectCount > 0 ||
                   deleteConfirmation !==
                     `sudo delete "${workflowToDelete.name}"`
                 }
@@ -2588,10 +2174,7 @@ function ProfessorDashboardContent() {
 
       {editingMilestone && (
         <MilestoneComposer
-          key={editingMilestone.id}
           mode="edit"
-          presentation="panel"
-          portalTargetId="workflow-milestone-editor-slot"
           workflowName={selectedWorkflow?.name || "Research workflow"}
           topics={selectedWorkflowTopics}
           topicId={milestoneEditTopicId}
@@ -2676,13 +2259,13 @@ function ProfessorDashboardContent() {
                 {(editingMilestone.tasks || []).map((requirement: any) => (
                   <div
                     key={requirement.id}
-                    className="flex items-start justify-between rounded-xl border border-[var(--color-border)] p-3"
+                    className="flex items-start justify-between rounded-xl border border-slate-200 p-3"
                   >
                     <div>
-                      <p className="text-base font-bold text-[var(--color-text-primary)]">
+                      <p className="text-base font-bold text-[#102f49]">
                         {requirement.title}
                       </p>
-                      <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
+                      <p className="mt-0.5 text-base text-slate-500">
                         {requirement.allowedFileTypes || "PDF,DOCX"} ·{" "}
                         {formatTaskDeadline({
                           ...requirement,
@@ -2699,14 +2282,14 @@ function ProfessorDashboardContent() {
                       type="button"
                       onClick={() => handleDeleteRequirement(requirement.id)}
                       aria-label={`Delete ${requirement.title}`}
-                      className="grid h-8 w-8 place-items-center rounded-lg text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                      className="grid h-8 w-8 place-items-center rounded-lg text-rose-500 hover:bg-rose-50"
                     >
                       <i className="ti ti-trash" />
                     </button>
                   </div>
                 ))}
-                <div className="space-y-3 rounded-xl bg-[var(--color-surface-subtle)] p-4">
-                  <p className="text-base font-extrabold text-[var(--color-text-primary)]">
+                <div className="space-y-3 rounded-xl bg-slate-50 p-4">
+                  <p className="text-base font-extrabold text-[#102f49]">
                     Add another requirement
                   </p>
                   <input
@@ -2716,7 +2299,7 @@ function ProfessorDashboardContent() {
                       setNewRequirementTitle(event.target.value)
                     }
                     placeholder="e.g. Chapter 1 PDF"
-                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 text-base text-[var(--color-text-primary)]"
+                    className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                   />
                   <textarea
                     value={newRequirementInstructions}
@@ -2725,7 +2308,7 @@ function ProfessorDashboardContent() {
                     }
                     rows={2}
                     placeholder="Short instructions (optional)"
-                    className="w-full resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 text-base text-[var(--color-text-primary)]"
+                    className="w-full resize-none rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                   />
                   <div className="grid gap-2 sm:grid-cols-2">
                     <input
@@ -2742,7 +2325,7 @@ function ProfessorDashboardContent() {
                           ? "Uses milestone date"
                           : "Target days"
                       }
-                      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 text-base text-[var(--color-text-primary)]"
+                      className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                     />
                     <input
                       value={newRequirementFileTypes}
@@ -2750,14 +2333,14 @@ function ProfessorDashboardContent() {
                         setNewRequirementFileTypes(event.target.value)
                       }
                       placeholder="PDF,DOCX"
-                      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 text-base text-[var(--color-text-primary)]"
+                      className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => void handleCreateRequirement()}
                     disabled={saving || !newRequirementTitle.trim()}
-                    className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] disabled:opacity-50 dark:text-[var(--college-on-primary-dark)]"
+                    className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
                   >
                     {saving ? "Adding…" : "Add requirement"}
                   </button>
@@ -3141,7 +2724,6 @@ function ProfessorDashboardContent() {
               <button
                 type="button"
                 onClick={() => setMilestonePendingDelete(null)}
-                disabled={milestoneDeleting}
                 className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600"
               >
                 Keep milestone
@@ -3149,11 +2731,10 @@ function ProfessorDashboardContent() {
               <button
                 type="button"
                 onClick={() => handleDeleteTask(milestonePendingDelete.id)}
-                disabled={milestoneDeleting}
-                className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:cursor-wait disabled:opacity-60"
+                className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white"
               >
-                <i className={`ti ${milestoneDeleting ? "ti-loader-2 animate-spin" : "ti-trash"} mr-1.5`} />
-                {milestoneDeleting ? "Removing…" : "Remove milestone"}
+                <i className="ti ti-trash mr-1.5" />
+                Remove milestone
               </button>
             </div>
           </div>
@@ -6175,11 +5756,11 @@ function ProfessorDashboardContent() {
                         Professor / Coordinator
                       </p>
                       <div className="flex items-center gap-2">
-                        <h2 className="text-2xl font-extrabold text-[var(--color-text-primary)]">
+                        <h2 className="text-xl font-extrabold text-[var(--color-text-primary)]">
                           Research Workflow
                         </h2>
                         <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${selectedWorkflow?.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"}`}
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${selectedWorkflow?.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
                         >
                           {selectedWorkflow?.status
                             ? selectedWorkflow.status
@@ -6190,7 +5771,7 @@ function ProfessorDashboardContent() {
                             : "No workflow selected"}
                         </span>
                       </div>
-                      <p className="mt-1 text-base text-[var(--color-text-secondary)]">
+                      <p className="mt-1 text-base text-slate-500">
                         Configure research stages, milestones, and approval requirements.
                       </p>
                     </div>
@@ -6198,11 +5779,6 @@ function ProfessorDashboardContent() {
                       <button
                         type="button"
                         disabled={!selectedWorkflow}
-                        title={
-                          selectedWorkflow
-                            ? "Preview the workflow as a student"
-                            : "Select a workflow to preview it."
-                        }
                         onClick={() => setShowStudentPreview(true)}
                         className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-extrabold text-[var(--color-primary)] transition hover:bg-[var(--color-surface-subtle)] disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -6214,66 +5790,20 @@ function ProfessorDashboardContent() {
                         disabled={
                           !selectedWorkflow ||
                           selectedWorkflow.status === "PUBLISHED" ||
-                          selectedWorkflow.status === "ARCHIVED" ||
-                          !workflowReadyToPublish ||
-                          publishingWorkflow ||
-                          topicOrderSaving
-                        }
-                        title={
-                          !selectedWorkflow
-                            ? "Select a workflow to publish it."
-                            : selectedWorkflow.status === "PUBLISHED"
-                              ? "This workflow is already published."
-                              : selectedWorkflow.status === "ARCHIVED"
-                                ? "Archived workflows cannot be published."
-                                : topicOrderSaving
-                                  ? "Wait for the workflow order to finish saving."
-                                  : !workflowReadyToPublish
-                                    ? "Assign every milestone to a topic and complete required submission details before publishing."
-                                    : "Publish this workflow to assigned researchers"
+                          publishingWorkflow
                         }
                         onClick={() => setShowPublishConfirmation(true)}
                         className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] shadow-sm transition hover:bg-[var(--color-primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <i
-                          className={`ti ${publishingWorkflow ? "ti-loader-2 animate-spin" : "ti-send"} mr-1.5`}
+                          className={`ti ${publishingWorkflow ? "ti-loader-2 animate-spin" : selectedWorkflow?.status === "PUBLISHED" ? "ti-circle-check" : "ti-send"} mr-1.5`}
                           aria-hidden="true"
                         />
                         {publishingWorkflow
                           ? "Publishing…"
                           : selectedWorkflow?.status === "PUBLISHED"
-                            ? "Publish workflow"
-                            : "Publish workflow"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={
-                          !selectedWorkflow ||
-                          deletingWorkflow ||
-                          topicOrderSaving
-                        }
-                        title={
-                          !selectedWorkflow
-                            ? "Select a workflow before deleting it."
-                            : topicOrderSaving
-                                ? "Wait for the workflow order to finish saving."
-                                : selectedWorkflowProjectCount > 0
-                                  ? "View why this workflow cannot be deleted"
-                                  : "Permanently delete this entire workflow"
-                        }
-                        onClick={() => {
-                          if (!selectedWorkflow) return;
-                          setDeleteConfirmation("");
-                          setDeleteWorkflowError("");
-                          setWorkflowToDelete({
-                            id: selectedWorkflow.id,
-                            name: selectedWorkflow.name,
-                          });
-                        }}
-                        className="rounded-xl border border-red-300 bg-[var(--color-surface)] px-4 py-2.5 text-sm font-extrabold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-45 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/30"
-                      >
-                        <i className="ti ti-trash mr-1.5" aria-hidden="true" />
-                        Delete workflow
+                            ? "Published"
+                            : "Publish"}
                       </button>
                     </div>
                   </div>
@@ -6285,7 +5815,6 @@ function ProfessorDashboardContent() {
                       value={selectedWorkflowId}
                       onChange={(event) => {
                         setSelectedWorkflowId(event.target.value);
-                        setWorkflowOrderFeedback(null);
                       }}
                       className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-base font-semibold text-[var(--color-text-primary)] sm:max-w-md"
                     >
@@ -6311,6 +5840,14 @@ function ProfessorDashboardContent() {
                         : "Changes are saved directly to this workflow"}
                     </span>
                   </div>
+                  {selectedWorkflow?.status === "DRAFT" && (
+                    <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+                      <i className="ti ti-lock mt-0.5" aria-hidden="true" />
+                      Draft milestones remain private until you publish.
+                      Existing student submissions are never changed by
+                      publishing.
+                    </p>
+                  )}
                 </section>
                 <div
                   className="overflow-x-auto rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-sm"
@@ -6367,12 +5904,12 @@ function ProfessorDashboardContent() {
                             0,
                           );
                         }}
-                        className={`relative flex items-center gap-2 whitespace-nowrap px-5 py-4 text-sm font-extrabold transition ${workflowView === item.id ? "text-[var(--color-primary)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"}`}
+                        className={`relative flex items-center gap-2 whitespace-nowrap px-5 py-4 text-sm font-extrabold transition ${workflowView === item.id ? "text-[#173f63]" : "text-slate-500 hover:text-[#173f63]"}`}
                       >
                         <i className={`ti ${item.icon}`} />
                         {item.label}
                         {workflowView === item.id && (
-                          <span className="absolute inset-x-3 bottom-0 h-1 rounded-t-full bg-[var(--color-primary)]" />
+                          <span className="absolute inset-x-3 bottom-0 h-1 rounded-t-full bg-[#f6a800]" />
                         )}
                       </button>
                     ))}
@@ -6561,37 +6098,41 @@ function ProfessorDashboardContent() {
                       </section>
                     )}
                     {!workflowsLoading && !workflowsError && (
-                      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] 2xl:grid-cols-[minmax(0,1fr)_430px]">
-                        <section className="min-w-0 overflow-visible rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm sm:p-5">
+                      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+                        <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
                           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                               <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
                                 Workflow structure
                               </h3>
                               <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
-                                Drag to reorder. Open a milestone to edit details. Prerequisites must stay before the milestones they unlock.
+                                Organize topics and select a milestone to edit its details.
                               </p>
                             </div>
                             <div className="flex shrink-0 flex-wrap items-center gap-3 self-end sm:self-auto">
+                              <span className="rounded-full bg-[var(--color-surface-subtle)] px-3 py-1 text-xs font-bold text-[var(--color-text-secondary)]">
+                                {
+                                  milestones.filter(
+                                    (item) =>
+                                      item.workflowId === selectedWorkflowId,
+                                  ).length
+                                }{" "}
+                                milestones
+                              </span>
                               <div className="relative">
                                 <button
                                   type="button"
-                                  onClick={() => openTopicEditor()}
-                                  disabled={
-                                    !selectedWorkflowId ||
-                                    selectedWorkflow?.status === "ARCHIVED"
+                                  onClick={() =>
+                                    setShowWorkflowCreateMenu((value) => !value)
                                   }
-                                  title={
-                                    !selectedWorkflowId
-                                      ? "Select a workflow before creating an item."
-                                      : selectedWorkflow?.status === "ARCHIVED"
-                                        ? "Archived workflows are read-only."
-                                        : "Add a topic to organize milestones"
-                                  }
+                                  disabled={!selectedWorkflowId}
+                                  aria-haspopup="menu"
+                                  aria-expanded={showWorkflowCreateMenu}
                                   className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] shadow-sm disabled:cursor-not-allowed disabled:opacity-40 dark:text-[var(--college-on-primary-dark)]"
                                 >
                                   <i className="ti ti-plus mr-1.5" />
-                                  Add topic
+                                  Create{" "}
+                                  <i className="ti ti-chevron-down ml-1" />
                                 </button>
                                 {showWorkflowCreateMenu && (
                                   <div
@@ -6602,14 +6143,14 @@ function ProfessorDashboardContent() {
                                       type="button"
                                       role="menuitem"
                                       onClick={() => openTopicEditor()}
-                                      className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-[var(--color-surface-subtle)]"
+                                      className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
                                     >
                                       <i className="ti ti-folders mt-0.5 text-lg text-[#C58A18]" />
                                       <span>
-                                        <strong className="block text-sm text-[var(--color-text-primary)]">
+                                        <strong className="block text-sm text-[#102f49]">
                                           Topic
                                         </strong>
-                                        <span className="mt-0.5 block text-sm text-[var(--color-text-secondary)]">
+                                        <span className="mt-0.5 block text-sm text-slate-500">
                                           Group milestones by defense or phase
                                         </span>
                                       </span>
@@ -6666,16 +6207,16 @@ function ProfessorDashboardContent() {
                                                 | "adviser",
                                             );
                                           }}
-                                          className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-[var(--color-surface-subtle)] disabled:cursor-not-allowed disabled:opacity-50"
+                                          className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                           <i
                                             className={`ti ${icon} mt-0.5 text-lg text-[#173f63]`}
                                           />
                                           <span>
-                                            <strong className="block text-sm text-[var(--color-text-primary)]">
+                                            <strong className="block text-sm text-[#102f49]">
                                               {label}
                                             </strong>
-                                            <span className="mt-0.5 block text-sm text-[var(--color-text-secondary)]">
+                                            <span className="mt-0.5 block text-sm text-slate-500">
                                               {description}
                                             </span>
                                           </span>
@@ -6690,14 +6231,14 @@ function ProfessorDashboardContent() {
                                         setShowWorkflowCreateMenu(false);
                                         setWorkflowView("resources");
                                       }}
-                                      className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-[var(--color-surface-subtle)]"
+                                      className="flex w-full gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
                                     >
                                       <i className="ti ti-books mt-0.5 text-lg text-[#173f63]" />
                                       <span>
-                                        <strong className="block text-sm text-[var(--color-text-primary)]">
+                                        <strong className="block text-sm text-[#102f49]">
                                           Guide or template
                                         </strong>
-                                        <span className="mt-0.5 block text-sm text-[var(--color-text-secondary)]">
+                                        <span className="mt-0.5 block text-sm text-slate-500">
                                           Share a reusable workflow resource
                                         </span>
                                       </span>
@@ -6707,164 +6248,203 @@ function ProfessorDashboardContent() {
                               </div>
                             </div>
                           </div>
-                          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-3 text-xs font-semibold text-[var(--color-text-secondary)]">
-                            <p>
-                              {selectedWorkflowTopics.length} topic{selectedWorkflowTopics.length === 1 ? "" : "s"}
-                              <span className="mx-2" aria-hidden="true">·</span>
-                              {selectedWorkflowMilestones.length} milestone{selectedWorkflowMilestones.length === 1 ? "" : "s"}
-                              <span className="mx-2" aria-hidden="true">·</span>
-                              {ungroupedWorkflowMilestones.length} unassigned
-                            </p>
-                            <div aria-live="polite" aria-atomic="true">
-                              {topicOrderSaving ? (
-                                <span className="inline-flex items-center gap-1.5 text-[var(--color-primary)]">
-                                  <i className="ti ti-loader-2 animate-spin" aria-hidden="true" /> Saving order…
-                                </span>
-                              ) : workflowOrderFeedback ? (
-                                <span className={`inline-flex items-center gap-1.5 font-bold ${workflowOrderFeedback.tone === "success" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-                                  <i className={`ti ${workflowOrderFeedback.tone === "success" ? "ti-circle-check" : "ti-alert-circle"}`} aria-hidden="true" />
-                                  {workflowOrderFeedback.message}
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
-                          <div className="mt-4 flex flex-col gap-3">
+                          <div className="mt-5 flex flex-col gap-5">
+                            {ungroupedWorkflowMilestones.length > 0 && (
+                              <section className="order-2 overflow-hidden rounded-2xl border border-dashed border-amber-300 bg-amber-50/40">
+                                <div className="flex items-center gap-3 border-b border-amber-200 px-4 py-3">
+                                  <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-100 text-amber-700">
+                                    <i className="ti ti-folder-question" />
+                                  </span>
+                                  <div>
+                                    <h4 className="font-extrabold text-[var(--color-text-primary)]">
+                                      Needs organization
+                                    </h4>
+                                    <p className="text-base text-[var(--color-text-secondary)]">
+                                      Open a milestone to assign it to a topic.
+                                    </p>
+                                  </div>
+                                </div>
+                                <div>
+                                  {ungroupedWorkflowMilestones.map(
+                                    renderWorkflowMilestone,
+                                  )}
+                                </div>
+                              </section>
+                            )}
                             {selectedWorkflowTopics.map(
                               (topic: any, topicIndex: number) => {
-                                const topicMilestones = milestonesInGroup(
-                                  selectedWorkflowMilestones,
-                                  topic.id,
-                                );
-                                const topicDropActive =
-                                  draggedTopicId && topicDropIndex === topicIndex;
+                                const topicMilestones =
+                                  selectedWorkflowMilestones.filter(
+                                    (milestone) =>
+                                      milestone.topicId === topic.id,
+                                  );
                                 return (
-                                  <React.Fragment key={topic.id}>
-                                    <div
-                                      onDragEnter={(event) => {
-                                        if (!draggedTopicId || workflowOrderDisabledReason) return;
-                                        event.preventDefault();
-                                        setTopicDropIndex(topicIndex);
-                                      }}
-                                      onDragOver={(event) => {
-                                        if (!draggedTopicId || workflowOrderDisabledReason) return;
-                                        event.preventDefault();
-                                        event.dataTransfer.dropEffect = "move";
-                                        setTopicDropIndex(topicIndex);
-                                      }}
-                                      onDrop={(event) => {
-                                        event.preventDefault();
-                                        if (!draggedTopicId || workflowOrderDisabledReason) return;
-                                        void handleDropTopic(topicIndex);
-                                      }}
-                                      className={`grid overflow-hidden text-center text-xs font-bold transition-all ${topicDropActive ? "h-11 rounded-xl border-2 border-dashed border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]" : draggedTopicId ? "h-3" : "h-0"}`}
-                                    >
-                                      {topicDropActive ? <span className="place-self-center">Drop topic here</span> : null}
-                                    </div>
-                                    <section className={`overflow-visible rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] transition ${draggedTopicId === topic.id ? "opacity-45" : ""}`}>
-                                      <header className="flex flex-col gap-2 border-b border-[var(--color-border)] px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-                                        <div className="flex min-w-0 items-center gap-2">
-                                          <button
-                                            type="button"
-                                            draggable={!workflowOrderDisabledReason}
-                                            disabled={Boolean(workflowOrderDisabledReason)}
-                                            title={workflowOrderDisabledReason || "Drag to reorder this topic"}
-                                            aria-label={`Drag ${topic.title} to reorder`}
-                                            onDragStart={(event) => {
-                                              if (workflowOrderDisabledReason) {
-                                                event.preventDefault();
-                                                return;
-                                              }
-                                              event.dataTransfer.effectAllowed = "move";
-                                              event.dataTransfer.setData("text/plain", topic.id);
-                                              setDraggedMilestoneId(null);
-                                              setDraggedTopicId(topic.id);
-                                            }}
-                                            onDragEnd={() => {
-                                              setDraggedTopicId(null);
-                                              setTopicDropIndex(null);
-                                            }}
-                                            className="grid h-9 w-7 shrink-0 cursor-grab place-items-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-primary)] active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-40"
-                                          >
-                                            <i className="ti ti-grip-vertical text-lg" aria-hidden="true" />
-                                          </button>
-                                          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[var(--color-primary-light)] text-sm font-extrabold text-[var(--color-primary)]">
-                                            {topicIndex + 1}
+                                  <section
+                                    key={topic.id}
+                                    onDragOver={(event) =>
+                                      event.preventDefault()
+                                    }
+                                    onDrop={() =>
+                                      void handleDropTopic(topic.id)
+                                    }
+                                    className={`order-1 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition ${draggedTopicId === topic.id ? "opacity-60 ring-2 ring-[var(--college-focus-ring)]" : ""}`}
+                                  >
+                                    <header className="flex flex-col gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                      <div className="flex min-w-0 items-start gap-3">
+                                        <span
+                                          draggable={!topicOrderSaving}
+                                          onDragStart={() =>
+                                            setDraggedTopicId(topic.id)
+                                          }
+                                          onDragEnd={() =>
+                                            setDraggedTopicId(null)
+                                          }
+                                          className="grid h-10 w-10 shrink-0 cursor-grab place-items-center rounded-xl bg-[var(--color-primary)] text-[var(--college-on-primary)] active:cursor-grabbing"
+                                          aria-hidden="true"
+                                          title="Drag to reorder"
+                                        >
+                                          <i
+                                            className="ti ti-grip-vertical"
+                                            aria-hidden="true"
+                                          />
+                                        </span>
+                                        <div className="min-w-0">
+                                          <h4 className="font-extrabold text-[var(--color-text-primary)]">
+                                            <span className="mr-2 text-xs uppercase tracking-wide text-[var(--color-text-muted)]">
+                                              Phase {topicIndex + 1}
+                                            </span>
+                                            {topic.title}
+                                          </h4>
+                                          {topic.description && (
+                                            <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
+                                              {topic.description}
+                                            </p>
+                                          )}
+                                          <span className="mt-1 block text-xs font-bold uppercase tracking-wide text-slate-400">
+                                            {topicMilestones.length} milestone
+                                            {topicMilestones.length === 1
+                                              ? ""
+                                              : "s"}
                                           </span>
-                                          <h4 className="truncate font-extrabold text-[var(--color-text-primary)]">{topic.title}</h4>
-                                          <span className="rounded-full bg-[var(--color-surface-subtle)] px-2 py-0.5 text-xs font-bold text-[var(--color-text-secondary)]">{topicMilestones.length}</span>
                                         </div>
-                                        <div className="flex items-center justify-end gap-1">
-                                          <button
-                                            type="button"
-                                            disabled={selectedWorkflow?.status === "ARCHIVED"}
-                                            title={selectedWorkflow?.status === "ARCHIVED" ? "Archived workflows are read-only." : `Add milestone to ${topic.title}`}
-                                            onClick={() => openNewMilestone("submission", topic.id)}
-                                            className="mr-1 rounded-lg border border-[var(--color-border-strong)] px-3 py-2 text-sm font-extrabold text-[var(--color-primary)] hover:bg-[var(--color-surface-subtle)] disabled:cursor-not-allowed disabled:opacity-40"
-                                          >
-                                            <i className="ti ti-plus mr-1" aria-hidden="true" /> Milestone
-                                          </button>
-                                          <div className="relative">
-                                            <button type="button" onClick={() => setOpenTopicMenuId((current) => current === topic.id ? null : topic.id)} aria-expanded={openTopicMenuId === topic.id} aria-haspopup="menu" aria-label={`Options for ${topic.title}`} className="grid h-9 w-9 place-items-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)]"><i className="ti ti-dots-vertical" aria-hidden="true" /></button>
-                                            {openTopicMenuId === topic.id && (
-                                              <div role="menu" className="absolute right-0 top-10 z-30 w-48 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-xl">
-                                                <button type="button" role="menuitem" onClick={() => { setOpenTopicMenuId(null); void handleMoveTopic(topic.id, -1); }} disabled={Boolean(workflowOrderDisabledReason) || topicIndex === 0} className="w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)] disabled:opacity-40">Move up</button>
-                                                <button type="button" role="menuitem" onClick={() => { setOpenTopicMenuId(null); void handleMoveTopic(topic.id, 1); }} disabled={Boolean(workflowOrderDisabledReason) || topicIndex === selectedWorkflowTopics.length - 1} className="w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)] disabled:opacity-40">Move down</button>
-                                                <button type="button" role="menuitem" onClick={() => { setOpenTopicMenuId(null); openTopicEditor(topic); }} disabled={selectedWorkflow?.status === "ARCHIVED"} className="w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-subtle)] disabled:opacity-40">Edit topic</button>
-                                                <button type="button" role="menuitem" onClick={() => { setOpenTopicMenuId(null); void handleDeleteTopic(topic); }} disabled={topicMilestones.length > 0 || selectedWorkflow?.status === "ARCHIVED"} title={topicMilestones.length ? "Move milestones out before deleting this topic" : undefined} className="w-full rounded-lg px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-40">Delete empty topic</button>
-                                              </div>
-                                            )}
-                                          </div>
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setCollapsedTopicIds((current) => {
-                                                const next = new Set(current);
-                                                if (next.has(topic.id)) next.delete(topic.id);
-                                                else next.add(topic.id);
-                                                return next;
-                                              })
-                                            }
-                                            aria-expanded={!collapsedTopicIds.has(topic.id)}
-                                            aria-controls={`workflow-topic-${topic.id}`}
-                                            aria-label={`${collapsedTopicIds.has(topic.id) ? "Expand" : "Collapse"} ${topic.title}`}
-                                            className="grid h-9 w-9 place-items-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)]"
-                                          ><i className={`ti ${collapsedTopicIds.has(topic.id) ? "ti-chevron-down" : "ti-chevron-up"}`} aria-hidden="true" /></button>
-                                        </div>
-                                      </header>
-                                      <div id={`workflow-topic-${topic.id}`} hidden={collapsedTopicIds.has(topic.id)}>
-                                        {topicMilestones.map((milestone, index) => renderWorkflowMilestone(milestone, index, topicMilestones))}
-                                        {renderMilestoneDropTarget(topic.id, topicMilestones.length, `drop-after-topic-${topic.id}`)}
-                                        {!topicMilestones.length && !draggedMilestoneId ? (
-                                          <button type="button" onClick={() => openNewMilestone("submission", topic.id)} disabled={selectedWorkflow?.status === "ARCHIVED"} title={selectedWorkflow?.status === "ARCHIVED" ? "Archived workflows are read-only." : `Add the first milestone to ${topic.title}`} className="w-full px-4 py-5 text-center text-sm font-bold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-40"><i className="ti ti-plus mr-1.5" aria-hidden="true" />Add the first milestone to {topic.title}</button>
-                                        ) : null}
                                       </div>
-                                    </section>
-                                  </React.Fragment>
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setCollapsedTopicIds((current) => {
+                                              const next = new Set(current);
+                                              if (next.has(topic.id))
+                                                next.delete(topic.id);
+                                              else next.add(topic.id);
+                                              return next;
+                                            })
+                                          }
+                                          aria-expanded={
+                                            !collapsedTopicIds.has(topic.id)
+                                          }
+                                          aria-controls={`workflow-topic-${topic.id}`}
+                                          aria-label={`${collapsedTopicIds.has(topic.id) ? "Expand" : "Collapse"} ${topic.title}`}
+                                          className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-white"
+                                        >
+                                          <i
+                                            className={`ti ${collapsedTopicIds.has(topic.id) ? "ti-chevron-down" : "ti-chevron-up"}`}
+                                          />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            void handleMoveTopic(topic.id, -1)
+                                          }
+                                          disabled={topicIndex === 0}
+                                          aria-label={`Move ${topic.title} up`}
+                                          className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-white disabled:opacity-30"
+                                        >
+                                          <i className="ti ti-arrow-up" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            void handleMoveTopic(topic.id, 1)
+                                          }
+                                          disabled={
+                                            topicIndex ===
+                                            selectedWorkflowTopics.length - 1
+                                          }
+                                          aria-label={`Move ${topic.title} down`}
+                                          className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-white disabled:opacity-30"
+                                        >
+                                          <i className="ti ti-arrow-down" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => openTopicEditor(topic)}
+                                          aria-label={`Edit ${topic.title}`}
+                                          className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-white"
+                                        >
+                                          <i className="ti ti-pencil" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            void handleDeleteTopic(topic)
+                                          }
+                                          disabled={topicMilestones.length > 0}
+                                          title={
+                                            topicMilestones.length
+                                              ? "Move the topic's milestones before deleting it"
+                                              : "Delete topic"
+                                          }
+                                          aria-label={`Delete ${topic.title}`}
+                                          className="grid h-9 w-9 place-items-center rounded-lg text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-30"
+                                        >
+                                          <i className="ti ti-trash" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            openNewMilestone(
+                                              "submission",
+                                              topic.id,
+                                            )
+                                          }
+                                          className="ml-1 rounded-xl bg-white px-3 py-2 text-sm font-extrabold text-[#173f63] shadow-sm ring-1 ring-slate-200 hover:ring-[#173f63]"
+                                        >
+                                          <i className="ti ti-plus mr-1" />
+                                          Milestone
+                                        </button>
+                                      </div>
+                                    </header>
+                                    <div
+                                      id={`workflow-topic-${topic.id}`}
+                                      hidden={collapsedTopicIds.has(topic.id)}
+                                      className="p-0"
+                                    >
+                                      {topicMilestones.length ? (
+                                        topicMilestones.map(
+                                          renderWorkflowMilestone,
+                                        )
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            openNewMilestone(
+                                              "submission",
+                                              topic.id,
+                                            )
+                                          }
+                                          className="w-full rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm font-bold text-slate-500 hover:border-[#f6a800] hover:bg-amber-50/40 hover:text-[#102f49]"
+                                        >
+                                          <i className="ti ti-plus mr-1.5" />
+                                          Add the first milestone to{" "}
+                                          {topic.title}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </section>
                                 );
                               },
                             )}
-                            {draggedTopicId ? (
-                              <div
-                                onDragEnter={(event) => { event.preventDefault(); setTopicDropIndex(selectedWorkflowTopics.length); }}
-                                onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setTopicDropIndex(selectedWorkflowTopics.length); }}
-                                onDrop={(event) => { event.preventDefault(); void handleDropTopic(selectedWorkflowTopics.length); }}
-                                className={`grid overflow-hidden rounded-xl text-center text-xs font-bold transition-all ${topicDropIndex === selectedWorkflowTopics.length ? "h-11 border-2 border-dashed border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]" : "h-3"}`}
-                              >{topicDropIndex === selectedWorkflowTopics.length ? <span className="place-self-center">Drop topic here</span> : null}</div>
-                            ) : null}
-                            {ungroupedWorkflowMilestones.length > 0 || draggedMilestoneId ? (
-                              <section className="overflow-visible rounded-xl border border-dashed border-amber-300 bg-amber-50/40 dark:border-amber-700 dark:bg-amber-950/20">
-                                <header className="flex items-center gap-2 border-b border-amber-200 px-3 py-2.5 dark:border-amber-800">
-                                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"><i className="ti ti-folder-question" aria-hidden="true" /></span>
-                                  <h4 className="font-extrabold text-[var(--color-text-primary)]">Needs organization</h4>
-                                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">{ungroupedWorkflowMilestones.length}</span>
-                                  <span className="ml-auto text-xs text-[var(--color-text-secondary)]">Assign prerequisites before later steps</span>
-                                </header>
-                                <div>
-                                  {ungroupedWorkflowMilestones.map((milestone, index) => renderWorkflowMilestone(milestone, index, ungroupedWorkflowMilestones))}
-                                  {renderMilestoneDropTarget(null, ungroupedWorkflowMilestones.length, "drop-after-unassigned")}
-                                </div>
-                              </section>
-                            ) : null}
                             {!selectedWorkflowMilestones.length &&
                               !selectedWorkflowTopics.length && (
                                 <div className="rounded-2xl border border-dashed border-slate-300 px-6 py-12 text-center">
@@ -6898,24 +6478,122 @@ function ProfessorDashboardContent() {
                               )}
                           </div>
                         </section>
-                        <aside
-                          id="workflow-milestone-editor-slot"
-                          aria-label="Contextual milestone editor"
-                          className={`min-w-0 ${editingMilestone ? "order-first lg:order-none" : ""}`}
-                        >
-                          {!editingMilestone ? (
-                            <div className="sticky top-4 flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-8 py-12 text-center">
-                              <span className="grid h-12 w-12 place-items-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]">
-                                <i className="ti ti-list-details text-2xl" aria-hidden="true" />
+                        <aside className="space-y-4">
+                          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <h3 className="font-extrabold text-[var(--color-text-primary)]">
+                                  Workflow summary
+                                </h3>
+                                <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
+                                  Version {selectedWorkflow?.version || 1}
+                                </p>
+                              </div>
+                              <span
+                                className={`rounded-full px-2 py-1 text-xs font-bold ${workflowReadyToPublish ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
+                              >
+                                {workflowReadyToPublish
+                                  ? "Ready"
+                                  : "Needs setup"}
                               </span>
-                              <h3 className="mt-4 text-base font-extrabold text-[var(--color-text-primary)]">
-                                Select a milestone
-                              </h3>
-                              <p className="mt-2 max-w-xs text-sm leading-6 text-[var(--color-text-secondary)]">
-                                Choose a milestone to inspect its instructions, requirements, dependencies, approval rule, and due date.
-                              </p>
                             </div>
-                          ) : null}
+                            <div className="mt-4 space-y-3">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">Topics</span>
+                                <strong className="text-[#102f49]">
+                                  {selectedWorkflowTopics.length}
+                                </strong>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">
+                                  Milestones
+                                </span>
+                                <strong className="text-[#102f49]">
+                                  {
+                                    milestones.filter(
+                                      (item) =>
+                                        item.workflowId === selectedWorkflowId,
+                                    ).length
+                                  }
+                                </strong>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">
+                                  Document milestones
+                                </span>
+                                <strong className="text-[#102f49]">
+                                  {workflowDocumentMilestoneCount}
+                                </strong>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">
+                                  Submission requirements
+                                </span>
+                                <strong className="text-[#102f49]">
+                                  {workflowRequirementCount}
+                                </strong>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">
+                                  Approval gates
+                                </span>
+                                <strong className="text-[#102f49]">
+                                  {
+                                    milestones.filter(
+                                      (item) =>
+                                        item.workflowId ===
+                                          selectedWorkflowId && item.locked,
+                                    ).length
+                                  }
+                                </strong>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-slate-500">
+                                  Active researchers
+                                </span>
+                                <strong className="text-[#102f49]">
+                                  {workflowEnrollmentCount}
+                                </strong>
+                              </div>
+                            </div>
+                          </section>
+                          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-primary-subtle)] p-5">
+                            <div className="flex gap-3">
+                              <i className="ti ti-bulb text-xl text-blue-700" />
+                              <div>
+                                <h3 className="font-extrabold text-[var(--color-text-primary)]">
+                                  Keep it simple
+                                </h3>
+                                <p className="mt-1 text-base leading-5 text-[var(--color-text-secondary)]">
+                                  Professors only need a name and target
+                                  duration. Submission requirements and advanced
+                                  rules can be added later.
+                                </p>
+                              </div>
+                            </div>
+                          </section>
+                          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+                            <h3 className="font-extrabold text-[var(--color-text-primary)]">Workflow progress</h3>
+                            <div className="mt-4 flex items-center gap-4">
+                              <div className="relative grid h-20 w-20 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(var(--color-primary) ${workflowConfigurationPercent}%, var(--color-surface-muted) 0)` }}>
+                                <span className="grid h-14 w-14 place-items-center rounded-full bg-[var(--color-surface)] text-sm font-black text-[var(--color-text-primary)]">{workflowConfigurationPercent}%</span>
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-bold text-[var(--color-text-primary)]">{selectedWorkflowMilestones.filter((item) => item.topicId).length} of {selectedWorkflowMilestones.length} milestones organized</p>
+                                <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--color-surface-muted)]"><div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${workflowConfigurationPercent}%` }} /></div>
+                              </div>
+                            </div>
+                          </section>
+                          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+                            <h3 className="font-extrabold text-[var(--color-text-primary)]">Quick actions</h3>
+                            <div className="mt-3 divide-y divide-[var(--color-border-subtle)]">
+                              <button type="button" onClick={() => setShowStudentPreview(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]"><i className="ti ti-eye" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Preview as Student</strong><span className="text-xs text-[var(--color-text-secondary)]">See the published student view</span></span></button>
+                              <button type="button" onClick={() => setWorkflowView("resources")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-books" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Guides & Templates</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage shared workflow resources</span></span></button>
+                              <button type="button" onClick={() => setWorkflowView("participants")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-users" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Participants</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage assigned researchers</span></span></button>
+                              <button type="button" onClick={() => setCreatingWorkflow(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-copy-plus" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Create another workflow</strong><span className="text-xs text-[var(--color-text-secondary)]">Start a separate workflow configuration</span></span></button>
+                              <button type="button" disabled={!selectedWorkflow || deletingWorkflow} onClick={() => { if (!selectedWorkflow) return; setWorkflowToDelete({ id: selectedWorkflow.id, name: selectedWorkflow.name }); setDeleteConfirmation(""); setDeleteWorkflowError(""); }} className="flex w-full items-center gap-3 py-3 text-left disabled:opacity-50"><span className="grid h-9 w-9 place-items-center rounded-full bg-rose-50 text-rose-600"><i className="ti ti-trash" /></span><span><strong className="block text-sm text-rose-700">Delete workflow</strong><span className="text-xs text-[var(--color-text-secondary)]">Available only when no project is linked</span></span></button>
+                            </div>
+                          </section>
                         </aside>
                       </div>
                     )}

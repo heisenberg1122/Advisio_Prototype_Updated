@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   createWorkflowSchema,
   createWorkflowTopicSchema,
-  reorderWorkflowMilestonesSchema,
   updateWorkflowTopicSchema,
 } from "./workflow.js";
 
@@ -62,30 +61,5 @@ describe("workflow topic schemas", () => {
 
   it("requires an update to contain a changed field", () => {
     expect(() => updateWorkflowTopicSchema.parse({})).toThrow();
-  });
-});
-
-describe("workflow milestone reorder schema", () => {
-  it("allows ordered milestones to move into a topic or Needs organization", () => {
-    expect(
-      reorderWorkflowMilestonesSchema.parse({
-        milestones: [
-          {
-            id: "7ab0d87e-30fd-4df9-a324-0338e894598b",
-            topicId: "5fb5ec70-89a0-4b8e-8fea-c917782c01ea",
-          },
-          {
-            id: "5a69fb14-1cd4-4384-a20e-73a1bf6f3b25",
-            topicId: null,
-          },
-        ],
-      }).milestones,
-    ).toHaveLength(2);
-  });
-
-  it("rejects an empty milestone order", () => {
-    expect(() =>
-      reorderWorkflowMilestonesSchema.parse({ milestones: [] }),
-    ).toThrow();
   });
 });

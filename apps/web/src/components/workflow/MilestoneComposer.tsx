@@ -1,10 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import React, { useEffect, useRef } from "react";
 
 type MilestoneComposerProps = {
   mode: "create" | "edit";
-  presentation?: "overlay" | "panel";
-  portalTargetId?: string;
   workflowName: string;
   topics: Array<{ id: string; title: string }>;
   topicId: string;
@@ -37,15 +34,13 @@ type MilestoneComposerProps = {
   onClose: () => void;
   onSubmit: (event: React.FormEvent) => void;
   onDelete?: () => void;
-  saveStatus?: "idle" | "saving" | "saved" | "error";
+  saveStatus?: "idle" | "saving" | "saved";
   prerequisiteLabel?: string;
   reviewerLabel?: string;
 };
 
 export function MilestoneComposer({
   mode,
-  presentation = "overlay",
-  portalTargetId,
   workflowName,
   topics,
   topicId,
@@ -98,10 +93,6 @@ export function MilestoneComposer({
   const initialSignature = useRef(currentSignature);
   const hasUnsavedChanges =
     currentSignature !== initialSignature.current && saveStatus !== "saved";
-
-  useEffect(() => {
-    if (saveStatus === "saved") initialSignature.current = currentSignature;
-  }, [currentSignature, saveStatus]);
   const requestClose = () => {
     if (saving) return;
     if (
@@ -121,40 +112,19 @@ export function MilestoneComposer({
   }, [hasUnsavedChanges, onClose, saveStatus, saving]);
 
   const isCreate = mode === "create";
-  const isPanel = mode === "edit" && presentation === "panel";
   const isAdviserMilestone = milestoneType === "ADVISER_SELECTION";
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
-  useEffect(() => {
-    const nextTarget = portalTargetId
-      ? document.getElementById(portalTargetId)
-      : null;
-    if (portalTarget !== nextTarget) setPortalTarget(nextTarget);
-  });
-
-  const composer = (
+  return (
     <div
-      className={
-        isCreate
-          ? "fixed inset-0 z-[70] flex flex-col bg-[var(--color-background)]"
-          : isPanel
-            ? "flex min-h-[640px] flex-col rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)] lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)]"
-            : "pointer-events-none fixed inset-y-0 right-0 z-[70] flex w-full max-w-[430px] flex-col pt-14"
+      className={isCreate
+        ? "fixed inset-0 z-[70] flex flex-col bg-[var(--color-background)]"
+        : "pointer-events-none fixed inset-y-0 right-0 z-[70] flex w-full max-w-[430px] flex-col pt-14"
       }
-      role={isPanel ? "region" : "dialog"}
-      aria-modal={isPanel ? undefined : true}
+      role="dialog"
+      aria-modal="true"
       aria-labelledby="milestone-composer-title"
     >
-      <form
-        onSubmit={onSubmit}
-        className={`flex min-h-0 flex-1 flex-col ${
-          isCreate
-            ? ""
-            : isPanel
-              ? "overflow-hidden rounded-2xl bg-[var(--color-surface)]"
-              : "pointer-events-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
-        }`}
-      >
+      <form onSubmit={onSubmit} className={`flex min-h-0 flex-1 flex-col ${isCreate ? "" : "pointer-events-auto border-l border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"}`}>
         <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-xs sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <button
@@ -162,37 +132,31 @@ export function MilestoneComposer({
               onClick={requestClose}
               disabled={saving}
               aria-label="Close milestone composer"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-subtle)] disabled:opacity-50"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-600 transition hover:bg-slate-100 disabled:opacity-50"
             >
               <i className="ti ti-x text-xl" />
             </button>
             <div className="min-w-0">
               <h2
                 id="milestone-composer-title"
-                className="truncate text-lg font-extrabold text-[var(--color-text-primary)] sm:text-xl"
+                className="truncate text-lg font-extrabold text-[#102f49] sm:text-xl"
               >
                 {isCreate ? "New milestone" : "Milestone details"}
               </h2>
-              {isCreate && <p className="truncate text-sm text-[var(--color-text-secondary)]">{workflowName || "Research workflow"}</p>}
+              {isCreate && <p className="truncate text-sm text-slate-500">{workflowName || "Research workflow"}</p>}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {saveStatus === "saved" && (
-              <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400" role="status">
+              <span className="hidden text-sm font-bold text-emerald-600 sm:inline">
                 <i className="ti ti-circle-check-filled mr-1" />
                 Saved
-              </span>
-            )}
-            {saveStatus === "error" && (
-              <span className="text-sm font-bold text-red-600 dark:text-red-400" role="alert">
-                <i className="ti ti-alert-circle-filled mr-1" />
-                Not saved
               </span>
             )}
             {isCreate && <button
               type="submit"
               disabled={saving || title.trim().length < 3 || !topicId}
-              className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] shadow-sm transition hover:bg-[var(--color-primary-dark)] disabled:cursor-not-allowed disabled:opacity-50 sm:px-5 dark:text-[var(--college-on-primary-dark)]"
+              className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#102f49] disabled:cursor-not-allowed disabled:opacity-50 sm:px-5"
             >
               {saving ? "Saving…" : isCreate ? "Add milestone" : "Save changes"}
             </button>}
@@ -200,12 +164,12 @@ export function MilestoneComposer({
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className={`mx-auto grid w-full gap-4 p-4 sm:p-5 ${isCreate ? "max-w-[1180px] lg:grid-cols-[minmax(0,1fr)_330px] lg:gap-6 lg:p-8" : "max-w-none"}`}>
+          <div className={`mx-auto grid w-full gap-5 p-4 sm:p-6 ${isCreate ? "max-w-[1180px] lg:grid-cols-[minmax(0,1fr)_330px] lg:gap-6 lg:p-8" : "max-w-none"}`}>
             <main className="space-y-5">
-              <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                 <label
                   htmlFor="milestone-title"
-                  className="block text-sm font-extrabold text-[var(--color-text-primary)]"
+                  className="block text-sm font-extrabold text-slate-700"
                 >
                   Milestone title <span className="text-rose-600">*</span>
                 </label>
@@ -217,14 +181,14 @@ export function MilestoneComposer({
                   value={title}
                   onChange={(event) => onTitleChange(event.target.value)}
                   placeholder="e.g. Submit research proposal"
-                  className="mt-2 w-full border-0 border-b-2 border-[var(--color-border)] bg-transparent px-0 py-3 text-lg font-bold text-[var(--color-text-primary)] outline-none transition placeholder:font-normal placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)]"
+                  className="mt-2 w-full border-0 border-b-2 border-slate-200 px-0 py-3 text-lg font-bold text-[#102f49] outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-[#f6a800]"
                 />
                 <label
                   htmlFor="milestone-instructions"
-                  className="mt-6 block text-sm font-extrabold text-[var(--color-text-primary)]"
+                  className="mt-6 block text-sm font-extrabold text-slate-700"
                 >
                   Instructions{" "}
-                  <span className="font-normal text-[var(--color-text-muted)]">(optional)</span>
+                  <span className="font-normal text-slate-400">(optional)</span>
                 </label>
                 <textarea
                   id="milestone-instructions"
@@ -233,7 +197,7 @@ export function MilestoneComposer({
                   value={instructions}
                   onChange={(event) => onInstructionsChange(event.target.value)}
                   placeholder="Explain what researchers need to complete and what a successful submission should contain."
-                  className="mt-2 w-full resize-y rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 text-base leading-6 text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-primary)] focus:bg-[var(--color-surface)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+                  className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 p-4 text-base leading-6 text-slate-700 outline-none transition focus:border-[#f6a800] focus:bg-white focus:ring-2 focus:ring-amber-100"
                 />
                 {isAdviserMilestone && (
                   <div className="mt-5 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -252,13 +216,13 @@ export function MilestoneComposer({
                 )}
               </section>
 
-              <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="font-extrabold text-[var(--color-text-primary)]">
+                    <h3 className="font-extrabold text-[#102f49]">
                       Submission requirements
                     </h3>
-                    <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                    <p className="mt-1 text-base text-slate-500">
                       Choose whether researchers must upload a deliverable for
                       this milestone.
                     </p>
@@ -273,7 +237,7 @@ export function MilestoneComposer({
                         }
                         className="peer sr-only"
                       />
-                      <span className="h-6 w-11 rounded-full bg-[var(--color-border-strong)] transition peer-checked:bg-[var(--color-primary)] after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
+                      <span className="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-[#173f63] after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-5" />
                     </label>
                   )}
                 </div>
@@ -306,7 +270,7 @@ export function MilestoneComposer({
                     </div>
                   )
                 ) : (
-                  <div className="mt-4 rounded-xl bg-[var(--color-surface-subtle)] p-4 text-sm text-[var(--color-text-secondary)]">
+                  <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
                     Researchers will see the instructions but will not be asked
                     to upload a document.
                   </div>
@@ -319,7 +283,7 @@ export function MilestoneComposer({
                 <button
                   type="button"
                   onClick={onDelete}
-                  className="rounded-xl border border-rose-300 bg-[var(--color-surface)] px-4 py-2.5 text-sm font-extrabold text-rose-700 transition hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30"
+                  className="rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-extrabold text-rose-700 transition hover:bg-rose-50"
                 >
                   <i className="ti ti-trash mr-1.5" />
                   Remove milestone
@@ -328,26 +292,26 @@ export function MilestoneComposer({
             </main>
 
             <aside className={`h-fit space-y-4 ${isCreate ? "lg:sticky lg:top-6" : ""}`}>
-              <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                <h3 className="font-extrabold text-[var(--color-text-primary)]">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="font-extrabold text-[#102f49]">
                   Milestone settings
                 </h3>
                 <div className="mt-5 space-y-5">
                   <div>
-                    <span className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+                    <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
                       Workflow
                     </span>
-                    <p className="mt-1.5 text-base font-bold text-[var(--color-text-primary)]">
+                    <p className="mt-1.5 text-base font-bold text-[#102f49]">
                       {workflowName || "Not selected"}
                     </p>
                   </div>
-                  <label className="block text-sm font-bold text-[var(--color-text-primary)]">
+                  <label className="block text-sm font-bold text-slate-700">
                     Topic <span className="text-rose-600">*</span>
                     <select
                       value={topicId}
                       onChange={(event) => onTopicIdChange(event.target.value)}
                       required
-                      className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-base font-normal text-[var(--color-text-primary)]"
+                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
                     >
                       <option value="">Choose a topic</option>
                       {topics.map((topic) => (
@@ -359,22 +323,22 @@ export function MilestoneComposer({
                   </label>
                   {isAdviserMilestone ? (
                     <div>
-                      <span className="block text-sm font-bold text-[var(--color-text-primary)]">
+                      <span className="block text-sm font-bold text-slate-700">
                         Completed by
                       </span>
-                      <div className="mt-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-3 py-2.5 text-base text-[var(--color-text-secondary)]">
+                      <div className="mt-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base text-slate-700">
                         Research group · official adviser acceptance
                       </div>
                     </div>
                   ) : (
-                    <label className="block text-sm font-bold text-[var(--color-text-primary)]">
+                    <label className="block text-sm font-bold text-slate-700">
                       Completed by
                       <select
                         value={submissionMode}
                         onChange={(event) =>
                           onSubmissionModeChange(event.target.value)
                         }
-                        className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-base font-normal text-[var(--color-text-primary)]"
+                        className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
                       >
                         <option value="GROUP">Research group</option>
                         <option value="INDIVIDUAL">
@@ -384,7 +348,7 @@ export function MilestoneComposer({
                       </select>
                     </label>
                   )}
-                  <label className="block text-sm font-bold text-[var(--color-text-primary)]">
+                  <label className="block text-sm font-bold text-slate-700">
                     Required Milestone Condition
                     <select
                       value={requiredMilestoneId}
@@ -392,7 +356,7 @@ export function MilestoneComposer({
                         onRequiredMilestoneChange(event.target.value)
                       }
                       aria-describedby="milestone-condition-help"
-                      className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-base font-normal text-[var(--color-text-primary)]"
+                      className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
                     >
                       <option value="">No specific milestone required</option>
                       {milestoneConditions.map((option) => (
@@ -403,7 +367,7 @@ export function MilestoneComposer({
                     </select>
                     <span
                       id="milestone-condition-help"
-                      className="mt-1.5 block text-xs font-normal leading-5 text-[var(--color-text-secondary)]"
+                      className="mt-1.5 block text-xs font-normal leading-5 text-slate-500"
                     >
                       The selected milestone must be completed and approved
                       first. An Adviser Milestone is satisfied when an eligible
@@ -411,7 +375,7 @@ export function MilestoneComposer({
                       can be selected.
                     </span>
                   </label>
-                  <label className="block text-sm font-bold text-[var(--color-text-primary)]">
+                  <label className="block text-sm font-bold text-slate-700">
                     Target completion
                     <div className="relative mt-1.5">
                       <input
@@ -422,12 +386,12 @@ export function MilestoneComposer({
                           onTargetCompletionDateChange(event.target.value)
                         }
                         aria-describedby="milestone-target-help"
-                        className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-base font-normal text-[var(--color-text-primary)]"
+                        className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base font-normal"
                       />
                     </div>
                     <span
                       id="milestone-target-help"
-                      className="mt-1 block text-xs font-normal leading-5 text-[var(--color-text-muted)]"
+                      className="mt-1 block text-xs font-normal leading-5 text-slate-400"
                     >
                       {legacyDeadlineDays != null
                         ? `Current target: ${legacyDeadlineDays} days after availability. Choose a date to replace it.`
@@ -437,7 +401,7 @@ export function MilestoneComposer({
                       <button
                         type="button"
                         onClick={() => onTargetCompletionDateChange("")}
-                        className="mt-1 text-xs font-semibold text-[var(--color-primary)] underline"
+                        className="mt-1 text-xs font-semibold text-[#173f63] underline"
                       >
                         Clear target
                       </button>
@@ -457,7 +421,7 @@ export function MilestoneComposer({
                       </span>
                     </div>
                   ) : (
-                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                       <input
                         type="checkbox"
                         checked={requiresApproval}
@@ -465,13 +429,13 @@ export function MilestoneComposer({
                         onChange={(event) =>
                           onRequiresApprovalChange(event.target.checked)
                         }
-                        className="mt-0.5 h-4 w-4 accent-[var(--color-primary)]"
+                        className="mt-0.5 h-4 w-4 accent-[#173f63]"
                       />
                       <span>
-                        <span className="block text-sm font-bold text-[var(--color-text-primary)]">
+                        <span className="block text-sm font-bold text-[#102f49]">
                           Approval required
                         </span>
-                        <span className="mt-0.5 block text-xs leading-5 text-[var(--color-text-secondary)]">
+                        <span className="mt-0.5 block text-xs leading-5 text-slate-500">
                           Researchers cannot continue until this milestone is
                           approved.
                         </span>
@@ -503,17 +467,17 @@ export function MilestoneComposer({
                 </div>
               </section>
 
-              <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+              <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <button
                   type="button"
                   onClick={() => onAdvancedOpenChange(!advancedOpen)}
                   className="flex w-full items-center justify-between text-left"
                 >
                   <span>
-                    <span className="block font-extrabold text-[var(--color-text-primary)]">
+                    <span className="block font-extrabold text-[#102f49]">
                       Advanced settings
                     </span>
-                    <span className="text-sm text-[var(--color-text-secondary)]">
+                    <span className="text-sm text-slate-500">
                       Most milestones use the default type.
                     </span>
                   </span>
@@ -523,11 +487,11 @@ export function MilestoneComposer({
                 </button>
                 {advancedOpen &&
                   (isAdviserMilestone ? (
-                    <div className="mt-4 rounded-xl bg-[var(--color-surface-subtle)] px-3 py-2.5 text-sm font-bold text-[var(--color-text-primary)]">
+                    <div className="mt-4 rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-bold text-[#102f49]">
                       Adviser Milestone
                     </div>
                   ) : (
-                    <label className="mt-4 block text-sm font-bold text-[var(--color-text-primary)]">
+                    <label className="mt-4 block text-sm font-bold text-slate-700">
                       Milestone type
                       <select
                         value={
@@ -546,7 +510,7 @@ export function MilestoneComposer({
                           );
                           if (defenseGate) onRequiresApprovalChange(true);
                         }}
-                        className="mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-base font-normal text-[var(--color-text-primary)]"
+                        className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base font-normal"
                       >
                         <option value="Milestone">Standard milestone</option>
                         <option value="DEFENSE_ELIGIBILITY">
@@ -560,7 +524,7 @@ export function MilestoneComposer({
                         </option>
                       </select>
                       {milestoneType === "DEFENSE_ELIGIBILITY" && (
-                        <span className="mt-2 block text-xs font-normal leading-5 text-[var(--color-text-secondary)]">
+                        <span className="mt-2 block text-xs font-normal leading-5 text-slate-500">
                           Coordinator approval grants one defense cycle. Passing
                           that defense consumes the eligibility; another
                           milestone approval is needed for the next defense.
@@ -585,7 +549,4 @@ export function MilestoneComposer({
       </form>
     </div>
   );
-
-  if (portalTarget) return createPortal(composer, portalTarget);
-  return portalTargetId ? null : composer;
 }
