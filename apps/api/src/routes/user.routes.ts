@@ -8,7 +8,7 @@ import { ACTIVE_ADVISEE_STATUSES, capacitySummary, countActiveAdviseeGroups } fr
 import { getCollegeScope } from "../lib/college-scope.js";
 
 const router = Router();
-const CAPACITY_MANAGER_ROLES = new Set(["RPO", "VPAA", "SYSTEM_ADMIN"]);
+const CAPACITY_MANAGER_ROLES = new Set(["DEAN", "SYSTEM_ADMIN"]);
 
 function requireCapacityManager(req: Request, res: Response, next: NextFunction) {
   if (!req.user || (!req.user.permissions.includes(Permissions.USER_MANAGE) && !req.user.roles.some((role) => CAPACITY_MANAGER_ROLES.has(role)))) {
@@ -169,7 +169,7 @@ router.patch("/:id/adviser-capacity", requireAuth, requireCapacityManager, async
       });
       await tx.notification.create({
         data: {
-          recipientId: existing.id,
+          audience: "adviser", recipientId: existing.id,
           type: "WORKFLOW_CHANGED",
           title: "Adviser capacity updated",
           message: `Your advising capacity is now ${activeGroups}/${maxAdviseeGroups} active groups. ${isAcceptingAdvisees ? "New requests are enabled." : "New requests are paused."}`,

@@ -7,7 +7,7 @@ import {
 } from "../lib/adviser-capacity.js";
 
 const router = Router();
-const DEAN_ROLES = new Set(["RPO", "SYSTEM_ADMIN", "VPAA"]);
+const DEAN_ROLES = new Set(["DEAN", "SYSTEM_ADMIN"]);
 
 function requireDean(req: Request, res: Response, next: NextFunction) {
   if (!req.user || !req.user.roles.some((role) => DEAN_ROLES.has(role))) {
@@ -32,7 +32,7 @@ router.get(
           ? req.query.collegeId
           : undefined;
       const hasInstitutionWideScope = req.user!.roles.some((role) =>
-        ["SYSTEM_ADMIN", "VPAA"].includes(role),
+        ["SYSTEM_ADMIN"].includes(role),
       );
       const collegeId = hasInstitutionWideScope
         ? requestedCollegeId || req.user!.collegeId || undefined
@@ -155,7 +155,7 @@ router.get(
               id: { not: req.user!.id },
               roles: {
                 none: { role: { name: "ADVISER" } },
-                some: { role: { name: { in: ["PANELIST", "RESEARCH_COORDINATOR", "RPO", "REB", "VPAA"] } } },
+                some: { role: { name: { in: ["PANELIST", "RESEARCH_COORDINATOR", "DEAN"] } } },
               },
             },
             select: {
@@ -393,7 +393,7 @@ router.post(
         await tx.auditLog.create({
           data: { userId: req.user!.id, action: AuditAction.ROLE_CHANGE, entityType: "ADVISER", entityId: target.id, oldValues: { roles: target.roles.map((entry) => entry.role.name) }, newValues: { addedRole: "ADVISER", programId: program.id, maxAdviseeGroups, isAcceptingAdvisees }, ipAddress: req.ip, userAgent: req.get("user-agent") || null },
         });
-        await tx.notification.create({ data: { recipientId: target.id, type: "WORKFLOW_CHANGED", title: "Adviser access added", message: `You are now an adviser for ${program.code}.`, entityType: "ADVISER", entityId: target.id } });
+        await tx.notification.create({ data: { audience: "account", recipientId: target.id, type: "WORKFLOW_CHANGED", title: "Adviser access added", message: `You are now an adviser for ${program.code}.`, entityType: "ADVISER", entityId: target.id } });
         return updated;
       });
       res.status(201).json({ adviser });
@@ -434,7 +434,7 @@ router.patch(
         await tx.auditLog.create({
           data: { userId: req.user!.id, action: AuditAction.UPDATE, entityType: "ADVISER", entityId: target.id, oldValues: { programId: target.programId, maxAdviseeGroups: target.maxAdviseeGroups, isAcceptingAdvisees: target.isAcceptingAdvisees }, newValues: { programId: program.id, maxAdviseeGroups, isAcceptingAdvisees, note }, ipAddress: req.ip, userAgent: req.get("user-agent") || null },
         });
-        await tx.notification.create({ data: { recipientId: target.id, type: "WORKFLOW_CHANGED", title: "Adviser assignment updated", message: `Your adviser settings were updated for ${program.code}.`, entityType: "ADVISER", entityId: target.id } });
+        await tx.notification.create({ data: { audience: "account", recipientId: target.id, type: "WORKFLOW_CHANGED", title: "Adviser assignment updated", message: `Your adviser settings were updated for ${program.code}.`, entityType: "ADVISER", entityId: target.id } });
         return updated;
       });
       res.json({ adviser });
@@ -468,7 +468,7 @@ router.delete(
         await tx.userRole.delete({ where: { userId_roleId: { userId: target.id, roleId: adviserRole.roleId } } });
         await tx.adviserRequest.updateMany({ where: { adviserId: target.id, status: "PENDING" }, data: { status: "REJECTED", responseNote: "Adviser access was removed by the Dean.", respondedAt: new Date() } });
         await tx.auditLog.create({ data: { userId: req.user!.id, action: AuditAction.ROLE_CHANGE, entityType: "ADVISER", entityId: target.id, oldValues: { roles: target.roles.map((entry) => entry.role.name), programId: target.programId }, newValues: { removedRole: "ADVISER" }, ipAddress: req.ip, userAgent: req.get("user-agent") || null } });
-        await tx.notification.create({ data: { recipientId: target.id, type: "WORKFLOW_CHANGED", title: "Adviser access removed", message: "The Dean removed your adviser assignment. Your other account access is unchanged.", entityType: "ADVISER", entityId: target.id } });
+        await tx.notification.create({ data: { audience: "account", recipientId: target.id, type: "WORKFLOW_CHANGED", title: "Adviser access removed", message: "The Dean removed your adviser assignment. Your other account access is unchanged.", entityType: "ADVISER", entityId: target.id } });
       });
       res.json({ success: true });
     } catch (error: any) {

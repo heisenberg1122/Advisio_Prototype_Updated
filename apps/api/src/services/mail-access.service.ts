@@ -6,17 +6,14 @@ const FACULTY_ROLES: DbInstitutionalRole[] = [
   "ADVISER",
   "RESEARCH_COORDINATOR",
   "PANELIST",
-  "RPO",
-  "REB",
-  "VPAA",
+  "DEAN",
   "SYSTEM_ADMIN",
 ] as const;
 
-const INSTITUTION_ROLE_NAMES: DbInstitutionalRole[] = ["SYSTEM_ADMIN", "VPAA"];
-const COLLEGE_OFFICE_ROLE_NAMES: DbInstitutionalRole[] = ["RPO", "REB"];
+const INSTITUTION_ROLE_NAMES: DbInstitutionalRole[] = ["SYSTEM_ADMIN"];
+const COLLEGE_OFFICE_ROLE_NAMES: DbInstitutionalRole[] = ["DEAN"];
 const RESEARCHER_COLLEGE_CONTACT_ROLES: DbInstitutionalRole[] = [
-  "RPO",
-  "REB",
+  "DEAN",
   "RESEARCH_COORDINATOR",
 ];
 const INSTITUTION_ROLES = new Set<DbInstitutionalRole>(INSTITUTION_ROLE_NAMES);
@@ -60,6 +57,10 @@ export async function authorizedMailRecipientWhere(
   };
 
   if (hasAnyRole(user, INSTITUTION_ROLES)) return base;
+
+  if (!user.roles.includes("RESEARCHER") && !hasAnyRole(user, new Set(FACULTY_ROLES))) {
+    return { ...base, id: { in: [] } };
+  }
 
   if (hasAnyRole(user, COLLEGE_OFFICE_ROLES)) {
     return {

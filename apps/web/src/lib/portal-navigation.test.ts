@@ -22,14 +22,14 @@ describe("role-aware portal navigation", () => {
     }
   });
 
-  it("only exposes the administrative official-document workspace to RPO or VPAA", () => {
+  it("only exposes the administrative official-document workspace to DEAN or VPAA", () => {
     expect(
       portalQuickLinks("/admin/dashboard", ["REB"]).some(
         (item) => item.id === "documents",
       ),
     ).toBe(false);
     expect(
-      portalQuickLinks("/admin/dashboard", ["RPO"]).find(
+      portalQuickLinks("/admin/dashboard", ["DEAN"]).find(
         (item) => item.id === "documents",
       )?.href,
     ).toBe("/admin/documents?tab=official");

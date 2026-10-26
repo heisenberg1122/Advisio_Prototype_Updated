@@ -98,14 +98,14 @@ export default function MailInboxPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const canUseDeanInbox = Boolean(
-    user?.roles.some((role) => ["RPO", "VPAA"].includes(role)),
+    user?.roles.some((role) => ["DEAN"].includes(role)),
   );
   const canSyncDeanApprovals = Boolean(
     user?.roles.includes("RESEARCH_COORDINATOR"),
   );
   const canSignAttachments = Boolean(
     user?.roles.some((role) =>
-      ["RESEARCH_COORDINATOR", "ADVISER", "PANELIST", "RPO", "VPAA"].includes(role),
+      ["RESEARCH_COORDINATOR", "ADVISER", "PANELIST", "DEAN"].includes(role),
     ),
   );
 

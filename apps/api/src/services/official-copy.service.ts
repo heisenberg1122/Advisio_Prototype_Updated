@@ -96,11 +96,10 @@ export function officialCopyAccessPolicy(
   const isPanelist =
     roles.has("PANELIST") &&
     (projectRoles.has("PANELIST") || context.hasAcceptedDefenseAssignment);
-  const isScopedRpo =
-    roles.has("RPO") &&
+  const isScopedDean =
+    roles.has("DEAN") &&
     Boolean(user.collegeId) &&
     user.collegeId === context.collegeId;
-  const isVpaa = roles.has("VPAA");
   const isStudentOwner =
     isResearcher || (roles.has("RESEARCHER") && context.isProjectCreator);
 
@@ -110,18 +109,16 @@ export function officialCopyAccessPolicy(
       isAdviser ||
       isProfessor ||
       isPanelist ||
-      isScopedRpo ||
-      isVpaa,
+      isScopedDean,
     canFinalize:
-      !isStudentOwner && (isAdviser || isProfessor || isScopedRpo || isVpaa),
+      !isStudentOwner && (isAdviser || isProfessor || isScopedDean),
     canSign:
       !isStudentOwner &&
       (isAdviser ||
         isProfessor ||
         (isPanelist && context.hasLockedPanelEvaluation) ||
-        isScopedRpo ||
-        isVpaa),
-    canRevoke: !isStudentOwner && (isScopedRpo || isVpaa),
+        isScopedDean),
+    canRevoke: !isStudentOwner && (isScopedDean),
     isStudentOwner,
     role: isAdviser
       ? "ADVISER"
@@ -129,10 +126,8 @@ export function officialCopyAccessPolicy(
         ? "COORDINATOR"
         : isPanelist
           ? "PANELIST"
-          : isScopedRpo
+          : isScopedDean
             ? "DEAN"
-            : isVpaa
-              ? "VPAA"
               : "NONE",
   };
 }
@@ -471,7 +466,7 @@ class OfficialCopyService {
           if (recipients.length) {
             await tx.notification.createMany({
               data: recipients.map(({ userId: recipientId }) => ({
-                recipientId,
+                audience: "researcher", recipientId,
                 type: "OFFICIAL_COPY_AVAILABLE" as const,
                 title: "Official manuscript copy available",
                 message: `${source.document.title} version ${source.versionNumber} was finalized and archived.`,
@@ -652,7 +647,7 @@ class OfficialCopyService {
         if (recipients.length) {
           await tx.notification.createMany({
             data: recipients.map(({ userId: recipientId }) => ({
-              recipientId,
+              audience: "researcher", recipientId,
               type: "OFFICIAL_COPY_SIGNED" as const,
               title: "Official copy signed",
               message: `${signerName} added an account-authenticated visual signature to ${copy.title}.`,
@@ -839,7 +834,7 @@ class OfficialCopyService {
       if (recipients.length) {
         await tx.notification.createMany({
           data: recipients.map(({ userId: recipientId }) => ({
-            recipientId,
+            audience: "researcher", recipientId,
             type: "OFFICIAL_COPY_REVOKED" as const,
             title: "Official copy revoked",
             message: `${copy.title} was revoked. The archival record remains available for audit history.`,

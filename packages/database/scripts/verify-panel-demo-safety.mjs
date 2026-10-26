@@ -55,7 +55,7 @@ function client(overrides = {}) {
           "ADVISER",
           "RESEARCH_COORDINATOR",
           "PANELIST",
-          "RPO",
+          "DEAN",
           "SYSTEM_ADMIN",
         ].map((name) => ({ id: name, name })),
     },

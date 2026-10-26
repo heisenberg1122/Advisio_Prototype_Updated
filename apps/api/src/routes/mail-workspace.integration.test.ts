@@ -25,7 +25,7 @@ interface MailFixture {
   bccStudent: FixtureUser;
   panelist: FixtureUser;
   coordinator: FixtureUser;
-  rpo: FixtureUser;
+  dean: FixtureUser;
   reb: FixtureUser;
   vpaa: FixtureUser;
   systemAdmin: FixtureUser;
@@ -75,9 +75,7 @@ databaseDescribe("Formal mail workspace authorization and persistence", () => {
         "RESEARCHER",
         "RESEARCH_COORDINATOR",
         "PANELIST",
-        "RPO",
-        "REB",
-        "VPAA",
+        "DEAN",
         "SYSTEM_ADMIN",
       ] as const;
       for (const name of roleNames) {
@@ -156,9 +154,9 @@ databaseDescribe("Formal mail workspace authorization and persistence", () => {
         "coordinator",
         "RESEARCH_COORDINATOR",
       );
-      const rpo = await createUser("rpo", "RPO");
-      const reb = await createUser("reb", "REB");
-      const vpaa = await createUser("vpaa", "VPAA");
+      const dean = await createUser("dean", "DEAN");
+      const reb = await createUser("former-reb", "RESEARCHER");
+      const vpaa = await createUser("former-vpaa", "RESEARCHER");
       const systemAdmin = await createUser("system-admin", "SYSTEM_ADMIN");
       const outsider = await createUser("outsider", "RESEARCHER", true);
       const researchType = await tx.researchType.create({
@@ -196,7 +194,7 @@ databaseDescribe("Formal mail workspace authorization and persistence", () => {
         bccStudent,
         panelist,
         coordinator,
-        rpo,
+        dean,
         reb,
         vpaa,
         systemAdmin,
@@ -207,7 +205,7 @@ databaseDescribe("Formal mail workspace authorization and persistence", () => {
           bccStudent.id,
           panelist.id,
           coordinator.id,
-          rpo.id,
+          dean.id,
           reb.id,
           vpaa.id,
           systemAdmin.id,
@@ -294,14 +292,14 @@ databaseDescribe("Formal mail workspace authorization and persistence", () => {
     expect(ids.has(fixture.bccStudent.id)).toBe(true);
     expect(ids.has(fixture.panelist.id)).toBe(true);
     expect(ids.has(fixture.coordinator.id)).toBe(true);
-    expect(ids.has(fixture.rpo.id)).toBe(true);
-    expect(ids.has(fixture.reb.id)).toBe(true);
-    expect(ids.has(fixture.vpaa.id)).toBe(true);
+    expect(ids.has(fixture.dean.id)).toBe(true);
+    expect(ids.has(fixture.reb.id)).toBe(false);
+    expect(ids.has(fixture.vpaa.id)).toBe(false);
     expect(ids.has(fixture.systemAdmin.id)).toBe(true);
     expect(ids.has(fixture.outsider.id)).toBe(false);
 
     const rpoResponse = await fetch(`${baseUrl}/api/mail/contacts`, {
-      headers: auth(fixture.rpo.token),
+      headers: auth(fixture.dean.token),
     });
     expect(rpoResponse.status).toBe(200);
     const rpoIds = new Set(
@@ -319,7 +317,7 @@ databaseDescribe("Formal mail workspace authorization and persistence", () => {
     const rebIds = new Set(
       (await json(rebResponse)).contacts.map((contact: any) => contact.id),
     );
-    expect(rebIds.has(fixture.student.id)).toBe(true);
+    expect(rebIds.has(fixture.student.id)).toBe(false);
     expect(rebIds.has(fixture.outsider.id)).toBe(false);
 
     const coordinatorResponse = await fetch(`${baseUrl}/api/mail/contacts`, {
@@ -341,7 +339,7 @@ databaseDescribe("Formal mail workspace authorization and persistence", () => {
     const vpaaIds = new Set(
       (await json(vpaaResponse)).contacts.map((contact: any) => contact.id),
     );
-    expect(vpaaIds.has(fixture.outsider.id)).toBe(true);
+    expect(vpaaIds.has(fixture.outsider.id)).toBe(false);
 
     const systemAdminResponse = await fetch(`${baseUrl}/api/mail/contacts`, {
       headers: auth(fixture.systemAdmin.token),

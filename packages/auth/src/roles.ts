@@ -3,9 +3,7 @@ export const InstitutionalRoles = {
   ADVISER: "ADVISER",
   PANELIST: "PANELIST",
   RESEARCH_COORDINATOR: "RESEARCH_COORDINATOR",
-  RPO: "RPO",
-  REB: "REB",
-  VPAA: "VPAA",
+  DEAN: "DEAN",
   SYSTEM_ADMIN: "SYSTEM_ADMIN",
 } as const;
 

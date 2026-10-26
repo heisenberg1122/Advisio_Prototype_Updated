@@ -47,7 +47,7 @@ async function openFile(fileId?: string | null) {
 export default function SignatureCenterPage({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const isDean = Boolean(user?.roles?.some((role: string) => ["RPO", "VPAA"].includes(role)));
+  const isDean = Boolean(user?.roles?.some((role: string) => ["DEAN"].includes(role)));
   const [selectedId, setSelectedId] = useState("");
   const [search, setSearch] = useState("");
   const [reply, setReply] = useState("");

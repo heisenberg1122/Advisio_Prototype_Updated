@@ -136,7 +136,7 @@ export function DashboardWorkspaceProvider({
     // If on /admin route without an explicit workspace param, find user's eligible admin workspace
     if (location.pathname.startsWith("/admin")) {
       const adminWorkspaces = availableWorkspaces.filter((w) =>
-        ["dean", "ethics", "academic-affairs"].includes(w.id)
+        ["dean"].includes(w.id)
       );
       if (adminWorkspaces.length > 0) {
         if (
@@ -170,7 +170,7 @@ export function DashboardWorkspaceProvider({
       const searchParams = new URLSearchParams(location.search);
       if (!searchParams.has("workspace")) {
         const adminWorkspaces = availableWorkspaces.filter((w) =>
-          ["dean", "ethics", "academic-affairs"].includes(w.id)
+          ["dean"].includes(w.id)
         );
         if (adminWorkspaces.length > 0) {
           const target =

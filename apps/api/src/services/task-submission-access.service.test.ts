@@ -50,17 +50,17 @@ describe("canReviewTaskSubmission", () => {
     ).toBe(false);
   });
 
-  it("limits RPO review to RPO stages in the same college", () => {
-    const rpoContext = { ...context, responsibleRole: "RPO" };
+  it("limits DEAN review to DEAN stages in the same college", () => {
+    const rpoContext = { ...context, responsibleRole: "DEAN" };
     expect(
-      canReviewTaskSubmission(user("rpo-a", ["RPO"], "college-a"), rpoContext),
+      canReviewTaskSubmission(user("dean-a", ["DEAN"], "college-a"), rpoContext),
     ).toBe(true);
     expect(
-      canReviewTaskSubmission(user("rpo-b", ["RPO"], "college-b"), rpoContext),
+      canReviewTaskSubmission(user("dean-b", ["DEAN"], "college-b"), rpoContext),
     ).toBe(false);
     expect(
       canReviewTaskSubmission(
-        user("rpo-unassigned", ["RPO"], null),
+        user("dean-unassigned", ["DEAN"], null),
         rpoContext,
       ),
     ).toBe(false);

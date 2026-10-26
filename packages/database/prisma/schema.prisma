@@ -52,9 +52,7 @@ enum InstitutionalRole {
   ADVISER
   PANELIST
   RESEARCH_COORDINATOR
-  RPO
-  REB
-  VPAA
+  DEAN
   SYSTEM_ADMIN
 }
 
@@ -2159,6 +2157,7 @@ model Notification {
   entityId         String?          @map("entity_id") @db.Uuid
   deduplicationKey String?          @unique @map("deduplication_key") @db.VarChar(191)
   actionUrl        String?          @map("action_url") @db.VarChar(500)
+  audience         String           @db.VarChar(32)
   isRead           Boolean          @default(false) @map("is_read")
   createdAt        DateTime         @default(now()) @map("created_at")
   readAt           DateTime?        @map("read_at")
@@ -2168,6 +2167,7 @@ model Notification {
 
   @@index([recipientId, isRead])
   @@index([recipientId, archivedAt])
+  @@index([recipientId, audience, archivedAt, createdAt])
   @@index([createdAt])
   @@map("notifications")
 }

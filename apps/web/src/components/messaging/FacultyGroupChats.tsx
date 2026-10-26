@@ -165,7 +165,7 @@ function formatMessageTime(dateString: string) {
 
 export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: string) => void }) {
   const { user } = useAuth();
-  const canCreate = Boolean(user?.roles.some((role) => ["ADVISER", "RESEARCH_COORDINATOR", "PANELIST", "RPO", "REB", "VPAA"].includes(role)));
+  const canCreate = Boolean(user?.roles.some((role) => ["ADVISER", "RESEARCH_COORDINATOR", "PANELIST", "DEAN"].includes(role)));
   const [payload, setPayload] = useState<ChatPayload>({ chats: [], invitations: [], messages: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

@@ -52,14 +52,13 @@ export function legacyDocumentSignatureAccessPolicy(
     (assignedRoles.has("PANELIST") || context.hasAcceptedPanelAssignment);
   const isWorkflowCoordinator =
     roles.has("RESEARCH_COORDINATOR") && context.workflowOwnerId === signer.id;
-  const isScopedRpo =
-    roles.has("RPO") &&
+  const isScopedDean =
+    roles.has("DEAN") &&
     Boolean(signer.collegeId) &&
     signer.collegeId === context.researchCollegeId;
-  const isVpaa = roles.has("VPAA");
   const isDeanDocument = context.documentType === "DEAN_DEFENSE_APPROVAL";
   const isAssignedDean =
-    (isScopedRpo || isVpaa) &&
+    (isScopedDean) &&
     (!context.deanRecipientId || context.deanRecipientId === signer.id);
 
   const canSign = isDeanDocument
@@ -67,8 +66,7 @@ export function legacyDocumentSignatureAccessPolicy(
     : isAssignedAdviser ||
       isAssignedPanelist ||
       isWorkflowCoordinator ||
-      isScopedRpo ||
-      isVpaa;
+      isScopedDean;
 
   return {
     canSign,
@@ -79,10 +77,8 @@ export function legacyDocumentSignatureAccessPolicy(
         ? "PANELIST"
         : isWorkflowCoordinator
           ? "COORDINATOR"
-          : isScopedRpo
+          : isScopedDean
             ? "DEAN"
-            : isVpaa
-              ? "VPAA"
               : "NONE",
   };
 }
@@ -341,9 +337,7 @@ export class DocumentSigningService {
           ? "PNL"
           : signatureAccess.signerRole === "COORDINATOR"
             ? "PROF"
-            : signatureAccess.signerRole === "VPAA"
-              ? "VPAA"
-              : "DEAN";
+            : "DEAN";
     const verificationCode = `${rolePrefix}-${crypto.randomBytes(6).toString("hex").toUpperCase()}`;
 
     try {
@@ -438,7 +432,7 @@ export class DocumentSigningService {
           });
           await tx.notification.create({
             data: {
-              recipientId: requesterId,
+              audience: "coordinator", recipientId: requesterId,
               type: "DOCUMENT_REVIEWED",
               title: "Dean signed your request",
               message: `${signerName} signed ${source.document.title}. The official signed PDF is available in your Inbox.`,
@@ -475,8 +469,7 @@ export class DocumentSigningService {
         .map((member) => member.userId);
       if (researcherIds.length) {
         await tx.notification.createMany({
-          data: researcherIds.map((recipientId) => ({
-            recipientId,
+          data: researcherIds.map((recipientId) => ({ audience: "researcher", recipientId,
             type: "DOCUMENT_REVIEWED",
             title: "Official document signed",
             message: `${signerName} signed ${source.document.title}. The official signed PDF is now available in Documents.`,

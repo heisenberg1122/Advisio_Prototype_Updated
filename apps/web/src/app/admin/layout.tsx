@@ -78,38 +78,11 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { activeWorkspace } = useDashboardWorkspace();
 
-  const isEthics = activeWorkspace?.id === "ethics";
-  const isVpaa = activeWorkspace?.id === "academic-affairs";
-  const isDean = !isEthics && !isVpaa;
-
   const roles = user?.roles || [];
   const canViewOfficialCopies =
-    roles.some((role) => ["RPO", "VPAA", "SYSTEM_ADMIN"].includes(role)) && !isEthics;
+    roles.some((role) => ["DEAN", "SYSTEM_ADMIN"].includes(role));
 
-  const rawSections: NavSection[] = isEthics
-    ? [
-        {
-          title: "HOME",
-          items: [
-            { label: "Overview", href: "/admin/dashboard", tabName: "overview", icon: LayoutDashboard },
-          ],
-        },
-        {
-          title: "ETHICS REVIEW",
-          items: [
-            { label: "Manuscript Reviews", href: "/admin/reviews", icon: FileSearch },
-            { label: "Review Calendar", href: "/admin/calendar", icon: CalendarDays },
-          ],
-        },
-        {
-          title: "COMMUNICATION",
-          items: [
-            { label: "Messages", href: "/admin/dashboard?tab=messages", tabName: "messages", icon: MessageSquare },
-            { label: "Inbox", href: "/admin/inbox", icon: Mail },
-          ],
-        },
-      ]
-    : ADMIN_NAV_SECTIONS.map((section) => ({
+  const rawSections: NavSection[] = ADMIN_NAV_SECTIONS.map((section) => ({
         ...section,
         items: section.items.filter(
           (item) => item.href !== "/admin/documents?tab=official" || canViewOfficialCopies,
@@ -143,11 +116,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           ? "Manuscript Reviews"
         : pathname === "/admin/documents"
           ? "Official Copies"
-          : activeTab === "overview" && isEthics
-            ? "Research Ethics Board"
-            : activeTab === "overview" && isVpaa
-              ? "Institutional Research Dashboard"
-              : PAGE_TITLES[activeTab] || "Dean Dashboard";
+          : PAGE_TITLES[activeTab] || "Dean Dashboard";
 
   const currentWorkspaceId = activeWorkspace?.id || "dean";
   const dashboardPath = formatAdminLink("/admin/dashboard", currentWorkspaceId);
@@ -162,8 +131,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       padSecondaryPages
       sidebar={
         <AppSidebar
-          roleTitle={isEthics ? "Research Ethics Board" : isVpaa ? "Office of the VPAA" : "Dean / RPO Office"}
-          roleBadge={isEthics ? "REB PORTAL" : isVpaa ? "VPAA PORTAL" : "DEAN / RPO PORTAL"}
+          roleTitle="Dean's Office"
+          roleBadge="DEAN PORTAL"
           navSections={navSections}
           collapsed={collapsed}
           onToggleCollapse={toggle}

@@ -130,7 +130,7 @@ router.get(
           .json({ error: "Research evaluations were not found." });
       }
       const facilitator = req.user!.roles.some((role) =>
-        ["RESEARCH_COORDINATOR", "RPO", "SYSTEM_ADMIN"].includes(role),
+        ["RESEARCH_COORDINATOR", "DEAN", "SYSTEM_ADMIN"].includes(role),
       );
       const assignedPanelist =
         req.user!.roles.includes("PANELIST") &&

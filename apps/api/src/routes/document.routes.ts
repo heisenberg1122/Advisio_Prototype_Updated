@@ -58,16 +58,14 @@ const documentSignerRoles = new Set([
   "ADVISER",
   "PANELIST",
   "RESEARCH_COORDINATOR",
-  "RPO",
-  "VPAA",
+  "DEAN",
 ]);
 
 const canManageSignature = (user: NonNullable<Request["user"]>) =>
   user.roles.some((role) => documentSignerRoles.has(role));
 
 const canUseDeanInbox = (user: NonNullable<Request["user"]>) =>
-  user.roles.includes("VPAA") ||
-  (user.roles.includes("RPO") && Boolean(user.collegeId));
+    (user.roles.includes("DEAN") && Boolean(user.collegeId));
 
 const canViewResearchDocuments = async (
   user: NonNullable<Request["user"]>,
@@ -298,9 +296,7 @@ router.get("/dean-inbox/messages", requireAuth, async (req, res) => {
   const messages = await prisma.deanInboxMessage.findMany({
     where: {
       document: {
-        ...(req.user.roles.includes("VPAA")
-          ? {}
-          : { research: { collegeId: req.user.collegeId! } }),
+        research: { collegeId: req.user.collegeId! },
         deanInboxMessages: {
           some: { OR: [{ recipientId: req.user.id }, { recipientId: null }] },
         },
@@ -337,9 +333,7 @@ router.get("/dean-inbox/threads", requireAuth, async (req, res) => {
           some: { OR: [{ recipientId: req.user.id }, { recipientId: null }] },
         },
       },
-      ...(req.user.roles.includes("VPAA")
-        ? {}
-        : { research: { collegeId: req.user.collegeId! } }),
+      research: { collegeId: req.user.collegeId! },
     },
     include: {
       research: { select: { id: true, title: true, groupName: true } },
@@ -402,9 +396,9 @@ router.get("/dean-inbox/recipients", requireAuth, async (req, res) => {
       OR: [
         {
           collegeId: research.collegeId,
-          roles: { some: { role: { name: "RPO" } } },
+          roles: { some: { role: { name: "DEAN" } } },
         },
-        { roles: { some: { role: { name: "VPAA" } } } },
+
       ],
     },
     select: {
@@ -476,9 +470,9 @@ router.post(
         OR: [
           {
             collegeId: research?.collegeId,
-            roles: { some: { role: { name: "RPO" } } },
+            roles: { some: { role: { name: "DEAN" } } },
           },
-          { roles: { some: { role: { name: "VPAA" } } } },
+
         ],
       },
       select: { id: true, firstName: true, middleName: true, lastName: true },
@@ -516,7 +510,7 @@ router.post(
     });
     await prisma.notification.create({
       data: {
-        recipientId: recipient.id,
+        audience: "dean", recipientId: recipient.id,
         type: "DOCUMENT_UPLOADED",
         title: "New Dean signature request",
         message: `${req.user.firstName || "A professor"} ${req.user.lastName || ""} requested a signature for ${research?.title || subject}.`,
@@ -554,9 +548,7 @@ router.post(
     const document = await prisma.document.findFirst({
       where: {
         id: req.params.documentId as string,
-        ...(req.user.roles.includes("VPAA")
-          ? {}
-          : { research: { collegeId: req.user.collegeId! } }),
+        research: { collegeId: req.user.collegeId! },
         deanInboxMessages: {
           some: { OR: [{ recipientId: req.user.id }, { recipientId: null }] },
         },

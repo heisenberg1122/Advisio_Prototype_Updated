@@ -55,7 +55,7 @@ function canManage(user: User, w: Awaited<ReturnType<typeof loadWorkflow>>) {
   const scope = getCollegeScope(user);
   return (
     w.createdBy === user.id ||
-    (user.roles.some((r) => ["SYSTEM_ADMIN", "RPO"].includes(r)) &&
+    (user.roles.some((r) => ["SYSTEM_ADMIN", "DEAN"].includes(r)) &&
       (scope.kind === "institution" ||
         (scope.kind === "college" &&
           scope.collegeId === w.program.collegeId &&
@@ -111,6 +111,7 @@ async function notify(
       type: "WORKFLOW_CHANGED",
       title,
       message,
+      audience: actionUrl.startsWith("/professor/") ? "coordinator" : "researcher",
       entityType: "WORKFLOW_ACCESS",
       entityId,
       actionUrl,

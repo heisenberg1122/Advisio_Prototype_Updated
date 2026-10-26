@@ -5,7 +5,9 @@ import {
   nextConsultation,
 } from "@/lib/consultation-view";
 import { useActiveProject } from "@/providers/active-project-provider";
+import { projectAdviserRequests } from "@/lib/project-adviser-requests";
 
+import { useAuth } from "@/providers/auth-provider";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import type {
@@ -70,17 +72,14 @@ export function useConsultations() {
 
 // ── Notifications ──────────────────────────────────────────────
 export function useNotifications() {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: studentKeys.notifications(),
-    queryFn: async () => {
-      try {
-        const res = await apiClient.get<{ notifications: any[] }>(
-          "/api/notifications",
-        );
-        return res.notifications || [];
-      } catch {
-        return [];
-      }
+    queryKey: [...studentKeys.notifications(), user?.id],
+    enabled: Boolean(user?.id),
+    refetchInterval: 15000,
+    queryFn: async ({ signal }) => {
+      const res = await apiClient.get<{ notifications: any[] }>("/api/notifications", { params: { inbox: "researcher" }, signal });
+      return res.notifications || [];
     },
   });
 }
@@ -196,10 +195,7 @@ export function useAdvisers(explicitProjectId?: string | null) {
           project: project || null,
           assigned: assignedMember ? mapAdviser(assignedMember.user) : null,
           available: usersList.map(mapAdviser),
-          requests: requestsList,
-          pendingRequest:
-            requestsList.find((request: any) => request.status === "PENDING") ||
-            null,
+          ...projectAdviserRequests(requestsList, project?.id),
         };
       } catch (err) {
         console.error("Failed to load advisers:", err);

@@ -21,8 +21,8 @@ export function canReviewTaskSubmission(
     return true;
   }
   if (
-    user.roles.includes("RPO") &&
-    context.responsibleRole === "RPO" &&
+    user.roles.includes("DEAN") &&
+    context.responsibleRole === "DEAN" &&
     Boolean(user.collegeId) &&
     user.collegeId === context.researchCollegeId
   ) {

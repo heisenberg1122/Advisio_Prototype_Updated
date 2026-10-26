@@ -36,7 +36,7 @@ describe("legacy document signature authorization", () => {
     ).toBe(false);
   });
 
-  it("requires a college assignment for RPO and the exact recipient for dean requests", () => {
+  it("requires a college assignment for DEAN and the exact recipient for dean requests", () => {
     const deanContext = {
       ...context,
       documentType: "DEAN_DEFENSE_APPROVAL",
@@ -44,19 +44,19 @@ describe("legacy document signature authorization", () => {
     };
     expect(
       legacyDocumentSignatureAccessPolicy(
-        { id: "dean-a", roles: ["RPO"], collegeId: null },
+        { id: "dean-a", roles: ["DEAN"], collegeId: null },
         deanContext,
       ).canSign,
     ).toBe(false);
     expect(
       legacyDocumentSignatureAccessPolicy(
-        { id: "dean-b", roles: ["RPO"], collegeId: "college-a" },
+        { id: "dean-b", roles: ["DEAN"], collegeId: "college-a" },
         deanContext,
       ).canSign,
     ).toBe(false);
     expect(
       legacyDocumentSignatureAccessPolicy(
-        { id: "dean-a", roles: ["RPO"], collegeId: "college-a" },
+        { id: "dean-a", roles: ["DEAN"], collegeId: "college-a" },
         deanContext,
       ).canSign,
     ).toBe(true);

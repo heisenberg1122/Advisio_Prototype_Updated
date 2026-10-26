@@ -12,23 +12,16 @@ describe("Dashboard Navigation Helpers", () => {
   it("formats role badges and titles accurately across dashboards", () => {
     const dean = getWorkspaceById("dean");
     expect(getRoleBadgeLabel(dean)).toBe("DEAN'S OFFICE");
-    expect(getRolePortalBadge(dean)).toBe("DEAN / RPO PORTAL");
-    expect(getRoleTitle(dean)).toBe("Dean / RPO Office");
+    expect(getRolePortalBadge(dean)).toBe("DEAN PORTAL");
+    expect(getRoleTitle(dean)).toBe("Dean's Office");
 
     const coordinator = getWorkspaceById("coordinator");
     expect(getRoleBadgeLabel(coordinator)).toBe("PROFESSOR COORDINATOR");
     expect(getRolePortalBadge(coordinator)).toBe("RESEARCH COORDINATOR PORTAL");
     expect(getRoleTitle(coordinator)).toBe("Professor Coordinator");
 
-    const ethics = getWorkspaceById("ethics");
-    expect(getRoleBadgeLabel(ethics)).toBe("ETHICS BOARD");
-    expect(getRolePortalBadge(ethics)).toBe("REB ETHICS PORTAL");
-    expect(getRoleTitle(ethics)).toBe("Research Ethics Board");
-
-    const vpaa = getWorkspaceById("academic-affairs");
-    expect(getRoleBadgeLabel(vpaa)).toBe("ACADEMIC AFFAIRS");
-    expect(getRolePortalBadge(vpaa)).toBe("VPAA PORTAL");
-    expect(getRoleTitle(vpaa)).toBe("Office of the VPAA");
+    expect(getWorkspaceById("ethics")).toBeNull();
+    expect(getWorkspaceById("academic-affairs")).toBeNull();
 
     expect(getRoleBadgeLabel(null)).toBe("INSTITUTIONAL USER");
     expect(getRolePortalBadge(null)).toBe("ADVISIO PORTAL");
@@ -40,13 +33,13 @@ describe("Dashboard Navigation Helpers", () => {
     expect(resolveFallbackDestination(["RESEARCHER"])).toBe("/student/dashboard");
 
     // Dean + Coordinator without preference
-    expect(resolveFallbackDestination(["RPO", "RESEARCH_COORDINATOR"])).toBe(
+    expect(resolveFallbackDestination(["DEAN", "RESEARCH_COORDINATOR"])).toBe(
       "/professor/dashboard"
     );
 
     // Dean + Coordinator with dean preference
     expect(
-      resolveFallbackDestination(["RPO", "RESEARCH_COORDINATOR"], "dean")
+      resolveFallbackDestination(["DEAN", "RESEARCH_COORDINATOR"], "dean")
     ).toBe("/admin/dashboard?workspace=dean");
 
     // Account with zero roles
@@ -58,15 +51,15 @@ describe("Dashboard Navigation Helpers", () => {
       "/admin/dashboard?workspace=dean"
     );
     expect(formatAdminLink("/admin/reviews", "ethics")).toBe(
-      "/admin/reviews?workspace=ethics"
+      "/admin/reviews?workspace=dean"
     );
     expect(
       formatAdminLink("/admin/documents?tab=official", "academic-affairs")
-    ).toBe("/admin/documents?tab=official&workspace=academic-affairs");
+    ).toBe("/admin/documents?tab=official&workspace=dean");
 
     // Does not overwrite existing workspace query param
     expect(formatAdminLink("/admin/reviews?workspace=ethics", "dean")).toBe(
-      "/admin/reviews?workspace=ethics"
+      "/admin/reviews?workspace=dean"
     );
 
     // Non-admin link is left untouched

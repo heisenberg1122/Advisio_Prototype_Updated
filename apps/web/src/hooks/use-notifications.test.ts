@@ -23,6 +23,11 @@ describe("adviser request notifications", () => {
 });
 
 describe("notification workflow links", () => {
+  it("rejects external, malformed, retired-dashboard and unassigned-dashboard destinations", () => {
+    for (const link of ["https://example.com/student/documents", "//example.com", "javascript:alert(1)", "/admin/reviews?workspace=ethics", "/panelist/reviews"]) {
+      expect(notificationLink(link, "professor", ["RESEARCH_COORDINATOR"])).toBeUndefined();
+    }
+  });
   it("keeps exact manuscript context for students", () => {
     expect(notificationLink("/research/manuscript?projectId=p1&documentId=d1&versionId=v2", "student"))
       .toBe("/student/documents?projectId=p1&documentId=d1&versionId=v2");
@@ -38,14 +43,14 @@ describe("notification workflow links", () => {
       .toBe("/student/defense/s1?projectId=p1");
   });
 
-  it("routes cross-dashboard panelist defense notification for multi-role coordinator", () => {
+  it("keeps coordinator notifications in their own defense workspace", () => {
     expect(
       notificationLink(
         "/defense/session?sessionId=s1&projectId=p1",
         "professor",
         ["RESEARCH_COORDINATOR", "PANELIST"]
       )
-    ).toBe("/panelist/dashboard?sessionId=s1&projectId=p1");
+    ).toBe("/professor/dashboard?tab=defenses&sessionId=s1&projectId=p1");
   });
 });
 

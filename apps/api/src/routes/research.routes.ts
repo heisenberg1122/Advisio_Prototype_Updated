@@ -1091,7 +1091,7 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
       if (leader)
         await prisma.notification.create({
           data: {
-            recipientId: leader.userId,
+            audience: "researcher", recipientId: leader.userId,
             type: "WORKFLOW_CHANGED",
             title: "New research group join request",
             message: "A researcher requested to join your research group.",
@@ -1260,7 +1260,7 @@ router.patch(
         });
         await prisma.notification.create({
           data: {
-            recipientId: joinRequest.requesterId,
+            audience: "researcher", recipientId: joinRequest.requesterId,
             type: "WORKFLOW_CHANGED",
             title: "Research group request declined",
             message: "Your request to join the research group was declined.",
@@ -1344,7 +1344,7 @@ router.patch(
         });
         await tx.notification.create({
           data: {
-            recipientId: joinRequest.requesterId,
+            audience: "researcher", recipientId: joinRequest.requesterId,
             type: "WORKFLOW_CHANGED",
             title: "Research group request accepted",
             message: `You are now a member of ${project.groupName || project.title}.`,
@@ -1493,7 +1493,7 @@ router.patch(
       if (!["ACCEPT", "REJECT"].includes(action))
         return void res.status(400).json({ error: "Choose Accept or Reject." });
       const institutionalReviewer = req.user.roles.some((role) =>
-        ["RESEARCH_COORDINATOR", "RPO", "SYSTEM_ADMIN"].includes(role),
+        ["RESEARCH_COORDINATOR", "DEAN", "SYSTEM_ADMIN"].includes(role),
       );
       const adviser = institutionalReviewer
         ? null
@@ -1539,7 +1539,7 @@ router.patch(
             : await tx.researchProject.findUnique({ where: { id: researchId } });
         await tx.notification.create({
           data: {
-            recipientId: revision.requestedBy,
+            audience: "researcher", recipientId: revision.requestedBy,
             type: "WORKFLOW_CHANGED",
             title:
               action === "ACCEPT"
@@ -1708,20 +1708,19 @@ router.post(
         `${req.user.firstName || "Faculty"} ${req.user.lastName || "Adviser"}`.trim();
       const groupRecipients = project.members
         .filter((member) => member.projectRole !== "ADVISER")
-        .map((member) => member.userId);
+        .map((member) => ({ recipientId: member.userId, audience: member.projectRole === "PANELIST" ? "panelist" : member.projectRole === "COORDINATOR" ? "coordinator" : "researcher" }));
       const coordinators = await prisma.user.findMany({
         where: {
+          collegeId: project.collegeId,
           roles: { some: { role: { name: "RESEARCH_COORDINATOR" } } },
           status: "ACTIVE",
         },
         select: { id: true },
       });
-      const recipients = [
-        ...new Set([
-          ...groupRecipients,
-          ...coordinators.map((coordinator) => coordinator.id),
-        ]),
-      ];
+      const recipients = [...new Map([
+        ...groupRecipients,
+        ...coordinators.map((coordinator) => ({ recipientId: coordinator.id, audience: "coordinator" })),
+      ].map((delivery) => [`${delivery.recipientId}:${delivery.audience}`, delivery])).values()];
 
       const result = await prisma.$transaction(async (tx) => {
         const membership = await tx.researchMember.update({
@@ -1738,8 +1737,7 @@ router.post(
         });
         if (recipients.length) {
           await tx.notification.createMany({
-            data: recipients.map((recipientId) => ({
-              recipientId,
+            data: recipients.map(({ recipientId, audience }) => ({ audience, recipientId,
               type: "WORKFLOW_CHANGED" as const,
               title: "Research group needs an adviser",
               message: `${adviserName} withdrew as adviser for “${project.title}”. Reason: ${reason.replace(/_/g, " ").toLowerCase()}. Note: ${note.trim()}`,

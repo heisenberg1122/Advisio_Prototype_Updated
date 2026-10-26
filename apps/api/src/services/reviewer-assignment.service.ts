@@ -60,8 +60,7 @@ function reviewTypeForRole(role: string): ReviewType | null {
   if (role === "ADVISER") return ReviewType.ADVISER;
   if (role === "RESEARCH_COORDINATOR") return ReviewType.COORDINATOR;
   if (role === "PANELIST") return ReviewType.PANEL;
-  if (role === "REB") return ReviewType.REB;
-  if (role === "RPO" || role === "VPAA") return ReviewType.DEAN;
+  if (role === "DEAN") return ReviewType.DEAN;
   return null;
 }
 
@@ -169,12 +168,8 @@ async function validateReviewer(
     (reviewType === ReviewType.PANEL &&
       roles.includes("PANELIST") &&
       (projectRoles.includes("PANELIST") || project.defenseSessions.length > 0)) ||
-    (reviewType === ReviewType.REB &&
-      roles.includes("REB") &&
-      reviewer.collegeId === project.collegeId) ||
     (reviewType === ReviewType.DEAN &&
-      (roles.includes("VPAA") ||
-        (roles.includes("RPO") && reviewer.collegeId === project.collegeId)));
+      (roles.includes("DEAN") && reviewer.collegeId === project.collegeId));
   if (!eligible) {
     throw new ReviewerAssignmentError(
       "The selected faculty member does not have the required project-scoped reviewer relationship.",
@@ -385,9 +380,9 @@ class ReviewerAssignmentService {
           },
           {
             collegeId: project.collegeId,
-            roles: { some: { role: { name: { in: ["REB", "RPO"] } } } },
+            roles: { some: { role: { name: { in: ["DEAN"] } } } },
           },
-          { roles: { some: { role: { name: "VPAA" } } } },
+
         ],
       },
       select: {
@@ -431,8 +426,7 @@ class ReviewerAssignmentService {
           candidate.defenseInvitations.length > 0)
       )
         reviewTypes.add(ReviewType.PANEL);
-      if (roles.includes("REB")) reviewTypes.add(ReviewType.REB);
-      if (roles.includes("RPO") || roles.includes("VPAA"))
+      if (roles.includes("DEAN"))
         reviewTypes.add(ReviewType.DEAN);
       return Array.from(reviewTypes).map((reviewType) => ({
         id: candidate.id,

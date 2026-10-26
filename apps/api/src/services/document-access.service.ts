@@ -45,9 +45,8 @@ export function documentProjectAccessPolicy(
   const isAdviser = roles.has("ADVISER") && projectRoles.has("ADVISER");
   const isProfessor =
     roles.has("RESEARCH_COORDINATOR") && context.isWorkflowOwner;
-  const isVpaa = roles.has("VPAA");
-  const isScopedRpo =
-    roles.has("RPO") &&
+  const isScopedDean =
+    roles.has("DEAN") &&
     Boolean(user.collegeId) &&
     user.collegeId === context.collegeId;
   const isAssignedReviewer = context.hasAssignedReview;
@@ -65,7 +64,7 @@ export function documentProjectAccessPolicy(
     canManageWorkingDocuments: isResearcher || isAdviser,
     canSubmitManuscript: roles.has("RESEARCHER") && isResearcher,
     canReview: isAdviser || isProfessor || isAssignedReviewer,
-    canApproveOfficialDocuments: isScopedRpo || isVpaa,
+    canApproveOfficialDocuments: isScopedDean,
     reasons,
   };
 }

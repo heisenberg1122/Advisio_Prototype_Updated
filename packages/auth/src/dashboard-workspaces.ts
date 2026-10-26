@@ -6,8 +6,6 @@ export type DashboardWorkspaceId =
   | "panelist"
   | "coordinator"
   | "dean"
-  | "ethics"
-  | "academic-affairs"
   | "system-admin";
 
 export interface DashboardWorkspace {
@@ -59,30 +57,12 @@ export const DASHBOARD_WORKSPACES: readonly DashboardWorkspace[] = [
   },
   {
     id: "dean",
-    role: InstitutionalRoles.RPO,
+    role: InstitutionalRoles.DEAN,
     label: "Dean's Office",
-    description: "Dean and Research & Publications Office executive oversight and college research administration",
+    description: "College research oversight and administration",
     homeUrl: "/admin/dashboard?workspace=dean",
     routePrefix: "/admin",
     order: 5,
-  },
-  {
-    id: "ethics",
-    role: InstitutionalRoles.REB,
-    label: "Ethics Board",
-    description: "Research Ethics Board officer reviewing protocol compliance and certificates",
-    homeUrl: "/admin/dashboard?workspace=ethics",
-    routePrefix: "/admin",
-    order: 6,
-  },
-  {
-    id: "academic-affairs",
-    role: InstitutionalRoles.VPAA,
-    label: "Academic Affairs",
-    description: "Vice President for Academic Affairs institutional research oversight and institutional copies",
-    homeUrl: "/admin/dashboard?workspace=academic-affairs",
-    routePrefix: "/admin",
-    order: 7,
   },
   {
     id: "system-admin",
@@ -91,14 +71,14 @@ export const DASHBOARD_WORKSPACES: readonly DashboardWorkspace[] = [
     description: "Platform administrator configuring accounts, permissions, and system settings",
     homeUrl: "/system-admin/dashboard",
     routePrefix: "/system-admin",
-    order: 8,
+    order: 6,
   },
 ] as const;
 
 export const LEGACY_ROLE_ALIASES: Record<string, InstitutionalRole> = {
   STUDENT: InstitutionalRoles.RESEARCHER,
   PROFESSOR: InstitutionalRoles.RESEARCH_COORDINATOR,
-  ADMIN: InstitutionalRoles.RPO,
+  ADMIN: InstitutionalRoles.DEAN,
 };
 
 export function canonicalizeRole(rawRole: string | null | undefined): InstitutionalRole | null {
@@ -159,17 +139,7 @@ export function resolveWorkspaceFromPath(
     const params = new URLSearchParams(search);
     const workspaceQuery = params.get("workspace")?.toLowerCase();
 
-    if (workspaceQuery === "ethics" || workspaceQuery === "reb") {
-      return getWorkspaceById("ethics");
-    }
-    if (
-      workspaceQuery === "academic-affairs" ||
-      workspaceQuery === "vpaa" ||
-      workspaceQuery === "academics"
-    ) {
-      return getWorkspaceById("academic-affairs");
-    }
-    if (workspaceQuery === "dean" || workspaceQuery === "rpo") {
+    if (workspaceQuery === "dean") {
       return getWorkspaceById("dean");
     }
 
@@ -187,9 +157,7 @@ export function getCanonicalAdminUrl(
   const searchParams = new URLSearchParams(rawSearch || "");
 
   let resolvedWorkspace = "dean";
-  if (workspaceId === "ethics") resolvedWorkspace = "ethics";
-  else if (workspaceId === "academic-affairs") resolvedWorkspace = "academic-affairs";
-  else if (workspaceId === "dean") resolvedWorkspace = "dean";
+  if (workspaceId === "dean") resolvedWorkspace = "dean";
 
   searchParams.set("workspace", resolvedWorkspace);
   return `${pathname}?${searchParams.toString()}`;
@@ -244,7 +212,7 @@ export function getSafeReturnWorkspace(
   // If returnUrl is /admin/* without explicit workspace query param, match any eligible admin workspace
   if (urlObj.pathname.startsWith("/admin")) {
     const adminWorkspace = eligibleWorkspaces.find((w) =>
-      ["dean", "ethics", "academic-affairs"].includes(w.id)
+      ["dean"].includes(w.id)
     );
     if (adminWorkspace) {
       return adminWorkspace;

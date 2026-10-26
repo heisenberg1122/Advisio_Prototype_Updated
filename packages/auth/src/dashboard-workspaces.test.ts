@@ -14,8 +14,8 @@ import {
 import { InstitutionalRoles } from "./roles.js";
 
 describe("Dashboard Workspaces Registry", () => {
-  it("defines 8 canonical workspaces in stable order", () => {
-    expect(DASHBOARD_WORKSPACES).toHaveLength(8);
+  it("defines 6 supported workspaces in stable order", () => {
+    expect(DASHBOARD_WORKSPACES).toHaveLength(6);
     const ids = DASHBOARD_WORKSPACES.map((w) => w.id);
     expect(ids).toEqual([
       "researcher",
@@ -23,8 +23,6 @@ describe("Dashboard Workspaces Registry", () => {
       "panelist",
       "coordinator",
       "dean",
-      "ethics",
-      "academic-affairs",
       "system-admin",
     ]);
 
@@ -42,8 +40,12 @@ describe("Dashboard Workspaces Registry", () => {
     expect(canonicalizeRole("researcher")).toBe(InstitutionalRoles.RESEARCHER);
     expect(canonicalizeRole("STUDENT")).toBe(InstitutionalRoles.RESEARCHER);
     expect(canonicalizeRole("PROFESSOR")).toBe(InstitutionalRoles.RESEARCH_COORDINATOR);
-    expect(canonicalizeRole("ADMIN")).toBe(InstitutionalRoles.RPO);
+    expect(canonicalizeRole("ADMIN")).toBe(InstitutionalRoles.DEAN);
     expect(canonicalizeRole("UNKNOWN_ROLE")).toBeNull();
+    expect(canonicalizeRole("RPO")).toBeNull();
+    expect(canonicalizeRole("VPAA")).toBeNull();
+    expect(canonicalizeRole("REB")).toBeNull();
+    expect(getEligibleWorkspaces(["RPO", "VPAA", "REB"])).toEqual([]);
     expect(canonicalizeRole(null)).toBeNull();
   });
 
@@ -53,8 +55,8 @@ describe("Dashboard Workspaces Registry", () => {
     expect(researcherOnly).toHaveLength(1);
     expect(researcherOnly[0].id).toBe("researcher");
 
-    // Dean + Coordinator (RPO + RESEARCH_COORDINATOR)
-    const deanCoordinator = getEligibleWorkspaces(["RPO", "RESEARCH_COORDINATOR"]);
+    // Dean + Coordinator (DEAN + RESEARCH_COORDINATOR)
+    const deanCoordinator = getEligibleWorkspaces(["DEAN", "RESEARCH_COORDINATOR"]);
     expect(deanCoordinator.map((w) => w.id)).toEqual(["coordinator", "dean"]);
 
     // Panelist + Coordinator
@@ -72,13 +74,13 @@ describe("Dashboard Workspaces Registry", () => {
 
   it("looks up workspaces by id and role", () => {
     expect(getWorkspaceById("dean")?.label).toBe("Dean's Office");
-    expect(getWorkspaceById("ethics")?.label).toBe("Ethics Board");
+    expect(getWorkspaceById("ethics")).toBeNull();
     expect(getWorkspaceById("nonexistent")).toBeNull();
 
     expect(getWorkspaceForRole("RESEARCHER")?.id).toBe("researcher");
     expect(getWorkspaceForRole("STUDENT")?.id).toBe("researcher");
-    expect(getWorkspaceForRole("RPO")?.id).toBe("dean");
-    expect(getWorkspaceForRole("REB")?.id).toBe("ethics");
+    expect(getWorkspaceForRole("DEAN")?.id).toBe("dean");
+    expect(getWorkspaceForRole("REB")).toBeNull();
   });
 
   it("resolves workspace from URL path and search params", () => {
@@ -91,10 +93,10 @@ describe("Dashboard Workspaces Registry", () => {
 
     // Admin routes with workspace param
     expect(resolveWorkspaceFromPath("/admin/dashboard", "?workspace=dean")?.id).toBe("dean");
-    expect(resolveWorkspaceFromPath("/admin/reviews", "?workspace=ethics")?.id).toBe("ethics");
+    expect(resolveWorkspaceFromPath("/admin/reviews", "?workspace=ethics")).toBeNull();
     expect(
-      resolveWorkspaceFromPath("/admin/dashboard", "?workspace=academic-affairs")?.id
-    ).toBe("academic-affairs");
+      resolveWorkspaceFromPath("/admin/dashboard", "?workspace=academic-affairs")
+    ).toBeNull();
 
     // Admin routes without explicit workspace param return null
     expect(resolveWorkspaceFromPath("/admin/dashboard")).toBeNull();
@@ -104,10 +106,10 @@ describe("Dashboard Workspaces Registry", () => {
   it("generates canonical admin URLs", () => {
     expect(getCanonicalAdminUrl("dean")).toBe("/admin/dashboard?workspace=dean");
     expect(getCanonicalAdminUrl("ethics", "/admin/reviews")).toBe(
-      "/admin/reviews?workspace=ethics"
+      "/admin/reviews?workspace=dean"
     );
     expect(getCanonicalAdminUrl("academic-affairs")).toBe(
-      "/admin/dashboard?workspace=academic-affairs"
+      "/admin/dashboard?workspace=dean"
     );
   });
 
@@ -139,7 +141,7 @@ describe("Dashboard Workspaces Registry", () => {
     expect(unauthorizedReturn).toBeNull();
 
     // Admin user return URL without param
-    const adminEligible = getEligibleWorkspaces(["RPO"]);
+    const adminEligible = getEligibleWorkspaces(["DEAN"]);
     const adminReturn = getSafeReturnWorkspace("/admin/reviews", adminEligible);
     expect(adminReturn?.id).toBe("dean");
   });

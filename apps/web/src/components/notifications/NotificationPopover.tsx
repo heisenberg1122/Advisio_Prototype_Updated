@@ -8,10 +8,26 @@ import { NotificationListSkeleton } from "@/components/ui/Skeleton";
 import { AppNotification, useNotifications } from "@/hooks/use-notifications";
 
 const notificationStyles = {
-  success: { icon: "ti-circle-check", background: "bg-emerald-50", color: "text-emerald-600" },
-  info: { icon: "ti-info-circle", background: "bg-blue-50", color: "text-blue-600" },
-  warning: { icon: "ti-alert-triangle", background: "bg-amber-50", color: "text-amber-600" },
-  danger: { icon: "ti-alert-circle", background: "bg-rose-50", color: "text-rose-600" },
+  success: {
+    icon: "ti-circle-check",
+    background: "bg-emerald-50",
+    color: "text-emerald-600",
+  },
+  info: {
+    icon: "ti-info-circle",
+    background: "bg-blue-50",
+    color: "text-blue-600",
+  },
+  warning: {
+    icon: "ti-alert-triangle",
+    background: "bg-amber-50",
+    color: "text-amber-600",
+  },
+  danger: {
+    icon: "ti-alert-circle",
+    background: "bg-rose-50",
+    color: "text-rose-600",
+  },
 };
 
 interface NotificationPopoverProps {
@@ -19,12 +35,30 @@ interface NotificationPopoverProps {
   compact?: boolean;
 }
 
-export function NotificationPopover({ viewAllHref, compact = false }: NotificationPopoverProps) {
+export function NotificationPopover({
+  viewAllHref,
+  compact = false,
+}: NotificationPopoverProps) {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications();
-  const previewNotifications = notifications.slice(0, 3);
+  const {
+    notifications: dashboardNotifications,
+    unreadCount: dashboardUnreadCount,
+    loading,
+    error,
+    retry,
+    inboxLabel,
+    markAsRead,
+    markAllAsRead,
+  } = useNotifications();
+  const account = useNotifications("account");
+  const notifications = [
+    ...dashboardNotifications.slice(0, 3),
+    ...account.notifications.slice(0, 2),
+  ];
+  const unreadCount = dashboardUnreadCount + account.unreadCount;
+  const previewNotifications = notifications;
 
   useEffect(() => {
     if (!open) return;
@@ -44,8 +78,14 @@ export function NotificationPopover({ viewAllHref, compact = false }: Notificati
     };
   }, [open]);
 
-  const openNotification = (notification: AppNotification) => {
-    if (!notification.read) markAsRead(notification.id);
+  const openNotification = async (notification: AppNotification) => {
+    if (
+      !notification.read &&
+      !(await (notification.audience === "account"
+        ? account.markAsRead(notification.id)
+        : markAsRead(notification.id)))
+    )
+      return;
     setOpen(false);
     if (notification.link) router.push(notification.link);
   };
@@ -55,17 +95,30 @@ export function NotificationPopover({ viewAllHref, compact = false }: Notificati
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+        aria-label={
+          unreadCount > 0
+            ? `Notifications, ${unreadCount} unread`
+            : "Notifications"
+        }
         aria-haspopup="dialog"
         aria-expanded={open}
         className={cn(
           "relative grid place-items-center text-[#173f63] transition hover:bg-slate-50 hover:text-[#f6a800] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f6a800]",
-          compact ? "h-8 w-8 rounded-full" : "h-10 w-10 rounded-xl border border-slate-200"
+          compact
+            ? "h-8 w-8 rounded-full"
+            : "h-10 w-10 rounded-xl border border-slate-200",
         )}
       >
         <i className={cn("ti ti-bell", compact ? "text-[19px]" : "text-xl")} />
         {unreadCount > 0 && (
-          <span className={cn("pointer-events-none absolute flex items-center justify-center rounded-full bg-rose-500 px-1 font-semibold leading-none text-white shadow-xs ring-1.5 ring-white dark:ring-slate-900", compact ? "-top-0.5 -right-0.5 h-3.5 min-w-3.5 text-xs" : "top-1 right-1 h-3.5 min-w-3.5 text-xs")}>
+          <span
+            className={cn(
+              "pointer-events-none absolute flex items-center justify-center rounded-full bg-rose-500 px-1 font-semibold leading-none text-white shadow-xs ring-1.5 ring-white dark:ring-slate-900",
+              compact
+                ? "-top-0.5 -right-0.5 h-3.5 min-w-3.5 text-xs"
+                : "top-1 right-1 h-3.5 min-w-3.5 text-xs",
+            )}
+          >
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -79,24 +132,47 @@ export function NotificationPopover({ viewAllHref, compact = false }: Notificati
         >
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <div>
-              <p className="text-base font-extrabold text-[#102f49]">Notifications</p>
+              <p className="text-base font-extrabold text-[#102f49]">
+                Notifications
+              </p>
               <p className="mt-0.5 text-base font-semibold text-slate-400">
-                {unreadCount > 0 ? `${unreadCount} unread update${unreadCount === 1 ? "" : "s"}` : "You're all caught up"}
+                {unreadCount > 0
+                  ? `${unreadCount} unread update${unreadCount === 1 ? "" : "s"}`
+                  : "You're all caught up"}
               </p>
             </div>
-            {unreadCount > 0 && (
-              <button type="button" onClick={markAllAsRead} className="text-sm font-extrabold text-[#1b4264] hover:text-[#f0a000]">
-                Mark all read
+            {dashboardUnreadCount > 0 && (
+              <button
+                type="button"
+                onClick={markAllAsRead}
+                className="text-sm font-extrabold text-[#1b4264] hover:text-[#f0a000]"
+              >
+                Mark dashboard read
               </button>
             )}
           </div>
 
           <div className="max-h-[330px] overflow-y-auto">
-            {loading ? (
+            {error || account.error ? (
+              <div role="alert" className="p-4 text-sm text-rose-800">
+                {error || account.error}{" "}
+                <button
+                  onClick={() => {
+                    retry();
+                    account.retry();
+                  }}
+                  className="underline"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : loading || account.loading ? (
               <NotificationListSkeleton rows={3} className="p-4" />
             ) : previewNotifications.length > 0 ? (
               previewNotifications.map((notification) => {
-                const styles = notificationStyles[notification.type] || notificationStyles.info;
+                const styles =
+                  notificationStyles[notification.type] ||
+                  notificationStyles.info;
                 return (
                   <button
                     type="button"
@@ -104,26 +180,49 @@ export function NotificationPopover({ viewAllHref, compact = false }: Notificati
                     onClick={() => openNotification(notification)}
                     className={cn(
                       "relative flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left transition last:border-0 hover:bg-slate-50",
-                      !notification.read && "bg-amber-50/35"
+                      !notification.read && "bg-amber-50/35",
                     )}
                   >
-                    {!notification.read && <span className="absolute left-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-[#f6a800]" />}
-                    <span className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-xl", styles.background, styles.color)}>
+                    {!notification.read && (
+                      <span className="absolute left-1.5 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-[#f6a800]" />
+                    )}
+                    <span
+                      className={cn(
+                        "grid h-9 w-9 shrink-0 place-items-center rounded-xl",
+                        styles.background,
+                        styles.color,
+                      )}
+                    >
                       <i className={cn("ti text-lg", styles.icon)} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block break-words text-sm font-extrabold text-[#173f63]">{notification.title}</span>
-                      <span className="mt-0.5 block whitespace-pre-wrap break-words text-sm font-medium leading-5 text-slate-500">{notification.message}</span>
-                      <span className="mt-1 block text-sm font-bold text-slate-400">{notification.time}</span>
+                      <span className="block break-words text-sm font-extrabold text-[#173f63]">
+                        {notification.audience === "account"
+                          ? "Account notice: "
+                          : `${inboxLabel}: `}
+                        {notification.title}
+                      </span>
+                      <span className="mt-0.5 block whitespace-pre-wrap break-words text-sm font-medium leading-5 text-slate-500">
+                        {notification.message}
+                      </span>
+                      <span className="mt-1 block text-sm font-bold text-slate-400">
+                        {notification.time}
+                      </span>
                     </span>
                   </button>
                 );
               })
             ) : (
               <div className="flex flex-col items-center px-5 py-8 text-center">
-                <span className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-400"><i className="ti ti-bell-off text-xl" /></span>
-                <p className="mt-3 text-base font-bold text-slate-500">No notifications yet</p>
-                <p className="mt-1 text-base text-slate-400">New updates will appear here.</p>
+                <span className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-slate-400">
+                  <i className="ti ti-bell-off text-xl" />
+                </span>
+                <p className="mt-3 text-base font-bold text-slate-500">
+                  No notifications yet
+                </p>
+                <p className="mt-1 text-base text-slate-400">
+                  New updates will appear here.
+                </p>
               </div>
             )}
           </div>

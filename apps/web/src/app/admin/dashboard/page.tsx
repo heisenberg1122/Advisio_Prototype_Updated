@@ -154,9 +154,6 @@ function EmptyState({ title, detail }: { title: string; detail: string }) {
 function DeanDashboardContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const roles = user?.roles || [];
-  const isInstitutionWide = roles.includes("VPAA") && !roles.some((role) => ["RPO", "SYSTEM_ADMIN"].includes(role));
-  const canManageCollege = !isInstitutionWide;
   const queryClient = useQueryClient();
   const activeView = searchParams.get("tab") || "overview";
   const [programId, setProgramId] = useState("all");
@@ -258,10 +255,8 @@ function DeanDashboardContent() {
         {activeView === "overview" && (
           <DashboardWelcome
             firstName={user?.firstName}
-            fallbackName={isInstitutionWide ? "VPAA" : "Dean"}
-            summary={isInstitutionWide
-              ? "Here's an institution-wide overview of research progress, programs, and academic activity."
-              : "Here's an overview of research progress, programs, and academic activity across your college."}
+            fallbackName="Dean"
+            summary="Here's an overview of research progress, programs, and academic activity across your college."
           />
         )}
         {activeView !== "messages" && (
@@ -428,7 +423,7 @@ function DeanDashboardContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
-                      {isInstitutionWide ? "Needs Institutional Attention" : "Needs Dean Attention"}
+                      Needs Dean Attention
                     </h2>
                     <p className="mt-1 text-base text-slate-500 dark:text-slate-400 font-medium">Priority bottlenecks and overdue research milestones.</p>
                   </div>
@@ -540,7 +535,7 @@ function DeanDashboardContent() {
             projects={filteredProjects}
             updateStatus={(id, status) => updateStatus.mutate({ id, status })}
             updating={updateStatus.isPending}
-            canManage={canManageCollege}
+            canManage
           />
         )}
 
@@ -553,7 +548,7 @@ function DeanDashboardContent() {
             saving={saveAdviser.isPending || removeAdviser.isPending}
             onSave={(payload) => saveAdviser.mutateAsync(payload)}
             onRemove={(id) => removeAdviser.mutateAsync(id)}
-            canManage={canManageCollege}
+            canManage
           />
         )}
 
@@ -1067,80 +1062,12 @@ function RegistryView({
   );
 }
 
-function EthicsDashboardContent() {
-  const searchParams = useSearchParams();
-  const { user } = useAuth();
-  const activeView = searchParams.get("tab") || "overview";
-
-  if (activeView === "messages") {
-    return <FacultyGroupChats />;
-  }
-
-  const workspaces = [
-    {
-      title: "Ethics Review Queue",
-      detail: "Review assigned manuscripts, record ethics findings, and return revision decisions.",
-      href: "/admin/reviews",
-      icon: ShieldAlert,
-    },
-    {
-      title: "Research Communication",
-      detail: "Coordinate securely with researchers, advisers, and institutional reviewers.",
-      href: "/admin/inbox",
-      icon: BookOpen,
-    },
-    {
-      title: "Review Calendar",
-      detail: "Track ethics review dates, institutional deadlines, and scheduled defenses.",
-      href: "/admin/calendar",
-      icon: CheckCircle2,
-    },
-  ];
-
-  return (
-    <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <DashboardWelcome
-        firstName={user?.firstName}
-        fallbackName="Reviewer"
-        summary="Your ethics workspace keeps manuscript review, institutional communication, and scheduled decisions in one place."
-      />
-      <section className="grid gap-4 md:grid-cols-3">
-        {workspaces.map((workspace) => (
-          <Link
-            key={workspace.title}
-            href={workspace.href}
-            className="group rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs transition hover:-translate-y-0.5 hover:border-[#0B3A53]/30 hover:shadow-md dark:border-white/10 dark:bg-[#101b2b]"
-          >
-            <span className="grid h-12 w-12 place-items-center rounded-xl bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">
-              <workspace.icon className="h-6 w-6" />
-            </span>
-            <h2 className="mt-5 text-lg font-black text-slate-900 dark:text-white">{workspace.title}</h2>
-            <p className="mt-2 text-base leading-6 text-slate-500 dark:text-slate-400">{workspace.detail}</p>
-            <span className="mt-5 inline-flex items-center gap-2 text-sm font-extrabold text-[#0B3A53] dark:text-[#C9A227]">
-              Open workspace <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-            </span>
-          </Link>
-        ))}
-      </section>
-    </div>
-  );
-}
-
-function AdministrativeDashboardContent() {
-  const { user } = useAuth();
-  const roles = user?.roles || [];
-  const isEthicsOnly = roles.includes("REB") && !roles.some((role) =>
-    ["RPO", "VPAA", "SYSTEM_ADMIN"].includes(role),
-  );
-  return isEthicsOnly ? <EthicsDashboardContent /> : <DeanDashboardContent />;
-}
-
 export default function AdminDashboardPage() {
   return (
     <Suspense
       fallback={<DashboardSkeleton />}
     >
-      <AdministrativeDashboardContent />
+      <DeanDashboardContent />
     </Suspense>
   );
 }

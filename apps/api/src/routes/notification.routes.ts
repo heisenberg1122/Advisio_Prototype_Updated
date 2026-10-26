@@ -7,6 +7,7 @@ import {
 } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth";
 import { requirePermission } from "../middleware/rbac";
+import { notificationWhere, notificationInbox } from "../services/notification.service.js";
 import { Permissions } from "@research-management/auth";
 
 const router = Router();
@@ -19,20 +20,21 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
       return;
     }
 
+    const where = notificationWhere(req.user, req.query.inbox);
     const notifications = await prisma.notification.findMany({
-      where: { recipientId: req.user.id, archivedAt: null },
+      where,
       orderBy: { createdAt: "desc" },
       take: 50,
     });
 
     const unreadCount = await prisma.notification.count({
-      where: { recipientId: req.user.id, isRead: false, archivedAt: null },
+      where: { ...where, isRead: false },
     });
 
     res.json({ notifications, unreadCount });
   } catch (error: any) {
     res
-      .status(500)
+      .status(error.statusCode || 500)
       .json({ error: error.message || "Failed to fetch notifications" });
   }
 });
@@ -48,7 +50,7 @@ router.patch("/:id/read", requireAuth, async (req: Request, res: Response) => {
     const id = req.params.id as string;
 
     const result = await prisma.notification.updateMany({
-      where: { id, recipientId: req.user.id, archivedAt: null },
+      where: { ...notificationWhere(req.user, req.body?.inbox), id },
       data: {
         isRead: true,
         readAt: new Date(),
@@ -63,7 +65,7 @@ router.patch("/:id/read", requireAuth, async (req: Request, res: Response) => {
     res.json({ success: true });
   } catch (error: any) {
     res
-      .status(500)
+      .status(error.statusCode || 500)
       .json({ error: error.message || "Failed to mark notification as read" });
   }
 });
@@ -77,14 +79,14 @@ router.patch("/read-all", requireAuth, async (req: Request, res: Response) => {
     }
 
     const result = await prisma.notification.updateMany({
-      where: { recipientId: req.user.id, isRead: false, archivedAt: null },
+      where: { ...notificationWhere(req.user, req.body?.inbox), isRead: false },
       data: { isRead: true, readAt: new Date() },
     });
 
     res.json({ updatedCount: result.count });
   } catch (error: any) {
     res
-      .status(500)
+      .status(error.statusCode || 500)
       .json({ error: error.message || "Failed to mark notifications as read" });
   }
 });
@@ -94,13 +96,13 @@ router.patch("/read-all", requireAuth, async (req: Request, res: Response) => {
 router.patch("/:id/archive", requireAuth, async (req: Request, res: Response) => {
   try {
     const result = await prisma.notification.updateMany({
-      where: { id: req.params.id as string, recipientId: req.user!.id, archivedAt: null },
+      where: { ...notificationWhere(req.user!, req.body?.inbox), id: req.params.id as string },
       data: { archivedAt: new Date(), isRead: true, readAt: new Date() },
     });
     if (!result.count) return void res.status(404).json({ error: "Notification not found" });
     res.json({ success: true });
   } catch (error: any) {
-    res.status(500).json({ error: error.message || "Failed to archive notification" });
+    res.status(error.statusCode || 500).json({ error: error.message || "Failed to archive notification" });
   }
 });
 
@@ -155,7 +157,7 @@ router.get(
           )
             ? "SYSTEM_ADMIN"
             : announcement.creator.roles.some((item) =>
-                  ["RPO", "VPAA"].includes(item.role.name),
+                  ["DEAN"].includes(item.role.name),
                 )
               ? "DEAN"
               : "PROFESSOR",
@@ -163,7 +165,7 @@ router.get(
       });
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({ error: error.message || "Failed to fetch announcements" });
     }
   },
@@ -255,7 +257,7 @@ router.post(
         const delivery = recipients.length
           ? await tx.notification.createMany({
               data: recipients.map(({ id }) => ({
-                recipientId: id,
+                audience: "account", recipientId: id,
                 type: NotificationType.SYSTEM_ANNOUNCEMENT,
                 title,
                 message,
@@ -290,7 +292,7 @@ router.post(
       res.status(201).json(result);
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({
           error: error.message || "Failed to publish college announcement",
         });
@@ -315,7 +317,7 @@ router.get(
       res.json({ announcements });
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({ error: error.message || "Failed to fetch announcements" });
     }
   },
@@ -393,7 +395,7 @@ router.post(
         });
         const delivery = await tx.notification.createMany({
           data: recipients.map((recipient) => ({
-            recipientId: recipient.id,
+            audience: "account", recipientId: recipient.id,
             type: NotificationType.SYSTEM_ANNOUNCEMENT,
             title,
             message,
@@ -424,7 +426,7 @@ router.post(
       res.status(201).json(result);
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({ error: error.message || "Failed to publish announcement" });
     }
   },
@@ -445,9 +447,14 @@ router.post(
         return;
       }
 
+      const recipient = await prisma.user.findUnique({ where: { id: recipientId }, include: { roles: { include: { role: true } } } });
+      if (!recipient) return void res.status(404).json({ error: "Recipient not found." });
+      const audience = notificationInbox({ ...req.user!, id: recipientId, roles: recipient.roles.map(({ role }) => role.name) }, req.body.audience);
+      if (audience === "earlier") return void res.status(400).json({ error: "Earlier notifications is reserved for historical deliveries." });
       const notification = await prisma.notification.create({
         data: {
           recipientId,
+          audience,
           title,
           message,
           type: (type as NotificationType) || NotificationType.WORKFLOW_CHANGED,
@@ -459,7 +466,7 @@ router.post(
       res.status(201).json({ notification });
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({ error: error.message || "Failed to create notification" });
     }
   },

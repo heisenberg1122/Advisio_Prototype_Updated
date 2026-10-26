@@ -82,17 +82,17 @@ describe("documentProjectAccessPolicy", () => {
 
   it("limits a college-assigned Dean office user to that college", () => {
     expect(
-      documentProjectAccessPolicy(user(["RPO"], "college-b"), context())
+      documentProjectAccessPolicy(user(["DEAN"], "college-b"), context())
         .canApproveOfficialDocuments,
     ).toBe(false);
     const scoped = documentProjectAccessPolicy(
-      user(["RPO"], "college-a"),
+      user(["DEAN"], "college-a"),
       context(),
     );
     expect(scoped.canApproveOfficialDocuments).toBe(true);
     expect(scoped.canView).toBe(false);
     expect(
-      documentProjectAccessPolicy(user(["RPO"], null), context())
+      documentProjectAccessPolicy(user(["DEAN"], null), context())
         .canApproveOfficialDocuments,
     ).toBe(false);
   });

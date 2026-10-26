@@ -877,7 +877,7 @@ export function AppRoutes() {
           path="/admin/profile"
           element={
             <ProtectedRoute
-              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}
+              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}
             >
               <AdminLayout>
                 <AdminProfilePage />
@@ -889,7 +889,7 @@ export function AppRoutes() {
           path="/admin/profile/edit"
           element={
             <ProtectedRoute
-              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}
+              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}
             >
               <AdminLayout>
                 <AdminProfileEditPage />
@@ -900,7 +900,7 @@ export function AppRoutes() {
         <Route
           path="/admin/settings"
           element={
-            <ProtectedRoute allowedRoles={["ADMIN", "RPO", "REB", "VPAA"]}>
+            <ProtectedRoute allowedRoles={["ADMIN", "DEAN"]}>
               <AdminLayout>
                 <StudentSettingsPage />
               </AdminLayout>
@@ -911,7 +911,7 @@ export function AppRoutes() {
           path="/admin/*"
           element={
             <ProtectedRoute
-              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}
+              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}
             >
               <AdminLayout>
                 <AdminDashboardPage />
@@ -923,7 +923,7 @@ export function AppRoutes() {
           path="/admin/calendar"
           element={
             <ProtectedRoute
-              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}
+              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}
             >
               <AdminLayout>
                 <CalendarPage />
@@ -941,7 +941,7 @@ export function AppRoutes() {
           path="/admin/inbox"
           element={
             <ProtectedRoute
-              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}
+              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}
             >
               <AdminLayout>
                 <MailInboxPage />
@@ -953,7 +953,7 @@ export function AppRoutes() {
           path="/admin/notifications"
           element={
             <ProtectedRoute
-              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "RPO", "REB", "VPAA"]}
+              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}
             >
               <AdminLayout>
                 <AdminNotificationsPage />
@@ -964,7 +964,7 @@ export function AppRoutes() {
         <Route
           path="/admin/reviews"
           element={
-            <ProtectedRoute allowedRoles={["ADMIN", "RPO", "REB", "VPAA"]}>
+            <ProtectedRoute allowedRoles={["ADMIN", "DEAN"]}>
               <AdminLayout>
                 <AdminReviewsPage />
               </AdminLayout>
@@ -974,7 +974,7 @@ export function AppRoutes() {
         <Route
           path="/admin/documents"
           element={
-            <ProtectedRoute allowedRoles={["RPO", "VPAA"]}>
+            <ProtectedRoute allowedRoles={["DEAN"]}>
               <AdminLayout>
                 <StudentDocumentsPage />
               </AdminLayout>
