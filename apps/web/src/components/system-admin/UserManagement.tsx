@@ -7,6 +7,8 @@ import {
   type DeletionPreview,
 } from "./AccountActionDetails";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import { ActionFeedback } from "@/components/ui/ActionFeedback";
+import { Button } from "@/components/ui/Button";
 
 type RoleName =
   | "RESEARCHER"
@@ -368,14 +370,7 @@ export function UserManagement({
           </div>
         </div>
 
-        {feedback && (
-          <div
-            role="status"
-            className={`m-5 rounded-xl border px-4 py-3 text-xs font-semibold ${feedback.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-950/40 dark:text-emerald-300" : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/40 dark:bg-rose-950/40 dark:text-rose-300"}`}
-          >
-            {feedback.message}
-          </div>
-        )}
+        <ActionFeedback feedback={feedback} className="m-5" />
 
         {usersQuery.isLoading ? (
           <div className="p-5">
@@ -564,9 +559,7 @@ export function UserManagement({
             </div>
 
             {feedback?.tone === "error" && (
-              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/40 p-3 text-xs font-semibold text-rose-700 dark:text-rose-300">
-                {feedback.message}
-              </div>
+              <ActionFeedback feedback={feedback} className="mt-4" />
             )}
 
             {dialog.type === "roles" && (
@@ -708,73 +701,77 @@ export function UserManagement({
             )}
 
             <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 dark:border-white/5 pt-4">
-              <button
+              <Button
                 onClick={closeDialog}
                 disabled={working}
-                className="rounded-xl border border-slate-200 dark:border-white/10 px-4 py-2 text-sm font-bold text-slate-700 dark:text-slate-300"
+                variant="secondary"
               >
                 Cancel
-              </button>
+              </Button>
               {dialog.type === "approve" && (
-                <button
+                <Button
                   onClick={() => void handleApprove()}
                   disabled={
-                    working ||
                     !verificationConfirmed ||
                     verificationNote.trim().length < 10
                   }
-                  className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50 transition"
+                  isLoading={working}
+                  loadingText="Approving account..."
                 >
                   Approve account
-                </button>
+                </Button>
               )}
               {dialog.type === "roles" && (
-                <button
+                <Button
                   onClick={() => void handleRoles()}
                   disabled={
-                    working ||
                     selectedRoles.length === 0 ||
                     !verificationConfirmed ||
                     verificationNote.trim().length < 10
                   }
-                  className="rounded-xl bg-[#0B3A53] px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50 hover:bg-[#0E4968]"
+                  isLoading={working}
+                  loadingText="Saving roles..."
                 >
                   Save verified roles
-                </button>
+                </Button>
               )}
               {dialog.type === "college" && (
-                <button
+                <Button
                   onClick={() => void handleCollege()}
-                  disabled={working || collegeReason.trim().length < 10}
-                  className="rounded-xl bg-[#0B3A53] px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50 hover:bg-[#0E4968]"
+                  disabled={collegeReason.trim().length < 10}
+                  isLoading={working}
+                  loadingText="Saving assignment..."
                 >
                   Save assignment
-                </button>
+                </Button>
               )}
               {dialog.type === "suspend" && (
-                <button
+                <Button
                   onClick={() => void handleSuspend()}
-                  disabled={working || suspensionReason.trim().length < 10}
-                  className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50 hover:bg-amber-700"
+                  disabled={suspensionReason.trim().length < 10}
+                  isLoading={working}
+                  loadingText="Suspending account..."
+                  className="bg-amber-600 text-white border-amber-600 hover:bg-amber-700"
                 >
-                  {working ? "Suspending…" : "Suspend account"}
-                </button>
+                  Suspend account
+                </Button>
               )}
               {dialog.type === "delete" && (
-                <button
+                <Button
                   onClick={() => void handleDelete()}
                   disabled={
-                    working ||
                     !deletionPreview ||
                     !deleteAcknowledged ||
                     deletionPreviewQuery.isFetching ||
                     deletionPreviewQuery.isError ||
                     deletePhrase !== `delete ${dialog.user.universityId} sudo`
                   }
-                  className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50 hover:bg-rose-700"
+                  isLoading={working}
+                  loadingText="Deleting account data..."
+                  variant="danger"
                 >
-                  {working ? "Deleting…" : "Permanently delete everything"}
-                </button>
+                  Permanently delete everything
+                </Button>
               )}
             </div>
           </div>

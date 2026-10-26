@@ -3,14 +3,18 @@ import Link from "next/link";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
+  CheckCircle2,
   Eye,
   EyeOff,
   LockKeyhole,
+  Loader2,
   Mail,
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { PublicLinks } from "@/components/public/PublicLayout";
+import { useAsyncAction } from "@/hooks/use-async-action";
+import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import {
   resolvePostLoginAction,
   resetOnboardingForSession,
@@ -57,8 +61,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const loginAction = useAsyncAction();
+  const loading = loginAction.isPending;
   const [showPassword, setShowPassword] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleButtonError, setGoogleButtonError] = useState<string | null>(
@@ -68,7 +72,7 @@ export default function LoginPage() {
   const handlePostLogin = (
     roles: string[],
     needsAcademicSetup?: boolean,
-    userId?: string
+    userId?: string,
   ) => {
     const requestedLocation = (location.state as any)?.from;
     const returnUrl = requestedLocation
@@ -100,16 +104,19 @@ export default function LoginPage() {
   googleCredentialHandlerRef.current = (credential: string) => {
     if (googleLoading) return;
     void (async () => {
-      setError(null);
+      loginAction.reset();
       setGoogleLoading(true);
       try {
         const result = await loginWithGoogle(credential);
         if (result.success) {
-          const roles = result.user?.roles || (result.role ? [result.role] : []);
+          const roles =
+            result.user?.roles || (result.role ? [result.role] : []);
           handlePostLogin(roles, result.needsAcademicSetup, result.user?.id);
           return;
         }
-        setError(result.error || "Google sign-in failed. Please try again.");
+        loginAction.fail(
+          result.error || "Google sign-in failed. Please try again.",
+        );
       } finally {
         setGoogleLoading(false);
       }
@@ -173,18 +180,26 @@ export default function LoginPage() {
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setError(null);
     if (!email.trim() || !password)
-      return setError("Email and password are required.");
-    setLoading(true);
+      return loginAction.warn("Email and password are required.");
     try {
-      const result = await login(email, password);
-      if (result.success) { const roles = result.user?.roles || (result.role ? [result.role] : []); handlePostLogin(roles, false, result.user?.id); return; }
-      setError(result.error || "Invalid email or password.");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to authenticate.");
-    } finally {
-      setLoading(false);
+      await loginAction.run(
+        async () => {
+          const result = await login(email, password);
+          if (!result.success)
+            throw new Error(result.error || "Invalid email or password.");
+          const roles =
+            result.user?.roles || (result.role ? [result.role] : []);
+          handlePostLogin(roles, false, result.user?.id);
+        },
+        {
+          successMessage: "Signed in successfully.",
+          errorMessage: (error) =>
+            error instanceof Error ? error.message : "Failed to authenticate.",
+        },
+      );
+    } catch {
+      // Credentials stay populated so the user can correct them and retry.
     }
   };
 
@@ -341,15 +356,11 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {error && (
-            <div
-              role="alert"
-              className={`mb-5 flex gap-3 rounded-xl border p-3.5 text-[12px] ${error.toLowerCase().includes("pending") ? "border-amber-200 bg-amber-50 text-amber-900" : "border-red-200 bg-red-50 text-red-700"}`}
-            >
-              <ShieldCheck size={17} className="shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
+          <ActionFeedback
+            id="login-feedback"
+            feedback={loginAction.feedback}
+            className="mb-5"
+          />
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
@@ -431,12 +442,24 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="group flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-[#ffad14] text-sm font-extrabold text-[#102f49] shadow-[0_10px_25px_rgba(255,173,20,.25)] transition hover:-translate-y-0.5 hover:bg-[#ffb82e] disabled:pointer-events-none disabled:opacity-60"
+              aria-busy={loading || undefined}
+              aria-describedby={
+                loginAction.feedback ? "login-feedback" : undefined
+              }
+              className={`group flex h-13 w-full items-center justify-center gap-2 rounded-xl text-sm font-extrabold shadow-[0_10px_25px_rgba(255,173,20,.25)] transition hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-60 ${loginAction.status === "success" ? "bg-emerald-600 text-white" : "bg-[#ffad14] text-[#102f49] hover:bg-[#ffb82e]"}`}
             >
               {loading ? (
                 <>
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#102f49] border-t-transparent" />
-                  Signing in…
+                  <Loader2
+                    aria-hidden="true"
+                    className="h-4 w-4 animate-spin"
+                  />
+                  Signing in...
+                </>
+              ) : loginAction.status === "success" ? (
+                <>
+                  <CheckCircle2 aria-hidden="true" size={17} />
+                  Signed in
                 </>
               ) : (
                 <>

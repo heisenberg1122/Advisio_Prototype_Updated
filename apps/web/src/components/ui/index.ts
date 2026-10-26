@@ -1,6 +1,7 @@
 export * from "./Card";
 export * from "./CourseCard";
 export * from "./Button";
+export * from "./ActionFeedback";
 export * from "./Avatar";
 export * from "./Tag";
 export * from "./StatCard";

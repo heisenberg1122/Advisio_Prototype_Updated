@@ -86,3 +86,56 @@ describe("authenticated document files", () => {
       .rejects.toMatchObject({ message: "You do not have access to this document", statusCode: status });
   });
 });
+
+describe("mutation duplicate protection", () => {
+  it("shares one in-flight request for rapid identical mutations", async () => {
+    const client = await fileClient();
+    let release!: (response: Response) => void;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          release = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = client.post("/api/actions", { value: "same" });
+    const duplicate = client.post("/api/actions", { value: "same" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    release(Response.json({ ok: true }));
+    await expect(Promise.all([first, duplicate])).resolves.toEqual([
+      { ok: true },
+      { ok: true },
+    ]);
+  });
+
+  it("allows distinct mutations and intentional retries after completion", async () => {
+    const client = await fileClient();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await Promise.all([
+      client.patch("/api/actions/item", { value: "first" }),
+      client.patch("/api/actions/item", { value: "second" }),
+    ]);
+    await client.patch("/api/actions/item", { value: "first" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("releases failed mutations for safe retry", async () => {
+    const client = await fileClient();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ error: "Conflict" }, { status: 409 }))
+      .mockResolvedValueOnce(Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(client.delete("/api/actions/item")).rejects.toThrow("Conflict");
+    await expect(client.delete("/api/actions/item")).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});

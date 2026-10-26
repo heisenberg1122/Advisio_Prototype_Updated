@@ -28,6 +28,9 @@ import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
+import { ActionFeedback } from "@/components/ui/ActionFeedback";
+import { Button } from "@/components/ui/Button";
+import { useAsyncAction } from "@/hooks/use-async-action";
 
 type Program = { id: string; code: string; name: string };
 type AcademicYear = { id: string; name: string; isCurrent: boolean };
@@ -569,7 +572,7 @@ function AdviserWorkloadView({
   advisers,
   candidates,
   programs,
-  saving,
+  saving: mutationPending,
   onSave,
   onRemove,
   canManage,
@@ -582,6 +585,8 @@ function AdviserWorkloadView({
   onRemove: (id: string) => Promise<unknown>;
   canManage: boolean;
 }) {
+  const adviserAction = useAsyncAction();
+  const saving = mutationPending || adviserAction.isPending;
   const [mode, setMode] = useState<"add" | "edit" | null>(null);
   const [selected, setSelected] = useState<Adviser | null>(null);
   const [candidateId, setCandidateId] = useState("");
@@ -592,6 +597,7 @@ function AdviserWorkloadView({
   const [error, setError] = useState<string | null>(null);
 
   const openAdd = () => {
+    adviserAction.reset();
     const firstCandidate = candidates[0];
     setMode("add");
     setSelected(null);
@@ -604,6 +610,7 @@ function AdviserWorkloadView({
   };
 
   const openEdit = (adviser: Adviser) => {
+    adviserAction.reset();
     setMode("edit");
     setSelected(adviser);
     setCandidateId("");
@@ -621,19 +628,36 @@ function AdviserWorkloadView({
     if (!Number.isInteger(maximum) || maximum < 0 || maximum > 50) return setError("Enter a whole number from 0 to 50.");
     if (mode === "edit" && note.trim().length < 10) return setError("Add a reason of at least 10 characters for the audit record.");
     try {
-      await onSave({ mode, id: selected?.id, userId: mode === "add" ? candidateId : undefined, programId: selectedProgramId, maxAdviseeGroups: maximum, isAcceptingAdvisees: accepting, note: mode === "edit" ? note.trim() : undefined });
-      setMode(null);
-      setSelected(null);
-    } catch (caught: any) {
-      setError(caught?.message || "Unable to update adviser.");
+      await adviserAction.run(
+        async () => {
+          await onSave({ mode, id: selected?.id, userId: mode === "add" ? candidateId : undefined, programId: selectedProgramId, maxAdviseeGroups: maximum, isAcceptingAdvisees: accepting, note: mode === "edit" ? note.trim() : undefined });
+          setMode(null);
+          setSelected(null);
+        },
+        {
+          successMessage: mode === "add" ? "Adviser added successfully." : "Adviser changes saved.",
+          errorMessage: (caught) => caught instanceof Error ? caught.message : "Unable to update adviser.",
+        },
+      );
+    } catch {
+      // Editor values remain available for retry.
     }
   };
 
   const remove = async (adviser: Adviser) => {
     if (!window.confirm("Remove " + adviser.name + " as an adviser? Their faculty account and academic history will be preserved.")) return;
     setError(null);
-    try { await onRemove(adviser.id); }
-    catch (caught: any) { setError(caught?.message || "Unable to remove adviser."); }
+    try {
+      await adviserAction.run(
+        () => onRemove(adviser.id),
+        {
+          successMessage: `${adviser.name} was removed as an adviser.`,
+          errorMessage: (caught) => caught instanceof Error ? caught.message : "Unable to remove adviser.",
+        },
+      );
+    } catch {
+      // The directory remains unchanged and the action is retryable.
+    }
   };
 
   return (
@@ -662,8 +686,12 @@ function AdviserWorkloadView({
           ) : null}
         </div>
 
-        {error && !mode && (
-          <p className="rounded-xl bg-rose-50 p-3 text-base font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">{error}</p>
+        {!mode && (
+          <ActionFeedback
+            feedback={adviserAction.feedback}
+            tone={error ? "error" : undefined}
+            message={error}
+          />
         )}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -854,26 +882,30 @@ function AdviserWorkloadView({
                 />
               </label>
             )}
-            {error && (
-              <p className="mt-3 rounded-xl bg-rose-50 p-3 text-base font-semibold text-rose-700 dark:bg-rose-950/40 dark:text-rose-300">
-                {error}
-              </p>
-            )}
+            <ActionFeedback
+              feedback={adviserAction.feedback}
+              tone={error ? "error" : undefined}
+              message={error}
+              className="mt-3"
+            />
 
             <div className="mt-5 flex justify-end gap-2">
-              <button
+              <Button
                 onClick={() => { setMode(null); setSelected(null); }}
-                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-slate-300 dark:hover:bg-white/5"
+                variant="secondary"
+                disabled={saving}
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={submit}
-                disabled={saving}
-                className="rounded-xl bg-[#C9A227] hover:bg-[#B38E1B] px-5 py-2.5 text-sm font-extrabold text-[#0B3A53] shadow-xs disabled:opacity-50 transition"
+                status={adviserAction.status}
+                loadingText="Saving adviser..."
+                successText="Adviser saved"
+                errorText="Try saving again"
               >
-                {saving ? "Saving…" : mode === "add" ? "Add adviser" : "Save changes"}
-              </button>
+                {mode === "add" ? "Add adviser" : "Save changes"}
+              </Button>
             </div>
           </div>
         </div>
