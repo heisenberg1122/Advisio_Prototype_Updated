@@ -1,6 +1,8 @@
 import React from "react";
-import { Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { cn } from "../../lib/utils";
+
+export type ButtonActionStatus = "idle" | "pending" | "success" | "error";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?:
@@ -13,8 +15,54 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
     | "danger";
   size?: "sm" | "md" | "lg" | "icon";
   isLoading?: boolean;
+  status?: ButtonActionStatus;
+  loadingText?: string;
+  successText?: string;
+  errorText?: string;
   icon?: React.ReactNode;
   iconRight?: React.ReactNode;
+}
+
+const ACTION_LABELS: Array<[RegExp, string]> = [
+  [/\bsign[ -]?in\b|\blogin\b/i, "Signing in..."],
+  [/\bsubmit\b/i, "Submitting..."],
+  [/\bsave\b/i, "Saving..."],
+  [/\bupload\b/i, "Uploading..."],
+  [/\bsend\b/i, "Sending..."],
+  [/\bapprove\b/i, "Approving..."],
+  [/\breject\b/i, "Rejecting..."],
+  [/\bdelete\b|\bremove\b/i, "Deleting..."],
+  [/\bsign\b/i, "Signing..."],
+  [/\bfinalize\b/i, "Finalizing..."],
+  [/\bcreate\b|\bregister\b/i, "Creating..."],
+  [/\bupdate\b/i, "Updating..."],
+  [/\bverify\b/i, "Verifying..."],
+  [/\bimport\b/i, "Importing..."],
+  [/\bretry\b/i, "Retrying..."],
+  [/\baccept\b/i, "Accepting..."],
+  [/\bdecline\b/i, "Declining..."],
+  [/\bwithdraw\b/i, "Withdrawing..."],
+  [/\bjoin\b/i, "Joining..."],
+];
+
+function getTextContent(node: React.ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node);
+  }
+  if (Array.isArray(node)) {
+    return node.map(getTextContent).join(" ");
+  }
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
+    return getTextContent(node.props.children);
+  }
+  return "";
+}
+
+export function getLoadingLabel(children: React.ReactNode): string {
+  const label = getTextContent(children).trim();
+  return (
+    ACTION_LABELS.find(([pattern]) => pattern.test(label))?.[1] ?? "Working..."
+  );
 }
 
 const variantStyles: Record<NonNullable<ButtonProps["variant"]>, string> = {
@@ -44,6 +92,10 @@ export function Button({
   variant = "primary",
   size = "md",
   isLoading = false,
+  status = "idle",
+  loadingText,
+  successText = "Completed",
+  errorText,
   icon,
   iconRight,
   children,
@@ -52,29 +104,95 @@ export function Button({
   type = "button",
   ...props
 }: ButtonProps) {
+  const actionStatus = isLoading ? "pending" : status;
+  const pending = actionStatus === "pending";
+  const succeeded = actionStatus === "success";
+  const failed = actionStatus === "error";
+  const originalLabel = getTextContent(children).trim();
+  const pendingLabel = loadingText ?? getLoadingLabel(children);
+  const failedLabel = errorText ?? originalLabel;
+  const activeLabel = pending
+    ? pendingLabel
+    : succeeded
+      ? successText
+      : failed
+        ? failedLabel
+        : originalLabel;
+
   return (
     <button
+      {...props}
       type={type}
-      disabled={disabled || isLoading}
+      disabled={disabled || pending || succeeded}
+      aria-busy={pending || undefined}
+      data-action-status={actionStatus}
       className={cn(
         "inline-flex items-center justify-center font-medium select-none transition-all duration-150 ease-in-out cursor-pointer",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)]",
         "disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed active:scale-[0.98]",
-        variantStyles[variant],
+        succeeded
+          ? "bg-emerald-600 text-white border border-emerald-600 focus:ring-emerald-500/30 shadow-xs"
+          : failed
+            ? "bg-red-50 text-red-700 border border-red-300 hover:bg-red-100 focus:ring-red-500/30 dark:bg-red-950/40 dark:text-red-300 dark:border-red-700"
+            : variantStyles[variant],
         sizeStyles[size],
         className,
       )}
-      {...props}
     >
-      {isLoading ? (
-        <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+      {pending ? (
+        <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin shrink-0" />
+      ) : succeeded ? (
+        <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0" />
+      ) : failed ? (
+        <AlertCircle aria-hidden="true" className="h-4 w-4 shrink-0" />
       ) : (
-        icon && <span className="shrink-0">{icon}</span>
+        icon && (
+          <span aria-hidden="true" className="shrink-0">
+            {icon}
+          </span>
+        )
       )}
 
-      {children && <span className="min-w-0 break-words">{children}</span>}
+      {children && size === "icon" && (
+        <span aria-hidden="true" className="shrink-0">
+          {children}
+        </span>
+      )}
 
-      {!isLoading && iconRight && <span className="shrink-0">{iconRight}</span>}
+      {children && size !== "icon" && (
+        <span
+          aria-hidden="true"
+          className="grid min-w-0 place-items-center break-words"
+        >
+          <span
+            className={cn(
+              "[grid-area:1/1]",
+              actionStatus !== "idle" && "invisible",
+            )}
+          >
+            {children}
+          </span>
+          <span className={cn("[grid-area:1/1]", !pending && "invisible")}>
+            {pendingLabel}
+          </span>
+          <span className={cn("[grid-area:1/1]", !succeeded && "invisible")}>
+            {successText}
+          </span>
+          {failedLabel && (
+            <span className={cn("[grid-area:1/1]", !failed && "invisible")}>
+              {failedLabel}
+            </span>
+          )}
+        </span>
+      )}
+
+      {activeLabel && <span className="sr-only">{activeLabel}</span>}
+
+      {actionStatus === "idle" && iconRight && (
+        <span aria-hidden="true" className="shrink-0">
+          {iconRight}
+        </span>
+      )}
     </button>
   );
 }

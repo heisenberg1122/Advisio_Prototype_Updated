@@ -9,6 +9,9 @@ import { apiClient } from "@/lib/api-client";
 import { SignaturePad } from "./SignaturePad";
 import { useAuth } from "@/providers/auth-provider";
 import { DocumentPreviewSkeleton } from "@/components/ui/Skeleton";
+import { ActionFeedback } from "@/components/ui/ActionFeedback";
+import { Button } from "@/components/ui/Button";
+import { useAsyncAction } from "@/hooks/use-async-action";
 
 GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -86,7 +89,8 @@ export function DocumentSigningModal({
   const [password, setPassword] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const signAction = useAsyncAction();
+  const saving = signAction.isPending;
   const [error, setError] = useState("");
 
   const loadProfile = async () => {
@@ -336,38 +340,48 @@ export function DocumentSigningModal({
   };
 
   const signDocument = async () => {
-    setSaving(true);
     setError("");
     try {
-      const result = await apiClient.post<DocumentSigningResult>(
-        document.signUrl ||
-          `/api/documents/versions/${document.versionId}/sign`,
+      await signAction.run(
+        async () => {
+          const signedDocument = await apiClient.post<DocumentSigningResult>(
+            document.signUrl ||
+              `/api/documents/versions/${document.versionId}/sign`,
+            {
+              password,
+              confirmation: confirmed,
+              ...(mode !== "saved"
+                ? { signatureImage: draftImage, saveSignature }
+                : {}),
+              placements: [
+                { pageNumber, ...position, includeName, includeDate },
+              ],
+            },
+          );
+          setResult(signedDocument);
+          setPassword("");
+          pageRef.current
+            ?.querySelector<HTMLElement>(
+              '[aria-label="Signature position. Drag or use arrow keys to move."]',
+            )
+            ?.scrollIntoView({
+              behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+                .matches
+                ? "instant"
+                : "smooth",
+              block: "nearest",
+            });
+        },
         {
-          password,
-          confirmation: confirmed,
-          ...(mode !== "saved"
-            ? { signatureImage: draftImage, saveSignature }
-            : {}),
-          placements: [{ pageNumber, ...position, includeName, includeDate }],
+          successMessage: "The signed PDF was saved successfully.",
+          errorMessage: (reason) =>
+            reason instanceof Error
+              ? reason.message
+              : "Unable to sign the document.",
         },
       );
-      setResult(result);
-      setPassword("");
-      pageRef.current
-        ?.querySelector<HTMLElement>(
-          '[aria-label="Signature position. Drag or use arrow keys to move."]',
-        )
-        ?.scrollIntoView({
-          behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
-            .matches
-            ? "instant"
-            : "smooth",
-          block: "nearest",
-        });
-    } catch (reason: any) {
-      setError(reason.message || "Unable to sign the document.");
-    } finally {
-      setSaving(false);
+    } catch {
+      // Password, confirmation, placement, and signature inputs remain for retry.
     }
   };
 
@@ -590,11 +604,13 @@ export function DocumentSigningModal({
             )}
           </div>
           <aside className="min-h-0 border-t bg-white p-5 min-[760px]:overflow-y-auto min-[760px]:border-l min-[760px]:border-t-0">
-            {error && (
-              <div className="mb-4 rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-700">
-                {error}
-              </div>
-            )}
+            <ActionFeedback
+              id="document-signing-feedback"
+              feedback={signAction.feedback}
+              tone={error ? "error" : undefined}
+              message={error}
+              className="mb-4"
+            />
             <ol
               aria-label="Signing progress"
               className="mb-5 flex justify-between text-xs font-bold text-[#173f63]"
@@ -850,20 +866,24 @@ export function DocumentSigningModal({
                       apply my electronic signature.
                     </span>
                   </label>
-                  <button
+                  <Button
                     onClick={signDocument}
                     disabled={
-                      saving ||
-                      busy ||
-                      !pdf ||
-                      !signatureUrl ||
-                      !password ||
-                      !confirmed
+                      busy || !pdf || !signatureUrl || !password || !confirmed
                     }
-                    className="mt-4 w-full rounded-xl bg-[#173f63] px-4 py-3 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    status={signAction.status}
+                    loadingText="Signing securely..."
+                    successText="Document signed"
+                    errorText="Try signing again"
+                    aria-describedby={
+                      signAction.feedback || error
+                        ? "document-signing-feedback"
+                        : undefined
+                    }
+                    className="mt-4 w-full"
                   >
-                    {saving ? "Signing securely…" : "Confirm & Sign"}
-                  </button>
+                    Confirm & Sign
+                  </Button>
                   <p className="mt-3 text-base leading-4 text-slate-400">
                     The original remains in version history. Advisio creates a
                     separate signed PDF and records the signer, time, and file

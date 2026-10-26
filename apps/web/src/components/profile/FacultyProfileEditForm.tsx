@@ -12,7 +12,6 @@ import {
   Award,
   FileText,
   CheckCircle2,
-  AlertCircle,
   Lightbulb,
   Sparkles,
   Info,
@@ -21,7 +20,9 @@ import { useFacultyProfile } from "@/hooks/use-faculty-profile";
 import { ProfileSkeleton } from "@/components/ui/Skeleton";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Tag } from "@/components/ui/Tag";
+import { useAsyncAction } from "@/hooks/use-async-action";
 import type {
   EducationRecord,
   CertificationRecord,
@@ -66,7 +67,6 @@ export function FacultyProfileEditForm() {
     profileUser,
     isLoading,
     updateProfile,
-    isUpdating,
     getLegacyLocalStorageData,
     dismissLegacyData,
     convertLegacyData,
@@ -91,13 +91,19 @@ export function FacultyProfileEditForm() {
   const [customInterest, setCustomInterest] = useState("");
   const [specializedTopics, setSpecializedTopics] = useState<string[]>([]);
   const [customTopic, setCustomTopic] = useState("");
-  const [supervisionMethodologies, setSupervisionMethodologies] = useState<string[]>([]);
+  const [supervisionMethodologies, setSupervisionMethodologies] = useState<
+    string[]
+  >([]);
   const [customMethodology, setCustomMethodology] = useState("");
-  const [acceptedResearchTypes, setAcceptedResearchTypes] = useState<string[]>([]);
+  const [acceptedResearchTypes, setAcceptedResearchTypes] = useState<string[]>(
+    [],
+  );
 
   // Repeatable Collections
   const [educations, setEducations] = useState<EducationRecord[]>([]);
-  const [certifications, setCertifications] = useState<CertificationRecord[]>([]);
+  const [certifications, setCertifications] = useState<CertificationRecord[]>(
+    [],
+  );
   const [experiences, setExperiences] = useState<ExperienceRecord[]>([]);
   const [publications, setPublications] = useState<PublicationRecord[]>([]);
   const [awards, setAwards] = useState<AwardRecord[]>([]);
@@ -105,7 +111,7 @@ export function FacultyProfileEditForm() {
   // Preferences
   const [advisingPreferences, setAdvisingPreferences] = useState("");
 
-  const [error, setError] = useState<string | null>(null);
+  const saveAction = useAsyncAction();
   const [isDirty, setIsDirty] = useState(false);
 
   // Initialize from loaded database profile or query params
@@ -119,17 +125,43 @@ export function FacultyProfileEditForm() {
       setTeachingBackground(profile.teachingBackground || "");
       setMentoringPhilosophy(profile.mentoringPhilosophy || "");
       setPreferredProjectTypes(profile.preferredProjectTypes || "");
-      setExpertiseKeywords(Array.isArray(profile.expertiseKeywords) ? profile.expertiseKeywords : []);
-      setResearchInterests(Array.isArray(profile.researchInterests) ? profile.researchInterests : []);
-      setSpecializedTopics(Array.isArray(profile.specializedTopics) ? profile.specializedTopics : []);
-      setSupervisionMethodologies(
-        Array.isArray(profile.supervisionMethodologies) ? profile.supervisionMethodologies : [],
+      setExpertiseKeywords(
+        Array.isArray(profile.expertiseKeywords)
+          ? profile.expertiseKeywords
+          : [],
       );
-      setAcceptedResearchTypes(Array.isArray(profile.acceptedResearchTypes) ? profile.acceptedResearchTypes : []);
-      setEducations(Array.isArray(profile.educations) ? profile.educations : []);
-      setCertifications(Array.isArray(profile.certifications) ? profile.certifications : []);
-      setExperiences(Array.isArray(profile.experiences) ? profile.experiences : []);
-      setPublications(Array.isArray(profile.publications) ? profile.publications : []);
+      setResearchInterests(
+        Array.isArray(profile.researchInterests)
+          ? profile.researchInterests
+          : [],
+      );
+      setSpecializedTopics(
+        Array.isArray(profile.specializedTopics)
+          ? profile.specializedTopics
+          : [],
+      );
+      setSupervisionMethodologies(
+        Array.isArray(profile.supervisionMethodologies)
+          ? profile.supervisionMethodologies
+          : [],
+      );
+      setAcceptedResearchTypes(
+        Array.isArray(profile.acceptedResearchTypes)
+          ? profile.acceptedResearchTypes
+          : [],
+      );
+      setEducations(
+        Array.isArray(profile.educations) ? profile.educations : [],
+      );
+      setCertifications(
+        Array.isArray(profile.certifications) ? profile.certifications : [],
+      );
+      setExperiences(
+        Array.isArray(profile.experiences) ? profile.experiences : [],
+      );
+      setPublications(
+        Array.isArray(profile.publications) ? profile.publications : [],
+      );
       setAwards(Array.isArray(profile.awards) ? profile.awards : []);
       setAdvisingPreferences(profile.advisingPreferences || "");
     }
@@ -141,13 +173,23 @@ export function FacultyProfileEditForm() {
       const legacy = getLegacyLocalStorageData();
       if (legacy) {
         const converted = convertLegacyData(legacy);
-        if (converted.department && !department) setDepartment(converted.department);
-        if (converted.biography && !biography) setBiography(converted.biography);
+        if (converted.department && !department)
+          setDepartment(converted.department);
+        if (converted.biography && !biography)
+          setBiography(converted.biography);
         if (converted.expertiseKeywords?.length) {
-          setExpertiseKeywords((prev) => Array.from(new Set([...prev, ...(converted.expertiseKeywords || [])])));
+          setExpertiseKeywords((prev) =>
+            Array.from(
+              new Set([...prev, ...(converted.expertiseKeywords || [])]),
+            ),
+          );
         }
         if (converted.specializedTopics?.length) {
-          setSpecializedTopics((prev) => Array.from(new Set([...prev, ...(converted.specializedTopics || [])])));
+          setSpecializedTopics((prev) =>
+            Array.from(
+              new Set([...prev, ...(converted.specializedTopics || [])]),
+            ),
+          );
         }
         const importedCertifications = converted.certifications;
         if (importedCertifications?.length) {
@@ -157,7 +199,14 @@ export function FacultyProfileEditForm() {
         dismissLegacyData();
       }
     }
-  }, [searchParams, getLegacyLocalStorageData, convertLegacyData, dismissLegacyData, department, biography]);
+  }, [
+    searchParams,
+    getLegacyLocalStorageData,
+    convertLegacyData,
+    dismissLegacyData,
+    department,
+    biography,
+  ]);
 
   // Prevent accidental navigation with unsaved changes
   useEffect(() => {
@@ -178,7 +227,9 @@ export function FacultyProfileEditForm() {
   // Expertise Tag Helpers
   const toggleSpecialty = (item: string) => {
     markDirty();
-    setExpertiseKeywords((prev) => (prev.includes(item) ? prev.filter((k) => k !== item) : [...prev, item]));
+    setExpertiseKeywords((prev) =>
+      prev.includes(item) ? prev.filter((k) => k !== item) : [...prev, item],
+    );
   };
 
   const addCustomSpecialty = () => {
@@ -210,7 +261,9 @@ export function FacultyProfileEditForm() {
 
   const toggleResearchType = (type: string) => {
     markDirty();
-    setAcceptedResearchTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]));
+    setAcceptedResearchTypes((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type],
+    );
   };
 
   // Repeatable Education Helpers
@@ -229,7 +282,11 @@ export function FacultyProfileEditForm() {
     ]);
   };
 
-  const updateEducation = (index: number, field: keyof EducationRecord, value: any) => {
+  const updateEducation = (
+    index: number,
+    field: keyof EducationRecord,
+    value: any,
+  ) => {
     markDirty();
     setEducations((prev) => {
       const next = [...prev];
@@ -261,7 +318,11 @@ export function FacultyProfileEditForm() {
     ]);
   };
 
-  const updateExperience = (index: number, field: keyof ExperienceRecord, value: any) => {
+  const updateExperience = (
+    index: number,
+    field: keyof ExperienceRecord,
+    value: any,
+  ) => {
     markDirty();
     setExperiences((prev) => {
       const next = [...prev];
@@ -290,7 +351,11 @@ export function FacultyProfileEditForm() {
     ]);
   };
 
-  const updateCertification = (index: number, field: keyof CertificationRecord, value: any) => {
+  const updateCertification = (
+    index: number,
+    field: keyof CertificationRecord,
+    value: any,
+  ) => {
     markDirty();
     setCertifications((prev) => {
       const next = [...prev];
@@ -320,7 +385,11 @@ export function FacultyProfileEditForm() {
     ]);
   };
 
-  const updatePublication = (index: number, field: keyof PublicationRecord, value: any) => {
+  const updatePublication = (
+    index: number,
+    field: keyof PublicationRecord,
+    value: any,
+  ) => {
     markDirty();
     setPublications((prev) => {
       const next = [...prev];
@@ -364,14 +433,15 @@ export function FacultyProfileEditForm() {
   };
 
   // Save changes handler
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
+  const handleSave = async (e?: React.FormEvent) => {
+    e?.preventDefault();
 
     // Validate educations if any were added
     for (const edu of educations) {
       if (!edu.degreeName.trim() || !edu.institution.trim()) {
-        setError("Please provide the degree name and institution for all educational qualifications.");
+        saveAction.warn(
+          "Please provide the degree name and institution for all educational qualifications.",
+        );
         return;
       }
     }
@@ -399,11 +469,22 @@ export function FacultyProfileEditForm() {
     };
 
     try {
-      await updateProfile(payload);
-      setIsDirty(false);
-      router.push("/adviser/profile?saved=true");
-    } catch (err: any) {
-      setError(err?.message || "Failed to save profile. Please check the fields and try again.");
+      await saveAction.run(
+        async () => {
+          await updateProfile(payload);
+          setIsDirty(false);
+          router.push("/adviser/profile?saved=true");
+        },
+        {
+          successMessage: "Faculty profile saved successfully.",
+          errorMessage: (error) =>
+            error instanceof Error
+              ? error.message
+              : "Failed to save profile. Please check the fields and try again.",
+        },
+      );
+    } catch {
+      // The form remains populated and ready for a safe retry.
     }
   };
 
@@ -420,7 +501,8 @@ export function FacultyProfileEditForm() {
             Edit Faculty Professional Profile
           </h2>
           <p className="text-base text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage your academic CV credentials, specialties, and mentoring background.
+            Manage your academic CV credentials, specialties, and mentoring
+            background.
           </p>
         </div>
 
@@ -429,7 +511,12 @@ export function FacultyProfileEditForm() {
             variant="outline"
             size="sm"
             onClick={() => {
-              if (isDirty && !window.confirm("You have unsaved changes. Discard and return to profile?")) {
+              if (
+                isDirty &&
+                !window.confirm(
+                  "You have unsaved changes. Discard and return to profile?",
+                )
+              ) {
                 return;
               }
               router.push("/adviser/profile");
@@ -440,8 +527,11 @@ export function FacultyProfileEditForm() {
           <Button
             variant="primary"
             size="sm"
-            onClick={handleSave}
-            isLoading={isUpdating}
+            onClick={() => void handleSave()}
+            status={saveAction.status}
+            loadingText="Saving profile..."
+            successText="Profile saved"
+            errorText="Try saving again"
             icon={<Save className="h-4 w-4" />}
           >
             Save Changes
@@ -449,12 +539,10 @@ export function FacultyProfileEditForm() {
         </div>
       </div>
 
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 dark:bg-rose-950/30 p-4 text-xs font-semibold text-rose-700 dark:text-rose-300 flex items-start gap-2.5">
-          <AlertCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />
-          <span>{error}</span>
-        </div>
-      )}
+      <ActionFeedback
+        id="faculty-profile-save-feedback"
+        feedback={saveAction.feedback}
+      />
 
       <form onSubmit={handleSave} className="flex flex-col gap-6 text-xs">
         {/* Section 1: Professional Header & Academic Title */}
@@ -500,7 +588,9 @@ export function FacultyProfileEditForm() {
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Department / Office</label>
+              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                Department / Office
+              </label>
               <input
                 type="text"
                 value={department}
@@ -539,7 +629,9 @@ export function FacultyProfileEditForm() {
           </h3>
           <div className="space-y-4">
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Short Faculty Biography</label>
+              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                Short Faculty Biography
+              </label>
               <textarea
                 rows={3}
                 value={biography}
@@ -553,7 +645,9 @@ export function FacultyProfileEditForm() {
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Teaching Background</label>
+              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                Teaching Background
+              </label>
               <textarea
                 rows={2}
                 value={teachingBackground}
@@ -607,15 +701,20 @@ export function FacultyProfileEditForm() {
               <GraduationCap className="h-4 w-4 text-[#C9A227]" />
               3. Educational Background & Degrees
             </h3>
-            <Button variant="outline" size="sm" onClick={addEducation} icon={<Plus className="h-3.5 w-3.5" />}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addEducation}
+              icon={<Plus className="h-3.5 w-3.5" />}
+            >
               Add Degree
             </Button>
           </div>
 
           {educations.length === 0 ? (
             <p className="text-sm text-slate-500 italic py-2">
-              No degrees entered yet. Click "Add Degree" to record your Bachelor's, Master's, or Doctoral
-              qualifications.
+              No degrees entered yet. Click "Add Degree" to record your
+              Bachelor's, Master's, or Doctoral qualifications.
             </p>
           ) : (
             <div className="space-y-4">
@@ -635,10 +734,14 @@ export function FacultyProfileEditForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pr-8">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Degree Level</label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                        Degree Level
+                      </label>
                       <select
                         value={edu.degreeLevel}
-                        onChange={(e) => updateEducation(idx, "degreeLevel", e.target.value)}
+                        onChange={(e) =>
+                          updateEducation(idx, "degreeLevel", e.target.value)
+                        }
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       >
                         <option value="BACHELORS">Bachelor's Degree</option>
@@ -650,11 +753,15 @@ export function FacultyProfileEditForm() {
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Degree Title</label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                        Degree Title
+                      </label>
                       <input
                         type="text"
                         value={edu.degreeName}
-                        onChange={(e) => updateEducation(idx, "degreeName", e.target.value)}
+                        onChange={(e) =>
+                          updateEducation(idx, "degreeName", e.target.value)
+                        }
                         placeholder="e.g. BS in Information Technology"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
@@ -667,19 +774,27 @@ export function FacultyProfileEditForm() {
                       <input
                         type="text"
                         value={edu.institution}
-                        onChange={(e) => updateEducation(idx, "institution", e.target.value)}
+                        onChange={(e) =>
+                          updateEducation(idx, "institution", e.target.value)
+                        }
                         placeholder="e.g. University of the Assumption"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Graduation Year</label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                        Graduation Year
+                      </label>
                       <input
                         type="number"
                         value={edu.graduationYear || ""}
                         onChange={(e) =>
-                          updateEducation(idx, "graduationYear", e.target.value ? Number(e.target.value) : null)
+                          updateEducation(
+                            idx,
+                            "graduationYear",
+                            e.target.value ? Number(e.target.value) : null,
+                          )
                         }
                         placeholder="e.g. 2018"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
@@ -699,7 +814,8 @@ export function FacultyProfileEditForm() {
             4. Areas of Expertise & Specialty Tags
           </h3>
           <p className="text-slate-500">
-            Select standard academic specialties or add your own custom institution-approved disciplines.
+            Select standard academic specialties or add your own custom
+            institution-approved disciplines.
           </p>
 
           <div className="flex flex-wrap gap-2">
@@ -737,7 +853,12 @@ export function FacultyProfileEditForm() {
               placeholder="Add custom specialty tag..."
               className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
             />
-            <Button type="button" variant="outline" size="sm" onClick={addCustomSpecialty}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addCustomSpecialty}
+            >
               Add Tag
             </Button>
           </div>
@@ -766,7 +887,9 @@ export function FacultyProfileEditForm() {
                       type="button"
                       onClick={() => {
                         markDirty();
-                        setResearchInterests((prev) => prev.filter((_, i) => i !== idx));
+                        setResearchInterests((prev) =>
+                          prev.filter((_, i) => i !== idx),
+                        );
                       }}
                       className="text-slate-400 hover:text-rose-600"
                     >
@@ -789,7 +912,12 @@ export function FacultyProfileEditForm() {
                   placeholder="e.g. Natural Language Processing, Health Informatics..."
                   className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                 />
-                <Button type="button" variant="outline" size="sm" onClick={addCustomInterest}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addCustomInterest}
+                >
                   Add
                 </Button>
               </div>
@@ -810,7 +938,9 @@ export function FacultyProfileEditForm() {
                       type="button"
                       onClick={() => {
                         markDirty();
-                        setSpecializedTopics((prev) => prev.filter((_, i) => i !== idx));
+                        setSpecializedTopics((prev) =>
+                          prev.filter((_, i) => i !== idx),
+                        );
                       }}
                       className="text-slate-400 hover:text-rose-600"
                     >
@@ -833,7 +963,12 @@ export function FacultyProfileEditForm() {
                   placeholder="e.g. Weed detection via neural networks, Mobile microfinance security..."
                   className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                 />
-                <Button type="button" variant="outline" size="sm" onClick={addCustomTopic}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addCustomTopic}
+                >
                   Add
                 </Button>
               </div>
@@ -874,14 +1009,20 @@ export function FacultyProfileEditForm() {
               <Briefcase className="h-4 w-4 text-[#C9A227]" />
               6. Professional & Teaching Experience
             </h3>
-            <Button variant="outline" size="sm" onClick={addExperience} icon={<Plus className="h-3.5 w-3.5" />}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addExperience}
+              icon={<Plus className="h-3.5 w-3.5" />}
+            >
               Add Position
             </Button>
           </div>
 
           {experiences.length === 0 ? (
             <p className="text-sm text-slate-500 italic py-2">
-              No positions added yet. Click "Add Position" to include academic appointments or industry experience.
+              No positions added yet. Click "Add Position" to include academic
+              appointments or industry experience.
             </p>
           ) : (
             <div className="space-y-4">
@@ -901,15 +1042,21 @@ export function FacultyProfileEditForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pr-8">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Type</label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                        Type
+                      </label>
                       <select
                         value={exp.type}
-                        onChange={(e) => updateExperience(idx, "type", e.target.value)}
+                        onChange={(e) =>
+                          updateExperience(idx, "type", e.target.value)
+                        }
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       >
                         <option value="TEACHING">Teaching / Academic</option>
                         <option value="INDUSTRY">Industry / Corporate</option>
-                        <option value="ADMINISTRATIVE">Institutional Administrative</option>
+                        <option value="ADMINISTRATIVE">
+                          Institutional Administrative
+                        </option>
                         <option value="RESEARCH">Research Fellow / Lab</option>
                       </select>
                     </div>
@@ -921,7 +1068,9 @@ export function FacultyProfileEditForm() {
                       <input
                         type="text"
                         value={exp.title}
-                        onChange={(e) => updateExperience(idx, "title", e.target.value)}
+                        onChange={(e) =>
+                          updateExperience(idx, "title", e.target.value)
+                        }
                         placeholder="e.g. Associate Professor"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
@@ -934,7 +1083,9 @@ export function FacultyProfileEditForm() {
                       <input
                         type="text"
                         value={exp.organization}
-                        onChange={(e) => updateExperience(idx, "organization", e.target.value)}
+                        onChange={(e) =>
+                          updateExperience(idx, "organization", e.target.value)
+                        }
                         placeholder="e.g. University of the Assumption"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
@@ -944,22 +1095,30 @@ export function FacultyProfileEditForm() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
-                        <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Start Year</label>
+                        <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                          Start Year
+                        </label>
                         <input
                           type="text"
                           value={exp.startYear}
-                          onChange={(e) => updateExperience(idx, "startYear", e.target.value)}
+                          onChange={(e) =>
+                            updateExperience(idx, "startYear", e.target.value)
+                          }
                           placeholder="e.g. 2018"
                           className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                         />
                       </div>
                       <div className="flex-1">
-                        <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">End Year</label>
+                        <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                          End Year
+                        </label>
                         <input
                           type="text"
                           disabled={exp.isCurrent}
                           value={exp.isCurrent ? "Present" : exp.endYear || ""}
-                          onChange={(e) => updateExperience(idx, "endYear", e.target.value)}
+                          onChange={(e) =>
+                            updateExperience(idx, "endYear", e.target.value)
+                          }
                           placeholder="e.g. 2022"
                           className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white disabled:opacity-50"
                         />
@@ -970,7 +1129,9 @@ export function FacultyProfileEditForm() {
                         <input
                           type="checkbox"
                           checked={exp.isCurrent}
-                          onChange={(e) => updateExperience(idx, "isCurrent", e.target.checked)}
+                          onChange={(e) =>
+                            updateExperience(idx, "isCurrent", e.target.checked)
+                          }
                           className="rounded border-slate-300 text-[#0B3A53]"
                         />
                         Currently active in this role
@@ -990,13 +1151,20 @@ export function FacultyProfileEditForm() {
               <CheckCircle2 className="h-4 w-4 text-[#C9A227]" />
               7. Professional Certifications & Licenses
             </h3>
-            <Button variant="outline" size="sm" onClick={addCertification} icon={<Plus className="h-3.5 w-3.5" />}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addCertification}
+              icon={<Plus className="h-3.5 w-3.5" />}
+            >
               Add Certification
             </Button>
           </div>
 
           {certifications.length === 0 ? (
-            <p className="text-sm text-slate-500 italic py-2">No certifications added yet.</p>
+            <p className="text-sm text-slate-500 italic py-2">
+              No certifications added yet.
+            </p>
           ) : (
             <div className="space-y-4">
               {certifications.map((cert, idx) => (
@@ -1021,7 +1189,9 @@ export function FacultyProfileEditForm() {
                       <input
                         type="text"
                         value={cert.title}
-                        onChange={(e) => updateCertification(idx, "title", e.target.value)}
+                        onChange={(e) =>
+                          updateCertification(idx, "title", e.target.value)
+                        }
                         placeholder="e.g. AWS Solutions Architect"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
@@ -1034,19 +1204,31 @@ export function FacultyProfileEditForm() {
                       <input
                         type="text"
                         value={cert.issuingBody}
-                        onChange={(e) => updateCertification(idx, "issuingBody", e.target.value)}
+                        onChange={(e) =>
+                          updateCertification(
+                            idx,
+                            "issuingBody",
+                            e.target.value,
+                          )
+                        }
                         placeholder="e.g. Amazon Web Services"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Year Issued</label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                        Year Issued
+                      </label>
                       <input
                         type="number"
                         value={cert.yearIssued || ""}
                         onChange={(e) =>
-                          updateCertification(idx, "yearIssued", e.target.value ? Number(e.target.value) : null)
+                          updateCertification(
+                            idx,
+                            "yearIssued",
+                            e.target.value ? Number(e.target.value) : null,
+                          )
                         }
                         placeholder="e.g. 2023"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
@@ -1066,13 +1248,20 @@ export function FacultyProfileEditForm() {
               <FileText className="h-4 w-4 text-[#C9A227]" />
               8. Publications & Research Contributions
             </h3>
-            <Button variant="outline" size="sm" onClick={addPublication} icon={<Plus className="h-3.5 w-3.5" />}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addPublication}
+              icon={<Plus className="h-3.5 w-3.5" />}
+            >
               Add Publication
             </Button>
           </div>
 
           {publications.length === 0 ? (
-            <p className="text-sm text-slate-500 italic py-2">No publications added yet.</p>
+            <p className="text-sm text-slate-500 italic py-2">
+              No publications added yet.
+            </p>
           ) : (
             <div className="space-y-4">
               {publications.map((pub, idx) => (
@@ -1097,7 +1286,9 @@ export function FacultyProfileEditForm() {
                       <input
                         type="text"
                         value={pub.title}
-                        onChange={(e) => updatePublication(idx, "title", e.target.value)}
+                        onChange={(e) =>
+                          updatePublication(idx, "title", e.target.value)
+                        }
                         placeholder="e.g. Machine Learning in Academic Advising"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
@@ -1110,7 +1301,9 @@ export function FacultyProfileEditForm() {
                       <input
                         type="text"
                         value={pub.venue}
-                        onChange={(e) => updatePublication(idx, "venue", e.target.value)}
+                        onChange={(e) =>
+                          updatePublication(idx, "venue", e.target.value)
+                        }
                         placeholder="e.g. IEEE Transactions on Education"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
@@ -1119,11 +1312,15 @@ export function FacultyProfileEditForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Year</label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                        Year
+                      </label>
                       <input
                         type="text"
                         value={pub.year || ""}
-                        onChange={(e) => updatePublication(idx, "year", e.target.value)}
+                        onChange={(e) =>
+                          updatePublication(idx, "year", e.target.value)
+                        }
                         placeholder="e.g. 2024"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
@@ -1136,7 +1333,9 @@ export function FacultyProfileEditForm() {
                       <input
                         type="url"
                         value={pub.url || ""}
-                        onChange={(e) => updatePublication(idx, "url", e.target.value)}
+                        onChange={(e) =>
+                          updatePublication(idx, "url", e.target.value)
+                        }
                         placeholder="https://doi.org/..."
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
@@ -1155,13 +1354,20 @@ export function FacultyProfileEditForm() {
               <Award className="h-4 w-4 text-[#C9A227]" />
               9. Awards & Professional Achievements
             </h3>
-            <Button variant="outline" size="sm" onClick={addAward} icon={<Plus className="h-3.5 w-3.5" />}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={addAward}
+              icon={<Plus className="h-3.5 w-3.5" />}
+            >
               Add Award
             </Button>
           </div>
 
           {awards.length === 0 ? (
-            <p className="text-sm text-slate-500 italic py-2">No awards added yet.</p>
+            <p className="text-sm text-slate-500 italic py-2">
+              No awards added yet.
+            </p>
           ) : (
             <div className="space-y-4">
               {awards.map((award, idx) => (
@@ -1180,11 +1386,15 @@ export function FacultyProfileEditForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pr-8">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Award Title</label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                        Award Title
+                      </label>
                       <input
                         type="text"
                         value={award.title}
-                        onChange={(e) => updateAward(idx, "title", e.target.value)}
+                        onChange={(e) =>
+                          updateAward(idx, "title", e.target.value)
+                        }
                         placeholder="e.g. Outstanding Faculty Researcher"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
@@ -1197,18 +1407,28 @@ export function FacultyProfileEditForm() {
                       <input
                         type="text"
                         value={award.issuingOrganization}
-                        onChange={(e) => updateAward(idx, "issuingOrganization", e.target.value)}
+                        onChange={(e) =>
+                          updateAward(
+                            idx,
+                            "issuingOrganization",
+                            e.target.value,
+                          )
+                        }
                         placeholder="e.g. University of the Assumption"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">Year Received</label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                        Year Received
+                      </label>
                       <input
                         type="text"
                         value={award.year || ""}
-                        onChange={(e) => updateAward(idx, "year", e.target.value)}
+                        onChange={(e) =>
+                          updateAward(idx, "year", e.target.value)
+                        }
                         placeholder="e.g. 2023"
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
                       />
@@ -1247,7 +1467,12 @@ export function FacultyProfileEditForm() {
             variant="outline"
             size="md"
             onClick={() => {
-              if (isDirty && !window.confirm("You have unsaved changes. Discard and return to profile?")) {
+              if (
+                isDirty &&
+                !window.confirm(
+                  "You have unsaved changes. Discard and return to profile?",
+                )
+              ) {
                 return;
               }
               router.push("/adviser/profile");
@@ -1255,7 +1480,19 @@ export function FacultyProfileEditForm() {
           >
             Cancel
           </Button>
-          <Button type="submit" variant="primary" size="md" isLoading={isUpdating} icon={<Save className="h-4 w-4" />}>
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            status={saveAction.status}
+            loadingText="Saving profile..."
+            successText="Profile saved"
+            errorText="Try saving again"
+            aria-describedby={
+              saveAction.feedback ? "faculty-profile-save-feedback" : undefined
+            }
+            icon={<Save className="h-4 w-4" />}
+          >
             Save Profile Changes
           </Button>
         </div>
