@@ -508,6 +508,15 @@ function ProfessorDashboardContent() {
     tone: "success" | "error";
     message: string;
   } | null>(null);
+
+  useEffect(() => {
+    if (workflowOrderFeedback?.tone !== "success") return;
+    const timeout = window.setTimeout(
+      () => setWorkflowOrderFeedback(null),
+      3000,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [workflowOrderFeedback]);
   const [showAdvancedMilestoneOptions, setShowAdvancedMilestoneOptions] =
     useState(false);
   const [editingMilestone, setEditingMilestone] = useState<any | null>(null);
@@ -535,8 +544,15 @@ function ProfessorDashboardContent() {
   const [topicDescription, setTopicDescription] = useState("");
   const [topicSaving, setTopicSaving] = useState(false);
   const [milestoneSaveStatus, setMilestoneSaveStatus] = useState<
-    "idle" | "saving" | "saved"
+    "idle" | "saving" | "saved" | "error"
   >("idle");
+  const milestoneSavingRef = useRef(false);
+
+  useEffect(() => {
+    if (milestoneSaveStatus !== "saved") return;
+    const timeout = window.setTimeout(() => setMilestoneSaveStatus("idle"), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [milestoneSaveStatus]);
   const [milestonePendingDelete, setMilestonePendingDelete] = useState<
     any | null
   >(null);
@@ -933,6 +949,8 @@ function ProfessorDashboardContent() {
     const optimisticById = new Map(
       reordered.map((milestone) => [milestone.id, milestone]),
     );
+    const previousEditingMilestone = editingMilestone;
+    const previousEditorTopicId = milestoneEditTopicId;
     workflowOrderSavingRef.current = true;
     setTopicOrderSaving(true);
     setWorkflowOrderFeedback(null);
@@ -943,6 +961,15 @@ function ProfessorDashboardContent() {
           : milestone,
       ),
     );
+    if (editingMilestone) {
+      const optimisticEditingMilestone = optimisticById.get(
+        editingMilestone.id,
+      );
+      if (optimisticEditingMilestone) {
+        setEditingMilestone(optimisticEditingMilestone);
+        setMilestoneEditTopicId(optimisticEditingMilestone.topicId || "");
+      }
+    }
     try {
       await apiClient.patch(
         `/api/workflows/${selectedWorkflowId}/stages/reorder`,
@@ -969,6 +996,10 @@ function ProfessorDashboardContent() {
             : milestone,
         ),
       );
+      if (previousEditingMilestone) {
+        setEditingMilestone(previousEditingMilestone);
+        setMilestoneEditTopicId(previousEditorTopicId);
+      }
       setWorkflowOrderFeedback({
         tone: "error",
         message: `${error?.message || "The milestone could not be moved."} The previous order was restored.`,
@@ -1215,7 +1246,13 @@ function ProfessorDashboardContent() {
   };
 
   const handleSaveMilestoneDetails = async () => {
-    if (!editingMilestone || !milestoneEditTitle.trim()) return;
+    if (
+      milestoneSavingRef.current ||
+      !editingMilestone ||
+      !milestoneEditTitle.trim()
+    )
+      return;
+    milestoneSavingRef.current = true;
     setMilestoneSaveStatus("saving");
     try {
       const result = await apiClient.patch<{ stage: any }>(
@@ -1248,8 +1285,10 @@ function ProfessorDashboardContent() {
       setMilestoneEditTargetChanged(false);
       setMilestoneSaveStatus("saved");
     } catch (error: any) {
-      setMilestoneSaveStatus("idle");
+      setMilestoneSaveStatus("error");
       triggerToast(error?.message || "Milestone details could not be saved.");
+    } finally {
+      milestoneSavingRef.current = false;
     }
   };
 
@@ -1522,14 +1561,20 @@ function ProfessorDashboardContent() {
             ? "Approval"
             : "Academic Event";
     const typeStyle = milestone.milestoneType === "ADVISER_SELECTION"
-      ? "bg-emerald-50 text-emerald-700"
+      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
       : milestone.milestoneType === "DEFENSE_ELIGIBILITY"
         ? "bg-[var(--color-primary-light)] text-[var(--color-primary)]"
         : milestone.requiresDocument !== false
-          ? "bg-blue-50 text-blue-700"
+          ? "bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300"
           : milestone.locked
-            ? "bg-violet-50 text-violet-700"
-            : "bg-amber-50 text-amber-700";
+            ? "bg-violet-50 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300"
+            : "bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300";
+    const prerequisite = milestone.requiredMilestoneId
+      ? selectedWorkflowMilestones.find(
+          (item) => item.id === milestone.requiredMilestoneId,
+        )
+      : null;
+    const requirementCount = milestone.tasks?.length || 0;
     const moveDisabledReason = workflowOrderDisabledReason;
     return (
       <React.Fragment key={milestone.id}>
@@ -1538,7 +1583,7 @@ function ProfessorDashboardContent() {
           index,
           `drop-before-${milestone.id}`,
         )}
-      <article className={`group flex min-h-14 items-center gap-2 border-t border-[var(--color-border-subtle)] px-3 py-2.5 transition sm:px-4 ${draggedMilestoneId === milestone.id ? "opacity-45" : ""}`}>
+      <article className={`group flex min-h-14 items-center gap-2 border-t border-[var(--color-border-subtle)] px-3 py-2.5 transition sm:px-4 ${editingMilestone?.id === milestone.id ? "bg-[var(--color-primary-light)]/60" : "hover:bg-[var(--color-surface-subtle)]"} ${draggedMilestoneId === milestone.id ? "opacity-45" : ""}`}>
         <button
           type="button"
           draggable={!moveDisabledReason}
@@ -1573,12 +1618,25 @@ function ProfessorDashboardContent() {
             setShowAdvancedMilestoneOptions(false);
             openMilestoneEditor(milestone);
           }}
+          aria-current={editingMilestone?.id === milestone.id ? "true" : undefined}
           aria-label={`Edit milestone ${milestone.title}`}
           className="min-w-0 flex-1 rounded-lg py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
         >
           <span className="flex flex-wrap items-center gap-2.5">
             <span className="text-[15px] font-extrabold text-[var(--color-text-primary)]">{milestone.title}</span>
             <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${typeStyle}`}>{typeLabel}</span>
+          </span>
+          <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[var(--color-text-secondary)]">
+            {milestone.requiresDocument !== false ? (
+              <span><i className="ti ti-file-upload mr-1" aria-hidden="true" />{requirementCount ? `${requirementCount} requirement${requirementCount === 1 ? "" : "s"}` : "Document required"}</span>
+            ) : null}
+            {milestone.locked ? (
+              <span><i className="ti ti-lock-check mr-1" aria-hidden="true" />Approval required</span>
+            ) : null}
+            {prerequisite ? (
+              <span className="max-w-full truncate"><i className="ti ti-link mr-1" aria-hidden="true" />After {prerequisite.title}</span>
+            ) : null}
+            <span className="sm:hidden"><i className="ti ti-calendar mr-1" aria-hidden="true" />{formatMilestoneTarget(milestone)}</span>
           </span>
         </button>
         <span className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-[var(--color-text-secondary)] sm:flex">
@@ -2507,7 +2565,10 @@ function ProfessorDashboardContent() {
 
       {editingMilestone && (
         <MilestoneComposer
+          key={editingMilestone.id}
           mode="edit"
+          presentation="panel"
+          portalTargetId="workflow-milestone-editor-slot"
           workflowName={selectedWorkflow?.name || "Research workflow"}
           topics={selectedWorkflowTopics}
           topicId={milestoneEditTopicId}
@@ -2592,13 +2653,13 @@ function ProfessorDashboardContent() {
                 {(editingMilestone.tasks || []).map((requirement: any) => (
                   <div
                     key={requirement.id}
-                    className="flex items-start justify-between rounded-xl border border-slate-200 p-3"
+                    className="flex items-start justify-between rounded-xl border border-[var(--color-border)] p-3"
                   >
                     <div>
-                      <p className="text-base font-bold text-[#102f49]">
+                      <p className="text-base font-bold text-[var(--color-text-primary)]">
                         {requirement.title}
                       </p>
-                      <p className="mt-0.5 text-base text-slate-500">
+                      <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">
                         {requirement.allowedFileTypes || "PDF,DOCX"} ·{" "}
                         {formatTaskDeadline({
                           ...requirement,
@@ -2615,14 +2676,14 @@ function ProfessorDashboardContent() {
                       type="button"
                       onClick={() => handleDeleteRequirement(requirement.id)}
                       aria-label={`Delete ${requirement.title}`}
-                      className="grid h-8 w-8 place-items-center rounded-lg text-rose-500 hover:bg-rose-50"
+                      className="grid h-8 w-8 place-items-center rounded-lg text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-950/30"
                     >
                       <i className="ti ti-trash" />
                     </button>
                   </div>
                 ))}
-                <div className="space-y-3 rounded-xl bg-slate-50 p-4">
-                  <p className="text-base font-extrabold text-[#102f49]">
+                <div className="space-y-3 rounded-xl bg-[var(--color-surface-subtle)] p-4">
+                  <p className="text-base font-extrabold text-[var(--color-text-primary)]">
                     Add another requirement
                   </p>
                   <input
@@ -2632,7 +2693,7 @@ function ProfessorDashboardContent() {
                       setNewRequirementTitle(event.target.value)
                     }
                     placeholder="e.g. Chapter 1 PDF"
-                    className="w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base"
+                    className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 text-base text-[var(--color-text-primary)]"
                   />
                   <textarea
                     value={newRequirementInstructions}
@@ -2641,7 +2702,7 @@ function ProfessorDashboardContent() {
                     }
                     rows={2}
                     placeholder="Short instructions (optional)"
-                    className="w-full resize-none rounded-xl border border-slate-300 bg-white p-2.5 text-base"
+                    className="w-full resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 text-base text-[var(--color-text-primary)]"
                   />
                   <div className="grid gap-2 sm:grid-cols-2">
                     <input
@@ -2658,7 +2719,7 @@ function ProfessorDashboardContent() {
                           ? "Uses milestone date"
                           : "Target days"
                       }
-                      className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
+                      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 text-base text-[var(--color-text-primary)]"
                     />
                     <input
                       value={newRequirementFileTypes}
@@ -2666,14 +2727,14 @@ function ProfessorDashboardContent() {
                         setNewRequirementFileTypes(event.target.value)
                       }
                       placeholder="PDF,DOCX"
-                      className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
+                      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2.5 text-base text-[var(--color-text-primary)]"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => void handleCreateRequirement()}
                     disabled={saving || !newRequirementTitle.trim()}
-                    className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
+                    className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] disabled:opacity-50 dark:text-[var(--college-on-primary-dark)]"
                   >
                     {saving ? "Adding…" : "Add requirement"}
                   </button>
@@ -6095,7 +6156,7 @@ function ProfessorDashboardContent() {
                           Research Workflow
                         </h2>
                         <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${selectedWorkflow?.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${selectedWorkflow?.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"}`}
                         >
                           {selectedWorkflow?.status
                             ? selectedWorkflow.status
@@ -6106,7 +6167,7 @@ function ProfessorDashboardContent() {
                             : "No workflow selected"}
                         </span>
                       </div>
-                      <p className="mt-1 text-base text-slate-500">
+                      <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                         Configure research stages, milestones, and approval requirements.
                       </p>
                     </div>
@@ -6253,12 +6314,12 @@ function ProfessorDashboardContent() {
                             0,
                           );
                         }}
-                        className={`relative flex items-center gap-2 whitespace-nowrap px-5 py-4 text-sm font-extrabold transition ${workflowView === item.id ? "text-[#173f63]" : "text-slate-500 hover:text-[#173f63]"}`}
+                        className={`relative flex items-center gap-2 whitespace-nowrap px-5 py-4 text-sm font-extrabold transition ${workflowView === item.id ? "text-[var(--color-primary)]" : "text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"}`}
                       >
                         <i className={`ti ${item.icon}`} />
                         {item.label}
                         {workflowView === item.id && (
-                          <span className="absolute inset-x-3 bottom-0 h-1 rounded-t-full bg-[#f6a800]" />
+                          <span className="absolute inset-x-3 bottom-0 h-1 rounded-t-full bg-[var(--color-primary)]" />
                         )}
                       </button>
                     ))}
@@ -6447,8 +6508,8 @@ function ProfessorDashboardContent() {
                       </section>
                     )}
                     {!workflowsLoading && !workflowsError && (
-                      <div>
-                        <section className="overflow-visible rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm sm:p-5">
+                      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] 2xl:grid-cols-[minmax(0,1fr)_430px]">
+                        <section className="min-w-0 overflow-visible rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-sm sm:p-5">
                           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                               <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
@@ -6462,9 +6523,7 @@ function ProfessorDashboardContent() {
                               <div className="relative">
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    setShowWorkflowCreateMenu((value) => !value)
-                                  }
+                                  onClick={() => openTopicEditor()}
                                   disabled={
                                     !selectedWorkflowId ||
                                     selectedWorkflow?.status === "ARCHIVED"
@@ -6474,15 +6533,12 @@ function ProfessorDashboardContent() {
                                       ? "Select a workflow before creating an item."
                                       : selectedWorkflow?.status === "ARCHIVED"
                                         ? "Archived workflows are read-only."
-                                        : "Create a topic, milestone, or guide"
+                                        : "Add a topic to organize milestones"
                                   }
-                                  aria-haspopup="menu"
-                                  aria-expanded={showWorkflowCreateMenu}
                                   className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] shadow-sm disabled:cursor-not-allowed disabled:opacity-40 dark:text-[var(--college-on-primary-dark)]"
                                 >
                                   <i className="ti ti-plus mr-1.5" />
-                                  Create{" "}
-                                  <i className="ti ti-chevron-down ml-1" />
+                                  Add topic
                                 </button>
                                 {showWorkflowCreateMenu && (
                                   <div
@@ -6789,6 +6845,25 @@ function ProfessorDashboardContent() {
                               )}
                           </div>
                         </section>
+                        <aside
+                          id="workflow-milestone-editor-slot"
+                          aria-label="Contextual milestone editor"
+                          className={`min-w-0 ${editingMilestone ? "order-first lg:order-none" : ""}`}
+                        >
+                          {!editingMilestone ? (
+                            <div className="sticky top-4 flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-8 py-12 text-center">
+                              <span className="grid h-12 w-12 place-items-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]">
+                                <i className="ti ti-list-details text-2xl" aria-hidden="true" />
+                              </span>
+                              <h3 className="mt-4 text-base font-extrabold text-[var(--color-text-primary)]">
+                                Select a milestone
+                              </h3>
+                              <p className="mt-2 max-w-xs text-sm leading-6 text-[var(--color-text-secondary)]">
+                                Choose a milestone to inspect its instructions, requirements, dependencies, approval rule, and due date.
+                              </p>
+                            </div>
+                          ) : null}
+                        </aside>
                       </div>
                     )}
                   </div>
