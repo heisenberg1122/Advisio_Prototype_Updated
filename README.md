@@ -380,13 +380,21 @@ Never run `prisma migrate reset`, `prisma db push --force-reset`, or the develop
 | `STORAGE_PROVIDER`                                         | Primary document storage provider                       | `GOOGLE_DRIVE`                                                                                 |
 | `INTEGRATION_ENCRYPTION_KEY`                               | Encrypts stored integration credentials                 | Replace in production                                                                          |
 | `ALLOW_LOCAL_STORAGE_FALLBACK`                             | Allows local uploads when cloud storage is unavailable  | `false`                                                                                        |
-| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD` | SMTP delivery configuration                             | Mailtrap-compatible defaults                                                                   |
+| `EMAIL_PROVIDER` | `gmail`, `resend`, or development-only `mock` | Resend if a key exists; otherwise mock |
+| `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_SENDER_EMAIL` | Dedicated Gmail sender credentials (server only) | Required for Gmail delivery |
+| `MAIL_EMAIL_NOTIFICATIONS` | Email alerts for new internal mail, replies, and sent drafts | `false` |
+| `NOTIFICATION_EMAILS_ENABLED` | Queued event emails and automatic deadline reminders | `false` |
+| `EMAIL_LOGO_URL`, `EMAIL_TEMPLATE_OVERRIDES_PATH` | Optional branding URL and reloadable JSON template overrides | Built-in official logo and fourteen templates |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASSWORD` | Legacy placeholders; SMTP is not implemented | Unused |
 | `RESEND_API_KEY`                                           | Resend email provider API key                           | _(Optional)_                                                                                   |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`                | Supabase credentials when using Supabase storage        | _(Optional)_                                                                                   |
 | `SUPABASE_STORAGE_BUCKET`                                  | Supabase bucket used for manuscripts                    | `manuscripts`                                                                                  |
 | `EMAIL_FROM`                                               | Sender name and address for notification emails         | `Advisio Notifications <notifications@advisio.edu.ph>`                                         |
 
 See [`.env.example`](.env.example) for the local starter template. Deployment-specific settings and production Compose instructions are documented in [`DEPLOYMENT.md`](DEPLOYMENT.md).
+
+For system-account Gmail delivery, follow [Gmail setup](docs/gmail-setup.md).
+The [notification email guide](docs/notification-emails.md) covers all fourteen templates, customization, reminder schedules, and queue operations.
 
 ---
 

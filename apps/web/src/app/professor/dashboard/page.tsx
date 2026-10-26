@@ -1010,6 +1010,7 @@ function ProfessorDashboardContent() {
         recipientCount: number;
         collegeName?: string;
       }>("/api/notifications/announcements", {
+        workflowId: selectedWorkflowId,
         title: announcementTitle,
         message: announcementMessage,
         category: announcementCategory,
@@ -4097,19 +4098,24 @@ function ProfessorDashboardContent() {
                 </section>
                 <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <p className="text-sm font-extrabold uppercase tracking-wider text-emerald-700">
-                    Your college only
+                    Your selected workflow
                   </p>
                   <h2 className="mt-1 text-lg font-extrabold text-[#102f49]">
                     Post an announcement
                   </h2>
                   <p className="mt-1 text-base leading-5 text-slate-500">
-                    This will only be visible to active accounts assigned to
-                    your college department.
+                    This will notify active participants in the selected workflow.
                   </p>
                   <form
                     onSubmit={publishCollegeAnnouncement}
                     className="mt-5 space-y-4"
                   >
+                    <label className="block text-sm font-bold text-slate-700">Workflow
+                      <select required value={selectedWorkflowId} onChange={(event) => setSelectedWorkflowId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base font-normal">
+                        <option value="">Choose a published workflow</option>
+                        {(workflowData?.workflows || []).filter((workflow: any) => workflow.status === "PUBLISHED").map((workflow: any) => <option key={workflow.id} value={workflow.id}>{workflow.name}</option>)}
+                      </select>
+                    </label>
                     <label className="block text-sm font-bold text-slate-700">
                       Title
                       <input
@@ -4186,6 +4192,7 @@ function ProfessorDashboardContent() {
                     <button
                       disabled={
                         announcementPublishing ||
+                        !selectedWorkflowId ||
                         !announcementTitle.trim() ||
                         announcementMessage.trim().length < 10
                       }
@@ -4194,7 +4201,7 @@ function ProfessorDashboardContent() {
                       <i className="ti ti-send mr-2" />
                       {announcementPublishing
                         ? "Publishing…"
-                        : "Publish to college"}
+                        : "Publish to workflow"}
                     </button>
                   </form>
                 </aside>

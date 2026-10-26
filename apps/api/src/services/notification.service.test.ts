@@ -126,4 +126,11 @@ describe("notification delivery audience", () => {
       notificationDeliveries({} as any, [{ ...base, audience: "earlier" }]),
     ).rejects.toThrow("Invalid notification audience");
   });
+  it("queues one email when an event has multiple legitimate dashboard audiences", async () => {
+    const tx = { researchProject: { findUnique: vi.fn().mockResolvedValue({ members: [{ userId: "u1", projectRole: "LEADER" }, { userId: "u1", projectRole: "ADVISER" }], workflowInstance: null }) } } as any;
+    const rows = await notificationDeliveries(tx, [{ ...base, actionUrl: "/research/manuscript?projectId=p1", emailTemplate: "submission_approved", emailNextAttemptAt: new Date() }]);
+    expect(rows).toHaveLength(2);
+    expect(rows.filter((row) => row.emailTemplate)).toHaveLength(1);
+    expect(rows.find((row) => row.emailTemplate)?.audience).toBe("researcher");
+  });
 });

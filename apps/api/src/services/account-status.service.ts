@@ -1,5 +1,6 @@
 import { prisma, Prisma, UserStatus } from "../lib/prisma.js";
 import type { AuthenticatedUser } from "../middleware/auth.js";
+import { emailNotification } from "./notification-email.service.js";
 
 export class AccountStatusError extends Error {
   constructor(
@@ -112,6 +113,15 @@ export async function changeAccountStatus(options: {
           userAgent: options.userAgent,
         },
       });
+      if (user.status !== "ACTIVE" && options.status === "ACTIVE" && user.googleSubject) {
+        await tx.notification.create({ data: {
+          recipientId: user.id, audience: "account", type: "WORKFLOW_CHANGED",
+          title: "Your Advisio account has been approved",
+          message: "You can now sign in with Google and access your assigned workspace.",
+          actionUrl: "/login", entityType: "USER_ACCOUNT", entityId: user.id,
+          ...emailNotification("account_approved"),
+        } });
+      }
       return updated;
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },

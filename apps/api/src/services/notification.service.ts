@@ -87,6 +87,9 @@ export async function defenseSchedulerAudience(
 }
 
 type Delivery = {
+  emailTemplate?: string;
+  emailData?: Record<string, string>;
+  emailNextAttemptAt?: Date;
   recipientId: string;
   type: string;
   title: string;
@@ -176,6 +179,7 @@ export async function notificationDeliveries(
       throw new Error(
         "Notification audience requires an explicit recipient responsibility.",
       );
+    const emailAudience = audiences.includes("researcher") ? "researcher" : audiences[0];
     for (const audience of new Set(audiences)) {
       if (audience !== "account" && !getWorkspaceById(audience))
         throw new Error("Invalid notification audience.");
@@ -183,6 +187,7 @@ export async function notificationDeliveries(
         ...notification,
         type: notification.type as Prisma.NotificationCreateManyInput["type"],
         audience,
+        ...(notification.emailTemplate && audience !== emailAudience ? { emailTemplate: null, emailNextAttemptAt: null } : {}),
         deduplicationKey: createHash("sha256")
           .update(
             `${notification.deduplicationKey}:${notification.recipientId}:${audience}`,

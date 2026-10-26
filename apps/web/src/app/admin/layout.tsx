@@ -12,6 +12,7 @@ import {
   UserRound,
   UsersRound,
   Mail,
+  Megaphone,
   MessageSquare,
   FileSearch,
   Archive,
@@ -53,6 +54,7 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: "COMMUNICATION",
     items: [
+      { label: "Announcements", href: "/admin/dashboard?tab=announcements", tabName: "announcements", icon: Megaphone },
       { label: "Messages", href: "/admin/dashboard?tab=messages", tabName: "messages", icon: MessageSquare },
       { label: "Inbox", href: "/admin/inbox", icon: Mail },
     ],
@@ -69,6 +71,7 @@ const PAGE_TITLES: Record<string, string> = {
   calendar: "Academic Calendar",
   reports: "Research Reports",
   messages: "Messages",
+  announcements: "Announcements",
   inbox: "Inbox",
   settings: "Settings",
 };

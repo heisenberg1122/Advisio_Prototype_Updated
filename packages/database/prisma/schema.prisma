@@ -2195,12 +2195,19 @@ model Notification {
   createdAt        DateTime         @default(now()) @map("created_at")
   readAt           DateTime?        @map("read_at")
   archivedAt       DateTime?        @map("archived_at")
+  emailTemplate    String?          @map("email_template") @db.VarChar(80)
+  emailData        Json?            @map("email_data")
+  emailNextAttemptAt DateTime?      @map("email_next_attempt_at")
+  emailAttempts    Int              @default(0) @map("email_attempts")
+  emailSentAt      DateTime?        @map("email_sent_at")
+  emailLastError   String?          @map("email_last_error") @db.VarChar(300)
 
   recipient User @relation(fields: [recipientId], references: [id], onDelete: Cascade)
 
   @@index([recipientId, isRead])
   @@index([recipientId, archivedAt])
   @@index([recipientId, audience, archivedAt, createdAt])
+  @@index([emailNextAttemptAt])
   @@index([createdAt])
   @@map("notifications")
 }
@@ -2213,6 +2220,8 @@ model SystemAnnouncement {
   severity          String    @default("INFO") @db.VarChar(20)
   createdBy         String    @map("created_by") @db.Uuid
   audienceCollegeId String?   @map("audience_college_id") @db.Uuid
+  audienceWorkflowId String?  @map("audience_workflow_id") @db.Uuid
+  audienceProgramId String?   @map("audience_program_id") @db.Uuid
   publishedAt       DateTime  @default(now()) @map("published_at")
   expiresAt         DateTime? @map("expires_at")
 

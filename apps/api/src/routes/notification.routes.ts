@@ -8,6 +8,8 @@ import {
 import { requireAuth } from "../middleware/auth";
 import { requirePermission } from "../middleware/rbac";
 import { notificationWhere, notificationInbox } from "../services/notification.service.js";
+import { emailNotification } from "../services/notification-email.service.js";
+import { announcementScope } from "../services/announcement-scope.service.js";
 import { Permissions } from "@research-management/auth";
 
 const router = Router();
@@ -114,12 +116,27 @@ router.get(
     try {
       const user = await prisma.user.findUnique({
         where: { id: req.user!.id },
-        select: { collegeId: true },
+        select: { collegeId: true, programId: true },
+      });
+      const workflows = await prisma.workflow.findMany({
+        where: {
+          OR: [
+            { createdBy: req.user!.id },
+            { enrollments: { some: { userId: req.user!.id, status: "ACTIVE" } } },
+            { instances: { some: { research: { is: { members: { some: {
+              userId: req.user!.id, leftAt: null,
+              projectRole: { in: ["ADVISER", "PANELIST", "COORDINATOR"] },
+            } } } } } } },
+          ],
+        },
+        select: { id: true },
       });
       const announcements = await prisma.systemAnnouncement.findMany({
         where: {
           AND: [
             { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+            { OR: [{ audienceWorkflowId: null }, { audienceWorkflowId: { in: workflows.map((workflow) => workflow.id) } }] },
+            { OR: [{ audienceProgramId: null }, ...(user?.programId ? [{ audienceProgramId: user.programId }] : []), ...(req.user!.roles.includes("DEAN") && !req.user!.programId && user?.collegeId ? [{ audienceCollegeId: user.collegeId }] : [])] },
             {
               OR: [
                 { audienceCollegeId: null },
@@ -179,7 +196,7 @@ router.post(
     try {
       if (
         !req.user!.roles.some((role) =>
-          ["RESEARCH_COORDINATOR", "PROFESSOR"].includes(role),
+          ["RESEARCH_COORDINATOR", "PROFESSOR", "DEAN"].includes(role),
         )
       ) {
         return void res
@@ -235,6 +252,7 @@ router.post(
           .json({ error: "Expiration must be a future date." });
 
       const result = await prisma.$transaction(async (tx) => {
+        const scope = await announcementScope(tx, req.user!, req.body);
         const announcement = await tx.systemAnnouncement.create({
           data: {
             title,
@@ -244,12 +262,14 @@ router.post(
             expiresAt,
             createdBy: req.user!.id,
             audienceCollegeId: user.collegeId,
+            audienceWorkflowId: scope.audienceWorkflowId,
+            audienceProgramId: scope.audienceProgramId,
           },
         });
         const recipients = await tx.user.findMany({
           where: {
             status: UserStatus.ACTIVE,
-            collegeId: user.collegeId,
+            ...scope.recipients,
             id: { not: req.user!.id },
           },
           select: { id: true },
@@ -263,6 +283,7 @@ router.post(
                 message,
                 entityType: "COLLEGE_ANNOUNCEMENT",
                 entityId: announcement.id,
+                ...emailNotification("announcement", { scope: scope.scopeName, actorName: scope.actorName, collegeId: scope.audienceCollegeId, programId: scope.audienceProgramId || "", workflowId: scope.audienceWorkflowId || "" }),
               })),
             })
           : { count: 0 };
@@ -286,7 +307,7 @@ router.post(
         return {
           announcement,
           recipientCount: delivery.count,
-          collegeName: user.college?.name,
+          collegeName: scope.scopeName,
         };
       });
       res.status(201).json(result);
@@ -401,6 +422,7 @@ router.post(
             message,
             entityType: "SYSTEM_ANNOUNCEMENT",
             entityId: announcement.id,
+            ...emailNotification("announcement", { scope: "Advisio system", actorName: "System Administration" }),
           })),
         });
         await tx.auditLog.create({

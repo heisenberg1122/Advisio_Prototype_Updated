@@ -3,6 +3,7 @@ import { prisma, type Prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { getCollegeScope } from "../lib/college-scope.js";
 import { randomBytes } from "node:crypto";
+import { emailNotification } from "../services/notification-email.service.js";
 const router = Router();
 type User = NonNullable<Request["user"]>;
 const fail = (message: string, statusCode = 403): never => {
@@ -108,6 +109,7 @@ async function notify(
   message: string,
   entityId: string,
   actionUrl: string,
+  email?: ReturnType<typeof emailNotification>,
 ) {
   await db.notification.create({
     data: {
@@ -121,6 +123,7 @@ async function notify(
       entityType: "WORKFLOW_ACCESS",
       entityId,
       actionUrl,
+      ...email,
     },
   });
 }
@@ -435,6 +438,7 @@ router.post(
               `You are invited to join ${w.name}. Open your Advisio inbox to accept or decline.`,
               entry.id,
               `/student/inbox?thread=${thread.id}`,
+              emailNotification("workflow_invitation", { workflowName: w.name, actorName: `${w.creator.firstName} ${w.creator.lastName}` }),
             );
             await audit(tx, req.user!.id, entry.id, "INVITE");
             return { userId, status: "Sent" };
@@ -591,6 +595,7 @@ router.post(
         `You are invited to join ${w.name}.`,
         e.id,
         `/student/inbox?thread=${e.mailThreadId}`,
+        emailNotification("workflow_invitation", { workflowName: w.name, actorName: `${w.creator.firstName} ${w.creator.lastName}` }),
       );
     });
     res.json({ success: true });
