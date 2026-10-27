@@ -4314,7 +4314,19 @@ function ProfessorDashboardContent() {
                                 : "Complete prerequisites and approve required submissions first"}
                           </p>
                         </div>
-                        {!group.approved && (
+                        {group.approved ? (
+                          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                            <i
+                              className="ti ti-circle-check-filled text-lg"
+                              aria-hidden="true"
+                            />
+                            {eligibleDefenseGroups.some(
+                              (project) => project.id === group.id,
+                            )
+                              ? "Ready to schedule"
+                              : "Defense cycle approved"}
+                          </span>
+                        ) : (
                           <button
                             type="button"
                             disabled={!group.canApprove || defenseActionPending}
