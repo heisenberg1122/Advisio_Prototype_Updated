@@ -701,13 +701,50 @@
   height: 100px;
   overflow: visible;
 }
-.landing-page .lp-network-lines path {
+.landing-page .lp-network-track {
   fill: none;
   stroke: #a7bccb;
   stroke-width: 1;
 }
-.landing-page .has-entered .lp-network-lines path {
+.landing-page .has-entered .lp-network-track {
   animation: lp-draw 1.3s 0.2s ease-out both;
+}
+/* A short, round dash travels along the actual SVG path, including on resize. */
+.landing-page .lp-network-signal {
+  fill: none;
+  stroke: #b38e1b;
+  stroke-width: 5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 0.001 1.1;
+  stroke-dashoffset: 0;
+  opacity: 0;
+  /* This diagram autoplays by request; its visible control always allows pause. */
+  animation: lp-network-flow 4.8s linear infinite !important;
+  animation-delay: calc(var(--connection-index) * -0.72s - 0.8s) !important;
+  animation-play-state: paused !important;
+}
+.landing-page
+  .lp-network[data-animate-connections="true"][data-connections-in-view="true"]
+  .lp-network-signal {
+  animation-play-state: running !important;
+}
+.landing-page .lp-network-motion-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  margin-top: 16px;
+  padding: 8px 13px;
+  border: 1px solid #c7d7e2;
+  border-radius: 6px;
+  background: transparent;
+  color: #355e79;
+  font-size: 0.68rem;
+}
+.landing-page .lp-network-motion-control:hover {
+  background: #e6eef4;
 }
 .landing-page .lp-network-core {
   display: flex;
@@ -1396,6 +1433,22 @@
   }
   to {
     transform: translateY(0);
+  }
+}
+@keyframes lp-network-flow {
+  0% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+  4% {
+    opacity: 1;
+  }
+  96% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -1;
+    opacity: 0;
   }
 }
 @keyframes lp-draw {
