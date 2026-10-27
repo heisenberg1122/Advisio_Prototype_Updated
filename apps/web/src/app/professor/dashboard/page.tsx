@@ -1,7 +1,7 @@
-import { TitleProposalPanel } from "@/components/workflow/TitleProposalPanel";
+import { TitleProposalReviewModal, type TitleProposalReviewTarget } from "@/components/professor/TitleProposalReviewModal";
 import React, { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueries } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
@@ -279,6 +279,7 @@ function ProfessorDashboardContent() {
   const [studentsCount, setStudentsCount] = useState(0);
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState("");
+  const [titleProposalReview, setTitleProposalReview] = useState<TitleProposalReviewTarget | null>(null);
 
   useEffect(() => {
     if (researchData?.projects) {
@@ -1216,7 +1217,30 @@ function ProfessorDashboardContent() {
     router.push(`/professor/dashboard?tab=${tab}`);
   };
 
-  const submissions = projects
+  const titleProposalMilestones = milestones.filter(
+    (milestone) => milestone.milestoneType === "TITLE_PROPOSAL" && milestone.scope !== "Archived",
+  );
+  const titleProposalQueries = useQueries({
+    queries: titleProposalMilestones.map((milestone) => ({
+      queryKey: ["title-proposals", milestone.id, undefined, true],
+      queryFn: () => apiClient.get<{ submissions: any[] }>(`/api/workflows/stages/${milestone.id}/title-proposals`),
+      enabled: activeTab === "submissions" && submissionView === "review",
+      refetchInterval: 15000,
+    })),
+  });
+  const titleProposalSubmissions = titleProposalQueries.flatMap((query, index) =>
+    (query.data?.submissions || []).map((submission: any) => ({
+      ...submission,
+      submissionKind: "TITLE_PROPOSAL",
+      stageId: titleProposalMilestones[index].id,
+      projectId: submission.researchId,
+      projectTitle: submission.research.groupName || `${submission.research.creator.firstName} ${submission.research.creator.lastName}`,
+      workflowId: titleProposalMilestones[index].workflowId,
+      task: { title: "Title Proposal", sequence: titleProposalMilestones[index].sequence },
+      submittedByUser: submission.research.creator,
+    })),
+  );
+  const submissions = [...titleProposalSubmissions, ...projects
     .flatMap((project) =>
       (project.taskSubmissions || []).map((submission: any) => ({
         ...submission,
@@ -1227,7 +1251,7 @@ function ProfessorDashboardContent() {
         currentStage: project.currentStage,
         members: project.members,
       })),
-    )
+    )]
     .sort(
       (a, b) =>
         new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
@@ -1392,7 +1416,6 @@ function ProfessorDashboardContent() {
           </span>
         </button>
         <span className="flex shrink-0 items-center gap-1 pt-1 text-[var(--color-text-muted)]" aria-hidden="true"><i className="ti ti-dots text-lg" /><i className="ti ti-grip-vertical text-lg" /></span>
-        {milestone.milestoneType === "TITLE_PROPOSAL" && <TitleProposalPanel stageId={milestone.id} count={milestone.titleProposalCount || 3} review />}
       </article>
     );
   };
@@ -1419,6 +1442,7 @@ function ProfessorDashboardContent() {
           submission.task?.title,
           submission.document?.title,
           submission.projectTitle,
+          ...(submission.titles || []),
           submission.submittedByUser?.firstName,
           submission.submittedByUser?.lastName,
         ]
@@ -1528,6 +1552,10 @@ function ProfessorDashboardContent() {
   };
 
   const openSubmissionReview = (submission: any) => {
+    if (submission.submissionKind === "TITLE_PROPOSAL") {
+      setTitleProposalReview({ stageId: submission.stageId, researchId: submission.researchId, groupName: submission.projectTitle });
+      return;
+    }
     setSelectedSubmission(submission);
     setReviewFeedback(submission.reviewNote || "");
   };
@@ -1812,6 +1840,13 @@ function ProfessorDashboardContent() {
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
+      {titleProposalReview && (
+        <TitleProposalReviewModal
+          key={`${titleProposalReview.stageId}:${titleProposalReview.researchId}`}
+          target={titleProposalReview}
+          onClose={() => setTitleProposalReview(null)}
+        />
+      )}
       <Modal
         isOpen={Boolean(workflowToDelete)}
         onClose={closeDeleteWorkflow}
@@ -5429,7 +5464,7 @@ function ProfessorDashboardContent() {
                               Oldest awaiting review
                             </option>
                             <option value="NEWEST">Newest submitted</option>
-                            <option value="GROUP">Research group A–Z</option>
+                            <option value="GROUP">Group / researcher A–Z</option>
                             <option value="MILESTONE">Milestone order</option>
                           </select>
                         </label>
@@ -5438,14 +5473,16 @@ function ProfessorDashboardContent() {
                     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                       <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_130px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-extrabold uppercase tracking-wide text-slate-500 md:grid">
                         <span>Submission</span>
-                        <span>Research group</span>
+                        <span>Group / Researcher</span>
                         <span>Submitted</span>
                         <span>Status</span>
                       </div>
                       <div className="divide-y divide-slate-100">
+                        {titleProposalQueries.some(query => query.isLoading) && <p role="status" className="px-5 py-4 text-sm text-slate-500">Loading title proposals…</p>}
+                        {titleProposalQueries.some(query => query.isError) && <p role="alert" className="px-5 py-4 text-sm text-red-600">Some title proposals could not be loaded. <button type="button" className="font-bold underline" onClick={() => { void Promise.all(titleProposalQueries.filter(query => query.isError).map(query => query.refetch())); }}>Try again</button></p>}
                         {filteredSubmissions.map((submission) => (
                           <button
-                            key={submission.id}
+                            key={`${submission.submissionKind || "DOCUMENT"}:${submission.id}`}
                             type="button"
                             onClick={() => openSubmissionReview(submission)}
                             className="grid w-full gap-3 px-5 py-4 text-left transition hover:bg-amber-50/40 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_130px] md:items-center md:gap-4"
@@ -5455,7 +5492,7 @@ function ProfessorDashboardContent() {
                                 {submission.task?.title}
                               </span>
                               <span className="mt-1 block truncate text-sm text-slate-500">
-                                {submission.document?.title} ·{" "}
+                                {submission.submissionKind === "TITLE_PROPOSAL" ? `${submission.titles.length} proposed titles` : submission.document?.title} ·{" "}
                                 {submission.submittedByUser?.firstName}{" "}
                                 {submission.submittedByUser?.lastName}
                               </span>
@@ -5475,7 +5512,7 @@ function ProfessorDashboardContent() {
                             </span>
                           </button>
                         ))}
-                        {!filteredSubmissions.length && (
+                        {!filteredSubmissions.length && !titleProposalQueries.some(query => query.isLoading || query.isError) && (
                           <div className="flex min-h-72 flex-col items-center justify-center p-8 text-center">
                             <span className="grid h-14 w-14 place-items-center rounded-full bg-slate-100 text-slate-500">
                               <i className="ti ti-inbox text-2xl" />

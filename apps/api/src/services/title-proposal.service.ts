@@ -159,7 +159,7 @@ export async function submitTitleProposals(options: {
             "Review the proposed titles and select one to register the research project.",
           entityType: "TitleProposalSubmission",
           entityId: saved.id,
-          actionUrl: `/professor/dashboard?tab=builder&workflowId=${stage.workflowId}`,
+          actionUrl: `/professor/dashboard?tab=submissions&workflowId=${stage.workflowId}`,
         },
       });
     return saved;

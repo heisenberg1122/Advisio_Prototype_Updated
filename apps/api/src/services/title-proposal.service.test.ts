@@ -11,7 +11,7 @@ const state = vi.hoisted(() => {
       update: vi.fn(),
     },
     auditLog: { create: vi.fn() },
-    notification: { createMany: vi.fn() },
+    notification: { createMany: vi.fn(), create: vi.fn() },
   };
   return { db, enrolled: vi.fn(), advance: vi.fn(), condition: vi.fn() };
 });
@@ -142,6 +142,17 @@ describe("title proposal submission and registration", () => {
         }),
       }),
     );
+  });
+  it("links professor notifications to the submissions review queue", async () => {
+    state.db.titleProposalSubmission.findUnique.mockResolvedValue(null);
+    state.db.workflow.findUnique.mockResolvedValue({ createdBy: "professor" });
+    await submit();
+    expect(state.db.notification.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        recipientId: "professor",
+        actionUrl: "/professor/dashboard?tab=submissions&workflowId=workflow",
+      }),
+    });
   });
   it("registers the selected saved title and advances the milestone atomically", async () => {
     await review();
