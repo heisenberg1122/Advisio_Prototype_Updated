@@ -2,14 +2,19 @@
 
 ## A. Executive result
 
-**NOT READY — remote review/preview verification is in progress.**
+**READY WITH MANUAL CHECKS PENDING.**
 
 The reconciled local implementation passes the full automated regression suite.
 The production backfill guard is intact. No feature expansion or runtime-engine
 change was introduced in Phase 10. Required deployed browser/role/mobile journeys
 must not be treated as passed until they have actually been exercised.
 
-This report will distinguish local results, remote checks and manual verification.
+Local regression and remote PR CI passed; the exact audited commit deployed to
+Vercel. Public preview navigation and a limited mobile check were performed.
+The user explicitly selected authenticated journeys as manual checks because no
+approved preview-only role accounts were supplied. Those checks remain NOT RUN.
+
+This report distinguishes local results, remote checks and manual verification.
 Nothing here authorizes merging into main or executing a real-data backfill.
 
 ## B. Git reconciliation
@@ -248,10 +253,23 @@ stale/rollback behavior are all retained and retested. No guard was weakened.
 
 ## G. Browser and responsive verification
 
-Automation availability was checked with the computer-use skill and in-app browser.
-All required scenarios below remain **NOT RUN — MANUAL CHECK REQUIRED** until the
-updated deployment and authenticated test context are available and actual UI
-interaction is verified. Rendering/unit tests are not browser passes.
+Browser automation was available and used against the Vercel deployment for
+`821287405c4075019529e9075b14c1d0fa52649f`:
+[audited preview](https://advisio-prototype-updated-79viudwcr-heisenberg1122s-projects.vercel.app).
+The user explicitly chose to retain authenticated journeys as manual checks;
+no real credentials or invented accounts were used.
+
+| Supplemental public check | Result | Evidence |
+| --- | --- | --- |
+| Deployed landing page opens | PASS | Rendered page, accessibility tree and desktop screenshot inspected |
+| Sign In navigation | PASS | Clicked public Sign In; login route and email/password controls rendered |
+| Public login at 390 × 844 | PASS | Screenshot inspected; document/body width 390px, viewport 390px; no captured console errors |
+| Public landing at 390 × 844 | PASS | Screenshot inspected; document/body width 385px within 390px viewport |
+
+The temporary viewport override was reset. These limited public checks do not
+verify authenticated role pages, their mobile layout, API/schema pairing or any
+case-creation journey. All required scenarios below remain
+**NOT RUN — MANUAL CHECK REQUIRED**. Rendering/unit tests are not browser passes.
 
 ### Researcher checklist
 
@@ -324,8 +342,10 @@ records or point backfill at that environment to make a UI checklist pass.
 
 - Required authenticated cross-role browser and responsive checks must be completed
   and reviewed before merge approval. They are not green merely because API tests pass.
-- Remote PR CI and the updated preview must be verified for the actual pushed commit.
-- Latest-main must be fetched again after fixes; stale main cannot be called ready.
+- Verify that the preview's API/schema is the matching isolated/staging revision
+  before executing the authenticated checklist. Vercel frontend success alone
+  cannot establish this pairing.
+- Refresh main and rerun relevant validation if it advances before actual merge.
 
 ### Non-blocking existing technical debt
 
@@ -358,14 +378,36 @@ preview apply guard is unchanged and must remain intact through the merge gate.
 
 ## J. Merge recommendation
 
-**DO NOT MERGE — final remote/browser review is still in progress.**
+**MERGE AFTER MANUAL CHECKS.**
+
+The reconciled architecture and full local/remote automated regression are green.
+Required authenticated browser and application responsive scenarios remain NOT RUN
+at the user's direction. Complete those checks against the matching staging
+API/schema and review their results before authorizing merge.
 
 Do not merge into main automatically, delete the feature branch, or execute a
 real-data backfill. The user reviews this report and pending manual gates first.
 
 ## Final verification record
 
-Pending final fetch, repeated validation, remote checks and browser attempt.
+| Item | Verified result |
+| --- | --- |
+| Audited application/test HEAD | `821287405c4075019529e9075b14c1d0fa52649f` |
+| Latest fetched main | `f6276e467fde35abb4760c1ddceb3f9ba0188084`; ancestor of branch, unchanged at final fetch |
+| Merge checkpoint | `3d5386c270cbe1343b6ef8257e9063938779bc64` |
+| Final local repeat | Type-check/build/lint/diff PASS; 1,007 unit executions; 142 integration tests |
+| Authenticated GitHub identity / author | NicoleAndreaBolus; commit identity `NicoleAndreaBolus <nagbolus.student@ua.edu.ph>` |
+| Draft PR | [PR #4](https://github.com/heisenberg1122/Advisio_Prototype_Updated/pull/4); open, draft, mergeable at audited HEAD |
+| Remote Actions | [Run 40509835068](https://github.com/heisenberg1122/Advisio_Prototype_Updated/actions/runs/40509835068) completed SUCCESS; unit/lint/type-check/build and sequential database integration jobs SUCCESS |
+| Remote deployment | Vercel Preview SUCCESS for audited HEAD, deployment `7359369163`; public preview exercised above |
+| Authenticated/application responsive | NOT RUN / MANUAL CHECK REQUIRED; user explicitly selected manual verification |
+| Real-data backfill | NOT EXECUTED; isolated apply guard unchanged |
+
+This final results update is documentation-only, following the audited HEAD above.
+Its own commit SHA and final clean/push/check status are recorded in the delivery
+message (a commit cannot contain its own SHA). The application/test tree is unchanged
+by that follow-up. Remote checks must also be inspected for that final pushed SHA;
+the linked completed run above specifically proves the audited application commit.
 
 ## Appendix 1 — incoming main commits
 
