@@ -1,6 +1,7 @@
 "use client";
 import { WorkflowStartPanel } from "@/components/workflow/WorkflowStartPanel";
 import { TitleProposalPanel } from "@/components/workflow/TitleProposalPanel";
+import { AdviserTaskReview, needsAdviserApproval } from "@/components/workflow/AdviserTaskReview";
 
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
 import { resolveStudentWorkflow } from "@/lib/student-workflow-context";
@@ -887,6 +888,7 @@ export default function ResearchTasksPage() {
                           {task.instructions}
                         </p>
                         <div className="mt-2.5 flex flex-wrap gap-2 text-xs font-medium text-[var(--color-text-secondary)]">
+                          {needsAdviserApproval(task) && <Tag variant="info">Adviser approval required</Tag>}
                           <span className="rounded-lg bg-[var(--color-surface-muted)] px-2.5 py-1">
                             {formatTaskDeadline(task)}
                           </span>
@@ -1506,6 +1508,7 @@ function MilestoneDetailsWorkspace({
               </p>
             )}
             <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-[var(--color-text-secondary)]">
+              {needsAdviserApproval(task) && <Tag variant="info">Adviser approval required</Tag>}
               <span className="rounded-lg bg-[var(--color-surface-muted)] px-2.5 py-1.5">
                 {task.requiresDocument === false
                   ? "No document required"
@@ -1521,6 +1524,7 @@ function MilestoneDetailsWorkspace({
           {!task.isAdviserMilestone && (
             <StudentMilestoneAttachments stageId={task.stage.id} />
           )}
+          <AdviserTaskReview required={needsAdviserApproval(task)} submission={task.submission} />
           {!task.isAdviserMilestone && task.submission && (
             <section className="rounded-2xl border border-blue-200 bg-blue-50/70 p-5 dark:border-blue-900 dark:bg-blue-950/20 sm:p-6">
               <h2 className="text-lg font-bold text-[var(--color-text-primary)]">

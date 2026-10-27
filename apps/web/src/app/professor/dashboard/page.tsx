@@ -1,4 +1,5 @@
 import { TitleProposalReviewModal, type TitleProposalReviewTarget } from "@/components/professor/TitleProposalReviewModal";
+import { AdviserApprovalBadge, AdviserTaskReview, needsAdviserApproval } from "@/components/workflow/AdviserTaskReview";
 import React, { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueries } from "@tanstack/react-query";
@@ -1244,6 +1245,10 @@ function ProfessorDashboardContent() {
     .flatMap((project) =>
       (project.taskSubmissions || []).map((submission: any) => ({
         ...submission,
+        adviserReviewRequired: needsAdviserApproval({
+          stage: (project.workflowStages || []).find((stage: any) => stage.tasks?.some((task: any) => task.id === submission.taskId)) || {},
+          submission,
+        }),
         projectId: project.id,
         projectTitle: project.title,
         workflowId: project.workflowId,
@@ -5232,6 +5237,9 @@ function ProfessorDashboardContent() {
                       </span>
                     </div>
                     <div className="p-6">
+                      <div className="mb-5">
+                        <AdviserTaskReview required={selectedSubmission.adviserReviewRequired} submission={selectedSubmission} />
+                      </div>
                       <SubmissionDocumentPreview
                         versions={selectedSubmission.document?.versions || []}
                         title={
@@ -5509,8 +5517,9 @@ function ProfessorDashboardContent() {
                                 {submission.submittedByUser?.lastName}
                               </span>
                             </span>
-                            <span className="truncate text-sm font-semibold text-slate-700">
-                              {submission.projectTitle}
+                            <span className="min-w-0 text-sm font-semibold text-slate-700">
+                              <span className="block truncate">{submission.projectTitle}</span>
+                              {submission.submissionKind !== "TITLE_PROPOSAL" && <span className="mt-1.5 block"><AdviserApprovalBadge required={submission.adviserReviewRequired} submission={submission} /></span>}
                             </span>
                             <span className="text-sm text-slate-500">
                               {new Date(

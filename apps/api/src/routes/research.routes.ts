@@ -21,6 +21,29 @@ import { filterResearchWorkflowDetails } from "../services/workflow-enrollment-a
 
 const router = Router();
 
+// Researcher-visible feedback only; keep reviewer identities and draft reviews private.
+const taskVersionFeedbackSelect = {
+  reviews: {
+    where: { reviewType: "ADVISER" as const, status: "SUBMITTED" as const },
+    select: {
+      id: true,
+      assignmentId: true,
+      recommendation: true,
+      overallComment: true,
+      submittedAt: true,
+      comments: {
+        orderBy: { createdAt: "asc" as const },
+        select: { id: true, comment: true, locationData: true },
+      },
+    },
+    orderBy: { submittedAt: "desc" as const },
+  },
+  reviewerAssignments: {
+    where: { reviewType: "ADVISER" as const, status: { in: ["ACTIVE" as const, "COMPLETED" as const] } },
+    select: { id: true, isRequired: true, status: true },
+  },
+};
+
 router.post("/:id/team-invitations", requireAuth, async (req, res) => {
   try {
     const result = await prisma.$transaction((tx) => inviteTeamMember(tx, {
@@ -138,6 +161,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
             task: true,
             documentVersion: {
               select: {
+                ...taskVersionFeedbackSelect,
                 id: true,
                 versionNumber: true,
                 fileName: true,
@@ -149,6 +173,7 @@ router.get("/", requireAuth, async (req: Request, res: Response) => {
               include: {
                 documentVersion: {
                   select: {
+                    ...taskVersionFeedbackSelect,
                     id: true,
                     versionNumber: true,
                     fileName: true,
@@ -560,6 +585,7 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
             documentVersion: {
               select: {
                 id: true,
+                ...taskVersionFeedbackSelect,
                 versionNumber: true,
                 fileName: true,
                 manuscriptStatus: true,
@@ -571,6 +597,7 @@ router.get("/:id", requireAuth, async (req: Request, res: Response) => {
                 documentVersion: {
                   select: {
                     id: true,
+                    ...taskVersionFeedbackSelect,
                     versionNumber: true,
                     fileName: true,
                     manuscriptStatus: true,
