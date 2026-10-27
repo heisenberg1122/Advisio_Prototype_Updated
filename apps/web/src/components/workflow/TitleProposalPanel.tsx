@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { ResearchStartNotice } from "@/components/research/ResearcherLifecyclePanel";
 import { apiClient } from "@/lib/api-client";
 
 type Props = {
@@ -22,21 +22,7 @@ export function TitleProposalPanel({
   review,
 }: Props) {
   const client = useQueryClient();
-  const { user } = useAuth();
-  const [workspaceId, setWorkspaceId] = useState("");
-  const workspaces = useQuery({
-    queryKey: ["title-proposal-workspaces"],
-    queryFn: () => apiClient.get<{ workspaces: any[] }>("/api/workspaces/me"),
-    enabled: !review && !researchId,
-  });
-  const leaderWorkspaces =
-    workspaces.data?.workspaces.filter((workspace) =>
-      workspace.members.some(
-        (member: any) => member.userId === user?.id && member.role === "LEADER",
-      ),
-    ) || [];
-  const [draftResearchId, setDraftResearchId] = useState<string>();
-  const projectId = researchId || draftResearchId;
+  const projectId = researchId;
   const [titles, setTitles] = useState<string[]>(Array(count).fill(""));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -62,17 +48,8 @@ export function TitleProposalPanel({
     setBusy(true);
     setError("");
     try {
-      let id = projectId;
-      if (!id) {
-        const result = await apiClient.post<{ project: { id: string } }>(
-          `/api/workflows/${workflowId}/participation`,
-          {
-            ...(workspaceId && { workspaceId }),
-          },
-        );
-        id = result.project.id;
-        setDraftResearchId(id);
-      }
+      if (!projectId) throw new Error("Ask your team leader to start research first.");
+      const id = projectId;
       await apiClient.post(`/api/workflows/stages/${stageId}/title-proposals`, {
         researchId: id,
         titles,
@@ -105,6 +82,7 @@ export function TitleProposalPanel({
       setBusy(false);
     }
   };
+  if (!review && !projectId) return <ResearchStartNotice />;
   return (
     <section className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-[var(--color-text-primary)]">
       <h3 className="text-lg font-bold">Title Proposal</h3>
@@ -218,23 +196,7 @@ export function TitleProposalPanel({
             !query.isError &&
             !query.isLoading && (
               <form onSubmit={submit} className="mt-4 space-y-3">
-                {!projectId && leaderWorkspaces.length > 0 && (
-                  <label className="block text-sm font-semibold">
-                    Submit for
-                    <select
-                      value={workspaceId}
-                      onChange={(event) => setWorkspaceId(event.target.value)}
-                      className="mt-1 block w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
-                    >
-                      <option value="">My individual research</option>
-                      {leaderWorkspaces.map((workspace) => (
-                        <option key={workspace.id} value={workspace.id}>
-                          {workspace.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
+
                 {titles.map((title, index) => (
                   <label key={index} className="block text-sm font-semibold">
                     Title proposal {index + 1}

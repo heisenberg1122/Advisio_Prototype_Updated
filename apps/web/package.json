@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
-    "test": "vitest run --root ../.. apps/web/src"
+    "test": "vitest run"
   },
   "dependencies": {
     "@research-management/auth": "*",

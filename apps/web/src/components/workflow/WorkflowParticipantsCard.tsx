@@ -84,8 +84,8 @@ function WorkflowMembersCard({
     return (
       <section className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
         <i className="ti ti-users-group text-3xl text-slate-300" />
-        <h3 className="mt-3 font-extrabold text-[#102f49]">Select a workflow</h3>
-        <p className="mt-1 text-base text-slate-500">Select or create a workflow before managing its participants.</p>
+        <h3 className="mt-3 font-extrabold text-[#102f49]">Select a process template</h3>
+        <p className="mt-1 text-base text-slate-500">Select a process template to manage its separate access permissions.</p>
       </section>
     );
   }
@@ -96,9 +96,9 @@ function WorkflowMembersCard({
         <div className="border-b border-slate-200 p-5 lg:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h3 className="text-lg font-extrabold text-[#102f49]">Participants</h3>
+              <h3 className="text-lg font-extrabold text-[#102f49]">Process Access</h3>
               <p className="mt-1 text-base text-slate-500">
-                Researchers enrolled in <strong className="font-bold text-slate-700">{workflowName}</strong>.
+                Researchers with process access to <strong className="font-bold text-slate-700">{workflowName}</strong>.
               </p>
             </div>
             <button
@@ -116,7 +116,7 @@ function WorkflowMembersCard({
             <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50/70 p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
                 <label className="min-w-0 flex-1 text-sm font-bold uppercase tracking-wider text-blue-700">
-                  Workflow invitation link
+                  Process access invitation link
                   <input readOnly value={invitation.link} className="mt-1.5 w-full rounded-lg border border-blue-200 bg-white px-3 py-2.5 text-base font-normal normal-case tracking-normal text-slate-700" />
                 </label>
                 <button type="button" onClick={() => void copyInvitation()} className="rounded-lg bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">
@@ -134,7 +134,7 @@ function WorkflowMembersCard({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search name, student number, or email"
-              aria-label="Search workflow participants"
+              aria-label="Search process access"
               className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-3 text-base outline-none focus:border-[#173f63] focus:ring-2 focus:ring-blue-100"
             />
           </div>
@@ -149,8 +149,8 @@ function WorkflowMembersCard({
         ) : participants.length === 0 ? (
           <div className="p-10 text-center">
             <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-blue-50 text-[#173f63]"><i className="ti ti-users-plus text-2xl" /></span>
-            <h4 className="mt-3 font-extrabold text-[#102f49]">No researchers enrolled yet</h4>
-            <p className="mt-1 text-base text-slate-500">Share this workflow’s invitation link with the appropriate researchers.</p>
+            <h4 className="mt-3 font-extrabold text-[#102f49]">No researchers with process access yet</h4>
+            <p className="mt-1 text-base text-slate-500">Use process invitations only to manage access. Manage academic membership in Research Cohorts.</p>
             <button type="button" onClick={onInvite} disabled={invitationLoading} className="mt-4 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50">Generate code</button>
           </div>
         ) : filteredParticipants.length === 0 ? (
@@ -198,7 +198,7 @@ function WorkflowMembersCard({
           <section role="dialog" aria-modal="true" aria-labelledby="participant-detail-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-bold uppercase tracking-wider text-[#C58A18]">Workflow participant</p>
+                <p className="text-sm font-bold uppercase tracking-wider text-[#C58A18]">Process access holder</p>
                 <h2 id="participant-detail-title" className="mt-1 text-xl font-extrabold text-[#102f49]">{participantName(selected)}</h2>
               </div>
               <button type="button" onClick={() => setSelected(null)} aria-label="Close participant details" className="grid h-9 w-9 place-items-center rounded-lg bg-slate-100 text-slate-500"><i className="ti ti-x" /></button>
@@ -209,7 +209,7 @@ function WorkflowMembersCard({
               <div className="flex justify-between gap-4 py-3 text-sm"><dt className="text-slate-500">Joined</dt><dd className="font-bold text-slate-700">{joinedDate(selected.joinedAt)}</dd></div>
             </dl>
             <div className="mt-6 flex justify-between gap-3">
-              <button type="button" onClick={() => { onRemove(selected); setSelected(null); }} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-extrabold text-rose-700">Remove from workflow</button>
+              <button type="button" onClick={() => { onRemove(selected); setSelected(null); }} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-extrabold text-rose-700">Revoke process access</button>
               <button type="button" onClick={() => setSelected(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Close</button>
             </div>
           </section>

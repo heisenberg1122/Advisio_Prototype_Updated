@@ -321,26 +321,37 @@ async function main() {
     },
   });
 
-  const capstoneWorkflow = await prisma.workflow.upsert({
+  // The research-type/version pair is no longer globally unique. Identify this demo process explicitly.
+  const existingCapstoneWorkflow = await prisma.workflow.findFirst({
     where: {
-      researchTypeId_version: { researchTypeId: capstoneType.id, version: 1 },
-    },
-    update: {
-      name: "BSIT Capstone Standard Workflow",
-      createdBy: workflowOwner.id,
-    },
-    create: {
       researchTypeId: capstoneType.id,
       name: "BSIT Capstone Standard Workflow",
-      description: "7-stage workflow for BSIT Capstone projects",
-      version: 1,
-      status: "PUBLISHED",
       createdBy: workflowOwner.id,
-      publishedAt: new Date(),
+      version: 1,
     },
+    orderBy: { createdAt: "asc" },
   });
+  const capstoneWorkflow = existingCapstoneWorkflow
+    ? await prisma.workflow.update({
+        where: { id: existingCapstoneWorkflow.id },
+        data: {
+          name: "BSIT Capstone Standard Workflow",
+          createdBy: workflowOwner.id,
+        },
+      })
+    : await prisma.workflow.create({
+        data: {
+          researchTypeId: capstoneType.id,
+          name: "BSIT Capstone Standard Workflow",
+          description: "7-stage workflow for BSIT Capstone projects",
+          version: 1,
+          status: "PUBLISHED",
+          createdBy: workflowOwner.id,
+          publishedAt: new Date(),
+        },
+      });
 
-  // Attach workflow back to research type
+  // Legacy demo metadata only; runtime process selection uses explicit cohort assignments.
   await prisma.researchType.update({
     where: { id: capstoneType.id },
     data: { workflowId: capstoneWorkflow.id },

@@ -21,6 +21,8 @@ export interface ProjectMilestoneProgress {
 }
 
 export interface OverviewProject {
+  isTitleProvisional?: boolean;
+  cohortId?: string | null;
   workflowDraft?: boolean;
   registeredAt?: string | Date | null;
   id: string;
@@ -56,9 +58,9 @@ export interface ProjectNextStep {
 }
 
 export function researchTitleLabel(
-  project: Pick<OverviewProject, "title" | "titleRevisions" | "registeredAt" | "workflowDraft">,
+  project: Pick<OverviewProject, "title" | "titleRevisions" | "registeredAt" | "workflowDraft" | "isTitleProvisional">,
 ) {
-  if (project.workflowDraft) return "Research title not registered";
+  if (project.isTitleProvisional || project.workflowDraft) return "Research title pending";
   if (project.registeredAt) return "Registered Research Project";
   if (!project.title?.trim()) return "Research title not added";
   const approved = project.titleRevisions?.some(
@@ -85,13 +87,13 @@ export function resolveProjectNextStep({
 }): ProjectNextStep {
   if (project.workflowAccessRemoved)
     return {
-      label: "Workflow access removed",
-      title: "Contact your professor",
+      label: "Research process access restricted",
+      title: "Contact your research coordinator",
       description:
-        "Your professor removed your access to this workflow. Its tasks and resources are unavailable.",
+        "Access to this research process is currently restricted. Its requirements and resources are unavailable.",
       tone: "neutral",
     };
-  if (project.status === "REJECTED")
+  if (project.status === "REJECTED" && !project.isTitleProvisional && !project.cohortId)
     return {
       label: "Your next step",
       title: isLeader
@@ -110,7 +112,7 @@ export function resolveProjectNextStep({
       label: "Workflow unavailable",
       title: "No workflow linked to this project",
       description:
-        "Contact your professor to confirm the workflow assigned to this project.",
+        "Contact your research coordinator to confirm the workflow assigned to this project.",
       tone: "neutral",
     };
   if (loading)

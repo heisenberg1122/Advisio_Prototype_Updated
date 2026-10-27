@@ -9,6 +9,7 @@ const db = vi.hoisted(() => ({
     delete: vi.fn(),
   },
   researchType: { findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn() },
+  researchCohort: { update: vi.fn(), updateMany: vi.fn() },
   workflowEnrollment: {
     findFirst: vi.fn(),
     findUnique: vi.fn(),
@@ -256,7 +257,7 @@ describe("workflow publication", () => {
     db.workflowStage.findFirst.mockResolvedValue({ id: "stage" });
   });
 
-  it("publishes a complete draft and makes it the research type workflow", async () => {
+  it("publishes a complete draft without assigning any research type or cohort", async () => {
     const draft = {
       id: "workflow",
       name: "Capstone workflow",
@@ -295,11 +296,13 @@ describe("workflow publication", () => {
         data: expect.objectContaining({ status: "PUBLISHED" }),
       }),
     );
-    expect(db.researchType.update).toHaveBeenCalledWith({
-      where: { id: "type" },
-      data: { workflowId: "workflow" },
-    });
+    expect(db.researchType.update).not.toHaveBeenCalled();
+    expect(db.researchCohort.update).not.toHaveBeenCalled();
+    expect(db.researchCohort.updateMany).not.toHaveBeenCalled();
     expect(db.auditLog.create).toHaveBeenCalled();
+    expect(db.workflowStage.update).not.toHaveBeenCalled();
+    expect(db.workflowStage.updateMany).not.toHaveBeenCalled();
+    expect(db.workflowTopic.update).not.toHaveBeenCalled();
   });
 
   it("keeps an incomplete draft private", async () => {
@@ -319,8 +322,7 @@ describe("workflow publication", () => {
 
     expect(res.statusCode).toBe(409);
     expect(res.body.issues).toEqual([
-      "Add at least one workflow topic.",
-      "Add at least one milestone.",
+      "Add at least one active requirement before publishing this process.",
     ]);
     expect(db.workflow.update).not.toHaveBeenCalled();
   });

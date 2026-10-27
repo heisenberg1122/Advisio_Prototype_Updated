@@ -69,7 +69,7 @@ export function WorkflowAccessManager({
       setNotice(
         value === "resend"
           ? "Invitation reminder sent."
-          : "Workflow access updated.",
+          : "Process access updated.",
       );
       await refresh();
     } catch (e: any) {
@@ -121,7 +121,7 @@ export function WorkflowAccessManager({
   async function disable() {
     if (
       !window.confirm(
-        "Disable this workflow's code and shared link? Existing requests remain reviewable.",
+        "Disable this process's code and shared link? Existing requests remain reviewable.",
       )
     )
       return;
@@ -147,11 +147,11 @@ export function WorkflowAccessManager({
       ? pending
       : entries.filter((e) => e.kind === "INVITATION");
   return (
-    <div className="space-y-4">
+    <div className="space-y-4"><p className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm text-[var(--color-text-secondary)]">Process Access manages permissions for this template. It does not add researchers to an academic cohort. Use Research Cohorts for cohort membership. Revoking process access preserves historical records.</p>
       <div
         className="flex flex-wrap gap-2"
         role="tablist"
-        aria-label="Workflow access"
+        aria-label="Process access"
       >
         {["Members", "Join requests", "Invitations"].map((t) => (
           <button

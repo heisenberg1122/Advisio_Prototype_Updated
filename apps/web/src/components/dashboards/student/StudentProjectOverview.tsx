@@ -85,8 +85,8 @@ export function StudentProjectOverview({
           <div className="min-w-0">
             <p className="text-sm font-semibold text-[var(--color-text-secondary)]">
               {project.workflowAccessRemoved
-                ? "Workflow access removed"
-                : workflowName || "No workflow linked"}
+                ? "Research process access restricted"
+                : workflowName || "Research process unavailable"}
               {academicYear && <span> · AY {academicYear}</span>}
             </p>
             {coordinator && !project.workflowAccessRemoved && (
@@ -123,7 +123,7 @@ export function StudentProjectOverview({
               </p>
             )}
           </div>
-          {isLeader && (
+          {isLeader && !project.isTitleProvisional && !project.cohortId && (
             <button
               type="button"
               onClick={() => onAction({ kind: "edit" })}

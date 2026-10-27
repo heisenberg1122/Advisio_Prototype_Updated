@@ -3,6 +3,7 @@ const db = vi.hoisted(() => ({
   $executeRaw: vi.fn(),
   workflowEnrollment: { findFirst: vi.fn(), findMany: vi.fn() },
   workflow: { findUnique: vi.fn() },
+  researchCohort: { findMany: vi.fn() },
   researchType: { findUnique: vi.fn() },
   researchWorkspace: { findFirst: vi.fn(), findMany: vi.fn() },
   researchProject: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
@@ -82,8 +83,36 @@ beforeEach(() => {
   });
   db.workflowInstance.create.mockResolvedValue({ id: "instance" });
   db.academicYear.findFirst.mockResolvedValue({ id: "year" });
+  db.researchCohort.findMany.mockResolvedValue([
+    {
+      id: "cohort",
+      workflowId: "workflow",
+      researchTypeId: "type",
+      programId: "program",
+      collegeId: "college",
+      program: { collegeId: "college" },
+      researchType: { programId: "program" },
+      workflow: { researchTypeId: "type" },
+      members: [{ userId: "leader" }, { userId: user.id }],
+    },
+  ]);
 });
 describe("workflow work without a registered research project", () => {
+  it("does not activate a published workflow from legacy enrollment alone", async () => {
+    db.researchCohort.findMany.mockResolvedValue([]);
+    await expect(start()).rejects.toMatchObject({ statusCode: 403 });
+    expect(db.researchProject.create).not.toHaveBeenCalled();
+    expect(db.workflowInstance.create).not.toHaveBeenCalled();
+  });
+  it("preserves already-pinned legacy participation without requiring reassignment", async () => {
+    db.researchCohort.findMany.mockResolvedValue([]);
+    db.researchProject.findFirst.mockResolvedValue({
+      id: "legacy",
+      workspaceId: null,
+    });
+    await expect(start()).resolves.toMatchObject({ id: "legacy" });
+    expect(db.researchCohort.findMany).not.toHaveBeenCalled();
+  });
   it.each(["ADVISER_SELECTION", "TITLE_PROPOSAL", "STANDARD"])(
     "starts %s first without requiring a title",
     async (milestoneType) => {
@@ -167,7 +196,7 @@ describe("workflow work without a registered research project", () => {
   it("joins the group's existing workflow record rather than creating another", async () => {
     db.researchProject.findFirst
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: "group-record" });
+      .mockResolvedValueOnce({ id: "group-record", academicYearId: "year" });
     await expect(start({ workspaceId: "workspace" })).resolves.toMatchObject({
       id: "group-record",
     });
@@ -181,6 +210,16 @@ describe("workflow work without a registered research project", () => {
       }),
     );
     expect(db.researchProject.create).not.toHaveBeenCalled();
+  });
+  it("requires a cohort assignment before a new member joins an existing group process", async () => {
+    db.researchProject.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "legacy-group", academicYearId: "year" });
+    db.researchCohort.findMany.mockResolvedValue([]);
+    await expect(start({ workspaceId: "workspace" })).rejects.toMatchObject({
+      statusCode: 403,
+    });
+    expect(db.researchMember.upsert).not.toHaveBeenCalled();
   });
   it("requires active enrollment without automatically restoring removed access", async () => {
     db.workflowEnrollment.findFirst.mockResolvedValue(null);

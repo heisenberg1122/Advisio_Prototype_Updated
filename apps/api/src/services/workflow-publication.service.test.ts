@@ -34,9 +34,7 @@ describe("workflowPublicationIssues", () => {
         ],
       }),
     ).toEqual([
-      "Add at least one workflow topic.",
-      "Assign “Proposal” to a workflow topic.",
-      "Add at least one required submission to “Proposal”.",
+      "“Proposal” requires at least one usable required submission item before this process can be published.",
     ]);
   });
 
@@ -59,6 +57,96 @@ describe("workflowPublicationIssues", () => {
             requiresDocument: false,
             tasks: [],
           },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  const standard = {
+    name: "Orientation",
+    topicId: null,
+    category: "Milestone",
+    requiresDocument: false,
+    tasks: [],
+  };
+  it("publishes an active standard Requirement with no Phase and no child task", () => {
+    expect(
+      workflowPublicationIssues({ topics: [], stages: [standard] }),
+    ).toEqual([]);
+  });
+  it("publishes mixed phased/unphased Requirements without changing their definitions", () => {
+    const process = {
+      topics: [{ id: "phase" }],
+      stages: [
+        standard,
+        { ...standard, name: "Proposal", topicId: "phase" },
+        { ...standard, name: "Ethics" },
+      ],
+    };
+    const before = structuredClone(process);
+    expect(workflowPublicationIssues(process)).toEqual([]);
+    expect(process).toEqual(before);
+  });
+  it.each([
+    { stages: [] },
+    { stages: [{ ...standard, category: "Archived" }] },
+  ])("rejects zero active Requirements: %s", ({ stages }) => {
+    expect(workflowPublicationIssues({ topics: [], stages })).toEqual([
+      "Add at least one active requirement before publishing this process.",
+    ]);
+  });
+  it.each(
+    [
+      [],
+      [{ isRequired: false }],
+      [{ isRequired: true, allowedFileTypes: "EXE,ZIP" }],
+      [{ isRequired: true, allowedFileTypes: " , ; " }],
+    ].map((tasks) => ({ tasks })),
+  )("requires a usable required document Submission Item: %s", ({ tasks }) => {
+    expect(
+      workflowPublicationIssues({
+        topics: [],
+        stages: [
+          { ...standard, name: "Proposal", requiresDocument: true, tasks },
+        ],
+      }),
+    ).toEqual([
+      "“Proposal” requires at least one usable required submission item before this process can be published.",
+    ]);
+  });
+  it.each([
+    undefined,
+    null,
+    "PDF,DOCX",
+    ".pdf",
+    "text/plain",
+    "DOC",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "ZIP|TXT",
+  ])(
+    "uses the existing document format contract for %s",
+    (allowedFileTypes) => {
+      expect(
+        workflowPublicationIssues({
+          topics: [],
+          stages: [
+            {
+              ...standard,
+              requiresDocument: true,
+              tasks: [{ isRequired: true, allowedFileTypes }],
+            },
+          ],
+        }),
+      ).toEqual([]);
+    },
+  );
+  it("ignores archived invalid document Requirements when an active Requirement exists", () => {
+    expect(
+      workflowPublicationIssues({
+        topics: [],
+        stages: [
+          standard,
+          { ...standard, category: "Archived", requiresDocument: true },
         ],
       }),
     ).toEqual([]);

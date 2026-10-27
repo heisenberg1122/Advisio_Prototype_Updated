@@ -26,13 +26,14 @@ const PROFESSOR_NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: "COURSE WORKSPACE",
+    title: "RESEARCH MANAGEMENT",
     items: [
-      { label: "Research Projects", href: "/professor/dashboard?tab=monitoring", tabName: "monitoring", icon: Users },
+      { label: "Research Cohorts", href: "/professor/cohorts", icon: Users },
+      { label: "Process Templates", href: "/professor/dashboard?tab=builder", tabName: "builder", icon: Sliders },
+      { label: "Research Cases", href: "/professor/dashboard?tab=monitoring", tabName: "monitoring", icon: Users },
       { label: "Submissions", href: "/professor/dashboard?tab=submissions", tabName: "submissions", icon: Inbox },
       { label: "Manuscript Reviews", href: "/professor/reviews", icon: FileSearch },
       { label: "Official Copies", href: "/professor/documents?tab=official", icon: Archive },
-      { label: "Workflow", href: "/professor/dashboard?tab=builder", tabName: "builder", icon: Sliders },
       { label: "Progress", href: "/professor/dashboard?tab=tracking", tabName: "tracking", icon: LineChart },
     ],
   },
@@ -57,7 +58,7 @@ export function ProfessorSidebar() {
 
   return (
     <AppSidebar
-      roleTitle="Course Professor"
+      roleTitle="Research Coordinator"
       roleBadge="COORDINATOR PORTAL"
       navSections={PROFESSOR_NAV_SECTIONS}
       collapsed={collapsed}

@@ -1,5 +1,8 @@
+import { parseAllowedFileTypes } from "./submission.service.js";
+
 type PublishableTask = {
   isRequired: boolean;
+  allowedFileTypes?: string | null;
 };
 
 type PublishableStage = {
@@ -26,14 +29,23 @@ export function workflowPublicationIssues(workflow: PublishableWorkflow) {
   );
   const issues: string[] = [];
 
-  if (!workflow.topics.length) issues.push("Add at least one workflow topic.");
-  if (!stages.length) issues.push("Add at least one milestone.");
+  if (!stages.length)
+    issues.push(
+      "Add at least one active requirement before publishing this process.",
+    );
 
   for (const stage of stages) {
-    if (!stage.topicId)
-      issues.push(`Assign “${stage.name}” to a workflow topic.`);
-    if (stage.requiresDocument && !stage.tasks.some((task) => task.isRequired))
-      issues.push(`Add at least one required submission to “${stage.name}”.`);
+    if (
+      stage.requiresDocument &&
+      !stage.tasks.some(
+        (task) =>
+          task.isRequired &&
+          parseAllowedFileTypes(task.allowedFileTypes).size > 0,
+      )
+    )
+      issues.push(
+        `“${stage.name}” requires at least one usable required submission item before this process can be published.`,
+      );
   }
 
   return issues;

@@ -278,7 +278,7 @@ export function MilestoneAttachmentsCard({
         <div>
           <h3 className="font-extrabold text-[#102f49]">Attached</h3>
           <p className="mt-1 text-base text-slate-500">
-            Share references researchers may need to complete this milestone.
+            Share references researchers may need to complete this requirement.
           </p>
         </div>
         {visibleAttachments.length > 0 && (

@@ -5,7 +5,7 @@ import { AppTopbar } from "@/components/layout/AppTopbar";
 
 const PAGE_TITLES: Record<string, string> = {
   "/student/groups": "My Group",
-  "/student/join-group": "Join Research Group",
+  "/student/join-group": "Join Research Team",
   "/student/adviser-pool": "Adviser Pool",
   "/student/consultations": "Consultations",
   "/student/defense": "Defense Center",
@@ -22,8 +22,8 @@ const PAGE_TITLES: Record<string, string> = {
 
 const TAB_TITLES: Record<string, string> = {
   overview: "Researcher Dashboard",
-  group: "My Project",
-  "my-group": "My Project",
+  group: "My Research",
+  "my-group": "My Research",
   milestones: "Project Milestones",
   progress: "Progress Tracking",
   submission: "Submit Document",

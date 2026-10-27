@@ -125,6 +125,9 @@ const tests = spawnSync(
   [
     vitestEntry,
     "run",
+    "src/routes/cohort.routes.integration.test.ts",
+    "src/routes/workspace-research.routes.integration.test.ts",
+    "src/services/research-case-provisioning.integration.test.ts",
     "src/services/manuscript-lifecycle.integration.test.ts",
     "src/services/reviewer-assignment.integration.test.ts",
     "src/services/adviser-milestone.integration.test.ts",
@@ -133,6 +136,8 @@ const tests = spawnSync(
     "src/routes/defense-workflow.integration.test.ts",
     "src/routes/mail-workspace.integration.test.ts",
     "src/routes/workflow-access.integration.test.ts",
+    "src/routes/workflow-publication.integration.test.ts",
+    "src/services/legacy-cohort-backfill.integration.test.ts",
     "src/services/audit-remediation.integration.test.ts",
     "src/services/user-deletion.integration.test.ts",
     "src/services/notification-email.integration.test.ts",

@@ -71,6 +71,7 @@ const PanelistNotificationsPage = lazy(
 );
 
 const ProfessorLayout = lazy(() => import("./app/professor/layout"));
+const CoordinatorCohortsPage = lazy(() => import("./app/professor/cohorts/page"));
 const ProfessorDashboardPage = lazy(
   () => import("./app/professor/dashboard/page"),
 );
@@ -140,6 +141,16 @@ function LegacyStudentSubmissionsRoute() {
   return (
     <Navigate
       to={`${legacyStudentSubmissionsDestination(location.search)}${location.hash}`}
+      replace
+    />
+  );
+}
+
+function LegacyJoinResearchGroupRoute() {
+  const location = useLocation();
+  return (
+    <Navigate
+      to={`/student/join-group${location.search}${location.hash}`}
       replace
     />
   );
@@ -262,6 +273,10 @@ export function AppRoutes() {
         />
         <Route
           path="/join-group"
+          element={<LegacyJoinResearchGroupRoute />}
+        />
+        <Route
+          path="/student/join-group"
           element={
             <StudentPortal>
               <JoinResearchGroupPage />
@@ -696,6 +711,9 @@ export function AppRoutes() {
               </ProtectedRoute>
             }
           />
+        ))}
+        {["/professor/cohorts", "/professor/cohorts/:id"].map(path => (
+          <Route key={path} path={path} element={<ProtectedRoute allowedRoles={["RESEARCH_COORDINATOR", "PROFESSOR", "SYSTEM_ADMIN"]}><ProfessorLayout><CoordinatorCohortsPage /></ProfessorLayout></ProtectedRoute>} />
         ))}
         <Route
           path="/professor/*"

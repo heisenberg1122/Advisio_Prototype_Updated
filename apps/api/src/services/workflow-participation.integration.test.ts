@@ -26,6 +26,7 @@ databaseDescribe("untitled workflow participation integration", () => {
   const fixture = createIntegrationFixtureScope(
     `workflow-participation-${suffix}`,
   );
+  const cohortIds: string[] = [];
   let researcher: AuthenticatedUser;
   let member: AuthenticatedUser;
   let professorId: string;
@@ -122,6 +123,8 @@ databaseDescribe("untitled workflow participation integration", () => {
     workspaceId = workspace.id;
   });
   afterAll(async () => {
+    if (fixture.databaseVerified)
+      await prisma.researchCohort.deleteMany({ where: { id: { in: cohortIds } } });
     if (fixture.databaseVerified && workspaceId)
       await prisma.researchWorkspace.deleteMany({ where: { id: workspaceId } });
     await cleanupIntegrationFixture(prisma, fixture);
@@ -171,6 +174,20 @@ databaseDescribe("untitled workflow participation integration", () => {
         status: "ACTIVE",
       })),
     });
+    const cohort = await prisma.researchCohort.create({
+      data: {
+        name: `Participation cohort ${suffix}-${version}`,
+        collegeId: researcher.collegeId!,
+        programId: researcher.programId!,
+        researchTypeId: researchType.id,
+        academicYearId: fixture.academicYearIds[0],
+        workflowId: workflow.id,
+        status: "ACTIVE",
+        createdBy: professorId,
+        members: { create: [researcher.id, member.id].map((userId) => ({ userId })) },
+      },
+    });
+    cohortIds.push(cohort.id);
     return workflow;
   };
   it.each(["adviser-first", "title-first", "document-first"] as const)(

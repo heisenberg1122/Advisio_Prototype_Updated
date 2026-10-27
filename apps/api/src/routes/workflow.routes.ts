@@ -587,62 +587,6 @@ async function recordPublishedWorkflowChange(
   }
 }
 
-async function resequenceWorkflowStagesByTopics(tx: any, workflowId: string) {
-  const [topics, stages] = await Promise.all([
-    tx.workflowTopic.findMany({
-      where: { workflowId },
-      orderBy: [{ sequence: "asc" }, { id: "asc" }],
-      select: { id: true },
-    }),
-    tx.workflowStage.findMany({
-      where: { workflowId },
-      orderBy: [{ sequence: "asc" }, { id: "asc" }],
-      select: { id: true, topicId: true, category: true },
-    }),
-  ]);
-  const active = stages.filter((stage: any) => stage.category !== "Archived");
-  const archived = stages.filter((stage: any) => stage.category === "Archived");
-  // Keep legacy ungrouped milestones first so adding the first topic does not
-  // unexpectedly move an existing research process behind newly added work.
-  const orderedActive = [
-    ...active.filter((stage: any) => !stage.topicId),
-    ...topics.flatMap((topic: any) =>
-      active.filter((stage: any) => stage.topicId === topic.id),
-    ),
-  ];
-  const ordered = [...orderedActive, ...archived];
-  for (let index = 0; index < ordered.length; index += 1) {
-    await tx.workflowStage.update({
-      where: { id: ordered[index].id },
-      data: { sequence: 2_000_000 + index },
-    });
-  }
-  for (let index = 0; index < orderedActive.length; index += 1) {
-    await tx.workflowStage.update({
-      where: { id: orderedActive[index].id },
-      data: { sequence: index + 1 },
-    });
-  }
-  for (let index = 0; index < archived.length; index += 1) {
-    await tx.workflowStage.update({
-      where: { id: archived[index].id },
-      data: { sequence: -(index + 1) },
-    });
-  }
-  await tx.workflowStage.updateMany({
-    where: { workflowId, category: { not: "Archived" } },
-    data: { isFinal: false },
-  });
-  const finalStage = orderedActive.at(-1);
-  if (finalStage) {
-    await tx.workflowStage.update({
-      where: { id: finalStage.id },
-      data: { isFinal: true },
-    });
-  }
-  await validateMilestoneConditions(tx, workflowId);
-}
-
 async function positionWorkflowStageWithinTopic(
   tx: any,
   workflowId: string,
@@ -1296,12 +1240,12 @@ router.patch(
             data: { sequence: index + 1 },
           });
         }
-        await resequenceWorkflowStagesByTopics(tx, workflowId);
+        // Phase ordering changes presentation only. Requirement sequence stays saved.
       });
       await recordPublishedWorkflowChange(
         workflowId,
         req.user!.id,
-        "The order of research phases and milestones changed.",
+        "The visual order of research Phases changed. Requirement sequence is unchanged.",
         "Workflow",
         workflowId,
       );
@@ -1427,11 +1371,6 @@ router.post(
         return;
       }
 
-      const latestVersion = await prisma.workflow.aggregate({
-        where: { researchTypeId },
-        _max: { version: true },
-      });
-
       const workflow = await prisma.workflow.create({
         data: {
           researchTypeId,
@@ -1440,7 +1379,8 @@ router.post(
             typeof description === "string" && description.trim()
               ? description.trim()
               : null,
-          version: (latestVersion._max.version || 0) + 1,
+          // Each newly named process starts independently; research types do not own version counters.
+          version: 1,
           status: "DRAFT",
           createdBy: req.user.id,
           stages: {
@@ -1494,10 +1434,8 @@ router.post(
   },
 );
 
-// DELETE /api/workflows/:id — only unused workflows can be permanently removed.
-// A draft is private until this endpoint makes it authoritative. Publication
-// updates the research type's shared pointer; project instances and immutable
-// submission history are preserved in place.
+// Publication makes a validated process available for explicit cohort assignment.
+// It does not select a process for research types, cohorts, or existing instances.
 router.post(
   "/:id/publish",
   requireAuth,
@@ -1538,11 +1476,12 @@ router.post(
           const issues = workflowPublicationIssues(current);
           if (issues.length)
             throw Object.assign(
-              new Error("Complete the workflow before publishing."),
+              new Error("Complete the process requirements before publishing."),
               { statusCode: 409, issues },
             );
 
-          await resequenceWorkflowStagesByTopics(tx, workflowId);
+          // Do not regroup saved requirement sequences during publication.
+          await validateMilestoneConditions(tx, workflowId);
           const publishedAt = new Date();
           const workflow = await tx.workflow.update({
             where: { id: workflowId },
@@ -1559,11 +1498,6 @@ router.post(
               },
             },
           });
-          await tx.researchType.update({
-            where: { id: workflow.researchTypeId },
-            data: { workflowId: workflow.id },
-          });
-
           const [enrollments, projects] = await Promise.all([
             tx.workflowEnrollment.findMany({
               where: { workflowId, status: "ACTIVE" },
@@ -1589,7 +1523,7 @@ router.post(
               recipientId,
               type: "WORKFLOW_CHANGED",
               title: "Research workflow published",
-              message: `${workflow.name} is now available. Review your milestones, deadlines, and submission requirements.`,
+              message: `${workflow.name} version ${workflow.version} is published for cohort assignment. Your cohort's assigned process has not changed.`,
               entityType: "Workflow",
               entityId: workflow.id,
               actionUrl: "/student/tasks",
@@ -1625,7 +1559,7 @@ router.post(
     } catch (error: any) {
       res.status(error?.statusCode || 500).json({
         error: error.message || "Workflow could not be published.",
-        ...(error?.issues ? { issues: error.issues } : {}),
+        ...(error?.issues ? { issues: error.issues, details: { issues: error.issues } } : {}),
       });
     }
   },
@@ -2146,6 +2080,8 @@ router.post(
         return;
       }
 
+      if (!z.string().uuid().nullable().optional().safeParse(topicId).success)
+        return void res.status(400).json({ error: "Choose a Phase from this process, or leave the Requirement unassigned." });
       const [researcherRole, topic] = await Promise.all([
         prisma.role.findUnique({ where: { name: "RESEARCHER" } }),
         topicId
@@ -2158,10 +2094,10 @@ router.post(
         res.status(500).json({ error: "Researcher role is not configured." });
         return;
       }
-      if (!topicId || !topic) {
+      if (topicId != null && (typeof topicId !== "string" || !topic)) {
         res
           .status(400)
-          .json({ error: "Choose a valid topic for this milestone." });
+          .json({ error: "Choose a Phase from this process, or leave the Requirement unassigned." });
         return;
       }
 
@@ -2220,7 +2156,7 @@ router.post(
           const createdStage = await tx.workflowStage.create({
             data: {
               workflowId,
-              topicId: topic.id,
+              topicId: topic?.id || null,
               name: name.trim(),
               description:
                 typeof description === "string" && description.trim()
@@ -2277,7 +2213,8 @@ router.post(
               },
             });
           }
-          await resequenceWorkflowStagesByTopics(tx, workflowId);
+          // New requirements append to the existing sequential order, regardless of Phase.
+          await normalizeWorkflowStageSequences(tx, workflowId);
           await positionWorkflowStageWithinTopic(
             tx,
             workflowId,
@@ -2693,15 +2630,17 @@ router.patch(
         });
       }
       if (topicId !== undefined) {
+        if (!z.string().uuid().nullable().safeParse(topicId).success)
+          return void res.status(400).json({ error: "Choose a Phase from this process, or leave the Requirement unassigned." });
         const topic = topicId
           ? await prisma.workflowTopic.findFirst({
               where: { id: topicId, workflowId: existing.workflowId },
             })
           : null;
-        if (!topic) {
+        if (topicId !== null && (typeof topicId !== "string" || !topic)) {
           return void res
             .status(400)
-            .json({ error: "Choose a valid topic for this milestone." });
+            .json({ error: "Choose a Phase from this process, or leave the Requirement unassigned." });
         }
       }
 
@@ -2809,9 +2748,7 @@ router.patch(
             data: { dueDays: null },
           });
         }
-        if (topicId !== undefined && topicId !== existing.topicId) {
-          await resequenceWorkflowStagesByTopics(tx, existing.workflowId);
-        }
+        // Changing an optional Phase never moves the Requirement's saved sequence.
         await validateMilestoneConditions(tx, existing.workflowId);
         return tx.workflowStage.findUniqueOrThrow({ where: { id: stageId } });
       });

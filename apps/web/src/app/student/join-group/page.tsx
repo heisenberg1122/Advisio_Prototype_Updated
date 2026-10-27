@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  joinResearchTeam,
+  refreshResearcherContext,
+} from "@/lib/researcher-lifecycle-actions";
 
 const personName = (person: any) =>
   person
@@ -10,6 +15,7 @@ const personName = (person: any) =>
     : "Not assigned";
 
 export default function JoinResearchGroupPage() {
+  const client = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [code, setCode] = useState(
@@ -20,7 +26,9 @@ export default function JoinResearchGroupPage() {
   const [joining, setJoining] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [previewKind, setPreviewKind] = useState<"project" | "workspace">("project");
+  const [previewKind, setPreviewKind] = useState<"project" | "workspace">(
+    "project",
+  );
 
   const reviewGroup = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -37,7 +45,9 @@ export default function JoinResearchGroupPage() {
       setPreviewKind("project");
     } catch (error: any) {
       try {
-        const response = await apiClient.get<{ workspace: any }>(`/api/workspaces/join/${code.trim().toUpperCase()}/preview`);
+        const response = await apiClient.get<{ workspace: any }>(
+          `/api/workspaces/join/${code.trim().toUpperCase()}/preview`,
+        );
         setPreview(response.workspace);
         setPreviewKind("workspace");
       } catch {
@@ -53,20 +63,48 @@ export default function JoinResearchGroupPage() {
     setJoining(true);
     setMessage(null);
     try {
-      const response = previewKind === "workspace" ? await apiClient.post<{ workspace: { name: string } }>(`/api/workspaces/join/${code.trim().toUpperCase()}`) : await apiClient.post<{
-        pendingApproval?: boolean;
-        project: { title: string; groupName?: string | null };
-      }>(`/api/research/join/${code.trim().toUpperCase()}`);
-      const name = previewKind === "workspace" ? (response as { workspace: { name: string } }).workspace.name : ((response as { project: { title: string; groupName?: string | null } }).project.groupName || (response as { project: { title: string } }).project.title);
+      const response =
+        previewKind === "workspace"
+          ? await joinResearchTeam(client, code)
+          : await apiClient.post<{
+              pendingApproval?: boolean;
+              project: { id: string; title: string; groupName?: string | null };
+            }>(`/api/research/join/${code.trim().toUpperCase()}`);
+      const name =
+        previewKind === "workspace"
+          ? (response as { workspace: { name: string } }).workspace.name
+          : (
+              response as {
+                project: { title: string; groupName?: string | null };
+              }
+            ).project.groupName ||
+            (response as { project: { title: string } }).project.title;
       setSuccess(true);
+      if (previewKind !== "workspace") await refreshResearcherContext(client);
       if (previewKind === "workspace") {
-        setMessage(`You joined ${name}. Add the research project when your group is ready.`);
-        setTimeout(() => router.push("/student/dashboard?tab=group"), 900);
+        setMessage(
+          `You joined ${name}. Your team is being prepared. The team leader can start the research process when ready.`,
+        );
+        setTimeout(
+          () =>
+            router.push(
+              `/student/dashboard?tab=group&workspaceId=${encodeURIComponent((response as { workspace: { id: string } }).workspace.id)}`,
+            ),
+          900,
+        );
       } else if ((response as { pendingApproval?: boolean }).pendingApproval) {
-        setMessage(`Your request to join ${name} was sent to the group leader.`);
+        setMessage(
+          `Your request to join ${name} was sent to the group leader.`,
+        );
       } else {
-        setMessage(`You joined ${name}.`);
-        setTimeout(() => router.push("/student/dashboard?tab=group"), 900);
+        setMessage(`You joined ${name}. Continue your research study.`);
+        setTimeout(
+          () =>
+            router.push(
+              `/student/dashboard?tab=group&projectId=${encodeURIComponent((response as { project: { id: string } }).project.id)}`,
+            ),
+          900,
+        );
       }
     } catch (error: any) {
       setMessage(error?.message || "This invitation could not be used.");
@@ -82,17 +120,17 @@ export default function JoinResearchGroupPage() {
           <i className="ti ti-users-plus text-2xl" />
         </span>
         <h1 className="mt-4 text-center text-2xl font-black text-[#17212B] dark:text-white">
-          Join a research group
+          Join Research Team
         </h1>
         <p className="mt-2 text-center text-base text-slate-500 dark:text-slate-400 sm:text-base">
-          Enter the code from the group leader, review the project, then confirm
-          whether you want to join.
+          Enter the code from the group leader, review the team or research
+          study, then confirm whether you want to join.
         </p>
 
         {!preview ? (
           <form onSubmit={reviewGroup} className="mt-6">
             <label className="text-sm font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-              Research group code
+              Research team code
             </label>
             <input
               value={code}
@@ -120,13 +158,17 @@ export default function JoinResearchGroupPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-extrabold uppercase tracking-widest text-[#C58A18]">
-                    {previewKind === "workspace" ? "Workspace preview" : "Group preview"}
+                    {previewKind === "workspace"
+                      ? "Research team preview"
+                      : "Research study preview"}
                   </p>
                   <h2 className="mt-1 text-lg font-black text-[#17212B] dark:text-white">
-                    {preview.groupName || "Research group"}
+                    {preview.groupName || preview.name || "Research team"}
                   </h2>
                   <p className="mt-1 text-base text-slate-600 dark:text-slate-300">
-                    {previewKind === "workspace" ? `${preview.projectCount || 0} research projects` : preview.title}
+                    {previewKind === "workspace"
+                      ? "Research team formation"
+                      : preview.title}
                   </p>
                 </div>
                 <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-extrabold text-blue-800">

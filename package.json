@@ -7,6 +7,7 @@
     "packages/*"
   ],
   "scripts": {
+    "backfill:cohorts": "npm --workspace=@research-management/database run backfill:cohorts --",
     "email:test": "node scripts/test-email.mjs",
     "email:preview": "npm --workspace=@research-management/email run build && node scripts/preview-notification-emails.mjs",
     "dev": "node scripts/dev.mjs",
@@ -30,6 +31,7 @@
     "type-check": "turbo run type-check",
     "test": "turbo run test",
     "test:integration": "npm --workspace=api run test:integration",
+    "test:integration:local": "node --env-file=.env.integration.local apps/api/scripts/run-database-integration-tests.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
