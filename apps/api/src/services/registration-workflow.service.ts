@@ -1,11 +1,17 @@
 import { prisma } from "../lib/prisma.js";
 import type { AuthenticatedUser } from "../middleware/auth.js";
+import { assignedCohortWorkflows } from "./cohort-workflow-selection.service.js";
 
 export async function resolveRegistrationWorkflow(
   user: AuthenticatedUser,
   programId: string,
   requestedWorkflowId?: string,
   requestedResearchTypeId?: string,
+  context: {
+    academicYearId?: string;
+    cohortId?: string;
+    existingWorkflowId?: string;
+  } = {},
 ) {
   function fail(message: string, statusCode = 400): never {
     throw Object.assign(new Error(message), { statusCode });
@@ -36,16 +42,32 @@ export async function resolveRegistrationWorkflow(
         program: { isActive: true, college: { isActive: true } },
       },
     });
+    // A pinned draft may be promoted without reassigning an already-running legacy process.
+    const pinnedWorkflowId =
+      context.existingWorkflowId &&
+      (!requestedWorkflowId ||
+        requestedWorkflowId === context.existingWorkflowId)
+        ? context.existingWorkflowId
+        : undefined;
+    const assignments = pinnedWorkflowId
+      ? []
+      : await assignedCohortWorkflows(user, programId, {
+          workflowId: requestedWorkflowId,
+          academicYearId: context.academicYearId,
+          cohortId: context.cohortId,
+        });
+    const assignedIds = new Set(assignments.map((cohort) => cohort.workflowId));
     const eligible = enrollments.filter(
       ({ workflow }) =>
         workflow.status === "PUBLISHED" &&
+        (workflow.id === pinnedWorkflowId || assignedIds.has(workflow.id)) &&
         types.some((type) => type.id === workflow.researchTypeId) &&
         (!requestedResearchTypeId ||
           workflow.researchTypeId === requestedResearchTypeId),
     );
     if (!eligible.length)
       fail(
-        "Join an active workflow for your program before registering your research project.",
+        "Join an active workflow assigned to one of your active cohorts before registering your research project.",
       );
     if (eligible.length !== 1)
       fail("Select the workflow for this research project.");
@@ -62,7 +84,6 @@ export async function resolveRegistrationWorkflow(
       isActive: true,
       ...(requestedResearchTypeId ? { id: requestedResearchTypeId } : {}),
     },
-    include: { workflow: { include } },
     take: 2,
   });
   if (researchTypes.length !== 1)
@@ -77,14 +98,21 @@ export async function resolveRegistrationWorkflow(
         },
         include,
       })
-    : researchType.workflow;
+    : null;
   if (requestedWorkflowId && !workflow)
     fail("The selected workflow is unavailable for this research type.");
   if (
     workflow &&
-    (workflow.researchTypeId !== researchType.id ||
-      workflow.status !== "PUBLISHED")
+    !(
+      await assignedCohortWorkflows(user, programId, {
+        workflowId: workflow.id,
+        academicYearId: context.academicYearId,
+        cohortId: context.cohortId,
+      })
+    ).length
   )
-    fail("The research type's workflow is unavailable.");
+    fail(
+      "Assign this published workflow to an active cohort in the project's academic scope.",
+    );
   return { researchType, workflow };
 }

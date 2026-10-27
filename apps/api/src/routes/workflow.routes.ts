@@ -1427,11 +1427,6 @@ router.post(
         return;
       }
 
-      const latestVersion = await prisma.workflow.aggregate({
-        where: { researchTypeId },
-        _max: { version: true },
-      });
-
       const workflow = await prisma.workflow.create({
         data: {
           researchTypeId,
@@ -1440,7 +1435,8 @@ router.post(
             typeof description === "string" && description.trim()
               ? description.trim()
               : null,
-          version: (latestVersion._max.version || 0) + 1,
+          // Each newly named process starts independently; research types do not own version counters.
+          version: 1,
           status: "DRAFT",
           createdBy: req.user.id,
           stages: {
@@ -1494,10 +1490,8 @@ router.post(
   },
 );
 
-// DELETE /api/workflows/:id — only unused workflows can be permanently removed.
-// A draft is private until this endpoint makes it authoritative. Publication
-// updates the research type's shared pointer; project instances and immutable
-// submission history are preserved in place.
+// Publication makes a validated process available for explicit cohort assignment.
+// It does not select a process for research types, cohorts, or existing instances.
 router.post(
   "/:id/publish",
   requireAuth,
@@ -1559,11 +1553,6 @@ router.post(
               },
             },
           });
-          await tx.researchType.update({
-            where: { id: workflow.researchTypeId },
-            data: { workflowId: workflow.id },
-          });
-
           const [enrollments, projects] = await Promise.all([
             tx.workflowEnrollment.findMany({
               where: { workflowId, status: "ACTIVE" },
@@ -1589,7 +1578,7 @@ router.post(
               recipientId,
               type: "WORKFLOW_CHANGED",
               title: "Research workflow published",
-              message: `${workflow.name} is now available. Review your milestones, deadlines, and submission requirements.`,
+              message: `${workflow.name} version ${workflow.version} is published for cohort assignment. Your cohort's assigned process has not changed.`,
               entityType: "Workflow",
               entityId: workflow.id,
               actionUrl: "/student/tasks",

@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 import type { AuthenticatedUser } from "../middleware/auth.js";
+import { assignedCohortWorkflows } from "./cohort-workflow-selection.service.js";
 
 function fail(message: string, statusCode = 409): never {
   throw Object.assign(new Error(message), { statusCode });
@@ -126,6 +127,29 @@ export async function startWorkflowParticipation(options: {
           },
         })
       : null;
+    const year = shared
+      ? { id: shared.academicYearId }
+      : await tx.academicYear.findFirst({
+          where: { isActive: true },
+          orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }],
+        });
+    if (!year)
+      fail("No active academic year is configured. Contact your professor.");
+    const assignments = await assignedCohortWorkflows(
+      options.user,
+      program.id,
+      {
+        workflowId: workflow.id,
+        academicYearId: year.id,
+        cohortId: workspace?.cohortId || undefined,
+      },
+      tx,
+    );
+    if (!assignments.length)
+      fail(
+        "Assign this workflow to an active cohort you belong to before starting its milestones.",
+        403,
+      );
     if (shared) {
       await tx.researchMember.upsert({
         where: {
@@ -144,6 +168,11 @@ export async function startWorkflowParticipation(options: {
       });
       return shared;
     }
+    const cohortMemberIds = new Set(
+      assignments.flatMap((cohort) =>
+        cohort.members.map((member) => member.userId),
+      ),
+    );
     let participants: Array<{
       userId: string;
       projectRole: "LEADER" | "MEMBER";
@@ -161,25 +190,20 @@ export async function startWorkflowParticipation(options: {
       const eligibleMembers = workspace.members.filter(
         (member) =>
           eligibleIds.has(member.userId) &&
+          cohortMemberIds.has(member.userId) &&
           member.user.status === "ACTIVE" &&
           member.user.programId === program.id &&
           member.user.collegeId === program.collegeId,
       );
       if (!eligibleMembers.some((member) => member.role === "LEADER"))
         fail(
-          "Your group leader must join this workflow before the group starts. No research title is required.",
+          "Your group leader must be enrolled and belong to an active cohort assigned to this workflow before the group starts.",
         );
       participants = eligibleMembers.map((member) => ({
         userId: member.userId,
         projectRole: member.role === "LEADER" ? "LEADER" : "MEMBER",
       }));
     }
-    const year = await tx.academicYear.findFirst({
-      where: { isActive: true },
-      orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }],
-    });
-    if (!year)
-      fail("No active academic year is configured. Contact your professor.");
     const project = await tx.researchProject.create({
       data: {
         title: "",

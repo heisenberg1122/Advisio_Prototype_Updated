@@ -265,11 +265,11 @@ router.post(
         collegeId = scope.collegeId;
       }
 
-      let workspace: { id: string; name: string; inviteCode: string; participationMode: "SOLO" | "GROUP"; accessMode: "INVITE_ONLY" | "PUBLIC_APPROVAL" | "PUBLIC_OPEN"; inviteCodeEnabled: boolean; collegeId: string; programId: string } | null = null;
+      let workspace: { id: string; name: string; inviteCode: string; participationMode: "SOLO" | "GROUP"; accessMode: "INVITE_ONLY" | "PUBLIC_APPROVAL" | "PUBLIC_OPEN"; inviteCodeEnabled: boolean; collegeId: string; programId: string; cohortId: string | null } | null = null;
       if (workspaceId) {
         workspace = await prisma.researchWorkspace.findFirst({
           where: { id: workspaceId, members: { some: { userId: req.user.id, role: "LEADER", leftAt: null } } },
-          select: { id: true, name: true, inviteCode: true, participationMode: true, accessMode: true, inviteCodeEnabled: true, collegeId: true, programId: true },
+          select: { id: true, name: true, inviteCode: true, participationMode: true, accessMode: true, inviteCodeEnabled: true, collegeId: true, programId: true, cohortId: true },
         });
         if (!workspace) { res.status(403).json({ error: "Only a workspace leader can register its research project." }); return; }
         participationMode = workspace.participationMode;
@@ -347,7 +347,11 @@ router.post(
       if (!collegeId || !programId || !academicYearId) return void res.status(400).json({ error: "Complete your academic program and academic year." });
       if (req.user.roles.includes("RESEARCHER") && req.user.programId !== programId) return void res.status(403).json({ error: "Register research within your assigned program." });
       const { researchType, workflow: selectedWorkflow } = await resolveRegistrationWorkflow(req.user, programId,
-        typeof req.body.workflowId === "string" ? req.body.workflowId : undefined, researchTypeId);
+        typeof req.body.workflowId === "string" ? req.body.workflowId : undefined, researchTypeId, {
+          academicYearId,
+          cohortId: workspace?.cohortId || undefined,
+          existingWorkflowId: existingProject?.workflowDraft ? existingProject.workflowInstance?.workflowId : undefined,
+        });
       researchTypeId = researchType.id;
       const initialStage = selectedWorkflow?.stages[0];
       if (selectedWorkflow && !initialStage) return void res.status(409).json({ error: "The selected workflow has no active milestones. Contact your professor." });

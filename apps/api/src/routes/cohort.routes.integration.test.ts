@@ -4,7 +4,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { InstitutionalRole } from "@research-management/auth";
 import app from "../app.js";
 import { prisma } from "../lib/prisma.js";
-import { generateToken } from "../middleware/auth.js";
+import { generateToken, type AuthenticatedUser } from "../middleware/auth.js";
+import { resolveRegistrationWorkflow } from "../services/registration-workflow.service.js";
 import {
   assertIsolatedIntegrationDatabase,
   cleanupIntegrationFixture,
@@ -548,5 +549,175 @@ databaseDescribe("Research cohort management boundaries", () => {
         (log) => (log.newValues as any)?.operation === "REMOVE_RESEARCHER",
       ),
     ).toBe(true);
+  });
+  it("publishes independent version-one processes without globally assigning or switching active cohorts", async () => {
+    async function workflowApi(path: string, body: unknown) {
+      const response = await fetch(base + "/api/workflows" + path, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${generateToken(coordinator)}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      return { status: response.status, body: (await response.json()) as any };
+    }
+    async function process(name: string) {
+      const created = await workflowApi("", {
+        name: `${marker}-${name}`,
+        researchTypeId: type,
+        stages: [],
+      });
+      expect(created.status).toBe(201);
+      expect(created.body.workflow.version).toBe(1);
+      const id = created.body.workflow.id;
+      fixture.workflowIds.push(id);
+      const topic = await prisma.workflowTopic.create({
+        data: { workflowId: id, title: "Preparation", sequence: 1 },
+      });
+      const role = await prisma.role.findUniqueOrThrow({
+        where: { name: "RESEARCHER" },
+      });
+      await prisma.workflowStage.create({
+        data: {
+          workflowId: id,
+          topicId: topic.id,
+          name: "Read guidelines",
+          sequence: 1,
+          responsibleRoleId: role.id,
+          requiresDocument: false,
+          requiresApproval: false,
+        },
+      });
+      return id;
+    }
+    const a = await process("family-a"),
+      b = await process("family-b");
+    await prisma.researchType.update({
+      where: { id: type },
+      data: { workflowId: workflow },
+    });
+    const publishedA = await workflowApi(`/${a}/publish`, {});
+    expect(publishedA.status).toBe(200);
+    expect(publishedA.body.workflow).toMatchObject({
+      status: "PUBLISHED",
+      version: 1,
+    });
+    expect(publishedA.body.workflow.publishedAt).toBeTruthy();
+    expect(
+      (await prisma.researchType.findUniqueOrThrow({ where: { id: type } }))
+        .workflowId,
+    ).toBe(workflow);
+    const cohortA = (await create()).body.cohort.id,
+      cohortB = (await create()).body.cohort.id;
+    await api(coordinator, `/${cohortA}/workflow`, "PUT", { workflowId: a });
+    await api(coordinator, `/${cohortB}/workflow`, "PUT", {
+      workflowId: workflow,
+    });
+    await api(coordinator, `/${cohortA}/members`, "POST", { userId: student });
+    expect(
+      (await api(coordinator, `/${cohortA}`, "PATCH", { status: "ACTIVE" }))
+        .status,
+    ).toBe(200);
+    expect(
+      (await api(coordinator, `/${cohortB}`, "PATCH", { status: "ACTIVE" }))
+        .status,
+    ).toBe(200);
+    const before = await prisma.researchCohort.findMany({
+      where: { id: { in: [cohortA, cohortB] } },
+      orderBy: { id: "asc" },
+    });
+    expect((await workflowApi(`/${b}/publish`, {})).status).toBe(200);
+    expect(
+      await prisma.researchCohort.findMany({
+        where: { id: { in: [cohortA, cohortB] } },
+        orderBy: { id: "asc" },
+      }),
+    ).toEqual(before);
+    expect(
+      (await prisma.researchType.findUniqueOrThrow({ where: { id: type } }))
+        .workflowId,
+    ).toBe(workflow);
+    expect(
+      await prisma.workflow.count({
+        where: {
+          id: { in: [a, b] },
+          researchTypeId: type,
+          version: 1,
+          status: "PUBLISHED",
+        },
+      }),
+    ).toBe(2);
+    expect(
+      await prisma.auditLog.count({
+        where: {
+          entityType: "Workflow",
+          entityId: { in: [a, b] },
+          action: "UPDATE",
+        },
+      }),
+    ).toBe(2);
+    await prisma.workflowEnrollment.createMany({
+      data: [a, b].map((workflowId) => ({ workflowId, userId: student })),
+    });
+    const actor: AuthenticatedUser = {
+      id: student,
+      roles: ["RESEARCHER"],
+      collegeId: college,
+      programId: program,
+      permissions: [],
+      email: "student@isolated.test",
+      universityId: "student",
+    };
+    await expect(
+      resolveRegistrationWorkflow(actor, program, b),
+    ).rejects.toThrow("active cohorts");
+    expect(
+      (await api(coordinator, `/${cohortB}/workflow`, "PUT", { workflowId: b }))
+        .status,
+    ).toBe(200);
+    expect(
+      (
+        await prisma.researchCohort.findUniqueOrThrow({
+          where: { id: cohortA },
+        })
+      ).workflowId,
+    ).toBe(a);
+    expect(
+      (
+        await prisma.researchCohort.findUniqueOrThrow({
+          where: { id: cohortB },
+        })
+      ).workflowId,
+    ).toBe(b);
+    // Assignment alone does not replace either cohort membership or legacy enrollment authorization.
+    await expect(
+      resolveRegistrationWorkflow(actor, program, b),
+    ).rejects.toThrow("active cohorts");
+    expect(
+      (
+        await resolveRegistrationWorkflow(actor, program, a, type, {
+          academicYearId: year,
+        })
+      ).workflow?.id,
+    ).toBe(a);
+    await api(coordinator, `/${cohortB}/members`, "POST", { userId: student });
+    expect(
+      (await resolveRegistrationWorkflow(actor, program, b)).workflow?.id,
+    ).toBe(b);
+    await expect(resolveRegistrationWorkflow(actor, program)).rejects.toThrow(
+      "Select the workflow",
+    );
+    await api(coordinator, `/${cohortA}/members/${student}`, "DELETE");
+    await expect(
+      resolveRegistrationWorkflow(actor, program, a),
+    ).rejects.toThrow("active cohorts");
+    expect(
+      (
+        await prisma.workflowEnrollment.findUniqueOrThrow({
+          where: { workflowId_userId: { workflowId: a, userId: student } },
+        })
+      ).status,
+    ).toBe("ACTIVE");
   });
 });

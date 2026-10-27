@@ -30,6 +30,7 @@ const databaseDescribe =
 databaseDescribe("Audit remediation with isolated PostgreSQL", () => {
   const marker = `audit-security-${crypto.randomUUID().slice(0, 8)}`;
   const fixture = createIntegrationFixtureScope(marker);
+  const cohortIds: string[] = [];
   let leader: AuthenticatedUser,
     member: AuthenticatedUser,
     professor: AuthenticatedUser,
@@ -144,6 +145,20 @@ databaseDescribe("Audit remediation with isolated PostgreSQL", () => {
     await prisma.workflowEnrollment.create({
       data: { workflowId: selectedWorkflowId, userId: leader.id },
     });
+    const cohort = await prisma.researchCohort.create({
+      data: {
+        name: `${marker}-cohort`,
+        collegeId,
+        programId,
+        researchTypeId: type.id,
+        academicYearId: year.id,
+        workflowId: selectedWorkflowId,
+        status: "ACTIVE",
+        createdBy: professor.id,
+        members: { create: { userId: leader.id } },
+      },
+    });
+    cohortIds.push(cohort.id);
     const workspace = await prisma.researchWorkspace.create({
       data: {
         name: marker,
@@ -227,6 +242,7 @@ databaseDescribe("Audit remediation with isolated PostgreSQL", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
     if (fixture.databaseVerified) {
+      await prisma.researchCohort.deleteMany({ where: { id: { in: cohortIds } } });
       // Workspaces are tracked separately because the shared fixture scope predates them.
       if (workspaceId) {
         await prisma.researchProject.updateMany({

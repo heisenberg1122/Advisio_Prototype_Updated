@@ -735,6 +735,7 @@ model ResearchType {
   name        String   @db.VarChar(150)
   code        String   @db.VarChar(50)
   description String?  @db.Text
+  /// @deprecated Legacy compatibility pointer; active process selection belongs to ResearchCohort.workflowId.
   workflowId  String?  @map("workflow_id") @db.Uuid
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
@@ -1020,7 +1021,7 @@ model Workflow {
   enrollments   WorkflowEnrollment[]
   resources     WorkflowResource[]
 
-  @@unique([researchTypeId, version])
+  @@index([researchTypeId, version])
   @@index([status])
   @@map("workflows")
 }

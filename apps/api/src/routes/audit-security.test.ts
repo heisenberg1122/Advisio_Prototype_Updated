@@ -24,6 +24,7 @@ const db = vi.hoisted(() => {
       "researchProject",
       "researchMember",
       "workflowEnrollment",
+      "researchCohort",
       "researchType",
       "defenseSession",
       "certificate",
@@ -429,7 +430,19 @@ describe("workflow and released grade contracts", () => {
     status: "PUBLISHED",
     stages: [{ id: "stage" }],
   });
+  const assignment = (workflowId: string, researchTypeId = "type-a") => ({
+    id: `cohort-${workflowId}`,
+    workflowId,
+    researchTypeId,
+    programId,
+    collegeId: user().collegeId,
+    program: { collegeId: user().collegeId },
+    researchType: { programId },
+    workflow: { researchTypeId },
+    members: [{ userId: user().id }],
+  });
   it("requires an explicit selection when multiple joined workflows are eligible", async () => {
+    db.researchCohort.findMany.mockResolvedValue([assignment("one"), assignment("two")]);
     db.workflowEnrollment.findMany.mockResolvedValue([
       { workflow: workflow("one") },
       { workflow: workflow("two") },
@@ -440,6 +453,7 @@ describe("workflow and released grade contracts", () => {
     ).rejects.toThrow("Select the workflow");
   });
   it("rejects a joined workflow whose research type is outside the program", async () => {
+    db.researchCohort.findMany.mockResolvedValue([assignment("one", "foreign-type")]);
     db.workflowEnrollment.findMany.mockResolvedValue([
       { workflow: workflow("one", "foreign-type") },
     ]);
@@ -449,6 +463,7 @@ describe("workflow and released grade contracts", () => {
     ).rejects.toThrow("Join an active workflow");
   });
   it("uses the selected joined workflow instead of the research type default", async () => {
+    db.researchCohort.findMany.mockResolvedValue([assignment("selected")]);
     db.workflowEnrollment.findMany.mockResolvedValue([
       { workflow: workflow("selected") },
     ]);
