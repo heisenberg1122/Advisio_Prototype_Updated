@@ -1,13 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, Menu, X } from "lucide-react";
+import { LandingThemeToggle } from "./LandingThemeToggle";
+import type { LandingTheme } from "./useLandingTheme";
 const links = [
   { label: "Platform", href: "#platform" },
   { label: "Workflow", href: "#workflow" },
   { label: "For Teams", href: "#roles" },
 ];
 
-export function LandingNavbar() {
+export function LandingNavbar({
+  theme,
+  onToggleTheme,
+}: {
+  theme: LandingTheme;
+  onToggleTheme: (button: HTMLElement) => void;
+}) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -53,6 +61,7 @@ export function LandingNavbar() {
           ))}
         </nav>
         <div className="lp-nav-actions">
+          <LandingThemeToggle theme={theme} onToggle={onToggleTheme} />
           <Link to="/login" className="lp-nav-signin">
             Sign In
           </Link>

@@ -7,9 +7,12 @@ import { RoleExperience } from "@/components/landing/RoleExperience";
 import { SecurityTrustSection } from "@/components/landing/SecurityTrustSection";
 import { FinalCtaSection } from "@/components/landing/FinalCtaSection";
 import { LandingFooter } from "@/components/landing/LandingFooter";
+import { useLandingTheme } from "@/components/landing/useLandingTheme";
 import "@/components/landing/landing.css";
+import "@/components/landing/landing-theme.css";
 
 export default function HomePage() {
+  const { theme, toggleTheme } = useLandingTheme();
   const pageRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previousTitle = document.title;
@@ -35,11 +38,11 @@ export default function HomePage() {
     };
   }, []);
   return (
-    <div ref={pageRef} className="landing-page">
+    <div ref={pageRef} className="landing-page" data-landing-theme={theme}>
       <a href="#main-content" className="lp-skip">
         Skip to content
       </a>
-      <LandingNavbar />
+      <LandingNavbar theme={theme} onToggleTheme={toggleTheme} />
       <main id="main-content" tabIndex={-1}>
         <HeroSection />
         <ProblemSolution />
