@@ -1,3 +1,5 @@
+import { activeBuilderRequirements, processPublicationIssues, requirementConditionOptions } from "@/lib/process-builder";
+import { ProcessSequencePreview } from "@/components/workflow/ProcessSequencePreview";
 import { TitleProposalPanel } from "@/components/workflow/TitleProposalPanel";
 import React, { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -630,7 +632,7 @@ function ProfessorDashboardContent() {
       });
     } catch (error: any) {
       setDeleteWorkflowError(
-        error?.message || "Workflow could not be deleted.",
+        error?.message || "Process Template could not be deleted.",
       );
       setDeletingWorkflow(false);
       return;
@@ -643,30 +645,21 @@ function ProfessorDashboardContent() {
       refetchResearch(),
     ]);
     setDeletingWorkflow(false);
-    triggerToast(`Workflow "${workflowToDelete.name}" deleted.`);
+    triggerToast(`Process Template "${workflowToDelete.name}" deleted.`);
   };
 
   const openNewMilestone = (
     kind: "submission" | "approval" | "event" | "adviser" | "title" = "submission",
     preferredTopicId?: string,
   ) => {
-    if (!selectedWorkflowTopics.length) {
-      setShowWorkflowCreateMenu(false);
-      setEditingTopic(null);
-      setTopicTitle("");
-      setTopicDescription("");
-      setTopicDialogOpen(true);
-      triggerToast("Create a topic before adding its first milestone.");
-      return;
-    }
     const titleProposal = kind === "title";
     setNewTitleProposalCount(3);
     const adviserMilestone = kind === "adviser";
-    const topicId = preferredTopicId || selectedWorkflowTopics[0].id;
+    const topicId = selectedWorkflowTopics.some((topic: any) => topic.id === preferredTopicId) ? preferredTopicId! : "";
     setNewMilestoneTitle(titleProposal ? "Title Proposal" : adviserMilestone ? "Secure faculty adviser" : "");
     setNewMilestoneDescription(
       adviserMilestone
-        ? "The research group leader must request an eligible faculty adviser. This milestone is approved automatically when the adviser accepts."
+        ? "The research group leader must request an eligible faculty adviser. This Requirement is approved automatically when the adviser accepts."
         : "",
     );
     setTargetCompletionDate("");
@@ -689,8 +682,7 @@ function ProfessorDashboardContent() {
     e.preventDefault();
     if (
       !newMilestoneTitle.trim() ||
-      !selectedWorkflowId ||
-      !newMilestoneTopicId
+      !selectedWorkflowId
     )
       return;
     setSaving(true);
@@ -700,7 +692,7 @@ function ProfessorDashboardContent() {
         {
           name: newMilestoneTitle.trim(),
           description: newMilestoneDescription.trim() || null,
-          topicId: newMilestoneTopicId,
+          topicId: newMilestoneTopicId || null,
           category: newMilestoneScope,
           targetCompletionDate: targetCompletionDate || null,
           requiresApproval: newMilestoneRequiresApproval,
@@ -761,11 +753,11 @@ function ProfessorDashboardContent() {
       setShowAdvancedMilestoneOptions(false);
       triggerToast(
         failedAttachments
-          ? `Milestone saved, but ${failedAttachments} attachment${failedAttachments === 1 ? "" : "s"} could not be added.`
-          : `Milestone "${newMilestoneTitle.trim()}" saved with ${newMilestoneAttachments.length} attachment${newMilestoneAttachments.length === 1 ? "" : "s"}.`,
+          ? `Requirement saved, but ${failedAttachments} attachment${failedAttachments === 1 ? "" : "s"} could not be added.`
+          : `Requirement "${newMilestoneTitle.trim()}" saved with ${newMilestoneAttachments.length} attachment${newMilestoneAttachments.length === 1 ? "" : "s"}.`,
       );
     } catch (error: any) {
-      triggerToast(error?.message || "Milestone could not be saved.");
+      triggerToast(error?.message || "Requirement could not be saved.");
     } finally {
       setSaving(false);
     }
@@ -789,7 +781,7 @@ function ProfessorDashboardContent() {
           title: topicTitle.trim(),
           description: topicDescription.trim() || null,
         });
-        triggerToast(`Topic "${topicTitle.trim()}" updated.`);
+        triggerToast(`Phase "${topicTitle.trim()}" updated.`);
       } else {
         const result = await apiClient.post<{ topic: any }>(
           `/api/workflows/${selectedWorkflowId}/topics`,
@@ -799,7 +791,7 @@ function ProfessorDashboardContent() {
           },
         );
         setNewMilestoneTopicId(result.topic.id);
-        triggerToast(`Topic "${result.topic.title}" created.`);
+        triggerToast(`Phase "${result.topic.title}" created.`);
       }
       await refetchWorkflows();
       setTopicDialogOpen(false);
@@ -807,7 +799,7 @@ function ProfessorDashboardContent() {
       setTopicTitle("");
       setTopicDescription("");
     } catch (error: any) {
-      triggerToast(error?.message || "The workflow topic could not be saved.");
+      triggerToast(error?.message || "The Phase could not be saved.");
     } finally {
       setTopicSaving(false);
     }
@@ -822,9 +814,9 @@ function ProfessorDashboardContent() {
         { topicIds: reordered.map((topic: any) => topic.id) },
       );
       await refetchWorkflows();
-      triggerToast("Topic order updated.");
+      triggerToast("Phase display order updated. Requirement sequence is unchanged.");
     } catch (error: any) {
-      triggerToast(error?.message || "The topic could not be moved.");
+      triggerToast(error?.message || "The Phase could not be moved.");
     } finally {
       setTopicOrderSaving(false);
       setDraggedTopicId(null);
@@ -869,14 +861,14 @@ function ProfessorDashboardContent() {
   };
 
   const handleDeleteTopic = async (topic: any) => {
-    if (!window.confirm(`Delete the empty topic "${topic.title}"?`)) return;
+    if (!window.confirm(`Delete the empty Phase "${topic.title}"?`)) return;
     try {
       await apiClient.delete(`/api/workflows/topics/${topic.id}`);
       await refetchWorkflows();
-      triggerToast(`Topic "${topic.title}" deleted.`);
+      triggerToast(`Phase "${topic.title}" deleted.`);
     } catch (error: any) {
       triggerToast(
-        error?.message || "Move this topic's milestones before deleting it.",
+        error?.message || "Move this Phase's Requirements before deleting it.",
       );
     }
   };
@@ -917,7 +909,7 @@ function ProfessorDashboardContent() {
   };
 
   const handleDeleteRequirement = async (taskId: string) => {
-    if (!window.confirm("Delete this submission requirement?")) return;
+    if (!window.confirm("Delete this Submission Item?")) return;
     try {
       await apiClient.delete(`/api/workflows/tasks/${taskId}`);
       setEditingMilestone((current: any) =>
@@ -986,11 +978,11 @@ function ProfessorDashboardContent() {
       await refetchWorkflows();
       triggerToast(
         !currentLock
-          ? "Milestone access locked."
-          : "Milestone access unlocked.",
+        ? "Requirement access locked."
+        : "Requirement access unlocked.",
       );
     } catch (error: any) {
-      triggerToast(error?.message || "Milestone access could not be updated.");
+      triggerToast(error?.message || "Requirement access could not be updated.");
     }
   };
 
@@ -1006,11 +998,11 @@ function ProfessorDashboardContent() {
       setEditingMilestone(null);
       triggerToast(
         result.archived
-          ? `Milestone removed from the active workflow. ${result.preservedSubmissions || 0} submission record(s) were safely preserved.`
-          : "Milestone deleted.",
+          ? `Requirement removed from the active process. ${result.preservedSubmissions || 0} submission record(s) were safely preserved.`
+          : "Requirement deleted.",
       );
     } catch (error: any) {
-      triggerToast(error?.message || "Milestone could not be deleted.");
+      triggerToast(error?.message || "Requirement could not be deleted.");
     }
   };
 
@@ -1076,7 +1068,7 @@ function ProfessorDashboardContent() {
         {
           name: milestoneEditTitle.trim(),
           description: milestoneEditDescription.trim() || null,
-          topicId: milestoneEditTopicId,
+          topicId: milestoneEditTopicId || null,
           category: milestoneEditCategory,
           milestoneType: milestoneEditType,
           titleProposalCount: editTitleProposalCount,
@@ -1103,7 +1095,7 @@ function ProfessorDashboardContent() {
       setMilestoneSaveStatus("saved");
     } catch (error: any) {
       setMilestoneSaveStatus("idle");
-      triggerToast(error?.message || "Milestone details could not be saved.");
+      triggerToast(error?.message || "Requirement details could not be saved.");
     }
   };
 
@@ -1123,15 +1115,16 @@ function ProfessorDashboardContent() {
       setShowPublishConfirmation(false);
       triggerToast(
         result.alreadyPublished
-          ? "This workflow is already published."
-          : `Workflow published${result.recipients ? ` and ${result.recipients} affected researcher${result.recipients === 1 ? " was" : "s were"} notified` : ""}.`,
+          ? "This process is already published."
+          : `Process published${result.recipients ? ` and ${result.recipients} affected researcher${result.recipients === 1 ? " was" : "s were"} notified` : ""}.`,
       );
     } catch (error: any) {
-      const details = Array.isArray(error?.issues)
-        ? ` ${error.issues.join(" ")}`
+      const issues = error?.details?.issues || error?.issues;
+      const details = Array.isArray(issues)
+        ? ` ${issues.join(" ")}`
         : "";
       triggerToast(
-        `${error?.message || "Workflow could not be published."}${details}`,
+        `${error?.message || "Process could not be published."}${details}`,
       );
     } finally {
       setPublishingWorkflow(false);
@@ -1147,7 +1140,7 @@ function ProfessorDashboardContent() {
         {},
       );
       await refetchWorkflows();
-      triggerToast("Workflow invitation link generated.");
+      triggerToast("Process access invitation link generated.");
     } catch (error: any) {
       triggerToast(error?.message || "Invitation link could not be generated.");
     } finally {
@@ -1241,41 +1234,7 @@ function ProfessorDashboardContent() {
   const selectedWorkflowMilestones = milestones.filter(
     (item) => item.workflowId === selectedWorkflowId,
   );
-  const milestoneConditionOptions = (topicId: string, editingId?: string) => {
-    const editing = selectedWorkflowMilestones.find(
-      (item) => item.id === editingId,
-    );
-    const topicIndex = selectedWorkflowTopics.findIndex(
-      (topic: any) => topic.id === topicId,
-    );
-    return selectedWorkflowMilestones
-      .filter(
-        (item) =>
-          item.id !== editingId &&
-          item.scope !== "Archived" &&
-          item.sequence > 0,
-      )
-      .filter((item) => {
-        if (editing && editing.topicId === topicId)
-          return item.sequence < editing.sequence;
-        const candidateTopicIndex = selectedWorkflowTopics.findIndex(
-          (topic: any) => topic.id === item.topicId,
-        );
-        return (
-          topicIndex >= 0 &&
-          (!item.topicId ||
-            (candidateTopicIndex >= 0 && candidateTopicIndex <= topicIndex))
-        );
-      })
-      .sort((a, b) => a.sequence - b.sequence)
-      .map((item) => ({
-        value: item.id,
-        label:
-          item.milestoneType === "ADVISER_SELECTION"
-            ? `Adviser Milestone: ${item.title}`
-            : item.title,
-      }));
-  };
+  const milestoneConditionOptions = (_topicId: string, editingId?: string) => requirementConditionOptions(selectedWorkflowMilestones, editingId);
   const hasAdviserMilestone = selectedWorkflowMilestones.some(
     (item) => item.milestoneType === "ADVISER_SELECTION",
   );
@@ -1292,24 +1251,11 @@ function ProfessorDashboardContent() {
   const workflowDocumentMilestoneCount = selectedWorkflowMilestones.filter(
     (item) => item.requiresDocument,
   ).length;
-  const workflowReadyToPublish = Boolean(
-    selectedWorkflow &&
-    selectedWorkflowTopics.length &&
-    selectedWorkflowMilestones.length &&
-    selectedWorkflowMilestones.every(
-      (item) =>
-        item.topicId &&
-        (!item.requiresDocument ||
-          item.tasks?.some((task: any) => task.isRequired !== false)),
-    ),
-  );
-  const workflowConfigurationPercent = selectedWorkflowMilestones.length
-    ? Math.round(
-        (selectedWorkflowMilestones.filter((item) => item.topicId).length /
-          selectedWorkflowMilestones.length) *
-          100,
-      )
-    : 0;
+  const publicationIssues = processPublicationIssues(selectedWorkflowMilestones);
+  const workflowReadyToPublish = Boolean(selectedWorkflow && !publicationIssues.length);
+  const activeRequirements = activeBuilderRequirements(selectedWorkflowMilestones);
+  const validRequirementCount = activeRequirements.filter(item => !processPublicationIssues([item]).length).length;
+  const workflowConfigurationPercent = activeRequirements.length ? Math.round(validRequirementCount / activeRequirements.length * 100) : 0;
   const workflowSavedLabel = selectedWorkflow?.updatedAt
     ? new Date(selectedWorkflow.updatedAt).toLocaleString([], {
         month: "short",
@@ -1332,14 +1278,9 @@ function ProfessorDashboardContent() {
     const prerequisite = selectedWorkflowMilestones
       .filter((candidate) => candidate.sequence < milestone.sequence)
       .sort((left, right) => right.sequence - left.sequence)[0];
-    const topicPosition = milestone.topicId
-      ? selectedWorkflowMilestones
-          .filter((candidate) => candidate.topicId === milestone.topicId)
-          .sort((left, right) => left.sequence - right.sequence)
-          .findIndex((candidate) => candidate.id === milestone.id) + 1
-      : milestone.sequence;
+    const topicPosition = milestone.sequence;
     const typeLabel = milestone.milestoneType === "TITLE_PROPOSAL" ? "Title Proposal" : milestone.milestoneType === "ADVISER_SELECTION"
-      ? "Adviser Milestone"
+      ? "Adviser Selection Requirement"
       : milestone.milestoneType === "DEFENSE_ELIGIBILITY"
         ? "Defense Eligibility"
         : milestone.requiresDocument !== false
@@ -1367,7 +1308,7 @@ function ProfessorDashboardContent() {
             setShowAdvancedMilestoneOptions(false);
             openMilestoneEditor(milestone);
           }}
-          aria-label={`Edit milestone ${milestone.title}`}
+          aria-label={`Edit Requirement ${milestone.title}`}
           className="min-w-0 flex-1 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
         >
           <span className="flex flex-wrap items-center gap-2">
@@ -1380,7 +1321,7 @@ function ProfessorDashboardContent() {
           <span className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--color-text-secondary)]">
             <span className="rounded-lg bg-[var(--color-surface-subtle)] px-2.5 py-1.5"><i className="ti ti-users mr-1" />{milestone.submissionMode === "INDIVIDUAL" ? "Individual" : milestone.submissionMode === "GROUP" ? "Research group" : "Individual or group"}</span>
             <span className="rounded-lg bg-[var(--color-surface-subtle)] px-2.5 py-1.5"><i className="ti ti-calendar mr-1" />{formatMilestoneTarget(milestone)}</span>
-            {milestone.requiredMilestoneId && <span className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-amber-700"><i className="ti ti-lock-check mr-1" />Required: {selectedWorkflowMilestones.find((item) => item.id === milestone.requiredMilestoneId)?.title || "earlier milestone"}</span>}
+            {milestone.requiredMilestoneId && <span className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-amber-700"><i className="ti ti-lock-check mr-1" />Required: {selectedWorkflowMilestones.find((item) => item.id === milestone.requiredMilestoneId)?.title || "earlier requirement"}</span>}
             {prerequisite && <span className="rounded-lg bg-[var(--color-surface-subtle)] px-2.5 py-1.5"><i className="ti ti-link mr-1" />Prerequisite: {prerequisite.title}</span>}
             {milestone.locked && <span className="rounded-lg bg-[var(--color-surface-subtle)] px-2.5 py-1.5"><i className="ti ti-lock mr-1" />Approval required</span>}
             {milestone.milestoneType === "DEFENSE_ELIGIBILITY" && <span className="rounded-lg bg-[var(--color-primary-light)] px-2.5 py-1.5 text-[var(--color-primary)]"><i className="ti ti-shield-check mr-1" />One defense cycle</span>}
@@ -1816,9 +1757,9 @@ function ProfessorDashboardContent() {
           <form onSubmit={handleDeleteWorkflow} className="space-y-4">
             <p className="text-base text-[var(--color-text-secondary)]">
               Permanently delete <strong>{workflowToDelete.name}</strong>,
-              including its milestones, topics, resources, invitations, and
-              enrollments. This cannot be undone. Workflows linked to research
-              projects cannot be deleted.
+              including its Requirements, Phases, resources, invitations, and
+              process access. This cannot be undone. Processes linked to Research
+              Cases cannot be deleted.
             </p>
             <div>
               <label
@@ -1944,8 +1885,8 @@ function ProfessorDashboardContent() {
             </p>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
               {[
-                ["Topics", selectedWorkflowTopics.length],
-                ["Milestones", selectedWorkflowMilestones.length],
+                ["Phases", selectedWorkflowTopics.length],
+                ["Requirements", selectedWorkflowMilestones.length],
                 ["Approvals", workflowApprovalCount],
               ].map(([label, value]) => (
                 <div
@@ -1963,8 +1904,7 @@ function ProfessorDashboardContent() {
             </div>
             {!workflowReadyToPublish && (
               <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-semibold text-amber-900">
-                Add a topic, milestone, and required submission details before
-                publishing.
+                {publicationIssues.join(" ")}
               </p>
             )}
             <div className="mt-6 flex justify-end gap-2">
@@ -1986,7 +1926,7 @@ function ProfessorDashboardContent() {
                   className={`ti ${publishingWorkflow ? "ti-loader-2 animate-spin" : "ti-send"} mr-1.5`}
                   aria-hidden="true"
                 />
-                {publishingWorkflow ? "Publishing…" : "Publish workflow"}
+                {publishingWorkflow ? "Publishing…" : "Publish process"}
               </button>
             </div>
           </div>
@@ -2032,67 +1972,7 @@ function ProfessorDashboardContent() {
             </header>
             <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               <div className="space-y-5">
-                {selectedWorkflowTopics.map(
-                  (topic: any, topicIndex: number) => {
-                    const topicMilestones = selectedWorkflowMilestones.filter(
-                      (milestone) => milestone.topicId === topic.id,
-                    );
-                    return (
-                      <section
-                        key={topic.id}
-                        className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5"
-                      >
-                        <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--color-primary)]">
-                          Phase {topicIndex + 1}
-                        </p>
-                        <h3 className="mt-1 text-lg font-extrabold text-[var(--color-text-primary)]">
-                          {topic.title}
-                        </h3>
-                        {topic.description && (
-                          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                            {topic.description}
-                          </p>
-                        )}
-                        <div className="mt-4 space-y-3">
-                          {topicMilestones.map((milestone, milestoneIndex) => (
-                            <article
-                              key={milestone.id}
-                              className="flex gap-3 rounded-xl bg-[var(--color-surface-subtle)] p-4"
-                            >
-                              <span
-                                className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${topicIndex === 0 && milestoneIndex === 0 ? "bg-[var(--color-primary)] text-[var(--college-on-primary)]" : "border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]"}`}
-                              >
-                                <i
-                                  className={`ti ${topicIndex === 0 && milestoneIndex === 0 ? "ti-player-play" : "ti-lock"}`}
-                                  aria-hidden="true"
-                                />
-                              </span>
-                              <div className="min-w-0">
-                                <h4 className="font-bold text-[var(--color-text-primary)]">
-                                  {milestone.sequence}. {milestone.title}
-                                </h4>
-                                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                                  {milestone.description ||
-                                    "Follow the milestone instructions provided by your professor."}
-                                </p>
-                                <p className="mt-2 text-xs font-semibold text-[var(--color-text-muted)]">
-                                  {formatMilestoneTarget(milestone)} ·{" "}
-                                  {milestone.tasks?.length || 0} requirement
-                                  {milestone.tasks?.length === 1
-                                    ? ""
-                                    : "s"} ·{" "}
-                                  {milestone.locked
-                                    ? "Faculty approval required"
-                                    : "Sequential completion"}
-                                </p>
-                              </div>
-                            </article>
-                          ))}
-                        </div>
-                      </section>
-                    );
-                  },
-                )}
+                <ProcessSequencePreview requirements={selectedWorkflowMilestones} phases={selectedWorkflowTopics} />
               </div>
             </div>
           </section>
@@ -2188,7 +2068,7 @@ function ProfessorDashboardContent() {
       {editingMilestone && (
         <MilestoneComposer
           mode="edit"
-          workflowName={selectedWorkflow?.name || "Research workflow"}
+          workflowName={selectedWorkflow?.name || "Research process"}
           topics={selectedWorkflowTopics}
           topicId={milestoneEditTopicId}
           title={milestoneEditTitle}
@@ -2225,7 +2105,7 @@ function ProfessorDashboardContent() {
                 (milestone) => milestone.sequence < editingMilestone.sequence,
               )
               .sort((left, right) => right.sequence - left.sequence)[0]
-              ?.title || "Available when the workflow begins"
+              ?.title || "Available when the process begins"
           }
           advancedOpen={showAdvancedMilestoneOptions}
           onTitleChange={(value) => {
@@ -2305,7 +2185,7 @@ function ProfessorDashboardContent() {
                 ))}
                 <div className="space-y-3 rounded-xl bg-slate-50 p-4">
                   <p className="text-base font-extrabold text-[#102f49]">
-                    Add another requirement
+                    Add another Submission Item
                   </p>
                   <input
                     required
@@ -2337,7 +2217,7 @@ function ProfessorDashboardContent() {
                       disabled={Boolean(milestoneEditDeadline)}
                       placeholder={
                         milestoneEditDeadline
-                          ? "Uses milestone date"
+                          ? "Uses requirement date"
                           : "Target days"
                       }
                       className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
@@ -2357,7 +2237,7 @@ function ProfessorDashboardContent() {
                     disabled={saving || !newRequirementTitle.trim()}
                     className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
                   >
-                    {saving ? "Adding…" : "Add requirement"}
+                    {saving ? "Adding…" : "Add Submission Item"}
                   </button>
                 </div>
               </div>
@@ -2388,13 +2268,13 @@ function ProfessorDashboardContent() {
             <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
               <div>
                 <p className="text-base font-bold text-[#d98d00]">
-                  Milestone details
+                  Requirement details
                 </p>
                 <h2
                   id="milestone-editor-title"
                   className="mt-1 text-xl font-extrabold text-[#102f49]"
                 >
-                  Edit milestone
+                  Edit requirement
                 </h2>
                 <p className="mt-1 text-base text-slate-500">
                   Keep the essentials simple. Optional rules stay out of the
@@ -2404,7 +2284,7 @@ function ProfessorDashboardContent() {
               <button
                 type="button"
                 onClick={() => setEditingMilestone(null)}
-                aria-label="Close milestone editor"
+                aria-label="Close requirement editor"
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-slate-100 text-[#173f63] hover:bg-slate-200"
               >
                 <i className="ti ti-x text-xl" />
@@ -2422,7 +2302,7 @@ function ProfessorDashboardContent() {
                 </div>
                 <div>
                   <label className="text-sm font-bold text-slate-700">
-                    Milestone name
+                    Requirement name
                   </label>
                   <input
                     value={milestoneEditTitle}
@@ -2469,7 +2349,7 @@ function ProfessorDashboardContent() {
                 </div>
                 <div>
                   <label className="text-sm font-bold text-slate-700">
-                    Who completes this milestone?
+                    Who completes this requirement?
                   </label>
                   <select
                     value={milestoneEditSubmissionMode}
@@ -2513,7 +2393,7 @@ function ProfessorDashboardContent() {
                           Student submissions
                         </h3>
                         <p className="text-base text-slate-500">
-                          Files or documents required for this milestone.
+                          Files or documents required for this requirement.
                         </p>
                       </div>
                       <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
@@ -2592,7 +2472,7 @@ function ProfessorDashboardContent() {
                           disabled={Boolean(milestoneEditDeadline)}
                           placeholder={
                             milestoneEditDeadline
-                              ? "Uses milestone date"
+                              ? "Uses requirement date"
                               : "Due in days"
                           }
                           className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
@@ -2610,13 +2490,13 @@ function ProfessorDashboardContent() {
                         disabled={saving}
                         className="w-full rounded-xl bg-[#173f63] py-2.5 text-sm font-extrabold text-white disabled:opacity-50"
                       >
-                        {saving ? "Adding…" : "Add submission requirement"}
+                        {saving ? "Adding…" : "Add Submission Item"}
                       </button>
                     </form>
                   </>
                 ) : (
                   <p className="mt-3 rounded-xl bg-blue-50 p-4 text-base text-blue-800">
-                    This milestone is instruction or approval based. Researchers
+                    This requirement is instruction or approval based. Researchers
                     will not be asked for a document.
                   </p>
                 )}
@@ -2644,7 +2524,7 @@ function ProfessorDashboardContent() {
                 {showAdvancedMilestoneOptions && (
                   <div className="mt-4">
                     <label className="text-sm font-bold text-slate-700">
-                      Milestone type
+                      Requirement type
                     </label>
                     <select
                       value={milestoneEditCategory}
@@ -2654,7 +2534,7 @@ function ProfessorDashboardContent() {
                       }}
                       className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-base"
                     >
-                      <option value="Milestone">Standard milestone</option>
+                      <option value="Milestone">Standard requirement</option>
                       <option value="Compliance">Compliance requirement</option>
                       <option value="Pre-requisite">Approval gate</option>
                     </select>
@@ -2673,7 +2553,7 @@ function ProfessorDashboardContent() {
                   className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-extrabold text-rose-700 hover:bg-rose-100"
                 >
                   <i className="ti ti-trash mr-1.5" />
-                  Delete milestone
+                  Delete requirement
                 </button>
                 {milestoneSaveStatus === "saved" && (
                   <span className="text-emerald-600">
@@ -2730,9 +2610,9 @@ function ProfessorDashboardContent() {
               id="delete-milestone-description"
               className="mt-2 text-base leading-6 text-slate-600"
             >
-              If this milestone is unused, it will be permanently deleted. If
-              groups or submission history already depend on it, the milestone
-              will be removed from the active workflow and its academic records
+              If this Requirement is unused, it will be permanently deleted. If
+              groups or submission history already depend on it, the Requirement
+              will be removed from the active process and its academic records
               will be safely preserved.
             </p>
             <div className="mt-6 flex justify-end gap-2">
@@ -2741,7 +2621,7 @@ function ProfessorDashboardContent() {
                 onClick={() => setMilestonePendingDelete(null)}
                 className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600"
               >
-                Keep milestone
+                Keep Requirement
               </button>
               <button
                 type="button"
@@ -2749,7 +2629,7 @@ function ProfessorDashboardContent() {
                 className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-extrabold text-white"
               >
                 <i className="ti ti-trash mr-1.5" />
-                Remove milestone
+                Remove Requirement
               </button>
             </div>
           </div>
@@ -2866,7 +2746,7 @@ function ProfessorDashboardContent() {
                     setNewWorkflowDescription(event.target.value)
                   }
                   rows={3}
-                  placeholder="Briefly describe when this workflow should be used."
+                  placeholder="Briefly describe when this process should be used."
                   className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
                 />
               </div>
@@ -2875,7 +2755,7 @@ function ProfessorDashboardContent() {
             {!user?.program?.id && (
               <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-base text-amber-800">
                 Your account must be assigned to a department or program before
-                creating a workflow.
+                creating a process.
               </p>
             )}
             {user?.program?.id && availableResearchTypes.length === 0 && (
@@ -2928,16 +2808,16 @@ function ProfessorDashboardContent() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-bold uppercase tracking-wider text-[#C58A18]">
-                  Workflow topic
+                  Phase
                 </p>
                 <h2
                   id="workflow-topic-dialog-title"
                   className="mt-1 text-xl font-extrabold text-[#102f49]"
                 >
-                  {editingTopic ? "Edit topic" : "Create a topic"}
+                  {editingTopic ? "Edit phase" : "Create a phase"}
                 </h2>
                 <p className="mt-1 text-base text-slate-500">
-                  Group related milestones under a phase such as Title Defense
+                  Group related requirements under a phase such as Title Defense
                   or Final Defense.
                 </p>
               </div>
@@ -2945,7 +2825,7 @@ function ProfessorDashboardContent() {
                 type="button"
                 onClick={() => setTopicDialogOpen(false)}
                 disabled={topicSaving}
-                aria-label="Close topic dialog"
+                aria-label="Close phase dialog"
                 className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
               >
                 <i className="ti ti-x" />
@@ -2954,7 +2834,7 @@ function ProfessorDashboardContent() {
             <div className="mt-5 space-y-4">
               <label className="block">
                 <span className="mb-1.5 block text-sm font-bold text-slate-700">
-                  Topic title <span className="text-rose-600">*</span>
+                  Phase title <span className="text-rose-600">*</span>
                 </span>
                 <input
                   autoFocus
@@ -3000,7 +2880,7 @@ function ProfessorDashboardContent() {
                   ? "Saving…"
                   : editingTopic
                     ? "Save changes"
-                    : "Create topic"}
+                    : "Create phase"}
               </button>
             </div>
           </form>
@@ -3010,7 +2890,7 @@ function ProfessorDashboardContent() {
       {creatingMilestone && (
         <MilestoneComposer
           mode="create"
-          workflowName={selectedWorkflow?.name || "Research workflow"}
+          workflowName={selectedWorkflow?.name || "Research process"}
           topics={selectedWorkflowTopics}
           topicId={newMilestoneTopicId}
           title={newMilestoneTitle}
@@ -3028,7 +2908,7 @@ function ProfessorDashboardContent() {
           milestoneConditions={milestoneConditionOptions(newMilestoneTopicId)}
           saving={saving}
           advancedOpen={showAdvancedMilestoneOptions}
-          prerequisiteLabel="The previous milestone in this workflow sequence"
+          prerequisiteLabel="The previous Requirement in this process sequence"
           onTitleChange={setNewMilestoneTitle}
           onTopicIdChange={(topicId) => {
             setNewMilestoneTopicId(topicId);
@@ -3071,7 +2951,7 @@ function ProfessorDashboardContent() {
             <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
               <div>
                 <p className="text-base font-bold text-[#d98d00]">
-                  New milestone
+                  New requirement
                 </p>
                 <h2
                   id="create-milestone-title"
@@ -3086,7 +2966,7 @@ function ProfessorDashboardContent() {
               <button
                 type="button"
                 onClick={() => setCreatingMilestone(false)}
-                aria-label="Close new milestone drawer"
+                aria-label="Close new requirement drawer"
                 className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-[#173f63]"
               >
                 <i className="ti ti-x text-xl" />
@@ -3125,7 +3005,7 @@ function ProfessorDashboardContent() {
                         requiresDocument: false,
                       },
                       {
-                        label: "Blank milestone",
+                        label: "Blank requirement",
                         icon: "ti-plus",
                         type: "Milestone",
                         title: "",
@@ -3157,7 +3037,7 @@ function ProfessorDashboardContent() {
                 <section className="space-y-4 border-t border-slate-200 pt-5">
                   <div>
                     <label className="text-sm font-bold text-slate-700">
-                      Research workflow
+                      Research process
                     </label>
                     <select
                       value={selectedWorkflowId}
@@ -3173,7 +3053,7 @@ function ProfessorDashboardContent() {
                   </div>
                   <div>
                     <label className="text-sm font-bold text-slate-700">
-                      Milestone name
+                      Requirement name
                     </label>
                     <input
                       required
@@ -3200,7 +3080,7 @@ function ProfessorDashboardContent() {
                   </div>
                   <div>
                     <label className="text-sm font-bold text-slate-700">
-                      Who completes this milestone?
+                      Who completes this requirement?
                     </label>
                     <select
                       value={newMilestoneSubmissionMode}
@@ -3256,14 +3136,14 @@ function ProfessorDashboardContent() {
                   {showAdvancedMilestoneOptions && (
                     <div className="mt-4">
                       <label className="text-sm font-bold text-slate-700">
-                        Milestone type
+                        Requirement type
                       </label>
                       <select
                         value={newMilestoneScope}
                         onChange={(e) => setNewMilestoneScope(e.target.value)}
                         className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                       >
-                        <option value="Milestone">Standard milestone</option>
+                        <option value="Milestone">Standard requirement</option>
                         <option value="Compliance">
                           Compliance requirement
                         </option>
@@ -3291,7 +3171,7 @@ function ProfessorDashboardContent() {
                   }
                   className="rounded-xl bg-[#f6a800] px-5 py-2.5 text-sm font-extrabold text-[#102f49] disabled:opacity-50"
                 >
-                  {saving ? "Saving…" : "Save milestone"}
+                  {saving ? "Saving…" : "Save requirement"}
                 </button>
               </div>
             </form>
@@ -5522,7 +5402,7 @@ function ProfessorDashboardContent() {
                         </span>
                       </div>
                       <p className="mt-1 text-base text-slate-500">
-                        Configure research stages, milestones, and approval requirements.
+                        Configure Requirements, optional Phases, and Submission Items.
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2 self-start lg:self-auto">
@@ -5587,13 +5467,13 @@ function ProfessorDashboardContent() {
                       />
                       {workflowSavedLabel
                         ? `Last saved ${workflowSavedLabel}`
-                        : "Changes are saved directly to this workflow"}
+                        : "Changes are saved directly to this process"}
                     </span>
                   </div>
                   {selectedWorkflow?.status === "DRAFT" && (
                     <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
                       <i className="ti ti-lock mt-0.5" aria-hidden="true" />
-                      Draft milestones remain private until you publish.
+                      Draft requirements remain private until you publish.
                       Publishing makes this template available for cohort assignment. Existing research cases keep their pinned process.
                     </p>
                   )}
@@ -5608,7 +5488,7 @@ function ProfessorDashboardContent() {
                       [
                         {
                           id: "milestones",
-                          label: "Workflow",
+                          label: "Requirements",
                           icon: "ti-route",
                         },
                         {
@@ -5673,7 +5553,7 @@ function ProfessorDashboardContent() {
                   >
                     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                       <p className="text-sm font-extrabold uppercase tracking-[0.16em] text-[#C58A18]">
-                        Selected workflow
+                        Selected process
                       </p>
                       <h3 className="mt-2 text-xl font-black text-[#102f49]">
                         {selectedWorkflow?.name || "Create your first process template"}
@@ -5685,7 +5565,7 @@ function ProfessorDashboardContent() {
                       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         {[
                           [
-                            "Milestones",
+                            "Requirements",
                             selectedWorkflowMilestones.length,
                             "ti-route",
                           ],
@@ -5728,7 +5608,7 @@ function ProfessorDashboardContent() {
                           className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-40"
                         >
                           <i className="ti ti-plus mr-1.5" />
-                          Add milestone
+                          Add requirement
                         </button>
                         <button
                           type="button"
@@ -5744,7 +5624,7 @@ function ProfessorDashboardContent() {
                     <aside className="space-y-4">
                       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                         <h3 className="font-extrabold text-[#102f49]">
-                          Workflow readiness
+                          process readiness
                         </h3>
                         <div className="mt-4 space-y-3 text-sm">
                           <div className="flex justify-between">
@@ -5775,11 +5655,11 @@ function ProfessorDashboardContent() {
                       </section>
                       <section className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5">
                         <h3 className="font-extrabold text-[#102f49]">
-                          Whole-workflow resources
+                          Whole-process resources
                         </h3>
                         <p className="mt-1 text-base leading-5 text-slate-600">
                           Guides and templates are shared with every enrolled
-                          researcher and are not tied to individual milestones.
+                          researcher and are not tied to individual requirements.
                         </p>
                       </section>
                     </aside>
@@ -5840,7 +5720,7 @@ function ProfessorDashboardContent() {
                         aria-busy={workflowsLoading}
                       >
                         {workflowsError ? (
-                          "The workflow could not be loaded. Check the API connection and try again."
+                          "The process could not be loaded. Check the API connection and try again."
                         ) : (
                           <ListRowsSkeleton rows={4} avatars={false} />
                         )}
@@ -5852,10 +5732,10 @@ function ProfessorDashboardContent() {
                           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                               <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
-                                Workflow structure
+                                process structure
                               </h3>
                               <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
-                                Organize topics and select a milestone to edit its details.
+                                Add Requirements directly or organize them into optional Phases. Select a Requirement to edit its details.
                               </p>
                             </div>
                             <div className="flex shrink-0 flex-wrap items-center gap-3 self-end sm:self-auto">
@@ -5866,7 +5746,7 @@ function ProfessorDashboardContent() {
                                       item.workflowId === selectedWorkflowId,
                                   ).length
                                 }{" "}
-                                milestones
+                                requirements
                               </span>
                               <div className="relative">
                                 <button
@@ -5897,10 +5777,10 @@ function ProfessorDashboardContent() {
                                       <i className="ti ti-folders mt-0.5 text-lg text-[#C58A18]" />
                                       <span>
                                         <strong className="block text-sm text-[#102f49]">
-                                          Topic
+                                          Phase
                                         </strong>
                                         <span className="mt-0.5 block text-sm text-slate-500">
-                                          Group milestones by defense or phase
+                                          Optionally group related Requirements
                                         </span>
                                       </span>
                                     </button>
@@ -5910,7 +5790,7 @@ function ProfessorDashboardContent() {
                                       [
                                         "submission",
                                         "ti-file-upload",
-                                        "Submission milestone",
+                                        "Submission requirement",
                                         "Collect a document or deliverable",
                                       ],
                                       [
@@ -5928,9 +5808,9 @@ function ProfessorDashboardContent() {
                                       [
                                         "adviser",
                                         "ti-user-check",
-                                        "Adviser Milestone",
+                                        "Adviser Selection Requirement",
                                         hasAdviserMilestone
-                                          ? "Already added to this workflow"
+                                          ? "Already added to this process"
                                           : "Complete when an adviser accepts",
                                       ],
                                     ].map(
@@ -5987,7 +5867,7 @@ function ProfessorDashboardContent() {
                                           Guide or template
                                         </strong>
                                         <span className="mt-0.5 block text-sm text-slate-500">
-                                          Share a reusable workflow resource
+                                          Share a reusable process resource
                                         </span>
                                       </span>
                                     </button>
@@ -6005,10 +5885,10 @@ function ProfessorDashboardContent() {
                                   </span>
                                   <div>
                                     <h4 className="font-extrabold text-[var(--color-text-primary)]">
-                                      Needs organization
+                                      Unassigned Requirements
                                     </h4>
                                     <p className="text-base text-[var(--color-text-secondary)]">
-                                      Open a milestone to assign it to a topic.
+                                      These Requirements are valid without a Phase. Execution follows the saved sequence.
                                     </p>
                                   </div>
                                 </div>
@@ -6069,7 +5949,7 @@ function ProfessorDashboardContent() {
                                             </p>
                                           )}
                                           <span className="mt-1 block text-xs font-bold uppercase tracking-wide text-slate-400">
-                                            {topicMilestones.length} milestone
+                                            {topicMilestones.length} requirement
                                             {topicMilestones.length === 1
                                               ? ""
                                               : "s"}
@@ -6140,8 +6020,8 @@ function ProfessorDashboardContent() {
                                           disabled={topicMilestones.length > 0}
                                           title={
                                             topicMilestones.length
-                                              ? "Move the topic's milestones before deleting it"
-                                              : "Delete topic"
+                                              ? "Move the phase's requirements before deleting it"
+                                              : "Delete phase"
                                           }
                                           aria-label={`Delete ${topic.title}`}
                                           className="grid h-9 w-9 place-items-center rounded-lg text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-30"
@@ -6159,7 +6039,7 @@ function ProfessorDashboardContent() {
                                           className="ml-1 rounded-xl bg-white px-3 py-2 text-sm font-extrabold text-[#173f63] shadow-sm ring-1 ring-slate-200 hover:ring-[#173f63]"
                                         >
                                           <i className="ti ti-plus mr-1" />
-                                          Milestone
+                                          Requirement
                                         </button>
                                       </div>
                                     </header>
@@ -6184,7 +6064,7 @@ function ProfessorDashboardContent() {
                                           className="w-full rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-sm font-bold text-slate-500 hover:border-[#f6a800] hover:bg-amber-50/40 hover:text-[#102f49]"
                                         >
                                           <i className="ti ti-plus mr-1.5" />
-                                          Add the first milestone to{" "}
+                                          Add the first requirement to{" "}
                                           {topic.title}
                                         </button>
                                       )}
@@ -6206,20 +6086,20 @@ function ProfessorDashboardContent() {
                                   </h4>
                                   <p className="mt-1 text-base text-slate-500">
                                     {workflows.length
-                                      ? "Create the first topic that will organize this workflow."
-                                      : "Create a reusable process template before adding milestones."}
+                                      ? "Add a Requirement directly, or create an optional Phase."
+                                      : "Create a reusable process template before adding requirements."}
                                   </p>
                                   <button
                                     type="button"
                                     onClick={() =>
                                       workflows.length
-                                        ? openTopicEditor()
+                                        ? openNewMilestone("submission")
                                         : setCreatingWorkflow(true)
                                     }
                                     className="mt-4 rounded-xl bg-[#f6a800] px-4 py-2.5 text-sm font-extrabold text-[#102f49]"
                                   >
                                     {workflows.length
-                                      ? "Add first topic"
+                                      ? "Add Requirement"
                                       : "Create process template"}
                                   </button>
                                 </div>
@@ -6231,7 +6111,7 @@ function ProfessorDashboardContent() {
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <h3 className="font-extrabold text-[var(--color-text-primary)]">
-                                  Workflow summary
+                                  process summary
                                 </h3>
                                 <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
                                   Version {selectedWorkflow?.version || 1}
@@ -6247,14 +6127,14 @@ function ProfessorDashboardContent() {
                             </div>
                             <div className="mt-4 space-y-3">
                               <div className="flex justify-between text-sm">
-                                <span className="text-slate-500">Topics</span>
+                                <span className="text-slate-500">Phases</span>
                                 <strong className="text-[#102f49]">
                                   {selectedWorkflowTopics.length}
                                 </strong>
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-slate-500">
-                                  Milestones
+                                  Requirements
                                 </span>
                                 <strong className="text-[#102f49]">
                                   {
@@ -6267,7 +6147,7 @@ function ProfessorDashboardContent() {
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-slate-500">
-                                  Document milestones
+                                  Document requirements
                                 </span>
                                 <strong className="text-[#102f49]">
                                   {workflowDocumentMilestoneCount}
@@ -6275,7 +6155,7 @@ function ProfessorDashboardContent() {
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-slate-500">
-                                  Submission requirements
+                                  Requirement Items
                                 </span>
                                 <strong className="text-[#102f49]">
                                   {workflowRequirementCount}
@@ -6313,21 +6193,21 @@ function ProfessorDashboardContent() {
                                   Keep it simple
                                 </h3>
                                 <p className="mt-1 text-base leading-5 text-[var(--color-text-secondary)]">
-                                  Coordinators only need a name and target
-                                  duration. Submission requirements and advanced
-                                  rules can be added later.
+                                  Start with a Requirement name. Phases and target
+                                  dates are optional. Document Requirements need a
+                                  required Submission Item before publication.
                                 </p>
                               </div>
                             </div>
                           </section>
                           <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
-                            <h3 className="font-extrabold text-[var(--color-text-primary)]">Workflow progress</h3>
+                            <h3 className="font-extrabold text-[var(--color-text-primary)]">process progress</h3>
                             <div className="mt-4 flex items-center gap-4">
                               <div className="relative grid h-20 w-20 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(var(--color-primary) ${workflowConfigurationPercent}%, var(--color-surface-muted) 0)` }}>
                                 <span className="grid h-14 w-14 place-items-center rounded-full bg-[var(--color-surface)] text-sm font-black text-[var(--color-text-primary)]">{workflowConfigurationPercent}%</span>
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="text-sm font-bold text-[var(--color-text-primary)]">{selectedWorkflowMilestones.filter((item) => item.topicId).length} of {selectedWorkflowMilestones.length} milestones organized</p>
+                                <p className="text-sm font-bold text-[var(--color-text-primary)]">{validRequirementCount} of {activeRequirements.length} Requirements ready to publish</p>
                                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--color-surface-muted)]"><div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${workflowConfigurationPercent}%` }} /></div>
                               </div>
                             </div>
@@ -6336,9 +6216,9 @@ function ProfessorDashboardContent() {
                             <h3 className="font-extrabold text-[var(--color-text-primary)]">Quick actions</h3>
                             <div className="mt-3 divide-y divide-[var(--color-border-subtle)]">
                               <button type="button" onClick={() => setShowStudentPreview(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]"><i className="ti ti-eye" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Preview as Student</strong><span className="text-xs text-[var(--color-text-secondary)]">See the published student view</span></span></button>
-                              <button type="button" onClick={() => setWorkflowView("resources")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-books" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Guides & Templates</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage shared workflow resources</span></span></button>
+                              <button type="button" onClick={() => setWorkflowView("resources")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-books" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Guides & Templates</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage shared process resources</span></span></button>
                               <button type="button" onClick={() => setWorkflowView("participants")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-users" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Process Access</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage process permissions separately from cohort membership</span></span></button>
-                              <button type="button" onClick={() => setCreatingWorkflow(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-copy-plus" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Create another process template</strong><span className="text-xs text-[var(--color-text-secondary)]">Start a separate workflow configuration</span></span></button>
+                              <button type="button" onClick={() => setCreatingWorkflow(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-copy-plus" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Create another process template</strong><span className="text-xs text-[var(--color-text-secondary)]">Start a separate process configuration</span></span></button>
                               <button type="button" disabled={!selectedWorkflow || deletingWorkflow} onClick={() => { if (!selectedWorkflow) return; setWorkflowToDelete({ id: selectedWorkflow.id, name: selectedWorkflow.name }); setDeleteConfirmation(""); setDeleteWorkflowError(""); }} className="flex w-full items-center gap-3 py-3 text-left disabled:opacity-50"><span className="grid h-9 w-9 place-items-center rounded-full bg-rose-50 text-rose-600"><i className="ti ti-trash" /></span><span><strong className="block text-sm text-rose-700">Delete process template</strong><span className="text-xs text-[var(--color-text-secondary)]">Available only when no project is linked</span></span></button>
                             </div>
                           </section>

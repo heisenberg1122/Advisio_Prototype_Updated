@@ -300,6 +300,9 @@ describe("workflow publication", () => {
     expect(db.researchCohort.update).not.toHaveBeenCalled();
     expect(db.researchCohort.updateMany).not.toHaveBeenCalled();
     expect(db.auditLog.create).toHaveBeenCalled();
+    expect(db.workflowStage.update).not.toHaveBeenCalled();
+    expect(db.workflowStage.updateMany).not.toHaveBeenCalled();
+    expect(db.workflowTopic.update).not.toHaveBeenCalled();
   });
 
   it("keeps an incomplete draft private", async () => {
@@ -319,8 +322,7 @@ describe("workflow publication", () => {
 
     expect(res.statusCode).toBe(409);
     expect(res.body.issues).toEqual([
-      "Add at least one workflow topic.",
-      "Add at least one milestone.",
+      "Add at least one active requirement before publishing this process.",
     ]);
     expect(db.workflow.update).not.toHaveBeenCalled();
   });

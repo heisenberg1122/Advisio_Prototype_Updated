@@ -121,7 +121,7 @@ export function WorkflowAccessManager({
   async function disable() {
     if (
       !window.confirm(
-        "Disable this workflow's code and shared link? Existing requests remain reviewable.",
+        "Disable this process's code and shared link? Existing requests remain reviewable.",
       )
     )
       return;
