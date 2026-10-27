@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import type { CSSProperties, RefObject } from "react";
+import type { CSSProperties } from "react";
 import {
   milestoneStatus,
   type MilestoneStatus,
@@ -38,20 +38,17 @@ export function MilestoneTimeline({
   active,
   progress,
   onSelect,
-  rootRef,
   animate,
 }: {
   milestones: readonly ResearchMilestone[];
   active: number;
   progress: number;
   onSelect: (index: number) => void;
-  rootRef: RefObject<HTMLDivElement>;
   animate: boolean;
 }) {
   return (
     <div
       className="lp-milestone-timeline"
-      ref={rootRef}
       style={{ "--milestone-progress": progress } as CSSProperties}
     >
       <div className="lp-milestone-spine" aria-hidden="true">
@@ -68,7 +65,7 @@ export function MilestoneTimeline({
                 onClick={() => onSelect(index)}
                 aria-pressed={index === active}
                 aria-current={index === active ? "step" : undefined}
-                aria-controls="workflow-preview workflow-preview-mobile"
+                aria-controls="workflow-preview-mobile"
               >
                 <MilestoneNode status={status} number={index + 1} />
                 <span className="lp-milestone-label">
