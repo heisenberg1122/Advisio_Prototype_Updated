@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import "./login.css";
 import Link from "next/link";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -202,9 +203,9 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#f4f7fb] font-sans text-slate-900 lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(500px,.92fr)]">
-      <section className="relative hidden min-h-screen overflow-hidden border-r border-[#214b69] bg-[#0b3553] px-[clamp(2.5rem,5vw,5.5rem)] py-10 text-white lg:flex lg:flex-col">
-        <div className="pointer-events-none absolute -bottom-28 -right-24 h-[30rem] w-[30rem] select-none opacity-[0.035]">
+    <main className="advisio-login">
+      <section className="login-story">
+        <div className="login-watermark">
           <img
             src="/school-logo.png"
             alt=""
@@ -212,9 +213,9 @@ export default function LoginPage() {
           />
         </div>
 
-        <header className="relative z-10 flex items-center justify-between pb-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white p-1.5">
+        <header className="login-story-header">
+          <div className="login-brand">
+            <div className="login-brand-mark">
               <img
                 src="/ao-logo.png"
                 alt="Advisio"
@@ -222,46 +223,48 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <div className="text-[18px] font-extrabold tracking-[.06em]">
+              <div className="login-brand-name">
                 ADVISIO
               </div>
-              <div className="text-xs font-bold uppercase tracking-[.22em] text-[#f3b327]">
+              <div className="login-brand-caption">
                 Research portal
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 text-right">
+          <div className="login-university">
             <div>
-              <p className="text-base font-semibold leading-tight text-white">
+              <p className="login-university-name">
                 University of the Assumption
               </p>
-              <p className="mt-0.5 text-base font-medium text-slate-300">
+              <p className="login-university-location">
                 City of San Fernando, Pampanga
               </p>
             </div>
             <img
               src="/school-logo.png"
               alt="University of the Assumption"
-              className="h-10 w-10 object-contain"
+              className="login-university-seal"
             />
           </div>
         </header>
 
-        <div className="relative z-10 my-auto max-w-[680px] py-12">
-          <div className="max-w-[640px]">
-            <p className="text-sm font-bold uppercase tracking-[.22em] text-[#f3b327]">
+        <div className="login-story-content">
+          <div className="login-story-copy">
+            <p className="login-eyebrow">
               University Research Management System
             </p>
-            <h1 className="mt-5 text-[clamp(2.6rem,4.4vw,4.3rem)] font-semibold leading-[1.08] tracking-[-.035em]">
-              A clearer way to manage academic research.
+            <h1 className="login-story-headline">
+              <span>A clearer way to</span>
+              <span>manage academic</span>
+              <span className="login-headline-accent">research.</span>
             </h1>
-            <p className="mt-6 max-w-[570px] text-base leading-7 text-slate-300">
+            <p className="login-story-description">
               Advisio brings researchers, advisers, panelists, and
               administrators into one organized workspace from proposal to final
               defense.
             </p>
-            <div className="mt-12 border-y border-white/15">
+            <div className="login-features">
               {[
                 [
                   "01",
@@ -281,13 +284,13 @@ export default function LoginPage() {
               ].map(([number, title, description]) => (
                 <div
                   key={number}
-                  className="grid grid-cols-[42px_minmax(0,1fr)] gap-4 border-b border-white/10 py-4 last:border-b-0 sm:grid-cols-[42px_150px_minmax(0,1fr)] sm:items-center"
+                  className="login-feature-row"
                 >
-                  <span className="font-mono text-xs font-bold text-[#f3b327]">
+                  <span className="login-feature-number">
                     {number}
                   </span>
-                  <p className="text-base font-bold text-white">{title}</p>
-                  <p className="col-start-2 text-base leading-5 text-slate-300 sm:col-start-auto">
+                  <p className="login-feature-title">{title}</p>
+                  <p className="login-feature-description">
                     {description}
                   </p>
                 </div>
@@ -295,18 +298,18 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
-        <footer className="relative z-10 flex items-center justify-between border-t border-white/15 pt-5 text-xs text-slate-400">
+        <footer className="login-story-footer">
           <span>For authorized university users</span>
           <span>ADVISIO · 2026</span>
         </footer>
       </section>
 
-      <section className="relative flex min-h-screen items-center justify-center px-5 py-10 sm:px-10 lg:px-[clamp(3rem,7vw,7.5rem)]">
-        <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-[#ffb21c]/10 blur-3xl" />
-        <div className="w-full max-w-[430px] animate-fade-in-up">
-          <div className="mb-8 flex items-center justify-between border-b border-slate-200/80 pb-4 lg:hidden">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+      <section className="login-form-panel">
+        <div className="login-form-glow" />
+        <div className="login-form-content">
+          <div className="login-mobile-brand">
+            <div className="login-mobile-brand-group">
+              <div className="login-mobile-mark">
                 <img
                   src="/ao-logo.png"
                   alt="Advisio"
@@ -314,10 +317,10 @@ export default function LoginPage() {
                 />
               </div>
               <div>
-                <p className="font-extrabold text-base tracking-wider text-[#092f4f] leading-none">
+                <p className="login-mobile-name">
                   ADVISIO
                 </p>
-                <p className="text-sm font-bold uppercase tracking-[.18em] text-[#d98600] mt-0.5">
+                <p className="login-mobile-caption">
                   Research portal
                 </p>
               </div>
@@ -325,20 +328,20 @@ export default function LoginPage() {
             <img
               src="/school-logo.png"
               alt="University of the Assumption"
-              className="h-9 w-9 object-contain"
+              className="login-mobile-seal"
             />
           </div>
-          <div className="mb-8">
-            <div className="mb-5 hidden items-center gap-3 lg:flex">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+          <div className="login-form-heading">
+            <div className="login-form-logos">
+              <div className="login-form-logo">
                 <img
                   src="/ao-logo.png"
                   alt="Advisio"
                   className="h-full w-full object-contain"
                 />
               </div>
-              <div className="h-7 w-px bg-slate-200" />
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+              <div className="login-logo-divider" />
+              <div className="login-form-logo login-form-seal">
                 <img
                   src="/school-logo.png"
                   alt="University of the Assumption"
@@ -346,10 +349,10 @@ export default function LoginPage() {
                 />
               </div>
             </div>
-            <h2 className="text-[32px] font-bold tracking-[-.035em] text-[#102f49]">
+            <h2 className="login-welcome">
               Welcome back
             </h2>
-            <p className="mt-2 text-base text-slate-500">
+            <p className="login-welcome-description">
               Sign in to continue your research journey.
             </p>
           </div>
@@ -357,21 +360,21 @@ export default function LoginPage() {
           <ActionFeedback
             id="login-feedback"
             feedback={loginAction.feedback}
-            className="mb-5"
+            className="login-feedback"
           />
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="login-form">
             <div>
               <label
                 htmlFor="email"
-                className="mb-2 block text-sm font-extrabold uppercase tracking-[.11em] text-[#234863]"
+                className="login-field-label"
               >
                 University email
               </label>
-              <div className="relative">
+              <div className="login-input-wrap">
                 <Mail
                   size={17}
-                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="login-field-icon"
                 />
                 <input
                   id="email"
@@ -382,29 +385,29 @@ export default function LoginPage() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="name@university.edu.ph"
-                  className="h-13 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-4 text-base shadow-sm outline-none transition focus:border-[#e69800] focus:ring-4 focus:ring-[#ffb21c]/10 disabled:opacity-60"
+                  className="login-input"
                 />
               </div>
             </div>
             <div>
-              <div className="mb-2 flex justify-between">
+              <div className="login-password-label-row">
                 <label
                   htmlFor="password"
-                  className="text-sm font-extrabold uppercase tracking-[.11em] text-[#234863]"
+                  className="login-field-label"
                 >
                   Password
                 </label>
                 <Link
                   href="/forgot-password"
-                  className="text-sm font-bold text-[#1d567d] hover:text-[#d98600]"
+                  className="login-forgot-link"
                 >
                   Forgot password?
                 </Link>
               </div>
-              <div className="relative">
+              <div className="login-input-wrap">
                 <LockKeyhole
                   size={17}
-                  className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="login-field-icon"
                 />
                 <input
                   id="password"
@@ -415,25 +418,25 @@ export default function LoginPage() {
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Enter your password"
-                  className="h-13 w-full rounded-xl border border-slate-200 bg-white pl-11 pr-12 text-base shadow-sm outline-none transition focus:border-[#e69800] focus:ring-4 focus:ring-[#ffb21c]/10 disabled:opacity-60"
+                  className="login-input login-password-input"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 hover:bg-slate-100"
+                  className="login-password-toggle"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
             </div>
-            <label className="flex cursor-pointer items-center gap-2.5 text-sm text-slate-600">
+            <label className="login-remember">
               <input
                 type="checkbox"
                 disabled={loading}
                 checked={rememberMe}
                 onChange={(event) => setRememberMe(event.target.checked)}
-                className="h-4 w-4 accent-[#0c3b5d]"
+                className="login-checkbox"
               />
               Keep me signed in on this device
             </label>
@@ -444,7 +447,7 @@ export default function LoginPage() {
               aria-describedby={
                 loginAction.feedback ? "login-feedback" : undefined
               }
-              className={`group flex h-13 w-full items-center justify-center gap-2 rounded-xl text-sm font-extrabold shadow-[0_10px_25px_rgba(255,173,20,.25)] transition hover:-translate-y-0.5 disabled:pointer-events-none disabled:opacity-60 ${loginAction.status === "success" ? "bg-emerald-600 text-white" : "bg-[#ffad14] text-[#102f49] hover:bg-[#ffb82e]"}`}
+              className={`login-submit ${loginAction.status === "success" ? "login-submit-success" : "login-submit-primary"}`}
             >
               {loading ? (
                 <>
@@ -464,7 +467,7 @@ export default function LoginPage() {
                   Sign in to Advisio{" "}
                   <ArrowRight
                     size={17}
-                    className="transition-transform group-hover:translate-x-1"
+                    className="login-submit-arrow"
                   />
                 </>
               )}
@@ -472,27 +475,27 @@ export default function LoginPage() {
           </form>
 
           {googleClientId && (
-            <div className="mt-5">
-              <div className="mb-4 flex items-center gap-3 text-xs font-bold uppercase tracking-[.14em] text-slate-400">
-                <span className="h-px flex-1 bg-slate-200" />
+            <div className="login-google-section">
+              <div className="login-divider">
+                <span className="login-divider-line" />
                 <span>Or</span>
-                <span className="h-px flex-1 bg-slate-200" />
+                <span className="login-divider-line" />
               </div>
               <div
                 ref={googleButtonRef}
                 aria-label="Continue with Google"
                 aria-busy={googleLoading}
-                className={`flex min-h-11 w-full justify-center overflow-hidden rounded-full transition-opacity ${googleLoading ? "pointer-events-none opacity-60" : ""}`}
+                className={`login-google-button ${googleLoading ? "login-google-pending" : ""}`}
               />
               {googleClientId && (
-                <p className="mt-2 text-center text-base text-slate-500">
-                  New to Advisio? Continue with Google to create an account and complete researcher or faculty onboarding.
+                <p className="login-google-guidance">
+                  Use Google to sign in or create an account and complete researcher or faculty onboarding.
                 </p>
               )}
               {googleButtonError && (
                 <p
                   role="status"
-                  className="mt-2 text-center text-base text-rose-600"
+                  className="login-google-error"
                 >
                   {googleButtonError}
                 </p>
@@ -500,19 +503,19 @@ export default function LoginPage() {
             </div>
           )}
 
-          <p className="mt-7 text-center text-base text-slate-500">
+          <p className="login-account-request">
             New to Advisio?{" "}
             <Link
               href="/register"
-              className="font-extrabold text-[#164866] hover:text-[#d98600]"
+              className="login-account-link"
             >
               Request an account
             </Link>
           </p>
-          <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-400">
+          <div className="login-access-note">
             <ShieldCheck size={13} /> Protected university access
           </div>
-          <div className="mt-5 text-slate-500">
+          <div className="login-public-links">
             <PublicLinks />
           </div>
         </div>
