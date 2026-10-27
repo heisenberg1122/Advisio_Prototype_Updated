@@ -4,13 +4,13 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { AppTopbar } from "@/components/layout/AppTopbar";
 
 const TITLES: Record<string, string> = {
-  overview: "Professor Dashboard",
+  overview: "Coordinator Dashboard",
   messages: "Messages",
   announcements: "Announcements",
-  monitoring: "Research Projects",
+  monitoring: "Research Cases",
   submissions: "Student Submissions",
   defense: "Defense Management",
-  builder: "Workflow Builder",
+  builder: "Process Templates",
   deployment: "Workflow Deployment",
   locking: "Task Access",
   workflow: "Research Workflow",
@@ -27,6 +27,7 @@ const PAGES: Record<string, string> = {
   "/professor/inbox": "Inbox",
   "/professor/signatures": "Signature Requests",
   "/professor/reviews": "Manuscript Reviews",
+  "/professor/cohorts": "Research Cohorts",
 };
 
 export function ProfessorTopbar() {
@@ -35,8 +36,8 @@ export function ProfessorTopbar() {
 
   const title =
     pathname === "/professor/dashboard"
-      ? TITLES[tab] || "Professor Dashboard"
-      : PAGES[pathname] || "Professor Dashboard";
+      ? TITLES[tab] || "Coordinator Dashboard"
+      : pathname.startsWith("/professor/cohorts/") ? "Manage Research Cohort" : PAGES[pathname] || "Coordinator Dashboard";
 
   return (
     <AppTopbar

@@ -37,6 +37,18 @@ export const assignCohortWorkflowSchema = z
   .object({ workflowId: uuid })
   .strict();
 
+// Cohort-anchored read only picker: academic scope is never supplied by clients.
+export const eligibleCohortResearchersQuerySchema = z
+  .object({
+    search: z.string().trim().max(100).default(""),
+    page: z.coerce.number().int().min(1).max(100000).default(1),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+  })
+  .strict();
+export type EligibleCohortResearchersQuery = z.infer<
+  typeof eligibleCohortResearchersQuerySchema
+>;
+
 export const addCohortMembersSchema = z
   .union([
     z.object({ userId: uuid }).strict(),

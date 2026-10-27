@@ -5,6 +5,7 @@ import type {
   CohortListQuery,
   CreateCohortInput,
   UpdateCohortInput,
+  EligibleCohortResearchersQuery,
 } from "@research-management/validations";
 
 export class CohortError extends Error {
@@ -322,6 +323,64 @@ export async function listCohortMembers(user: AuthenticatedUser, id: string) {
         include: { user: { select: personSelect } },
         orderBy: [{ joinedAt: "asc" }, { id: "asc" }],
       });
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
+}
+
+export async function listEligibleCohortResearchers(
+  user: AuthenticatedUser,
+  id: string,
+  query: EligibleCohortResearchersQuery,
+) {
+  requireManager(user);
+  return prisma.$transaction(
+    async (tx) => {
+      const cohort = await scopedCohort(tx, user, id);
+      requireOpen(cohort);
+      await validateAcademicContext(tx, cohort);
+      const { search, page, limit } = query;
+      const where: Prisma.UserWhereInput = {
+        status: "ACTIVE",
+        collegeId: cohort.collegeId,
+        programId: cohort.programId,
+        roles: { some: { role: { name: "RESEARCHER" } } },
+        researchCohortMemberships: { none: { cohortId: id, status: "ACTIVE" } },
+        ...(search
+          ? {
+              OR: ["firstName", "lastName", "email", "universityId"].map(
+                (field) => ({
+                  [field]: { contains: search, mode: "insensitive" as const },
+                }),
+              ),
+            }
+          : {}),
+      };
+      const [researchers, total] = await Promise.all([
+        tx.user.findMany({
+          where,
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            universityId: true,
+          },
+          orderBy: [{ lastName: "asc" }, { firstName: "asc" }, { id: "asc" }],
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        tx.user.count({ where }),
+      ]);
+      return {
+        researchers,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );

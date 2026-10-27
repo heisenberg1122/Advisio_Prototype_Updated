@@ -37,7 +37,8 @@ import {
   WorkflowDeadlineTracker,
   type WorkflowDeadlineRow,
 } from "@/components/workflow/WorkflowDeadlineTracker";
-import { ResearchProjectsOnboarding } from "@/components/workflow/ResearchProjectsOnboarding";
+import { CohortCaseMonitoring } from "@/components/professor/CohortCaseMonitoring";
+import { CohortSetupGuide } from "@/app/professor/cohorts/page";
 
 const EMPTY_MILESTONE_PROGRESS_BY_PROJECT: Record<string, any[]> = {};
 
@@ -286,6 +287,8 @@ function ProfessorDashboardContent() {
         .map((p: any) => ({
           id: p.id,
           workflowDraft: p.workflowDraft,
+          cohortId: p.cohortId,
+          isTitleProvisional: p.isTitleProvisional,
           registeredAt: p.registeredAt,
           title: p.title,
           group: p.title || "Untitled research project",
@@ -596,9 +599,9 @@ function ProfessorDashboardContent() {
       setCreatingWorkflow(false);
       setNewWorkflowName("");
       setNewWorkflowDescription("");
-      triggerToast(`Workflow "${result.workflow.name}" created as a draft.`);
+      triggerToast(`Process template "${result.workflow.name}" created as a draft.`);
     } catch (error: any) {
-      triggerToast(error?.message || "Workflow could not be created.");
+      triggerToast(error?.message || "Process template could not be created.");
     } finally {
       setSaving(false);
     }
@@ -1388,7 +1391,6 @@ function ProfessorDashboardContent() {
       </article>
     );
   };
-  const registeredProjects = projects.filter(project => !project.workflowDraft && (project.registeredAt || !project.workflowStages.some((stage: any) => stage.milestoneType === "TITLE_PROPOSAL" && stage.category !== "Archived")));
   const scopedSubmissions = submissions.filter(
     (submission) =>
       submissionWorkflowId === "ALL" ||
@@ -1774,13 +1776,13 @@ function ProfessorDashboardContent() {
     { id: "messages", label: "Messages", icon: "ti-messages" },
     {
       id: "monitoring",
-      label: "Research Projects",
+      label: "Research Cases",
       icon: "ti-users",
       badge: projects.length,
     },
     {
       id: "builder",
-      label: "Task & Stage Builder",
+      label: "Process Templates",
       icon: "ti-settings-automation",
     },
     {
@@ -1807,7 +1809,7 @@ function ProfessorDashboardContent() {
       <Modal
         isOpen={Boolean(workflowToDelete)}
         onClose={closeDeleteWorkflow}
-        title="Delete workflow"
+        title="Delete process template"
         maxWidth="lg"
       >
         {workflowToDelete && (
@@ -1866,7 +1868,7 @@ function ProfessorDashboardContent() {
                 }
                 className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {deletingWorkflow ? "Deleting…" : "Delete workflow"}
+                {deletingWorkflow ? "Deleting…" : "Delete process template"}
               </button>
             </div>
           </form>
@@ -1938,9 +1940,7 @@ function ProfessorDashboardContent() {
               id="publish-workflow-description"
               className="mt-2 text-base leading-6 text-[var(--color-text-secondary)]"
             >
-              Researchers will see these milestones, deadlines, resources,
-              submission rules, and approval gates across Tasks, Documents, and
-              their project workspace.
+              Publishing makes this process template available for cohort assignment. Assign it explicitly from Research Cohorts. Publishing does not change cohort assignments or existing research cases.
             </p>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
               {[
@@ -2131,8 +2131,8 @@ function ProfessorDashboardContent() {
               className="mt-2 text-base leading-6 text-slate-600"
             >
               {monitoringPendingRemoval.kind === "researcher"
-                ? `This will revoke the researcher's access to ${monitoringPendingRemoval.workflowName || "this workflow"}. Their project membership and submitted academic records will not be deleted. The reason and enrollment details will be saved in audit history.`
-                : "This project will be detached from the professor workflow and removed from active monitoring. The research project, members, documents, and academic records will remain available on the Researcher Dashboard."}
+                ? `This will revoke the researcher's access to ${monitoringPendingRemoval.workflowName || "this research process"}. Their project membership and submitted academic records will not be deleted. The reason and enrollment details will be saved in audit history.`
+                : "This case will be detached from its coordinator-managed process and removed from active monitoring. The research project, members, documents, and academic records will remain available on the Researcher Dashboard."}
             </p>
             <label
               htmlFor="monitoring-removal-reason"
@@ -2774,13 +2774,13 @@ function ProfessorDashboardContent() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-bold uppercase tracking-wider text-[#d98d00]">
-                  New workflow
+                  New process template
                 </p>
                 <h2
                   id="create-workflow-title"
                   className="mt-1 text-xl font-extrabold text-[#102f49]"
                 >
-                  Create your workflow
+                  Create your process template
                 </h2>
                 <p className="mt-1 text-base text-slate-500">
                   Start with an empty draft for your assigned department.
@@ -2788,7 +2788,7 @@ function ProfessorDashboardContent() {
               </div>
               <button
                 type="button"
-                aria-label="Close create workflow dialog"
+                aria-label="Close create process template dialog"
                 onClick={() => setCreatingWorkflow(false)}
                 disabled={saving}
                 className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
@@ -2809,14 +2809,14 @@ function ProfessorDashboardContent() {
                   htmlFor="workflow-name"
                   className="mb-1.5 block text-sm font-bold text-slate-700"
                 >
-                  Workflow name
+                  Process template name
                 </label>
                 <input
                   id="workflow-name"
                   value={newWorkflowName}
                   onChange={(event) => setNewWorkflowName(event.target.value)}
                   maxLength={150}
-                  placeholder="e.g. BSIT Capstone Workflow 2026"
+                  placeholder="e.g. BSIT Capstone Process 2026"
                   className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-base outline-none focus:border-[#f6a800] focus:ring-2 focus:ring-amber-100"
                   autoFocus
                   required
@@ -2903,7 +2903,7 @@ function ProfessorDashboardContent() {
                 }
                 className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {saving ? "Creating…" : "Create workflow"}
+                {saving ? "Creating…" : "Create process template"}
               </button>
             </div>
           </form>
@@ -3166,7 +3166,7 @@ function ProfessorDashboardContent() {
                     >
                       {workflows.map((workflow) => (
                         <option key={workflow.id} value={workflow.id}>
-                          {workflow.name}
+                          {workflow.name} · v{workflow.version} · {workflow.status.toLowerCase()}
                         </option>
                       ))}
                     </select>
@@ -3573,15 +3573,15 @@ function ProfessorDashboardContent() {
               <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4">
                 <DashboardWelcome
                   firstName={user?.firstName}
-                  fallbackName="Professor"
+                  fallbackName="Research Coordinator"
                   summary="Here's an overview of the research activity and submissions you are monitoring."
                   actions={
                     <>
                       <button
-                        onClick={() => handleTabChange("builder")}
+                        onClick={() => router.push("/professor/cohorts")}
                         className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition dark:text-[var(--college-on-primary-dark)]"
                       >
-                        <i className="ti ti-plus text-base" /> Create Milestone
+                        <i className="ti ti-users text-base" /> Research Cohorts
                       </button>
                       <button
                         onClick={() => handleTabChange("monitoring")}
@@ -3599,6 +3599,7 @@ function ProfessorDashboardContent() {
                     </>
                   }
                 />
+                <CohortSetupGuide />
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -5287,7 +5288,7 @@ function ProfessorDashboardContent() {
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
-                        Professor workspace
+                        Coordinator workspace
                       </p>
                       <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">
                         Student submissions
@@ -5495,287 +5496,18 @@ function ProfessorDashboardContent() {
                 )}
               </div>
             ),
-            monitoring: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <div>
-                  <h3 className="font-extrabold text-[#1b4264] text-lg">
-                    Research Projects
-                  </h3>
-                  <p className="mt-1 text-base text-slate-500">
-                    View and manage the registered research projects across your
-                    workflows.
-                  </p>
-                </div>
-                {projects.length > 0 && (
-                  <div className="relative max-w-xl">
-                    <i className="ti ti-search pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="search"
-                      value={monitoringSearch}
-                      onChange={(event) =>
-                        setMonitoringSearch(event.target.value)
-                      }
-                      placeholder="Search project, adviser, research type, or program…"
-                      aria-label="Search research projects"
-                      className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-base text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#173f63] focus:ring-2 focus:ring-[#173f63]/10"
-                    />
-                    {monitoringSearch && (
-                      <button
-                        type="button"
-                        onClick={() => setMonitoringSearch("")}
-                        aria-label="Clear search"
-                        className="absolute right-2.5 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                      >
-                        <i className="ti ti-x" />
-                      </button>
-                    )}
-                  </div>
-                )}
-                {(projectsError || workflowsError || enrollmentsError) && (
-                  <div
-                    role="alert"
-                    className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-                  >
-                    Dashboard data could not be loaded. Check the API connection
-                    and try again.
-                  </div>
-                )}
-                {legacyWorkflowUiEnabled ? (
-                  enrollmentsLoading ? (
-                    <div className="rounded-xl border border-slate-200 bg-white p-4">
-                      <ListRowsSkeleton rows={5} />
-                    </div>
-                  ) : (
-                    <div className="overflow-hidden rounded-xl border border-slate-200">
-                      {acceptedResearchers
-                        .filter((enrollment: any) => {
-                          const query = monitoringSearch.trim().toLowerCase();
-                          if (!query) return true;
-                          return [
-                            enrollment.user.firstName,
-                            enrollment.user.lastName,
-                            enrollment.user.universityId,
-                            enrollment.user.email,
-                            enrollment.workflow.name,
-                          ]
-                            .filter(Boolean)
-                            .some((value) =>
-                              String(value).toLowerCase().includes(query),
-                            );
-                        })
-                        .map((enrollment: any) => {
-                          const linkedProject = projects.find((project: any) =>
-                            project.researchers.some(
-                              (member: any) =>
-                                member.user?.id === enrollment.user.id,
-                            ),
-                          );
-                          return (
-                            <div
-                              key={enrollment.id}
-                              className="grid gap-3 border-b border-slate-100 p-4 last:border-b-0 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-center"
-                            >
-                              <div>
-                                <p className="font-bold text-[#173f63]">
-                                  {enrollment.user.firstName}{" "}
-                                  {enrollment.user.lastName}
-                                </p>
-                                <p className="text-base text-slate-500">
-                                  {enrollment.user.universityId ||
-                                    enrollment.user.email}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
-                                  Workflow
-                                </p>
-                                <p className="mt-1 text-base font-semibold text-slate-700">
-                                  {enrollment.workflow.name}
-                                </p>
-                              </div>
-                              <Tag variant={linkedProject ? "success" : "info"}>
-                                {linkedProject
-                                  ? "Project created"
-                                  : "No project yet"}
-                              </Tag>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setMonitoringPendingRemoval({
-                                    kind: "researcher",
-                                    id: enrollment.id,
-                                    name:
-                                      `${enrollment.user.firstName || ""} ${enrollment.user.lastName || ""}`.trim() ||
-                                      enrollment.user.email,
-                                    workflowName: enrollment.workflow.name,
-                                  })
-                                }
-                                className="inline-flex items-center justify-center rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50"
-                              >
-                                <i className="ti ti-trash mr-1.5" />
-                                Remove
-                              </button>
-                            </div>
-                          );
-                        })}
-                      {!acceptedResearchers.length && !enrollmentsError && (
-                        <div className="p-8 text-center">
-                          <p className="font-bold text-[#173f63]">
-                            No accepted researchers yet
-                          </p>
-                          <p className="mt-1 text-base text-slate-500">
-                            Researchers appear here after they accept a workflow
-                            invitation.
-                          </p>
-                        </div>
-                      )}
-                      {acceptedResearchers.length > 0 &&
-                        !acceptedResearchers.some((enrollment: any) => {
-                          const query = monitoringSearch.trim().toLowerCase();
-                          if (!query) return true;
-                          return [
-                            enrollment.user.firstName,
-                            enrollment.user.lastName,
-                            enrollment.user.universityId,
-                            enrollment.user.email,
-                            enrollment.workflow.name,
-                          ]
-                            .filter(Boolean)
-                            .some((value) =>
-                              String(value).toLowerCase().includes(query),
-                            );
-                        }) && (
-                          <div className="p-8 text-center text-sm text-slate-500">
-                            No researchers match “{monitoringSearch}”.
-                          </div>
-                        )}
-                    </div>
-                  )
-                ) : projectsLoading ||
-                  workflowsLoading ||
-                  enrollmentsLoading ? (
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <ListRowsSkeleton rows={5} avatars={false} />
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3.5 mt-2">
-                    {registeredProjects
-                      .filter((project: any) => {
-                        const query = monitoringSearch.trim().toLowerCase();
-                        if (!query) return true;
-                        return [
-                          project.title,
-                          project.adviser?.firstName,
-                          project.adviser?.lastName,
-                          project.adviser?.email,
-                          project.researchType?.name,
-                          project.program?.code,
-                          project.program?.name,
-                        ]
-                          .filter(Boolean)
-                          .some((value) =>
-                            String(value).toLowerCase().includes(query),
-                          );
-                      })
-                      .map((p) => (
-                        <div
-                          key={p.id}
-                          className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-left text-[12.5px] shadow-sm transition hover:border-[#f6a800]"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setSelectedProject(p)}
-                            className="min-w-0 flex-1 text-left"
-                          >
-                            <span className="font-bold text-[#1b4264] block">
-                              {p.group}
-                            </span>
-                            <span className="text-sm text-slate-500">
-                              {p.researchers.length === 1
-                                ? "Individual"
-                                : `${p.researchers.length} researchers`}{" "}
-                              · {p.currentStage?.name || "Not started"} ·{" "}
-                              {p.progress}% complete
-                            </span>
-                          </button>
-                          <div className="ml-4 flex shrink-0 items-center gap-2">
-                            <Tag variant="success">{p.status}</Tag>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setMonitoringPendingRemoval({
-                                  kind: "project",
-                                  id: p.id,
-                                  name: p.title,
-                                })
-                              }
-                              className="inline-flex items-center rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50"
-                            >
-                              <i className="ti ti-trash mr-1.5" />
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    {!registeredProjects.length && projects.length > 0 && <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"><h3 className="font-bold">Research titles not registered yet</h3><p className="mt-2 text-sm">Researchers can begin milestones before registering a title. If the workflow uses Title Proposal, accept a submitted title to register their project.</p><button type="button" onClick={() => router.push("/professor/dashboard?tab=builder")} className="mt-3 text-sm font-bold text-[var(--color-primary)]">View workflow</button></div>}
-                    {!projects.length &&
-                      !projectsError &&
-                      !workflowsError &&
-                      !enrollmentsError && (
-                        <ResearchProjectsOnboarding
-                          workflows={workflows.map((workflow) => ({
-                            id: workflow.id,
-                            name: workflow.name,
-                          }))}
-                          selectedWorkflowId={selectedWorkflowId}
-                          participantCount={selectedWorkflowParticipants.length}
-                          onSelectWorkflow={selectMonitoringWorkflow}
-                          onCreateWorkflow={() => {
-                            setCreatingWorkflow(true);
-                            router.push("/professor/dashboard?tab=builder");
-                          }}
-                          onOpenParticipants={() =>
-                            openWorkflowParticipants(selectedWorkflowId)
-                          }
-                        />
-                      )}
-                    {registeredProjects.length > 0 &&
-                      !registeredProjects.some((project: any) => {
-                        const query = monitoringSearch.trim().toLowerCase();
-                        if (!query) return true;
-                        return [
-                          project.title,
-                          project.adviser?.firstName,
-                          project.adviser?.lastName,
-                          project.adviser?.email,
-                          project.researchType?.name,
-                          project.program?.code,
-                          project.program?.name,
-                        ]
-                          .filter(Boolean)
-                          .some((value) =>
-                            String(value).toLowerCase().includes(query),
-                          );
-                      }) && (
-                        <div className="rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                          No projects match “{monitoringSearch}”.
-                        </div>
-                      )}
-                  </div>
-                )}
-              </div>
-            ),
+            monitoring: (<CohortCaseMonitoring projects={projects} cohortId={searchParams.get("cohortId")} loading={projectsLoading} error={projectsError} onOpen={setSelectedProject} onRemove={project => setMonitoringPendingRemoval({ kind: "project", id: project.id, name: project.title })} />),
             builder: (
               <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-5 text-[var(--color-text-primary)]">
                 <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] lg:p-6">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--color-primary)]">
-                        Professor / Coordinator
+                        Research Coordinator
                       </p>
                       <div className="flex items-center gap-2">
                         <h2 className="text-xl font-extrabold text-[var(--color-text-primary)]">
-                          Research Workflow
+                          Process Templates
                         </h2>
                         <span
                           className={`rounded-full px-2.5 py-1 text-xs font-bold ${selectedWorkflow?.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}
@@ -5786,7 +5518,7 @@ function ProfessorDashboardContent() {
                                 .replace(/^\w/, (letter: string) =>
                                   letter.toUpperCase(),
                                 )
-                            : "No workflow selected"}
+                            : "No process template selected"}
                         </span>
                       </div>
                       <p className="mt-1 text-base text-slate-500">
@@ -5827,7 +5559,7 @@ function ProfessorDashboardContent() {
                   </div>
                   <div className="mt-5 flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center">
                     <label className="text-sm font-bold text-[var(--color-text-primary)]">
-                      Workflow
+                      Process Template
                     </label>
                     <select
                       value={selectedWorkflowId}
@@ -5837,7 +5569,7 @@ function ProfessorDashboardContent() {
                       className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-base font-semibold text-[var(--color-text-primary)] sm:max-w-md"
                     >
                       {!workflows.length && (
-                        <option value="">No workflow created yet</option>
+                        <option value="">No process template created yet</option>
                       )}
                       {workflows.map((workflow) => (
                         <option key={workflow.id} value={workflow.id}>
@@ -5862,15 +5594,14 @@ function ProfessorDashboardContent() {
                     <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
                       <i className="ti ti-lock mt-0.5" aria-hidden="true" />
                       Draft milestones remain private until you publish.
-                      Existing student submissions are never changed by
-                      publishing.
+                      Publishing makes this template available for cohort assignment. Existing research cases keep their pinned process.
                     </p>
                   )}
                 </section>
                 <div
                   className="overflow-x-auto rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-sm"
                   role="tablist"
-                  aria-label="Workflow sections"
+                  aria-label="Process template sections"
                 >
                   <div className="flex min-w-max gap-1">
                     {(
@@ -5887,7 +5618,7 @@ function ProfessorDashboardContent() {
                         },
                         {
                           id: "participants",
-                          label: `Participants (${workflowEnrollmentCount})`,
+                          label: `Process Access (${workflowEnrollmentCount})`,
                           icon: "ti-users",
                         },
                       ] as const
@@ -5945,7 +5676,7 @@ function ProfessorDashboardContent() {
                         Selected workflow
                       </p>
                       <h3 className="mt-2 text-xl font-black text-[#102f49]">
-                        {selectedWorkflow?.name || "Create your first workflow"}
+                        {selectedWorkflow?.name || "Create your first process template"}
                       </h3>
                       <p className="mt-2 max-w-3xl text-base leading-6 text-slate-500">
                         {selectedWorkflow?.description ||
@@ -5968,7 +5699,7 @@ function ProfessorDashboardContent() {
                             workflowResourceSummary?.resources?.length || 0,
                             "ti-books",
                           ],
-                          ["Researchers", workflowEnrollmentCount, "ti-users"],
+                          ["Process access holders", workflowEnrollmentCount, "ti-users"],
                         ].map(([label, value, icon]) => (
                           <div
                             key={String(label)}
@@ -6471,12 +6202,12 @@ function ProfessorDashboardContent() {
                                   <h4 className="mt-3 font-extrabold text-[#102f49]">
                                     {workflows.length
                                       ? "Start your research process"
-                                      : "Create your first workflow"}
+                                      : "Create your first process template"}
                                   </h4>
                                   <p className="mt-1 text-base text-slate-500">
                                     {workflows.length
                                       ? "Create the first topic that will organize this workflow."
-                                      : "Create an empty department workflow before adding milestones."}
+                                      : "Create a reusable process template before adding milestones."}
                                   </p>
                                   <button
                                     type="button"
@@ -6489,7 +6220,7 @@ function ProfessorDashboardContent() {
                                   >
                                     {workflows.length
                                       ? "Add first topic"
-                                      : "Create workflow"}
+                                      : "Create process template"}
                                   </button>
                                 </div>
                               )}
@@ -6566,7 +6297,7 @@ function ProfessorDashboardContent() {
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span className="text-slate-500">
-                                  Active researchers
+                                  Process access holders
                                 </span>
                                 <strong className="text-[#102f49]">
                                   {workflowEnrollmentCount}
@@ -6582,7 +6313,7 @@ function ProfessorDashboardContent() {
                                   Keep it simple
                                 </h3>
                                 <p className="mt-1 text-base leading-5 text-[var(--color-text-secondary)]">
-                                  Professors only need a name and target
+                                  Coordinators only need a name and target
                                   duration. Submission requirements and advanced
                                   rules can be added later.
                                 </p>
@@ -6606,9 +6337,9 @@ function ProfessorDashboardContent() {
                             <div className="mt-3 divide-y divide-[var(--color-border-subtle)]">
                               <button type="button" onClick={() => setShowStudentPreview(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]"><i className="ti ti-eye" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Preview as Student</strong><span className="text-xs text-[var(--color-text-secondary)]">See the published student view</span></span></button>
                               <button type="button" onClick={() => setWorkflowView("resources")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-books" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Guides & Templates</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage shared workflow resources</span></span></button>
-                              <button type="button" onClick={() => setWorkflowView("participants")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-users" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Participants</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage assigned researchers</span></span></button>
-                              <button type="button" onClick={() => setCreatingWorkflow(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-copy-plus" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Create another workflow</strong><span className="text-xs text-[var(--color-text-secondary)]">Start a separate workflow configuration</span></span></button>
-                              <button type="button" disabled={!selectedWorkflow || deletingWorkflow} onClick={() => { if (!selectedWorkflow) return; setWorkflowToDelete({ id: selectedWorkflow.id, name: selectedWorkflow.name }); setDeleteConfirmation(""); setDeleteWorkflowError(""); }} className="flex w-full items-center gap-3 py-3 text-left disabled:opacity-50"><span className="grid h-9 w-9 place-items-center rounded-full bg-rose-50 text-rose-600"><i className="ti ti-trash" /></span><span><strong className="block text-sm text-rose-700">Delete workflow</strong><span className="text-xs text-[var(--color-text-secondary)]">Available only when no project is linked</span></span></button>
+                              <button type="button" onClick={() => setWorkflowView("participants")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-users" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Process Access</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage process permissions separately from cohort membership</span></span></button>
+                              <button type="button" onClick={() => setCreatingWorkflow(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-copy-plus" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Create another process template</strong><span className="text-xs text-[var(--color-text-secondary)]">Start a separate workflow configuration</span></span></button>
+                              <button type="button" disabled={!selectedWorkflow || deletingWorkflow} onClick={() => { if (!selectedWorkflow) return; setWorkflowToDelete({ id: selectedWorkflow.id, name: selectedWorkflow.name }); setDeleteConfirmation(""); setDeleteWorkflowError(""); }} className="flex w-full items-center gap-3 py-3 text-left disabled:opacity-50"><span className="grid h-9 w-9 place-items-center rounded-full bg-rose-50 text-rose-600"><i className="ti ti-trash" /></span><span><strong className="block text-sm text-rose-700">Delete process template</strong><span className="text-xs text-[var(--color-text-secondary)]">Available only when no project is linked</span></span></button>
                             </div>
                           </section>
                         </aside>

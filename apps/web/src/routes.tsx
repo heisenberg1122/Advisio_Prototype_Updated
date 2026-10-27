@@ -71,6 +71,7 @@ const PanelistNotificationsPage = lazy(
 );
 
 const ProfessorLayout = lazy(() => import("./app/professor/layout"));
+const CoordinatorCohortsPage = lazy(() => import("./app/professor/cohorts/page"));
 const ProfessorDashboardPage = lazy(
   () => import("./app/professor/dashboard/page"),
 );
@@ -696,6 +697,9 @@ export function AppRoutes() {
               </ProtectedRoute>
             }
           />
+        ))}
+        {["/professor/cohorts", "/professor/cohorts/:id"].map(path => (
+          <Route key={path} path={path} element={<ProtectedRoute allowedRoles={["RESEARCH_COORDINATOR", "PROFESSOR", "SYSTEM_ADMIN"]}><ProfessorLayout><CoordinatorCohortsPage /></ProfessorLayout></ProtectedRoute>} />
         ))}
         <Route
           path="/professor/*"

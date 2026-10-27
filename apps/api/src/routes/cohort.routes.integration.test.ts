@@ -408,6 +408,151 @@ databaseDescribe("Research cohort management boundaries", () => {
     expect((await api(coordinator, `/${id}`, "DELETE")).status).toBe(404);
   });
 
+  it("keeps cohort candidate lookup manager-only and within cohort academic scope", async () => {
+    const id = (await create()).body.cohort.id;
+    expect((await api(null, `/${id}/eligible-researchers`)).status).toBe(401);
+    expect((await api(student, `/${id}/eligible-researchers`)).status).toBe(
+      403,
+    );
+    expect((await api(adviser, `/${id}/eligible-researchers`)).status).toBe(
+      403,
+    );
+    expect(
+      (await api(siblingCoordinator, `/${id}/eligible-researchers`)).status,
+    ).toBe(404);
+    expect(
+      (await api(foreignCoordinator, `/${id}/eligible-researchers`)).status,
+    ).toBe(404);
+    expect((await api(unassigned, `/${id}/eligible-researchers`)).status).toBe(
+      403,
+    );
+    expect(
+      (
+        await api(
+          coordinator,
+          `/${id}/eligible-researchers`,
+          "GET",
+          undefined,
+          true,
+        )
+      ).status,
+    ).toBe(403);
+    for (const actor of [coordinator, dean, admin])
+      expect((await api(actor, `/${id}/eligible-researchers`)).status).toBe(
+        200,
+      );
+  });
+  it("searches eligible cohort researchers by name/email/identifier with pagination and no scope overrides", async () => {
+    const id = (await create()).body.cohort.id;
+    const all = await api(coordinator, `/${id}/eligible-researchers`);
+    const ids = all.body.researchers.map((user: any) => user.id);
+    expect(ids).toEqual(expect.arrayContaining([student, teammate]));
+    for (const invalid of [
+      outsideStudent,
+      inactiveStudent,
+      adviser,
+      siblingCoordinator,
+      foreignCoordinator,
+    ])
+      expect(ids).not.toContain(invalid);
+    for (const search of [
+      "student",
+      "STUDENT@ISOLATED.TEST",
+      `${marker}-student`,
+    ]) {
+      const result = await api(
+        coordinator,
+        `/${id}/eligible-researchers?search=${encodeURIComponent(search)}`,
+      );
+      expect(result.status).toBe(200);
+      expect(result.body.researchers.map((user: any) => user.id)).toContain(
+        student,
+      );
+    }
+    const first = await api(
+      coordinator,
+      `/${id}/eligible-researchers?limit=1&page=1`,
+    );
+    const second = await api(
+      coordinator,
+      `/${id}/eligible-researchers?limit=1&page=2`,
+    );
+    expect(first.body.researchers).toHaveLength(1);
+    expect(second.body.researchers).toHaveLength(1);
+    expect(first.body.researchers[0].id).not.toBe(
+      second.body.researchers[0].id,
+    );
+    expect(Object.keys(first.body.researchers[0]).sort()).toEqual([
+      "email",
+      "firstName",
+      "id",
+      "lastName",
+      "universityId",
+    ]);
+    expect(
+      (
+        await api(
+          coordinator,
+          `/${id}/eligible-researchers?collegeId=${otherCollege}`,
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await api(
+          coordinator,
+          `/${id}/eligible-researchers?programId=${siblingProgram}`,
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (await api(coordinator, `/${id}/eligible-researchers?limit=51`)).status,
+    ).toBe(400);
+  });
+  it("excludes active cohort members, includes eligible removed members, and creates no runtime/access records", async () => {
+    const id = (await create()).body.cohort.id;
+    await api(coordinator, `/${id}/members`, "POST", {
+      userIds: [student, teammate],
+    });
+    await api(coordinator, `/${id}/members/${teammate}`, "DELETE");
+    const counts = async () => ({
+      members: await prisma.researchCohortMember.count({
+        where: { cohortId: id },
+      }),
+      workspaces: await prisma.researchWorkspace.count({
+        where: { cohortId: id },
+      }),
+      cases: await prisma.researchProject.count({ where: { cohortId: id } }),
+      enrollments: await prisma.workflowEnrollment.count({
+        where: { workflowId: { in: fixture.workflowIds } },
+      }),
+      audits: await prisma.auditLog.count({ where: { entityId: id } }),
+    });
+    const before = await counts();
+    const result = await api(coordinator, `/${id}/eligible-researchers`);
+    expect(result.body.researchers.map((user: any) => user.id)).not.toContain(
+      student,
+    );
+    expect(result.body.researchers.map((user: any) => user.id)).toContain(
+      teammate,
+    );
+    expect(await counts()).toEqual(before);
+    expect(
+      (await api(coordinator, `/${id}/members`)).body.members.find(
+        (member: any) => member.userId === teammate,
+      ).status,
+    ).toBe("REMOVED");
+  });
+  it("locks researcher lookup for closed and archived cohorts", async () => {
+    for (const status of ["CLOSED", "ARCHIVED"] as const) {
+      const id = (await create()).body.cohort.id;
+      await prisma.researchCohort.update({ where: { id }, data: { status } });
+      expect(
+        (await api(coordinator, `/${id}/eligible-researchers`)).status,
+      ).toBe(409);
+    }
+  });
+
   it("adds eligible researchers atomically and keeps historical membership when removing/reactivating", async () => {
     const id = (await create()).body.cohort.id;
     for (const invalid of [

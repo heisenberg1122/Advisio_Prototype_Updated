@@ -6,6 +6,7 @@ import {
   cohortMemberParamsSchema,
   cohortParamsSchema,
   createCohortSchema,
+  eligibleCohortResearchersQuerySchema,
   updateCohortSchema,
 } from "./cohorts.js";
 
@@ -19,6 +20,31 @@ const input = {
 };
 
 describe("cohort request contracts", () => {
+  it("bounds eligible researcher search and rejects academic scope overrides", () => {
+    expect(eligibleCohortResearchersQuerySchema.parse({})).toEqual({
+      search: "",
+      page: 1,
+      limit: 20,
+    });
+    expect(
+      eligibleCohortResearchersQuerySchema.parse({
+        search: "  Nicole  ",
+        page: "2",
+        limit: "10",
+      }),
+    ).toEqual({ search: "Nicole", page: 2, limit: 10 });
+    for (const input of [
+      { collegeId: id },
+      { programId: id },
+      { researchTypeId: id },
+      { limit: 51 },
+      { page: 0 },
+      { search: "x".repeat(101) },
+    ])
+      expect(
+        eligibleCohortResearchersQuerySchema.safeParse(input).success,
+      ).toBe(false);
+  });
   it("normalizes names and leaves creation status and ownership server-controlled", () => {
     expect(createCohortSchema.parse(input).name).toBe("BSIT Cohort A");
     for (const extra of [

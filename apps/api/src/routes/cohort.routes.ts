@@ -9,6 +9,8 @@ import {
   createCohortSchema,
   updateCohortSchema,
   type CohortListQuery,
+  eligibleCohortResearchersQuerySchema,
+  type EligibleCohortResearchersQuery,
 } from "@research-management/validations";
 import { requireAuth } from "../middleware/auth.js";
 import { requirePermission } from "../middleware/rbac.js";
@@ -24,6 +26,7 @@ import {
   createCohort,
   getCohort,
   listCohortMembers,
+  listEligibleCohortResearchers,
   listCohorts,
   removeCohortMember,
   updateCohort,
@@ -43,12 +46,10 @@ function route(handler: RequestHandler): RequestHandler {
       }
       const code = (error as { code?: string } | null)?.code;
       if (["P2002", "P2003", "P2034"].includes(code || "")) {
-        res
-          .status(409)
-          .json({
-            error:
-              "The cohort changed or a referenced record is unavailable. Reload and retry.",
-          });
+        res.status(409).json({
+          error:
+            "The cohort changed or a referenced record is unavailable. Reload and retry.",
+        });
         return;
       }
       if (code === "P2025") {
@@ -101,6 +102,21 @@ router.patch(
   }),
 );
 router.get(
+  "/:id/eligible-researchers",
+  requirePermission(Permissions.RESEARCH_ASSIGN),
+  validateParams(cohortParamsSchema),
+  validateQuery(eligibleCohortResearchersQuerySchema),
+  route(async (req, res) => {
+    res.json(
+      await listEligibleCohortResearchers(
+        req.user!,
+        String(req.params.id),
+        req.query as unknown as EligibleCohortResearchersQuery,
+      ),
+    );
+  }),
+);
+router.get(
   "/:id/members",
   requirePermission(Permissions.RESEARCH_VIEW),
   validateParams(cohortParamsSchema),
@@ -116,15 +132,13 @@ router.post(
   validateParams(cohortParamsSchema),
   validateBody(addCohortMembersSchema),
   route(async (req, res) => {
-    res
-      .status(201)
-      .json({
-        members: await addCohortMembers(
-          req.user!,
-          String(req.params.id),
-          req.body.userIds,
-        ),
-      });
+    res.status(201).json({
+      members: await addCohortMembers(
+        req.user!,
+        String(req.params.id),
+        req.body.userIds,
+      ),
+    });
   }),
 );
 router.delete(

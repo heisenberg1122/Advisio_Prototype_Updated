@@ -18,7 +18,7 @@ const db = vi.hoisted(() => ({
   researchType: { findFirst: vi.fn(), update: vi.fn() },
   academicYear: { findFirst: vi.fn() },
   workflow: { findUnique: vi.fn() },
-  user: { findMany: vi.fn() },
+  user: { findMany: vi.fn(), count: vi.fn() },
   auditLog: { create: vi.fn() },
   $transaction: vi.fn(),
   $executeRaw: vi.fn(),
@@ -37,6 +37,7 @@ import {
   createCohort,
   getCohort,
   listCohortMembers,
+  listEligibleCohortResearchers,
   listCohorts,
   removeCohortMember,
   updateCohort,
@@ -107,6 +108,95 @@ afterEach(() => {
   expect(db.researchWorkspace.create).not.toHaveBeenCalled();
   expect(db.workflowEnrollment.upsert).not.toHaveBeenCalled();
   expect(db.researchType.update).not.toHaveBeenCalled();
+});
+
+describe("cohort-anchored eligible researcher lookup", () => {
+  it("reads only active same-program researchers, excludes active members and uses a minimal projection", async () => {
+    db.user.findMany.mockResolvedValue([
+      { id: "student", firstName: "Nicole" },
+    ]);
+    db.user.count.mockResolvedValue(21);
+    const result = await listEligibleCohortResearchers(user(), "cohort", {
+      search: "nicole",
+      page: 2,
+      limit: 20,
+    });
+    expect(result).toMatchObject({
+      researchers: [{ id: "student" }],
+      pagination: { page: 2, limit: 20, total: 21, totalPages: 2 },
+    });
+    const args = db.user.findMany.mock.calls[0][0];
+    expect(args.where).toMatchObject({
+      status: "ACTIVE",
+      collegeId: "college",
+      programId: "program",
+      roles: { some: { role: { name: "RESEARCHER" } } },
+      researchCohortMemberships: {
+        none: { cohortId: "cohort", status: "ACTIVE" },
+      },
+      OR: [
+        { firstName: { contains: "nicole", mode: "insensitive" } },
+        { lastName: { contains: "nicole", mode: "insensitive" } },
+        { email: { contains: "nicole", mode: "insensitive" } },
+        { universityId: { contains: "nicole", mode: "insensitive" } },
+      ],
+    });
+    expect(args).toMatchObject({
+      skip: 20,
+      take: 20,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        universityId: true,
+      },
+    });
+    expect(Object.keys(args.select).sort()).toEqual([
+      "email",
+      "firstName",
+      "id",
+      "lastName",
+      "universityId",
+    ]);
+    expect(db.user.count).toHaveBeenCalledWith({ where: args.where });
+    expect(db.researchCohortMember.upsert).not.toHaveBeenCalled();
+    expect(db.researchCohortMember.update).not.toHaveBeenCalled();
+    expect(db.auditLog.create).not.toHaveBeenCalled();
+    expect(db.$executeRaw).not.toHaveBeenCalled();
+  });
+  it("rejects researcher roles and out-of-scope cohorts before searching", async () => {
+    await expect(
+      listEligibleCohortResearchers(user(["RESEARCHER"]), "cohort", {
+        search: "",
+        page: 1,
+        limit: 20,
+      }),
+    ).rejects.toThrow("cannot manage");
+    db.researchCohort.findFirst.mockResolvedValue(null);
+    await expect(
+      listEligibleCohortResearchers(user(), "outside", {
+        search: "",
+        page: 1,
+        limit: 20,
+      }),
+    ).rejects.toThrow("scope");
+    expect(db.user.findMany).not.toHaveBeenCalled();
+  });
+  it.each(["CLOSED", "ARCHIVED"])(
+    "does not expose a membership picker for %s cohorts",
+    async (status) => {
+      db.researchCohort.findFirst.mockResolvedValue({ ...cohort, status });
+      await expect(
+        listEligibleCohortResearchers(user(), "cohort", {
+          search: "",
+          page: 1,
+          limit: 20,
+        }),
+      ).rejects.toThrow("locked");
+      expect(db.user.findMany).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("cohort authorization", () => {
