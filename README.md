@@ -322,6 +322,23 @@ docker compose stop postgres-test
 
 The runner validates the live database identity, applies committed migrations, executes the manuscript lifecycle, reviewer assignment, defense, Inbox, remediation, and faculty-profile suites sequentially, and verifies cleanup. Each suite creates and removes exact disposable fixtures; it never depends on seeded demo accounts. Set `ALLOW_REMOTE_INTEGRATION_DATABASE=1` only for a deliberately isolated remote CI test database.
 
+To keep local test configuration out of your application environment, copy
+`.env.integration.example` to the ignored `.env.integration.local`, supply the
+credentials for the dedicated local test database, start that database, then run:
+
+```powershell
+npm run test:integration:local
+```
+
+This command uses the same guarded runner as `npm run test:integration`; all
+database identity, isolation, migration, and cleanup checks remain enabled.
+It does not start PostgreSQL or provision a database. Docker is optional if a
+separate local PostgreSQL instance already provides `advisio_test` on port 5434.
+Do not use development or production connection strings in this file.
+
+The Phase 0 validation baseline and the native Windows test-database commands
+are recorded in [docs/phase0-validation.md](docs/phase0-validation.md).
+
 ---
 
 ## Development demo accounts
