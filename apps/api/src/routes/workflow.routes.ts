@@ -4,7 +4,8 @@ import { submitTitleProposals, reviewTitleProposals } from "../services/title-pr
 import { Router, Request, Response } from "express";
 import { emailNotification } from "../services/notification-email.service.js";
 import { storageHierarchyService } from "../services/storage-hierarchy.service.js";
-import { ManuscriptLifecycleStatus, prisma } from "../lib/prisma.js";
+import { ManuscriptLifecycleStatus, ReviewRecommendation, prisma } from "../lib/prisma.js";
+import { reviewerAssignmentService } from "../services/reviewer-assignment.service.js";
 import {
   createWorkflowTopicSchema,
   createWorkflowSchema,
@@ -3319,8 +3320,7 @@ router.patch(
               isImmutable: true,
               manuscriptStatus: true,
               reviewerAssignments: {
-                select: { id: true },
-                take: 1,
+                select: { id: true, reviewerId: true, status: true },
               },
             },
           },
@@ -3330,11 +3330,39 @@ router.patch(
         return void res
           .status(404)
           .json({ error: "Task submission not found." });
-      if (existing.documentVersion?.reviewerAssignments.length)
-        return void res.status(409).json({
-          error:
-            "This task is synchronized with the formal manuscript review workflow. Submit the assigned exact-version reviewer decision instead.",
+      if (existing.documentVersion?.reviewerAssignments.length) {
+        const assignments = existing.documentVersion.reviewerAssignments.filter(
+          (assignment) => assignment.reviewerId === req.user!.id && assignment.status === "ACTIVE",
+        );
+        if (!assignments.length)
+          return void res.status(403).json({
+            error: "You do not have an active reviewer assignment for this submitted version. Open Manuscript Reviews to check the assigned reviewers and recorded decisions.",
+            code: "ASSIGNED_REVIEWER_REQUIRED",
+          });
+        if (assignments.length > 1 || status === "UNDER_REVIEW")
+          return void res.status(409).json({
+            error: "Open Manuscript Reviews to select the review assignment and submit its decision.",
+            code: "REVIEW_ASSIGNMENT_SELECTION_REQUIRED",
+          });
+        // Use the formal decision transaction so version checks, required reviews,
+        // revision attempts, notifications, and milestone progression stay in sync.
+        const decision = await reviewerAssignmentService.decide({
+          assignmentId: assignments[0].id,
+          recommendation: status === "APPROVED"
+            ? ReviewRecommendation.APPROVE
+            : status === "REJECTED"
+              ? ReviewRecommendation.REJECT
+              : ReviewRecommendation.MINOR_REVISION,
+          overallComment: typeof reviewNote === "string" ? reviewNote : null,
+          user: req.user!,
+          ipAddress: req.ip,
+          userAgent: req.get("user-agent"),
         });
+        return void res.json(jsonSafe({
+          ...decision,
+          progression: decision.milestoneProgression,
+        }));
+      }
       if (
         !req.user ||
         !canReviewTaskSubmission(req.user, {
@@ -3413,8 +3441,11 @@ router.patch(
       res.json(result);
     } catch (error: any) {
       res
-        .status(500)
-        .json({ error: error.message || "Failed to review task submission" });
+        .status(error?.statusCode || 500)
+        .json({
+          error: error.message || "Failed to review task submission",
+          ...(error?.code ? { code: error.code } : {}),
+        });
     }
   },
 );

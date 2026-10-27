@@ -945,6 +945,7 @@ function ProfessorDashboardContent() {
     setReviewSaving(true);
     try {
       const result = await apiClient.patch<{
+        lifecycleStatus?: string;
         progression?: {
           advanced: boolean;
           completed: boolean;
@@ -958,7 +959,9 @@ function ProfessorDashboardContent() {
       setSelectedProject(null);
       setSelectedSubmission(null);
       setReviewFeedback("");
-      if (result.progression?.completed)
+      if (result.lifecycleStatus && !["APPROVED", "REVISION_REQUIRED"].includes(result.lifecycleStatus))
+        triggerToast("Your review was recorded. Other required reviews are still pending.");
+      else if (result.progression?.completed)
         triggerToast("Approved. The research workflow is now complete.");
       else if (result.progression?.advanced)
         triggerToast(

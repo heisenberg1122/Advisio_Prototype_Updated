@@ -6,11 +6,21 @@ const mocks = vi.hoisted(() => ({
   uploadTaskSubmission: vi.fn(),
   submitStoredTaskVersion: vi.fn(),
   findUser: vi.fn(),
+  findSubmission: vi.fn(),
+  transaction: vi.fn(),
+  decide: vi.fn(),
 }));
 
 vi.mock("../lib/prisma.js", async (importOriginal) => ({
   ...(await importOriginal<any>()),
-  prisma: { user: { findUnique: mocks.findUser } },
+  prisma: {
+    user: { findUnique: mocks.findUser },
+    taskSubmission: { findUnique: mocks.findSubmission },
+    $transaction: mocks.transaction,
+  },
+}));
+vi.mock("../services/reviewer-assignment.service.js", () => ({
+  reviewerAssignmentService: { decide: mocks.decide },
 }));
 vi.mock("../services/task-submission-upload.service.js", () => ({
   uploadTaskSubmission: mocks.uploadTaskSubmission,
@@ -138,4 +148,112 @@ describe("task submission JSON responses", () => {
       expect(mocks.submitStoredTaskVersion).toHaveBeenCalledOnce();
     },
   );
+
+  function prepareReview(assignments = [
+    { id: "assignment-a", reviewerId: "professor-a", status: "ACTIVE" },
+  ]) {
+    mocks.findUser.mockResolvedValue({
+      id: "professor-a",
+      status: "ACTIVE",
+      sessionVersion: 0,
+      roles: [{ role: { name: "RESEARCH_COORDINATOR", permissions: [] } }],
+    });
+    mocks.findSubmission.mockResolvedValue({
+      id: "submission-a",
+      submittedBy: "student-a",
+      researchId: "research-a",
+      task: { stage: { id: "stage-a", responsible: { name: "RESEARCH_COORDINATOR" }, workflow: { createdBy: "professor-a" } } },
+      research: { collegeId: "college-a", members: [] },
+      documentVersion: { id: "version-a", reviewerAssignments: assignments },
+    });
+    mocks.decide.mockResolvedValue({
+      review: { id: "review-a" },
+      lifecycleStatus: "APPROVED",
+      milestoneProgression: { advanced: true, completed: false, nextStageName: "Defense eligibility" },
+    });
+  }
+
+  function review(status: string, reviewNote = "Please clarify the methodology.") {
+    return fetch(new URL("/api/workflows/tasks/submissions/submission-a/review", baseUrl), {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${generateToken("professor-a")}`, "content-type": "application/json" },
+      body: JSON.stringify({ status, reviewNote }),
+    });
+  }
+
+  it.each([
+    ["APPROVED", "APPROVE"],
+    ["REVISION_REQUIRED", "MINOR_REVISION"],
+    ["REJECTED", "REJECT"],
+  ])("records %s through the exact-version review service", async (status, recommendation) => {
+    prepareReview();
+    const response = await review(status);
+    const body = await response.json() as any;
+    expect(response.status).toBe(200);
+    expect(mocks.decide).toHaveBeenCalledWith(expect.objectContaining({
+      assignmentId: "assignment-a", recommendation,
+      overallComment: "Please clarify the methodology.",
+      user: expect.objectContaining({ id: "professor-a" }),
+    }));
+    expect(body.progression.nextStageName).toBe("Defense eligibility");
+    expect(body.lifecycleStatus).toBe("APPROVED");
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it.each(["COMPLETED", "SUPERSEDED", "REVOKED"])("does not use a %s assignment", async (status) => {
+    prepareReview([{ id: "assignment-a", reviewerId: "professor-a", status }]);
+    expect((await review("APPROVED")).status).toBe(403);
+    expect(mocks.decide).not.toHaveBeenCalled();
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("does not use another reviewer's assignment even for the workflow owner", async () => {
+    prepareReview([{ id: "assignment-a", reviewerId: "adviser-a", status: "ACTIVE" }]);
+    expect((await review("REVISION_REQUIRED")).status).toBe(403);
+    expect(mocks.decide).not.toHaveBeenCalled();
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("selects the caller's active assignment among other reviewers and historical assignments", async () => {
+    prepareReview([
+      { id: "assignment-old", reviewerId: "professor-a", status: "COMPLETED" },
+      { id: "assignment-other", reviewerId: "adviser-a", status: "ACTIVE" },
+      { id: "assignment-current", reviewerId: "professor-a", status: "ACTIVE" },
+    ]);
+    expect((await review("APPROVED")).status).toBe(200);
+    expect(mocks.decide).toHaveBeenCalledWith(expect.objectContaining({ assignmentId: "assignment-current" }));
+  });
+
+  it("requires assignment selection when the caller holds multiple active reviews", async () => {
+    prepareReview([
+      { id: "assignment-a", reviewerId: "professor-a", status: "ACTIVE" },
+      { id: "assignment-b", reviewerId: "professor-a", status: "ACTIVE" },
+    ]);
+    expect((await review("APPROVED")).status).toBe(409);
+    expect(mocks.decide).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [400, "REVISION_FEEDBACK_REQUIRED"],
+    [409, "VERSION_SUPERSEDED"],
+    [409, "ASSIGNMENT_ALREADY_RESOLVED"],
+  ])("preserves formal review errors (%s, %s)", async (statusCode, code) => {
+    prepareReview();
+    mocks.decide.mockRejectedValue(Object.assign(new Error("Review cannot be submitted."), { statusCode, code }));
+    const response = await review("REVISION_REQUIRED");
+    expect(response.status).toBe(statusCode);
+    expect(await response.json()).toEqual({ error: "Review cannot be submitted.", code });
+    expect(mocks.transaction).not.toHaveBeenCalled();
+  });
+
+  it("keeps the ordinary task review path for submissions without formal assignments", async () => {
+    prepareReview([]);
+    mocks.transaction.mockImplementation(async (callback) => callback({
+      taskSubmission: { update: vi.fn().mockResolvedValue({ id: "submission-a", status: "REVISION_REQUIRED" }) },
+    }));
+    const response = await review("REVISION_REQUIRED");
+    expect(response.status).toBe(200);
+    expect(mocks.transaction).toHaveBeenCalledOnce();
+    expect(mocks.decide).not.toHaveBeenCalled();
+  });
 });
