@@ -1,6 +1,7 @@
 import {
   lockDefenseGroup,
   requireDefenseEligibility,
+  getDefenseReadiness,
 } from "../services/defense-eligibility.service.js";
 import { Router, Request, Response } from "express";
 import multer from "multer";
@@ -918,11 +919,12 @@ router.get(
       await prisma.$transaction((tx) =>
         reconcileMilestoneProgress(tx, { researchId, actorId: req.user!.id }),
       );
-      const [milestones, activity] = await Promise.all([
+      const [milestones, activity, defenseReadiness] = await Promise.all([
         getMilestoneProgress(prisma, researchId),
         getManuscriptActivity(prisma, researchId, access.canReview),
+        getDefenseReadiness(prisma, researchId),
       ]);
-      res.json({ milestones, activity });
+      res.json({ milestones, activity, defenseReadiness });
     } catch (error: any) {
       res.status(500).json({
         error: error.message || "Failed to load the manuscript workflow.",

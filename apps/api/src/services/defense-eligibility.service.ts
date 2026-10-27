@@ -136,6 +136,17 @@ export async function requireDefenseEligibility(
   return eligibility;
 }
 
+// Readiness is scoped to the next defense cycle, not completion of the workflow.
+export async function getDefenseReadiness(db: Db, researchId: string) {
+  const eligibility = await currentDefenseEligibility(db, researchId);
+  return {
+    workflowApproved: Boolean(eligibility),
+    deanApprovalSigned: eligibility
+      ? await hasSignedDefenseApproval(db, eligibility.deanApprovalDocumentId)
+      : false,
+  };
+}
+
 export async function hasSignedDefenseApproval(
   db: Db,
   documentId: string | null,

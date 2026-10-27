@@ -11,6 +11,7 @@ import {
   currentDefenseEligibility,
   requireDefenseEligibility,
   consumeDefenseEligibility,
+  getDefenseReadiness,
 } from "./defense-eligibility.service.js";
 
 const gate = (id: string, sequence: number, completed = true) => ({
@@ -63,6 +64,27 @@ describe("defense eligibility cycles", () => {
     expect(db.defenseEligibility.findMany).toHaveBeenCalledWith({
       where: { researchId: "group" },
     });
+  });
+  it("checks Title Defense readiness while Final Defense is still incomplete", async () => {
+    expect(await getDefenseReadiness(db, "group")).toEqual({
+      workflowApproved: true,
+      deanApprovalSigned: true,
+    });
+  });
+  it("checks the workflow gate while the Dean signature is still pending", async () => {
+    db.document.findFirst.mockResolvedValue(null);
+    expect(await getDefenseReadiness(db, "group")).toEqual({
+      workflowApproved: true,
+      deanApprovalSigned: false,
+    });
+  });
+  it("does not reuse the passed cycle's approval or signature for the next defense", async () => {
+    db.defenseEligibility.findMany.mockResolvedValue([grant("title", new Date())]);
+    expect(await getDefenseReadiness(db, "group")).toEqual({
+      workflowApproved: false,
+      deanApprovalSigned: false,
+    });
+    expect(db.document.findFirst).not.toHaveBeenCalled();
   });
   it("cannot reuse Title Defense approval after the group passes", async () => {
     db.defenseEligibility.findMany.mockResolvedValue([

@@ -50,6 +50,7 @@ interface WorkspaceData {
   documents: any[];
   documentPermissions: Record<string, boolean>;
   milestones: any[];
+  defenseReadiness: { workflowApproved: boolean; deanApprovalSigned: boolean };
   activity: any[];
   consultations: any[];
   defenseSessions: any[];
@@ -230,7 +231,7 @@ export default function AdviserResearchGroupWorkspacePage() {
       const projectResponse = await apiClient.get<{ project: any }>(`/api/research/${researchId}`);
       const [documentResponse, workflowResponse, consultationResponse, defenseResponse] = await Promise.all([
         apiClient.get<{ documents: any[]; permissions: Record<string, boolean> }>(`/api/research/${researchId}/documents`),
-        apiClient.get<{ milestones: any[]; activity: any[] }>(`/api/research/${researchId}/manuscript-workflow`),
+        apiClient.get<{ milestones: any[]; activity: any[]; defenseReadiness: WorkspaceData["defenseReadiness"] }>(`/api/research/${researchId}/manuscript-workflow`),
         apiClient.get<{ consultations: any[] }>("/api/consultations", { params: { researchId } }),
         apiClient.get<{ sessions: any[] }>("/api/defense-management").catch(() => ({ sessions: [] })),
       ]);
@@ -239,6 +240,7 @@ export default function AdviserResearchGroupWorkspacePage() {
         documents: documentResponse.documents || [],
         documentPermissions: documentResponse.permissions || {},
         milestones: workflowResponse.milestones || [],
+        defenseReadiness: workflowResponse.defenseReadiness,
         activity: workflowResponse.activity || [],
         consultations: consultationResponse.consultations || [],
         defenseSessions: (defenseResponse.sessions || []).filter((session: any) => session.researchId === researchId),
@@ -303,9 +305,9 @@ export default function AdviserResearchGroupWorkspacePage() {
     if (!data) return [];
     const hasAdviser = (project?.members || []).some((member: any) => member.projectRole === "ADVISER" && !member.leftAt);
     const hasFinalManuscript = (project?.taskSubmissions || []).some((submission: any) => submission.status === "APPROVED") || data.documents.some((document) => document.documentType === "RESEARCH_MANUSCRIPT" && (document.versions || []).some((version: any) => version.status === "ACTIVE"));
-    const hasSignedDeanApproval = data.documents.some((document) => document.documentType === "DEAN_DEFENSE_APPROVAL" && (document.versions || []).some((version: any) => version.status === "ACTIVE" && version.signedSignature && !version.signedSignature.revokedAt));
+    const hasSignedDeanApproval = data.defenseReadiness.deanApprovalSigned;
     return [
-      { label: "Required workflow milestones completed", done: Boolean(project?.workflowInstance?.completedAt) },
+      { label: "Required workflow milestones completed", done: data.defenseReadiness.workflowApproved },
       { label: "Faculty adviser assigned", done: hasAdviser },
       { label: "Final manuscript or required submission approved", done: hasFinalManuscript },
       { label: "Dean-signed defense approval received", done: hasSignedDeanApproval },

@@ -240,11 +240,14 @@ export function useDefense() {
         };
       }
 
-      const [management, documentData] = await Promise.all([
+      const [management, documentData, workflowData] = await Promise.all([
         apiClient.get<{ sessions: any[] }>("/api/defense-management"),
         apiClient.get<{ documents: any[] }>(
           `/api/research/${project.id}/documents`,
         ),
+        apiClient.get<{
+          defenseReadiness: { workflowApproved: boolean; deanApprovalSigned: boolean };
+        }>(`/api/research/${project.id}/manuscript-workflow`),
       ]);
       const sessions = (management.sessions || []).filter(
         (session: any) => session.researchId === project.id,
@@ -253,16 +256,7 @@ export function useDefense() {
       const hasAdviser = (project.members || []).some(
         (member: any) => member.projectRole === "ADVISER" && !member.leftAt,
       );
-      const hasSignedDeanApproval = documents.some(
-        (document: any) =>
-          document.documentType === "DEAN_DEFENSE_APPROVAL" &&
-          (document.versions || []).some(
-            (version: any) =>
-              version.status === "ACTIVE" &&
-              version.signedSignature &&
-              !version.signedSignature.revokedAt,
-          ),
-      );
+      const hasSignedDeanApproval = workflowData.defenseReadiness.deanApprovalSigned;
       const approvedSubmissions = (project.taskSubmissions || []).filter(
         (submission: any) => submission.status === "APPROVED",
       );
@@ -279,7 +273,7 @@ export function useDefense() {
         {
           id: "workflow",
           label: "Required workflow milestones completed",
-          status: project.workflowInstance?.completedAt
+          status: workflowData.defenseReadiness.workflowApproved
             ? "done"
             : "in_progress",
         },
