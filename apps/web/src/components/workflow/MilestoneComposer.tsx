@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { SubmissionFileTypes } from "./SubmissionFileTypes";
 
 type MilestoneComposerProps = {
   mode: "create" | "edit";
@@ -11,6 +12,8 @@ type MilestoneComposerProps = {
   legacyDeadlineDays?: number | null;
   submissionMode: string;
   requiresDocument: boolean;
+  allowedFileTypes?: string;
+  onAllowedFileTypesChange?: (value: string) => void;
   requiresApproval: boolean;
   category: string;
   milestoneType?: "STANDARD" | "ADVISER_SELECTION" | "DEFENSE_ELIGIBILITY" | "TITLE_PROPOSAL";
@@ -22,6 +25,7 @@ type MilestoneComposerProps = {
   saving: boolean;
   advancedOpen: boolean;
   requirementsContent?: React.ReactNode;
+  requirementsSignature?: string;
   attachmentsContent?: React.ReactNode;
   onTitleChange: (value: string) => void;
   onTopicIdChange: (value: string) => void;
@@ -52,6 +56,8 @@ export function MilestoneComposer({
   legacyDeadlineDays,
   submissionMode,
   requiresDocument,
+  allowedFileTypes = "PDF,DOCX",
+  onAllowedFileTypesChange,
   requiresApproval,
   category,
   milestoneType = "STANDARD",
@@ -63,6 +69,7 @@ export function MilestoneComposer({
   saving,
   advancedOpen,
   requirementsContent,
+  requirementsSignature,
   attachmentsContent,
   onTitleChange,
   onTopicIdChange,
@@ -89,6 +96,8 @@ export function MilestoneComposer({
     legacyDeadlineDays,
     submissionMode,
     requiresDocument,
+    allowedFileTypes,
+    requirementsSignature,
     requiresApproval,
     category,
     milestoneType,
@@ -260,7 +269,9 @@ export function MilestoneComposer({
                     </span>
                   </div>
                 ) : requiresDocument ? (
-                  requirementsContent || (
+                  <>
+                  {onAllowedFileTypesChange && <SubmissionFileTypes value={allowedFileTypes} onChange={onAllowedFileTypesChange} />}
+                  {requirementsContent || (
                     <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-sm text-blue-900">
                       <div className="flex gap-3">
                         <i className="ti ti-file-upload mt-0.5 text-lg text-blue-700" />
@@ -269,14 +280,15 @@ export function MilestoneComposer({
                             One document submission will be created
                           </strong>
                           <span className="mt-1 block text-xs leading-5 text-blue-800">
-                            It will use the milestone title and accept PDF or
-                            DOCX files. You can add or refine requirements after
+                            It will use the milestone title and your selected
+                            file types. You can add or refine requirements after
                             creating the milestone.
                           </span>
                         </div>
                       </div>
                     </div>
-                  )
+                  )}
+                  </>
                 ) : (
                   <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
                     Researchers will see the instructions but will not be asked

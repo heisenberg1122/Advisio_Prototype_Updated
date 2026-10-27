@@ -31,6 +31,7 @@ import {
   MilestoneAttachmentsCard,
   type PendingMilestoneAttachment,
 } from "@/components/workflow/MilestoneAttachmentsCard";
+import { SubmissionFileTypes } from "@/components/workflow/SubmissionFileTypes";
 import { MilestoneComposer } from "@/components/workflow/MilestoneComposer";
 import { WorkflowParticipantsCard } from "@/components/workflow/WorkflowParticipantsCard";
 import {
@@ -445,6 +446,7 @@ function ProfessorDashboardContent() {
   const [newRequirementInstructions, setNewRequirementInstructions] =
     useState("");
   const [newRequirementDueDays, setNewRequirementDueDays] = useState("");
+  const [newMilestoneFileTypes, setNewMilestoneFileTypes] = useState("PDF,DOCX");
   const [newRequirementFileTypes, setNewRequirementFileTypes] =
     useState("PDF,DOCX");
   const [selectedProject, setSelectedProject] = useState<any | null>(null);
@@ -668,6 +670,7 @@ function ProfessorDashboardContent() {
     );
     setTargetCompletionDate("");
     setNewMilestoneSubmissionMode("GROUP");
+    setNewMilestoneFileTypes("PDF,DOCX");
     setNewMilestoneRequiresDocument(kind === "submission");
     setNewMilestoneRequiresApproval(titleProposal || kind === "approval" || adviserMilestone);
     setNewMilestoneScope(
@@ -702,6 +705,7 @@ function ProfessorDashboardContent() {
           targetCompletionDate: targetCompletionDate || null,
           requiresApproval: newMilestoneRequiresApproval,
           requiresDocument: newMilestoneRequiresDocument,
+          allowedFileTypes: newMilestoneFileTypes,
           submissionMode: newMilestoneSubmissionMode,
           milestoneType: newMilestoneType,
           titleProposalCount: newTitleProposalCount,
@@ -1084,6 +1088,7 @@ function ProfessorDashboardContent() {
             targetCompletionDate: milestoneEditDeadline || null,
           }),
           requiresDocument: milestoneEditRequiresDocument,
+          taskFileTypes: Object.fromEntries((editingMilestone.tasks || []).map((task: any) => [task.id, task.allowedFileTypes || "PDF,DOCX"])),
           requiresApproval: milestoneEditRequiresApproval,
           submissionMode: milestoneEditSubmissionMode,
           requiredMilestoneId: milestoneEditRequired || null,
@@ -2191,6 +2196,7 @@ function ProfessorDashboardContent() {
       {editingMilestone && (
         <MilestoneComposer
           mode="edit"
+          requirementsSignature={JSON.stringify((editingMilestone.tasks || []).map((task: any) => [task.id, task.allowedFileTypes]))}
           workflowName={selectedWorkflow?.name || "Research workflow"}
           topics={selectedWorkflowTopics}
           topicId={milestoneEditTopicId}
@@ -2272,7 +2278,7 @@ function ProfessorDashboardContent() {
           }}
           onDelete={() => setMilestonePendingDelete(editingMilestone)}
           requirementsContent={
-            milestoneEditType === "STANDARD" ? (
+            ["STANDARD", "DEFENSE_ELIGIBILITY"].includes(milestoneEditType) ? (
               <div className="mt-4 space-y-3">
                 {(editingMilestone.tasks || []).map((requirement: any) => (
                   <div
@@ -2295,6 +2301,10 @@ function ProfessorDashboardContent() {
                           },
                         })}
                       </p>
+                      <SubmissionFileTypes value={requirement.allowedFileTypes || "PDF,DOCX"} onChange={(value) => {
+                        setEditingMilestone((current: any) => ({ ...current, tasks: current.tasks.map((task: any) => task.id === requirement.id ? { ...task, allowedFileTypes: value } : task) }));
+                        setMilestoneSaveStatus("idle");
+                      }} />
                     </div>
                     <button
                       type="button"
@@ -2311,7 +2321,6 @@ function ProfessorDashboardContent() {
                     Add another requirement
                   </p>
                   <input
-                    required
                     value={newRequirementTitle}
                     onChange={(event) =>
                       setNewRequirementTitle(event.target.value)
@@ -2345,14 +2354,7 @@ function ProfessorDashboardContent() {
                       }
                       className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                     />
-                    <input
-                      value={newRequirementFileTypes}
-                      onChange={(event) =>
-                        setNewRequirementFileTypes(event.target.value)
-                      }
-                      placeholder="PDF,DOCX"
-                      className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
-                    />
+                    <SubmissionFileTypes value={newRequirementFileTypes} onChange={setNewRequirementFileTypes} />
                   </div>
                   <button
                     type="button"
@@ -2600,14 +2602,7 @@ function ProfessorDashboardContent() {
                           }
                           className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                         />
-                        <input
-                          value={newRequirementFileTypes}
-                          onChange={(e) =>
-                            setNewRequirementFileTypes(e.target.value)
-                          }
-                          placeholder="PDF,DOCX"
-                          className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
-                        />
+                        <SubmissionFileTypes value={newRequirementFileTypes} onChange={setNewRequirementFileTypes} />
                       </div>
                       <button
                         disabled={saving}
@@ -3021,6 +3016,8 @@ function ProfessorDashboardContent() {
           targetCompletionDate={targetCompletionDate}
           submissionMode={newMilestoneSubmissionMode}
           requiresDocument={newMilestoneRequiresDocument}
+          allowedFileTypes={newMilestoneFileTypes}
+          onAllowedFileTypesChange={setNewMilestoneFileTypes}
           requiresApproval={newMilestoneRequiresApproval}
           category={newMilestoneScope}
           titleProposalCount={newTitleProposalCount}

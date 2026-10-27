@@ -1,4 +1,5 @@
-export type SubmissionFileType = "PDF" | "DOC" | "DOCX" | "TXT";
+export const SUPPORTED_UPLOAD_TYPES = ["PDF", "DOC", "DOCX", "TXT", "CSV", "XLS", "XLSX", "PPT", "PPTX", "PNG", "JPG", "JPEG", "WEBP"] as const;
+export type SubmissionFileType = typeof SUPPORTED_UPLOAD_TYPES[number];
 
 export type SubmissionUnavailableReason = {
   code: string;
@@ -108,7 +109,7 @@ export function allowedUploadExtensions(types: SubmissionFileType[]) {
 }
 
 export function directUploadFileTypes(types: SubmissionFileType[]) {
-  return types.filter((type) => ["PDF", "DOC", "DOCX"].includes(type));
+  return types.filter((type) => SUPPORTED_UPLOAD_TYPES.includes(type));
 }
 
 export function uploadFileCompatibility(

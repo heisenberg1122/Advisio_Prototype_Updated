@@ -42,6 +42,8 @@ import {
 import {
   getTaskSubmissionOptions,
   SubmissionIntegrityError,
+  normalizeTaskFileTypes,
+  isSupportedTaskUpload,
 } from "../services/submission.service.js";
 
 import { hasActiveWorkflowEnrollment } from "../services/workflow-enrollment-access.service.js";
@@ -68,6 +70,17 @@ const resourceUpload = multer({
     ]);
     if (!allowed.has(file.mimetype)) {
       callback(new Error("Only PDF, DOC, and DOCX files are allowed."));
+      return;
+    }
+    callback(null, true);
+  },
+});
+const taskSubmissionUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    if (!isSupportedTaskUpload(file.originalname, file.mimetype)) {
+      callback(new Error("Choose a supported document, spreadsheet, presentation, or image file."));
       return;
     }
     callback(null, true);
@@ -2098,6 +2111,7 @@ router.post(
         requiredMilestoneId,
         position,
       } = req.body;
+      const allowedFileTypes = normalizeTaskFileTypes(req.body.allowedFileTypes ?? "PDF,DOCX");
       if (!Number.isInteger(titleProposalCount) || titleProposalCount < 1 || titleProposalCount > 10)
         return void res.status(400).json({ error: "Choose between 1 and 10 title fields." });
       const requiredCondition = parseRequiredMilestoneId(requiredMilestoneId);
@@ -2273,7 +2287,7 @@ router.post(
                 instructions: `Submit the required deliverable for ${name.trim()}.`,
                 sequence: 1,
                 dueDays: deadline,
-                allowedFileTypes: "PDF,DOCX",
+                allowedFileTypes,
                 isRequired: true,
               },
             });
@@ -2624,6 +2638,10 @@ router.patch(
         titleProposalCount,
         requiredMilestoneId,
       } = req.body;
+      const taskFileTypes = req.body.taskFileTypes;
+      if (taskFileTypes !== undefined && (!taskFileTypes || typeof taskFileTypes !== "object" || Array.isArray(taskFileTypes)))
+        return void res.status(400).json({ error: "Invalid requirement file types." });
+      const fileTypeUpdates = Object.entries(taskFileTypes || {}).map(([id, value]) => ({ id, allowedFileTypes: normalizeTaskFileTypes(value) }));
       const requiredCondition =
         requiredMilestoneId === undefined
           ? undefined
@@ -2750,6 +2768,16 @@ router.patch(
             ),
             { statusCode: 400 },
           );
+        }
+        if (fileTypeUpdates.length) {
+          const tasks = await tx.workflowTask.findMany({
+            where: { stageId, id: { in: fileTypeUpdates.map(({ id }) => id) } },
+            select: { id: true },
+          });
+          if (tasks.length !== fileTypeUpdates.length)
+            throw Object.assign(new Error("A submission requirement does not belong to this milestone."), { statusCode: 400 });
+          for (const update of fileTypeUpdates)
+            await tx.workflowTask.update({ where: { id: update.id }, data: { allowedFileTypes: update.allowedFileTypes } });
         }
         await tx.workflowStage.update({
           where: { id: stageId },
@@ -2937,9 +2965,7 @@ router.post(
           instructions: instructions?.trim() || null,
           sequence: (lastTask?.sequence || 0) + 1,
           dueDays: stage.targetCompletionDate ? null : deadline,
-          allowedFileTypes: String(
-            allowedFileTypes || "PDF,DOCX",
-          ).toUpperCase(),
+          allowedFileTypes: normalizeTaskFileTypes(allowedFileTypes),
           isRequired: Boolean(isRequired),
         },
       });
@@ -2954,7 +2980,7 @@ router.post(
       res.status(201).json({ task });
     } catch (error: any) {
       res
-        .status(500)
+        .status(error.statusCode || 500)
         .json({ error: error.message || "Failed to create workflow task" });
     }
   },
@@ -3142,13 +3168,13 @@ router.get(
 router.post(
   "/tasks/:taskId/submissions/upload",
   requireAuth,
-  resourceUpload.single("file"),
+  taskSubmissionUpload.single("file"),
   async (req: Request, res: Response) => {
     try {
       if (!req.file)
         return void res
           .status(400)
-          .json({ error: "Choose a PDF, DOC, or DOCX file." });
+          .json({ error: "Choose a file to submit." });
       const researchId = String(req.body.researchId || "");
       const clientKey = String(req.body.idempotencyKey || "")
         .trim()

@@ -35,6 +35,7 @@ import {
   allowedUploadExtensions,
   buildDocumentSubmissionRequest,
   directUploadFileTypes,
+  SUPPORTED_UPLOAD_TYPES,
   resolveStableSubmissionKey,
   submissionOptionKey,
   submissionOptionSummary,
@@ -319,7 +320,9 @@ export default function ResearchTasksPage() {
       .split(",")
       .map((type: string) => type.trim().toLowerCase());
     const extension = file.name.split(".").pop()?.toLowerCase() || "";
-    if (!allowed.includes(extension))
+    if (allowed.includes("all")
+      ? !SUPPORTED_UPLOAD_TYPES.some((type) => type.toLowerCase() === extension)
+      : !allowed.includes(extension))
       throw new Error(
         `Choose one of the allowed formats: ${selectedTask.allowedFileTypes}.`,
       );
@@ -887,7 +890,7 @@ export default function ResearchTasksPage() {
                           </span>
                           {!task.milestoneOnly && (
                             <span className="rounded-lg bg-[var(--color-surface-muted)] px-2.5 py-1">
-                              {task.allowedFileTypes}
+                              {task.allowedFileTypes === "ALL" ? "All supported files" : task.allowedFileTypes}
                             </span>
                           )}
                           <span className="rounded-lg bg-[var(--color-primary-light)] px-2.5 py-1 text-[var(--color-primary)]">

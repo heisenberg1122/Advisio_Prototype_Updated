@@ -10,6 +10,8 @@ import {
   authorizeTaskSubmission,
   liveGoogleDocumentEligibility,
   parseAllowedFileTypes,
+  normalizeTaskFileTypes,
+  isSupportedTaskUpload,
   storedVersionEligibility,
   storedVersionSubmissionKey,
   taskSubmissionAvailability,
@@ -17,6 +19,30 @@ import {
 } from "./submission.service.js";
 
 describe("submission integrity policy", () => {
+  it("normalizes selections and expands All files to supported research formats", () => {
+    expect(normalizeTaskFileTypes("pdf, DOCX,pdf")).toBe("PDF,DOCX");
+    expect(normalizeTaskFileTypes("all")).toBe("ALL");
+    expect(parseAllowedFileTypes("ALL").has("PPTX")).toBe(true);
+    expect(parseAllowedFileTypes("ALL").has("PNG")).toBe(true);
+    expect(() => normalizeTaskFileTypes("PDF,EXE")).toThrow();
+    expect(() => normalizeTaskFileTypes("")).toThrow();
+    expect(() => normalizeTaskFileTypes(" , ")).toThrow();
+  });
+
+  it("accepts a presentation under All files but rejects it for PDF-only requirements", () => {
+    const file = { fileName: "defense.pptx", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", buffer: Buffer.from([0x50,0x4b,0x03,0x04]) };
+    expect(validateSubmissionArtifact({ ...file, allowedFileTypes: "ALL" })).toBe("PPTX");
+    expect(() => validateSubmissionArtifact({ ...file, allowedFileTypes: "PDF" })).toThrow();
+    expect(isSupportedTaskUpload(file.fileName, file.mimeType)).toBe(true);
+  });
+
+  it("keeps unsupported files and invalid content blocked under All files", () => {
+    expect(isSupportedTaskUpload("program.exe", "application/octet-stream")).toBe(false);
+    expect(() => validateSubmissionArtifact({ allowedFileTypes: "ALL", fileName: "program.exe", mimeType: "application/octet-stream" })).toThrow();
+    expect(() => validateSubmissionArtifact({ allowedFileTypes: "ALL", fileName: "fake.png", mimeType: "image/png", buffer: Buffer.from("not an image") })).toThrow();
+    expect(() => validateSubmissionArtifact({ allowedFileTypes: "ALL", fileName: "fake.pdf", mimeType: "application/pdf", buffer: Buffer.from("not a pdf") })).toThrow();
+  });
+
   it("rechecks enrollment inside the submission transaction", async () => {
     const tx = { workflowEnrollment: { findFirst: vi.fn().mockResolvedValue(null) } } as any;
     await expect(assertTaskWorkflowEnrollment(tx, "student", "workflow")).rejects.toMatchObject({ statusCode: 403, code: "WORKFLOW_ENROLLMENT_REQUIRED" });

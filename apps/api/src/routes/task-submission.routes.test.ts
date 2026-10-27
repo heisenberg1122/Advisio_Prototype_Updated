@@ -116,6 +116,26 @@ describe("task submission JSON responses", () => {
     },
   );
 
+  it.each([
+    ["slides.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+    ["data.csv", "text/csv"],
+    ["notes.txt", "text/plain"],
+    ["figure.png", "image/png"],
+  ])("passes supported %s uploads to task-scoped validation", async (fileName, mimeType) => {
+    mocks.uploadTaskSubmission.mockResolvedValue(savedSubmission(false));
+    const body = new FormData();
+    body.append("file", new Blob(["test file"], { type: mimeType }), fileName);
+    body.append("researchId", "research-a");
+    body.append("idempotencyKey", "request-a");
+    const response = await fetch(`${baseUrl}/upload`, {
+      method: "POST", headers: { authorization: `Bearer ${token}` }, body,
+    });
+    expect(response.status).toBe(201);
+    expect(mocks.uploadTaskSubmission).toHaveBeenCalledWith(expect.objectContaining({
+      file: expect.objectContaining({ originalname: fileName, mimetype: mimeType }),
+    }));
+  });
+
   it.each([false, true])(
     "returns the saved document submission successfully (duplicate: %s)",
     async (duplicate) => {

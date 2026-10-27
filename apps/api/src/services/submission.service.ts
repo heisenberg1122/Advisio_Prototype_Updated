@@ -38,7 +38,7 @@ export function storedVersionSubmissionKey(options: {
     .digest("hex");
 }
 
-export type SubmissionFileType = "PDF" | "DOC" | "DOCX" | "TXT";
+export type SubmissionFileType = "PDF" | "DOC" | "DOCX" | "TXT" | "CSV" | "XLS" | "XLSX" | "PPT" | "PPTX" | "PNG" | "JPG" | "JPEG" | "WEBP";
 
 export type SubmissionEligibilityReason = {
   code: string;
@@ -106,7 +106,21 @@ const MIME_BY_TYPE: Record<SubmissionFileType, ReadonlySet<string>> = {
     "application/octet-stream",
   ]),
   TXT: new Set(["text/plain"]),
+  CSV: new Set(["text/csv", "application/csv", "text/plain", "application/vnd.ms-excel"]),
+  XLS: new Set(["application/vnd.ms-excel", "application/octet-stream"]),
+  XLSX: new Set(["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/octet-stream"]),
+  PPT: new Set(["application/vnd.ms-powerpoint", "application/octet-stream"]),
+  PPTX: new Set(["application/vnd.openxmlformats-officedocument.presentationml.presentation", "application/octet-stream"]),
+  PNG: new Set(["image/png"]),
+  JPG: new Set(["image/jpeg"]),
+  JPEG: new Set(["image/jpeg"]),
+  WEBP: new Set(["image/webp"]),
 };
+
+export function isSupportedTaskUpload(fileName: string, mimeType: string) {
+  const type = extensionType(fileName);
+  return Boolean(type && MIME_BY_TYPE[type].has(mimeType.toLowerCase().split(";")[0].trim()));
+}
 
 const MIME_ALIASES = new Map<string, SubmissionFileType>([
   ["application/pdf", "PDF"],
@@ -119,6 +133,8 @@ const MIME_ALIASES = new Map<string, SubmissionFileType>([
 ]);
 
 export function parseAllowedFileTypes(value?: string | null) {
+  if (String(value).trim().toUpperCase() === "ALL")
+    return new Set(Object.keys(MIME_BY_TYPE) as SubmissionFileType[]);
   return new Set(
     String(value || "PDF,DOCX")
       .split(/[\s,|;]+/)
@@ -126,6 +142,16 @@ export function parseAllowedFileTypes(value?: string | null) {
       .map((entry) => MIME_ALIASES.get(entry.toLowerCase()) || entry)
       .filter((entry): entry is SubmissionFileType => entry in MIME_BY_TYPE),
   );
+}
+
+export function normalizeTaskFileTypes(value: unknown): string {
+  if (typeof value !== "string" || !value.trim())
+    throw new SubmissionIntegrityError("Choose at least one accepted file type.", 400);
+  if (value.trim().toUpperCase() === "ALL") return "ALL";
+  const entries = value.split(/[\s,|;]+/).filter(Boolean);
+  if (!entries.length || entries.some((entry) => parseAllowedFileTypes(entry).size !== 1))
+    throw new SubmissionIntegrityError("Choose a supported file type or All files.", 400);
+  return Array.from(parseAllowedFileTypes(value)).join(",");
 }
 
 export function taskSubmissionAvailability(
@@ -313,11 +339,11 @@ function extensionType(fileName: string): SubmissionFileType | null {
 
 function hasValidSignature(type: SubmissionFileType, buffer: Buffer) {
   if (type === "PDF") return buffer.subarray(0, 5).toString() === "%PDF-";
-  if (type === "DOC")
+  if (["DOC", "XLS", "PPT"].includes(type))
     return buffer
       .subarray(0, 8)
       .equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]));
-  if (type === "DOCX")
+  if (["DOCX", "XLSX", "PPTX"].includes(type))
     return (
       buffer.length >= 4 &&
       buffer[0] === 0x50 &&
@@ -325,7 +351,10 @@ function hasValidSignature(type: SubmissionFileType, buffer: Buffer) {
       [0x03, 0x05, 0x07].includes(buffer[2]) &&
       [0x04, 0x06, 0x08].includes(buffer[3])
     );
-  return true;
+  if (type === "PNG") return buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  if (type === "JPG" || type === "JPEG") return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  if (type === "WEBP") return buffer.subarray(0, 4).toString() === "RIFF" && buffer.subarray(8, 12).toString() === "WEBP";
+  return !buffer.includes(0);
 }
 
 export function validateSubmissionArtifact(options: {
@@ -362,7 +391,7 @@ export function validateSubmissionArtifact(options: {
   if (
     fromMime &&
     normalizedMime !== "application/octet-stream" &&
-    fromMime !== fromExtension
+    !["CSV", "JPG", "JPEG"].includes(fromExtension) && fromMime !== fromExtension
   ) {
     throw new SubmissionIntegrityError(
       "The uploaded file extension and content type do not match.",

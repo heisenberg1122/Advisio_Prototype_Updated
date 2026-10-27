@@ -29,6 +29,7 @@ const db = vi.hoisted(() => ({
   workflowResource: { findMany: vi.fn() },
   workflowTopic: { findMany: vi.fn(), update: vi.fn() },
   workflowStage: {
+    findUniqueOrThrow: vi.fn(),
     findUnique: vi.fn(),
     findFirst: vi.fn(),
     findMany: vi.fn(),
@@ -36,6 +37,7 @@ const db = vi.hoisted(() => ({
     updateMany: vi.fn(),
   },
   workflowStageAttachment: { findMany: vi.fn() },
+  workflowTask: { findMany: vi.fn(), update: vi.fn() },
   notification: { create: vi.fn(), createMany: vi.fn() },
   auditLog: { create: vi.fn() },
   $transaction: vi.fn(),
@@ -575,5 +577,45 @@ describe("removed workflow participant API access", () => {
         }),
       }),
     );
+  });
+});
+
+
+describe("milestone file type settings", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    db.workflow.findUnique.mockResolvedValue({ id: "workflow", status: "DRAFT", researchTypeId: "type" });
+    db.researchType.findUnique.mockResolvedValue({ program: { id: "program", collegeId: "college" } });
+    db.workflowStage.findUnique.mockResolvedValue({ id: "stage", workflowId: "workflow", milestoneType: "STANDARD", requiresDocument: true, deadlineDays: null });
+    db.workflowStage.findUniqueOrThrow.mockResolvedValue({ id: "stage", name: "Manuscript" });
+    db.workflowStage.findMany.mockResolvedValue([]);
+    db.workflowTask.findMany.mockResolvedValue([{ id: "task" }]);
+    db.$transaction.mockImplementation((callback) => callback(db));
+  });
+
+  it.each(["PDF", "ALL"])("persists %s on the milestone's requirement", async (allowedFileTypes) => {
+    const result = await request("/stages/:stageId", "patch", { user: professor, body: { taskFileTypes: { task: allowedFileTypes } } });
+    expect(result.statusCode).toBe(200);
+    expect(db.workflowTask.update).toHaveBeenCalledWith({ where: { id: "task" }, data: { allowedFileTypes } });
+  });
+
+  it("rejects another milestone's requirement before updating", async () => {
+    db.workflowTask.findMany.mockResolvedValue([]);
+    const result = await request("/stages/:stageId", "patch", { user: professor, body: { taskFileTypes: { foreign: "ALL" } } });
+    expect(result.statusCode).toBe(400);
+    expect(db.workflowTask.update).not.toHaveBeenCalled();
+    expect(db.workflowStage.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid formats", async () => {
+    const result = await request("/stages/:stageId", "patch", { user: professor, body: { taskFileTypes: { task: "EXE" } } });
+    expect(result.statusCode).toBe(400);
+    expect(db.workflowTask.update).not.toHaveBeenCalled();
+  });
+
+  it("preserves workflow management permissions", async () => {
+    const result = await request("/stages/:stageId", "patch", { user: { ...professor, collegeId: "other" }, body: { taskFileTypes: { task: "ALL" } } });
+    expect(result.statusCode).toBe(404);
+    expect(db.workflowTask.update).not.toHaveBeenCalled();
   });
 });

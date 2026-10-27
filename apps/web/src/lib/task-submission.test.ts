@@ -121,6 +121,7 @@ describe("task upload confirmation", () => {
     expect(directUploadFileTypes(["PDF", "DOCX", "TXT"])).toEqual([
       "PDF",
       "DOCX",
+      "TXT",
     ]);
     expect(allowedUploadExtensions(["PDF", "DOCX"])).toEqual([".pdf", ".docx"]);
     expect(
@@ -129,6 +130,13 @@ describe("task upload confirmation", () => {
     expect(
       uploadFileCompatibility("manuscript.doc", ["PDF", "DOCX"]),
     ).toMatchObject({ compatible: false, extension: "DOC" });
+  });
+
+  it("supports research formats allowed by All files without inventing an all extension", () => {
+    expect(directUploadFileTypes(["PPTX", "PNG", "CSV"])).toEqual(["PPTX", "PNG", "CSV"]);
+    expect(allowedUploadExtensions(["PPTX", "PNG"])).toEqual([".pptx", ".png"]);
+    expect(uploadFileCompatibility("defense.pptx", ["PPTX"])).toMatchObject({ compatible: true });
+    expect(uploadFileCompatibility("defense.pptx", ["PDF"])).toMatchObject({ compatible: false });
   });
 
   it("builds the exact upload confirmation details", () => {
