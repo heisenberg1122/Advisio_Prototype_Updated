@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { FooterSpotlightWordmark } from "./FooterSpotlightWordmark";
 export function LandingFooter() {
   return (
     <footer className="lp-footer">
@@ -27,9 +28,7 @@ export function LandingFooter() {
             <a href="#hero">Back to top ↑</a>
           </div>
         </div>
-        <div className="lp-footer-wordmark" aria-hidden="true">
-          advisio.
-        </div>
+        <FooterSpotlightWordmark />
       </div>
     </footer>
   );
