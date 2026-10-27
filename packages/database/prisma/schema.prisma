@@ -813,6 +813,7 @@ model ResearchProject {
   workflowDraft       Boolean                   @default(false) @map("workflow_draft")
   registeredAt        DateTime?                 @map("registered_at")
   title               String                    @db.Text
+  isTitleProvisional  Boolean                   @default(false) @map("is_title_provisional")
   groupName           String?                   @map("group_name") @db.VarChar(120)
   inviteCode          String?                   @unique @map("invite_code") @db.VarChar(32)
   participationMode   ResearchParticipationMode @default(SOLO) @map("participation_mode")

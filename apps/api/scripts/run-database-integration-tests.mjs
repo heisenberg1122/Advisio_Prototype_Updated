@@ -126,6 +126,7 @@ const tests = spawnSync(
     vitestEntry,
     "run",
     "src/routes/cohort.routes.integration.test.ts",
+    "src/services/research-case-provisioning.integration.test.ts",
     "src/services/manuscript-lifecycle.integration.test.ts",
     "src/services/reviewer-assignment.integration.test.ts",
     "src/services/adviser-milestone.integration.test.ts",
