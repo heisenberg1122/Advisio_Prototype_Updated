@@ -1,11 +1,15 @@
 import { Router, Request, Response } from "express";
 import { randomBytes } from "node:crypto";
+import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { getCollegeScope } from "../lib/college-scope.js";
 import { inviteTeamMember, queueTeamJoined } from "../services/team-email.service.js";
+import { createCohortWorkspace, requireCohortTeamMembership } from "../services/cohort-workspace.service.js";
+import workspaceResearchRoutes from "./workspace-research.routes.js";
 
 const router = Router();
+router.use(workspaceResearchRoutes);
 const makeInviteCode = () => randomBytes(6).toString("hex").toUpperCase();
 
 router.post("/:id/invitations", requireAuth, async (req, res) => {
@@ -108,6 +112,14 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
       mode === "GROUP" && req.body.accessMode === "PUBLIC_OPEN"
         ? "PUBLIC_OPEN"
         : "INVITE_ONLY";
+    if (req.body.cohortId !== undefined) {
+      const cohortId = z.string().uuid().safeParse(req.body.cohortId);
+      if (!cohortId.success) return void res.status(400).json({ error: "Invalid research cohort ID." });
+      const workspace = await createCohortWorkspace({
+        actorId: req.user!.id, cohortId: cohortId.data, name, participationMode: mode, accessMode,
+      });
+      return void res.status(201).json({ workspace });
+    }
     const workspace = await prisma.researchWorkspace.create({
       data: {
         name,
@@ -125,7 +137,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     res.status(201).json({ workspace });
   } catch (error: any) {
     res
-      .status(500)
+      .status(error.statusCode || (error.code === "P2034" ? 409 : 500))
       .json({ error: error.message || "Failed to create workspace" });
   }
 });
@@ -212,9 +224,15 @@ router.post("/join/:code", requireAuth, async (req: Request, res: Response) => {
       return;
     }
     const member = await prisma.$transaction(async (tx) => {
+      if (workspace.cohortId) {
+        const cohort = await requireCohortTeamMembership(tx, workspace.cohortId, req.user!.id);
+        if (cohort.collegeId !== workspace.collegeId || cohort.programId !== workspace.programId)
+          throw Object.assign(new Error("The workspace and cohort must share the same academic scope."), { statusCode: 409 });
+      }
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${workspace.id}))`;
       const current = await tx.researchWorkspace.findUnique({ where: { id: workspace.id } });
       if (!current?.inviteCodeEnabled || current.inviteCode !== String(req.params.code).toUpperCase()) throw Object.assign(new Error("This workspace invitation is no longer active."), { statusCode: 409 });
+      if (current.cohortId !== workspace.cohortId) throw Object.assign(new Error("The workspace cohort changed. Reload the invitation before joining."), { statusCode: 409 });
       const projects = await tx.researchProject.count({ where: { workspaceId: workspace.id, status: { not: "ARCHIVED" } } });
       if (projects) throw Object.assign(new Error("This workspace has a registered project. Ask its leader for the current project invitation code."), { statusCode: 409 });
       const existing = await tx.workspaceMember.findUnique({ where: { workspaceId_userId: { workspaceId: workspace.id, userId: req.user!.id } } });

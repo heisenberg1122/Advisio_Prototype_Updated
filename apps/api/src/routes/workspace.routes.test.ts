@@ -6,7 +6,7 @@ const db = vi.hoisted(() => ({
   $executeRaw: vi.fn(),
   $transaction: vi.fn(),
 }));
-vi.mock("../lib/prisma.js", () => ({ prisma: db }));
+vi.mock("../lib/prisma.js", async (original) => ({ ...(await original<any>()), prisma: db }));
 import router from "./workspace.routes.js";
 
 const workspaceId = "11111111-1111-4111-8111-111111111111";
