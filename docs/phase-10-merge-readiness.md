@@ -391,7 +391,7 @@ API/schema and review their results before authorizing merge.
 Do not merge into main automatically, delete the feature branch, or execute a
 real-data backfill. The user reviews this report and pending manual gates first.
 
-## Final verification record
+## Original Phase 10 verification record (before the UAT repair)
 
 | Item | Verified result |
 | --- | --- |
@@ -473,9 +473,30 @@ unchanged. No real-data backfill was executed.
 
 ### Validation for this repair
 
+Before push, fetch found two newer upstream checkpoints. They were inspected and
+preserved without rewriting history:
+
+| Reconciliation item | Evidence |
+| --- | --- |
+| UAT fix checkpoint | `e4b9e362b5ec9955bc33ea85f306a3690309e0cc`, `fix: align research team invitation and join flow` |
+| New remote feature tip | `89ea5ab80e5a6461d68f1195cd57d7da2733a814`, existing landing merge; net four landing paths |
+| Preserve remote feature merge | `9b02a3fc29e54411a5a2d7de19010580c4f5c011` |
+| New main commit merged | `e9fc80594417c316e2e1e1358d85ac1d86c0fcc4`, `feat(web): refine public login experience`; two login paths |
+| Latest-main merge | `99a25de0b4391c89a26f0ad1b7ea2df90fafb48b` |
+
+Both merges used `--no-ff` and completed without conflicts. Incoming landing/login
+blobs were retained; the login update changes presentation rather than its session
+or sign-in handlers. The invitation patch was not broadened into a redesign.
+The earlier f6276e4 main revision and 991de8e final report commit above describe the
+original audit checkpoint; e9fc805 is the newer main reconciled for this repair.
+All six required validations were repeated on the combined tree and passed before
+pushing. The working tree/remote result and final report-only commit SHA are
+reported at delivery; this report's own commit cannot contain its own SHA.
+
 | Check | Result |
 | --- | --- |
 | Focused frontend | PASS — 18 tests across three files |
+| Post-reconciliation focused frontend plus source audit | PASS — 19 tests across four files |
 | Focused backend | PASS — 3 team-email service tests |
 | Full type-check | PASS — 9 tasks |
 | Full build | PASS — 6 tasks; existing bundle-size advisory remains |
@@ -488,6 +509,12 @@ unchanged. No real-data backfill was executed.
 The first focused frontend attempt could not read Vitest-generated files in the
 restricted temporary directory. The unchanged focused rerun passed with normal
 temporary-file access, and the full suite passed without relaxing tests or rules.
+During the post-reconciliation parallel repeat, the existing whole-source AST
+boundary test exceeded its unchanged five-second timeout under concurrent build,
+type-check and integration load. After those jobs finished, that audit and all
+focused UI tests passed unchanged (19/19); the complete unit suite then passed
+without that contention (1,017 executions). No timeout, assertion, test count or
+access control was weakened.
 The integration unit skips are intentional; those tests run through the separate
 guarded local PostgreSQL runner. No new migration is needed.
 
