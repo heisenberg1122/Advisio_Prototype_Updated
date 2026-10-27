@@ -7,4 +7,5 @@ export * from "./documents.js";
 export * from "./evaluations.js";
 export * from "./consultations.js";
 export * from "./faculty-profile.js";
+export * from "./cohorts.js";
 
