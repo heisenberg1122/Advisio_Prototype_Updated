@@ -68,6 +68,7 @@ describe("researcher lifecycle interface", () => {
     const html = render();
     expect(html).toContain("Create Research Team");
     expect(html).toContain("Join Research Team");
+    expect(html).toMatch(/href="\/student\/join-group"[^>]*>Join Research Team<\/a>/);
     expect(html).not.toContain("Register Project");
     expect(html).not.toContain("Start Research");
   });

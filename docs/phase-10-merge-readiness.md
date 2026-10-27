@@ -12,7 +12,10 @@ must not be treated as passed until they have actually been exercised.
 Local regression and remote PR CI passed; the exact audited commit deployed to
 Vercel. Public preview navigation and a limited mobile check were performed.
 The user explicitly selected authenticated journeys as manual checks because no
-approved preview-only role accounts were supplied. Those checks remain NOT RUN.
+approved preview-only role accounts were supplied. Subsequent user-run staging UAT
+verified team creation and invitation delivery/opening, and found the join-route
+and confirmation issues documented in the UAT repair section below. The remaining
+full authenticated journeys and post-repair retest are still pending.
 
 This report distinguishes local results, remote checks and manual verification.
 Nothing here authorizes merging into main or executing a real-data backfill.
@@ -408,6 +411,112 @@ Its own commit SHA and final clean/push/check status are recorded in the deliver
 message (a commit cannot contain its own SHA). The application/test tree is unchanged
 by that follow-up. Remote checks must also be inspected for that final pushed SHA;
 the linked completed run above specifically proves the audited application commit.
+
+## Authenticated UAT repair — team invitation / join discoverability (2026-10-28)
+
+**READY WITH MANUAL CHECKS PENDING — MERGE AFTER MANUAL CHECKS.** This small
+pre-merge repair does not promote Phase 10 to READY FOR MERGE.
+
+### User-reported staging evidence and root cause
+
+The user reported these five authenticated staging observations as PASS: A creates
+a team; A sends an invitation to B; an invitation notification is created; B clicks
+that notification; its link opens the join flow. These are user-run observations,
+not new browser checks performed by the coding agent. Joining, role behavior after
+joining, research start, other role journeys and responsive coverage remain pending.
+
+The lifecycle's Join Research Team CTA already targeted `/student/join-group`, but
+the router registered the existing JoinResearchGroupPage only at `/join-group`.
+The student wildcard therefore redirected manual join navigation to the dashboard.
+The sender also described a notification as an Inbox invitation. Notification
+creation and delivery themselves were working.
+
+| Before | After |
+| --- | --- |
+| CTA `/student/join-group` had no matching page route | Existing JoinResearchGroupPage registered at `/student/join-group` inside the existing researcher-protected StudentPortal/layout |
+| Page rendered directly at `/join-group` | `/join-group` uses replace-navigation to the canonical route, retaining the complete raw query string and fragment |
+| New notification action `/join-group?code=...` | `/student/join-group?code=${encodeURIComponent(code)}` |
+| Sender confirmation said “Advisio inbox” | “Invitation sent. The researcher can open it from Advisio notifications.” |
+
+Old notification records are untouched; their links work through the compatibility
+redirect. Code prefill uses the existing join page's query hook/state. The existing
+page, input normalization, preview/join handlers, role guards and login return
+location are preserved. No second join page or invitation model was introduced.
+Existing legacy share links remain valid through the same redirect.
+
+### Files and regression coverage
+
+- `apps/web/src/routes.tsx`: canonical page route and query/hash-preserving alias.
+- `apps/web/src/routes.join-team.test.tsx`: seven routing/rendering cases covering
+  page/layout, prefill, three alias contexts including duplicate/encoded parameters,
+  sign-in return location and exclusion of a non-researcher role. Uses real route
+  matching/protection/query hooks/page; captures Navigate's requested destination
+  because server rendering does not execute browser effects. The layout is stubbed.
+- `apps/web/src/components/research/ResearcherLifecyclePanel.test.tsx`: asserts the
+  real Join Research Team anchor's canonical destination.
+- `apps/web/src/components/workflow/TeamEmailInvitation.tsx` and its new test:
+  accurate notification confirmation, testing both workspace and legacy-project
+  form submissions with the existing API destinations.
+- `apps/api/src/services/team-email.service.ts` and its test: canonical notification
+  action, TEAM_INVITATION type and encoded-code assertion.
+- `apps/api/src/routes/workspace-research.routes.integration.test.ts`: strengthens
+  the real workspace invitation HTTP journey to inspect the persisted notification's
+  canonical URL, entity type and unchanged email template, retaining no-provisioning
+  assertions during invitation/join.
+- This report records the issue, repair, validation and pending retest.
+
+Production changes are restricted to route registration/redirect, one confirmation
+string and the notification action URL. Cohort/process membership, enrollment,
+workspace authorization, roles, Start Research/provisioning, invite validation,
+academic-scope rules, notification/email architecture and schema/migrations are
+unchanged. No real-data backfill was executed.
+
+### Validation for this repair
+
+| Check | Result |
+| --- | --- |
+| Focused frontend | PASS — 18 tests across three files |
+| Focused backend | PASS — 3 team-email service tests |
+| Full type-check | PASS — 9 tasks |
+| Full build | PASS — 6 tasks; existing bundle-size advisory remains |
+| Full lint | PASS |
+| Full unit suite | PASS — 1,017 executions: API 540, web 363, validations 66, auth 32, email 16 |
+| Full isolated integration suite | PASS — 142 tests across 16 files; 78 existing migrations, no pending migrations; fixture-cleanliness checks passed |
+| Diff check | PASS |
+| Remote CI / deployment for repair | Inspected after pushing; exact patch SHA and remote results recorded in delivery/PR, separately from local validation |
+
+The first focused frontend attempt could not read Vitest-generated files in the
+restricted temporary directory. The unchanged focused rerun passed with normal
+temporary-file access, and the full suite passed without relaxing tests or rules.
+The integration unit skips are intentional; those tests run through the separate
+guarded local PostgreSQL runner. No new migration is needed.
+
+### Post-deployment manual retest — all NOT RUN / MANUAL CHECK REQUIRED
+
+| ID | Retest | Status |
+| --- | --- | --- |
+| U1 | A opens the existing UAT team | NOT RUN |
+| U2 | Invitation code is visible | NOT RUN |
+| U3 | A sends B an invitation | NOT RUN |
+| U4 | Confirmation identifies Notifications, not Inbox | NOT RUN |
+| U5 | B receives Team workspace invitation notification | NOT RUN |
+| U6 | Notification opens `/student/join-group?code=...` | NOT RUN |
+| U7 | Code is prefilled | NOT RUN |
+| U8 | B reviews the correct team | NOT RUN |
+| U9 | B joins the team | NOT RUN |
+| U10 | A observes updated membership | NOT RUN |
+| U11 | B appears as Member | NOT RUN |
+| U12 | B cannot Start Research | NOT RUN |
+| U13 | A remains Leader | NOT RUN |
+| U14 | Manual lifecycle Join Research Team opens the canonical code-entry page | NOT RUN |
+| U15 | Old `/join-group?code=...` notification redirects with code/context intact | NOT RUN |
+
+The remaining researcher/coordinator/builder/cross-role and desktop/tablet/mobile
+checklists in section G remain pre-merge gates. The five earlier user-run successes
+do not count as a post-repair pass. Use the new preview and verify the matching
+staging API revision for canonical URLs on newly created notifications. Vercel
+frontend success alone does not verify the Render/backend deployment.
+PR #4 must remain unmerged; no production/shared backfill is authorized.
 
 ## Appendix 1 — incoming main commits
 

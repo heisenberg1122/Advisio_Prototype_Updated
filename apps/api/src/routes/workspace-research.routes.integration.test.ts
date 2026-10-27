@@ -283,6 +283,19 @@ databaseDescribe(
           )
         ).status,
       ).toBe(201);
+      expect(
+        await prisma.notification.findFirstOrThrow({
+          where: {
+            recipientId: cohortOnlyId,
+            entityId: workspaceId,
+            entityType: "TEAM_INVITATION",
+          },
+        }),
+      ).toMatchObject({
+        actionUrl: `/student/join-group?code=${encodeURIComponent(inviteCode)}`,
+        entityType: "TEAM_INVITATION",
+        emailTemplate: "team_invitation",
+      });
       expect(await counts()).toEqual({
         projects: 0,
         instances: 0,

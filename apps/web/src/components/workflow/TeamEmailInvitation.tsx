@@ -27,7 +27,7 @@ export function TeamEmailInvitation({
           );
           setMessage(
             result.queued
-              ? "Invitation sent to their Advisio inbox."
+              ? "Invitation sent. The researcher can open it from Advisio notifications."
               : "This researcher has already been invited today.",
           );
           setEmail("");

@@ -121,7 +121,7 @@ export async function queueTeamInvitation(
         message: `${input.actorName} invited you to join ${input.teamName}.`,
         entityType: "TEAM_INVITATION",
         entityId: input.teamId,
-        actionUrl: `/join-group?code=${encodeURIComponent(input.code)}`,
+        actionUrl: `/student/join-group?code=${encodeURIComponent(input.code)}`,
         deduplicationKey,
         ...emailNotification("team_invitation", {
           actorName: input.actorName,

@@ -146,6 +146,16 @@ function LegacyStudentSubmissionsRoute() {
   );
 }
 
+function LegacyJoinResearchGroupRoute() {
+  const location = useLocation();
+  return (
+    <Navigate
+      to={`/student/join-group${location.search}${location.hash}`}
+      replace
+    />
+  );
+}
+
 function LegacyProfessorMilestonesRoute() {
   const location = useLocation();
   return (
@@ -263,6 +273,10 @@ export function AppRoutes() {
         />
         <Route
           path="/join-group"
+          element={<LegacyJoinResearchGroupRoute />}
+        />
+        <Route
+          path="/student/join-group"
           element={
             <StudentPortal>
               <JoinResearchGroupPage />

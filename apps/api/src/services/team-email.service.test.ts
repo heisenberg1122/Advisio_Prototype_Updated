@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { inviteTeamMember, queueTeamJoined } from "./team-email.service.js";
+import {
+  inviteTeamMember,
+  queueTeamInvitation,
+  queueTeamJoined,
+} from "./team-email.service.js";
 const id = "10000000-0000-4000-8000-000000000001";
 describe("team email events", () => {
   it("allows only the active leader to invite an active researcher in the same program", async () => {
@@ -48,7 +52,31 @@ describe("team email events", () => {
           expect.objectContaining({
             emailTemplate: "team_invitation",
             recipientId: "researcher",
-            actionUrl: "/join-group?code=ABC123",
+            entityType: "TEAM_INVITATION",
+            actionUrl: "/student/join-group?code=ABC123",
+          }),
+        ],
+      }),
+    );
+  });
+  it("encodes the invitation code in the canonical notification destination", async () => {
+    const tx: any = {
+      notification: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    };
+    await queueTeamInvitation(tx, {
+      recipientId: "researcher",
+      actorId: "leader",
+      actorName: "Maria",
+      teamId: id,
+      teamName: "Team Alpha",
+      code: "ABC+12&3?",
+    });
+    expect(tx.notification.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            entityType: "TEAM_INVITATION",
+            actionUrl: "/student/join-group?code=ABC%2B12%263%3F",
           }),
         ],
       }),
