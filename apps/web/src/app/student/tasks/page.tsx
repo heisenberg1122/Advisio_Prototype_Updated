@@ -127,13 +127,15 @@ export default function ResearchTasksPage() {
             ? workflowProject.workflowInstance?.workflow?.stages
             : activeEnrollment.workflow?.stages) || []
         : [];
-      const currentSequence =
-        workflowProject?.workflowInstance?.currentStage?.sequence || stages[0]?.sequence || 0;
       const workflowProjection = workflowProject
         ? await apiClient.get<{ milestones: any[] }>(
             `/api/research/${workflowProject.id}/manuscript-workflow`,
           )
         : null;
+      // The projection reconciles milestones added after earlier approvals.
+      const currentSequence =
+        workflowProjection?.milestones.find((milestone: any) => milestone.isCurrent)?.sequence ||
+        workflowProject?.workflowInstance?.currentStage?.sequence || stages[0]?.sequence || 0;
       const milestoneProgress = new Map(
         (workflowProjection?.milestones || []).map((milestone: any) => [
           milestone.id,

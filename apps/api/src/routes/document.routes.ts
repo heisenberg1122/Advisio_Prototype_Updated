@@ -36,6 +36,7 @@ import {
 import {
   getManuscriptActivity,
   getMilestoneProgress,
+  reconcileMilestoneProgress,
 } from "../services/research-workflow-integration.service.js";
 import { SubmissionIntegrityError } from "../services/submission.service.js";
 
@@ -914,6 +915,9 @@ router.get(
             });
         }
       }
+      await prisma.$transaction((tx) =>
+        reconcileMilestoneProgress(tx, { researchId, actorId: req.user!.id }),
+      );
       const [milestones, activity] = await Promise.all([
         getMilestoneProgress(prisma, researchId),
         getManuscriptActivity(prisma, researchId, access.canReview),

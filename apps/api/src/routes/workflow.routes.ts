@@ -32,6 +32,7 @@ import { googleDriveService } from "../services/google-drive.service.js";
 import { canReviewTaskSubmission } from "../services/task-submission-access.service.js";
 import {
   advanceMilestoneIfSatisfied,
+  reconcileMilestoneProgress,
   createNotificationsOnce,
   recordTaskSubmissionAttempt,
 } from "../services/research-workflow-integration.service.js";
@@ -2319,6 +2320,12 @@ router.post(
       for (const project of assignedProjects) {
         if (project.workflowDraft && project.workflowInstance && (project.workflowInstance.completedAt || (project.workflowInstance.currentStage && stage.sequence <= project.workflowInstance.currentStage.sequence)))
           await prisma.workflowInstance.update({ where: { id: project.workflowInstance.id }, data: { currentStageId: stage.id, completedAt: null } });
+        await prisma.$transaction((tx) =>
+          reconcileMilestoneProgress(tx, {
+            researchId: project.id,
+            actorId: req.user!.id,
+          }),
+        );
       }
       let adviserSynchronizationFailures = 0;
       if (stage.milestoneType === "ADVISER_SELECTION") {

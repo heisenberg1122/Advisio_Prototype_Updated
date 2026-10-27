@@ -605,7 +605,7 @@ export async function advanceMilestoneIfSatisfied(
     });
     await tx.workflowInstance.update({
       where: { id: instance.id },
-      data: { currentStageId: nextStage.id },
+      data: { currentStageId: nextStage.id, completedAt: null },
     });
     if (!nextStage.completed) break;
     current = nextStage;
@@ -654,6 +654,38 @@ export async function advanceMilestoneIfSatisfied(
     nextStageName: workflowCompleted ? undefined : nextStage?.name,
     milestone,
   };
+}
+
+// Published workflows can grow after a group approved their last milestone.
+// Repair the cursor from completion evidence before exposing the new tasks.
+export async function reconcileMilestoneProgress(
+  tx: Prisma.TransactionClient,
+  options: { researchId: string; actorId: string },
+) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${options.researchId}))`;
+  const project = await tx.researchProject.findUnique({
+    where: { id: options.researchId },
+    select: { status: true },
+  });
+  if (!project || project.status === "ARCHIVED") return;
+  const progress = await getMilestoneProgress(tx, options.researchId);
+  const current = progress.find((stage) => stage.isCurrent);
+  if (
+    !current?.completed ||
+    !progress.some((stage) => stage.sequence > current.sequence)
+  ) {
+    return;
+  }
+  const result = await advanceMilestoneIfSatisfied(tx, {
+    ...options,
+    milestoneId: current.id,
+  });
+  if (result.advanced && !result.completed && project.status === "COMPLETED") {
+    await tx.researchProject.update({
+      where: { id: options.researchId },
+      data: { status: "APPROVED", completedAt: null },
+    });
+  }
 }
 
 export async function getManuscriptActivity(
