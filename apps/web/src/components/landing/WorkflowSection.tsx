@@ -1,232 +1,178 @@
-import React, { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  Check,
   CheckCircle2,
-  Clock,
-  ArrowRight,
-  FileCheck2,
+  FileText,
+  MessageSquare,
   Users,
-  ShieldCheck,
-  Building2,
-  Award,
-  Sparkles,
 } from "lucide-react";
 
-import { handleLandingTabKey } from "./landing-tabs";
-
-type Stage = {
-  id: number;
-  number: string;
-  title: string;
-  status: "Completed" | "In Review" | "Upcoming";
-  statusColor: string;
-  lead: string;
-  deliverables: string[];
-  stakeholders: string[];
-};
-
-const STAGES: Stage[] = [
+const phases = [
   {
-    id: 1,
-    number: "01",
-    title: "Create Research Project",
-    status: "Completed",
-    statusColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    lead: "Create your research group and establish a shared home for the project.",
-    deliverables: ["Team Charter", "Scope Statement", "Topic Registration"],
-    stakeholders: ["Student Researchers", "Research Coordinator"],
+    name: "Begin",
+    title: "Give your idea a place to grow.",
+    copy: "Create your research project. Bring your team and adviser into the same workspace.",
+    label: "A connected beginning",
+    status: "Project created",
+    Icon: Users,
+    items: [
+      "Research project registered",
+      "Team members connected",
+      "Adviser assigned",
+    ],
   },
   {
-    id: 2,
-    number: "02",
-    title: "Connect & Assign Adviser",
-    status: "Completed",
-    statusColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    lead: "Browse eligible faculty and request an adviser, subject to availability and acceptance.",
-    deliverables: ["Adviser Request Form", "Workload Verification"],
-    stakeholders: ["Lead Researcher", "Faculty Adviser", "Department Chair"],
+    name: "Develop",
+    title: "Keep the conversation close to the work.",
+    copy: "Move between documents, consultations, and revisions with the context intact.",
+    label: "Chapter 3 / Methodology",
+    status: "Revision in progress",
+    Icon: MessageSquare,
+    items: [
+      "Manuscript v1.3 uploaded",
+      "Adviser annotation · Section 3.2",
+      "Consultation confirmed",
+    ],
   },
   {
-    id: 3,
-    number: "03",
-    title: "Prepare & Submit Documents",
-    status: "Completed",
-    statusColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    lead: "Upload manuscript drafts and supporting files against your assigned requirements.",
-    deliverables: ["Chapter 1–3 Draft", "Similarity Index Report"],
-    stakeholders: ["Research Team"],
+    name: "Review",
+    title: "Make every handoff a little clearer.",
+    copy: "Bring adviser reviews, panel evaluations, and institutional requirements into view.",
+    label: "Research evaluation",
+    status: "Under review",
+    Icon: FileText,
+    items: [
+      "Manuscript submitted",
+      "Panel evaluation recorded",
+      "Institutional review pending",
+    ],
   },
   {
-    id: 4,
-    number: "04",
-    title: "Adviser Review & Annotation",
-    status: "Completed",
-    statusColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    lead: "Review the submitted version, add contextual annotations, and record a decision.",
-    deliverables: ["Annotated Manuscript", "Action Item Checklist"],
-    stakeholders: ["Faculty Adviser"],
-  },
-  {
-    id: 5,
-    number: "05",
-    title: "Consultation & Revision",
-    status: "In Review",
-    statusColor: "bg-amber-50 text-amber-700 border-amber-200",
-    lead: "Meet with your adviser, record consultation notes, and submit the next revision.",
-    deliverables: ["Consultation Log", "Revision Matrix v1.2"],
-    stakeholders: ["Research Team", "Faculty Adviser"],
-  },
-  {
-    id: 6,
-    number: "06",
-    title: "Panel Evaluation & Oral Defense",
-    status: "Upcoming",
-    statusColor: "bg-blue-50 text-blue-700 border-blue-200",
-    lead: "Prepare the defense packet for assigned panelists and record rubric evaluations.",
-    deliverables: ["Defense Review Packet", "Panelist Rubric Scores"],
-    stakeholders: ["Panel Chair", "Panel Members", "Faculty Adviser"],
-  },
-  {
-    id: 7,
-    number: "07",
-    title: "REB & Institutional Processing",
-    status: "Upcoming",
-    statusColor: "bg-slate-50 text-slate-700 border-slate-200",
-    lead: "Route research protocols and supporting documents through the required institutional reviews.",
-    deliverables: ["REB Ethics Certificate", "Compliance Clearance"],
-    stakeholders: ["Ethics Committee", "Research Office"],
-  },
-  {
-    id: 8,
-    number: "08",
-    title: "Final Archiving & Dean Clearance",
-    status: "Upcoming",
-    statusColor: "bg-slate-50 text-slate-700 border-slate-200",
-    lead: "Record final clearances and preserve an official copy with document integrity verification.",
-    deliverables: ["Cryptographic Official Copy", "Library Archive Deposit"],
-    stakeholders: ["Academic Dean", "University Registrar", "Library"],
+    name: "Complete",
+    title: "Finish with a record of the journey.",
+    copy: "Follow final approvals and keep your research record connected to the work behind it.",
+    label: "Final research record",
+    status: "Milestone approved",
+    Icon: CheckCircle2,
+    items: [
+      "Final revision accepted",
+      "Approval recorded",
+      "Research record retained",
+    ],
   },
 ];
 
 export function WorkflowSection() {
-  const [activeStageId, setActiveStageId] = useState(5);
+  const [active, setActive] = useState(0);
+  const stepsRef = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 900px)");
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!desktop.matches || motion.matches) return;
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+        if (visible[0])
+          setActive(Number((visible[0].target as HTMLElement).dataset.phase));
+      },
+      { rootMargin: "-25% 0px -40% 0px", threshold: [0, 0.3, 0.6] },
+    );
+    stepsRef.current
+      ?.querySelectorAll("[data-phase]")
+      .forEach((step) => observer.observe(step));
+    return () => observer.disconnect();
+  }, []);
+  const phase = phases[active];
+  const Icon = phase.Icon;
   return (
-    <section id="workflow" className="landing-section landing-workflow">
-      <div className="landing-container">
-        <div className="landing-section-heading landing-heading-split">
-          <div>
-            <p className="landing-eyebrow">A guided research journey</p>
-            <h2>
-              Every step.
-              <br />A clear way forward.
-            </h2>
-          </div>
-          <p>
-            Follow the handoffs from proposal to official copy. This eight-step
-            example illustrates a workflow; your institution defines its
-            milestones and approvals.
-          </p>
+    <section id="workflow" className="lp-journey lp-section" data-scene>
+      <div className="lp-container">
+        <div className="lp-journey-heading">
+          <p className="lp-eyebrow">02 / The research journey</p>
+          <h2>
+            Every next step.
+            <br />
+            Connected to the last.
+          </h2>
+          <p>From the first idea to the final record.</p>
         </div>
-        <div
-          className="landing-workflow-tabs"
-          role="tablist"
-          aria-label="Example research workflow"
-          onKeyDown={handleLandingTabKey}
-        >
-          {STAGES.map((stage) => (
-            <button
-              type="button"
-              role="tab"
-              id={`workflow-tab-${stage.id}`}
-              aria-selected={activeStageId === stage.id}
-              aria-controls={`workflow-panel-${stage.id}`}
-              tabIndex={activeStageId === stage.id ? 0 : -1}
-              onClick={() => setActiveStageId(stage.id)}
-              key={stage.id}
-            >
-              <span>{stage.number}</span>
-              <strong>{stage.title}</strong>
-            </button>
-          ))}
-        </div>
-        <div className="landing-panel-stack landing-workflow-panels">
-          {STAGES.map((stage) => {
-            const active = stage.id === activeStageId;
-            return (
-              <div
-                key={stage.id}
-                id={`workflow-panel-${stage.id}`}
-                role="tabpanel"
-                aria-labelledby={`workflow-tab-${stage.id}`}
-                aria-hidden={!active}
-                inert={!active}
-                tabIndex={0}
-                className={`landing-stable-panel landing-workflow-detail ${active ? "is-active" : ""}`}
+        <div className="lp-journey-layout">
+          <ol className="lp-phase-list" ref={stepsRef}>
+            {phases.map((item, index) => (
+              <li
+                key={item.name}
+                data-phase={index}
+                className={active === index ? "is-active" : ""}
               >
-                <div>
-                  <p className="landing-eyebrow">
-                    Example workflow · Step {stage.number}
-                  </p>
-                  <h3>{stage.title}</h3>
-                  <p className="landing-workflow-lead">{stage.lead}</p>
-                  <div className="landing-workflow-lists">
-                    <div>
-                      <h4>Key deliverables</h4>
-                      <ul>
-                        {stage.deliverables.map((item) => (
-                          <li key={item}>
-                            <FileCheck2 size={16} aria-hidden="true" />
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h4>People involved</h4>
-                      <ul>
-                        {stage.stakeholders.map((item) => (
-                          <li key={item}>
-                            <Users size={16} aria-hidden="true" />
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-                <aside className="landing-workflow-note">
-                  <span className="landing-step-number" aria-hidden="true">
-                    {stage.number}
+                <button
+                  type="button"
+                  aria-controls="workflow-preview"
+                  aria-pressed={active === index}
+                  onClick={() => setActive(index)}
+                >
+                  <span className="lp-phase-number">0{index + 1}</span>
+                  <span className="lp-phase-copy">
+                    <span className="lp-eyebrow">{item.name}</span>
+                    <strong>{item.title}</strong>
+                    <span>{item.copy}</span>
                   </span>
-                  <div>
-                    <span className="landing-sample-label">Sample status</span>
-                    <p className="landing-workflow-status">
-                      <span
-                        className={`landing-status-dot ${stage.status === "Upcoming" ? "is-upcoming" : ""}`}
-                      />
-                      {stage.status}
-                    </p>
-                  </div>
-                  <p>
-                    Each handoff keeps the next action and responsible people in
-                    view.
-                  </p>
-                  <button
-                    type="button"
-                    className="landing-text-link"
-                    onClick={() => {
-                      const next = stage.id < STAGES.length ? stage.id + 1 : 1;
-                      setActiveStageId(next);
-                      document
-                        .getElementById(`workflow-tab-${next}`)
-                        ?.focus({ preventScroll: true });
-                    }}
-                  >
-                    Next step <ArrowRight size={16} aria-hidden="true" />
-                  </button>
-                </aside>
+                </button>
+              </li>
+            ))}
+          </ol>
+          <div className="lp-journey-preview" id="workflow-preview">
+            <div className="lp-mobile-phase-copy" key={phase.name}>
+              <h3>{phase.title}</h3>
+              <p>{phase.copy}</p>
+            </div>
+            <div className="lp-story-frame">
+              <div className="lp-story-top">
+                <span className="lp-story-brand">advisio.</span>
+                <span className="lp-sample">Illustrative workspace</span>
               </div>
-            );
-          })}
+              <div className="lp-story-content" key={active}>
+                <span className="lp-story-icon">
+                  <Icon size={27} />
+                </span>
+                <p className="lp-micro">Research workspace / {phase.name}</p>
+                <h3>{phase.label}</h3>
+                <span
+                  className={`lp-badge ${active === 3 ? "is-complete" : ""}`}
+                >
+                  {phase.status}
+                </span>
+                <div className="lp-story-items">
+                  {phase.items.map((item, index) => (
+                    <div key={item}>
+                      <span
+                        className={active === 3 || index === 0 ? "is-done" : ""}
+                      >
+                        {active === 3 || index === 0 ? (
+                          <Check size={13} />
+                        ) : (
+                          <span />
+                        )}
+                      </span>
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="lp-story-progress" aria-hidden="true">
+                {phases.map((item, index) => (
+                  <span
+                    key={item.name}
+                    className={index <= active ? "is-active" : ""}
+                  />
+                ))}
+              </div>
+            </div>
+            <p className="lp-preview-note">
+              One journey. Flexible milestones, shaped by your institution.
+            </p>
+          </div>
         </div>
       </div>
     </section>
