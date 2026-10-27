@@ -43,6 +43,30 @@ const resolve = (
     ...input,
   });
 describe("cohort-driven researcher lifecycle", () => {
+  it.each(["DRAFT", "ACTIVE", "CLOSED", "ARCHIVED"] as const)(
+    "a backfilled legacy case in a %s cohort remains available without another Start Research",
+    (status) => {
+      const legacyCase = {
+        ...study,
+        title: "Recorded legacy title",
+        isTitleProvisional: false,
+      };
+      const result = resolve({
+        cohorts: [{ ...cohort, status }],
+        teams: [team],
+        projects: [legacyCase],
+        requestedProjectId: legacyCase.id,
+      });
+      expect(result.state).toBe(
+        ["CLOSED", "ARCHIVED"].includes(status)
+          ? "COHORT_HISTORY"
+          : "RESEARCH_CASE_ACTIVE",
+      );
+      expect(result.canStart).toBe(false);
+      expect(result.project).toBe(legacyCase);
+      expect(result.project?.workflowInstance?.workflowId).toBe("pinned");
+    },
+  );
   it("does not offer start without active membership", () => {
     expect(resolve({ cohorts: [] })).toMatchObject({
       state: "NO_ACTIVE_COHORT",
