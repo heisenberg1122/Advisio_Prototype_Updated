@@ -35,8 +35,12 @@ const resolve = (
   });
 
 describe("research title labels", () => {
+  it("marks generated titles as provisional even when a title value exists", () => {
+    expect(researchTitleLabel({ ...project, isTitleProvisional: true })).toBe("Research title pending");
+    expect(researchTitleLabel({ ...project, isTitleProvisional: false })).toBe("Proposed research title");
+  });
   it("does not present workflow participation as a registered project", () => {
-    expect(researchTitleLabel({ title: "", workflowDraft: true })).toBe("Research title not registered");
+    expect(researchTitleLabel({ title: "", workflowDraft: true })).toBe("Research title pending");
   });
   it("identifies a title registered through proposal approval", () => {
     expect(researchTitleLabel({ ...project, registeredAt: "2026-10-27" })).toBe("Registered Research Project");
@@ -181,7 +185,7 @@ describe("project next step", () => {
   });
   it("never offers a workflow action after access removal, even with cached progress", () => {
     const next = resolve([stage], { workflowAccessRemoved: true });
-    expect(next.label).toBe("Workflow access removed");
+    expect(next.label).toBe("Research process access restricted");
     expect(next.action).toBeUndefined();
   });
   it("shows loading and retry instead of an assumed task", () => {

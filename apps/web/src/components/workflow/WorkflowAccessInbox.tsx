@@ -31,7 +31,7 @@ export function WorkflowAccessInbox() {
   if (query.isError)
     return (
       <p role="alert" className="text-sm text-rose-600">
-        Workflow request status could not be loaded.
+        Research process access status could not be loaded.
       </p>
     );
   const entries =
@@ -43,7 +43,7 @@ export function WorkflowAccessInbox() {
   if (!entries.length) return null;
   return (
     <section className="space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-      <h2 className="font-bold">Workflow requests and invitations</h2>
+      <h2 className="font-bold">Research process access requests and invitations</h2>
       {error && (
         <p role="alert" className="text-sm text-rose-600">
           {error}
@@ -60,8 +60,8 @@ export function WorkflowAccessInbox() {
               {e.kind === "INVITATION"
                 ? "You have been invited. Open your Advisio inbox to accept or decline."
                 : e.status === "PENDING"
-                  ? `Your request to join ${e.workflow.name} has been sent. Please wait for the professor to approve it.`
-                  : "Your request was declined. Contact the professor for an invitation."}
+                  ? `Your access request for ${e.workflow.name} has been sent. Please wait for your research coordinator to approve it.`
+                  : "Your access request was declined. Contact your research coordinator for an invitation."}
             </p>
           </div>
           {e.kind === "INVITATION" ? (

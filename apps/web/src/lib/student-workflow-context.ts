@@ -7,31 +7,20 @@ interface Project {
   workflowInstance?: { workflowId: string } | null;
 }
 
-// Enrollment controls visibility; a matching project controls submission access.
+// The selected case's pinned instance owns process identity. Enrollment remains
+// an independent visibility/authorization requirement, never a process selector.
 export function resolveStudentWorkflow<T extends Enrollment, P extends Project>(
   enrollments: T[],
   project?: P | null,
   requestedWorkflowId?: string | null,
   projects: P[] = [],
 ) {
-  const activeEnrollment =
-    enrollments.find((entry) => entry.workflowId === requestedWorkflowId) ||
-    enrollments.find(
-      (entry) => entry.workflowId === project?.workflowInstance?.workflowId,
-    ) ||
-    enrollments[0];
-  const matches = projects.filter(
-    (candidate) =>
-      !candidate.workflowAccessRemoved &&
-      candidate.workflowInstance?.workflowId === activeEnrollment?.workflowId,
-  );
-  const workflowProject =
-    activeEnrollment &&
-    !project?.workflowAccessRemoved &&
-    project?.workflowInstance?.workflowId === activeEnrollment.workflowId
-      ? project
-      : matches.length === 1 && activeEnrollment
-        ? matches[0]
-        : null;
+  const selected = project || (projects.length === 1 ? projects[0] : null);
+  const activeEnrollment = !selected?.workflowAccessRemoved
+    ? enrollments.find(
+        (entry) => entry.workflowId === selected?.workflowInstance?.workflowId,
+      )
+    : undefined;
+  const workflowProject = selected && activeEnrollment ? selected : null;
   return { activeEnrollment, workflowProject };
 }

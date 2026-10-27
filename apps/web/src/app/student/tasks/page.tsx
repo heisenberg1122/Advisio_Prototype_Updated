@@ -1,5 +1,5 @@
 "use client";
-import { WorkflowStartPanel } from "@/components/workflow/WorkflowStartPanel";
+import { ResearcherLifecyclePanel, ResearchStartNotice } from "@/components/research/ResearcherLifecyclePanel";
 import { TitleProposalPanel } from "@/components/workflow/TitleProposalPanel";
 
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
@@ -96,7 +96,7 @@ export default function ResearchTasksPage() {
   const [startedTaskOverride, setStartedTaskOverride] = useState<any | null>(
     null,
   );
-  const [workflowCode, setWorkflowCode] = useState("");
+
   const [activeSection, setActiveSection] = useState<
     "requirements" | "resources"
   >("requirements");
@@ -121,11 +121,7 @@ export default function ResearchTasksPage() {
         enrollments, selectedProject, requestedWorkflowId, !sharedProjectId || selectedProject ? projects : [],
       );
       const project = workflowProject || selectedProject;
-      const stages = activeEnrollment
-        ? (workflowProject
-            ? workflowProject.workflowInstance?.workflow?.stages
-            : activeEnrollment.workflow?.stages) || []
-        : [];
+      const stages = workflowProject?.workflowInstance?.workflow?.stages || [];
       const currentSequence =
         workflowProject?.workflowInstance?.currentStage?.sequence || stages[0]?.sequence || 0;
       const workflowProjection = workflowProject
@@ -462,6 +458,7 @@ export default function ResearchTasksPage() {
       </div>
     );
 
+  if (!data?.project) return <div className="mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8"><ResearcherLifecyclePanel /></div>;
   const tasks = data?.tasks || [];
   const project = data?.project;
   const enrollments = data?.enrollments || [];
@@ -469,7 +466,7 @@ export default function ResearchTasksPage() {
   const workflowProject = data?.workflowProject;
   const workflowAccessRemoved =
     !activeEnrollment &&
-    (project?.workflowAccessRemoved || !!data?.removedWorkflowIds?.length);
+    (project?.workflowAccessRemoved || data?.removedWorkflowIds?.includes(project?.workflowInstance?.workflowId));
   const acceptedWorkflowName = searchParams.get("workflowAccepted");
   const invitationDeclined = searchParams.get("invitation") === "declined";
   const currentSequence =
@@ -496,8 +493,8 @@ export default function ResearchTasksPage() {
   if (requestedTaskId && workflowAccessRemoved) {
     return (
       <TaskDetailsUnavailable
-        title="Workflow access removed"
-        explanation="Your access to this workflow was removed by the professor. Contact your professor if this was a mistake."
+        title="Research process access restricted"
+        explanation="Access to this research process is currently restricted. Contact your research coordinator to discuss access."
         backHref={studentTasksHref(project?.id)}
       />
     );
@@ -562,8 +559,8 @@ export default function ResearchTasksPage() {
           role="alert"
           className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
         >
-          Your access to this workflow was removed by the professor. Contact
-          your professor if this was a mistake.
+          Access to this research process is currently restricted. Contact
+          your research coordinator to discuss access.
         </div>
       )}
 
@@ -571,9 +568,9 @@ export default function ResearchTasksPage() {
         <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200">
           <i className="ti ti-circle-check mt-0.5 text-lg" />
           <div>
-            <strong className="block">Workflow invitation accepted</strong>
+            <strong className="block">Research process invitation accepted</strong>
             <span>
-              You joined {acceptedWorkflowName}. Its milestones are now
+              Access to {acceptedWorkflowName} was granted. Its milestones are now
               available in Tasks & Requirements.
             </span>
           </div>
@@ -584,7 +581,7 @@ export default function ResearchTasksPage() {
         <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
           <i className="ti ti-info-circle mt-0.5 text-lg" />
           <span>
-            The workflow invitation was not accepted. You can use the invitation
+            The research process invitation was not accepted. You can use the invitation
             link again while it remains valid.
           </span>
         </div>
@@ -596,7 +593,7 @@ export default function ResearchTasksPage() {
             htmlFor="task-project"
             className="mb-2 block text-sm font-extrabold uppercase tracking-wider text-slate-500"
           >
-            Workflow or research project
+            Research study
           </label>
           <select
             id="task-project"
@@ -608,10 +605,10 @@ export default function ResearchTasksPage() {
             }}
             className="h-11 w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
           >
-            <option value="">Select a workflow or project</option>
+            <option value="">Select a research study</option>
             {data.projects.map((candidate: any) => (
               <option key={candidate.id} value={candidate.id}>
-                {candidate.groupName || candidate.title || candidate.workflowInstance?.workflow?.name || "Research workflow"}
+                {candidate.groupName || candidate.title || candidate.workflowInstance?.workflow?.name || "Research study"}{candidate.isTitleProvisional ? " — Title pending" : ""}
               </option>
             ))}
           </select>
@@ -630,7 +627,7 @@ export default function ResearchTasksPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
-                Active workflow
+                Research process
               </p>
               {activeEnrollment ? (
                 <>
@@ -647,13 +644,13 @@ export default function ResearchTasksPage() {
                 <>
                   <h2 className="mt-1 text-xl font-bold text-[var(--color-text-primary)]">
                     {workflowAccessRemoved
-                      ? "Workflow access removed"
-                      : "No workflow joined yet"}
+                      ? "Research process access restricted"
+                      : "Research process unavailable"}
                   </h2>
                   <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                     {workflowAccessRemoved
-                      ? "Contact your professor to discuss access."
-                      : "Use the code or invitation link provided by your professor."}
+                      ? "Contact your research coordinator to discuss access."
+                      : "Please contact your research coordinator about the assigned process."}
                   </p>
                 </>
               )}
@@ -663,7 +660,7 @@ export default function ResearchTasksPage() {
                 ? "Active"
                 : workflowAccessRemoved
                   ? "Removed"
-                  : "Not joined"}
+                  : "Unavailable"}
             </Tag>
           </div>
           {activeEnrollment && (
@@ -675,83 +672,22 @@ export default function ResearchTasksPage() {
               />
               <Info
                 icon="ti-calendar-check"
-                label="Joined"
-                value={new Date(activeEnrollment.joinedAt).toLocaleDateString()}
+                label="Process started"
+                value={new Date(workflowProject?.workflowInstance?.startedAt).toLocaleDateString()}
               />
               <Info
                 icon="ti-progress"
                 label="Current status"
                 value={
-                  workflowProject?.workflowInstance?.currentStage?.name ||
-                  activeEnrollment?.workflow?.stages?.[0]?.name || "Ready to begin"
+                  workflowProject?.workflowInstance?.currentStage?.name || "Check your assigned requirements"
                 }
               />
             </div>
           )}
-          {enrollments.length > 1 && (
-            <label className="mt-4 block text-sm font-semibold">
-              Joined workflow
-              <select
-                value={workflowId || ""}
-                onChange={(event) => {
-                  setStartedTaskOverride(null);
-                  setSearchParams((params) => {
-                    params.set("workflowId", event.target.value);
-                    return params;
-                  });
-                }}
-                className="mt-2 block w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3"
-              >
-                {enrollments.map((enrollment: any) => (
-                  <option key={enrollment.workflowId} value={enrollment.workflowId}>
-                    {enrollment.workflow.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+
         </div>
 
-        {enrollments.length === 0 && (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              const code = workflowCode.trim().toUpperCase();
-              if (code)
-                navigate(`/student/workflows/join/${encodeURIComponent(code)}`);
-            }}
-            className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6"
-          >
-            <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
-              Join a workflow
-            </p>
-            <h2 className="mt-1 text-lg font-semibold text-[var(--color-text-primary)]">
-              Enter professor invitation code
-            </h2>
-            <p className="mt-1 text-base leading-5 text-slate-500">
-              You will review the invitation before deciding to accept or reject
-              it.
-            </p>
-            <div className="mt-4 flex gap-2">
-              <input
-                value={workflowCode}
-                onChange={(event) =>
-                  setWorkflowCode(event.target.value.toUpperCase())
-                }
-                maxLength={32}
-                placeholder="Invitation code"
-                className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 font-mono text-base font-bold uppercase text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
-              />
-              <button
-                type="submit"
-                disabled={!workflowCode.trim()}
-                className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                Review
-              </button>
-            </div>
-          </form>
-        )}
+
       </section>
 
       <nav
@@ -1636,7 +1572,7 @@ function MilestoneDetailsWorkspace({
             </section>
           )}
           {task.previewOnly ? (
-            <WorkflowStartPanel workflowId={task.stage.workflowId} locked={task.locked} message={task.conditionMessage} />
+            <ResearchStartNotice />
           ) : task.isTitleProposal ? (
             <TitleProposalPanel key={task.stage.id} stageId={task.stage.id} count={task.stage.titleProposalCount || 3} researchId={project?.id} workflowId={task.stage.workflowId} canSubmit={!project || isLeader} locked={task.locked} />
 
@@ -2215,7 +2151,7 @@ function MilestoneInformationPanel({
           Research group
         </h2>
         <p className="mt-1 text-base font-semibold text-[var(--color-primary)]">
-          {project?.groupName || project?.title || "No project linked to this workflow"}
+          {project?.groupName || project?.title || "Research study unavailable"}{project?.isTitleProvisional ? " — Title pending" : ""}
         </p>
         <p className="mt-1 text-base text-[var(--color-text-secondary)]">
           {members.length} active member{members.length === 1 ? "" : "s"}

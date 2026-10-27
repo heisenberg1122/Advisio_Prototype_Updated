@@ -152,7 +152,11 @@ export function useAdvisers(explicitProjectId?: string | null, explicitWorkflowI
           : null;
       const { enrollments } = await apiClient.get<{ enrollments: any[] }>("/api/workflows/enrollments/me");
       const { activeEnrollment, workflowProject } = resolveStudentWorkflow(enrollments, selectedProject, explicitWorkflowId, explicitProjectId && !selectedProject ? [] : projects);
-      const project = workflowProject || (explicitWorkflowId ? null : selectedProject);
+      const project = workflowProject || selectedProject;
+      if (!project) return {
+        workflow: null, workflowId: null, projectId: null, project: null,
+        assigned: null, available: [], ...projectAdviserRequests([], null),
+      };
       const adviserParams = new URLSearchParams({
         role: "ADVISER",
         status: "ACTIVE",
@@ -194,8 +198,8 @@ export function useAdvisers(explicitProjectId?: string | null, explicitWorkflowI
         )?.status,
       });
       return {
-        workflow: activeEnrollment?.workflow || null,
-        workflowId: activeEnrollment?.workflowId || null,
+        workflow: workflowProject?.workflowInstance?.workflow || null,
+        workflowId: workflowProject?.workflowInstance?.workflowId || null,
         projectId: project?.id || null,
         project: project || null,
         assigned: assignedMember ? mapAdviser(assignedMember.user) : null,

@@ -1,5 +1,6 @@
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
-import { JoinedWorkflows } from "@/components/workflow/JoinedWorkflows";
+import { ResearcherLifecycleView } from "@/components/research/ResearcherLifecyclePanel";
+import { useResearcherLifecycle } from "@/hooks/use-researcher-lifecycle";
 import { resolveStudentWorkflow } from "@/lib/student-workflow-context";
 import { TeamEmailInvitation } from "@/components/workflow/TeamEmailInvitation";
 import React, { useState, Suspense, useEffect, useRef } from "react";
@@ -32,7 +33,7 @@ import { ProductTour, TourStep } from "@/components/shared/ProductTour";
 import { StudentGanttChart } from "@/components/dashboards/student/StudentGanttChart";
 import { getOrderedWorkflowStages } from "@/lib/workflow-progress";
 import { useNotifications as useStudentNotifications } from "@/hooks/use-student";
-import { useActiveProject } from "@/providers/active-project-provider";
+
 
 const STUDENT_TOUR_STEPS: TourStep[] = [
   {
@@ -104,19 +105,6 @@ function StudentDashboardContent() {
       router.replace(`/student/documents${queryStr ? `?${queryStr}` : ""}`);
     }
   }, [activeTab, searchParams, router]);
-
-  // Project Registration State
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createTitle, setCreateTitle] = useState("");
-  const [createAbstract, setCreateAbstract] = useState("");
-  const [createParticipationMode, setCreateParticipationMode] = useState<
-    "SOLO" | "GROUP"
-  >("SOLO");
-  const [createGroupName, setCreateGroupName] = useState("");
-  const [createAccessMode, setCreateAccessMode] = useState<
-    "INVITE_ONLY" | "PUBLIC_APPROVAL" | "PUBLIC_OPEN"
-  >("INVITE_ONLY");
-  const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   // Synchronized Floating Google Meet Conference Session State
   const initialSession = getStoredMeetingSession();
@@ -236,40 +224,29 @@ function StudentDashboardContent() {
   };
 
   // Query live projects from API
-  const { data: researchData, isLoading: isResearchLoading, isError: isResearchError, refetch: refetchResearch } = useQuery({
-    queryKey: ["student-research"],
-    queryFn: () => apiClient.get<{ projects: any[] }>("/api/research"),
-    staleTime: 5000,
-    refetchInterval: 5000,
-  });
-  const { data: workspaceData, isLoading: isWorkspaceLoading } = useQuery({
-    queryKey: ["student-workspaces"],
-    queryFn: () => apiClient.get<{ workspaces: any[] }>("/api/workspaces/me"),
-    refetchOnWindowFocus: true,
-  });
-  const activeWorkspace = workspaceData?.workspaces?.[0] || null;
-  const isWorkspaceLeader = activeWorkspace?.members?.some((member: any) => member.userId === user?.id && member.role === "LEADER" && !member.leftAt) ?? false;
-  const canCreateResearch = !isWorkspaceLoading && !isResearchLoading && !isResearchError && !!workspaceData && (!activeWorkspace || isWorkspaceLeader);
+  const lifecycle = useResearcherLifecycle();
+  const researchData = lifecycle.research.data;
+  const isResearchLoading = lifecycle.research.isPending;
+  const isResearchError = lifecycle.research.isError;
+  const refetchResearch = lifecycle.research.refetch;
+  const workspaceData = lifecycle.teams.data;
+  const isWorkspaceLoading = lifecycle.teams.isPending;
+  const activeWorkspace: any = lifecycle.team;
+  const isWorkspaceLeader = lifecycle.isLeader;
   const [workspaceToDelete, setWorkspaceToDelete] = useState<{ id: string; name: string } | null>(null);
   const [workspaceDeletePending, setWorkspaceDeletePending] = useState(false);
   const [workspaceDeleteError, setWorkspaceDeleteError] = useState("");
   const canDeleteWorkspace = activeWorkspace?._count?.projects === 0 && activeWorkspace.members?.some(
     (member: any) => member.userId === user?.id && member.role === "LEADER" && !member.leftAt,
   );
-  const { data: workflowEnrollmentData, isLoading: isWorkflowEnrollmentLoading, isError: isWorkflowEnrollmentError } = useQuery({
+  const { data: workflowEnrollmentData } = useQuery({
     queryKey: ["student-workflow-enrollments"],
     queryFn: () =>
       apiClient.get<{ enrollments: any[] }>("/api/workflows/enrollments/me"),
     refetchOnWindowFocus: true,
     refetchInterval: 5000,
   });
-  // Enrollment results are ordered by joinedAt descending by the API.
-  const registrationWorkflow = workflowEnrollmentData?.enrollments?.[0]?.workflow;
-  const registrationWorkflowId = workflowEnrollmentData?.enrollments?.[0]?.workflowId;
-  const hasRegistrationWorkflow = !isWorkflowEnrollmentLoading && !isWorkflowEnrollmentError && !!registrationWorkflowId;
-  const needsRegistrationWorkflow = !!activeWorkspace || !!createTitle.trim();
-
-  const projectSelection = useActiveProject(researchData?.projects || []);
+  const projectSelection = lifecycle.projectSelection;
   const activeProject = projectSelection.project;
   useEffect(() => {
     if (!activeProject?.id) return;
@@ -368,7 +345,7 @@ function StudentDashboardContent() {
   );
   const projectStatusLabel = activeProject?.status
     ? activeProject.status.toLowerCase().replace(/_/g, " ").replace(/^\w/, (letter: string) => letter.toUpperCase())
-    : "Not registered";
+    : "Not started";
   const activeStudentMembers = (activeProject?.members || []).filter((member: any) => !member.leftAt && ["LEADER", "MEMBER"].includes(member.projectRole));
   const currentMembership = activeStudentMembers.find((member: any) => member.userId === user?.id || member.user?.id === user?.id);
   const isGroupLeader = currentMembership?.projectRole === "LEADER";
@@ -452,25 +429,6 @@ function StudentDashboardContent() {
         description: stage.description || "",
         category: stage.category || "Milestone",
       })));
-    } else if (activeWorkflowEnrollment?.workflow?.stages) {
-      setMilestones(
-        activeWorkflowEnrollment.workflow.stages.map(
-          (stage: any, index: number) => ({
-            id: stage.id,
-            title: stage.name,
-            status: index === 0 ? "in-progress" : "upcoming",
-            deadlineDays: stage.deadlineDays,
-        targetCompletionDate: stage.targetCompletionDate,
-            requiresApproval: stage.requiresApproval,
-            sequence: stage.sequence,
-            topicId: stage.topic?.id || null,
-            topicTitle: stage.topic?.title || "Ungrouped milestones",
-            description: stage.description || "",
-            category: stage.category || "Milestone",
-            previewOnly: true,
-          }),
-        ),
-      );
     } else {
       setMilestones([]);
     }
@@ -642,62 +600,7 @@ function StudentDashboardContent() {
     }
   };
 
-  const handleCreateResearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!canCreateResearch) {
-      setShowCreateModal(false);
-      triggerToast("Only your group leader can register the research project.");
-      return;
-    }
-    if (activeProject) {
-      setShowCreateModal(false);
-      if (activeProject.workflowDraft) { openEditProject(); return; }
-      triggerToast(activeProject.status === "REJECTED"
-        ? "Revise the rejected title from My Project instead of creating a replacement."
-        : "You already have a registered research project.");
-      return;
-    }
-    if (activeWorkspace && !createTitle.trim()) return;
-    if (needsRegistrationWorkflow && !hasRegistrationWorkflow) {
-      triggerToast("Join your professor’s workflow from Tasks & Requirements before adding a research project.");
-      return;
-    }
-    setIsCreatingProject(true);
-    try {
-      const isCreatingProjectRecord = Boolean(createTitle.trim());
-      let workspace = activeWorkspace;
-      if (!workspace) {
-        const workspaceName = createGroupName.trim() || (createParticipationMode === "SOLO" ? "My research workspace" : "Research group");
-        const result = await apiClient.post<{ workspace: any }>("/api/workspaces", {
-          name: workspaceName,
-          participationMode: createParticipationMode,
-          accessMode: createParticipationMode === "GROUP" ? createAccessMode : "INVITE_ONLY",
-        });
-        workspace = result.workspace;
-      }
-      if (createTitle.trim()) {
-        await apiClient.post("/api/research", {
-          title: createTitle.trim(),
-          abstract: createAbstract.trim() || undefined,
-          workspaceId: workspace.id,
-          workflowId: registrationWorkflowId,
-        });
-      }
-      queryClient.invalidateQueries({ queryKey: ["student-research"] });
-      queryClient.invalidateQueries({ queryKey: ["student-workspaces"] });
-      setShowCreateModal(false);
-      setCreateTitle("");
-      setCreateAbstract("");
-      setCreateParticipationMode("SOLO");
-      setCreateGroupName("");
-      setCreateAccessMode("INVITE_ONLY");
-      triggerToast(isCreatingProjectRecord ? "Workspace and research project created." : "Workspace created. Add your research title when you are ready.");
-    } catch (err: any) {
-      triggerToast(err.message || "Failed to register project");
-    } finally {
-      setIsCreatingProject(false);
-    }
-  };
+
 
   const refreshGroup = async () => {
     await queryClient.invalidateQueries({ queryKey: ["student-research"] });
@@ -727,6 +630,7 @@ function StudentDashboardContent() {
   };
 
   const openEditProject = () => {
+    if (activeProject?.isTitleProvisional || activeProject?.cohortId) return;
     if (!activeProject) return;
     const titleMilestone = activeProject.workflowInstance?.workflow?.stages?.find((stage: any) => stage.milestoneType === "TITLE_PROPOSAL" && stage.category !== "Archived");
     if (titleMilestone) { router.push(studentTaskDetailsHref(`milestone-${titleMilestone.id}`, activeProject.id)); return; }
@@ -829,7 +733,6 @@ function StudentDashboardContent() {
         ...previous, workspaces: previous.workspaces.filter((workspace) => workspace.id !== workspaceToDelete.id),
       } : previous);
       setWorkspaceToDelete(null);
-      setShowCreateModal(false);
       await queryClient.invalidateQueries({ queryKey: ["student-workspaces"] });
       triggerToast("Workspace deleted. You can create a new workspace.");
     } catch (error: any) {
@@ -907,7 +810,10 @@ function StudentDashboardContent() {
       );
       return;
     }
-    router.push(projectSelection.projectHref(`/student/dashboard?tab=${tab}`));
+    const destination = new URLSearchParams(searchParams.toString());
+    destination.set("tab", tab);
+    destination.delete("section");
+    router.push(projectSelection.projectHref(`/student/dashboard?${destination.toString()}`));
   };
 
   const handleProjectAction = (action: ProjectAction) => {
@@ -1468,7 +1374,7 @@ function StudentDashboardContent() {
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
-      
+
       {toast && (
         <div className="fixed top-5 right-5 z-55 bg-[#1b4264] border border-white/10 text-white px-4 py-3 rounded-lg shadow-xl flex items-center gap-3">
           <i className="ti ti-circle-check text-[#ffa400] text-lg" />
@@ -1476,7 +1382,7 @@ function StudentDashboardContent() {
         </div>
       )}
 
-      {groupAction && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="group-action-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !groupActionPending) setGroupAction(null); }}><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-start gap-3"><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${groupAction.type === "transfer" ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-600"}`}><i className={`ti ${groupAction.type === "transfer" ? "ti-user-star" : "ti-alert-triangle"} text-xl`} /></span><div><h2 id="group-action-title" className="text-lg font-extrabold text-[#102f49]">{groupAction.type === "transfer" ? "Transfer group leadership?" : groupAction.type === "leave" ? "Leave this research group?" : groupAction.type === "disband" ? "Disband and archive this group?" : groupAction.type === "delete" ? "Permanently delete rejected project?" : "Remove this member?"}</h2><p className="mt-2 text-base leading-6 text-slate-600">{groupAction.type === "transfer" ? `${groupAction.member?.user?.firstName} ${groupAction.member?.user?.lastName} will become the group leader. You will remain as a member.` : groupAction.type === "leave" ? "You will lose access to the group, but your previous submissions and activity attribution will remain." : groupAction.type === "disband" ? "All active memberships will end and the project will be archived. Academic records and submissions will be preserved." : groupAction.type === "delete" ? `The rejected project “${activeProject?.title}” will be permanently deleted. You can register a replacement afterward.` : `${groupAction.member?.user?.firstName} ${groupAction.member?.user?.lastName} will lose group access. Their previous contributions will remain attributed to them.`}</p></div></div><div className="mt-6 flex justify-end gap-2"><button onClick={() => setGroupAction(null)} disabled={groupActionPending} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button><button onClick={executeGroupAction} disabled={groupActionPending} className={`rounded-xl px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50 ${groupAction.type === "transfer" ? "bg-[#173f63]" : "bg-rose-600"}`}>{groupActionPending ? "Processing…" : groupAction.type === "transfer" ? "Confirm transfer" : groupAction.type === "leave" ? "Confirm leave" : groupAction.type === "disband" ? "Confirm disband" : groupAction.type === "delete" ? "Delete project" : "Confirm removal"}</button></div></div></div>}
+      {groupAction && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="group-action-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !groupActionPending) setGroupAction(null); }}><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-start gap-3"><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${groupAction.type === "transfer" ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-600"}`}><i className={`ti ${groupAction.type === "transfer" ? "ti-user-star" : "ti-alert-triangle"} text-xl`} /></span><div><h2 id="group-action-title" className="text-lg font-extrabold text-[#102f49]">{groupAction.type === "transfer" ? "Transfer group leadership?" : groupAction.type === "leave" ? "Leave this research group?" : groupAction.type === "disband" ? "Disband and archive this group?" : groupAction.type === "delete" ? "Permanently delete rejected project?" : "Remove this member?"}</h2><p className="mt-2 text-base leading-6 text-slate-600">{groupAction.type === "transfer" ? `${groupAction.member?.user?.firstName} ${groupAction.member?.user?.lastName} will become the group leader. You will remain as a member.` : groupAction.type === "leave" ? "You will lose access to the group, but your previous submissions and activity attribution will remain." : groupAction.type === "disband" ? "All active memberships will end and the project will be archived. Academic records and submissions will be preserved." : groupAction.type === "delete" ? `The rejected project “${activeProject?.title}” will be permanently deleted. Contact your research coordinator before starting another research study.` : `${groupAction.member?.user?.firstName} ${groupAction.member?.user?.lastName} will lose group access. Their previous contributions will remain attributed to them.`}</p></div></div><div className="mt-6 flex justify-end gap-2"><button onClick={() => setGroupAction(null)} disabled={groupActionPending} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button><button onClick={executeGroupAction} disabled={groupActionPending} className={`rounded-xl px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50 ${groupAction.type === "transfer" ? "bg-[#173f63]" : "bg-rose-600"}`}>{groupActionPending ? "Processing…" : groupAction.type === "transfer" ? "Confirm transfer" : groupAction.type === "leave" ? "Confirm leave" : groupAction.type === "disband" ? "Confirm disband" : groupAction.type === "delete" ? "Delete project" : "Confirm removal"}</button></div></div></div>}
 
       <ProductTour
         tourKey="student_onboarding_v1"
@@ -1488,27 +1394,25 @@ function StudentDashboardContent() {
 
       {/* MAIN CONTAINER */}
       <div className={`w-full flex-1 space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
-        {activeTab === "overview" && <WorkflowAccessInbox/>}
-        {activeTab === "overview" && (
-          <JoinedWorkflows enrollments={workflowEnrollmentData?.enrollments || []} />
-        )}
+        {activeTab === "overview" && activeProject && <WorkflowAccessInbox/>}
+        {["overview", "group"].includes(activeTab) && <ResearcherLifecycleView lifecycle={lifecycle} />}
         {((researchData?.projects?.length || 0) > 1 || projectSelection.invalidRequestedProjectId) && (
           <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-5">
             <label htmlFor="dashboard-project" className="mb-2 block text-sm font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">Active research project</label>
             <select id="dashboard-project" value={activeProject?.id || ""} onChange={(event) => projectSelection.selectProject(event.target.value || null)} className="h-11 w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]">
               <option value="">Choose a research project</option>
-              {(researchData?.projects || []).map((project: any) => <option key={project.id} value={project.id}>{project.groupName || project.title}</option>)}
+              {(researchData?.projects || []).map((project: any) => <option key={project.id} value={project.id}>{project.groupName || project.title}{project.isTitleProvisional ? " — Title pending" : ""}</option>)}
             </select>
-            {!activeProject && <p className="mt-2 text-base text-[var(--color-text-secondary)]">{projectSelection.invalidRequestedProjectId ? "That project is unavailable or you do not have access to it." : "Choose a project to view its authoritative workflow data."}</p>}
+            {!activeProject && <p className="mt-2 text-base text-[var(--color-text-secondary)]">{projectSelection.invalidRequestedProjectId ? "That project is unavailable or you do not have access to it." : "Choose a research study to view its assigned process."}</p>}
           </section>
         )}
-        
-        {activeTab === "group" && <div className="space-y-4"><h1 className="text-2xl font-bold text-[var(--color-text-primary)]">My Project</h1><nav aria-label="Project sections" className="flex gap-1 border-b border-[var(--color-border)]">{([{ id: "overview", label: "Project Overview" }, { id: "my-group", label: "My Group" }] as const).map((section) => <button key={section.id} type="button" aria-current={projectSection === section.id ? "page" : undefined} onClick={() => handleTabChange(section.id === "my-group" ? "my-group" : "group")} className={`min-h-11 border-b-2 px-4 py-3 text-sm font-semibold transition ${projectSection === section.id ? "border-[var(--color-primary)] text-[var(--color-primary)]" : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"}`}>{section.label}</button>)}</nav></div>}
+
+        {activeTab === "group" && <div className="space-y-4"><h1 className="text-2xl font-bold text-[var(--color-text-primary)]">My Research</h1><nav aria-label="Project sections" className="flex gap-1 border-b border-[var(--color-border)]">{([{ id: "overview", label: "Project Overview" }, { id: "my-group", label: "My Group" }] as const).map((section) => <button key={section.id} type="button" aria-current={projectSection === section.id ? "page" : undefined} onClick={() => handleTabChange(section.id === "my-group" ? "my-group" : "group")} className={`min-h-11 border-b-2 px-4 py-3 text-sm font-semibold transition ${projectSection === section.id ? "border-[var(--color-primary)] text-[var(--color-primary)]" : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"}`}>{section.label}</button>)}</nav></div>}
 
         {(() => {
           const tabTitles: Record<string, string> = {
             overview: "Researcher Dashboard",
-            group: "My Project",
+            group: "My Research",
             milestones: "Project Milestones",
             progress: "Progress Tracking",
             submission: "Research Document Submission",
@@ -1546,15 +1450,15 @@ function StudentDashboardContent() {
                       </button>
                     ) : !activeProject ? (
                       <button
-                        onClick={() => researchData?.projects?.length ? window.scrollTo({ top: 0, behavior: "smooth" }) : canCreateResearch ? setShowCreateModal(true) : handleTabChange("my-group")}
+                        onClick={() => researchData?.projects?.length ? window.scrollTo({ top: 0, behavior: "smooth" }) : handleTabChange("group")}
                         className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-6 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98] dark:text-[var(--college-on-primary-dark)]"
                       >
-                        <i className={`ti ${researchData?.projects?.length ? "ti-folders" : canCreateResearch ? "ti-plus" : "ti-users"} text-base font-bold`} /> {researchData?.projects?.length ? "Select Project" : canCreateResearch ? "Register Project" : "View My Group"}
+                        <i className={`ti ${researchData?.projects?.length ? "ti-folders" : "ti-users"} text-base font-bold`} /> {researchData?.projects?.length ? "Select Project" : "Research Team"}
                       </button>
                     ) : activeProject.status === "REJECTED" ? (
                       <div className="flex flex-wrap items-center justify-end gap-3">
                         <span className="text-xs font-medium text-rose-600">
-                          Delete this rejected record before registering a replacement.
+                          Contact your research coordinator about this rejected record.
                         </span>
                         <button
                           onClick={() => setGroupAction({ type: "delete" })}
@@ -1570,7 +1474,7 @@ function StudentDashboardContent() {
                           onClick={() => handleTabChange("group")}
                           className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98] dark:text-[var(--college-on-primary-dark)]"
                         >
-                          <i className="ti ti-folder-open text-base" /> View My Project
+                          <i className="ti ti-folder-open text-base" /> View My Research
                         </button>
                         <button
                           onClick={() => router.push("/student/documents")}
@@ -1617,10 +1521,10 @@ function StudentDashboardContent() {
                   </section>
                 )}
                 {/* 4 Stat Cards in a row: Proportions, icons & labels matching reference screenshot */}
-                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                {activeProject && (<section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                   <StatCard
                     label="Project Status"
-                    value={activeProject ? projectStatusLabel : "Not registered"}
+                    value={activeProject ? projectStatusLabel : "Not started"}
                     icon="ti-file-description"
                     iconBg="bg-sky-50 dark:bg-sky-950/40"
                     iconColor="text-sky-700 dark:text-sky-300"
@@ -1650,9 +1554,9 @@ function StudentDashboardContent() {
                     iconColor="text-emerald-600 dark:text-emerald-400"
                     onClick={() => handleTabChange("milestones")}
                   />
-                </section>
+                </section>)}
 
-                {/* Active Research Study Enrolled Card (when project registered) */}
+                {/* Existing authorized research study */}
                 {activeProject && (
                   <div>
                     <div className="mb-3 flex items-center justify-between">
@@ -1670,9 +1574,9 @@ function StudentDashboardContent() {
                       </button>
                     </div>
                     <CourseCard
-                      title={activeProject.title || "Capstone & Thesis Research Study"}
+                      title={`${activeProject.title || "Research Study"}${activeProject.isTitleProvisional ? " — Title pending" : ""}`}
                       code={`GROUP ${String(activeProject.id).substring(0, 6).toUpperCase()} • RESEARCH STUDY`}
-                      subtitle={`Current Workflow Stage: ${activeProject.workflowInstance?.currentStage?.name || "Proposal Stage"}`}
+                      subtitle={`Current Research Phase: ${activeProject.workflowInstance?.currentStage?.name || "Proposal Stage"}`}
                       instructor={
                         activeProject.members?.find((m: any) => m.projectRole === "ADVISER")?.user
                           ? `Adviser: Prof. ${activeProject.members.find((m: any) => m.projectRole === "ADVISER").user.firstName} ${activeProject.members.find((m: any) => m.projectRole === "ADVISER").user.lastName}`
@@ -1718,25 +1622,25 @@ function StudentDashboardContent() {
 
                       {/* Stepper with connecting line */}
                       <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-                        {/* Step 1: Register Project */}
+                        {/* Cohort, team, then explicit start */}
                         <button
-                          onClick={() => !activeProject && canCreateResearch ? setShowCreateModal(true) : handleTabChange(activeProject ? "group" : "my-group")}
+                          onClick={() => handleTabChange("group")}
                           className="group relative flex flex-col items-center text-center cursor-pointer focus:outline-none"
                         >
                           <span className="hidden md:block absolute left-[65%] top-[14px] w-[70%] h-[2px] bg-slate-200 dark:bg-white/10 -z-0" />
                           <span className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shadow-xs ${
-                            activeProject ? "bg-emerald-600 text-white" : "bg-slate-400 text-white dark:bg-white/20"
+                            (lifecycle.cohort?.status === "ACTIVE" || activeProject) ? "bg-emerald-600 text-white" : "bg-slate-400 text-white dark:bg-white/20"
                           }`}>
-                            {activeProject ? <i className="ti ti-check text-xs" /> : "1"}
+                            {(lifecycle.cohort?.status === "ACTIVE" || activeProject) ? <i className="ti ti-check text-xs" /> : "1"}
                           </span>
                           <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[var(--color-primary)] transition">
                             <i className="ti ti-file-description text-xl" />
                           </span>
                           <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">
-                            {canCreateResearch || activeProject ? "Register project" : "View group"}
+                            {"Research Cohort"}
                           </span>
                           <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
-                            {canCreateResearch || activeProject ? "View or register your research topic." : "View your team while your leader registers the project."}
+                            {"View your academic cohort and assigned research process."}
                           </span>
                         </button>
 
@@ -1747,39 +1651,39 @@ function StudentDashboardContent() {
                         >
                           <span className="hidden md:block absolute left-[65%] top-[14px] w-[70%] h-[2px] bg-slate-200 dark:bg-white/10 -z-0" />
                           <span className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shadow-xs ${
-                            activeStudentMembers.length > 1 ? "bg-emerald-600 text-white" : "bg-slate-400 text-white dark:bg-white/20"
+                            (lifecycle.team || activeProject) ? "bg-emerald-600 text-white" : "bg-slate-400 text-white dark:bg-white/20"
                           }`}>
-                            {activeStudentMembers.length > 1 ? <i className="ti ti-check text-xs" /> : "2"}
+                            {(lifecycle.team || activeProject) ? <i className="ti ti-check text-xs" /> : "2"}
                           </span>
                           <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[var(--color-primary)] transition">
                             <i className="ti ti-users text-xl" />
                           </span>
                           <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">
-                            Add group members
+                            Research Team
                           </span>
                           <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
                             Invite your team, if any.
                           </span>
                         </button>
 
-                        {/* Step 3: Choose an Adviser */}
+                        {/* Explicit team readiness */}
                         <button
-                          onClick={() => isGroupLeader ? router.push("/student/adviser-pool") : handleTabChange("group")}
+                          onClick={() => handleTabChange("group")}
                           className="group relative flex flex-col items-center text-center cursor-pointer focus:outline-none"
                         >
                           <span className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shadow-xs ${
-                            activeProject?.members?.some((m: any) => m.projectRole === "ADVISER") ? "bg-emerald-600 text-white" : "bg-slate-400 text-white dark:bg-white/20"
+                            activeProject ? "bg-emerald-600 text-white" : "bg-slate-400 text-white dark:bg-white/20"
                           }`}>
-                            {activeProject?.members?.some((m: any) => m.projectRole === "ADVISER") ? <i className="ti ti-check text-xs" /> : "3"}
+                            {activeProject ? <i className="ti ti-check text-xs" /> : "3"}
                           </span>
                           <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[var(--color-primary)] transition">
                             <i className="ti ti-user-check text-xl" />
                           </span>
                           <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">
-                            Choose an adviser
+                            {activeProject ? "Continue Research" : lifecycle.canStart ? "Start Research" : "Research Process"}
                           </span>
                           <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
-                            {isGroupLeader ? "Browse verified faculty and send a formal request." : "View your project’s adviser status."}
+                            {activeProject ? "Continue your assigned requirements." : "Your leader starts the process when the team is ready."}
                           </span>
                         </button>
                       </div>
@@ -1824,7 +1728,7 @@ function StudentDashboardContent() {
                   {/* Right Column (lg:col-span-5) */}
                   <div className="lg:col-span-5 flex flex-col gap-6">
                     {/* Next Consultation Card */}
-                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)] flex flex-col justify-between">
+                    {activeProject && (<div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)] flex flex-col justify-between">
                       <div>
                         <div className="flex items-center justify-between">
                           <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Next Consultation</h3>
@@ -1871,10 +1775,10 @@ function StudentDashboardContent() {
                         <i className="ti ti-calendar-plus text-base font-bold" />
                         <span>Book consultation</span>
                       </button>
-                    </div>
+                    </div>)}
 
                     {/* Quick Actions Card */}
-                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)]">
+                    {activeProject && (<div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)]">
                       <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">Quick Actions</h3>
                       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
                         <button
@@ -1906,269 +1810,12 @@ function StudentDashboardContent() {
                           <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">View milestones</span>
                         </button>
                       </div>
-                    </div>
+                    </div>)}
                   </div>
                 </div>
               </div>
             ),
-            "overview-legacy": (
-              <>
-                {!group ? (
-                  <div className="bg-white border-2 border-dashed border-slate-300 rounded-2xl p-10 text-center flex flex-col items-center justify-center shadow-sm my-2">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1b4264]/10 to-[#ffa400]/20 flex items-center justify-center text-[#1b4264] mb-4">
-                      <i className="ti ti-folder-plus text-3xl text-[#1b4264]" />
-                    </div>
-                    <h3 className="text-xl font-extrabold text-[#1b4264] mb-2">No Research Project Registered Yet</h3>
-                    <p className="text-slate-500 text-base max-w-md mb-6 leading-relaxed">
-                      You are not enrolled in an active research study yet. Create your capstone or thesis project to start collaborating with faculty advisers, submitting drafts, and booking consultations.
-                    </p>
-                    <button
-                      onClick={() => canCreateResearch ? setShowCreateModal(true) : handleTabChange("my-group")}
-                      className="px-6 py-3 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-extrabold rounded-xl shadow-md transition flex items-center gap-2 cursor-pointer text-sm"
-                    >
-                      <i className="ti ti-plus font-bold" />
-                      <span>{canCreateResearch ? "Register Research Project" : "View My Group"}</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="college-hero-surface border border-[var(--color-border)] text-[var(--color-text-primary)] p-6 rounded-2xl shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div>
-                      <span className="text-xs font-extrabold text-[#ffa400] uppercase tracking-wider block">Active Research Study</span>
-                      <h2 className="text-xl font-black mt-0.5">{group.projectTitle}</h2>
-                      <p className="text-base text-slate-200 mt-1">Study Leader: {user?.firstName} {user?.lastName} · Status: <span className="uppercase font-bold text-[#ffa400]">{group.status}</span></p>
-                    </div>
-                    <button
-                      onClick={() => router.push("/student/documents")}
-                      className="px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-xl text-sm shadow-xs transition cursor-pointer active:scale-[0.98]"
-                    >
-                      Open Document Workspace
-                    </button>
-                  </div>
-                )}
 
-                {/* EXACT STUDENT CARDS */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-lg">
-                      <i className="ti ti-users" />
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">Research Group Status</span>
-                      <span className="text-[15px] font-extrabold text-[#1b4264]">{group ? `${group.name} (${group.status})` : "Not Registered"}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#ffa400] flex items-center justify-center text-lg">
-                      <i className="ti ti-brain" />
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">Adviser Recs</span>
-                      <span className="text-[15px] font-extrabold text-[#1b4264]">{aiMatches.length > 0 ? `${aiMatches[0].name} (${aiMatches[0].match}%)` : "None yet"}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-lg">
-                      <i className="ti ti-file-text" />
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">Submitted Documents</span>
-                      <span className="text-[15px] font-extrabold text-[#1b4264]">{combinedSubmissions.length} Uploads</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#ffa400] flex items-center justify-center text-lg">
-                      <i className="ti ti-calendar-event" />
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">Pending Consults</span>
-                      <span className="text-[15px] font-extrabold text-[#1b4264]">{consultations.filter(c=>c.status==='pending' || c.status==='requested').length} Requested</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col gap-2.5 justify-center min-h-[72px]">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#1b4264] flex items-center justify-center text-lg flex-shrink-0">
-                        <i className="ti ti-target" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold leading-none">Milestone Progress</span>
-                        <span className="text-[14.5px] font-extrabold text-[#1b4264] mt-1.5 block leading-none">{group ? `${projectProgress}% Complete` : "0% Complete"}</span>
-                      </div>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden border border-slate-200/50">
-                      <div 
-                        className="bg-gradient-to-r from-[#1b4264] to-[#ffa400] h-full rounded-full transition-all duration-500 ease-out" 
-                        style={{ width: `${projectProgress}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#ffa400] flex items-center justify-center text-lg">
-                      <i className="ti ti-calendar" />
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">Defense Schedule</span>
-                      <span className="text-[15px] font-extrabold text-[#1b4264]">{defenses.length > 0 ? defenses[0].date : "Not Scheduled"}</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-[var(--color-surface)] p-4 rounded-2xl border border-[var(--color-border)] shadow-xs flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-[#1b4264]/10 text-[#ffa400] flex items-center justify-center text-lg">
-                      <i className="ti ti-certificate" />
-                    </div>
-                    <div>
-                      <span className="text-xs text-slate-400 uppercase tracking-wider block font-extrabold">Certificate Status</span>
-                      <span className="text-[15px] font-extrabold text-[#1b4264]">{group ? "Locked (Pending Defense)" : "Locked"}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Enhanced Bottom Cards: 4-card balanced grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                  {/* Card 1: Active Study Information */}
-                  <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
-                    <div className="flex flex-col gap-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
-                          <i className="ti ti-school text-[#ffa400]" />
-                          Study Overview
-                        </span>
-                        <Tag variant={group ? "success" : "info"}>{group ? "Enrolled" : "Draft"}</Tag>
-                      </div>
-                      <h4 className="font-extrabold text-[#1b4264] text-lg leading-snug line-clamp-2">
-                        {group?.projectTitle || "No project registered yet"}
-                      </h4>
-                      <div className="text-xs text-slate-500 flex flex-col gap-1 mt-1">
-                        <div><strong className="text-slate-700">Team:</strong> {group?.members?.length > 0 ? group.members.join(", ") : `${user?.firstName || "Student"} ${user?.lastName || ""}`}</div>
-                        <div><strong className="text-slate-700">Adviser:</strong> {group?.adviser || "Not Assigned"}</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => group ? router.push("/student/documents") : handleTabChange("group")}
-                      className="w-full py-2 bg-slate-100 hover:bg-[#1b4264] hover:text-[#ffa400] text-slate-700 text-sm font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <i className="ti ti-arrow-right text-xs" />
-                      <span>{group ? "Open Workspace" : "Manage Group"}</span>
-                    </button>
-                  </div>
-
-                  {/* Card 2: Upcoming Milestones */}
-                  <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
-                    <div className="flex flex-col gap-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
-                          <i className="ti ti-timeline text-[#ffa400]" />
-                          Workflow Milestones
-                        </span>
-                        <span className="text-xs font-bold text-slate-400">{milestones.length} Tasks</span>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {milestones.length > 0 ? (
-                          milestones.slice(0, 2).map(m => (
-                            <div key={m.id} className="flex justify-between items-center gap-2 text-[12px] p-2 bg-slate-50 border border-slate-200 rounded-lg">
-                              <span className="min-w-0"><span className="block truncate text-xs font-extrabold uppercase tracking-wide text-slate-400">{m.topicTitle}</span><span className="block truncate font-bold text-[#1b4264]">{m.title}</span></span>
-                              <Tag variant={m.status === "completed" ? "success" : m.status === "in-progress" ? "warn" : "info"}>{m.status}</Tag>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                            No active milestones. Register your project to generate deadlines.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleTabChange("milestones")}
-                      className="w-full py-2 bg-slate-100 hover:bg-[#1b4264] hover:text-[#ffa400] text-slate-700 text-sm font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <i className="ti ti-list-details text-xs" />
-                      <span>View All Milestones</span>
-                    </button>
-                  </div>
-
-                  {/* Card 3: Next Consultation & Google Meet */}
-                  <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
-                    <div className="flex flex-col gap-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
-                          <i className="ti ti-calendar-event text-[#ffa400]" />
-                          Next Consultation
-                        </span>
-                        <Tag variant={consultations.length > 0 ? "success" : "info"}>{consultations.length > 0 ? "Scheduled" : "None"}</Tag>
-                      </div>
-                      {consultations.length > 0 ? (
-                        <div className="p-2.5 bg-blue-50/50 border border-blue-100 rounded-lg flex flex-col gap-1 text-[12px]">
-                          <span className="font-bold text-[#1b4264] truncate">{consultations[0].topic}</span>
-                          <span className="text-xs text-slate-500">{consultations[0].date} · {consultations[0].time}</span>
-                        </div>
-                      ) : (
-                        <div className="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-lg border border-dashed border-slate-200">
-                          No upcoming consultations booked yet.
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleTabChange("consultations")}
-                      className="w-full py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white text-sm font-extrabold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98]"
-                    >
-                      <i className="ti ti-plus font-bold text-xs" />
-                      <span>Book Consultation</span>
-                    </button>
-                  </div>
-
-                  {/* Card 4: Quick Collaboration Tools */}
-                  <div className="bg-[var(--color-surface)] p-5 rounded-2xl border border-[var(--color-border)] shadow-xs flex flex-col justify-between gap-4 hover:border-[#1b4264]/40 transition">
-                    <div className="flex flex-col gap-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-extrabold uppercase tracking-wider text-[#1b4264] flex items-center gap-1.5">
-                          <i className="ti ti-bolt text-[#ffa400]" />
-                          Quick Actions
-                        </span>
-                        <span className="text-xs bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded">Shortcuts</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => router.push("/student/documents")}
-                          className="p-2.5 bg-slate-50 hover:bg-[#1b4264]/10 rounded-lg border border-slate-200 text-left transition cursor-pointer"
-                        >
-                          <i className="ti ti-file-text text-[#1b4264] text-sm block mb-0.5" />
-                          <span className="text-sm font-bold text-[#1b4264] block">Editor</span>
-                          <span className="text-sm text-slate-400">Draft Chapters</span>
-                        </button>
-                        <button
-                          onClick={() => handleTabChange("group-chats")}
-                          className="p-2.5 bg-slate-50 hover:bg-[#1b4264]/10 rounded-lg border border-slate-200 text-left transition cursor-pointer"
-                        >
-                          <i className="ti ti-messages text-[#1b4264] text-sm block mb-0.5" />
-                          <span className="text-sm font-bold text-[#1b4264] block">Group Chat</span>
-                          <span className="text-sm text-slate-400">Message Team</span>
-                        </button>
-                        <button
-                          onClick={() => handleTabChange("submissions")}
-                          className="p-2.5 bg-slate-50 hover:bg-[#1b4264]/10 rounded-lg border border-slate-200 text-left transition cursor-pointer"
-                        >
-                          <i className="ti ti-upload text-[#1b4264] text-sm block mb-0.5" />
-                          <span className="text-sm font-bold text-[#1b4264] block">Submit Draft</span>
-                          <span className="text-sm text-slate-400">Upload Files</span>
-                        </button>
-                        <button
-                          onClick={() => handleTabChange("defense")}
-                          className="p-2.5 bg-slate-50 hover:bg-[#1b4264]/10 rounded-lg border border-slate-200 text-left transition cursor-pointer"
-                        >
-                          <i className="ti ti-calendar text-[#1b4264] text-sm block mb-0.5" />
-                          <span className="text-sm font-bold text-[#1b4264] block">Defense</span>
-                          <span className="text-sm text-slate-400">View Schedule</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </>
-            ),
             profile: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-extrabold text-[#1b4264] text-lg">Student profile Info</h3>
@@ -2231,7 +1878,7 @@ function StudentDashboardContent() {
                   {!activeProject && isWorkspaceLeader && activeWorkspace?.participationMode === "GROUP" && <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4"><h4 className="font-semibold text-[var(--color-text-primary)]">Workspace invitation</h4><p className="mt-2 font-mono text-base text-[var(--color-primary)]">{activeWorkspace.inviteCode}</p><button type="button" onClick={() => navigator.clipboard.writeText(activeWorkspace.inviteCode).then(() => triggerToast("Invite code copied."))} className="mt-3 text-sm font-semibold text-[var(--color-primary)] hover:underline">Copy code</button></div>}
                   {!activeProject && canDeleteWorkspace && <button onClick={() => { setWorkspaceDeleteError(""); setWorkspaceToDelete({ id: activeWorkspace.id, name: activeWorkspace.name }); }} className="rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-sm font-extrabold text-rose-700 hover:bg-rose-50"><i className="ti ti-trash mr-1" />Delete workspace</button>}
                   {activeProject && !isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-bold text-amber-700">Leave group</button>}
-                </> : <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center"><p className="text-base text-slate-500">{isWorkspaceLoading ? "Loading your group…" : !workspaceData ? "Unable to load your group. Refresh to try again." : "You have not joined a research group yet."}</p>{workspaceData && <button onClick={() => handleTabChange("group")} className="mt-4 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Open My Project</button>}</div>}
+                </> : <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center"><p className="text-base text-slate-500">{isWorkspaceLoading ? "Loading your group…" : !workspaceData ? "Unable to load your group. Refresh to try again." : "You have not joined a research group yet."}</p>{workspaceData && <button onClick={() => handleTabChange("group")} className="mt-4 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Open My Research</button>}</div>}
               </section>
             ),
             group: (
@@ -2313,29 +1960,7 @@ function StudentDashboardContent() {
                 ) : (researchData?.projects?.length || 0) > 0 ? (
                   <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6"><h2 className="text-xl font-bold text-[var(--color-text-primary)]">Select a research project</h2><p className="mt-2 text-base text-[var(--color-text-secondary)]">Use the project selector above to view the correct title, workflow, and next step.</p></section>
                 ) : (
-                  <section className="student-projects-readable rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-xs">
-                    <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Research title not added</h2>
-                    <p className="mt-2 text-base text-[var(--color-text-secondary)]">{activeWorkspace && !isWorkspaceLeader ? "Your leader will register the project after joining a workflow. View your teammates in My Group." : "Create or join a workspace, then register your research title after joining your professor’s workflow."}</p>
-                    {activeWorkspace ? (
-                      <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                          <div><p className="text-sm font-extrabold uppercase tracking-widest text-[#C58A18]">{activeWorkspace.participationMode === "GROUP" ? "Research group" : "Solo workspace"}</p><h4 className="mt-1 text-lg font-extrabold text-[#102f49]">{activeWorkspace.name}</h4><p className="mt-1 text-base text-slate-500">{activeWorkspace.program?.code || activeWorkspace.program?.name} · {activeWorkspace.members?.length || 1} member{(activeWorkspace.members?.length || 1) === 1 ? "" : "s"}</p></div>
-                          <div className="flex flex-wrap gap-2">
-                            {canCreateResearch && !activeWorkspace.projects?.length && <button onClick={() => { setCreateTitle(""); setShowCreateModal(true); }} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"><i className="ti ti-plus mr-1" />Add research project</button>}
-                          </div>
-                        </div>
-                        {activeWorkspace.projects?.length > 0 && <div className="mt-4 space-y-2">{activeWorkspace.projects.map((project: any) => <div key={project.id} className="flex items-center justify-between rounded-xl bg-white p-3"><span className="text-sm font-bold text-[#102f49]">{project.title}</span><span className="text-xs font-bold text-slate-500">{project.status}</span></div>)}</div>}
-                      </div>
-                    ) : isWorkspaceLoading || !workspaceData ? (
-                      <p className="mt-5 text-base text-slate-500">{isWorkspaceLoading ? "Loading your workspace…" : "Unable to load your workspace. Refresh to try again."}</p>
-                    ) : (
-                      <div className="mt-5 grid gap-4 md:grid-cols-2">
-                        <button onClick={() => { setCreateTitle(""); setCreateGroupName(""); setShowCreateModal(true); }} className="rounded-2xl border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-6 text-left text-[var(--color-text-primary)] shadow-sm transition hover:-translate-y-0.5 hover:bg-[var(--color-surface-subtle)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)]"><i className="ti ti-folder-plus text-xl" /></span><span className="mt-4 block text-base font-extrabold">Create a workspace</span><span className="mt-1 block text-sm leading-5 text-[var(--color-text-secondary)]">Start Solo or create a group. Add a research title now or later.</span></button>
-                        <button onClick={() => router.push("/join-group")} className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-6 text-left transition hover:-translate-y-0.5 hover:border-[#173f63]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100"><i className="ti ti-users-plus text-xl text-[#173f63]" /></span><span className="mt-4 block text-base font-extrabold text-[#102f49]">Join a group</span><span className="mt-1 block text-sm leading-5 text-slate-500">Enter a group invitation code to join a research workspace.</span></button>
-                      </div>
-                    )}
-                    {activeWorkspace && <button type="button" onClick={() => handleTabChange("my-group")} className="mt-5 text-sm font-semibold text-[var(--color-primary)] hover:underline">View My Group →</button>}
-                  </section>
+                  <p className="text-base text-[var(--color-text-secondary)]">Choose your research cohort and prepare your team above. A title is not required to start.</p>
                 )}
               </div>
             ),
@@ -2343,7 +1968,7 @@ function StudentDashboardContent() {
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-extrabold text-[#1b4264] text-lg">Adviser Credentials Hub</h3>
                 <p className="text-base text-slate-400 font-bold">Adviser credentials now come from verified institutional accounts instead of sample profiles.</p>
-                <button onClick={() => isGroupLeader ? router.push("/student/adviser-pool") : handleTabChange("group")} className="mt-2 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-left transition hover:border-[#f6a800]"><span><span className="block text-sm font-extrabold text-[#102f49]">{isGroupLeader ? "Open Verified Adviser Pool" : "View Adviser Status"}</span><span className="mt-1 block text-sm text-slate-600">{isGroupLeader ? "Browse active advisers and send the project’s formal request." : "Adviser selection is managed by your group leader in My Project."}</span></span><i className="ti ti-arrow-right text-xl text-[#173f63]" /></button>
+                <button onClick={() => isGroupLeader ? router.push("/student/adviser-pool") : handleTabChange("group")} className="mt-2 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-left transition hover:border-[#f6a800]"><span><span className="block text-sm font-extrabold text-[#102f49]">{isGroupLeader ? "Open Verified Adviser Pool" : "View Adviser Status"}</span><span className="mt-1 block text-sm text-slate-600">{isGroupLeader ? "Browse active advisers and send the project’s formal request." : "Adviser selection is managed by your group leader in My Research."}</span></span><i className="ti ti-arrow-right text-xl text-[#173f63]" /></button>
               </div>
             ),
             "ai-recommendation": (
@@ -2383,7 +2008,7 @@ function StudentDashboardContent() {
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
                 <h3 className="font-extrabold text-[#1b4264] text-lg">In-App Voice and Video Group Conferencing</h3>
                 <p className="text-base text-slate-400 font-bold">Coordinate with peers and advisers using localized sandbox stream channels.</p>
-                
+
                 {!isMeetingActive ? (
                   <div className="bg-slate-50 p-6 border border-slate-200 rounded-xl text-center flex flex-col gap-4 shadow-sm">
                     <div className="w-16 h-16 bg-[#1b4264]/10 rounded-full flex items-center justify-center mx-auto text-[#1b4264]">
@@ -2518,7 +2143,7 @@ function StudentDashboardContent() {
                     ))
                   ) : (
                     <div className="text-xs text-slate-400 py-6 text-center">
-                      No project milestones recorded. Register your research study to initiate workflow.
+                      No project milestones recorded. Your research coordinator will configure the assigned process.
                     </div>
                   )}
                   </div>
@@ -2545,7 +2170,7 @@ function StudentDashboardContent() {
                   </div>
                   <div className="text-xs text-slate-500 font-medium leading-relaxed mt-1 flex items-center gap-1.5">
                     <i className="ti ti-info-circle text-[#1b4264]" />
-                    <span>{group ? `Current Milestone: ${activeProject?.workflowInstance?.currentStage?.name || "Not started"}` : "Register your research study to begin tracking milestones."}</span>
+                    <span>{group ? `Current Milestone: ${activeProject?.workflowInstance?.currentStage?.name || "Not started"}` : "Start research with your team to begin tracking requirements."}</span>
                   </div>
                 </div>
               </div>
@@ -2797,115 +2422,9 @@ function StudentDashboardContent() {
       )}
 
       {/* CREATE RESEARCH PROJECT MODAL */}
-      {showCreateModal && canCreateResearch && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="create-research-workspace-title"
-            className="flex max-h-[calc(100vh-2rem)] w-full max-w-lg animate-fade-in-up flex-col gap-4 overflow-y-auto rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 text-[var(--color-text-primary)] shadow-2xl sm:p-6"
-          >
-            <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] pb-3">
-              <h3 id="create-research-workspace-title" className="flex items-center gap-2 text-lg font-extrabold text-[var(--color-text-primary)]">
-                <i className="ti ti-folder-plus text-xl text-[var(--color-primary)]" aria-hidden="true" />
-                {activeWorkspace ? "Add research project" : "Create research workspace"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(false)}
-                aria-label="Close create research workspace dialog"
-                className="grid h-9 w-9 cursor-pointer place-items-center rounded-full text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
-              >
-                <i className="ti ti-x text-lg" aria-hidden="true" />
-              </button>
-            </div>
-            <form onSubmit={handleCreateResearch} className="flex flex-col gap-4 text-xs">
-              {!activeWorkspace && <fieldset>
-                <legend className="font-bold text-[var(--color-text-primary)]">How will you conduct this research?</legend>
-                <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                  {([
-                    { value: "SOLO", title: "Work solo", text: "Start with one researcher. You can convert it to a group later.", icon: "ti-user" },
-                    { value: "GROUP", title: "Create a group", text: "Become the leader and invite researchers using a code or link.", icon: "ti-users-group" },
-                  ] as const).map((option) => (
-                    <button key={option.value} type="button" aria-pressed={createParticipationMode === option.value} onClick={() => setCreateParticipationMode(option.value)} className={`rounded-xl border-2 p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] ${createParticipationMode === option.value ? "border-[var(--color-primary)] bg-[var(--color-primary-light)]" : "border-[var(--color-border)] bg-[var(--color-surface-subtle)] hover:border-[var(--color-border-strong)]"}`}>
-                      <i className={`ti ${option.icon} text-xl text-[var(--color-primary)]`} aria-hidden="true" />
-                      <span className="mt-2 block font-extrabold text-[var(--color-text-primary)]">{option.title}</span>
-                      <span className="mt-1 block text-sm leading-4 text-[var(--color-text-secondary)]">{option.text}</span>
-                    </button>
-                  ))}
-                </div>
-              </fieldset>}
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-[var(--color-text-primary)]">Research title {!activeWorkspace && <span className="font-normal text-[var(--color-text-muted)]">(optional — you can add it later)</span>}</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Real-Time Water Quality Monitoring Using IoT"
-                  value={createTitle}
-                  onChange={(e) => setCreateTitle(e.target.value)}
-                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
-                />
-              </div>
-              {needsRegistrationWorkflow && (
-                isWorkflowEnrollmentLoading ? (
-                  <p role="status" className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-sm text-[var(--color-text-secondary)]">Checking your workflow enrollment…</p>
-                ) : !hasRegistrationWorkflow ? (
-                  <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-                    <p className="font-bold"><i className="ti ti-alert-triangle mr-1.5" />{isWorkflowEnrollmentError ? "Unable to verify workflow enrollment" : "Join a workflow first"}</p>
-                    <p className="mt-1">{isWorkflowEnrollmentError ? "Your enrollment could not be checked. Open Tasks & Requirements to verify your workflow before creating a research project." : "You cannot create a research project until you join your professor’s workflow in Tasks & Requirements."}</p>
-                    <button type="button" onClick={() => { setShowCreateModal(false); handleTabChange("tasks"); }} className="mt-3 font-bold underline underline-offset-2">Open Tasks &amp; Requirements</button>
-                  </div>
-                ) : (
-                  <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">This project will use your {workflowEnrollmentData!.enrollments.length > 1 ? "most recently joined workflow" : "joined workflow"}: <strong>{registrationWorkflow?.name || "Research workflow"}</strong>.</p>
-                )
-              )}
-              {!activeWorkspace && <div className="grid gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-primary-subtle)] p-4 sm:grid-cols-2">
-                <label className="flex flex-col gap-1.5 font-bold text-[var(--color-text-primary)]">
-                  {createParticipationMode === "GROUP" ? "Group name" : "Workspace name"}
-                  <input type="text" required maxLength={120} value={createGroupName} onChange={(event) => setCreateGroupName(event.target.value)} placeholder={createParticipationMode === "GROUP" ? "e.g. Team Innovators" : "e.g. My Thesis Workspace"} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 font-normal text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]" />
-                </label>
-                {createParticipationMode === "GROUP" && <label className="flex flex-col gap-1.5 font-bold text-[var(--color-text-primary)]">
-                  Joining permission
-                  <select value={createAccessMode} onChange={(event) => setCreateAccessMode(event.target.value as typeof createAccessMode)} className="h-[42px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 font-normal text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]">
-                    <option value="INVITE_ONLY">Invite code</option>
-                    <option value="PUBLIC_OPEN">Open code joining</option>
-                  </select>
-                </label>}
-              </div>}
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-[var(--color-text-primary)]">Abstract / Problem Scope (Optional)</label>
-                <textarea
-                  rows={4}
-                  placeholder="Provide an overview of the proposed study, methodology, or objectives..."
-                  value={createAbstract}
-                  onChange={(e) => setCreateAbstract(e.target.value)}
-                  className="resize-none rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)]"
-                />
-              </div>
-              <div className="flex flex-col-reverse gap-2.5 border-t border-[var(--color-border-subtle)] pt-4 sm:flex-row sm:justify-end">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setShowCreateModal(false)}
-                  className="w-full sm:w-auto"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  isLoading={isCreatingProject}
-                  loadingText="Creating workspace..."
-                  disabled={isCreatingProject || (needsRegistrationWorkflow && !hasRegistrationWorkflow) || (activeWorkspace ? !createTitle.trim() : !createGroupName.trim())}
-                  className="w-full disabled:border-[var(--color-border)] disabled:bg-[var(--color-surface-muted)] disabled:text-[var(--color-text-secondary)] disabled:opacity-100 disabled:shadow-none sm:w-auto"
-                >
-                  {activeWorkspace ? "Create research project" : createTitle.trim() ? "Create workspace and project" : "Create workspace"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
-      {showEditProjectModal && activeProject && (
+
+      {showEditProjectModal && activeProject && !activeProject.isTitleProvisional && !activeProject.cohortId && (
         <div className="fixed inset-0 z-[80] grid place-items-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-t-4 border-[#1b4264] bg-white p-6 shadow-2xl">
             <div className="flex items-start justify-between border-b border-slate-100 pb-4">

@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "./auth-provider";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import {
   resolveActiveProject,
@@ -28,6 +28,7 @@ type ActiveProjectContextValue = {
 const ActiveProjectContext = createContext<ActiveProjectContextValue | null>(null);
 
 export function ActiveProjectProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -74,7 +75,8 @@ export function ActiveProjectProvider({ children }: { children: ReactNode }) {
 
   const selectProject = useCallback(
     (projectId: string | null, options?: { replace?: boolean }) => {
-      if (projectId && researcherPanel && (!projectsQuery.isSuccess || !projectsQuery.data.projects.some(({ id }) => id === projectId))) return;
+      const currentProjects = queryClient.getQueryData<{ projects: ProjectOption[] }>(["student-research"]);
+      if (projectId && researcherPanel && !currentProjects?.projects.some(({ id }) => id === projectId)) return;
       if (storageKey) {
         if (projectId) localStorage.setItem(storageKey, projectId);
         else localStorage.removeItem(storageKey);
@@ -89,7 +91,7 @@ export function ActiveProjectProvider({ children }: { children: ReactNode }) {
         replace: options?.replace,
       });
     },
-    [location.pathname, location.search, navigate, storageKey, researcherPanel, projectsQuery.isSuccess, projectsQuery.data],
+    [location.pathname, location.search, navigate, storageKey, researcherPanel, queryClient],
   );
 
   const value = useMemo<ActiveProjectContextValue>(

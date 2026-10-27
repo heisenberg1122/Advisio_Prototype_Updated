@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { WorkflowStartPanel } from "@/components/workflow/WorkflowStartPanel";
+import { ResearchStartNotice } from "@/components/research/ResearcherLifecyclePanel";
 import { useAdvisers } from "@/hooks/use-student";
 import { useAuth } from "@/hooks/use-auth";
 import { apiClient, panelRequestHeaders } from "@/lib/api-client";
@@ -74,7 +74,7 @@ export default function AdviserPoolPage() {
     mutationFn: async () => {
       if (!data?.projectId || !selectedAdviser?.id)
         throw new Error(
-          "Start your workflow before requesting an adviser. No research title is required.",
+          "Ask your research team leader to start the research process before requesting an adviser.",
         );
       if (requestMethod === "pdf" && !requestPdf)
         throw new Error(
@@ -194,11 +194,7 @@ export default function AdviserPoolPage() {
           </span>
         </div>
       )}
-      {!project && (data.workflowId ? <WorkflowStartPanel workflowId={data.workflowId} label="Start adviser selection" locked={(() => {
-        const stages = data.workflow?.stages || [];
-        const adviserStage = stages.find((stage: any) => stage.id === milestoneId || (!milestoneId && stage.milestoneType === "ADVISER_SELECTION"));
-        return !!adviserStage && adviserStage.sequence > stages[0]?.sequence;
-      })()} /> : <div className="rounded-xl border border-[var(--color-border)] p-5 text-[var(--color-text-primary)]">Join your professor’s workflow in <Link to="/student/tasks" className="font-bold underline">Tasks &amp; Requirements</Link> to start adviser selection. No registered research title is required.</div>)}
+      {!project && <ResearchStartNotice />}
 
       {message && !selectedAdviser && (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30 p-4 text-sm text-emerald-900 dark:text-emerald-200">
@@ -525,7 +521,7 @@ export default function AdviserPoolPage() {
                   <div>
                     <dt className="font-bold text-slate-500">Project</dt>
                     <dd className="mt-1 font-extrabold text-[#17212B] dark:text-white">
-                      {project?.title || "Title not registered yet"}
+                      {project?.isTitleProvisional ? "Research title pending" : project?.title || "Research title pending"}
                     </dd>
                   </div>
                   <div>

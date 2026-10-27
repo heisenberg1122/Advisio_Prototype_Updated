@@ -53,6 +53,7 @@ type WorkflowStage = {
 type ResearchProject = {
   id: string;
   title: string;
+  isTitleProvisional?: boolean;
   groupName?: string | null;
   taskSubmissions?: Array<{
     documentId?: string | null;
@@ -1117,7 +1118,7 @@ export default function DocumentWorkspacePage() {
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 border-l-[3px] border-[var(--color-primary)] pl-2.5">
         <span className="min-w-0 break-words text-base font-bold text-[var(--color-text-primary)]">
           {activeProject
-            ? `${activeProject.groupName ? activeProject.groupName + " — " : ""}${activeProject.title || "Research title not registered"}`
+            ? `${activeProject.groupName ? activeProject.groupName + " — " : ""}${activeProject.title || "Research title pending"}${activeProject.isTitleProvisional ? " — Title pending" : ""}`
             : "Select a research project"}
         </span>
         <label htmlFor="research-project" className="sr-only">
@@ -1159,7 +1160,7 @@ export default function DocumentWorkspacePage() {
             {projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.groupName ? project.groupName + " — " : ""}
-                {project.title || "Research title not registered"}
+                {project.title || "Research title pending"}{project.isTitleProvisional ? " — Title pending" : ""}
               </option>
             ))}
           </select>
