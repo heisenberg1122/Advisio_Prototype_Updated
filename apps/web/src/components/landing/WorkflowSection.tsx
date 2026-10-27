@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Play, Pause, Route } from "lucide-react";
-import { MilestonePreview } from "./workflow/MilestonePreview";
 import { MilestoneTimeline } from "./workflow/MilestoneTimeline";
+import { CurvedMilestoneJourney } from "./workflow/CurvedMilestoneJourney";
 import { illustrativeMilestones } from "./workflow/milestone-data";
 import "./workflow/milestone-journey.css";
 
@@ -39,7 +39,11 @@ export function WorkflowSection() {
           (window.scrollY + window.innerHeight * 0.48 - start) / distance,
         ),
       );
-      const nextActive = Math.round(nextProgress * lastMilestone);
+      // Advance as soon as the tip clears a node by 12px, rather than waiting
+      // until halfway to the next milestone (320px on the desktop route).
+      const nextActive = Math.max(0, Math.min(lastMilestone,
+        Math.ceil((nextProgress * distance - 12) / (distance / lastMilestone)),
+      ));
       setProgress(nextProgress);
       if (nextActive !== activeRef.current) {
         activeRef.current = nextActive;
@@ -51,9 +55,9 @@ export function WorkflowSection() {
     };
     const measure = () => {
       if (disposed) return;
-      const nodes = timeline.querySelectorAll<HTMLElement>(
+      const nodes = Array.from(timeline.querySelectorAll<HTMLElement>(
         "[data-milestone-node]",
-      );
+      )).filter((node) => node.getClientRects().length > 0);
       if (!nodes.length) return;
       const first = nodes[0].getBoundingClientRect();
       const last = nodes[nodes.length - 1].getBoundingClientRect();
@@ -136,33 +140,27 @@ export function WorkflowSection() {
             </button>
           )}
         </div>
-        <div className="lp-milestone-layout">
-          <MilestoneTimeline
+        <div ref={timelineRef}>
+          <CurvedMilestoneJourney
             milestones={illustrativeMilestones}
             active={active}
             progress={progress}
             onSelect={selectMilestone}
-            rootRef={timelineRef}
-            animate={animate}
           />
-          <div
-            className="lp-milestone-sticky-preview"
-            id="workflow-preview"
-            role="region"
-            aria-label="Milestone workspace preview"
-          >
-            <MilestonePreview
-              milestone={illustrativeMilestones[active]}
-              index={active}
-              total={illustrativeMilestones.length}
+          <div className="lp-milestone-layout lp-milestone-compact-layout">
+            <MilestoneTimeline
+              milestones={illustrativeMilestones}
+              active={active}
+              progress={progress}
+              onSelect={selectMilestone}
               animate={animate}
             />
-            <p className="lp-milestone-config-note">
-              An example journey. Milestones and requirements follow the
-              workflow assigned by your institution.
-            </p>
           </div>
         </div>
+        <p className="lp-milestone-config-note">
+          An example journey. Milestones and requirements follow the workflow
+          assigned by your institution.
+        </p>
       </div>
     </section>
   );
