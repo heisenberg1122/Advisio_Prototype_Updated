@@ -1,0 +1,524 @@
+/* The role ecosystem refines a single scene; portal and policy styles stay separate. */
+.landing-page .lp-role-ecosystem .lp-roles-intro {
+  max-width: 470px;
+  margin-top: 23px;
+  color: #5e7383;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+.landing-page .lp-role-network {
+  position: relative;
+  height: 500px;
+  margin-top: 42px;
+  isolation: isolate;
+}
+.landing-page .lp-role-connections {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+/* Separate wrapper motion keeps the entrance transforms and SVG anchors intact. */
+.landing-page .lp-role-network .lp-role-record-position {
+  animation: lp-role-record-float 8s ease-in-out infinite !important;
+  animation-play-state: paused !important;
+}
+.landing-page .lp-role-network .lp-role-node-position {
+  animation: lp-role-node-float calc(6.8s + var(--role-index) * 0.33s)
+    ease-in-out infinite !important;
+  animation-delay: calc(var(--role-index) * -0.9s) !important;
+  animation-play-state: paused !important;
+}
+.landing-page
+  .lp-role-network[data-floating="true"]
+  :is(.lp-role-record-position, .lp-role-node-position) {
+  animation-play-state: running !important;
+}
+.landing-page
+  .lp-role-network
+  :is(
+    .lp-role-node-position:hover,
+    .lp-role-node-position:focus-within,
+    .lp-role-record-position:hover
+  ) {
+  animation-play-state: paused !important;
+}
+.landing-page .lp-role-motion-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  min-height: 34px;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: #688296;
+  font-size: 0.62rem;
+}
+@keyframes lp-role-record-float {
+  0%,
+  100% {
+    translate: 0 4px;
+  }
+  50% {
+    translate: 0 -4px;
+  }
+}
+@keyframes lp-role-node-float {
+  0%,
+  100% {
+    translate: 0 3px;
+  }
+  50% {
+    translate: 0 -3px;
+  }
+}
+.landing-page .lp-role-connections path {
+  fill: none;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.landing-page .lp-role-connection-track {
+  stroke: #bfceda;
+}
+.landing-page .lp-role-connection-selected {
+  stroke: #b38e32;
+  stroke-width: 1.5;
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+}
+.landing-page .lp-role-connections .is-active .lp-role-connection-selected {
+  opacity: 1;
+}
+.landing-page .lp-role-connections circle {
+  fill: #a9bdcc;
+}
+.landing-page .lp-role-connections .is-active circle {
+  fill: #b38e32;
+}
+.landing-page .lp-role-record-position {
+  position: absolute;
+  left: 50%;
+  top: 51%;
+  transform: translate(-50%, -50%);
+  width: 330px;
+  z-index: 2;
+}
+.landing-page .lp-shared-record {
+  border: 1px solid #c5d5e1;
+  border-radius: 12px;
+  background: #fbfcfd;
+  box-shadow:
+    0 22px 60px -34px #0b355350,
+    0 0 0 5px #ffffff7a;
+  overflow: hidden;
+}
+.landing-page .lp-shared-record-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 18px;
+  background: #eef3f7;
+  border-bottom: 1px solid #dce6ed;
+  font-size: 0.65rem;
+  color: #496a81;
+}
+.landing-page .lp-shared-record-bar img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+.landing-page .lp-record-live-dot {
+  margin-left: auto;
+  width: 5px;
+  height: 5px;
+  background: #b38e32;
+  border-radius: 50%;
+}
+.landing-page .lp-shared-record-body {
+  padding: 22px 23px 19px;
+}
+.landing-page .lp-record-label {
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #688193;
+}
+.landing-page .lp-shared-record h3 {
+  margin-top: 10px;
+  font-size: 1.04rem;
+  font-weight: 550;
+  line-height: 1.4;
+  letter-spacing: -0.035em;
+}
+.landing-page .lp-record-progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 19px;
+  color: #647c8e;
+  font-size: 0.65rem;
+}
+.landing-page .lp-record-progress-label strong {
+  color: #284d66;
+  font-size: 1.55rem;
+  letter-spacing: -0.06em;
+  font-weight: 500;
+}
+.landing-page .lp-record-progress-label strong > span {
+  font-size: 0.75rem;
+}
+.landing-page .lp-record-progress {
+  height: 4px;
+  margin-top: 8px;
+  background: #e2eaf0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.landing-page .lp-record-progress > span {
+  display: block;
+  width: 72%;
+  height: 100%;
+  background: #496f89;
+  border-radius: inherit;
+}
+.landing-page .lp-record-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 17px;
+  color: #6a8091;
+  font-size: 0.65rem;
+}
+.landing-page .lp-record-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.landing-page .lp-record-review {
+  background: #eef3f7;
+  border: 1px solid #d6e2eb;
+  padding: 4px 7px;
+  border-radius: 4px;
+  color: #44657b;
+  font-size: 0.58rem;
+}
+.landing-page .lp-record-review > span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #b38e32;
+}
+.landing-page .lp-record-sample {
+  padding: 10px 18px;
+  text-align: center;
+  font-size: 0.56rem;
+  color: #718694;
+  border-top: 1px solid #e4ecf1;
+}
+.landing-page .lp-role-node-position {
+  position: absolute;
+  left: var(--role-x);
+  top: var(--role-y);
+  transform: translate(-50%, -50%);
+  width: max-content;
+  max-width: 210px;
+  z-index: 3;
+}
+.landing-page .lp-role-node {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 59px;
+  width: 100%;
+  padding: 12px 15px;
+  border: 1px solid #d9e3eb;
+  border-radius: 9px;
+  background: #f9fbfc;
+  color: #426077;
+  text-align: left;
+  box-shadow: 0 5px 16px #0b355303;
+  transition:
+    border-color 0.22s,
+    background 0.22s,
+    box-shadow 0.22s;
+}
+.landing-page .lp-role-node:hover {
+  background: #fff;
+  border-color: #a9bfce;
+}
+.landing-page .lp-role-node[aria-selected="true"] {
+  background: #fff;
+  border-color: #b9a46c;
+  color: #0b3553;
+  box-shadow: 0 7px 24px #0b35530a;
+}
+.landing-page .lp-role-node-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: #6c8a9e;
+}
+.landing-page .lp-role-node[aria-selected="true"] .lp-role-node-icon {
+  color: #9b7a2c;
+}
+.landing-page .lp-role-node-label strong {
+  display: block;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  font-weight: 550;
+}
+.landing-page .lp-role-node-label small {
+  display: block;
+  margin-top: 3px;
+  color: #6b8294;
+  font-size: 0.62rem;
+}
+.landing-page .lp-role-node-dot {
+  flex-shrink: 0;
+  width: 4px;
+  height: 4px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: #c5d5df;
+}
+.landing-page .lp-role-node[aria-selected="true"] .lp-role-node-dot {
+  background: #b38e32;
+}
+.landing-page .lp-role-node-action {
+  display: block;
+  margin-top: 9px;
+  color: #728796;
+  font-size: 0.59rem;
+  text-align: center;
+  letter-spacing: 0.025em;
+}
+.landing-page .lp-role-network.is-revealed .lp-shared-record {
+  animation: lp-panel 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.landing-page .lp-role-network.is-revealed .lp-role-connections path {
+  animation: lp-draw 0.5s 0.15s ease-out both;
+}
+.landing-page .lp-role-network.is-revealed .lp-role-node {
+  animation: lp-panel 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(0.3s + var(--role-index) * 0.065s);
+}
+.landing-page .lp-role-network.is-revealed .lp-role-node-action {
+  animation: lp-panel 0.25s ease-out both;
+  animation-delay: calc(0.7s + var(--role-index) * 0.04s);
+}
+.landing-page .lp-role-ecosystem .lp-role-details {
+  margin-top: 12px;
+  padding: 29px 40px;
+  gap: 80px;
+}
+.landing-page .lp-role-ecosystem .lp-role-description h3 {
+  font-size: clamp(1.7rem, 2.5vw, 2.2rem);
+  max-width: 400px;
+}
+.landing-page .lp-role-ecosystem .lp-role-description > p:not(.lp-micro) {
+  margin-top: 16px;
+  max-width: 380px;
+}
+.landing-page .lp-role-ecosystem .lp-role-preview {
+  min-height: 0;
+  padding: 20px 24px;
+}
+.landing-page .lp-role-ecosystem .lp-role-preview h4 {
+  margin-top: 13px;
+  font-size: 1rem;
+}
+.landing-page .lp-role-ecosystem .lp-role-rows > div {
+  padding: 12px 0;
+  font-size: 0.74rem;
+}
+.landing-page .lp-role-ecosystem .lp-role-rows > div:last-child {
+  border-bottom: 0;
+}
+.landing-page .lp-role-ecosystem .lp-role-rows > div > span:last-child {
+  font-size: 0.7rem;
+}
+@media (min-width: 900px) and (max-width: 1100px) {
+  .landing-page .lp-role-record-position {
+    width: 300px;
+  }
+  .landing-page .lp-role-node-position {
+    max-width: 190px;
+  }
+  .landing-page .lp-role-node {
+    gap: 8px;
+    padding-inline: 11px;
+  }
+  .landing-page .lp-role-node-label strong {
+    font-size: 0.72rem;
+  }
+  .landing-page .lp-role-node-position:nth-child(1) {
+    left: 11%;
+  }
+  .landing-page .lp-role-node-position:nth-child(5) {
+    left: 89%;
+  }
+}
+@media (max-width: 899px) {
+  .landing-page .lp-role-network .lp-role-node-position {
+    animation: none !important;
+  }
+  .landing-page .lp-role-motion-control {
+    position: relative;
+    display: flex;
+    margin: 13px 0 0 auto;
+  }
+  .landing-page .lp-role-network {
+    height: auto;
+    margin-top: 35px;
+  }
+  .landing-page .lp-role-connections {
+    display: none;
+  }
+  .landing-page .lp-role-record-position {
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    width: min(100%, 350px);
+    margin: auto;
+  }
+  .landing-page .lp-role-nodes {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    max-width: 650px;
+    margin: 30px auto 0;
+    padding: 15px 0 0 15px;
+    border-left: 1px solid #c5d5df;
+  }
+  .landing-page .lp-role-nodes::before {
+    content: "";
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    height: 30px;
+    width: 1px;
+    background: #c5d5df;
+  }
+  .landing-page .lp-role-nodes::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 1px;
+    background: #c5d5df;
+  }
+  .landing-page .lp-role-node-position {
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    width: 100%;
+    max-width: none;
+  }
+  .landing-page .lp-role-node-position::before {
+    content: "";
+    position: absolute;
+    left: -15px;
+    top: 30px;
+    width: 15px;
+    height: 1px;
+    background: #c5d5df;
+  }
+  .landing-page .lp-role-node {
+    min-height: 61px;
+    padding: 13px 15px;
+  }
+  .landing-page .lp-role-node-label strong {
+    font-size: 0.85rem;
+  }
+  .landing-page .lp-role-node-label small {
+    font-size: 0.68rem;
+  }
+  .landing-page .lp-role-node-action {
+    display: none;
+  }
+  .landing-page .lp-role-node-position:last-child {
+    grid-column: 1 / -1;
+  }
+  .landing-page .lp-role-ecosystem .lp-role-details {
+    margin-top: 30px;
+    gap: 35px;
+    padding: 30px;
+  }
+  .landing-page .lp-role-ecosystem .lp-role-preview {
+    padding: 20px;
+  }
+}
+@media (max-width: 599px) {
+  .landing-page .lp-role-ecosystem .lp-roles-intro {
+    font-size: 0.9rem;
+  }
+  .landing-page .lp-role-network {
+    margin-top: 32px;
+  }
+  .landing-page .lp-role-nodes {
+    gap: 10px;
+    padding-left: 11px;
+  }
+  .landing-page .lp-role-node-position::before {
+    width: 11px;
+    left: -11px;
+  }
+  .landing-page .lp-role-node {
+    padding: 12px 10px;
+    gap: 8px;
+    min-height: 67px;
+  }
+  .landing-page .lp-role-node-label strong {
+    font-size: 0.83rem;
+  }
+  .landing-page .lp-role-node-label small {
+    font-size: 0.65rem;
+  }
+  .landing-page .lp-role-node-dot {
+    display: none;
+  }
+  .landing-page .lp-role-node-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+  .landing-page .lp-role-ecosystem .lp-role-details {
+    padding: 25px 20px;
+    gap: 27px;
+  }
+  .landing-page .lp-role-ecosystem .lp-role-description h3 {
+    font-size: 1.85rem;
+  }
+  .landing-page .lp-role-ecosystem .lp-role-preview {
+    padding: 18px 15px;
+  }
+  .landing-page .lp-role-ecosystem .lp-role-rows > div {
+    font-size: 0.75rem;
+    gap: 8px;
+  }
+  .landing-page .lp-role-ecosystem .lp-role-rows > div > span:last-child {
+    font-size: 0.7rem;
+  }
+  .landing-page .lp-role-ecosystem .lp-role-note {
+    font-size: 0.7rem;
+    line-height: 1.7;
+  }
+  .landing-page .lp-shared-record h3 {
+    font-size: 1.06rem;
+  }
+  .landing-page .lp-record-label,
+  .landing-page .lp-record-sample {
+    font-size: 0.65rem;
+  }
+  .landing-page .lp-record-progress-label {
+    font-size: 0.72rem;
+  }
+}

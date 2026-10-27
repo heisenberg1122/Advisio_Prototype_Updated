@@ -1,232 +1,167 @@
-import React, { useState } from "react";
-import {
-  CheckCircle2,
-  Clock,
-  ArrowRight,
-  FileCheck2,
-  Users,
-  ShieldCheck,
-  Building2,
-  Award,
-  Sparkles,
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Play, Pause, Route } from "lucide-react";
+import { MilestonePreview } from "./workflow/MilestonePreview";
+import { MilestoneTimeline } from "./workflow/MilestoneTimeline";
+import { illustrativeMilestones } from "./workflow/milestone-data";
+import "./workflow/milestone-journey.css";
 
-import { handleLandingTabKey } from "./landing-tabs";
-
-type Stage = {
-  id: number;
-  number: string;
-  title: string;
-  status: "Completed" | "In Review" | "Upcoming";
-  statusColor: string;
-  lead: string;
-  deliverables: string[];
-  stakeholders: string[];
-};
-
-const STAGES: Stage[] = [
-  {
-    id: 1,
-    number: "01",
-    title: "Create Research Project",
-    status: "Completed",
-    statusColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    lead: "Create your research group and establish a shared home for the project.",
-    deliverables: ["Team Charter", "Scope Statement", "Topic Registration"],
-    stakeholders: ["Student Researchers", "Research Coordinator"],
-  },
-  {
-    id: 2,
-    number: "02",
-    title: "Connect & Assign Adviser",
-    status: "Completed",
-    statusColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    lead: "Browse eligible faculty and request an adviser, subject to availability and acceptance.",
-    deliverables: ["Adviser Request Form", "Workload Verification"],
-    stakeholders: ["Lead Researcher", "Faculty Adviser", "Department Chair"],
-  },
-  {
-    id: 3,
-    number: "03",
-    title: "Prepare & Submit Documents",
-    status: "Completed",
-    statusColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    lead: "Upload manuscript drafts and supporting files against your assigned requirements.",
-    deliverables: ["Chapter 1–3 Draft", "Similarity Index Report"],
-    stakeholders: ["Research Team"],
-  },
-  {
-    id: 4,
-    number: "04",
-    title: "Adviser Review & Annotation",
-    status: "Completed",
-    statusColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    lead: "Review the submitted version, add contextual annotations, and record a decision.",
-    deliverables: ["Annotated Manuscript", "Action Item Checklist"],
-    stakeholders: ["Faculty Adviser"],
-  },
-  {
-    id: 5,
-    number: "05",
-    title: "Consultation & Revision",
-    status: "In Review",
-    statusColor: "bg-amber-50 text-amber-700 border-amber-200",
-    lead: "Meet with your adviser, record consultation notes, and submit the next revision.",
-    deliverables: ["Consultation Log", "Revision Matrix v1.2"],
-    stakeholders: ["Research Team", "Faculty Adviser"],
-  },
-  {
-    id: 6,
-    number: "06",
-    title: "Panel Evaluation & Oral Defense",
-    status: "Upcoming",
-    statusColor: "bg-blue-50 text-blue-700 border-blue-200",
-    lead: "Prepare the defense packet for assigned panelists and record rubric evaluations.",
-    deliverables: ["Defense Review Packet", "Panelist Rubric Scores"],
-    stakeholders: ["Panel Chair", "Panel Members", "Faculty Adviser"],
-  },
-  {
-    id: 7,
-    number: "07",
-    title: "REB & Institutional Processing",
-    status: "Upcoming",
-    statusColor: "bg-slate-50 text-slate-700 border-slate-200",
-    lead: "Route research protocols and supporting documents through the required institutional reviews.",
-    deliverables: ["REB Ethics Certificate", "Compliance Clearance"],
-    stakeholders: ["Ethics Committee", "Research Office"],
-  },
-  {
-    id: 8,
-    number: "08",
-    title: "Final Archiving & Dean Clearance",
-    status: "Upcoming",
-    statusColor: "bg-slate-50 text-slate-700 border-slate-200",
-    lead: "Record final clearances and preserve an official copy with document integrity verification.",
-    deliverables: ["Cryptographic Official Copy", "Library Archive Deposit"],
-    stakeholders: ["Academic Dean", "University Registrar", "Library"],
-  },
-];
+const initialMilestone = 4;
+const lastMilestone = illustrativeMilestones.length - 1;
 
 export function WorkflowSection() {
-  const [activeStageId, setActiveStageId] = useState(5);
+  const [active, setActive] = useState(initialMilestone);
+  const [progress, setProgress] = useState(initialMilestone / lastMilestone);
+  const [reducedMotion, setReducedMotion] = useState(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  const [playScrollStory, setPlayScrollStory] = useState(false);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef(initialMilestone);
+
+  useEffect(() => {
+    const timeline = timelineRef.current;
+    if (!timeline) return;
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const desktop = window.matchMedia("(min-width: 900px)");
+    let frame = 0;
+    let disposed = false;
+    let start = 0;
+    let distance = 1;
+    const enabled = () =>
+      desktop.matches && (!preference.matches || playScrollStory);
+    const update = () => {
+      frame = 0;
+      if (!enabled() || disposed) return;
+      const nextProgress = Math.max(
+        0,
+        Math.min(
+          1,
+          (window.scrollY + window.innerHeight * 0.48 - start) / distance,
+        ),
+      );
+      const nextActive = Math.round(nextProgress * lastMilestone);
+      setProgress(nextProgress);
+      if (nextActive !== activeRef.current) {
+        activeRef.current = nextActive;
+        setActive(nextActive);
+      }
+    };
+    const schedule = () => {
+      if (enabled() && !frame) frame = window.requestAnimationFrame(update);
+    };
+    const measure = () => {
+      if (disposed) return;
+      const nodes = timeline.querySelectorAll<HTMLElement>(
+        "[data-milestone-node]",
+      );
+      if (!nodes.length) return;
+      const first = nodes[0].getBoundingClientRect();
+      const last = nodes[nodes.length - 1].getBoundingClientRect();
+      start = first.top + first.height / 2 + window.scrollY;
+      distance = Math.max(
+        1,
+        last.top + last.height / 2 + window.scrollY - start,
+      );
+      schedule();
+    };
+    const configure = () => {
+      setReducedMotion(preference.matches);
+      if (!enabled()) setProgress(activeRef.current / lastMilestone);
+      measure();
+    };
+    const resizeObserver = new ResizeObserver(measure);
+    resizeObserver.observe(timeline);
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", measure);
+    preference.addEventListener("change", configure);
+    desktop.addEventListener("change", configure);
+    document.fonts.ready.then(() => {
+      if (!disposed) measure();
+    });
+    configure();
+    return () => {
+      disposed = true;
+      window.cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", measure);
+      preference.removeEventListener("change", configure);
+      desktop.removeEventListener("change", configure);
+    };
+  }, [playScrollStory]);
+
+  const selectMilestone = (index: number) => {
+    activeRef.current = index;
+    setActive(index);
+    setProgress(index / lastMilestone);
+  };
+  const animate = !reducedMotion || playScrollStory;
+
   return (
-    <section id="workflow" className="landing-section landing-workflow">
-      <div className="landing-container">
-        <div className="landing-section-heading landing-heading-split">
-          <div>
-            <p className="landing-eyebrow">A guided research journey</p>
-            <h2>
-              Every step.
-              <br />A clear way forward.
-            </h2>
-          </div>
+    <section
+      id="workflow"
+      className="lp-journey lp-section lp-milestone-journey"
+      data-scene
+      data-story-motion={animate}
+    >
+      <div className="lp-container">
+        <div className="lp-milestone-heading">
+          <p className="lp-eyebrow">02 / The research journey</p>
+          <h2>Every milestone has a place.</h2>
           <p>
-            Follow the handoffs from proposal to official copy. This eight-step
-            example illustrates a workflow; your institution defines its
-            milestones and approvals.
+            Advisio keeps each project&apos;s milestones, submissions, reviews,
+            and decisions connected to its assigned research workflow.
           </p>
         </div>
-        <div
-          className="landing-workflow-tabs"
-          role="tablist"
-          aria-label="Example research workflow"
-          onKeyDown={handleLandingTabKey}
-        >
-          {STAGES.map((stage) => (
+        <div className="lp-milestone-context">
+          <span>
+            <Route size={14} aria-hidden="true" /> Illustrative research
+            workflow
+          </span>
+          <span className="lp-milestone-scroll-hint">
+            Scroll to follow the journey · Select to explore
+          </span>
+          <span className="lp-milestone-mobile-hint">
+            Select a milestone to explore
+          </span>
+          {reducedMotion && (
             <button
               type="button"
-              role="tab"
-              id={`workflow-tab-${stage.id}`}
-              aria-selected={activeStageId === stage.id}
-              aria-controls={`workflow-panel-${stage.id}`}
-              tabIndex={activeStageId === stage.id ? 0 : -1}
-              onClick={() => setActiveStageId(stage.id)}
-              key={stage.id}
+              className="lp-scroll-story-control"
+              aria-pressed={playScrollStory}
+              onClick={() => setPlayScrollStory((playing) => !playing)}
             >
-              <span>{stage.number}</span>
-              <strong>{stage.title}</strong>
+              {playScrollStory ? <Pause size={12} /> : <Play size={12} />}
+              {playScrollStory ? "Reduce scroll motion" : "Enable scroll story"}
             </button>
-          ))}
+          )}
         </div>
-        <div className="landing-panel-stack landing-workflow-panels">
-          {STAGES.map((stage) => {
-            const active = stage.id === activeStageId;
-            return (
-              <div
-                key={stage.id}
-                id={`workflow-panel-${stage.id}`}
-                role="tabpanel"
-                aria-labelledby={`workflow-tab-${stage.id}`}
-                aria-hidden={!active}
-                inert={!active}
-                tabIndex={0}
-                className={`landing-stable-panel landing-workflow-detail ${active ? "is-active" : ""}`}
-              >
-                <div>
-                  <p className="landing-eyebrow">
-                    Example workflow · Step {stage.number}
-                  </p>
-                  <h3>{stage.title}</h3>
-                  <p className="landing-workflow-lead">{stage.lead}</p>
-                  <div className="landing-workflow-lists">
-                    <div>
-                      <h4>Key deliverables</h4>
-                      <ul>
-                        {stage.deliverables.map((item) => (
-                          <li key={item}>
-                            <FileCheck2 size={16} aria-hidden="true" />
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h4>People involved</h4>
-                      <ul>
-                        {stage.stakeholders.map((item) => (
-                          <li key={item}>
-                            <Users size={16} aria-hidden="true" />
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-                <aside className="landing-workflow-note">
-                  <span className="landing-step-number" aria-hidden="true">
-                    {stage.number}
-                  </span>
-                  <div>
-                    <span className="landing-sample-label">Sample status</span>
-                    <p className="landing-workflow-status">
-                      <span
-                        className={`landing-status-dot ${stage.status === "Upcoming" ? "is-upcoming" : ""}`}
-                      />
-                      {stage.status}
-                    </p>
-                  </div>
-                  <p>
-                    Each handoff keeps the next action and responsible people in
-                    view.
-                  </p>
-                  <button
-                    type="button"
-                    className="landing-text-link"
-                    onClick={() => {
-                      const next = stage.id < STAGES.length ? stage.id + 1 : 1;
-                      setActiveStageId(next);
-                      document
-                        .getElementById(`workflow-tab-${next}`)
-                        ?.focus({ preventScroll: true });
-                    }}
-                  >
-                    Next step <ArrowRight size={16} aria-hidden="true" />
-                  </button>
-                </aside>
-              </div>
-            );
-          })}
+        <div className="lp-milestone-layout">
+          <MilestoneTimeline
+            milestones={illustrativeMilestones}
+            active={active}
+            progress={progress}
+            onSelect={selectMilestone}
+            rootRef={timelineRef}
+            animate={animate}
+          />
+          <div
+            className="lp-milestone-sticky-preview"
+            id="workflow-preview"
+            role="region"
+            aria-label="Milestone workspace preview"
+          >
+            <MilestonePreview
+              milestone={illustrativeMilestones[active]}
+              index={active}
+              total={illustrativeMilestones.length}
+              animate={animate}
+            />
+            <p className="lp-milestone-config-note">
+              An example journey. Milestones and requirements follow the
+              workflow assigned by your institution.
+            </p>
+          </div>
         </div>
       </div>
     </section>
