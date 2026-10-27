@@ -1,287 +1,202 @@
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 import {
-  LayoutDashboard,
   BookOpen,
-  FileText,
   Calendar,
-  MessageSquare,
-  Award,
-  Clock,
+  Check,
   CheckCircle2,
-  Bell,
-  ChevronRight,
+  FileText,
+  LayoutDashboard,
+  MessageSquare,
+  Users,
 } from "lucide-react";
-import { handleLandingTabKey } from "./landing-tabs";
-
-const TABS = [
-  { name: "Dashboard", icon: LayoutDashboard },
-  { name: "My Research", icon: BookOpen },
-  { name: "Documents", icon: FileText },
-  { name: "Consultations", icon: Clock },
-  { name: "Calendar", icon: Calendar },
-  { name: "Feedback", icon: MessageSquare },
-  { name: "Evaluations", icon: Award },
-];
-const PANELS: Record<
-  string,
-  { lead: string; rows: [string, string, string][] }
-> = {
-  "My Research": {
-    lead: "A shared record of your group's next steps.",
-    rows: [
-      ["Title proposal", "Selected research title recorded", "Approved"],
-      [
-        "Chapter 3 · Methodology",
-        "Address adviser feedback before resubmitting",
-        "In progress",
-      ],
-      [
-        "Defense preparation",
-        "Follow the configured milestone requirements",
-        "Upcoming",
-      ],
-    ],
-  },
-  Documents: {
-    lead: "Every submission has a version you can return to.",
-    rows: [
-      ["Chapter 3 · Methodology", "Version 1.2 · Oct 26, 2026", "In review"],
-      [
-        "Chapter 2 · Literature review",
-        "Version 2.0 · Oct 22, 2026",
-        "Approved",
-      ],
-      ["Research instruments", "Version 1.0 · Oct 20, 2026", "Submitted"],
-    ],
-  },
-  Consultations: {
-    lead: "Keep the conversation connected to your research.",
-    rows: [
-      [
-        "Methodology consultation",
-        "Oct 29 · 2:00 PM · Google Meet",
-        "Scheduled",
-      ],
-      ["Literature review follow-up", "Oct 22 · Notes recorded", "Completed"],
-      ["Proposal discussion", "Oct 15 · Notes recorded", "Completed"],
-    ],
-  },
-  Calendar: {
-    lead: "Consultations and research deadlines in one view.",
-    rows: [
-      ["Adviser consultation", "Thursday, October 29 · 2:00 PM", "Meeting"],
-      ["Document review", "Monday, November 2", "Deadline"],
-      ["Research presentation", "Friday, November 13", "Upcoming"],
-    ],
-  },
-  Feedback: {
-    lead: "Review comments alongside the work they refer to.",
-    rows: [
-      [
-        "Clarify the sampling procedure",
-        "Chapter 3 · Dr. Evelyn Vance",
-        "Open",
-      ],
-      ["Explain sample size selection", "Chapter 3 · Dr. Evelyn Vance", "Open"],
-      [
-        "Refine the literature synthesis",
-        "Chapter 2 · Response recorded",
-        "Resolved",
-      ],
-    ],
-  },
-  Evaluations: {
-    lead: "Keep assigned evaluations and recommendations in view.",
-    rows: [
-      ["Proposal evaluation", "Faculty recommendation recorded", "Completed"],
-      [
-        "Methodology review",
-        "Awaiting review of the next submission",
-        "Pending",
-      ],
-      [
-        "Oral defense evaluation",
-        "Available after defense scheduling",
-        "Upcoming",
-      ],
-    ],
-  },
-};
 
 export function HeroProductVisual() {
-  const [activeTab, setActiveTab] = useState("Dashboard");
+  const visualRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const visual = visualRef.current;
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const pointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+    let frame = 0;
+    const settle = () => {
+      frame = 0;
+      if (!visual) return;
+      const rect = visual.getBoundingClientRect();
+      const progress = Math.max(
+        0,
+        Math.min(
+          1,
+          (window.innerHeight - rect.top) / (window.innerHeight * 0.85),
+        ),
+      );
+      visual.style.setProperty(
+        "--settle-tilt",
+        motion.matches ? "0deg" : `${(1 - progress) * 5}deg`,
+      );
+      visual.style.setProperty(
+        "--settle-scale",
+        motion.matches ? "1" : `${0.97 + progress * 0.03}`,
+      );
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(settle);
+    };
+    const resetPointer = () => {
+      visual?.style.setProperty("--pointer-x", "0px");
+      visual?.style.setProperty("--pointer-tilt", "0deg");
+    };
+    const onPointer = (event: PointerEvent) => {
+      if (!visual || motion.matches || !pointer.matches) return;
+      const rect = visual.getBoundingClientRect();
+      const x = Math.max(
+        -0.5,
+        Math.min(0.5, (event.clientX - rect.left) / rect.width - 0.5),
+      );
+      visual.style.setProperty("--pointer-x", `${x * 8}px`);
+      visual.style.setProperty("--pointer-tilt", `${x * 1.5}deg`);
+    };
+    settle();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    motion.addEventListener("change", onScroll);
+    visual?.addEventListener("pointermove", onPointer);
+    visual?.addEventListener("pointerleave", resetPointer);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      motion.removeEventListener("change", onScroll);
+      visual?.removeEventListener("pointermove", onPointer);
+      visual?.removeEventListener("pointerleave", resetPointer);
+    };
+  }, []);
   return (
-    <div className="landing-product">
-      <div className="landing-browser">
-        <div className="landing-browser-bar">
-          <div className="landing-window-dots" aria-hidden="true">
+    <div className="lp-product-stage" ref={visualRef}>
+      <div
+        className="lp-workspace"
+        role="img"
+        aria-label="Illustrative researcher workspace showing a project at 72 percent, adviser feedback, and an upcoming consultation. Sample data."
+      >
+        <div className="lp-window-bar">
+          <div className="lp-window-dots" aria-hidden="true">
             <i />
             <i />
             <i />
           </div>
-          <span>
-            Interactive preview <span aria-hidden="true">/</span>{" "}
-            <strong>Sample data</strong>
-          </span>
-          <span className="landing-browser-status">
-            <span />
-            Advisio workspace
-          </span>
+          <span>Advisio / Researcher workspace</span>
+          <span className="lp-sample">Illustrative workspace</span>
         </div>
-        <div className="landing-dashboard">
-          <aside className="landing-preview-sidebar">
-            <div className="landing-preview-brand">
-              <img src="/ao-logo.png" alt="" width="32" height="32" />
-              <div>
-                <strong>ADVISIO</strong>
-                <span>Researcher workspace</span>
-              </div>
+        <div className="lp-workspace-layout">
+          <aside className="lp-preview-sidebar" aria-hidden="true">
+            <div className="lp-preview-brand">
+              <img src="/ao-logo.png" alt="" /> advisio<span>®</span>
             </div>
-            <div
-              role="tablist"
-              aria-label="Product preview"
-              aria-orientation="vertical"
-              onKeyDown={handleLandingTabKey}
-            >
-              {TABS.map(({ name, icon: Icon }) => (
-                <button
-                  key={name}
-                  type="button"
-                  role="tab"
-                  id={`preview-tab-${name.replace(/ /g, "-")}`}
-                  aria-selected={activeTab === name}
-                  aria-controls={`preview-panel-${name.replace(/ /g, "-")}`}
-                  tabIndex={activeTab === name ? 0 : -1}
-                  onClick={() => setActiveTab(name)}
-                >
-                  <Icon size={16} aria-hidden="true" />
-                  {name}
-                </button>
-              ))}
+            <span className="lp-micro">Workspace</span>
+            <div className="lp-preview-nav is-active">
+              <LayoutDashboard /> Overview
             </div>
-            <div className="landing-preview-user">
-              <span>NS</span>
+            <div className="lp-preview-nav">
+              <BookOpen /> My research
+            </div>
+            <div className="lp-preview-nav">
+              <FileText /> Documents <span>3</span>
+            </div>
+            <div className="lp-preview-nav">
+              <MessageSquare /> Feedback
+            </div>
+            <div className="lp-preview-nav">
+              <Calendar /> Consultations
+            </div>
+            <div className="lp-preview-person">
+              <span className="lp-avatar">NS</span>
               <div>
-                <strong>Nicole Santos</strong>
-                <small>Lead researcher · Sample</small>
+                Nicole Santos<small>Researcher</small>
               </div>
             </div>
           </aside>
-          <div className="landing-dashboard-main">
-            <div className="landing-preview-topbar">
+          <div className="lp-preview-main">
+            <div className="lp-preview-top">
               <div>
-                <p className="landing-sample-label">Research workspace</p>
-                <h2>Good morning, Nicole.</h2>
+                <span className="lp-micro">Your research, at a glance</span>
+                <h2>A little closer to your next milestone.</h2>
               </div>
-              <Bell size={18} aria-hidden="true" />
+              <span className="lp-avatar">
+                <Users size={17} />
+              </span>
             </div>
-            <label className="landing-preview-mobile-nav">
-              Explore the sample
-              <select
-                value={activeTab}
-                onChange={(event) => setActiveTab(event.target.value)}
-              >
-                {TABS.map((tab) => (
-                  <option key={tab.name}>{tab.name}</option>
-                ))}
-              </select>
-            </label>
-            <div className="landing-panel-stack">
-              <div
-                id="preview-panel-Dashboard"
-                role="tabpanel"
-                tabIndex={0}
-                aria-label="Dashboard sample"
-                aria-hidden={activeTab !== "Dashboard"}
-                inert={activeTab !== "Dashboard"}
-                className={`landing-stable-panel ${activeTab === "Dashboard" ? "is-active" : ""}`}
-              >
-                <article className="landing-project-card">
-                  <div className="landing-project-heading">
-                    <span className="landing-eyebrow">IT capstone · 2026</span>
-                    <span className="landing-sample-label">On schedule</span>
-                  </div>
-                  <h3>
-                    Advisio: A Research Advising
-                    <br className="hidden sm:block" /> and Management Platform
-                  </h3>
-                  <div className="landing-project-progress">
-                    <span>Chapter 3 · Methodology</span>
-                    <strong>72%</strong>
-                  </div>
-                  <div className="landing-project-track">
-                    <span />
-                  </div>
-                  <div className="landing-project-meta">
-                    <div>
-                      <small>Assigned adviser</small>
-                      <strong>Dr. Evelyn Vance</strong>
-                    </div>
-                    <div>
-                      <small>Next consultation</small>
-                      <strong>Oct 29 · 2:00 PM</strong>
-                    </div>
-                  </div>
-                  <div className="landing-preview-feedback">
-                    <MessageSquare size={16} aria-hidden="true" />
-                    <p>
-                      <strong>A note from your adviser</strong>Please clarify
-                      the sampling procedure before our next consultation.
-                    </p>
-                  </div>
-                </article>
-                <div className="landing-preview-upcoming">
-                  <Calendar size={17} aria-hidden="true" />
+            <div className="lp-research-card">
+              <div className="lp-row">
+                <span className="lp-micro">IT Capstone · Research project</span>
+                <span className="lp-badge">In progress</span>
+              </div>
+              <h3>
+                Advisio: A Research Advising
+                <br className="lp-desktop-break" /> and Management Platform
+              </h3>
+              <div className="lp-progress-caption">
+                <span>Chapter 3 / Methodology</span>
+                <strong>
+                  72<span>%</span>
+                </strong>
+              </div>
+              <div className="lp-progress" aria-hidden="true">
+                <span style={{ width: "72%" }} />
+              </div>
+              <div className="lp-research-meta">
+                <div>
+                  <span className="lp-avatar">EV</span>
                   <div>
-                    <strong>Research presentation</strong>
-                    <span>Friday, November 13</span>
+                    <small>Your adviser</small>
+                    <strong>Dr. Evelyn Vance</strong>
                   </div>
-                  <ChevronRight size={15} aria-hidden="true" />
+                </div>
+                <div>
+                  <Calendar size={18} />
+                  <div>
+                    <small>Next consultation</small>
+                    <strong>Oct 29 · 2:00 PM</strong>
+                  </div>
                 </div>
               </div>
-              {Object.entries(PANELS).map(([name, panel]) => (
-                <div
-                  key={name}
-                  id={`preview-panel-${name.replace(/ /g, "-")}`}
-                  role="tabpanel"
-                  tabIndex={0}
-                  aria-label={`${name} sample`}
-                  aria-hidden={activeTab !== name}
-                  inert={activeTab !== name}
-                  className={`landing-stable-panel landing-sample-panel ${activeTab === name ? "is-active" : ""}`}
-                >
-                  <p className="landing-eyebrow">Sample workspace</p>
-                  <h3>{name}</h3>
-                  <p>{panel.lead}</p>
-                  <div className="landing-sample-rows">
-                    {panel.rows.map(([title, sub, status]) => (
-                      <div key={title}>
-                        <div>
-                          <strong>{title}</strong>
-                          <p>{sub}</p>
-                        </div>
-                        <span>{status}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+            </div>
+            <div className="lp-feedback-strip">
+              <span className="lp-feedback-icon">
+                <MessageSquare size={17} />
+              </span>
+              <div>
+                <span className="lp-micro">A note from your adviser</span>
+                <p>
+                  “Please revise the sampling procedure before our next
+                  consultation.”
+                </p>
+              </div>
+              <span className="lp-feedback-version">Chapter 3 · v1.2</span>
+            </div>
+            <div className="lp-preview-bottom">
+              <span>
+                <Check size={13} /> Proposal approved
+              </span>
+              <span>
+                <Check size={13} /> Adviser connected
+              </span>
+              <span>
+                <span className="lp-status-dot" /> Methodology in progress
+              </span>
             </div>
           </div>
         </div>
       </div>
-      <div className="landing-floating-card landing-floating-approved">
-        <CheckCircle2 size={29} aria-hidden="true" />
+      <div className="lp-float-chip lp-float-one" aria-hidden="true">
+        <CheckCircle2 size={19} />
         <div>
-          <span>Milestone approved</span>
-          <strong>Chapter 2 · Literature review</strong>
+          <small>Milestone approved</small>
+          <strong>One step further.</strong>
         </div>
       </div>
-      <div className="landing-floating-card landing-floating-feedback">
-        <MessageSquare size={24} aria-hidden="true" />
+      <div className="lp-float-chip lp-float-two" aria-hidden="true">
+        <MessageSquare size={18} />
         <div>
-          <span>Feedback received</span>
-          <strong>3 notes on your latest draft</strong>
+          <small>New feedback</small>
+          <strong>Guidance, right where you need it.</strong>
         </div>
       </div>
     </div>
