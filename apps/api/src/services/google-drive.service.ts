@@ -68,7 +68,10 @@ function integrationSecret(): string {
     process.env.INTEGRATION_ENCRYPTION_KEY ||
     process.env.JWT_SECRET ||
     process.env.AUTH_SECRET;
-  if (process.env.NODE_ENV === "production" && (!configured || configured.length < 32)) {
+  if (
+    process.env.NODE_ENV === "production" &&
+    (!configured || configured.length < 32)
+  ) {
     throw new Error(
       "Production requires an integration encryption key of at least 32 characters.",
     );
@@ -558,27 +561,31 @@ class GoogleDriveService {
         continue;
       }
 
-      // Preserve the normal hierarchy contract for isolated/local runs while
-      // the upload service stores the actual bytes on disk.
-      if (!connection?.drive) {
-        const folderId = `local-folder-${crypto
-          .createHash("sha256")
-          .update(pathKey)
-          .digest("hex")
-          .slice(0, 32)}`;
+      // Reserve both unique identities without rebinding another path's folder.
+      // Concurrent callers for this path must use the winner's persisted ID.
+      const reserveFolder = async (folderId: string, storedName: string) => {
         const entityType = segment.entityType || null;
         const entityId = segment.entityId || null;
         await prisma.$executeRaw`INSERT INTO "storage_folders"
           ("provider", "path_key", "external_folder_id", "parent_folder_id", "name", "entity_type", "entity_id", "updated_at")
-          VALUES (${PROVIDER}, ${pathKey}, ${folderId}, ${parentFolderId}, ${segment.name}, ${entityType}, ${entityId}, CURRENT_TIMESTAMP)
-          ON CONFLICT ("provider", "path_key") DO UPDATE SET
-            "external_folder_id" = EXCLUDED."external_folder_id",
-            "parent_folder_id" = EXCLUDED."parent_folder_id",
-            "name" = EXCLUDED."name",
-            "entity_type" = EXCLUDED."entity_type",
-            "entity_id" = EXCLUDED."entity_id",
-            "updated_at" = CURRENT_TIMESTAMP`;
-        parentFolderId = folderId;
+          VALUES (${PROVIDER}, ${pathKey}, ${folderId}, ${parentFolderId}, ${storedName}, ${entityType}, ${entityId}, CURRENT_TIMESTAMP)
+          ON CONFLICT DO NOTHING`;
+        const rows = await prisma.$queryRaw<
+          Array<{ externalFolderId: string }>
+        >`
+          SELECT "external_folder_id" AS "externalFolderId" FROM "storage_folders"
+          WHERE "provider" = ${PROVIDER} AND "path_key" = ${pathKey} LIMIT 1`;
+        return rows[0]?.externalFolderId;
+      };
+
+      if (!connection?.drive) {
+        const folderId = `local-folder-${crypto.createHash("sha256").update(pathKey).digest("hex").slice(0, 32)}`;
+        const reserved = await reserveFolder(folderId, segment.name);
+        if (!reserved)
+          throw new Error(
+            "The storage folder could not be reserved. Please retry the upload.",
+          );
+        parentFolderId = reserved;
         continue;
       }
 
@@ -587,16 +594,32 @@ class GoogleDriveService {
         {
           q: `'${parentFolderId}' in parents and name = '${queryName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
           spaces: "drive",
-          fields: "files(id,name)",
+          fields: "files(id,name,appProperties)",
           pageSize: 2,
           supportsAllDrives: true,
           includeItemsFromAllDrives: true,
         },
         { timeout: DRIVE_REQUEST_TIMEOUT_MS },
       );
-      const folder =
-        found.data.files?.[0] ||
-        (
+      let resolvedFolderId: string | undefined;
+      for (const candidate of found.data.files || []) {
+        if (!candidate.id) continue;
+        const ownerId = candidate.appProperties?.advisioEntityId;
+        const ownerType = candidate.appProperties?.advisioEntityType;
+        // A recreated milestone may share its display name with a retired one.
+        if (
+          (ownerId && segment.entityId && ownerId !== segment.entityId) ||
+          (ownerType && segment.entityType && ownerType !== segment.entityType)
+        )
+          continue;
+        resolvedFolderId = await reserveFolder(
+          candidate.id,
+          candidate.name || segment.name,
+        );
+        if (resolvedFolderId) break;
+      }
+      if (!resolvedFolderId) {
+        const folder = (
           await connection.drive.files.create(
             {
               requestBody: {
@@ -620,25 +643,21 @@ class GoogleDriveService {
             { timeout: DRIVE_REQUEST_TIMEOUT_MS },
           )
         ).data;
-      if (!folder.id)
-        throw new Error(
-          `Google Drive did not return an ID for ${segment.name}`,
-        );
+        if (!folder.id)
+          throw new Error(
+            `Google Drive did not return an ID for ${segment.name}`,
+          );
 
-      const storedName = folder.name || segment.name;
-      const entityType = segment.entityType || null;
-      const entityId = segment.entityId || null;
-      await prisma.$executeRaw`INSERT INTO "storage_folders"
-        ("provider", "path_key", "external_folder_id", "parent_folder_id", "name", "entity_type", "entity_id", "updated_at")
-        VALUES (${PROVIDER}, ${pathKey}, ${folder.id}, ${parentFolderId}, ${storedName}, ${entityType}, ${entityId}, CURRENT_TIMESTAMP)
-        ON CONFLICT ("provider", "path_key") DO UPDATE SET
-          "external_folder_id" = EXCLUDED."external_folder_id",
-          "parent_folder_id" = EXCLUDED."parent_folder_id",
-          "name" = EXCLUDED."name",
-          "entity_type" = EXCLUDED."entity_type",
-          "entity_id" = EXCLUDED."entity_id",
-          "updated_at" = CURRENT_TIMESTAMP`;
-      parentFolderId = folder.id;
+        resolvedFolderId = await reserveFolder(
+          folder.id,
+          folder.name || segment.name,
+        );
+      }
+      if (!resolvedFolderId)
+        throw new Error(
+          "The storage folder changed during upload. Please retry.",
+        );
+      parentFolderId = resolvedFolderId;
     }
     return parentFolderId;
   }
