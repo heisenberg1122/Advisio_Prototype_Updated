@@ -83,6 +83,18 @@ enum ResearchStatus {
   REJECTED
 }
 
+enum ResearchCohortStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+enum ResearchCohortMemberStatus {
+  ACTIVE
+  REMOVED
+}
+
 enum ResearchParticipationMode {
   SOLO
   GROUP
@@ -428,6 +440,7 @@ model College {
   users              User[]
   researchProjects   ResearchProject[]
   researchWorkspaces ResearchWorkspace[]
+  researchCohorts    ResearchCohort[]
   forms              Form[]
   dashboardConfigs   DashboardConfig[]
   announcements      SystemAnnouncement[]
@@ -455,6 +468,7 @@ model Program {
   researchTypes      ResearchType[]
   researchProjects   ResearchProject[]
   researchWorkspaces ResearchWorkspace[]
+  researchCohorts    ResearchCohort[]
   calendarEvents     CalendarEvent[]
 
   @@unique([collegeId, code])
@@ -489,6 +503,7 @@ model AcademicYear {
   isActive  Boolean  @default(true) @map("is_active")
 
   researchProjects   ResearchProject[]
+  researchCohorts    ResearchCohort[]
   researcherProfiles ResearcherProfile[]
 
   @@map("academic_years")
@@ -536,6 +551,8 @@ model User {
   memberships               ResearchMember[]
   workspaceMemberships      WorkspaceMember[]
   createdWorkspaces         ResearchWorkspace[]        @relation("WorkspaceCreator")
+  createdResearchCohorts     ResearchCohort[]           @relation("ResearchCohortCreator")
+  researchCohortMemberships  ResearchCohortMember[]
   ownedResearch             ResearchProject[]          @relation("ProjectCreator")
   reviews                   Review[]
   reviewerAssignments       ReviewerAssignment[]       @relation("AssignedReviewer")
@@ -726,12 +743,64 @@ model ResearchType {
   program             Program              @relation(fields: [programId], references: [id], onDelete: Restrict)
   workflow            Workflow?            @relation(fields: [workflowId], references: [id], onDelete: SetNull)
   researchProjects    ResearchProject[]
+  researchCohorts     ResearchCohort[]
   forms               Form[]
   evaluationTemplates EvaluationTemplate[]
 
   @@unique([programId, code])
   @@index([isActive])
   @@map("research_types")
+}
+
+model ResearchCohort {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String               @db.VarChar(150)
+  description    String?              @db.Text
+  collegeId      String               @map("college_id") @db.Uuid
+  programId      String               @map("program_id") @db.Uuid
+  researchTypeId String               @map("research_type_id") @db.Uuid
+  academicYearId String               @map("academic_year_id") @db.Uuid
+  workflowId     String?              @map("workflow_id") @db.Uuid
+  status         ResearchCohortStatus @default(DRAFT)
+  createdBy      String               @map("created_by") @db.Uuid
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  college      College      @relation(fields: [collegeId], references: [id], onDelete: Restrict)
+  program      Program      @relation(fields: [programId], references: [id], onDelete: Restrict)
+  researchType ResearchType @relation(fields: [researchTypeId], references: [id], onDelete: Restrict)
+  academicYear AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+  workflow     Workflow?    @relation(fields: [workflowId], references: [id], onDelete: Restrict)
+  creator      User         @relation("ResearchCohortCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  members          ResearchCohortMember[]
+  workspaces       ResearchWorkspace[]
+  researchProjects ResearchProject[]
+
+  @@index([collegeId, programId])
+  @@index([academicYearId])
+  @@index([researchTypeId])
+  @@index([workflowId])
+  @@index([createdBy])
+  @@index([status])
+  @@map("research_cohorts")
+}
+
+model ResearchCohortMember {
+  id        String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cohortId  String                     @map("cohort_id") @db.Uuid
+  userId    String                     @map("user_id") @db.Uuid
+  status    ResearchCohortMemberStatus @default(ACTIVE)
+  joinedAt  DateTime                   @default(now()) @map("joined_at")
+  removedAt DateTime?                  @map("removed_at")
+
+  cohort ResearchCohort @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  user   User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([cohortId, userId])
+  @@index([userId, status])
+  @@index([cohortId, status])
+  @@map("research_cohort_members")
 }
 
 model ResearchProject {
@@ -757,6 +826,7 @@ model ResearchProject {
   updatedAt           DateTime                  @updatedAt @map("updated_at")
   completedAt         DateTime?                 @map("completed_at")
   workspaceId         String?                   @map("workspace_id") @db.Uuid
+  cohortId            String?                   @map("cohort_id") @db.Uuid
 
   researchType     ResearchType       @relation(fields: [researchTypeId], references: [id], onDelete: Restrict)
   program          Program            @relation(fields: [programId], references: [id], onDelete: Restrict)
@@ -764,6 +834,7 @@ model ResearchProject {
   academicYear     AcademicYear       @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
   creator          User               @relation("ProjectCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   workspace        ResearchWorkspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  cohort           ResearchCohort?    @relation(fields: [cohortId], references: [id], onDelete: SetNull)
   workflowInstance WorkflowInstance?  @relation(fields: [workflowInstanceId], references: [id], onDelete: SetNull)
 
   members                ResearchMember[]
@@ -790,6 +861,7 @@ model ResearchProject {
   @@index([collegeId, academicYearId])
   @@index([researchTypeId])
   @@index([workspaceId])
+  @@index([cohortId])
   @@map("research_projects")
 }
 
@@ -802,18 +874,21 @@ model ResearchWorkspace {
   inviteCodeEnabled Boolean                   @default(true) @map("invite_code_enabled")
   collegeId         String                    @map("college_id") @db.Uuid
   programId         String                    @map("program_id") @db.Uuid
+  cohortId          String?                   @map("cohort_id") @db.Uuid
   createdBy         String                    @map("created_by") @db.Uuid
   createdAt         DateTime                  @default(now()) @map("created_at")
   updatedAt         DateTime                  @updatedAt @map("updated_at")
 
   college  College           @relation(fields: [collegeId], references: [id], onDelete: Restrict)
   program  Program           @relation(fields: [programId], references: [id], onDelete: Restrict)
+  cohort   ResearchCohort?    @relation(fields: [cohortId], references: [id], onDelete: SetNull)
   creator  User              @relation("WorkspaceCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   members  WorkspaceMember[]
   projects ResearchProject[]
 
   @@index([collegeId, programId])
   @@index([createdBy])
+  @@index([cohortId])
   @@map("research_workspaces")
 }
 
@@ -936,6 +1011,7 @@ model Workflow {
   inviteExpiresAt DateTime?      @map("invite_expires_at")
 
   researchTypes ResearchType[]
+  researchCohorts ResearchCohort[]
   stages        WorkflowStage[]
   topics        WorkflowTopic[]
   instances     WorkflowInstance[]
