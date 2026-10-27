@@ -627,6 +627,265 @@ databaseDescribe(
         await prisma.researchWorkspace.count({ where: { id: soloId } }),
       ).toBe(1);
     });
+    it("keeps same-track cohorts independent through explicit start, later publication and access removal", async () => {
+      async function publishProcess(label: string) {
+        const draft = await api(coordinatorId, "/api/workflows", "POST", {
+          name: `${code} ${label}`,
+          researchTypeId: typeId,
+        });
+        expect(draft.status).toBe(201);
+        const id = draft.body.workflow.id as string;
+        fixture.workflowIds.push(id);
+        const stage = await api(
+          coordinatorId,
+          `/api/workflows/${id}/stages`,
+          "POST",
+          {
+            name: `${label} Requirement`,
+            requiresDocument: false,
+            topicId: null,
+          },
+        );
+        expect(stage.status).toBe(201);
+        expect(
+          (await api(coordinatorId, `/api/workflows/${id}/publish`, "POST", {}))
+            .status,
+        ).toBe(200);
+        return { id, stageId: stage.body.stage.id as string };
+      }
+      async function configuredTeam(
+        label: string,
+        processId: string,
+        actor: string,
+      ) {
+        const created = await api(coordinatorId, "/api/cohorts", "POST", {
+          name: `${code} ${label}`,
+          collegeId,
+          programId,
+          researchTypeId: typeId,
+          academicYearId: yearId,
+        });
+        expect(created.status).toBe(201);
+        const id = created.body.cohort.id as string;
+        cohortIds.push(id);
+        expect(
+          (
+            await api(coordinatorId, `/api/cohorts/${id}/workflow`, "PUT", {
+              workflowId: processId,
+            })
+          ).status,
+        ).toBe(200);
+        expect(
+          (
+            await api(coordinatorId, `/api/cohorts/${id}/members`, "POST", {
+              userIds: [actor],
+            })
+          ).status,
+        ).toBe(201);
+        expect(
+          (
+            await api(coordinatorId, `/api/cohorts/${id}`, "PATCH", {
+              status: "ACTIVE",
+            })
+          ).status,
+        ).toBe(200);
+        const team = await api(actor, "/api/workspaces", "POST", {
+          name: `${label} ready team`,
+          cohortId: id,
+          participationMode: "SOLO",
+        });
+        expect(team.status).toBe(201);
+        workspaceIds.push(team.body.workspace.id);
+        expect(
+          await prisma.researchProject.count({
+            where: { workspaceId: team.body.workspace.id },
+          }),
+        ).toBe(0);
+        return { cohortId: id, workspaceId: team.body.workspace.id as string };
+      }
+      const globalBefore = await prisma.researchType.findUniqueOrThrow({
+        where: { id: typeId },
+      });
+      const processB = await publishProcess("Independent B");
+      const teamB = await configuredTeam("Cohort B", processB.id, cohortOnlyId);
+      // Academic membership does not grant either cohort's process access.
+      expect(
+        await prisma.workflowEnrollment.count({
+          where: {
+            userId: { in: [leaderId, cohortOnlyId] },
+            workflowId: { in: [workflowId, processB.id] },
+          },
+        }),
+      ).toBe(0);
+      expect((await start(memberId)).status).toBe(403);
+      const startedA = await start(),
+        startedB = await api(
+          cohortOnlyId,
+          `/api/workspaces/${teamB.workspaceId}/start-research`,
+          "POST",
+          {},
+        );
+      expect(startedA.status).toBe(201);
+      expect(startedB.status).toBe(201);
+      expect(startedA.body.workflowInstance).toMatchObject({
+        workflowId,
+        workflowVersion: 7,
+        currentStageId: stageId,
+      });
+      expect(startedB.body.workflowInstance).toMatchObject({
+        workflowId: processB.id,
+        workflowVersion: 1,
+        currentStageId: processB.stageId,
+      });
+      expect((await start()).body.project.id).toBe(startedA.body.project.id);
+      const repeatedB = await api(
+        cohortOnlyId,
+        `/api/workspaces/${teamB.workspaceId}/start-research`,
+        "POST",
+        {},
+      );
+      expect(repeatedB.status).toBe(200);
+      expect(repeatedB.body.project.id).toBe(startedB.body.project.id);
+      expect(
+        (await api(cohortOnlyId, `/api/research/${startedA.body.project.id}`))
+          .status,
+      ).toBe(404);
+      expect(
+        await prisma.workflowEnrollment.count({
+          where: {
+            OR: [
+              { workflowId: processB.id, userId: leaderId },
+              { workflowId, userId: cohortOnlyId },
+            ],
+          },
+        }),
+      ).toBe(0);
+      const pinnedBefore = await prisma.workflowInstance.findMany({
+        where: {
+          researchId: {
+            in: [startedA.body.project.id, startedB.body.project.id],
+          },
+        },
+        orderBy: { id: "asc" },
+      });
+      const processC = await publishProcess("Later C");
+      const teamC = await configuredTeam(
+        "New Cohort C",
+        processC.id,
+        outsiderId,
+      );
+      const startedC = await api(
+        outsiderId,
+        `/api/workspaces/${teamC.workspaceId}/start-research`,
+        "POST",
+        {},
+      );
+      expect(startedC.status).toBe(201);
+      expect(startedC.body.workflowInstance).toMatchObject({
+        workflowId: processC.id,
+        currentStageId: processC.stageId,
+      });
+      for (const id of [cohortId, teamB.cohortId])
+        expect(
+          (
+            await api(coordinatorId, `/api/cohorts/${id}/workflow`, "PUT", {
+              workflowId: processC.id,
+            })
+          ).status,
+        ).toBe(409);
+      expect(
+        (
+          await prisma.researchCohort.findUniqueOrThrow({
+            where: { id: cohortId },
+          })
+        ).workflowId,
+      ).toBe(workflowId);
+      expect(
+        (
+          await prisma.researchCohort.findUniqueOrThrow({
+            where: { id: teamB.cohortId },
+          })
+        ).workflowId,
+      ).toBe(processB.id);
+      expect(
+        await prisma.workflowInstance.findMany({
+          where: {
+            researchId: {
+              in: [startedA.body.project.id, startedB.body.project.id],
+            },
+          },
+          orderBy: { id: "asc" },
+        }),
+      ).toEqual(pinnedBefore);
+      expect(
+        await prisma.researchType.findUniqueOrThrow({ where: { id: typeId } }),
+      ).toEqual(globalBefore);
+      const revoked = await prisma.workflowEnrollment.update({
+        where: {
+          workflowId_userId: { workflowId: processB.id, userId: cohortOnlyId },
+        },
+        data: { status: "REVOKED" },
+      });
+      const membersBefore = await prisma.researchMember.findMany({
+        where: { researchId: startedB.body.project.id },
+      });
+      expect(
+        (
+          await api(
+            coordinatorId,
+            `/api/cohorts/${teamB.cohortId}/members/${cohortOnlyId}`,
+            "DELETE",
+          )
+        ).status,
+      ).toBe(200);
+      expect(
+        (
+          await api(
+            coordinatorId,
+            `/api/cohorts/${teamB.cohortId}/members`,
+            "POST",
+            { userIds: [cohortOnlyId] },
+          )
+        ).status,
+      ).toBe(201);
+      expect(
+        await prisma.workflowEnrollment.findUniqueOrThrow({
+          where: { id: revoked.id },
+        }),
+      ).toEqual(revoked);
+      expect(
+        await prisma.researchMember.findMany({
+          where: { researchId: startedB.body.project.id },
+        }),
+      ).toEqual(membersBefore);
+      expect(
+        (
+          await api(
+            cohortOnlyId,
+            `/api/research/${startedB.body.project.id}/manuscript-workflow`,
+          )
+        ).status,
+      ).toBe(403);
+      for (const teamId of [workspaceId, teamB.workspaceId, teamC.workspaceId])
+        expect(
+          await prisma.researchProject.count({
+            where: { workspaceId: teamId },
+          }),
+        ).toBe(1);
+      expect(
+        await prisma.workflowInstance.count({
+          where: {
+            researchId: {
+              in: [
+                startedA.body.project.id,
+                startedB.body.project.id,
+                startedC.body.project.id,
+              ],
+            },
+          },
+        }),
+      ).toBe(3);
+    });
     it("validates optional cohort linkage on team creation and cohort-linked join without changing legacy formation", async () => {
       expect(
         (
