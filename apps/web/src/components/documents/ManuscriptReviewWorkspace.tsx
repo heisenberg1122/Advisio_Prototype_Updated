@@ -156,6 +156,9 @@ export function ManuscriptReviewWorkspace({
     null,
   );
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [candidatesError, setCandidatesError] = useState("");
+  const contextRequestRef = useRef(0);
   const [candidates, setCandidates] = useState<ReviewerCandidate[]>([]);
   const [managementAction, setManagementAction] = useState<
     "ASSIGN" | "REASSIGN" | "REVOKE" | null
@@ -239,6 +242,37 @@ export function ManuscriptReviewWorkspace({
     }
   };
 
+  const loadReviewContext = async (assignment: Assignment) => {
+    const requestId = ++contextRequestRef.current;
+    setHistoryLoading(true);
+    setHistoryError("");
+    setCandidatesError("");
+    const [workflowResult, candidateResult] = await Promise.allSettled([
+      apiClient.get<{ document: ReviewWorkflow }>(
+        `/api/documents/${assignment.document.id}/review-workflow`,
+      ),
+      isCoordinator
+        ? apiClient.get<{ candidates: ReviewerCandidate[] }>(
+            `/api/documents/versions/${assignment.documentVersion.id}/reviewer-candidates`,
+          )
+        : Promise.resolve({ candidates: [] }),
+    ]);
+    if (requestId !== contextRequestRef.current) return;
+    if (workflowResult.status === "fulfilled") {
+      setReviewWorkflow(workflowResult.value.document);
+    } else {
+      setHistoryError(
+        "Previous versions and decisions could not be loaded. You can still submit your decision for this version.",
+      );
+    }
+    if (candidateResult.status === "fulfilled") {
+      setCandidates(candidateResult.value.candidates);
+    } else {
+      setCandidatesError("Eligible reviewers could not be loaded.");
+    }
+    setHistoryLoading(false);
+  };
+
   const openDecision = async (assignment: Assignment) => {
     decisionAction.reset();
     setSelected(assignment);
@@ -254,27 +288,7 @@ export function ManuscriptReviewWorkspace({
     setManagementTarget(null);
     setCandidateKey("");
     setManagementReason("");
-    setHistoryLoading(true);
-    try {
-      const [workflowResponse, candidateResponse] = await Promise.all([
-        apiClient.get<{ document: ReviewWorkflow }>(
-          `/api/documents/${assignment.document.id}/review-workflow`,
-        ),
-        isCoordinator
-          ? apiClient.get<{ candidates: ReviewerCandidate[] }>(
-              `/api/documents/versions/${assignment.documentVersion.id}/reviewer-candidates`,
-            )
-          : Promise.resolve({ candidates: [] }),
-      ]);
-      setReviewWorkflow(workflowResponse.document);
-      setCandidates(candidateResponse.candidates);
-    } catch (requestError: any) {
-      setError(
-        requestError.message || "Unable to load the previous review history.",
-      );
-    } finally {
-      setHistoryLoading(false);
-    }
+    await loadReviewContext(assignment);
   };
 
   useEffect(() => {
@@ -301,6 +315,8 @@ export function ManuscriptReviewWorkspace({
     ]);
     setReviewWorkflow(workflowResponse.document);
     setCandidates(candidateResponse.candidates);
+    setHistoryError("");
+    setCandidatesError("");
   };
 
   const manageAssignment = async () => {
@@ -1133,6 +1149,16 @@ export function ManuscriptReviewWorkspace({
               <p className="mt-3 text-base text-[var(--color-text-secondary)]">
                 Loading review history…
               </p>
+            ) : historyError ? (
+              <div className="mt-3 space-y-3">
+                <ActionFeedback tone="warning" message={historyError} />
+                <Button
+                  variant="ghost"
+                  onClick={() => selected && void loadReviewContext(selected)}
+                >
+                  Retry review history
+                </Button>
+              </div>
             ) : reviewWorkflow?.versions.some((version) =>
                 version.reviewerAssignments.some(
                   (assignment) =>
@@ -1195,6 +1221,18 @@ export function ManuscriptReviewWorkspace({
               </p>
             )}
           </div>
+          {isCoordinator && candidatesError && (
+            <div className="space-y-3">
+              <ActionFeedback tone="warning" message={candidatesError} />
+              <Button
+                variant="ghost"
+                disabled={historyLoading}
+                onClick={() => selected && void loadReviewContext(selected)}
+              >
+                Retry eligible reviewers
+              </Button>
+            </div>
+          )}
           {isCoordinator && selectedWorkflowVersion && (
             <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">

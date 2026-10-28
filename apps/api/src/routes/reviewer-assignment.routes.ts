@@ -27,6 +27,11 @@ function workflowError(res: Response, error: unknown) {
     });
     return;
   }
+  console.error("[ManuscriptReview] Unexpected workflow failure", {
+    method: res.req.method,
+    path: res.req.path,
+    error,
+  });
   res.status(500).json({ error: "Unable to process the manuscript review." });
 }
 
@@ -45,7 +50,9 @@ router.get(
           requested as ReviewerAssignmentStatus,
         )
       )
-        return void res.status(400).json({ error: "Invalid assignment status." });
+        return void res
+          .status(400)
+          .json({ error: "Invalid assignment status." });
       const assignments = await reviewerAssignmentService.listMine(
         req.user!,
         requested,
@@ -148,7 +155,9 @@ router.post(
       const reason =
         typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
       if (!reviewerId)
-        return void res.status(400).json({ error: "Select a replacement reviewer." });
+        return void res
+          .status(400)
+          .json({ error: "Select a replacement reviewer." });
       const assignment = await reviewerAssignmentService.reassign({
         assignmentId: req.params.assignmentId as string,
         reviewerId,
@@ -171,7 +180,9 @@ router.post(
     try {
       const recommendation = req.body?.recommendation as ReviewRecommendation;
       if (!Object.values(ReviewRecommendation).includes(recommendation))
-        return void res.status(400).json({ error: "Select a valid recommendation." });
+        return void res
+          .status(400)
+          .json({ error: "Select a valid recommendation." });
       const comments = Array.isArray(req.body?.comments)
         ? req.body.comments.slice(0, 100)
         : [];
