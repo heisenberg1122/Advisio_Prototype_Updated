@@ -24,6 +24,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { SubmissionDocumentPreview } from "@/components/professor/SubmissionDocumentPreview";
 import { ProfessorDeanRequestModal } from "@/components/professor/ProfessorDeanRequestModal";
 import { DefensePacketConfigurator } from "@/components/professor/DefensePacketConfigurator";
+import { ConsolidatedEvaluations } from "@/components/professor/ConsolidatedEvaluations";
 import { DefenseSessionStatusModal } from "@/components/professor/DefenseSessionStatusModal";
 import { DefenseBadgeIssuance } from "@/components/professor/DefenseBadgeIssuance";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
@@ -4357,7 +4358,8 @@ function ProfessorDashboardContent() {
                     ])
                   }
                 />
-                {liveDefense && (
+                {liveDefense?.packet?.evaluationMode === "STRUCTURED" && <ConsolidatedEvaluations sessionId={liveDefense.id}/>}
+                {liveDefense && liveDefense.packet?.evaluationMode !== "STRUCTURED" && (
                   <section className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
                     <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
                       <div>

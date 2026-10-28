@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { PacketManuscriptWorkspace } from "./PacketManuscriptWorkspace";
+import { StructuredEvaluationWorkspace } from "./StructuredEvaluationWorkspace";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 import {
   DocumentPreviewSkeleton,
@@ -147,7 +148,12 @@ export function PanelistReviewPackets() {
   const progress = useMemo(
     () => [
       { label: "Manuscript available", done: Boolean(publishedManuscript) },
-      { label: "Review saved", done: Boolean(detail?.review || selected?.packetDocumentReviews?.length) },
+      {
+        label: "Review saved",
+        done: Boolean(
+          detail?.review || selected?.packetDocumentReviews?.length,
+        ),
+      },
       {
         label: "Recommendation generated",
         done: detail?.recommendation?.status === "LOCKED",
@@ -421,15 +427,21 @@ export function PanelistReviewPackets() {
                   ["recommendation", "Recommendation form"],
                   ["evaluation", "Evaluation rubric"],
                 ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  onClick={() => setTab(id)}
-                  className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-extrabold ${tab === id ? "bg-[var(--color-primary)] text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]" : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"}`}
-                >
-                  {label}
-                </button>
-              ))}
+              )
+                .filter(
+                  ([id]) =>
+                    detail?.packet?.evaluationMode !== "STRUCTURED" ||
+                    id !== "recommendation",
+                )
+                .map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => setTab(id)}
+                    className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-extrabold ${tab === id ? "bg-[var(--color-primary)] text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]" : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
             </nav>
             {notice && (
               <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-base font-bold text-sky-700">
@@ -625,8 +637,8 @@ export function PanelistReviewPackets() {
                   Required-revision checklist
                 </h3>
                 <p className="mt-1 text-base text-slate-500">
-                  Prepare actionable corrections for the deliberation and
-                  recommendation form.
+                  Prepare actionable corrections for deliberation and the
+                  written recommendation in your evaluation.
                 </p>
                 <div className="mt-3 flex gap-2">
                   <input
@@ -730,6 +742,13 @@ export function PanelistReviewPackets() {
                   </button>
                 </div>
               </section>
+            </div>
+          ) : detail?.packet?.evaluationMode === "STRUCTURED" ? (
+            <div className="p-5">
+              <StructuredEvaluationWorkspace
+                key={selected.id}
+                sessionId={selected.id}
+              />
             </div>
           ) : tab === "recommendation" ? (
             <div className="grid gap-5 p-5 lg:grid-cols-[1fr_300px]">

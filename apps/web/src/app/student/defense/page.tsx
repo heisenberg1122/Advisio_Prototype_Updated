@@ -12,6 +12,7 @@ import { apiClient } from "@/lib/api-client";
 import { useActiveProject } from "@/providers/active-project-provider";
 import { SharedManuscriptFeedback } from "@/components/documents/SharedManuscriptFeedback";
 import { DefenseBadgeCard } from "@/components/defense/DefenseBadgeCard";
+import { ConsolidatedEvaluations } from "@/components/professor/ConsolidatedEvaluations";
 
 const activeStatuses = new Set(["LIVE", "DELIBERATION", "SCHEDULED", "PENDING_ACKNOWLEDGEMENT", "NEEDS_RESCHEDULING"]);
 const readable = (value?: string | null) => value ? value.toLowerCase().replace(/_/g, " ").replace(/^\w/, (letter) => letter.toUpperCase()) : "Not available";
@@ -96,6 +97,7 @@ export default function DefensePage() {
         /></>}
 
       {selectedSession && <>
+        {selectedSession.packet?.evaluationMode === "STRUCTURED" && selectedSession.releasedAt && <ConsolidatedEvaluations sessionId={selectedSession.id} student/>}
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[
           { label: "Defense type", value: readable(event?.defenseType), icon: "ti-presentation" },
           { label: "Group schedule", value: selectedSession.scheduledStart ? new Date(selectedSession.scheduledStart).toLocaleString() : "To be announced", icon: "ti-calendar-event" },

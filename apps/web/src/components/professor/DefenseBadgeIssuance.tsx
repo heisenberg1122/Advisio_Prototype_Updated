@@ -10,6 +10,7 @@ type Session = {
   status: string;
   decision: string | null;
   releasedAt: string | null;
+  revisionClearance?: unknown;
   defenseEvent?: { defenseType: string } | null;
   research: { title: string };
   badge?: DefenseBadge | null;
@@ -31,7 +32,12 @@ export function DefenseBadgeIssuance({
     (session) =>
       session.badge ||
       (session.status === "COMPLETED" &&
-        session.decision === "APPROVED" &&
+        (session.decision === "APPROVED" ||
+          (Boolean(session.revisionClearance) &&
+            [
+              "APPROVED_WITH_MINOR_REVISIONS",
+              "MAJOR_REVISIONS_REQUIRED",
+            ].includes(session.decision || ""))) &&
         session.releasedAt &&
         ["TITLE_DEFENSE", "FINAL_DEFENSE", "FINAL_ORAL_DEFENSE"].includes(
           session.defenseEvent?.defenseType || "",

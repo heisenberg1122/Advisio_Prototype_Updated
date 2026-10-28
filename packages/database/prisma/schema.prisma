@@ -277,6 +277,7 @@ enum DefenseDecision {
   APPROVED_WITH_MINOR_REVISIONS
   MAJOR_REVISIONS_REQUIRED
   REJECTED
+  REDEFENSE_REQUIRED
 }
 
 enum DefensePacketStatus {
@@ -1805,6 +1806,7 @@ model DefensePacket {
   mappingVersion                  Int                 @default(1) @map("mapping_version")
   engineVersion                   String              @default("2.0") @map("engine_version") @db.VarChar(20)
   evaluationMode                  String              @default("RUBRIC") @map("evaluation_mode") @db.VarChar(20)
+  structuredForm                  Json?               @map("structured_form")
   evaluationSignatureRequired     Boolean             @default(false) @map("evaluation_signature_required")
   preflightReport                 Json?               @map("preflight_report")
   status                          DefensePacketStatus @default(DRAFT)
@@ -1915,6 +1917,7 @@ model DefenseSession {
   updatedAt      DateTime             @updatedAt @map("updated_at")
   preparedAt     DateTime?            @map("prepared_at")
   calledAt       DateTime?            @map("called_at")
+  revisionClearance Json?             @map("revision_clearance")
 
   research              ResearchProject            @relation(fields: [researchId], references: [id], onDelete: Cascade)
   eligibility           DefenseEligibility?         @relation(fields: [eligibilityId], references: [id], onDelete: Restrict)
@@ -1922,6 +1925,7 @@ model DefenseSession {
   creator               User?                      @relation("DefenseSessionCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   invitations           DefenseInvitation[]
   evaluations           Evaluation[]
+  structuredEvaluations StructuredEvaluation[]
   packet                DefensePacket?
   manuscriptReviews     PanelistManuscriptReview[]
   recommendations       PanelistRecommendation[]
@@ -1935,6 +1939,32 @@ model DefenseSession {
   @@index([createdBy])
   @@index([defenseEventId, queuePosition])
   @@map("defense_sessions")
+}
+
+model StructuredEvaluationTemplate {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  collegeId String   @map("college_id") @db.Uuid
+  createdBy String   @map("created_by") @db.Uuid
+  spec      Json
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([collegeId, createdAt])
+  @@map("structured_evaluation_templates")
+}
+
+model StructuredEvaluation {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  defenseSessionId String @map("defense_session_id") @db.Uuid
+  panelistId String @map("panelist_id") @db.Uuid
+  revision Int @default(1)
+  answers Json
+  totals Json
+  lockedAt DateTime? @map("locked_at")
+  previewHash String? @map("preview_hash") @db.VarChar(64)
+  pdfData Bytes? @map("pdf_data")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  session DefenseSession @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
+  @@unique([defenseSessionId, panelistId])
+  @@map("structured_evaluations")
 }
 
 // One coordinator-issued group award per released defense. Recipient names and

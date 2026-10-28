@@ -1,5 +1,9 @@
 import { prisma } from "../lib/prisma.js";
 import type { AuthenticatedUser } from "../middleware/auth.js";
+import {
+  readForm,
+  consolidatedScores,
+} from "./structured-evaluation.service.js";
 
 export async function getReleasedGradeReport(
   user: AuthenticatedUser,
@@ -21,6 +25,7 @@ export async function getReleasedGradeReport(
     where: { researchId, status: "COMPLETED", releasedAt: { not: null } },
     orderBy: { releasedAt: "desc" },
     include: {
+      packet: true,
       evaluations: {
         where: { status: "LOCKED" },
         include: {
@@ -37,6 +42,22 @@ export async function getReleasedGradeReport(
       status: "pending",
       panelistScores: [],
     };
+  if (session.packet?.evaluationMode === "STRUCTURED") {
+    const snapshot = readForm(session.packet.structuredForm);
+    const evaluations = await prisma.structuredEvaluation.findMany({
+      where: { defenseSessionId: session.id },
+      select: { panelistId: true, lockedAt: true, answers: true },
+    });
+    const report = consolidatedScores(snapshot, evaluations);
+    return {
+      finalGrade: null,
+      gpa: null,
+      status: "released",
+      panelistScores: [],
+      structuredSessionId: session.id,
+      structuredReport: report,
+    };
+  }
   const panelistScores = session.evaluations
     .filter((evaluation) => evaluation.totalScore !== null)
     .map((evaluation) => ({

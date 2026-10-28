@@ -14,6 +14,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 import { PanelistReviewPackets } from "@/components/panelist/PanelistReviewPackets";
 import { PdfEvaluationWorkspace } from "@/components/panelist/PdfEvaluationWorkspace";
+import { StructuredEvaluationWorkspace } from "@/components/panelist/StructuredEvaluationWorkspace";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
 
 const TZ = "Asia/Manila";
@@ -107,6 +108,8 @@ function PanelistDashboardContent() {
   const evaluations = dashboardData?.pendingEvaluations || [];
   const archives = dashboardData?.archives || [];
   const completedPdfEvaluations = dashboardData?.completedPdfEvaluations || [];
+  const completedStructuredEvaluations =
+    dashboardData?.completedStructuredEvaluations || [];
   const evaluationSession = requestedSessionId
     ? liveSession?.id === requestedSessionId
       ? liveSession
@@ -896,6 +899,25 @@ function PanelistDashboardContent() {
                     ))}
                   </div>
                   <div className="flex flex-col gap-3 mt-2">
+                    {completedStructuredEvaluations.map((session: any) => (
+                      <button
+                        key={session.id}
+                        className="rounded-xl border border-[var(--color-border)] p-4 text-left"
+                        onClick={() =>
+                          router.push(
+                            `/panelist/dashboard?tab=evaluation&sessionId=${session.id}`,
+                          )
+                        }
+                      >
+                        <strong className="block">
+                          {session.research.title}
+                        </strong>
+                        <span className="text-sm text-[var(--color-text-secondary)]">
+                          Digital evaluation submitted and locked · View
+                          researcher scores and completed PDF
+                        </span>
+                      </button>
+                    ))}
                     {schedules.length > 0 ? (
                       schedules.map((s) => (
                         <div
@@ -1016,7 +1038,13 @@ function PanelistDashboardContent() {
               documents: <PanelistReviewPackets />,
               evaluation: (
                 <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-4">
-                  {pdfEvaluationSession ? (
+                  {evaluationSession?.packet?.evaluationMode ===
+                  "STRUCTURED" ? (
+                    <StructuredEvaluationWorkspace
+                      key={evaluationSession.id}
+                      sessionId={evaluationSession.id}
+                    />
+                  ) : pdfEvaluationSession ? (
                     <PdfEvaluationWorkspace
                       key={pdfEvaluationSession.id}
                       sessionId={pdfEvaluationSession.id}
@@ -1310,6 +1338,7 @@ function PanelistDashboardContent() {
                       </button>
                     ))}
                     {gradesSubmitted.length === 0 &&
+                      completedStructuredEvaluations.length === 0 &&
                       completedPdfEvaluations.length === 0 && (
                         <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-400">
                           No locked evaluations yet.
@@ -1349,12 +1378,20 @@ function PanelistDashboardContent() {
                                   : "Pending authorized release"}
                               </span>
                               <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
-                                {session.packet?.evaluationMode === "PDF"
-                                  ? `PDF evaluation: ${readable(session.pdfEvaluations?.[0]?.status, "Not submitted")}`
-                                  : `Your score: ${evaluation?.totalScore ?? "Not recorded"}`}{" "}
-                                · Recommendation form:{" "}
+                                {session.packet?.evaluationMode === "STRUCTURED"
+                                  ? `Digital evaluation: ${session.structuredEvaluations?.[0]?.lockedAt ? "Submitted and locked" : "Not submitted"}`
+                                  : session.packet?.evaluationMode === "PDF"
+                                    ? `PDF evaluation: ${readable(session.pdfEvaluations?.[0]?.status, "Not submitted")}`
+                                    : `Your score: ${evaluation?.totalScore ?? "Not recorded"}`}{" "}
+                                · Recommendation:{" "}
                                 {readable(
-                                  recommendation?.status,
+                                  session.packet?.evaluationMode ===
+                                    "STRUCTURED"
+                                    ? session.structuredEvaluations?.[0]
+                                        ?.lockedAt
+                                      ? "INCLUDED_IN_EVALUATION"
+                                      : null
+                                    : recommendation?.status,
                                   "Not submitted",
                                 )}
                               </span>

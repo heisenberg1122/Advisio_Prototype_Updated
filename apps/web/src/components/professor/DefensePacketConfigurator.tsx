@@ -6,6 +6,7 @@ import { apiClient } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SubmittedPdfEvaluations } from "./SubmittedPdfEvaluations";
 import { SharedManuscriptFeedback } from "@/components/documents/SharedManuscriptFeedback";
+import { StructuredDefensePacket } from "./StructuredDefensePacket";
 
 type Mapping = {
   key: string;
@@ -76,6 +77,58 @@ const newMapping = (key = ""): Mapping => ({
 });
 
 export function DefensePacketConfigurator({
+  session,
+  onClose,
+  onSaved,
+}: {
+  session: any;
+  onClose: () => void;
+  onSaved: (message: string) => void;
+}) {
+  const packet = useQuery({
+    queryKey: ["defense-packet-mode", session.id],
+    queryFn: () =>
+      apiClient
+        .get<any>(`/api/defense-sessions/${session.id}/review-packet`)
+        .catch((e) => {
+          if (e.statusCode === 404) return { packet: null };
+          throw e;
+        }),
+  });
+  if (packet.isPending)
+    return (
+      <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/55">
+        <div className="rounded-xl bg-[var(--color-surface)] p-6">
+          Loading packet…
+        </div>
+      </div>
+    );
+  if (packet.isError)
+    return (
+      <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/55">
+        <div className="rounded-xl bg-[var(--color-surface)] p-6">
+          <p>{packet.error.message}</p>
+          <button onClick={onClose}>Close</button>
+        </div>
+      </div>
+    );
+  return !packet.data?.packet ||
+    packet.data.packet.evaluationMode === "STRUCTURED" ? (
+    <StructuredDefensePacket
+      session={session}
+      onClose={onClose}
+      onSaved={onSaved}
+    />
+  ) : (
+    <LegacyDefensePacketConfigurator
+      session={session}
+      onClose={onClose}
+      onSaved={onSaved}
+    />
+  );
+}
+
+function LegacyDefensePacketConfigurator({
   session,
   onClose,
   onSaved,
@@ -742,7 +795,7 @@ export function DefensePacketConfigurator({
           {data?.packet?.evaluationMode === "PDF" && (
             <SubmittedPdfEvaluations sessionId={session.id} />
           )}
-          <SharedManuscriptFeedback sessionId={session.id}/>
+          <SharedManuscriptFeedback sessionId={session.id} />
           {error && (
             <p className="rounded-xl bg-rose-50 p-3 text-base font-bold text-rose-700">
               {error}

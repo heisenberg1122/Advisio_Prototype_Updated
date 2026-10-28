@@ -226,6 +226,7 @@ router.put(
       });
       if (
         !current.packet ||
+        current.packet.evaluationMode === "STRUCTURED" ||
         ["COMPLETED", "CANCELLED", "DELIBERATION"].includes(current.status)
       )
         throw new Conflict("This session cannot change evaluation settings.");

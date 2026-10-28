@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { emailNotification } from "../services/notification-email.service.js";
 import { Router, Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma.js";
+import { readForm } from "../services/structured-evaluation.service.js";
 import { requireAuth } from "../middleware/auth.js";
 import { canAccessCollege, getCollegeScope } from "../lib/college-scope.js";
 import { jsonSafe } from "../lib/json-response.js";
@@ -122,11 +123,9 @@ router.post(
           .status(404)
           .json({ error: "Research group not found in your college scope." });
       if (project.workflowInstance?.workflow.status !== "PUBLISHED")
-        return void res
-          .status(409)
-          .json({
-            error: "Publish the workflow before approving defense eligibility.",
-          });
+        return void res.status(409).json({
+          error: "Publish the workflow before approving defense eligibility.",
+        });
       const eligibility = await prisma.$transaction(async (tx) => {
         const approval = await approveDefenseEligibility(tx, {
           researchId,
@@ -175,11 +174,9 @@ router.delete(
     try {
       const sessionId = String(req.params.sessionId);
       if (req.body.confirmation !== `DELETE ${sessionId}`)
-        return void res
-          .status(400)
-          .json({
-            error: "Confirm deletion of this specific defense session.",
-          });
+        return void res.status(400).json({
+          error: "Confirm deletion of this specific defense session.",
+        });
       const session = await prisma.defenseSession.findUnique({
         where: { id: sessionId },
         include: { research: { select: { collegeId: true } } },
@@ -280,6 +277,7 @@ const DECISIONS = new Set([
   "APPROVED_WITH_MINOR_REVISIONS",
   "MAJOR_REVISIONS_REQUIRED",
   "REJECTED",
+  "REDEFENSE_REQUIRED",
 ]);
 
 function requireFacilitator(req: Request, res: Response, next: NextFunction) {
@@ -291,6 +289,9 @@ function requireFacilitator(req: Request, res: Response, next: NextFunction) {
 }
 
 const sessionInclude = {
+  structuredEvaluations: {
+    select: { panelistId: true, lockedAt: true, revision: true },
+  },
   badge: {
     include: { issuer: { select: { firstName: true, lastName: true } } },
   },
@@ -473,6 +474,9 @@ function scopeSessionForPanelist(session: any, userId: string) {
   const accepted = invitation?.status === "ACCEPTED";
   return {
     ...session,
+    structuredEvaluations: (session.structuredEvaluations || []).filter(
+      (item: any) => item.panelistId === userId,
+    ),
     deliveryMode: panelistDeliveryMode(session),
     meetingUrl: accepted ? session.meetingUrl : null,
     defenseEvent: session.defenseEvent
@@ -546,9 +550,11 @@ async function notifyResearchGroup(
         entityType: "DefenseSession",
         entityId: sessionId,
         ...email,
-        actionUrl: email?.emailTemplate === "title_defended" || email?.emailTemplate === "thesis_defended"
-          ? `/student/defense/${sessionId}?projectId=${researchId}`
-          : `/student/dashboard?tab=defense&projectId=${researchId}`,
+        actionUrl:
+          email?.emailTemplate === "title_defended" ||
+          email?.emailTemplate === "thesis_defended"
+            ? `/student/defense/${sessionId}?projectId=${researchId}`
+            : `/student/dashboard?tab=defense&projectId=${researchId}`,
       })),
     });
 }
@@ -1074,6 +1080,7 @@ router.get(
       if (!facilitator && researcher) {
         sessions.forEach((session) => {
           session.evaluations = [];
+          session.structuredEvaluations = [];
         });
       } else if (!facilitator && panelist) {
         sessions.forEach((session) => {
@@ -1084,6 +1091,9 @@ router.get(
             (item) => item.evaluatorId === req.user!.id,
           );
           session.research.documents = [];
+          session.structuredEvaluations = session.structuredEvaluations.filter(
+            (item) => item.panelistId === req.user!.id,
+          );
         });
       }
       res.json({ sessions });
@@ -1153,9 +1163,11 @@ router.get(
       const pendingEvaluations = accepted.filter(
         (session) =>
           session.status === "LIVE" &&
-          (session.packet?.evaluationMode === "PDF"
-            ? session.pdfEvaluations?.[0]?.status !== "LOCKED"
-            : session.evaluations[0]?.status !== "LOCKED"),
+          (session.packet?.evaluationMode === "STRUCTURED"
+            ? !session.structuredEvaluations?.[0]?.lockedAt
+            : session.packet?.evaluationMode === "PDF"
+              ? session.pdfEvaluations?.[0]?.status !== "LOCKED"
+              : session.evaluations[0]?.status !== "LOCKED"),
       );
       const completedEvaluations = accepted.filter(
         (session) => session.evaluations[0]?.status === "LOCKED",
@@ -1164,6 +1176,11 @@ router.get(
         (session) =>
           session.packet?.evaluationMode === "PDF" &&
           session.pdfEvaluations?.[0]?.status === "LOCKED",
+      );
+      const completedStructuredEvaluations = accepted.filter(
+        (session) =>
+          session.packet?.evaluationMode === "STRUCTURED" &&
+          session.structuredEvaluations?.[0]?.lockedAt,
       );
       const upcomingSessions = accepted.filter(
         (session) =>
@@ -1181,6 +1198,7 @@ router.get(
         pendingEvaluations,
         completedEvaluations,
         completedPdfEvaluations,
+        completedStructuredEvaluations,
         upcomingSessions,
         archives,
         counts: {
@@ -1828,6 +1846,9 @@ router.get(
         orderBy: { startedAt: "desc" },
       });
       if (session && isPanelist) {
+        session.structuredEvaluations = session.structuredEvaluations.filter(
+          (item) => item.panelistId === req.user!.id,
+        );
         session.pdfEvaluations = session.pdfEvaluations.filter(
           (item) => item.panelistId === req.user!.id,
         );
@@ -2023,6 +2044,10 @@ router.put(
             "This defense uses PDF evaluation. Open its PDF workspace to submit.",
         });
       }
+      if (evaluationPacket?.evaluationMode === "STRUCTURED")
+        return void res
+          .status(409)
+          .json({ error: "Use this session’s digital evaluation form." });
 
       const templateId = String(req.body.templateId || "");
       const recommendation = String(
@@ -2151,11 +2176,9 @@ router.post(
       !req.user!.roles.includes("RESEARCH_COORDINATOR") ||
       !req.user!.collegeId
     ) {
-      return void res
-        .status(403)
-        .json({
-          error: "Only a research coordinator may issue defense badges.",
-        });
+      return void res.status(403).json({
+        error: "Only a research coordinator may issue defense badges.",
+      });
     }
     try {
       const result = await prisma.$transaction(async (tx) => {
@@ -2269,6 +2292,7 @@ router.post(
       const revisionsRequired = [
         "APPROVED_WITH_MINOR_REVISIONS",
         "MAJOR_REVISIONS_REQUIRED",
+        "REDEFENSE_REQUIRED",
       ].includes(decision);
       const revisionInstructions = String(
         req.body.revisionInstructions || "",
@@ -2316,6 +2340,30 @@ router.post(
         });
       }
       const publishedPacket = session.packet;
+      const structuredSubmissions =
+        session.packet.evaluationMode === "STRUCTURED"
+          ? await prisma.structuredEvaluation.findMany({
+              where: { defenseSessionId: session.id, lockedAt: { not: null } },
+              select: { panelistId: true },
+            })
+          : [];
+      if (session.packet.evaluationMode === "STRUCTURED") {
+        const snapshot = readForm(session.packet.structuredForm);
+        const requiredIds = new Set(
+          session.invitations.map((i) => i.inviteeId),
+        );
+        const publishedIds = new Set(
+          snapshot.panelists.filter((p) => p.required).map((p) => p.userId),
+        );
+        if (
+          requiredIds.size !== publishedIds.size ||
+          [...requiredIds].some((id) => !publishedIds.has(id))
+        )
+          return void res.status(409).json({
+            error:
+              "Panel assignments differ from the published form. Resolve the assignment before releasing a result.",
+          });
+      }
       const pdfSubmissions =
         session.packet?.evaluationMode === "PDF"
           ? await prisma.pdfEvaluation.findMany({
@@ -2324,11 +2372,13 @@ router.post(
             })
           : [];
       const lockedEvaluatorIds = new Set(
-        session.packet?.evaluationMode === "PDF"
-          ? pdfSubmissions.map((item) => item.panelistId)
-          : session.evaluations
-              .filter((item) => item.status === "LOCKED")
-              .map((item) => item.evaluatorId),
+        session.packet?.evaluationMode === "STRUCTURED"
+          ? structuredSubmissions.map((item) => item.panelistId)
+          : session.packet?.evaluationMode === "PDF"
+            ? pdfSubmissions.map((item) => item.panelistId)
+            : session.evaluations
+                .filter((item) => item.status === "LOCKED")
+                .map((item) => item.evaluatorId),
       );
       if (!session.invitations.length) {
         return void res.status(409).json({
@@ -2385,10 +2435,19 @@ router.post(
             .replace(/_/g, " ")
             .toLowerCase()}.`,
           session.id,
-          decision === "APPROVED" && defenseBadgeKind(session.defenseEvent?.defenseType)
-            ? emailNotification(defenseBadgeKind(session.defenseEvent?.defenseType) === "TITLE_DEFENSE" ? "title_defended" : "thesis_defended", {
-                researchTitle: session.research.title, result: "Approved",
-              }) : undefined,
+          decision === "APPROVED" &&
+            defenseBadgeKind(session.defenseEvent?.defenseType)
+            ? emailNotification(
+                defenseBadgeKind(session.defenseEvent?.defenseType) ===
+                  "TITLE_DEFENSE"
+                  ? "title_defended"
+                  : "thesis_defended",
+                {
+                  researchTitle: session.research.title,
+                  result: "Approved",
+                },
+              )
+            : undefined,
         );
         if (revisionsRequired) {
           const sourceVersion = publishedPacket.manuscriptVersion;
@@ -2553,6 +2612,7 @@ router.get(
       if (req.user!.roles.includes("RESEARCHER") && isMember) {
         session.evaluations = [];
         session.pdfEvaluations = [];
+        session.structuredEvaluations = [];
       } else if (!isInstitutionWide && !isFacilitator && isInvited) {
         return void res.json({
           session: scopeSessionForPanelist(session, req.user!.id),

@@ -5,6 +5,6 @@ export * from "./workflow.js";
 export * from "./forms.js";
 export * from "./documents.js";
 export * from "./evaluations.js";
+export * from "./structured-evaluations.js";
 export * from "./consultations.js";
 export * from "./faculty-profile.js";
-

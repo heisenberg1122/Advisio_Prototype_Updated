@@ -1,4 +1,4 @@
-import { prisma } from "../lib/prisma.js";
+import { prisma, type Prisma } from "../lib/prisma.js";
 import { hasSignedDefenseApproval } from "./defense-eligibility.service.js";
 
 const PANEL_ROLES = new Set(["PANELIST", "PANEL_CHAIR"]);
@@ -149,8 +149,12 @@ export function validateDefensePacketMutation(input: {
 }
 
 class DefenseManuscriptService {
-  public async getReadiness(sessionId: string, onlyVersionId?: string) {
-    const session = await prisma.defenseSession.findUnique({
+  public async getReadiness(
+    sessionId: string,
+    onlyVersionId?: string,
+    db: Prisma.TransactionClient | typeof prisma = prisma,
+  ) {
+    const session = await db.defenseSession.findUnique({
       where: { id: sessionId },
       select: {
         id: true,
@@ -197,7 +201,7 @@ class DefenseManuscriptService {
     });
     if (!session) return null;
 
-    const versions = await prisma.documentVersion.findMany({
+    const versions = await db.documentVersion.findMany({
       where: {
         ...(onlyVersionId ? { id: onlyVersionId } : {}),
         document: { researchId: session.researchId },
@@ -254,7 +258,7 @@ class DefenseManuscriptService {
     const sessionChecks = {
       institutionalApprovalSatisfied: session.eligibilityId
         ? await hasSignedDefenseApproval(
-            prisma,
+            db,
             session.eligibility?.deanApprovalDocumentId || null,
           )
         : session.research.documents.length > 0,

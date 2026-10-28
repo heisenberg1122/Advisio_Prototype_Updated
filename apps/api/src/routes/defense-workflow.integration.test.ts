@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import http from "node:http";
 import { Readable } from "node:stream";
 import { PDFDocument } from "pdf-lib";
+import { defaultStructuredForm } from "@research-management/validations";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import app from "../app.js";
 import { prisma } from "../lib/prisma.js";
@@ -1591,5 +1592,348 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
         ),
       ).toBe(true);
     }
+  });
+
+  it("publishes a structured roster, collects four evaluations and releases averaged results", async () => {
+    const group = await guardedWrite(() =>
+      prisma.$transaction(async (tx) => {
+        const project = await tx.researchProject.create({
+          data: {
+            researchTypeId: fixture.researchTypeId,
+            programId: fixture.programId,
+            collegeId: fixture.collegeId,
+            academicYearId: fixture.academicYearId,
+            title: `Structured Defense ${fixtureSuffix}`,
+            groupName: `Structured-${fixtureSuffix}`,
+            createdBy: fixture.projects.online.student.id,
+          },
+        });
+        const instance = await tx.workflowInstance.create({
+          data: {
+            researchId: project.id,
+            workflowId: fixture.workflowId,
+            workflowVersion: 1,
+            currentStageId: fixture.stageId,
+          },
+        });
+        await tx.researchProject.update({
+          where: { id: project.id },
+          data: { workflowInstanceId: instance.id },
+        });
+        for (const [i, p] of Object.values(fixture.projects).entries())
+          await tx.researchMember.create({
+            data: {
+              researchId: project.id,
+              userId: p.student.id,
+              projectRole: i === 0 ? "LEADER" : "MEMBER",
+            },
+          });
+        const document = await tx.document.create({
+          data: {
+            researchId: project.id,
+            milestoneId: fixture.stageId,
+            documentType: "MANUSCRIPT",
+            title: "Structured approved manuscript",
+            currentVersion: 1,
+            lifecycleStatus: "APPROVED",
+            createdBy: fixture.projects.online.student.id,
+          },
+        });
+        const version = await tx.documentVersion.create({
+          data: {
+            documentId: document.id,
+            versionNumber: 1,
+            fileName: "structured-manuscript.pdf",
+            mimeType: "application/pdf",
+            fileSize: BigInt(pdf.length),
+            storagePath: "test://structured-manuscript",
+            uploadedBy: fixture.projects.online.student.id,
+            manuscriptStatus: "APPROVED",
+            isImmutable: true,
+            contentChecksum: crypto
+              .createHash("sha256")
+              .update(pdf)
+              .digest("hex"),
+            submissionKey: `structured-${fixtureSuffix}`,
+            submittedBy: fixture.projects.online.student.id,
+            submittedAt: new Date(),
+            snapshotCreatedAt: new Date(),
+            milestoneId: fixture.stageId,
+          },
+        });
+        const assignment = await tx.reviewerAssignment.create({
+          data: {
+            researchId: project.id,
+            documentId: document.id,
+            documentVersionId: version.id,
+            reviewerId: fixture.professor.id,
+            reviewType: "COORDINATOR",
+            isRequired: true,
+            assignedById: fixture.professor.id,
+            status: "COMPLETED",
+            completedAt: new Date(),
+          },
+        });
+        await tx.review.create({
+          data: {
+            assignmentId: assignment.id,
+            documentVersionId: version.id,
+            documentId: document.id,
+            reviewerId: fixture.professor.id,
+            reviewType: "COORDINATOR",
+            recommendation: "APPROVE",
+            status: "SUBMITTED",
+            submittedAt: new Date(),
+          },
+        });
+        const letter = await tx.document.findFirstOrThrow({
+          where: {
+            researchId: {
+              in: Object.values(fixture.projects).map((p) => p.id),
+            },
+            documentType: "DEAN_DEFENSE_APPROVAL",
+            versions: {
+              some: {
+                signedSignature: { is: { revokedAt: null } },
+                status: "ACTIVE",
+              },
+            },
+          },
+        });
+        const eligibility = await tx.defenseEligibility.create({
+          data: {
+            researchId: project.id,
+            milestoneId: fixture.stageId,
+            approvedBy: fixture.professor.id,
+            deanApprovalDocumentId: letter.id,
+          },
+        });
+        const panelists = [
+          fixture.chair,
+          fixture.panelistOne,
+          fixture.panelistTwo,
+          fixture.outsider,
+        ];
+        const session = await tx.defenseSession.create({
+          data: {
+            researchId: project.id,
+            eligibilityId: eligibility.id,
+            status: "SCHEDULED",
+            createdBy: fixture.professor.id,
+            scheduledStart: new Date("2099-01-01"),
+            invitations: {
+              create: panelists.map((p, i) => ({
+                inviteeId: p.id,
+                role: i === 0 ? "PANEL_CHAIR" : "PANELIST",
+                status: "ACCEPTED",
+                isRequired: true,
+              })),
+            },
+          },
+        });
+        return { project, version, session, panelists };
+      }),
+    );
+    fixtureScope.projectIds.push(group.project.id);
+    const publish = await apiWrite(
+      `/api/defense-sessions/${group.session.id}/structured-form`,
+      fixture.professor.token,
+      "PUT",
+      {
+        spec: defaultStructuredForm,
+        manuscriptVersionId: group.version.id,
+        publish: true,
+        expectedMappingVersion: 0,
+      },
+    );
+    const published = await readJson(publish);
+    expect(publish.status, JSON.stringify(published)).toBe(200);
+    const packet = await prisma.defensePacket.findUniqueOrThrow({
+      where: { defenseSessionId: group.session.id },
+    });
+    expect((packet.structuredForm as any).roster).toHaveLength(3);
+    const start = await apiWrite(
+      "/api/defense-sessions/start",
+      fixture.professor.token,
+      "POST",
+      { sessionId: group.session.id },
+    );
+    expect(start.status, JSON.stringify(await readJson(start))).toBe(200);
+    const premature = await apiWrite(
+      `/api/defense-sessions/${group.session.id}/release`,
+      fixture.professor.token,
+      "POST",
+      { decision: "APPROVED" },
+    );
+    expect(premature.status).toBe(409);
+    for (const [i, panelist] of group.panelists.entries()) {
+      const rating = [4, 5, 4, 5][i],
+        roster = (packet.structuredForm as any).roster;
+      const answers = {
+        researchers: Object.fromEntries(
+          roster.map((r: any) => [
+            r.userId,
+            Object.fromEntries(
+              defaultStructuredForm.presentation.map((c) => [c.id, rating]),
+            ),
+          ]),
+        ),
+        manuscript: Object.fromEntries(
+          defaultStructuredForm.manuscript.map((c) => [c.id, rating]),
+        ),
+        recommendation: "APPROVED",
+        feedback: "",
+        signature: "",
+      };
+      const saved = await apiWrite(
+        `/api/defense-sessions/${group.session.id}/structured-evaluation`,
+        panelist.token,
+        "PUT",
+        { revision: 0, answers },
+      );
+      expect(saved.status).toBe(200);
+      const preview = await apiWrite(
+        `/api/defense-sessions/${group.session.id}/structured-evaluation/preview`,
+        panelist.token,
+        "POST",
+        { revision: 1 },
+      );
+      const previewBody = await readJson(preview);
+      expect(preview.status, JSON.stringify(previewBody)).toBe(200);
+      const submit = await apiWrite(
+        `/api/defense-sessions/${group.session.id}/structured-evaluation/submit`,
+        panelist.token,
+        "POST",
+        {
+          revision: 1,
+          previewHash: previewBody.evaluation.previewHash,
+          confirmed: true,
+        },
+      );
+      expect(submit.status).toBe(200);
+    }
+    const report = await readJson(
+      await request(
+        `/api/defense-sessions/${group.session.id}/structured-results`,
+        fixture.professor.token,
+      ),
+    );
+    expect(report.report).toMatchObject({
+      final: true,
+      submitted: 4,
+      required: 4,
+    });
+    expect(report.report.researchers.map((r: any) => r.average)).toEqual([
+      90, 90, 90,
+    ]);
+    expect(report.report.manuscript.average).toBe(90);
+    const release = await apiWrite(
+      `/api/defense-sessions/${group.session.id}/release`,
+      fixture.professor.token,
+      "POST",
+      {
+        decision: "APPROVED_WITH_MINOR_REVISIONS",
+        revisionInstructions:
+          "Clarify the sampling method before final clearance.",
+      },
+    );
+    expect(release.status, JSON.stringify(await readJson(release))).toBe(200);
+    const grant = await prisma.defenseEligibility.findUniqueOrThrow({
+      where: { id: group.session.eligibilityId! },
+    });
+    expect(grant.consumedAt).toBeNull();
+    const studentReport = await request(
+      `/api/defense-sessions/${group.session.id}/structured-results`,
+      fixture.projects.online.student.token,
+    );
+    expect(studentReport.status).toBe(200);
+    const revised = await guardedWrite(() =>
+      prisma.$transaction(async (tx) => {
+        const version = await tx.documentVersion.create({
+          data: {
+            documentId: group.version.documentId,
+            versionNumber: 2,
+            fileName: "structured-revised.pdf",
+            mimeType: "application/pdf",
+            fileSize: BigInt(pdf.length),
+            storagePath: "test://structured-revised",
+            uploadedBy: fixture.projects.online.student.id,
+            manuscriptStatus: "APPROVED",
+            isImmutable: true,
+            contentChecksum: crypto
+              .createHash("sha256")
+              .update(pdf)
+              .digest("hex"),
+            submissionKey: `structured-revised-${fixtureSuffix}`,
+              submittedBy: fixture.projects.online.student.id,
+            submittedAt: new Date(),
+            snapshotCreatedAt: new Date(),
+            milestoneId: fixture.stageId,
+          },
+        });
+        await tx.document.update({
+          where: { id: version.documentId },
+          data: { currentVersion: 2, lifecycleStatus: "APPROVED" },
+        });
+        const assignment = await tx.reviewerAssignment.create({
+          data: {
+            researchId: group.project.id,
+            documentId: version.documentId,
+            documentVersionId: version.id,
+            reviewerId: fixture.professor.id,
+            reviewType: "COORDINATOR",
+            isRequired: true,
+            assignedById: fixture.professor.id,
+            status: "COMPLETED",
+            completedAt: new Date(),
+          },
+        });
+        await tx.review.create({
+          data: {
+            assignmentId: assignment.id,
+            documentVersionId: version.id,
+            documentId: version.documentId,
+            reviewerId: fixture.professor.id,
+            reviewType: "COORDINATOR",
+            recommendation: "APPROVE",
+            status: "SUBMITTED",
+            submittedAt: new Date(),
+          },
+        });
+        return version;
+      }),
+    );
+    const clearance = await apiWrite(
+      `/api/defense-sessions/${group.session.id}/revision-clearance`,
+      fixture.professor.token,
+      "POST",
+      {
+        versionId: revised.id,
+        notes:
+          "The approved revised manuscript addresses the sampling requirements.",
+      },
+    );
+    expect(clearance.status, JSON.stringify(await readJson(clearance))).toBe(
+      200,
+    );
+    const cleared = await prisma.defenseSession.findUniqueOrThrow({
+      where: { id: group.session.id },
+    });
+    expect(cleared.decision).toBe("APPROVED_WITH_MINOR_REVISIONS");
+    expect(cleared.revisionClearance).toBeTruthy();
+    expect(
+      (
+        await prisma.defenseEligibility.findUniqueOrThrow({
+          where: { id: grant.id },
+        })
+      ).consumedAt,
+    ).toBeTruthy();
+    expect(
+      (
+        await prisma.defensePacket.findUniqueOrThrow({
+          where: { defenseSessionId: group.session.id },
+        })
+      ).manuscriptVersionId,
+    ).toBe(group.version.id);
   });
 });

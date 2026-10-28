@@ -152,7 +152,10 @@ router.get("/defense-review-packets", requireAuth, async (req, res) => {
           },
         },
         manuscriptReviews: { where: { panelistId: req.user!.id } },
-        packetDocumentReviews: {where:{panelistId:req.user!.id},select:{id:true,sourceVersionId:true,revision:true}},
+        packetDocumentReviews: {
+          where: { panelistId: req.user!.id },
+          select: { id: true, sourceVersionId: true, revision: true },
+        },
         recommendations: {
           where: { panelistId: req.user!.id },
           select: recommendationSelect,
@@ -307,18 +310,22 @@ router.put(
       const existingPacket = await prisma.defensePacket.findUnique({
         where: { defenseSessionId: allowed.session.id },
       });
+      if (existingPacket?.evaluationMode === "STRUCTURED")
+        return void res
+          .status(409)
+          .json({
+            error: "Use the structured evaluation editor for this packet.",
+          });
       if (
         existingPacket &&
         (await prisma.pdfEvaluation.count({
           where: { defenseSessionId: allowed.session.id },
         }))
       )
-        return void res
-          .status(409)
-          .json({
-            error:
-              "The packet is fixed after PDF evaluation drafts have started.",
-          });
+        return void res.status(409).json({
+          error:
+            "The packet is fixed after PDF evaluation drafts have started.",
+        });
       const publicationReason = String(req.body.publicationReason || "").trim();
       validateDefensePacketMutation({
         existingStatus: existingPacket?.status,
