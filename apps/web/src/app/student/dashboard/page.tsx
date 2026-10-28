@@ -1,3 +1,13 @@
+import {
+  OverviewHeader,
+  OverviewProjectPanel,
+  OverviewDefenseResult,
+  OverviewResearchSummary,
+  OverviewConsultation,
+  OverviewGettingStarted,
+  OverviewRecentActivity,
+  OverviewQuickActions,
+} from "@/components/dashboards/student/overview/ResearchCommandCenter";
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
 import { JoinedWorkflows } from "@/components/workflow/JoinedWorkflows";
 import { resolveStudentWorkflow } from "@/lib/student-workflow-context";
@@ -12,9 +22,6 @@ import { calculateMilestoneProgress } from "@/lib/workflow-progress";
 import { formatMilestoneTarget } from "@/lib/workflow-deadlines";
 import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";
-import { CourseCard } from "@/components/ui/CourseCard";
-import { StatCard } from "@/components/ui/StatCard";
-import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import { CardsPageSkeleton, DashboardSkeleton, FilesPageSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import { StudentProjectOverview } from "@/components/dashboards/student/StudentProjectOverview";
 import { projectSectionHref, type ProjectAction } from "@/lib/student-project-overview";
@@ -1488,10 +1495,6 @@ function StudentDashboardContent() {
 
       {/* MAIN CONTAINER */}
       <div className={`w-full flex-1 space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
-        {activeTab === "overview" && <WorkflowAccessInbox/>}
-        {activeTab === "overview" && (
-          <JoinedWorkflows enrollments={workflowEnrollmentData?.enrollments || []} />
-        )}
         {((researchData?.projects?.length || 0) > 1 || projectSelection.invalidRequestedProjectId) && (
           <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-5">
             <label htmlFor="dashboard-project" className="mb-2 block text-sm font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">Active research project</label>
@@ -1527,387 +1530,103 @@ function StudentDashboardContent() {
 
           const tabContent: Record<string, React.ReactNode> = {
             overview: (
-              <div className="flex w-full flex-col gap-6">
-                <DashboardWelcome
+              <div className="research-command-center">
+                <OverviewHeader
                   firstName={user?.firstName}
-                  fallbackName="Student Researcher"
-                  summary="Here's an overview of your research progress and what needs your attention."
+                  actions={
+                    !isResearchLoading && !isWorkspaceLoading && !isResearchError && activeProject && activeProject.status !== "REJECTED" ? (
+                      <button type="button" onClick={() => router.push("/student/documents")} className="rcc-button rcc-button--secondary">
+                        <i aria-hidden="true" className="ti ti-file-text" /> Document Workspace
+                      </button>
+                    ) : null
+                  }
+                />
+                {activeTab === "overview" && <div className="rcc-workflow-access"><WorkflowAccessInbox /></div>}
+                <OverviewProjectPanel
+                  project={activeProject ? {
+                    title: activeProject.title || "Capstone & Thesis Research Study",
+                    code: `GROUP ${String(activeProject.id).substring(0, 6).toUpperCase()} • RESEARCH STUDY`,
+                    stage: activeProject.workflowInstance?.currentStage?.name || "Proposal Stage",
+                    instructor: activeProject.members?.find((m: any) => m.projectRole === "ADVISER")?.user
+                      ? `Adviser: Prof. ${activeProject.members.find((m: any) => m.projectRole === "ADVISER").user.firstName} ${activeProject.members.find((m: any) => m.projectRole === "ADVISER").user.lastName}`
+                      : "Faculty Adviser: To Be Assigned",
+                    description: activeProject.abstract || "Active University of the Assumption capstone research project.",
+                    shortcuts: [
+                      { label: "Workspace", icon: "ti-file-text", onClick: () => router.push("/student/documents") },
+                      { label: "Submissions", icon: "ti-upload", onClick: () => handleTabChange("submissions") },
+                      { label: "Consultations", icon: "ti-calendar-event", onClick: () => handleTabChange("consultations") },
+                      { label: "Messages", icon: "ti-messages", onClick: () => handleTabChange("group-chats") },
+                    ],
+                  } : undefined}
+                  status={activeProject ? projectStatusLabel : "Not registered"}
+                  statusTone={activeProject?.status === "COMPLETED" ? "success" : activeProject?.status === "REJECTED" ? "danger" : "info"}
+                  progress={projectProgress}
+                  onProject={() => handleTabChange("group")}
+                  onMilestones={() => handleTabChange("milestones")}
                   actions={
                     isResearchLoading || isWorkspaceLoading ? (
-                      <div className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-100 px-5 text-sm font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">
-                        <i className="ti ti-loader-2 animate-spin text-base" /> Checking your project…
-                      </div>
+                      <div className="rcc-button rcc-button--loading"><i aria-hidden="true" className="ti ti-loader-2 animate-spin motion-reduce:animate-none" /> Checking your project…</div>
                     ) : isResearchError ? (
-                      <button
-                        onClick={() => refetchResearch()}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-5 text-sm font-bold text-rose-700 transition hover:bg-rose-100"
-                      >
-                        <i className="ti ti-refresh text-base" /> Retry Project Lookup
-                      </button>
+                      <button type="button" onClick={() => refetchResearch()} className="rcc-button rcc-button--danger"><i aria-hidden="true" className="ti ti-refresh" /> Retry Project Lookup</button>
                     ) : !activeProject ? (
                       <button
+                        type="button"
                         onClick={() => researchData?.projects?.length ? window.scrollTo({ top: 0, behavior: "smooth" }) : canCreateResearch ? setShowCreateModal(true) : handleTabChange("my-group")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-6 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98] dark:text-[var(--college-on-primary-dark)]"
-                      >
-                        <i className={`ti ${researchData?.projects?.length ? "ti-folders" : canCreateResearch ? "ti-plus" : "ti-users"} text-base font-bold`} /> {researchData?.projects?.length ? "Select Project" : canCreateResearch ? "Register Project" : "View My Group"}
-                      </button>
+                        className="rcc-button rcc-button--secondary"
+                      ><i aria-hidden="true" className={`ti ${researchData?.projects?.length ? "ti-folders" : canCreateResearch ? "ti-plus" : "ti-users"}`} />{researchData?.projects?.length ? "Select Project" : canCreateResearch ? "Register Project" : "View My Group"}</button>
                     ) : activeProject.status === "REJECTED" ? (
-                      <div className="flex flex-wrap items-center justify-end gap-3">
-                        <span className="text-xs font-medium text-rose-600">
-                          Delete this rejected record before registering a replacement.
-                        </span>
-                        <button
-                          onClick={() => setGroupAction({ type: "delete" })}
-                          disabled={groupActionPending}
-                          className="inline-flex h-11 items-center gap-2 rounded-xl bg-rose-600 px-5 text-sm font-bold text-white shadow-xs transition hover:bg-rose-700 disabled:opacity-60"
-                        >
-                          <i className="ti ti-trash text-base" /> {groupActionPending ? "Deleting…" : "Delete Rejected Project"}
-                        </button>
+                      <div>
+                        <p>Delete this rejected record before registering a replacement.</p>
+                        <button type="button" onClick={() => setGroupAction({ type: "delete" })} disabled={groupActionPending} className="rcc-button rcc-button--danger"><i aria-hidden="true" className="ti ti-trash" />{groupActionPending ? "Deleting…" : "Delete Rejected Project"}</button>
                       </div>
                     ) : (
-                      <>
-                        <button
-                          onClick={() => handleTabChange("group")}
-                          className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98] dark:text-[var(--college-on-primary-dark)]"
-                        >
-                          <i className="ti ti-folder-open text-base" /> View My Project
-                        </button>
-                        <button
-                          onClick={() => router.push("/student/documents")}
-                          className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-5 text-sm font-bold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
-                        >
-                          <i className="ti ti-file-text text-base" /> Document Workspace
-                        </button>
-                      </>
+                      <button type="button" onClick={() => handleTabChange("group")} className="rcc-button rcc-button--primary"><i aria-hidden="true" className="ti ti-folder-open" /> View My Project</button>
                     )
                   }
                 />
-                {officialDefenseResult && (
-                  <section
-                    className={`rounded-2xl border p-5 ${
-                      officialDefenseResult.decision === "REJECTED"
-                        ? "border-rose-200 bg-rose-50 text-rose-900"
-                        : officialDefenseResult.decision === "MAJOR_REVISIONS_REQUIRED"
-                        ? "border-amber-200 bg-amber-50 text-amber-900"
-                        : "border-emerald-200 bg-emerald-50 text-emerald-900"
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <span
-                        className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl text-2xl ${
-                          officialDefenseResult.decision === "REJECTED"
-                            ? "bg-rose-100 text-rose-700"
-                            : officialDefenseResult.decision === "MAJOR_REVISIONS_REQUIRED"
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-emerald-100 text-emerald-700"
-                        }`}
-                      >
-                        <i className="ti ti-certificate" />
-                      </span>
-                      <div>
-                        <p className="text-sm font-extrabold uppercase tracking-wider text-slate-500">Official defense result</p>
-                        <h2 className="mt-1 text-xl font-extrabold text-[#0B3A53] dark:text-white">
-                          {String(officialDefenseResult.decision).replace(/_/g, " ")}
-                        </h2>
-                        <p className="mt-1 text-base text-slate-600">
-                          Released by the defense facilitator on {new Date(officialDefenseResult.releasedAt).toLocaleString()}.
-                        </p>
-                      </div>
-                    </div>
-                  </section>
-                )}
-                {/* 4 Stat Cards in a row: Proportions, icons & labels matching reference screenshot */}
-                <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                  <StatCard
-                    label="Project Status"
-                    value={activeProject ? projectStatusLabel : "Not registered"}
-                    icon="ti-file-description"
-                    iconBg="bg-sky-50 dark:bg-sky-950/40"
-                    iconColor="text-sky-700 dark:text-sky-300"
-                    onClick={() => handleTabChange("group")}
+                {officialDefenseResult && <OverviewDefenseResult decision={officialDefenseResult.decision} releasedOn={new Date(officialDefenseResult.releasedAt).toLocaleString()} />}
+                <OverviewResearchSummary
+                  documents={`${combinedSubmissions.length} submitted`}
+                  consultations={consultations.length > 0 ? `${consultations.length} scheduled` : "None scheduled"}
+                  onDocuments={() => router.push("/student/documents")}
+                  onConsultations={() => handleTabChange("consultations")}
+                />
+                <div className="rcc-activity-grid">
+                  <OverviewConsultation consultation={consultations.length > 0 ? consultations[0] : null} onConsultations={() => handleTabChange("consultations")} />
+                  <OverviewGettingStarted
+                    onTour={() => setIsTourOpen(true)}
+                    steps={[
+                      {
+                        label: canCreateResearch || activeProject ? "Register project" : "View group",
+                        icon: "ti-file-description",
+                        description: canCreateResearch || activeProject ? "View or register your research topic." : "View your team while your leader registers the project.",
+                        complete: Boolean(activeProject),
+                        onClick: () => !activeProject && canCreateResearch ? setShowCreateModal(true) : handleTabChange(activeProject ? "group" : "my-group"),
+                      },
+                      {
+                        label: "Add group members",
+                        icon: "ti-users",
+                        description: "Invite your team, if any.",
+                        complete: activeStudentMembers.length > 1,
+                        onClick: () => handleTabChange("group"),
+                      },
+                      {
+                        label: "Choose an adviser",
+                        icon: "ti-user-check",
+                        description: isGroupLeader ? "Browse verified faculty and send a formal request." : "View your project’s adviser status.",
+                        complete: Boolean(activeProject?.members?.some((m: any) => m.projectRole === "ADVISER")),
+                        onClick: () => isGroupLeader ? router.push("/student/adviser-pool") : handleTabChange("group"),
+                      },
+                    ]}
                   />
-                  <StatCard
-                    label="Documents"
-                    value={`${combinedSubmissions.length} submitted`}
-                    icon="ti-file-text"
-                    iconBg="bg-amber-50 dark:bg-amber-950/40"
-                    iconColor="text-amber-600 dark:text-amber-400"
-                    onClick={() => router.push("/student/documents")}
-                  />
-                  <StatCard
-                    label="Consultations"
-                    value={consultations.length > 0 ? `${consultations.length} scheduled` : "None scheduled"}
-                    icon="ti-calendar-event"
-                    iconBg="bg-indigo-50 dark:bg-indigo-950/40"
-                    iconColor="text-indigo-600 dark:text-indigo-400"
-                    onClick={() => handleTabChange("consultations")}
-                  />
-                  <StatCard
-                    label="Progress"
-                    value={`${projectProgress}%`}
-                    icon="ti-chart-line"
-                    iconBg="bg-emerald-50 dark:bg-emerald-950/40"
-                    iconColor="text-emerald-600 dark:text-emerald-400"
-                    onClick={() => handleTabChange("milestones")}
-                  />
-                </section>
-
-                {/* Active Research Study Enrolled Card (when project registered) */}
-                {activeProject && (
-                  <div>
-                    <div className="mb-3 flex items-center justify-between">
-                      <h2 className="flex items-center gap-2 text-lg font-semibold text-[var(--color-text-primary)]">
-                        <span>Active Research Study</span>
-                        <span className="rounded-full bg-[#0B3A53]/10 dark:bg-[#0B3A53]/30 px-2.5 py-0.5 text-xs font-bold text-[#0B3A53] dark:text-[#38bdf8]">
-                          ENROLLED
-                        </span>
-                      </h2>
-                      <button
-                        onClick={() => handleTabChange("group")}
-                        className="flex items-center gap-1 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#FFA400] cursor-pointer"
-                      >
-                        Manage Project <i className="ti ti-chevron-right text-xs transition group-hover:translate-x-0.5" />
-                      </button>
-                    </div>
-                    <CourseCard
-                      title={activeProject.title || "Capstone & Thesis Research Study"}
-                      code={`GROUP ${String(activeProject.id).substring(0, 6).toUpperCase()} • RESEARCH STUDY`}
-                      subtitle={`Current Workflow Stage: ${activeProject.workflowInstance?.currentStage?.name || "Proposal Stage"}`}
-                      instructor={
-                        activeProject.members?.find((m: any) => m.projectRole === "ADVISER")?.user
-                          ? `Adviser: Prof. ${activeProject.members.find((m: any) => m.projectRole === "ADVISER").user.firstName} ${activeProject.members.find((m: any) => m.projectRole === "ADVISER").user.lastName}`
-                          : "Faculty Adviser: To Be Assigned"
-                      }
-                      statusBadge={
-                        <Tag variant={activeProject.status === "COMPLETED" ? "success" : activeProject.status === "REJECTED" ? "danger" : "info"}>
-                          {projectStatusLabel}
-                        </Tag>
-                      }
-                      progress={projectProgress}
-                      description={activeProject.abstract || "Active University of the Assumption capstone research project."}
-                      actions={[
-                        { label: "Workspace", onClick: () => router.push("/student/documents") },
-                        { label: "Submissions", onClick: () => handleTabChange("submissions") },
-                        { label: "Consultations", onClick: () => handleTabChange("consultations") },
-                        { label: "Messages", onClick: () => handleTabChange("group-chats") },
-                      ]}
-                    />
-                  </div>
-                )}
-
-                {/* Main 2-Column Responsive Layout: 7 Cols Left, 5 Cols Right */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  {/* Left Column (lg:col-span-7) */}
-                  <div className="lg:col-span-7 flex flex-col gap-6">
-                    {/* Getting Started Stepper Card */}
-                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)]">
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Getting Started</h3>
-                          <p className="mt-0.5 text-base text-slate-500 dark:text-slate-400">Complete these steps to begin your research journey.</p>
-                        </div>
-                        <button
-                          onClick={() => setIsTourOpen(true)}
-                          title="Watch product tour"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20 text-slate-600 dark:text-slate-300 transition cursor-pointer"
-                          aria-label="Start interactive guide"
-                        >
-                          <i className="ti ti-player-play-filled text-sm" />
-                        </button>
-                      </div>
-
-                      {/* Stepper with connecting line */}
-                      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-                        {/* Step 1: Register Project */}
-                        <button
-                          onClick={() => !activeProject && canCreateResearch ? setShowCreateModal(true) : handleTabChange(activeProject ? "group" : "my-group")}
-                          className="group relative flex flex-col items-center text-center cursor-pointer focus:outline-none"
-                        >
-                          <span className="hidden md:block absolute left-[65%] top-[14px] w-[70%] h-[2px] bg-slate-200 dark:bg-white/10 -z-0" />
-                          <span className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shadow-xs ${
-                            activeProject ? "bg-emerald-600 text-white" : "bg-slate-400 text-white dark:bg-white/20"
-                          }`}>
-                            {activeProject ? <i className="ti ti-check text-xs" /> : "1"}
-                          </span>
-                          <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[var(--color-primary)] transition">
-                            <i className="ti ti-file-description text-xl" />
-                          </span>
-                          <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">
-                            {canCreateResearch || activeProject ? "Register project" : "View group"}
-                          </span>
-                          <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
-                            {canCreateResearch || activeProject ? "View or register your research topic." : "View your team while your leader registers the project."}
-                          </span>
-                        </button>
-
-                        {/* Step 2: Add Group Members */}
-                        <button
-                          onClick={() => handleTabChange("group")}
-                          className="group relative flex flex-col items-center text-center cursor-pointer focus:outline-none"
-                        >
-                          <span className="hidden md:block absolute left-[65%] top-[14px] w-[70%] h-[2px] bg-slate-200 dark:bg-white/10 -z-0" />
-                          <span className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shadow-xs ${
-                            activeStudentMembers.length > 1 ? "bg-emerald-600 text-white" : "bg-slate-400 text-white dark:bg-white/20"
-                          }`}>
-                            {activeStudentMembers.length > 1 ? <i className="ti ti-check text-xs" /> : "2"}
-                          </span>
-                          <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[var(--color-primary)] transition">
-                            <i className="ti ti-users text-xl" />
-                          </span>
-                          <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">
-                            Add group members
-                          </span>
-                          <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
-                            Invite your team, if any.
-                          </span>
-                        </button>
-
-                        {/* Step 3: Choose an Adviser */}
-                        <button
-                          onClick={() => isGroupLeader ? router.push("/student/adviser-pool") : handleTabChange("group")}
-                          className="group relative flex flex-col items-center text-center cursor-pointer focus:outline-none"
-                        >
-                          <span className={`relative z-10 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shadow-xs ${
-                            activeProject?.members?.some((m: any) => m.projectRole === "ADVISER") ? "bg-emerald-600 text-white" : "bg-slate-400 text-white dark:bg-white/20"
-                          }`}>
-                            {activeProject?.members?.some((m: any) => m.projectRole === "ADVISER") ? <i className="ti ti-check text-xs" /> : "3"}
-                          </span>
-                          <span className="mt-3 flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-600 dark:text-slate-300 group-hover:border-[#0B3A53] group-hover:text-[var(--color-primary)] transition">
-                            <i className="ti ti-user-check text-xl" />
-                          </span>
-                          <span className="mt-3 text-sm font-bold text-slate-900 dark:text-white">
-                            Choose an adviser
-                          </span>
-                          <span className="mt-1 text-xs text-slate-500 dark:text-slate-400 max-w-[150px] leading-relaxed">
-                            {isGroupLeader ? "Browse verified faculty and send a formal request." : "View your project’s adviser status."}
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Recent Activity Card */}
-                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)]">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Recent Activity</h3>
-                        <button
-                          onClick={() => handleTabChange("notifications")}
-                          className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition p-1"
-                          aria-label="View all activity"
-                        >
-                          <i className="ti ti-chevron-right text-base" />
-                        </button>
-                      </div>
-                      {combinedNotifications.length > 0 ? (
-                        <div className="mt-4 divide-y divide-slate-100 dark:divide-white/5">
-                          {combinedNotifications.slice(0, 3).map((item) => (
-                            <div key={item.id} className="py-3 flex items-center justify-between gap-3 text-xs">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <span className="h-2 w-2 rounded-full bg-[#0B3A53] shrink-0" />
-                                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">{item.msg}</span>
-                              </div>
-                              <span className="text-xs text-slate-400 shrink-0">{item.date}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="py-10 flex flex-col items-center justify-center text-center">
-                          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5 text-slate-400 text-xl">
-                            <i className="ti ti-file-description" />
-                          </span>
-                          <p className="mt-3 text-base font-bold text-slate-800 dark:text-slate-200">No recent activity</p>
-                          <p className="mt-0.5 text-base text-slate-400 dark:text-slate-500">Your updates, submissions, and consultations will appear here.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right Column (lg:col-span-5) */}
-                  <div className="lg:col-span-5 flex flex-col gap-6">
-                    {/* Next Consultation Card */}
-                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)] flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Next Consultation</h3>
-                          <button
-                            onClick={() => handleTabChange("consultations")}
-                            className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer transition p-1"
-                            aria-label="Open consultations"
-                          >
-                            <i className="ti ti-chevron-right text-base" />
-                          </button>
-                        </div>
-
-                        {consultations.length > 0 ? (
-                          <div className="py-6 flex flex-col items-center text-center">
-                            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 dark:bg-sky-950/40 text-[#0B3A53] dark:text-[#38bdf8] text-2xl">
-                              <i className="ti ti-calendar-time" />
-                            </span>
-                            <p className="mt-3 text-base font-bold text-slate-900 dark:text-white">
-                              {consultations[0].topic}
-                            </p>
-                            <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
-                              {consultations[0].date} at {consultations[0].time} ({consultations[0].mode})
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="py-6 flex flex-col items-center text-center">
-                            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50/80 dark:bg-white/5 text-slate-400 dark:text-slate-500 text-2xl">
-                              <i className="ti ti-calendar-time" />
-                            </span>
-                            <p className="mt-3 text-base font-bold text-slate-800 dark:text-slate-200">
-                              No upcoming consultation
-                            </p>
-                            <p className="mt-1 text-base text-slate-400 dark:text-slate-500 max-w-xs leading-relaxed">
-                              Book a consultation with your adviser to get feedback and guidance.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={() => handleTabChange("consultations")}
-                        className="w-full mt-4 h-10 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-semibold rounded-xl shadow-xs transition flex items-center justify-center gap-2 text-sm cursor-pointer active:scale-[0.98]"
-                      >
-                        <i className="ti ti-calendar-plus text-base font-bold" />
-                        <span>Book consultation</span>
-                      </button>
-                    </div>
-
-                    {/* Quick Actions Card */}
-                    <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)]">
-                      <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">Quick Actions</h3>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
-                        <button
-                          onClick={() => router.push("/student/documents")}
-                          className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
-                        >
-                          <i className="ti ti-file-text text-xl text-slate-700 dark:text-slate-200 group-hover:text-[var(--color-primary)] transition" />
-                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">New document</span>
-                        </button>
-                        <button
-                          onClick={() => handleTabChange("submissions")}
-                          className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
-                        >
-                          <i className="ti ti-upload text-xl text-slate-700 dark:text-slate-200 group-hover:text-[var(--color-primary)] transition" />
-                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Submit draft</span>
-                        </button>
-                        <button
-                          onClick={() => handleTabChange("group-chats")}
-                          className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
-                        >
-                          <i className="ti ti-message text-xl text-slate-700 dark:text-slate-200 group-hover:text-[var(--color-primary)] transition" />
-                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Message group</span>
-                        </button>
-                        <button
-                          onClick={() => handleTabChange("milestones")}
-                          className="flex flex-col items-center justify-center gap-2 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-xs hover:-translate-y-0.5 transition cursor-pointer text-center group"
-                        >
-                          <i className="ti ti-chart-bar text-xl text-slate-700 dark:text-slate-200 group-hover:text-[var(--color-primary)] transition" />
-                          <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">View milestones</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  {activeTab === "overview" && <div className="rcc-joined"><JoinedWorkflows enrollments={workflowEnrollmentData?.enrollments || []} /></div>}
+                  <OverviewRecentActivity items={combinedNotifications.slice(0, 3)} onActivity={() => handleTabChange("notifications")} />
+                  <OverviewQuickActions actions={[
+                    { label: "New document", icon: "ti-file-text", onClick: () => router.push("/student/documents") },
+                    { label: "Submit draft", icon: "ti-upload", onClick: () => handleTabChange("submissions") },
+                    { label: "Message group", icon: "ti-message", onClick: () => handleTabChange("group-chats") },
+                    { label: "View milestones", icon: "ti-chart-bar", onClick: () => handleTabChange("milestones") },
+                  ]} />
                 </div>
               </div>
             ),
