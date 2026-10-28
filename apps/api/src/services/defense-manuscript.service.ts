@@ -75,14 +75,6 @@ const ELIGIBILITY_MESSAGES: Array<
     "The required signed institutional defense approval is missing.",
   ],
   [
-    "hasAcceptedPanelist",
-    "At least one invited panelist must accept before publication.",
-  ],
-  [
-    "requiredPanelistsAccepted",
-    "Every required panelist must accept before publication.",
-  ],
-  [
     "sessionOpen",
     "A completed or cancelled defense packet cannot be published.",
   ],
@@ -91,6 +83,8 @@ const ELIGIBILITY_MESSAGES: Array<
 export function evaluateDefenseManuscriptEligibility(
   input: DefenseManuscriptEligibilityInput,
 ) {
+  // Invitation readiness is reported separately; it does not change whether
+  // an approved manuscript can be selected or shared with accepted panelists.
   const reasons = ELIGIBILITY_MESSAGES.filter(([key]) => !input[key]).map(
     ([, message]) => message,
   );

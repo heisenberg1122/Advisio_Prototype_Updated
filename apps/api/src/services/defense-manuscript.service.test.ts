@@ -57,7 +57,6 @@ describe("defense manuscript eligibility", () => {
     ["isImmutable", "not an immutable"],
     ["requiredReviewsApproved", "Every mandatory faculty reviewer"],
     ["institutionalApprovalSatisfied", "institutional defense approval"],
-    ["requiredPanelistsAccepted", "Every required panelist"],
   ] as const)("rejects failed %s checks", (key, message) => {
     const result = evaluateDefenseManuscriptEligibility({
       ...ready,
@@ -65,6 +64,16 @@ describe("defense manuscript eligibility", () => {
     });
     expect(result.eligible).toBe(false);
     expect(result.reasons.join(" ")).toContain(message);
+  });
+
+  it("keeps approved manuscripts available before invitations are accepted", () => {
+    expect(
+      evaluateDefenseManuscriptEligibility({
+        ...ready,
+        hasAcceptedPanelist: false,
+        requiredPanelistsAccepted: false,
+      }),
+    ).toMatchObject({ eligible: true, reasons: [] });
   });
 });
 

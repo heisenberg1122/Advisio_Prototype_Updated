@@ -15,11 +15,17 @@ published session.
 The packet takes its manuscript from an approved immutable submission attached
 to the session's exact Defense Eligibility milestone. If several approved
 documents qualify, the facilitator must choose the manuscript explicitly.
+Approved manuscripts remain selectable while panel invitations are pending.
+Drafts can be prepared before any panelist accepts. Publication requires at least
+one accepted required panelist, but does not wait for every invitation. Only
+accepted panelists can access the published packet; pending invitees gain access
+when they accept.
+
 Student names come from active leader/member project records. One presentation
 section is generated for each student, including solo projects. Optional
 similarity reports remain supporting files, not evaluation templates.
 
-Publication stores the researcher roster, accepted panel assignments, rubric,
+Publication stores the researcher roster, all non-removed panel assignments, rubric,
 rating scale, weights, and manuscript version. An unstarted packet can be replaced
 with an explicit reason and matching version, provided nobody has saved an
 evaluation. Publication history is audited. Once live, the form is fixed.

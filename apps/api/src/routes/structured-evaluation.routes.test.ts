@@ -33,7 +33,13 @@ vi.mock("../services/defense-eligibility.service.js", () => ({
 vi.mock("../lib/prisma.js", () => {
   const db: any = {
     defenseSession: { findUnique: async () => state.session },
+    defenseEligibility: { findUnique: async () => ({ milestoneId: "gate" }) },
+    defensePacket: {
+      upsert: vi.fn(async ({ create }: any) => ({ id: "packet", ...create })),
+    },
+    notification: { createMany: vi.fn() },
     structuredEvaluation: {
+      count: async () => 0,
       findUnique: async () => state.item,
       upsert: async ({ create, update }: any) =>
         (state.item = state.item
@@ -49,6 +55,8 @@ vi.mock("../lib/prisma.js", () => {
   return { prisma: db };
 });
 import router from "./structured-evaluation.routes.js";
+import { defenseManuscriptService } from "../services/defense-manuscript.service.js";
+import { prisma } from "../lib/prisma.js";
 const id = "00000000-0000-4000-8000-000000000001",
   panel = "00000000-0000-4000-8000-000000000002",
   other = "00000000-0000-4000-8000-000000000003";
@@ -87,6 +95,7 @@ beforeAll(async () => {
 });
 afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
 beforeEach(() => {
+  vi.clearAllMocks();
   state.item = null;
   state.user = { id: panel, roles: ["PANELIST"], collegeId: "college" };
   state.session = {
@@ -110,6 +119,66 @@ beforeEach(() => {
   };
 });
 describe("structured evaluation HTTP access and submission", () => {
+  it("publishes for accepted panelists while preserving pending assignments for later acceptance", async () => {
+    state.user = {
+      id: "coordinator",
+      roles: ["RESEARCH_COORDINATOR"],
+      collegeId: "college",
+    };
+    state.session.status = "SCHEDULED";
+    state.session.eligibilityId = "eligibility";
+    state.session.packet = null;
+    state.session.research.members = [
+      { userId: "student", user: { firstName: "Solo", lastName: "Student" } },
+    ];
+    state.session.invitations = [
+      {
+        inviteeId: panel,
+        role: "PANELIST",
+        isRequired: true,
+        status: "ACCEPTED",
+        invitee: { firstName: "First", lastName: "Panelist" },
+      },
+      {
+        inviteeId: other,
+        role: "PANELIST",
+        isRequired: true,
+        status: "PENDING",
+        invitee: { firstName: "Second", lastName: "Panelist" },
+      },
+    ];
+    vi.mocked(defenseManuscriptService.getReadiness).mockResolvedValue({
+      eligibleVersions: [{ id: "v1", milestoneId: "gate" }],
+    } as any);
+    const response = await fetch(
+      `${base}/defense-sessions/${id}/structured-form`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          spec: defaultStructuredForm,
+          manuscriptVersionId: "v1",
+          publish: true,
+        }),
+      },
+    );
+    expect(await response.json()).toEqual({ saved: true });
+    expect(response.status).toBe(200);
+    const saved = vi.mocked(prisma.defensePacket.upsert).mock.calls[0][0]
+      .create as any;
+    expect(saved.structuredForm.panelists.map((p: any) => p.userId)).toEqual([
+      panel,
+      other,
+    ]);
+    expect(
+      vi.mocked(prisma.notification.createMany).mock.calls[0][0]!.data,
+    ).toMatchObject([{ recipientId: panel }]);
+    state.session.packet = saved;
+    state.user = { id: other, roles: ["PANELIST"], collegeId: "college" };
+    expect((await request("GET")).status).toBe(404);
+    state.session.invitations[1].status = "ACCEPTED";
+    expect((await request("GET")).status).toBe(200);
+  });
   it("saves, previews, confirms and locks an evaluation; retries do not create another submission", async () => {
     let r = await request("PUT", "", { revision: 0, answers: payload() });
     expect(r.status).toBe(200);

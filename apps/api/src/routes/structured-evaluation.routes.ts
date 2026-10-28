@@ -288,7 +288,7 @@ router.put(
       const panelists = s.invitations
         .filter(
           (i) =>
-            i.status === "ACCEPTED" &&
+            i.status !== "REMOVED" &&
             ["PANEL_CHAIR", "PANELIST"].includes(i.role),
         )
         .map((i) => ({
@@ -296,7 +296,16 @@ router.put(
           name: `${i.invitee.firstName} ${i.invitee.lastName}`,
           required: i.isRequired,
         }));
-      if (!roster.length || !panelists.some((p) => p.required))
+      if (
+        !roster.length ||
+        (publish &&
+          !s.invitations.some(
+            (i) =>
+              i.status === "ACCEPTED" &&
+              i.isRequired &&
+              ["PANEL_CHAIR", "PANELIST"].includes(i.role),
+          ))
+      )
         throw new Conflict(
           "An active researcher and accepted required panelists are needed.",
         );
@@ -375,15 +384,21 @@ router.put(
       });
       if (publish)
         await tx.notification.createMany({
-          data: panelists.map((p) => ({
-            recipientId: p.userId,
-            audience: "panelist",
-            type: "DEFENSE_CONFIRMED" as const,
-            title: "Defense review packet published",
-            message: `The approved manuscript and digital evaluation form for ${s.research.title} are ready.`,
-            entityType: "DefenseSession",
-            entityId: s.id,
-          })),
+          data: panelists
+            .filter((p) =>
+              s.invitations.some(
+                (i) => i.inviteeId === p.userId && i.status === "ACCEPTED",
+              ),
+            )
+            .map((p) => ({
+              recipientId: p.userId,
+              audience: "panelist",
+              type: "DEFENSE_CONFIRMED" as const,
+              title: "Defense review packet published",
+              message: `The approved manuscript and digital evaluation form for ${s.research.title} are ready.`,
+              entityType: "DefenseSession",
+              entityId: s.id,
+            })),
         });
     });
     res.json({ saved: true });
