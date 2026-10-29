@@ -23,6 +23,7 @@ import { formatMilestoneTarget } from "@/lib/workflow-deadlines";
 import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";
 import { CardsPageSkeleton, DashboardSkeleton, FilesPageSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
+import "@/components/dashboards/student/my-project-workspace.css";
 import { StudentProjectOverview } from "@/components/dashboards/student/StudentProjectOverview";
 import { projectSectionHref, type ProjectAction } from "@/lib/student-project-overview";
 import { studentTaskDetailsHref } from "@/lib/student-task-navigation";
@@ -1506,7 +1507,7 @@ function StudentDashboardContent() {
           </section>
         )}
         
-        {activeTab === "group" && <div className="space-y-4"><h1 className="text-2xl font-bold text-[var(--color-text-primary)]">My Project</h1><nav aria-label="Project sections" className="flex gap-1 border-b border-[var(--color-border)]">{([{ id: "overview", label: "Project Overview" }, { id: "my-group", label: "My Group" }] as const).map((section) => <button key={section.id} type="button" aria-current={projectSection === section.id ? "page" : undefined} onClick={() => handleTabChange(section.id === "my-group" ? "my-group" : "group")} className={`min-h-11 border-b-2 px-4 py-3 text-sm font-semibold transition ${projectSection === section.id ? "border-[var(--color-primary)] text-[var(--color-primary)]" : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"}`}>{section.label}</button>)}</nav></div>}
+        {activeTab === "group" && <div className="mp-page-header space-y-4"><h1 className="text-2xl font-bold text-[var(--color-text-primary)]">My Project</h1><nav aria-label="Project sections" className="flex gap-1 border-b border-[var(--color-border)]">{([{ id: "overview", label: "Project Overview" }, { id: "my-group", label: "My Group" }] as const).map((section) => <button key={section.id} type="button" aria-current={projectSection === section.id ? "page" : undefined} onClick={() => handleTabChange(section.id === "my-group" ? "my-group" : "group")} className={`min-h-11 border-b-2 px-4 py-3 text-sm font-semibold transition ${projectSection === section.id ? "border-[var(--color-primary)] text-[var(--color-primary)]" : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"}`}>{section.label}</button>)}</nav></div>}
 
         {(() => {
           const tabTitles: Record<string, string> = {
@@ -1909,52 +1910,59 @@ function StudentDashboardContent() {
               </div>
             ),
             "my-group": (
-              <section className="student-projects-readable space-y-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-xs">
-                <div><h3 className="text-xl font-bold text-[var(--color-text-primary)]">My Group</h3><p className="mt-1 text-base text-[var(--color-text-secondary)]">View your teammates and manage invitations, membership, and group access. These settings apply to the selected project.</p></div>
+              <section className="student-projects-readable mp-workspace mp-group">
                 {!activeProject && (researchData?.projects?.length || 0) > 0 ? <p className="text-base text-[var(--color-text-secondary)]">Select a research project above to view its group.</p> : activeProject || activeWorkspace ? <>
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                    <h4 className="text-lg font-bold text-[#102f49]">{activeProject ? activeProject.groupName || "Research team" : activeWorkspace?.name}</h4>
+                  <div className="mp-panel mp-group-identity">
+                    <h2 className="text-lg font-bold text-[#102f49]">{activeProject ? activeProject.groupName || "Research team" : activeWorkspace?.name}</h2>
                     <p className="mt-1 text-base text-slate-600">{activeProject?.title || "Research project awaiting registration by your leader."}</p>
                     <p className="mt-2 text-sm font-semibold text-[#173f63]">Your role: {(activeProject ? isGroupLeader : isWorkspaceLeader) ? "Group Leader" : "Member"}</p>
                   </div>
+                  <div className="mp-group-layout">
+                  <div className="mp-group-team">
                   {activeProject ? (
-                      <div>
-                        <div className="flex items-center justify-between"><h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Active researchers</h4><span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div>
-                        <div className="mt-3 space-y-2">{activeStudentMembers.map((member: any) => <div key={member.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{(member.userId === user?.id || member.user?.id === user?.id) ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.projectRole === "LEADER" ? "Group Leader" : "Member"}</p></div>{isGroupLeader && member.projectRole === "MEMBER" && <div className="flex gap-2"><button onClick={() => setGroupAction({ type: "transfer", member })} className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm font-bold text-blue-700">Transfer leadership</button><button onClick={() => setGroupAction({ type: "remove", member })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-600">Remove</button></div>}</div>)}</div>
+                      <div className="mp-project-roster">
+                      {isGroupLeader && pendingJoinRequests.length > 0 && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center justify-between"><div><h2 className="font-extrabold text-[#102f49]">Pending join requests</h2><p className="mt-1 text-base text-slate-600">Approve only researchers who should receive this project’s workflow and files.</p></div><span className="rounded-full bg-amber-200 px-2.5 py-1 text-xs font-extrabold text-amber-900">{pendingJoinRequests.length}</span></div><div className="mt-3 space-y-2">{pendingJoinRequests.map((request: any) => <div key={request.id} className="flex flex-col gap-3 rounded-xl bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#102f49]">{request.requester ? `${request.requester.firstName} ${request.requester.lastName}` : "Researcher"}</p><p className="text-base text-slate-500">{request.requester?.email} · Requested {new Date(request.createdAt).toLocaleDateString()}</p></div><div className="flex gap-2"><button onClick={() => decideJoinRequest(request.id, "REJECT")} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-700">Reject</button><button onClick={() => decideJoinRequest(request.id, "ACCEPT")} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-extrabold text-white">Accept</button></div></div>)}</div></div>
+                      )}
+                      <div className="mp-panel mp-roster">
+                        <div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Active researchers</h2><span className="mp-member-count">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div>
+                        <div className="mp-members">{activeStudentMembers.map((member: any) => <div key={member.id} className="mp-member-row"><div><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{(member.userId === user?.id || member.user?.id === user?.id) ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.projectRole === "LEADER" ? "Group Leader" : "Member"}</p></div>{isGroupLeader && member.projectRole === "MEMBER" && <div className="flex gap-2"><button onClick={() => setGroupAction({ type: "transfer", member })} className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm font-bold text-blue-700">Transfer leadership</button><button onClick={() => setGroupAction({ type: "remove", member })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-600">Remove</button></div>}</div>)}</div>
                       </div>
-                  ) : <div><h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Group members</h4><div className="mt-3 space-y-2">{(activeWorkspace.members || []).filter((member: any) => !member.leftAt).map((member: any) => <div key={member.id} className="rounded-xl border border-slate-200 p-3"><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{member.userId === user?.id ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.role === "LEADER" ? "Group Leader" : "Member"}</p></div>)}</div></div>}
+                      </div>
+                  ) : <div className="mp-panel mp-roster"><h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Group members</h2><div className="mp-members">{(activeWorkspace.members || []).filter((member: any) => !member.leftAt).map((member: any) => <div key={member.id} className="mp-member-row"><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{member.userId === user?.id ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.role === "LEADER" ? "Group Leader" : "Member"}</p></div>)}</div></div>}
 
-                  {activeProject && <div className="flex flex-wrap gap-3"><button onClick={() => handleTabChange("group-chats")} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Group messages</button><button onClick={() => router.push(projectSelection.projectHref("/student/tasks"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Tasks</button><button onClick={() => router.push(projectSelection.projectHref("/student/group-files"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Shared files</button></div>}
-                  {!activeProject && isWorkspaceLeader && activeWorkspace?.participationMode === "GROUP" && <TeamEmailInvitation teamId={activeWorkspace.id} kind="workspace" />}
-                  {activeProject && <div className="space-y-4">{isGroupLeader && (
-                        <TeamEmailInvitation teamId={activeProject.id} kind="project" />
-                      )}{isGroupLeader && (
-                        <div className="grid gap-4 lg:grid-cols-2">
-                          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                            <h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Group access</h4>
+                  {activeProject && <div className="mp-collaboration"><button onClick={() => handleTabChange("group-chats")} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Group messages</button><button onClick={() => router.push(projectSelection.projectHref("/student/tasks"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Tasks</button><button onClick={() => router.push(projectSelection.projectHref("/student/group-files"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Shared files</button></div>}
+                  {activeProject && !isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-bold text-amber-700">Leave group</button>}
+                  </div>
+                  {!activeProject && isWorkspaceLeader && activeWorkspace?.participationMode === "GROUP" && <div className="mp-email-invitation"><TeamEmailInvitation teamId={activeWorkspace.id} kind="workspace" /></div>}
+                  {activeProject && <div className="mp-group-tools">{isGroupLeader && (
+                                                  <div className="mp-panel mp-access">
+                            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Group access</h2>
                             <label className="mt-3 block text-sm font-bold text-slate-600">Working arrangement<select value={projectParticipationMode} onChange={(event) => setProjectParticipationMode(event.target.value as "SOLO" | "GROUP")} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="SOLO">Solo</option><option value="GROUP">Group</option></select></label>
                             {projectParticipationMode === "GROUP" && <><label className="mt-3 block text-sm font-bold text-slate-600">How researchers can join<select value={projectAccessMode} onChange={(event) => setProjectAccessMode(event.target.value as typeof projectAccessMode)} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="INVITE_ONLY">Invite only</option><option value="PUBLIC_APPROVAL">Code access — leader approval</option><option value="PUBLIC_OPEN">Code access — join immediately</option></select></label><label className="mt-3 flex items-center gap-2 text-sm font-bold text-slate-600"><input type="checkbox" checked={projectInviteEnabled} onChange={(event) => setProjectInviteEnabled(event.target.checked)} />Accept joins using the current code</label></>}
                             <button onClick={handleSaveProjectAccess} disabled={projectAccessSaving} className="mt-4 rounded-lg bg-[#173f63] px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">{projectAccessSaving ? "Saving…" : "Save access settings"}</button>
                           </div>
-                          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
-                            <h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Invitation code and link</h4>
+
+                      )}{isGroupLeader && (
+                        <div className="mp-access-stack">
+                          <TeamEmailInvitation teamId={activeProject.id} kind="project" />
+                          <div className="mp-panel mp-invitation-code">
+                            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Invitation code and link</h2>
                             <p className="mt-1 text-base text-slate-600">Researchers review the group before joining or requesting approval.</p>
                             {inviteCode ? <div className="mt-3 space-y-2"><div className="rounded-lg bg-white p-3 font-mono text-sm font-bold text-[#173f63]">Code: {inviteCode}</div><div className="flex flex-wrap gap-2"><button onClick={() => navigator.clipboard.writeText(inviteCode).then(() => triggerToast("Invite code copied."))} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-700"><i className="ti ti-copy mr-1" />Copy code</button><button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join-group?code=${inviteCode}`).then(() => triggerToast("Shareable link copied."))} className="rounded-lg bg-[#173f63] px-3 py-2 text-sm font-extrabold text-white"><i className="ti ti-link mr-1" />Copy link</button><button onClick={handleCreateInvite} className="rounded-lg px-3 py-2 text-sm font-bold text-slate-600">Rotate code</button></div></div> : <button onClick={handleCreateInvite} className="mt-3 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"><i className="ti ti-user-plus mr-1" />Create invitation</button>}
                           </div>
                         </div>
                       )}
-
-                      {isGroupLeader && pendingJoinRequests.length > 0 && (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center justify-between"><div><h4 className="font-extrabold text-[#102f49]">Pending join requests</h4><p className="mt-1 text-base text-slate-600">Approve only researchers who should receive this project’s workflow and files.</p></div><span className="rounded-full bg-amber-200 px-2.5 py-1 text-xs font-extrabold text-amber-900">{pendingJoinRequests.length}</span></div><div className="mt-3 space-y-2">{pendingJoinRequests.map((request: any) => <div key={request.id} className="flex flex-col gap-3 rounded-xl bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#102f49]">{request.requester ? `${request.requester.firstName} ${request.requester.lastName}` : "Researcher"}</p><p className="text-base text-slate-500">{request.requester?.email} · Requested {new Date(request.createdAt).toLocaleDateString()}</p></div><div className="flex gap-2"><button onClick={() => decideJoinRequest(request.id, "REJECT")} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-700">Reject</button><button onClick={() => decideJoinRequest(request.id, "ACCEPT")} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-extrabold text-white">Accept</button></div></div>)}</div></div>
-                      )}</div>}
-                  {!activeProject && isWorkspaceLeader && activeWorkspace?.participationMode === "GROUP" && <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4"><h4 className="font-semibold text-[var(--color-text-primary)]">Workspace invitation</h4><p className="mt-2 font-mono text-base text-[var(--color-primary)]">{activeWorkspace.inviteCode}</p><button type="button" onClick={() => navigator.clipboard.writeText(activeWorkspace.inviteCode).then(() => triggerToast("Invite code copied."))} className="mt-3 text-sm font-semibold text-[var(--color-primary)] hover:underline">Copy code</button></div>}
+                      </div>}
+                  {!activeProject && isWorkspaceLeader && activeWorkspace?.participationMode === "GROUP" && <div className="mp-panel mp-workspace-invitation"><h2 className="font-semibold text-[var(--color-text-primary)]">Workspace invitation</h2><p className="mt-2 font-mono text-base text-[var(--color-primary)]">{activeWorkspace.inviteCode}</p><button type="button" onClick={() => navigator.clipboard.writeText(activeWorkspace.inviteCode).then(() => triggerToast("Invite code copied."))} className="mt-3 text-sm font-semibold text-[var(--color-primary)] hover:underline">Copy code</button></div>}
                   {!activeProject && canDeleteWorkspace && <button onClick={() => { setWorkspaceDeleteError(""); setWorkspaceToDelete({ id: activeWorkspace.id, name: activeWorkspace.name }); }} className="rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-sm font-extrabold text-rose-700 hover:bg-rose-50"><i className="ti ti-trash mr-1" />Delete workspace</button>}
-                  {activeProject && !isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-bold text-amber-700">Leave group</button>}
+
+                  </div>
                 </> : <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center"><p className="text-base text-slate-500">{isWorkspaceLoading ? "Loading your group…" : !workspaceData ? "Unable to load your group. Refresh to try again." : "You have not joined a research group yet."}</p>{workspaceData && <button onClick={() => handleTabChange("group")} className="mt-4 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Open My Project</button>}</div>}
               </section>
             ),
             group: (
-              <div className="space-y-5">
+              <div className="mp-project-container space-y-5">
                 {activeProject ? (
                   <StudentProjectOverview
                     project={activeProject}
@@ -1972,11 +1980,11 @@ function StudentDashboardContent() {
                     onAction={handleProjectAction}
                     onGroup={() => handleTabChange("my-group")}
                     onArchive={() => setGroupAction({ type: "disband" })}
-                    adviser={<div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xs sm:p-6">
+                    adviser={<div className="mp-panel mp-adviser-content">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h4 className="text-lg font-semibold text-[var(--color-text-primary)]">Faculty Adviser</h4>
+                              <h3 className="mp-section-title">Faculty Adviser</h3>
                               <span className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${activeAdviserMembership ? "bg-emerald-200 text-emerald-900" : pendingAdviserRequest ? "bg-amber-200 text-amber-900" : "bg-white text-slate-600"}`}>
                                 {activeAdviserMembership ? "ASSIGNED" : pendingAdviserRequest ? "PENDING" : latestAdviserRequest?.status || "NOT ASSIGNED"}
                               </span>
@@ -1986,7 +1994,7 @@ function StudentDashboardContent() {
                               <div className="mt-3">
                                 <p className="text-base font-extrabold text-[#102f49]">{activeAdviserMembership.user.firstName} {activeAdviserMembership.user.lastName}</p>
                                 <p className="mt-1 text-base text-slate-600">{activeAdviserMembership.user.email} · Adviser for the entire research project</p>
-                                <p className="mt-2 text-base text-emerald-800">Assigned {activeAdviserMembership.joinedAt ? new Date(activeAdviserMembership.joinedAt).toLocaleDateString() : "to your group"}</p>
+                                <p className="mp-assignment-date">Assigned {activeAdviserMembership.joinedAt ? new Date(activeAdviserMembership.joinedAt).toLocaleDateString() : "to your group"}</p>
                               </div>
                             ) : pendingAdviserRequest ? (
                               <div className="mt-3">

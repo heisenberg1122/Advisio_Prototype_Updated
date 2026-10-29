@@ -7,10 +7,8 @@ import {
   type ProjectMilestoneProgress,
 } from "@/lib/student-project-overview";
 
-const card =
-  "rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xs sm:p-6";
-const secondary =
-  "text-sm font-semibold text-[var(--color-primary)] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4";
+const card = "mp-panel";
+const secondary = "mp-button mp-button--secondary";
 
 export function StudentProjectOverview({
   project,
@@ -71,49 +69,52 @@ export function StudentProjectOverview({
   );
   const tone =
     nextStep.tone === "action"
-      ? "border-[var(--color-primary)] bg-[var(--color-primary-light)]"
+      ? "mp-next--action"
       : nextStep.tone === "pending"
-        ? "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30"
+        ? "mp-next--pending"
         : nextStep.tone === "success"
-          ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30"
-          : "border-[var(--color-border)] bg-[var(--color-surface-muted)]";
+          ? "mp-next--success"
+          : "mp-next--neutral";
 
   return (
-    <div className="student-projects-readable space-y-5">
-      <section className={card} aria-label="Project details">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-[var(--color-text-secondary)]">
+    <div className="student-projects-readable mp-workspace mp-project">
+      <section className={`${card} mp-identity`} aria-label="Project details">
+        <div className="mp-identity-layout">
+          <div className="mp-identity-copy">
+            <div className="mp-identity-metadata">
+            <p className="mp-workflow-meta">
               {project.workflowAccessRemoved
                 ? "Workflow access removed"
                 : workflowName || "No workflow linked"}
               {academicYear && <span> · AY {academicYear}</span>}
             </p>
-            {coordinator && !project.workflowAccessRemoved && (
-              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                Coordinator: {coordinator}
-              </p>
-            )}
-            <h2 className="mt-4 break-words text-2xl font-bold leading-tight tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
-              {project.title || "Research workflow in progress"}
-            </h2>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
               <span
-                className={
-                  approvedTitle
-                    ? "rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
-                    : "text-[var(--color-text-secondary)]"
-                }
-              >
-                {titleLabel}
-              </span>
-              <span
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${["SUBMITTED", "UNDER_REVIEW"].includes(project.status || "") ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200" : "bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)]"}`}
+                className={`mp-status capitalize ${["SUBMITTED", "UNDER_REVIEW"].includes(project.status || "") ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200" : "bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)]"}`}
               >
                 {statusText}
               </span>
             </div>
-            <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
+            {coordinator && !project.workflowAccessRemoved && (
+              <p className="mp-coordinator">
+                Coordinator: {coordinator}
+              </p>
+            )}
+            <h2 className="mp-project-title">
+              {project.title || "Research workflow in progress"}
+            </h2>
+            <div className="mp-title-classification">
+              <span
+                className={
+                  approvedTitle
+                    ? "mp-title-approved text-emerald-700 dark:text-emerald-300"
+                    : "mp-caption"
+                }
+              >
+                {titleLabel}
+              </span>
+
+            </div>
+            <p className="mp-group-reference">
               {teamName}
             </p>
             {pendingTitle && (
@@ -136,27 +137,27 @@ export function StudentProjectOverview({
       </section>
 
       <section
-        className={`rounded-2xl border p-5 sm:p-6 ${tone}`}
+        className={`${card} mp-next ${tone}`}
         aria-labelledby="project-next-step"
         aria-live="polite"
       >
-        <p className="text-xs font-bold uppercase tracking-widest text-[var(--color-text-secondary)]">
+        <p className="mp-eyebrow">
           {nextStep.label}
         </p>
         <h3
           id="project-next-step"
-          className="mt-2 text-xl font-bold text-[var(--color-text-primary)]"
+          className="mp-next-title"
         >
           {nextStep.title}
         </h3>
-        <p className="mt-2 max-w-2xl text-base leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="mp-next-description">
           {nextStep.description}
         </p>
         {nextStep.action && (
           <button
             type="button"
             onClick={() => onAction(nextStep.action!)}
-            className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-bold text-[var(--college-on-primary)] transition hover:bg-[var(--color-primary-dark)] dark:text-[var(--college-on-primary-dark)]"
+            className="mp-button mp-button--primary mp-next-action"
           >
             {nextStep.buttonLabel}
             <span aria-hidden="true">→</span>
@@ -164,11 +165,11 @@ export function StudentProjectOverview({
         )}
       </section>
 
-      <section className={card} aria-labelledby="project-workflow-progress">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className={`${card} mp-progress`} aria-labelledby="project-workflow-progress">
+        <div className="mp-section-heading">
           <h3
             id="project-workflow-progress"
-            className="text-base font-bold text-[var(--color-text-primary)]"
+            className="mp-section-title"
           >
             Workflow progress
           </h3>
@@ -176,13 +177,13 @@ export function StudentProjectOverview({
             <button
               type="button"
               onClick={() => onAction({ kind: "timeline" })}
-              className={secondary}
+              className="mp-text-action"
             >
               View all milestones
             </button>
           )}
         </div>
-        <p className="mt-3 text-base font-semibold text-[var(--color-text-primary)]">
+        <p className="mp-current-stage">
           {project.workflowAccessRemoved
             ? "Workflow unavailable"
             : loading
@@ -195,14 +196,14 @@ export function StudentProjectOverview({
         </p>
         {!loading && !error && milestones && !project.workflowAccessRemoved && (
           <>
-            <p className="mt-1 text-sm capitalize text-[var(--color-text-secondary)]">
+            <p className="mp-stage-status capitalize">
               {project.workflowInstance?.completedAt
                 ? "Workflow completed"
                 : current?.status?.toLowerCase().replace(/_/g, " ") ||
                   "Not started"}
             </p>
             <div
-              className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--color-surface-muted)]"
+              className="mp-progress-track"
               role="progressbar"
               aria-label="Workflow requirements completed"
               aria-valuenow={progress}
@@ -210,28 +211,29 @@ export function StudentProjectOverview({
               aria-valuemax={100}
             >
               <div
-                className="h-full rounded-full bg-[var(--color-primary)]"
+                className="mp-progress-fill"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-              {progress}% of workflow requirements completed
+            <p className="mp-progress-caption">
+              <span className="mp-progress-value">{progress}%</span>{" "}
+              <span>of workflow requirements completed</span>
             </p>
           </>
         )}
       </section>
 
-      {adviser}
+      <div className="mp-adviser">{adviser}</div>
 
       <section
-        className={`${card} flex flex-wrap items-center justify-between gap-3`}
+        className={`${card} mp-team`}
         aria-label="Team summary"
       >
         <div>
-          <h3 className="text-base font-bold text-[var(--color-text-primary)]">
+          <h3 className="mp-section-title">
             Team
           </h3>
-          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+          <p className="mp-team-description">
             {teamName} · {memberCount} member{memberCount === 1 ? "" : "s"}
           </p>
         </div>
@@ -241,7 +243,7 @@ export function StudentProjectOverview({
       </section>
 
       <details
-        className={card}
+        className={`${card} mp-disclosure`}
         open={Boolean(
           defenseSession &&
           [
@@ -253,9 +255,9 @@ export function StudentProjectOverview({
           ].includes(defenseSession.status),
         )}
       >
-        <summary className="cursor-pointer text-base font-bold text-[var(--color-text-primary)]">
+        <summary className="mp-disclosure-heading">
           Defense readiness{" "}
-          <span className="ml-2 text-sm font-normal text-[var(--color-text-secondary)]">
+          <span className="mp-disclosure-status">
             {defenseSession
               ? defenseSession.status.toLowerCase().replace(/_/g, " ")
               : project.workflowInstance?.completedAt
@@ -277,8 +279,8 @@ export function StudentProjectOverview({
         </button>
       </details>
 
-      <details className={card}>
-        <summary className="cursor-pointer text-base font-bold text-[var(--color-text-primary)]">
+      <details className={`${card} mp-disclosure`}>
+        <summary className="mp-disclosure-heading">
           Project management
         </summary>
         {titleHistory}

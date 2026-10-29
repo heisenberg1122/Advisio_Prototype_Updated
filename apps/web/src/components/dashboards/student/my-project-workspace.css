@@ -1,0 +1,338 @@
+/* My Project owns these surfaces and ancestor adjustments. Shared layout and
+   invitation components retain their implementation and appearance elsewhere. */
+.app-workspace:has(.mp-workspace),
+.app-workspace:has(.mp-project-container) {
+  background: var(--color-background) !important;
+}
+.app-workspace .w-full:has(> .mp-workspace),
+.app-workspace .w-full:has(> .mp-project-container) {
+  width: calc(100% - clamp(32px, 4vw, 64px));
+  max-width: 1360px;
+  margin-inline: auto;
+  padding-inline: 0;
+}
+.mp-workspace,
+.mp-project-container,
+.mp-page-header {
+  --mp-panel: var(--color-surface);
+  --mp-inset: var(--color-surface-subtle);
+  --mp-radius: var(--radius-2xl, 16px);
+  --mp-control-radius: var(--radius-md, 10px);
+  color: var(--color-text-primary);
+  min-width: 0;
+}
+.mp-page-header h1 {
+  font-size: 24px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.mp-page-header nav { gap: 8px; }
+.mp-page-header nav button {
+  min-height: 48px;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.mp-page-header nav button:hover {
+  background: var(--nav-hover-bg);
+}
+.mp-page-header nav button[aria-current="page"] {
+  background: var(--nav-active-bg);
+  color: var(--color-text-primary) !important;
+}
+.mp-workspace :where(button, a, summary),
+.mp-project-container :where(button, a, summary),
+.mp-page-header button {
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+.mp-workspace :where(button, a, summary, input, select, textarea):focus-visible,
+.mp-project-container :where(button, a, summary):focus-visible,
+.mp-page-header button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+.mp-workspace :where(button):disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+.mp-workspace :where(h2, h3, h4, p, button, a, label, span),
+.mp-project-container :where(h2, h3, h4, p) { overflow-wrap: anywhere; }
+.mp-workspace :where(p) { line-height: 1.6; }
+.mp-workspace .mp-panel,
+.mp-workspace.mp-group .mp-group-tools > form,
+.mp-workspace.mp-group .mp-email-invitation > form {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--mp-radius);
+  background: var(--mp-panel);
+  box-shadow: none;
+}
+.mp-workspace .mp-section-title,
+.mp-group :where(h2),
+.mp-workspace.mp-group .mp-group-tools > form h4,
+.mp-workspace.mp-group .mp-email-invitation > form h4 {
+  font-size: 18px;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary) !important;
+}
+.mp-workspace .mp-button,
+.mp-group :where(button),
+.mp-project-container > section > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 10px 16px;
+  border-radius: var(--mp-control-radius);
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
+  text-align: center;
+}
+.mp-workspace .mp-button--primary,
+.mp-workspace.mp-group .mp-group-tools > form button,
+.mp-workspace.mp-group .mp-email-invitation > form button,
+.mp-workspace.mp-group .mp-access > button {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary) !important;
+  color: var(--college-on-primary) !important;
+}
+.dark .mp-workspace .mp-button--primary,
+.dark .mp-workspace.mp-group .mp-group-tools > form button,
+.dark .mp-workspace.mp-group .mp-email-invitation > form button,
+.dark .mp-workspace.mp-group .mp-access > button { color: var(--college-on-primary-dark) !important; }
+.mp-workspace .mp-button--primary:hover,
+.mp-workspace.mp-group .mp-group-tools > form button:hover,
+.mp-workspace.mp-group .mp-email-invitation > form button:hover,
+.mp-workspace.mp-group .mp-access > button:hover { background: var(--color-primary-dark) !important; }
+.mp-workspace .mp-button--secondary,
+.mp-workspace.mp-group .mp-collaboration button,
+.mp-workspace.mp-group .mp-invitation-code button,
+.mp-workspace.mp-group .mp-workspace-invitation button {
+  border: 1px solid var(--color-border) !important;
+  background: transparent !important;
+  color: var(--color-primary) !important;
+}
+.mp-workspace .mp-button--secondary:hover,
+.mp-workspace.mp-group .mp-collaboration button:hover,
+.mp-workspace.mp-group .mp-invitation-code button:hover,
+.mp-workspace.mp-group .mp-workspace-invitation button:hover { background: var(--mp-inset) !important; }
+.mp-text-action {
+  min-height: 44px;
+  padding: 8px 0;
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-underline-offset: 4px;
+}
+.mp-text-action:hover { text-decoration: underline; }
+.mp-project {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 24px;
+}
+.mp-project > * { grid-column: 1 / -1; min-width: 0; }
+.mp-project .mp-identity { padding: 28px 32px; }
+.mp-identity-layout { display: flex; align-items: flex-start; gap: 24px; }
+.mp-identity-copy { flex: 1; min-width: 0; }
+.mp-identity .mp-button { flex-shrink: 0; }
+.mp-workflow-meta,
+.mp-coordinator,
+.mp-group-reference { color: var(--color-text-secondary); font-size: 14px; }
+.mp-workflow-meta { font-weight: 600; }
+.mp-coordinator { margin-top: 4px; }
+.mp-project-title {
+  max-width: 42ch;
+  margin-top: 20px;
+  font-size: 32px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+.mp-title-classification { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; }
+.mp-caption,
+.mp-title-approved { font-size: 14px; line-height: 1.5; }
+.mp-caption { color: var(--color-text-secondary); }
+.mp-status { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.mp-group-reference { margin-top: 12px; }
+.mp-project .mp-next {
+  background: color-mix(in srgb, var(--color-primary-light) 12%, var(--mp-panel));
+}
+.mp-eyebrow { color: var(--color-text-secondary); font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+.mp-next-title { margin-top: 12px; font-size: 22px; line-height: 1.35; font-weight: 600; letter-spacing: -0.025em; text-wrap: balance; }
+.mp-next-description { margin-top: 12px; max-width: 58ch; color: var(--color-text-secondary); font-size: 16px; }
+.mp-next-action { margin-top: 24px; }
+.mp-section-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; }
+.mp-current-stage { margin-top: 16px; font-size: 16px; font-weight: 600; }
+.mp-stage-status { margin-top: 4px; font-size: 14px; color: var(--color-text-secondary); }
+.mp-progress-track { height: 8px; margin-top: 24px; overflow: hidden; border-radius: 999px; background: var(--color-surface-muted); border: 1px solid var(--color-border-strong); }
+.mp-progress-fill { height: 100%; border-radius: inherit; background: var(--color-primary); }
+.mp-progress-caption { display: flex; align-items: baseline; gap: 12px; margin-top: 12px; font-size: 13px; color: var(--color-text-secondary); }
+.mp-progress-value { color: var(--color-text-primary); font-size: 30px; line-height: 1.2; font-weight: 600; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.mp-adviser > .mp-panel { height: 100%; }
+.mp-adviser-content > div { flex-direction: column; }
+.mp-adviser-content h3 + span { font-size: 11px; font-weight: 600; padding: 3px 8px; }
+.mp-adviser-content p { font-size: 15px; }
+.mp-adviser-content .mt-3 > p:first-child { font-size: 20px; font-weight: 600; color: var(--color-text-primary) !important; }
+.mp-workspace .mp-assignment-date { margin-top: 12px; font-size: 13px; color: var(--color-text-secondary) !important; }
+.mp-team { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 20px; }
+.mp-team-description { margin-top: 12px; color: var(--color-text-secondary); font-size: 15px; }
+.mp-project .mp-disclosure { padding: 0 24px 20px; }
+.mp-project .mp-disclosure:not([open]) { padding-bottom: 0; }
+.mp-disclosure-heading { min-height: 64px; padding: 18px 0; color: var(--color-text-primary); font-size: 16px; font-weight: 600; }
+.mp-disclosure-heading::marker { color: var(--color-text-secondary); font-size: 12px; }
+.mp-disclosure-status { margin-left: 12px; color: var(--color-text-secondary); font-size: 14px; font-weight: 400; }
+.mp-disclosure > p { max-width: 90ch; margin-top: 0; }
+.mp-disclosure .mp-button { margin-top: 16px; }
+
+/* Collaboration has its own hierarchy while reusing the same panel/control scale. */
+.mp-group { display: flex; flex-direction: column; gap: 24px; }
+.mp-group .mp-group-identity { padding: 24px 28px; }
+.mp-group-identity h2 { font-size: 22px; letter-spacing: -0.025em; }
+.mp-group-identity > p:first-of-type { margin-top: 8px; color: var(--color-text-primary) !important; font-size: 16px; }
+.mp-group-identity > p:last-child { margin-top: 12px; font-size: 13px; color: var(--color-text-secondary) !important; }
+.mp-group-layout,
+.mp-group-team,
+.mp-group-tools,
+.mp-project-roster { display: grid; gap: 24px; min-width: 0; align-items: start; }
+.mp-group-tools:empty { display: none; }
+.mp-access-stack { display: grid; gap: 24px; min-width: 0; }
+.mp-roster > div:first-child { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; }
+.mp-member-count { color: var(--color-text-secondary); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mp-members { margin-top: 16px; }
+.mp-member-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; padding: 16px 0; border-top: 1px solid var(--color-border); min-width: 0; }
+.mp-member-row > div { min-width: 0; }
+.mp-member-row p:first-child { font-size: 16px; font-weight: 600; color: var(--color-text-primary) !important; }
+.mp-member-row p + p { margin-top: 4px; font-size: 14px; color: var(--color-text-secondary) !important; }
+.mp-member-row > div:last-child:has(button) { display: flex; flex-wrap: wrap; gap: 8px; }
+.mp-member-row button:first-child { border-color: var(--color-border) !important; color: var(--color-primary) !important; background: transparent !important; }
+.mp-member-row button:first-child:hover { background: var(--mp-inset) !important; }
+.mp-collaboration { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 0; }
+.mp-workspace.mp-group .mp-group-tools > form,
+.mp-workspace.mp-group .mp-email-invitation > form { border-color: var(--color-border) !important; background: var(--mp-panel) !important; }
+.mp-workspace.mp-group .mp-group-tools > form p,
+.mp-workspace.mp-group .mp-email-invitation > form p,
+.mp-access label,
+.mp-invitation-code p { color: var(--color-text-secondary) !important; }
+.mp-workspace.mp-group .mp-group-tools > form p,
+.mp-workspace.mp-group .mp-email-invitation > form p,
+.mp-invitation-code p { margin-top: 8px; font-size: 14px; line-height: 1.6; }
+.mp-group label { font-size: 14px; font-weight: 600; }
+.mp-workspace.mp-group .mp-group-tools > form label,
+.mp-workspace.mp-group .mp-email-invitation > form label,
+.mp-access label { margin-top: 20px; color: var(--color-text-primary) !important; }
+.mp-group :where(input:not([type="checkbox"]), select) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  height: 44px;
+  margin-top: 8px;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--mp-control-radius);
+  padding: 10px 12px;
+  background: var(--mp-panel) !important;
+  color: var(--color-text-primary) !important;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.mp-group :where(input:not([type="checkbox"]), select):focus { box-shadow: none !important; border-color: var(--color-primary) !important; }
+.mp-group input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; accent-color: var(--color-primary); }
+.mp-access label:has(input[type="checkbox"]) { align-items: flex-start; gap: 10px; min-height: 44px; font-weight: 400; line-height: 1.5; }
+.mp-access input[type="checkbox"] { margin-top: 3px; }
+.mp-workspace.mp-group .mp-group-tools > form button,
+.mp-workspace.mp-group .mp-email-invitation > form button,
+.mp-workspace.mp-group .mp-access > button { margin-top: 20px; }
+.mp-group p[role="status"] { padding-top: 12px; border-top: 1px solid var(--color-border); }
+.mp-invitation-code .font-mono { overflow-wrap: anywhere; border: 1px solid var(--color-border); background: var(--mp-inset) !important; color: var(--color-text-primary) !important; font-weight: 500; }
+.mp-invitation-code .flex { gap: 8px; }
+.mp-invitation-code > button { margin-top: 20px; }
+.mp-group-team > button { justify-self: start; }
+.mp-project-container > section { box-shadow: none; }
+
+@media (min-width: 768px) {
+  .mp-project > .mp-adviser,
+  .mp-project > .mp-team { grid-column: span 6; }
+  .mp-team { justify-content: flex-start; }
+}
+@media (min-width: 1280px) {
+  .mp-project > .mp-next { grid-column: span 7; }
+  .mp-project > .mp-progress { grid-column: span 5; }
+  .mp-group-layout { grid-template-columns: minmax(0, 1fr); }
+  .mp-group-tools { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+}
+@media (min-width: 768px) and (max-width: 1279px) {
+  .mp-group-tools { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  .mp-workspace .mp-panel,
+  .mp-workspace.mp-group .mp-group-tools > form,
+  .mp-workspace.mp-group .mp-email-invitation > form { padding: 20px; }
+  .mp-project,
+  .mp-group,
+  .mp-group-layout,
+  .mp-group-team,
+  .mp-group-tools,
+  .mp-project-roster { gap: 16px; }
+  .mp-project .mp-identity { padding: 24px 20px; }
+  .mp-identity-layout { flex-direction: column; gap: 20px; }
+  .mp-project-title { font-size: 28px; }
+  .mp-next-title { font-size: 20px; }
+  .mp-progress-caption { flex-wrap: wrap; gap: 4px 12px; }
+  .mp-project .mp-disclosure { padding: 0 20px 20px; }
+  .mp-project .mp-disclosure:not([open]) { padding-bottom: 0; }
+  .mp-disclosure-status { display: block; margin: 4px 0 0 16px; }
+  .mp-section-heading { align-items: flex-start; }
+  .mp-workspace .mp-section-title { font-size: 17px; }
+  .mp-member-row { align-items: flex-start; }
+  .mp-page-header nav { gap: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mp-workspace *,
+  .mp-project-container *,
+  .mp-page-header * { transition: none !important; animation: none !important; }
+}
+/* Final refinement: identity metadata and collaboration settings follow DOM order. */
+.mp-identity-metadata { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; }
+.mp-project .mp-identity { padding-block: 24px; }
+.mp-project-title { margin-top: 16px; }
+.mp-project .mp-next { border-color: var(--color-primary); }
+.mp-team { gap: 16px; }
+.mp-workspace.mp-group .mp-access-stack > form { padding: 24px; border: 1px solid var(--color-border) !important; border-radius: var(--mp-radius); background: var(--mp-panel) !important; }
+.mp-workspace.mp-group .mp-access-stack > form h4 { font-size: 18px; line-height: 1.4; font-weight: 600; color: var(--color-text-primary) !important; }
+.mp-workspace.mp-group .mp-access-stack > form p { color: var(--color-text-secondary) !important; font-size: 14px; line-height: 1.6; }
+.mp-workspace.mp-group .mp-access-stack > form label { display: block; margin-top: 20px; color: var(--color-text-primary) !important; }
+.mp-workspace.mp-group .mp-access-stack > form button { min-height: 44px; margin-top: 20px; background: var(--color-primary) !important; color: var(--college-on-primary) !important; }
+.dark .mp-workspace.mp-group .mp-access-stack > form button { color: var(--college-on-primary-dark) !important; }
+.mp-workspace.mp-group .mp-access-stack > form button:hover { background: var(--color-primary-dark) !important; }
+.mp-group .mp-member-row > p { flex-basis: 100%; }
+@media (max-width: 767px) { .mp-access-stack { gap: 16px; } .mp-workspace.mp-group .mp-access-stack > form { padding: 20px; } }
+
+/* Local AA corrections: strengthen supporting text and functional boundaries.
+   Decorative panel separators retain the existing neutral border token. */
+.mp-workspace,
+.mp-project-container,
+.mp-page-header {
+  --color-text-secondary: color-mix(in srgb, var(--color-text-primary) 68%, var(--color-text-muted));
+  --mp-control-border: color-mix(in srgb, var(--color-text-primary) 58%, var(--color-surface));
+}
+.mp-workspace .mp-status { color: var(--color-text-primary); }
+.app-workspace .mp-workspace :is(.mp-button--secondary, .mp-collaboration button, .mp-invitation-code button, .mp-workspace-invitation button),
+.mp-workspace.mp-group :is(input:not([type="checkbox"]), select) {
+  border-color: var(--mp-control-border) !important;
+}
+.mp-workspace.mp-group input::placeholder { color: var(--color-text-secondary); opacity: 1; }
+.mp-workspace .mp-progress-track { border-color: var(--mp-control-border); }
+.dark .mp-workspace {
+  --college-on-primary-dark: var(--color-background);
+}
+
