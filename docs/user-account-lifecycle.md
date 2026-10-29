@@ -1,5 +1,27 @@
 # User account details, recovery, suspension, and archiving
 
+System Administration → User Management → **View details** shows account identity,
+college/program assignments, roles, sign-in methods, and account activity. The
+**Registration details** tab includes all saved researcher and faculty profile
+fields, including Google onboarding details. Both detail retrieval and admin
+password recovery require an authenticated System Administrator. Credential hashes,
+Google subject identifiers, and reset tokens are never returned to the browser.
+
+For active accounts with a local password, **Reset password** requires the
+administrator to confirm before sending an email to the account's saved address.
+The email explains the administrator request and provides a single-use link that
+expires in 30 minutes. The current password remains valid until the user saves a
+new one; completing the reset invalidates existing sessions. Google-only accounts
+manage their passwords through Google. A linked Google account with a local
+password can still reset its local password.
+
+Admin requests are audited without storing reset links or passwords in audit data.
+Requests are rate limited and limited to one email per minute per account. Delivery
+failures are reported to the administrator and clear the reserved token. Recovery
+requires a configured Gmail or Resend provider and a valid `WEB_URL`; production
+links require HTTPS. This feature reuses the existing reset-password page and
+database fields and requires no new migration.
+
 System Administration → User Management provides **Suspend** for accounts that
 are not already suspended. A 10–2000 character reason is required and audited.
 Suspension preserves academic records, blocks authenticated requests, and changes
