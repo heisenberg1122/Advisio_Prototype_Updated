@@ -1,4 +1,4 @@
-# User account details, recovery, suspension, and permanent deletion
+# User account details, recovery, suspension, and archiving
 
 System Administration → User Management → **View details** shows account identity,
 college/program assignments, roles, sign-in methods, and account activity. The
@@ -30,31 +30,30 @@ identity verification and a verification note. Old tokens remain invalid after
 restoration. Administrators cannot suspend themselves or the last active system
 administrator.
 
-**Delete** loads an impact preview before enabling permanent deletion. The
-administrator must acknowledge that impact and type the exact confirmation phrase.
-Only system administrators with user and role management permissions can delete.
-Self-deletion and deletion of the last active system administrator are blocked.
+**Archive** replaces Delete in User Management. It sets the existing `INACTIVE`
+status and requires a 10-2000 character reason. Archiving is limited to System
+Administrators with user and role management permissions. The account is removed
+from **Current users** and shown in **Archived users**; existing inactive accounts
+also appear there. Search and role filters work in both views.
 
-Deletion removes the account, its profiles, memberships, authored/uploaded records,
-legacy chat records, and dependent records. Projects and workspaces created by the
-user are included; dependent shared work may therefore be removed. Other user
-accounts and unrelated projects remain. Stored file bytes still referenced by a
-surviving record are preserved. The dialog lists counts and the number of other
-users involved in affected memberships. One administrator deletion audit entry is
-retained without copying the deleted person's name or email.
+Archived accounts cannot sign in or make authenticated requests. Changing status
+increments the session version. **Verify & restore** requires identity verification
+and a verification note before returning the account to `ACTIVE`; previous tokens
+remain invalid. Self-archiving and archiving the last active System Administrator
+are blocked. Archived accounts must be restored before another status can be set.
 
-The preview fingerprint must still match at deletion time. Database deletion and
-file-cleanup jobs commit together in a serializable transaction. Errors roll the
-transaction back; no foreign-key constraints are disabled or changed. Surviving
-documents are repointed to their newest remaining version. Empty documents are
-included in the deletion plan.
+Archiving updates only account status/session version and writes an audit entry
+with the administrator, timestamp, reason, and `ARCHIVE` action metadata. Restoration
+is also audited with `RESTORE` metadata. All profiles, roles, memberships, research
+projects, shared workspaces, submissions, reviews, messages, academic history, and
+stored files remain intact. Archiving does not create file-cleanup jobs.
 
-Managed Google Drive, local, and Supabase files are removed by a durable cleanup
-queue. The API reports how many files were queued rather than claiming that
-external storage cleanup has completed. Failed jobs retry automatically while the
-API is running, including after restart. External source documents and arbitrary
-URLs are not followed or deleted. Operators can inspect `file_deletion_jobs` for
-pending attempts and the last storage error.
+`POST /api/users/:id/archive` accepts `{ reason }`. The old
+`DELETE /api/users/:id` returns HTTP 410 without deleting or queuing any data,
+including when called by an outdated client. Internal permanent-deletion services
+and the existing cleanup queue remain for separately governed maintenance; User
+Management can no longer invoke permanent deletion. Previously queued cleanup jobs
+are not cancelled by archiving.
 
 ## Deployment
 
@@ -67,6 +66,6 @@ The file-cleanup worker starts with the API server.
 
 The isolated PostgreSQL integration suite covers API permissions, suspension,
 session invalidation, verified restoration, deletion previews, stale confirmation,
-full transactional rollback, restrictive archive records, legacy identifiers,
+archive preservation/restoration, blocked legacy deletion, full transactional rollback, restrictive archive records, legacy identifiers,
 shared-work preservation, and storage cleanup retries. File-worker tests cover
 Google Drive, local, and Supabase dispatch and multi-instance job leasing.
