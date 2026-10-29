@@ -7,6 +7,10 @@ import { emailNotification } from "../services/notification-email.service.js";
 import { Router, Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma.js";
 import { readForm } from "../services/structured-evaluation.service.js";
+import {
+  appendEvaluationEvent, loadEvaluationIntegrity, assertEvaluationIntegrity,
+  checkpointSchema, releasePayload, EvaluationIntegrityError,
+} from "../services/evaluation-ledger.service.js";
 import { requireAuth } from "../middleware/auth.js";
 import { canAccessCollege, getCollegeScope } from "../lib/college-scope.js";
 import { jsonSafe } from "../lib/json-response.js";
@@ -2402,6 +2406,30 @@ router.post(
             : "APPROVED";
       const result = await prisma.$transaction(async (tx) => {
         await lockDefenseGroup(tx, session.researchId);
+        await tx.$queryRaw`SELECT id FROM defense_sessions WHERE id = ${session.id}::uuid FOR UPDATE`;
+        let ledger: Awaited<ReturnType<typeof loadEvaluationIntegrity>> | undefined;
+        if (session.packet?.evaluationMode === "STRUCTURED") {
+          // Re-read under the same lock used by publication and final submission.
+          ledger = await loadEvaluationIntegrity(tx, session.id);
+          assertEvaluationIntegrity(ledger.verification);
+          if (ledger.state.evaluationLedgerStartedAt || ledger.events.length) {
+            const parsed = checkpointSchema.safeParse(req.body.evaluationCheckpoint);
+            if (!parsed.success) throw new EvaluationIntegrityError("Export and retain an evaluation checkpoint before releasing this result.");
+            ledger = await loadEvaluationIntegrity(tx, session.id, parsed.data);
+            assertEvaluationIntegrity(ledger.verification);
+            if (!ledger.verification.checkpointCoversHead)
+              throw new EvaluationIntegrityError("The checkpoint must cover the current evaluation history. Export a new checkpoint and review it before release.");
+          }
+          const snapshot = readForm(ledger.state.packet!.structuredForm);
+          const currentInvitations = await tx.defenseInvitation.findMany({ where: {
+            defenseSessionId: session.id, status: "ACCEPTED", isRequired: true,
+            role: { in: ["PANEL_CHAIR", "PANELIST"] },
+          } });
+          const publishedIds = snapshot.panelists.filter((p) => p.required).map((p) => p.userId);
+          if (!publishedIds.length || currentInvitations.length !== publishedIds.length || currentInvitations.some((i) => !publishedIds.includes(i.inviteeId)) ||
+            publishedIds.some((id) => !ledger!.state.structuredEvaluations.some((e) => e.panelistId === id && e.lockedAt)))
+            throw new EvaluationIntegrityError("Required panel assignments or final submissions changed. Refresh before releasing.");
+        }
         const releasedAt = new Date();
         const released = await tx.defenseSession.updateMany({
           where: { id: session.id, status: { in: ["LIVE", "DELIBERATION"] } },
@@ -2420,6 +2448,14 @@ router.post(
           ) as Error & { statusCode?: number };
           conflict.statusCode = 409;
           throw conflict;
+        }
+        if (ledger && (ledger.state.evaluationLedgerStartedAt || ledger.events.length)) {
+          await appendEvaluationEvent(tx, {
+            sessionId: session.id, eventType: "RESULT_RELEASED",
+            actorId: req.user!.id, actorRoles: req.user!.roles,
+            operationId: `release:${session.id}`,
+            payload: releasePayload({ ...ledger.state, decision, releasedAt, releasedBy: req.user!.id }, ledger.events, revisionInstructions),
+          });
         }
         await consumeDefenseEligibility(tx, session, decision, releasedAt);
         await tx.researchProject.update({

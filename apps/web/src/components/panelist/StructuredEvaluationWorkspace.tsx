@@ -164,6 +164,20 @@ export function StructuredEvaluationWorkspace({
           {snapshot.researchTitle}
         </p>
         <h2 className="mt-1 text-xl font-bold">{snapshot.spec.name}</h2>
+        {locked && query.data.receipt && (
+          <div className="mt-3 rounded-lg border border-[var(--color-border)] p-3 text-sm">
+            <p className="font-semibold">
+              Submission receipt · Ledger record #{query.data.receipt.sequence}
+            </p>
+            <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+              Recorded{" "}
+              {new Date(query.data.receipt.recordedAt).toLocaleString()}
+            </p>
+            <code className="mt-1 block break-all text-xs">
+              {query.data.receipt.eventHash}
+            </code>
+          </div>
+        )}
         <p className="mt-2 text-sm">
           {locked
             ? "Final evaluation · Locked"

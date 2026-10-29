@@ -1,6 +1,13 @@
 # Document integrity recommendation and optional ledger design
 
 Status: recommendation revised; hash-linked ledger deferred as an optional future enhancement. No ledger implementation or experiment results are claimed by this document.
+
+Scope update (October 30, 2026): this deferred design concerns the document
+approval ledger. A separate [evaluation integrity ledger](../evaluation-integrity-ledger.md)
+now implements hash linking for new structured defense form publications, final
+evaluations and result release. Its manual checkpoint custody and centralized
+administration limits are documented separately; it does not implement the
+approval-ledger proposal below.
 Prepared: 2026-10-26.
 
 ## Revised recommendation

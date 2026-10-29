@@ -6,6 +6,7 @@ import { defaultStructuredForm } from "@research-management/validations";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import app from "../app.js";
 import { prisma } from "../lib/prisma.js";
+import { appendEvaluationEvent } from "../services/evaluation-ledger.service.js";
 import { generateToken } from "../middleware/auth.js";
 import { googleDriveService } from "../services/google-drive.service.js";
 import { storageHierarchyService } from "../services/storage-hierarchy.service.js";
@@ -1766,7 +1767,7 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
       { decision: "APPROVED" },
     );
     expect(premature.status).toBe(409);
-    for (const [i, panelist] of group.panelists.entries()) {
+    await Promise.all(group.panelists.map(async (panelist, i) => {
       const rating = [4, 5, 4, 5][i],
         roster = (packet.structuredForm as any).roster;
       const answers = {
@@ -1811,7 +1812,7 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
         },
       );
       expect(submit.status).toBe(200);
-    }
+    }));
     const report = await readJson(
       await request(
         `/api/defense-sessions/${group.session.id}/structured-results`,
@@ -1827,17 +1828,49 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
       90, 90, 90,
     ]);
     expect(report.report.manuscript.average).toBe(90);
+    const integrityPath = `/api/defense-sessions/${group.session.id}/evaluation-integrity`;
+    const integrity = await readJson(await request(integrityPath, fixture.professor.token));
+    expect(integrity).toMatchObject({ status: "CHAIN_VALID", eventCount: 5 });
+    expect(integrity.history.map((e: any) => e.sequence)).toEqual([1, 2, 3, 4, 5]);
+    expect((await request(integrityPath, group.panelists[0].token)).status).toBe(403);
+    const withoutCheckpoint = await apiWrite(`/api/defense-sessions/${group.session.id}/release`, fixture.professor.token, "POST", { decision: "APPROVED" });
+    expect(withoutCheckpoint.status).toBe(409);
+    expect((await prisma.defenseSession.findUniqueOrThrow({ where: { id: group.session.id } })).releasedAt).toBeNull();
+    // Real PostgreSQL triggers reject ordinary UPDATE/DELETE/TRUNCATE operations.
+    await expect(prisma.evaluationLedgerEvent.updateMany({ where: { defenseSessionId: group.session.id }, data: { eventHash: "a".repeat(64) } })).rejects.toThrow("append-only");
+    await expect(prisma.evaluationLedgerEvent.deleteMany({ where: { defenseSessionId: group.session.id } })).rejects.toThrow("append-only");
+    await expect(prisma.$executeRaw`TRUNCATE TABLE evaluation_ledger_events`).rejects.toThrow("append-only");
+    const evaluation = await prisma.structuredEvaluation.findFirstOrThrow({ where: { defenseSessionId: group.session.id } });
+    // An event-write conflict must roll back the associated academic data change.
+    await expect(guardedWrite(() => prisma.$transaction(async (tx) => {
+      await tx.structuredEvaluation.update({ where: { id: evaluation.id }, data: { totals: { shouldRollBack: true } } });
+      await appendEvaluationEvent(tx, {
+        sessionId: group.session.id, eventType: "FORM_PUBLISHED",
+        actorId: fixture.professor.id, actorRoles: ["RESEARCH_COORDINATOR"],
+        operationId: `form:${group.session.id}:1`, payload: { conflicting: true },
+      });
+    }))).rejects.toThrow("different data");
+    expect((await prisma.structuredEvaluation.findUniqueOrThrow({ where: { id: evaluation.id } })).totals).toEqual(evaluation.totals);
+    await prisma.structuredEvaluation.update({ where: { id: evaluation.id }, data: { totals: { modified: true } } });
+    const tampered = await apiWrite(`/api/defense-sessions/${group.session.id}/release`, fixture.professor.token, "POST", { decision: "APPROVED", evaluationCheckpoint: integrity.head });
+    expect(tampered.status).toBe(409);
+    await prisma.structuredEvaluation.update({ where: { id: evaluation.id }, data: { totals: evaluation.totals! } });
     const release = await apiWrite(
       `/api/defense-sessions/${group.session.id}/release`,
       fixture.professor.token,
       "POST",
       {
         decision: "APPROVED_WITH_MINOR_REVISIONS",
+        evaluationCheckpoint: integrity.head,
         revisionInstructions:
           "Clarify the sampling method before final clearance.",
       },
     );
     expect(release.status, JSON.stringify(await readJson(release))).toBe(200);
+    const releasedIntegrity = await readJson(await request(integrityPath, fixture.professor.token));
+    expect(releasedIntegrity).toMatchObject({ status: "CHAIN_VALID", eventCount: 6 });
+    const compared = await apiWrite(integrityPath, fixture.professor.token, "POST", { checkpoint: integrity.head });
+    expect(await readJson(compared)).toMatchObject({ status: "CHECKPOINT_MATCH", checkpointCoversHead: false, checkpointSequence: 5 });
     const grant = await prisma.defenseEligibility.findUniqueOrThrow({
       where: { id: group.session.eligibilityId! },
     });

@@ -1918,6 +1918,7 @@ model DefenseSession {
   preparedAt     DateTime?            @map("prepared_at")
   calledAt       DateTime?            @map("called_at")
   revisionClearance Json?             @map("revision_clearance")
+  evaluationLedgerStartedAt DateTime? @map("evaluation_ledger_started_at")
 
   research              ResearchProject            @relation(fields: [researchId], references: [id], onDelete: Cascade)
   eligibility           DefenseEligibility?         @relation(fields: [eligibilityId], references: [id], onDelete: Restrict)
@@ -1939,6 +1940,25 @@ model DefenseSession {
   @@index([createdBy])
   @@index([defenseEventId, queuePosition])
   @@map("defense_sessions")
+}
+
+// Standalone history survives account/project deletion without rewriting hashes.
+model EvaluationLedgerEvent {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  defenseSessionId String @map("defense_session_id") @db.Uuid
+  sequence Int
+  eventType String @map("event_type") @db.VarChar(40)
+  payloadVersion Int @default(1) @map("payload_version")
+  actorId String @map("actor_id") @db.Uuid
+  actorRoles Json @map("actor_roles")
+  occurredAt DateTime @map("occurred_at")
+  operationId String @unique(map: "evaluation_ledger_events_operation_id_key") @map("operation_id") @db.VarChar(200)
+  payload Json
+  previousHash String @map("previous_hash") @db.VarChar(64)
+  eventHash String @map("event_hash") @db.VarChar(64)
+
+  @@unique([defenseSessionId, sequence], map: "evaluation_ledger_events_session_sequence_key")
+  @@map("evaluation_ledger_events")
 }
 
 model StructuredEvaluationTemplate {
