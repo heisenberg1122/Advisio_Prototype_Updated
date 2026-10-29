@@ -10,6 +10,10 @@
   --color-border-subtle: var(--color-slate-100);
   --color-border-strong: var(--color-slate-300);
 
+  background: var(--color-background) !important;
+}
+
+.researcher-shell .app-workspace {
   /* Resolve legacy aliases here so they follow these local surface tokens. */
   --background: var(--color-background);
   --surface: var(--color-surface);
@@ -22,16 +26,127 @@
   --color-bg-tertiary: var(--color-background);
   --color-border-t: var(--color-border-subtle);
   --color-border-s: var(--color-border);
+}
 
-  background: var(--color-background) !important;
+/* Only Overview unifies the page canvas, sidebar and topbar. The rule stops
+   matching as soon as another workspace is rendered, restoring its chrome. */
+.researcher-shell:has(.research-command-center) > div {
+  --sidebar-background: var(--color-background);
+  --header-background: var(--color-background);
+}
+
+/* Capture from the frame's own dark palette, not the root college palette.
+   The root can retain light college surfaces through its higher specificity. */
+.researcher-shell > .dark {
+  --researcher-dark-canvas: var(--color-background);
+  --researcher-dark-panel: var(--color-surface);
+  --researcher-dark-inset: var(--color-surface-subtle);
+  --researcher-dark-muted: var(--color-surface-muted);
+  --researcher-dark-border: var(--color-border);
+  --researcher-dark-border-subtle: var(--color-border-subtle);
+  --researcher-dark-border-strong: var(--color-border-strong);
 }
 
 .dark .researcher-shell .app-workspace:not(:has(.research-command-center)) {
-  --color-background: var(--color-slate-900);
-  --color-surface: var(--color-slate-900);
-  --color-surface-subtle: var(--color-slate-800);
-  --color-surface-muted: var(--color-slate-800);
-  --color-border: var(--color-slate-700);
-  --color-border-subtle: var(--color-slate-800);
-  --color-border-strong: var(--color-slate-600);
+  --color-background: var(--researcher-dark-canvas);
+  --color-surface: var(--researcher-dark-panel);
+  --color-surface-subtle: var(--researcher-dark-inset);
+  --color-surface-muted: var(--researcher-dark-muted);
+  --color-border: var(--researcher-dark-border);
+  --color-border-subtle: var(--researcher-dark-border-subtle);
+  --color-border-strong: var(--researcher-dark-border-strong);
+}
+
+.dark .researcher-shell .app-workspace:not(:has(.research-command-center)) .college-hero-surface {
+  background: var(--color-surface);
+}
+
+/* Highlight only the requested identity/workflow headers. The active college's
+   soft accent fades into the local panel surface, including in dark mode. */
+.researcher-shell .app-workspace :is(
+  .research-command-center .rcc-project,
+  .mp-project .mp-identity,
+  .research-tasks .rt-workflow,
+  .researcher-consultation-hero,
+  .researcher-documents .rd-library-hero
+) {
+  --researcher-hero-tint: 82%;
+  --color-text-secondary: color-mix(in srgb, var(--color-text-primary) 85%, var(--color-surface));
+  --rcc-secondary: var(--color-text-secondary);
+  --rt-text-secondary: var(--color-text-secondary);
+  background-image: linear-gradient(
+    112deg,
+    color-mix(in srgb, var(--color-primary-light) var(--researcher-hero-tint), var(--color-surface)) 0%,
+    var(--color-surface) 72%
+  );
+}
+
+.dark .researcher-shell .app-workspace :is(
+  .research-command-center .rcc-project,
+  .mp-project .mp-identity,
+  .research-tasks .rt-workflow,
+  .researcher-consultation-hero,
+  .researcher-documents .rd-library-hero
+) {
+  --researcher-hero-tint: 55%;
+}
+
+/* Settings category text must remain legible on both neutral and selected
+   surfaces. Keep these corrections local to the Researcher workspace. */
+.researcher-shell .app-workspace nav[aria-label="Account settings sections"] > button {
+  color: var(--color-text-primary) !important;
+}
+
+.researcher-shell .app-workspace nav[aria-label="Account settings sections"] > button > span:last-child > span {
+  color: color-mix(in srgb, var(--color-text-primary) 80%, var(--color-surface)) !important;
+}
+
+.researcher-shell .app-workspace nav[aria-label="Account settings sections"] > button[class~="bg-[var(--color-primary-light)]"] {
+  background-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+  border-color: var(--color-primary);
+}
+
+.researcher-shell .app-workspace nav[aria-label="Account settings sections"] > button:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
+}
+
+.researcher-shell .app-workspace nav[aria-label="Account settings sections"] > button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+/* Animate the persistent workspace surfaces, without delaying navigation or
+   replacing the existing sidebar width/slide and content-offset transitions. */
+.researcher-shell > div,
+.researcher-shell .app-workspace,
+.researcher-shell > div > .flex > header {
+  transition:
+    background-color 240ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    color 200ms ease,
+    border-color 200ms ease;
+}
+
+.researcher-shell > div > .flex {
+  transition:
+    background-color 240ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    padding-left 300ms ease-in-out;
+}
+
+.researcher-shell > div > aside {
+  transition:
+    background-color 240ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    color 200ms ease,
+    border-color 200ms ease,
+    width 300ms ease-in-out,
+    transform 300ms ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .researcher-shell > div,
+  .researcher-shell > div > .flex,
+  .researcher-shell > div > aside,
+  .researcher-shell > div > .flex > header,
+  .researcher-shell .app-workspace {
+    transition: none !important;
+  }
 }

@@ -139,7 +139,7 @@
   gap: 24px;
 }
 .mp-project > * { grid-column: 1 / -1; min-width: 0; }
-.mp-project .mp-identity { padding: 28px 32px; }
+.mp-project .mp-identity { padding: 28px 32px; border-width: 2px; }
 .mp-identity-layout { display: flex; align-items: flex-start; gap: 24px; }
 .mp-identity-copy { flex: 1; min-width: 0; }
 .mp-identity .mp-button { flex-shrink: 0; }

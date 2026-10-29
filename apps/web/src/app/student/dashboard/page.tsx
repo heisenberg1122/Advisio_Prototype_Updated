@@ -943,7 +943,7 @@ function StudentDashboardContent() {
     return (
       <div className="flex flex-col gap-6">
         {/* Course-Themed Page Header Banner */}
-        <div className="flex flex-col justify-between gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-6 shadow-xs md:flex-row md:items-center sm:p-8">
+        <div className="researcher-consultation-hero flex flex-col justify-between gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-6 shadow-xs md:flex-row md:items-center sm:p-8">
           <div className="max-w-3xl">
             <span className="block text-xs font-extrabold uppercase tracking-widest text-[var(--color-primary)]">
               Adviser Consultations & Scheduled Meetings

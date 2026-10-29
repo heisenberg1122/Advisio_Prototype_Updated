@@ -1185,7 +1185,7 @@ export default function DocumentWorkspacePage() {
       }
     >
       {!researcherViewerOpen && (
-        <>
+        <div className={isResearcherPortal ? "rd-library-hero" : "contents"}>
           <div
             id={isResearcherPortal ? "researcher-library-title" : undefined}
             tabIndex={isResearcherPortal ? -1 : undefined}
@@ -1211,7 +1211,7 @@ export default function DocumentWorkspacePage() {
               }
             />
           </div>
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 border-l-[3px] border-[var(--color-primary)] pl-2.5">
+          <div className="rd-library-project flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 border-l-[3px] border-[var(--color-primary)] pl-2.5">
             <span className="min-w-0 break-words text-base font-bold text-[var(--color-text-primary)]">
               {activeProject
                 ? `${activeProject.groupName ? activeProject.groupName + " — " : ""}${activeProject.title || "Research title not registered"}`
@@ -1267,7 +1267,7 @@ export default function DocumentWorkspacePage() {
               </span>
             )}
           </div>
-        </>
+        </div>
       )}
 
       {notice && (
@@ -1561,7 +1561,7 @@ export default function DocumentWorkspacePage() {
               <div className="space-y-6 p-5 sm:p-6">
                 {workflowMilestones.length ? (
                   <>
-                    <div className="grid gap-4 lg:grid-cols-2">
+                    <div className="rd-milestones-grid grid gap-4 lg:grid-cols-2">
                       {workflowMilestones.map((milestone) => {
                         const stageDocuments = documents.filter(
                           (document) => document.milestoneId === milestone.id,
@@ -1571,7 +1571,7 @@ export default function DocumentWorkspacePage() {
                             key={milestone.id}
                             className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4"
                           >
-                            <div className="flex items-start justify-between gap-3">
+                            <div className="rd-milestone-heading flex items-start justify-between gap-3">
                               <div className="flex min-w-0 items-center gap-3">
                                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--color-primary-light)] text-sm font-black text-[var(--color-primary)]">
                                   {milestone.sequence}
@@ -1607,7 +1607,7 @@ export default function DocumentWorkspacePage() {
                                 <a
                                   key={task.id}
                                   href={`/student/tasks?projectId=${activeProjectId}&taskId=${task.id}`}
-                                  className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm transition hover:border-[var(--color-primary)]"
+                                  className="rd-milestone-task flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm transition hover:border-[var(--color-primary)]"
                                 >
                                   <span className="min-w-0 truncate font-semibold text-[var(--color-text-primary)]">
                                     {task.title}
@@ -1620,6 +1620,11 @@ export default function DocumentWorkspacePage() {
                                       ? ` · ${task.attempts.length} attempt${task.attempts.length === 1 ? "" : "s"}`
                                       : ""}
                                   </span>
+                                  {isResearcherPortal && (
+                                    <span className="rd-milestone-task-action" aria-hidden="true">
+                                      Open task <span aria-hidden="true">→</span>
+                                    </span>
+                                  )}
                                 </a>
                               ))}
                               {stageDocuments.map((document) => (

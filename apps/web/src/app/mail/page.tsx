@@ -9,7 +9,8 @@ import {
   Send,
   Trash2,
 } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
+import { ResearcherInboxWorkspace } from "@/app/student/inbox/ResearcherInboxWorkspace";
 import { useAuth } from "@/providers/auth-provider";
 import { apiClient } from "@/lib/api-client";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
@@ -95,6 +96,8 @@ const FOLDER_ITEMS = [
 
 export default function MailInboxPage() {
   const { user } = useAuth();
+  const { pathname } = useLocation();
+  const isResearcherPortal = pathname.startsWith("/student/");
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const canUseDeanInbox = Boolean(
@@ -323,7 +326,7 @@ export default function MailInboxPage() {
     replyMutation.isPending || stateMutation.isPending || draftMutation.isPending;
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-4rem)] min-h-[560px] w-full max-w-[1920px] flex-1 flex-col overflow-hidden bg-[var(--color-surface)] xl:rounded-tl-[28px]">
+    <div className={isResearcherPortal ? "researcher-mail-page" : "mx-auto flex h-[calc(100vh-4rem)] min-h-[560px] w-full max-w-[1920px] flex-1 flex-col overflow-hidden bg-[var(--color-surface)] xl:rounded-tl-[28px]"}>
       {signingDocument ? (
         <DocumentSigningModal
           document={signingDocument}
@@ -351,6 +354,66 @@ export default function MailInboxPage() {
         />
       ) : null}
 
+      {isResearcherPortal && folder !== "signature-requests" ? (
+        <ResearcherInboxWorkspace
+          folder={folder}
+          data={listQuery.data}
+          resolvedQuery={deferredQuery}
+          errored={listQuery.isError}
+          listError={listQuery.error?.message}
+          threads={threads}
+          selectedId={selectedId}
+          userId={user?.id}
+          query={query}
+          filter={filter}
+          pagination={listQuery.data?.pagination}
+          loading={listQuery.isLoading || listQuery.isFetching && !listQuery.data}
+          onQueryChange={setQuery}
+          onFilterChange={setFilter}
+          onPageChange={setPage}
+          onFolderChange={chooseFolder}
+          onCompose={() => setComposeSeed({ key: `new-${Date.now()}` })}
+          onSelect={(id) => {
+            setSelectedId(id);
+            setNotice("");
+            setError("");
+          }}
+          reader={
+            <MailConversation
+              folder={folder}
+              thread={detailThread}
+              draftThread={folder === "drafts" ? selected : null}
+              userId={user?.id}
+              loading={detailQuery.isLoading}
+              canSignAttachments={canSignAttachments}
+              pendingAction={pendingAction}
+              notice={notice}
+              error={error}
+              onBack={() => setSelectedId("")}
+              onThreadAction={(action) => stateMutation.mutate(action)}
+              onReplyAll={(body, files) => replyMutation.mutate({ body, files })}
+              onReply={replyToMessage}
+              onForward={forwardMessage}
+              onEditDraft={editDraft}
+              onSendDraft={() => draftMessage && draftMutation.mutate({ id: draftMessage.id, action: "send" })}
+              onDeleteDraft={() => {
+                if (draftMessage && window.confirm("Permanently discard this draft?")) draftMutation.mutate({ id: draftMessage.id, action: "delete" });
+              }}
+              onOpenAttachment={(attachment) => openAttachment(attachment).catch((reason: Error) => setError(reason.message))}
+              onDownloadAttachment={(attachment) => downloadAttachment(attachment).catch((reason: Error) => setError(reason.message))}
+              onSignAttachment={(attachment) =>
+                setSigningDocument({
+                  versionId: attachment.id,
+                  docName: attachment.fileName,
+                  groupName: detailThread?.subject || "Inbox",
+                  fileUrl: `/api/mail/attachments/${attachment.id}?inline=1`,
+                  signUrl: `/api/mail/attachments/${attachment.id}/sign`,
+                })
+              }
+            />
+          }
+        />
+      ) : (
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <aside className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-3 md:w-56 md:border-b-0 md:border-r md:p-4">
           <button
@@ -451,6 +514,7 @@ export default function MailInboxPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
