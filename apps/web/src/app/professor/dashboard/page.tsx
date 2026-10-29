@@ -8,6 +8,7 @@ import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { Modal } from "@/components/ui/Modal";
 import { calculateMilestoneProgress } from "@/lib/workflow-progress";
+import { professorWorkflowSelectionUrl, resolveProfessorWorkflowId } from "@/lib/professor-workflow-navigation";
 import {
   calendarDateValue,
   formatMilestoneTarget,
@@ -280,7 +281,10 @@ function ProfessorDashboardContent() {
   // Live State Data with live fallbacks
   const [studentsCount, setStudentsCount] = useState(0);
   const [projects, setProjects] = useState<any[]>([]);
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState("");
+  const selectedWorkflowId = resolveProfessorWorkflowId(
+    workflowData?.workflows || [],
+    requestedWorkflowId,
+  );
   const [titleProposalReview, setTitleProposalReview] = useState<TitleProposalReviewTarget | null>(null);
 
   useEffect(() => {
@@ -352,19 +356,6 @@ function ProfessorDashboardContent() {
         topics: w.topics || [],
       }));
       setWorkflows(topList);
-      if (
-        requestedWorkflowId &&
-        topList.some((workflow: any) => workflow.id === requestedWorkflowId)
-      ) {
-        setSelectedWorkflowId(requestedWorkflowId);
-      } else if (
-        topList.length > 0 &&
-        !topList.some((workflow: any) => workflow.id === selectedWorkflowId)
-      ) {
-        setSelectedWorkflowId(topList[0].id);
-      } else if (topList.length === 0 && selectedWorkflowId) {
-        setSelectedWorkflowId("");
-      }
       const msList: any[] = [];
       workflowData.workflows.forEach((w: any) => {
         w.stages?.forEach((s: any) => {
@@ -400,7 +391,7 @@ function ProfessorDashboardContent() {
       });
       setMilestones(msList);
     }
-  }, [workflowData, requestedWorkflowId, selectedWorkflowId]);
+  }, [workflowData]);
 
   // Form input controllers
   const [newTitleProposalCount, setNewTitleProposalCount] = useState(3);
@@ -596,8 +587,8 @@ function ProfessorDashboardContent() {
         description: newWorkflowDescription.trim() || undefined,
         stages: [],
       });
-      setSelectedWorkflowId(result.workflow.id);
       await refetchWorkflows();
+      selectWorkflow(result.workflow.id);
       setCreatingWorkflow(false);
       setNewWorkflowName("");
       setNewWorkflowDescription("");
@@ -1164,6 +1155,9 @@ function ProfessorDashboardContent() {
   };
 
   const router = useRouter();
+  const selectWorkflow = (workflowId: string) => {
+    router.replace(professorWorkflowSelectionUrl(searchParams.toString(), workflowId));
+  };
   const updateSubmissionQuery = (updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", "submissions");
@@ -1199,14 +1193,12 @@ function ProfessorDashboardContent() {
 
   const openWorkflowParticipants = (workflowId: string) => {
     if (!workflowId) return;
-    setSelectedWorkflowId(workflowId);
     router.push(
       `/professor/dashboard?tab=builder&workflowView=participants&workflowId=${encodeURIComponent(workflowId)}`,
     );
   };
 
   const selectMonitoringWorkflow = (workflowId: string) => {
-    setSelectedWorkflowId(workflowId);
     router.replace(
       `/professor/dashboard?tab=monitoring&workflowId=${encodeURIComponent(workflowId)}`,
     );
@@ -3202,7 +3194,7 @@ function ProfessorDashboardContent() {
                     </label>
                     <select
                       value={selectedWorkflowId}
-                      onChange={(e) => setSelectedWorkflowId(e.target.value)}
+                      onChange={(e) => selectWorkflow(e.target.value)}
                       className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                     >
                       {workflows.map((workflow) => (
@@ -4145,7 +4137,7 @@ function ProfessorDashboardContent() {
                     className="mt-5 space-y-4"
                   >
                     <label className="block text-sm font-bold text-slate-700">Workflow
-                      <select required value={selectedWorkflowId} onChange={(event) => setSelectedWorkflowId(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base font-normal">
+                      <select required value={selectedWorkflowId} onChange={(event) => selectWorkflow(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-white p-3 text-base font-normal">
                         <option value="">Choose a published workflow</option>
                         {(workflowData?.workflows || []).filter((workflow: any) => workflow.status === "PUBLISHED").map((workflow: any) => <option key={workflow.id} value={workflow.id}>{workflow.name}</option>)}
                       </select>
@@ -5892,7 +5884,7 @@ function ProfessorDashboardContent() {
                     <select
                       value={selectedWorkflowId}
                       onChange={(event) => {
-                        setSelectedWorkflowId(event.target.value);
+                        selectWorkflow(event.target.value);
                       }}
                       className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 text-base font-semibold text-[var(--color-text-primary)] sm:max-w-md"
                     >

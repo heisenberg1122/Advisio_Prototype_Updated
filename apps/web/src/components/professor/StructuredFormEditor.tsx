@@ -1,5 +1,9 @@
 import { useState } from "react";
 import {
+  EvaluationFormBranding,
+  EvaluationFormHeader,
+} from "./EvaluationFormBranding";
+import {
   defaultStructuredForm,
   sectionMaximum,
   type StructuredForm,
@@ -162,7 +166,7 @@ export function StructuredFormEditor({
   return (
     <div className="space-y-4">
       <label className="block text-sm font-semibold">
-        Template name
+        Evaluation form title
         <input
           disabled={disabled}
           className={`${evaluationInput} mt-2`}
@@ -173,6 +177,7 @@ export function StructuredFormEditor({
       <div className="flex flex-wrap gap-2">
         {[
           ["criteria", "Criteria & weights"],
+          ["branding", "Header & titles"],
           ["scale", "Rating scale"],
           ["result", "Feedback & result"],
           ["preview", "Form preview"],
@@ -193,6 +198,13 @@ export function StructuredFormEditor({
           {section("presentation", "Individual presentation")}
           {section("manuscript", "Group manuscript")}
         </>
+      )}
+      {tab === "branding" && (
+        <EvaluationFormBranding
+          form={form}
+          onChange={onChange}
+          disabled={disabled}
+        />
       )}
       {tab === "scale" && (
         <section className={evaluationCard}>
@@ -295,12 +307,15 @@ export function StructuredFormEditor({
         </section>
       )}
       {tab === "preview" && (
-        <StructuredEvaluationFields
-          form={form}
-          roster={roster}
-          answers={preview}
-          onChange={setPreview}
-        />
+        <>
+          <EvaluationFormHeader form={form} />
+          <StructuredEvaluationFields
+            form={form}
+            roster={roster}
+            answers={preview}
+            onChange={setPreview}
+          />
+        </>
       )}
     </div>
   );

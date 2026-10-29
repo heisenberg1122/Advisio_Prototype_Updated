@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { PDFDocument } from "pdf-lib";
+import {
+  PDFDocument,
+  PDFName,
+  PDFRawStream,
+  PDFArray,
+  decodePDFRawStream,
+} from "pdf-lib";
 import {
   defaultStructuredForm,
   structuredFormSchema,
@@ -12,6 +18,7 @@ import {
   evaluationPdfHash,
   type FormSnapshot,
 } from "./structured-evaluation.service.js";
+import { validateEvaluationLogos } from "./structured-evaluation-pdf.js";
 const snapshot = (count = 3): FormSnapshot => ({
   spec: structuredClone(defaultStructuredForm),
   roster: Array.from({ length: count }, (_, i) => ({
@@ -40,6 +47,85 @@ const answers = (s: FormSnapshot, rating = 5): StructuredAnswers => ({
   signature: "",
 });
 describe("structured defense evaluations", () => {
+  it("renders the saved college branding, aligned seals, and a single final panelist name", async () => {
+    const s = snapshot(3);
+    s.spec.branding = {
+      ...s.spec.branding!,
+      collegeName: "College of Architecture",
+      templateName: "ARCHITECTURE FORM 4",
+      collegeLogo: s.spec.branding!.schoolLogo,
+    };
+    s.spec.name = "Architectural Design Proposal Evaluation";
+    const bytes = await renderStructuredEvaluation(
+      s,
+      answers(s),
+      "Panelist Unique Name",
+    );
+    const pdf = await PDFDocument.load(bytes);
+    expect(pdf.getPageCount()).toBe(2);
+    const streams = pdf.getPages().map((page) => {
+      const contents = page.node.Contents();
+      const refs =
+        contents instanceof PDFArray ? contents.asArray() : [contents!];
+      return refs
+        .map((ref) =>
+          Buffer.from(
+            decodePDFRawStream(
+              pdf.context.lookup(ref) as PDFRawStream,
+            ).decode(),
+          ).toString(),
+        )
+        .join("\n");
+    });
+    const encoded = (s: string) =>
+      Buffer.from(s, "latin1").toString("hex").toUpperCase();
+    const all = streams.join("\n");
+    expect(all).toContain(encoded("College of Architecture"));
+    expect(all).toContain(encoded("ARCHITECTURE FORM 4"));
+    expect(all).toContain(encoded(s.spec.name.toUpperCase()));
+    expect(all.split(encoded("Panelist Unique Name"))).toHaveLength(2);
+    expect(all).not.toContain(encoded("Panelist: "));
+    for (const page of pdf.getPages()) {
+      const images = page.node.Resources()!.lookup(PDFName.of("XObject"));
+      expect(images).toBeDefined();
+    }
+    // The left and right image transforms have equal dimensions and y positions.
+    const transforms = [
+      ...streams[0].matchAll(/([\d.]+) 0 0 ([\d.]+) ([\d.]+) ([\d.]+) cm/g),
+    ].filter((m) => Number(m[1]) === 62);
+    expect(transforms).toHaveLength(2);
+    expect(transforms[0][2]).toBe(transforms[1][2]);
+    expect(transforms[0][4]).toBe(transforms[1][4]);
+  });
+  it("accepts legacy forms, rejects remote logos, and validates image contents before saving", async () => {
+    const form = structuredClone(defaultStructuredForm);
+    delete form.branding;
+    expect(structuredFormSchema.safeParse(form).success).toBe(true);
+    form.branding = structuredClone(defaultStructuredForm.branding!);
+    form.branding.collegeLogo = "https://example.test/logo.png";
+    expect(structuredFormSchema.safeParse(form).success).toBe(false);
+    form.branding.collegeLogo = "data:image/png;base64,AAAA";
+    await expect(validateEvaluationLogos(form)).rejects.toThrow(/valid PNG/);
+  });
+  it.each([2, 6, 10])(
+    "paginates aligned tables for %i rating levels and many long criteria",
+    async (levels) => {
+      const s = snapshot(5);
+      s.spec.scale = Array.from({ length: levels }, (_, i) => ({
+        value: i + 1,
+        label: `Rating level ${i + 1}`,
+      }));
+      s.spec.presentation = Array.from({ length: 30 }, (_, i) => ({
+        id: `p${i}`,
+        title: `Criterion ${i + 1}: ${"Detailed criterion ".repeat(8)}`,
+        weight: 1,
+        description: "",
+      }));
+      const a = answers(s, levels);
+      const bytes = await renderStructuredEvaluation(s, a, "Panelist");
+      expect((await PDFDocument.load(bytes)).getPageCount()).toBeGreaterThan(5);
+    },
+  );
   it.each([1, 3, 4, 5])("scores each of %i researchers separately", (count) => {
     const s = snapshot(count),
       a = answers(s);

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { structuredFormSchema } from "@research-management/validations";
 import { prisma } from "../lib/prisma.js";
+import { validateEvaluationLogos } from "../services/structured-evaluation-pdf.js";
 import { requireAuth } from "../middleware/auth.js";
 import { canAccessCollege } from "../lib/college-scope.js";
 import {
@@ -51,6 +52,7 @@ async function access(req: Request, db: Db = prisma) {
       },
       research: {
         include: {
+          college: { select: { name: true } },
           members: {
             where: { leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } },
             include: { user: { select: { firstName: true, lastName: true } } },
@@ -135,6 +137,7 @@ router.post(
     if (!hasDefenseFacilitatorAccess(req.user!))
       throw new Conflict("Defense facilitator access is required.", 403);
     const spec = structuredFormSchema.parse(req.body.spec);
+    await validateEvaluationLogos(spec);
     const template = await prisma.structuredEvaluationTemplate.create({
       data: {
         collegeId: req.user!.collegeId!,
@@ -178,6 +181,7 @@ router.get(
       : null;
     res.json({
       snapshot: a.session.packet?.structuredForm || null,
+      collegeName: a.session.research.college?.name || "",
       similarityReport,
       packetStatus: a.session.packet?.status || null,
       mappingVersion: a.session.packet?.mappingVersion || 0,
@@ -200,6 +204,7 @@ router.put(
     const initial = await access(req);
     if (!initial.facilitator)
       throw new Conflict("Defense facilitator access is required.", 403);
+    await validateEvaluationLogos(spec);
     const readiness = await defenseManuscriptService.getReadiness(
       initial.session.id,
     );

@@ -12,6 +12,22 @@ an optional typed electronic signature. Templates are saved as new reusable
 versions within the facilitator's college; changing one does not change a
 published session.
 
+Use **Header & titles** to set the college name, upload its PNG/JPEG logo, and
+set the template form name/code. **Evaluation form title** controls the main
+printed title. The school name, address, and school seal stay consistent.
+Uploaded college logos are trimmed and centered in a square so both seals have
+matching sizes and alignment. Header settings and embedded logo bytes are saved
+in reusable templates and published packet snapshots, without external image URLs.
+New packets start with the research project's college name; colleges other than
+Information Technology upload their own seal. Existing locked PDF submissions
+keep their original bytes.
+
+Generated PDFs repeat the institutional header and aligned rating/weight/score
+tables across pages, circle selected ratings, and show section totals. Individual
+presentation and group manuscript sections begin on separate pages. Long rubrics,
+researcher rosters, and feedback continue onto additional pages. The panelist name
+appears only in the final signature area.
+
 The packet takes its manuscript from an approved immutable submission attached
 to the session's exact Defense Eligibility milestone. If several approved
 documents qualify, the facilitator must choose the manuscript explicitly.

@@ -1,0 +1,347 @@
+/* Registration-specific form layout, sharing the login identity and controls. */
+.advisio-register .register-panel {
+  padding: 28px clamp(24px, 3vw, 56px);
+}
+.advisio-register .register-content {
+  max-width: 540px;
+}
+.advisio-register .register-heading {
+  margin-bottom: 24px;
+}
+.advisio-register .login-welcome {
+  font-size: 32px;
+}
+.advisio-register .register-fields,
+.advisio-register .register-role-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.advisio-register .register-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.advisio-register .register-label {
+  margin-bottom: 6px;
+}
+.advisio-register .register-role-fieldset > legend {
+  margin-bottom: 8px;
+}
+.advisio-register .register-roles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.advisio-register .register-role {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 62px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #cbd6dd;
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+}
+.advisio-register .register-role:hover {
+  background: #f3f6f8;
+  border-color: #91a7b7;
+}
+.advisio-register .register-role[aria-pressed="true"] {
+  border-color: #0b3553;
+  background: #edf3f6;
+}
+.advisio-register .register-role-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: #edf2f5;
+  color: #5e7689;
+}
+.advisio-register .register-role[aria-pressed="true"] .register-role-icon {
+  background: #0b3553;
+  color: #e2c581;
+}
+.advisio-register .register-role-copy {
+  min-width: 0;
+}
+.advisio-register .register-role strong {
+  display: block;
+  color: #17374f;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+}
+.advisio-register .register-role small {
+  display: block;
+  margin-top: 2px;
+  color: #617486;
+  font-size: 10px;
+  line-height: 15px;
+}
+.advisio-register .register-role-check {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  color: #866522;
+}
+.advisio-register .register-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 48px;
+  border: 1px solid #cbd6dd;
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 34px 10px 14px;
+  color: #17374f;
+  font: inherit;
+  font-size: 14px;
+}
+.advisio-register .register-select:focus {
+  outline: 2px solid #a47b2d;
+  outline-offset: 2px;
+  border-color: #a47b2d;
+}
+.advisio-register .register-assignment {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-left: 2px solid #d9b66f;
+  border-radius: 0 6px 6px 0;
+  background: #edf2f4;
+  font-size: 11px;
+  line-height: 18px;
+}
+.advisio-register .register-assignment > span {
+  color: #607383;
+}
+.advisio-register .register-assignment > strong {
+  color: #29465d;
+  font-weight: 500;
+}
+.advisio-register .register-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.advisio-register .register-field-grid > div {
+  min-width: 0;
+}
+.advisio-register .login-input {
+  height: 48px;
+  font-size: 14px;
+}
+.advisio-register .login-input::placeholder {
+  font-size: 13px;
+}
+.advisio-register .login-password-toggle {
+  top: 2px;
+  right: 2px;
+}
+.advisio-register .register-hint {
+  color: #617486;
+  font-size: 11px;
+  line-height: 18px;
+}
+.advisio-register .register-select + .register-hint {
+  margin-top: 8px;
+}
+.advisio-register .register-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #526779;
+  font-size: 12px;
+  line-height: 20px;
+}
+.advisio-register .register-consent input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  accent-color: #0b3553;
+  cursor: pointer;
+}
+.advisio-register .register-consent button {
+  background: transparent;
+  color: #244e6b;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font: inherit;
+  font-weight: 500;
+}
+.advisio-register .register-consent button:hover {
+  color: #765719;
+}
+.advisio-register .register-submit {
+  margin-top: 0;
+}
+.advisio-register .register-sign-in {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px 7px;
+  margin-top: 14px;
+  color: #617486;
+  font-size: 13px;
+  line-height: 22px;
+}
+.advisio-register .register-sign-in a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  color: #0b3553;
+  font-weight: 600;
+}
+.advisio-register .register-sign-in a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.advisio-register .register-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #d9e0e4;
+  color: #617486;
+  font-size: 10px;
+  line-height: 18px;
+}
+.advisio-register .register-footer > svg {
+  flex-shrink: 0;
+  color: #866522;
+}
+.advisio-register .register-feedback {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #edced3;
+  border-radius: 12px;
+  background: #fff5f6;
+  color: #9b3447;
+  font-size: 12px;
+  line-height: 20px;
+}
+.advisio-register .register-feedback svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.advisio-register .register-feedback button {
+  color: #0b3553;
+  text-decoration: underline;
+  font-weight: 600;
+}
+.advisio-register .register-success-icon {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  margin-bottom: 24px;
+  border: 1px solid #c6ded1;
+  border-radius: 16px;
+  background: #edf7f0;
+  color: #18714f;
+}
+.advisio-register .register-success-identity {
+  margin: 26px 0;
+  padding: 16px;
+  border: 1px solid #d7e0e6;
+  border-radius: 12px;
+  background: #f3f6f8;
+  color: #526779;
+  font-size: 14px;
+  line-height: 24px;
+  overflow-wrap: anywhere;
+}
+.advisio-register .register-success-identity strong {
+  color: #17374f;
+}
+.advisio-register .register-policy-modal {
+  background: #fafbf9;
+}
+.advisio-register .register-policy-copy {
+  display: grid;
+  gap: 16px;
+  color: #526779;
+  font-size: 13px;
+  line-height: 22px;
+}
+.advisio-register .register-policy-copy strong {
+  color: #17374f;
+}
+.advisio-register .register-policy-cancel,
+.advisio-register .register-policy-accept {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid #cbd6dd;
+  border-radius: 10px;
+  background: #fff;
+  color: #17374f;
+  font-size: 13px;
+  font-weight: 600;
+}
+.advisio-register .register-policy-accept {
+  background: #d9b66f;
+  border-color: #c4a157;
+}
+@media (max-width: 599px) {
+  .advisio-register .register-panel {
+    padding: 24px 24px 20px;
+  }
+  .advisio-register .register-content {
+    max-width: 440px;
+  }
+  .advisio-register .register-field-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .advisio-register .register-heading {
+    margin-bottom: 24px;
+  }
+  .advisio-register .login-welcome {
+    font-size: 29px;
+  }
+  .advisio-register .register-role {
+    gap: 8px;
+    padding: 10px;
+  }
+  .advisio-register .register-role small {
+    font-size: 9px;
+  }
+  .advisio-register .register-role-icon {
+    width: 28px;
+    height: 28px;
+  }
+  .advisio-register .register-fields {
+    gap: 18px;
+  }
+}
+@media (max-width: 374px) {
+  .advisio-register .register-panel {
+    padding-inline: 20px;
+  }
+  .advisio-register .register-roles {
+    gap: 8px;
+  }
+  .advisio-register .register-role {
+    align-items: flex-start;
+  }
+}

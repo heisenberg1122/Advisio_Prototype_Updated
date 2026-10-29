@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./login.css";
+import {
+  AuthJourneyPanel,
+  AuthMobileBrand,
+} from "@/components/auth/AuthJourneyPanel";
 import Link from "next/link";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -7,15 +11,9 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  FileText,
-  MessagesSquare,
-  ClipboardCheck,
-  GraduationCap,
   LockKeyhole,
   Loader2,
   Mail,
-  Pause,
-  Play,
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -67,7 +65,6 @@ export default function LoginPage() {
   const loginAction = useAsyncAction();
   const loading = loginAction.isPending;
   const [showPassword, setShowPassword] = useState(false);
-  const [journeyPaused, setJourneyPaused] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleButtonError, setGoogleButtonError] = useState<string | null>(
     null,
@@ -140,7 +137,10 @@ export default function LoginPage() {
       if (cancelled || !googleButtonRef.current) return;
       const google = (window as Window & { google?: GoogleIdentityApi }).google;
       if (!google) return;
-      const width = Math.min(400, googleButtonRef.current.clientWidth || 360);
+      // Keep the native 14px label; enlarging the control also enlarges its text.
+      const availableWidth =
+        googleButtonRef.current.parentElement?.clientWidth || 500;
+      const width = Math.min(400, Math.round(availableWidth));
       if (renderedWidth === width && googleButtonRef.current.childElementCount)
         return;
       if (!googleInitialized) {
@@ -227,173 +227,11 @@ export default function LoginPage() {
       <a href="#login-form" className="login-skip-link">
         Skip to sign in
       </a>
-      <section className="login-story" aria-labelledby="login-story-title">
-        <img
-          src="/school-logo.png"
-          alt=""
-          aria-hidden="true"
-          draggable={false}
-          className="login-story-watermark"
-        />
-        <header className="login-story-header">
-          <div className="login-brand">
-            <div className="login-brand-mark">
-              <img
-                src="/ao-logo.png"
-                alt="Advisio"
-                className="h-full w-full object-contain"
-              />
-            </div>
-            <div>
-              <div className="login-brand-name">
-                advisio<span className="login-brand-dot">.</span>
-              </div>
-              <div className="login-brand-caption">Research, connected</div>
-            </div>
-          </div>
-
-          <div className="login-university">
-            <div>
-              <p className="login-university-name">
-                University of the Assumption
-              </p>
-              <p className="login-university-location">
-                City of San Fernando, Pampanga
-              </p>
-            </div>
-            <img
-              src="/school-logo.png"
-              alt="University of the Assumption"
-              className="login-university-seal"
-            />
-          </div>
-        </header>
-
-        <div className="login-story-content">
-          <div className="login-story-copy">
-            <p className="login-eyebrow">
-              <span aria-hidden="true" /> University Research Management
-            </p>
-            <h1 id="login-story-title" className="login-story-headline">
-              <span>A clearer path</span>
-              <span>
-                through <span className="login-headline-accent">research.</span>
-              </span>
-            </h1>
-            <p className="login-story-description">
-              From proposal to final defense, Advisio keeps every stage
-              connected.
-            </p>
-            <div
-              className="login-journey"
-              data-paused={journeyPaused || undefined}
-              role="group"
-              aria-label="The research journey"
-            >
-              <div className="login-journey-caption">
-                <span>One connected journey</span>
-                <div className="login-journey-controls">
-                  <span className="login-journey-index" aria-hidden="true">
-                    01 — 04
-                  </span>
-                  <button
-                    type="button"
-                    className="login-journey-toggle"
-                    onClick={() => setJourneyPaused((paused) => !paused)}
-                    aria-label={
-                      journeyPaused
-                        ? "Resume research journey animation"
-                        : "Pause research journey animation"
-                    }
-                    aria-pressed={journeyPaused}
-                  >
-                    {journeyPaused ? (
-                      <Play size={12} aria-hidden="true" />
-                    ) : (
-                      <Pause size={12} aria-hidden="true" />
-                    )}
-                    {journeyPaused ? "Play" : "Pause"}
-                  </button>
-                </div>
-              </div>
-              <div className="login-journey-map">
-                <svg
-                  className="login-journey-path"
-                  viewBox="0 0 560 280"
-                  preserveAspectRatio="none"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    className="login-path-track"
-                    d="M48 204H142Q188 204 188 158V152Q188 106 234 106H282Q328 106 328 60Q328 40 362 40H512"
-                  />
-                  <path
-                    className="login-path-progress"
-                    pathLength="1"
-                    d="M48 204H142Q188 204 188 158V152Q188 106 234 106H282Q328 106 328 60Q328 40 362 40H512"
-                  />
-                </svg>
-                <ol className="login-milestones">
-                  {[
-                    { label: "Proposal", Icon: FileText },
-                    { label: "Advising", Icon: MessagesSquare },
-                    { label: "Review", Icon: ClipboardCheck },
-                    { label: "Defense", Icon: GraduationCap },
-                  ].map(({ label, Icon }, index) => (
-                    <li
-                      key={label}
-                      className={`login-milestone login-milestone-${index + 1}`}
-                    >
-                      <span className="login-milestone-node">
-                        <Icon size={19} aria-hidden="true" />
-                      </span>
-                      <span className="login-milestone-label">
-                        <span className="login-milestone-number">
-                          0{index + 1}
-                        </span>
-                        {label}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            </div>
-          </div>
-          <p className="login-journey-note">
-            Every conversation. Every revision. A step forward.
-          </p>
-        </div>
-        <footer className="login-story-footer">
-          <span>Built for the university research community</span>
-          <span>ADVISIO · UA</span>
-        </footer>
-      </section>
+      <AuthJourneyPanel />
 
       <section className="login-form-panel" aria-labelledby="login-welcome">
         <div className="login-form-content">
-          <div className="login-mobile-brand">
-            <div className="login-mobile-brand-group">
-              <div className="login-mobile-mark">
-                <img
-                  src="/ao-logo.png"
-                  alt="Advisio"
-                  className="h-full w-full object-contain"
-                />
-              </div>
-              <div>
-                <p className="login-mobile-name">
-                  advisio<span className="login-brand-dot">.</span>
-                </p>
-                <p className="login-mobile-caption">Research, connected</p>
-              </div>
-            </div>
-            <img
-              src="/school-logo.png"
-              alt="University of the Assumption"
-              className="login-mobile-seal"
-            />
-          </div>
+          <AuthMobileBrand />
           <div className="login-form-heading">
             <h2 id="login-welcome" className="login-welcome">
               Welcome back
@@ -510,25 +348,21 @@ export default function LoginPage() {
 
           {googleClientId && (
             <div className="login-google-section">
-              <div className="login-divider">
-                <span className="login-divider-line" />
+              <div className="login-google-separator" aria-hidden="true">
                 <span>or</span>
-                <span className="login-divider-line" />
               </div>
               <div
-                ref={googleButtonRef}
                 aria-label="Continue with Google"
                 aria-busy={googleLoading}
                 className={`login-google-button ${googleLoading ? "login-google-pending" : ""}`}
-              />
+              >
+                <div ref={googleButtonRef} className="login-google-sdk" />
+              </div>
               {googleLoading && (
                 <p role="status" className="login-google-guidance">
                   Signing in with Google...
                 </p>
               )}
-              <p className="login-google-guidance">
-                Use Google to sign in or set up your account.
-              </p>
               {googleButtonError && (
                 <p role="status" className="login-google-error">
                   {googleButtonError}
@@ -541,21 +375,22 @@ export default function LoginPage() {
             Need access?{" "}
             <Link href="/register" className="login-account-link">
               Request an account
+              <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </p>
-          <div className="login-access-note">
-            <ShieldCheck size={14} aria-hidden="true" /> Protected university
-            access
-          </div>
-          <div className="login-public-links">
-            <nav aria-label="Public information">
-              <Link href="/privacy-policy">Privacy</Link>
-              <span aria-hidden="true">·</span>
-              <Link href="/terms-of-service">Terms</Link>
-              <span aria-hidden="true">·</span>
-              <a href="mailto:advisio.main@gmail.com">Help</a>
-            </nav>
-          </div>
+          <footer className="login-form-footer">
+            <div className="login-access-note">
+              <ShieldCheck size={14} aria-hidden="true" /> Protected university
+              access
+            </div>
+            <div className="login-public-links">
+              <nav aria-label="Public information">
+                <Link href="/privacy-policy">Privacy</Link>
+                <Link href="/terms-of-service">Terms</Link>
+                <a href="mailto:advisio.main@gmail.com">Help</a>
+              </nav>
+            </div>
+          </footer>
         </div>
       </section>
     </main>
