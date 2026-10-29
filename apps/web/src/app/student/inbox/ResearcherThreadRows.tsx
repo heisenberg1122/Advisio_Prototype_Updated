@@ -65,6 +65,7 @@ export function ResearcherThreadRows({ folder, threads, selectedId, userId, quer
                 <button
                   key={thread.id}
                   type="button"
+                  data-thread-id={thread.id}
                   onClick={() => onSelect(thread.id)}
                   aria-current={selected ? "true" : undefined}
                   className={`${selected ? "border-l-[3px] border-l-[var(--color-text-primary)] bg-[var(--color-surface-muted)]" : "border-l-[3px] border-l-transparent hover:bg-[var(--color-surface-muted)]/70"} rm-thread-row flex w-full cursor-pointer gap-3 px-3 py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-primary)]`}
@@ -72,19 +73,19 @@ export function ResearcherThreadRows({ folder, threads, selectedId, userId, quer
                   <span className={`${thread.unread ? "bg-[var(--color-primary)] text-white" : "bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)]"} grid h-10 w-10 shrink-0 place-items-center rounded-full text-xs font-black`}>
                     {personInitials(identity.person)}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className={`${thread.unread ? "font-black text-[var(--color-text-primary)]" : "font-semibold text-[var(--color-text-secondary)]"} min-w-0 flex-1 truncate text-sm`}>
+                  <span className="rm-thread-summary min-w-0 flex-1">
+                    <span className="rm-thread-identity flex items-center gap-2">
+                      <span className={`${thread.unread ? "font-black text-[var(--color-text-primary)]" : "font-semibold text-[var(--color-text-secondary)]"} rm-thread-sender min-w-0 flex-1 truncate text-sm`}>
                         {identity.label}
                       </span>
                       <time className={`${thread.unread ? "font-bold text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"} shrink-0 text-xs`}>
                         {formatMailDate(latest?.sentAt || latest?.createdAt || thread.updatedAt, true)}
                       </time>
                     </span>
-                    <span className={`${thread.unread ? "font-bold text-[var(--color-text-primary)]" : "font-semibold text-[var(--color-text-secondary)]"} mt-1 block truncate text-sm`}>
+                    <span className={`${thread.unread ? "font-bold text-[var(--color-text-primary)]" : "font-semibold text-[var(--color-text-secondary)]"} rm-thread-subject mt-1 block truncate text-sm`}>
                       {thread.subject || "(no subject)"}
                     </span>
-                    <span className="mt-1 flex items-center gap-1.5 text-sm text-[var(--color-text-muted)]">
+                    <span className="rm-thread-snippet mt-1 flex items-center gap-1.5 text-sm text-[var(--color-text-muted)]">
                       <span className="min-w-0 flex-1 truncate">{latest?.body || "Empty draft"}</span>
                       {latest?.attachments?.length ? <Paperclip className="h-3.5 w-3.5 shrink-0" aria-label="Has attachments" /> : null}
                       {thread.unread ? <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--color-primary)]" aria-hidden="true" /> : null}

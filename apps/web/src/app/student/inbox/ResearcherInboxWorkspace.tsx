@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { Archive, FileText, Inbox, Pencil, Search, Send, Trash2 } from "lucide-react";
 import type { MailThreadList } from "@/components/messaging/MailThreadList";
 import type { MailCounts, MailThreadListResponse } from "@/components/messaging/mail-types";
@@ -29,6 +29,8 @@ export function ResearcherInboxWorkspace(props: Props) {
   const { folder, data, resolvedQuery, filter, loading, errored, selectedId } = props;
   const [history, setHistory] = useState<Partial<Record<ResearcherMailFolder, FolderObservation>>>({});
   const [lastCounts, setLastCounts] = useState<MailCounts>();
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const previousSelection = useRef<string | undefined>(undefined);
   const previous = history[folder];
   const observation = errored ? undefined : observeFolder(folder, data, resolvedQuery, filter) ||
     (previous && data ? { ...previous, count: data.counts[folder] } : undefined);
@@ -44,6 +46,19 @@ export function ResearcherInboxWorkspace(props: Props) {
     if (data) setLastCounts(data.counts);
   }, [folder, data, resolvedQuery, filter, errored]);
 
+  // Keep keyboard focus in the visible pane when switching list/reader views.
+  useEffect(() => {
+    const previous = previousSelection.current;
+    previousSelection.current = selectedId;
+    if (selectedId) {
+      workspaceRef.current?.querySelector<HTMLElement>(".rm-reader")?.focus({ preventScroll: true });
+    } else if (previous) {
+      const row = Array.from(workspaceRef.current?.querySelectorAll<HTMLButtonElement>("[data-thread-id]") || [])
+        .find(button => button.dataset.threadId === previous);
+      row?.focus({ preventScroll: true });
+    }
+  }, [selectedId]);
+
   // A new search query can be pending without invalidating an already resolved
   // mailbox. Retain its presentation until fresh authoritative counts arrive.
   const initialLoading = loading && !previous;
@@ -53,7 +68,7 @@ export function ResearcherInboxWorkspace(props: Props) {
   const counts = data?.counts || lastCounts;
 
   return (
-    <div className="researcher-mail" data-empty={empty} data-selected={Boolean(selectedId)}>
+    <div ref={workspaceRef} className="researcher-mail" data-empty={empty} data-selected={Boolean(selectedId)}>
       <aside className="rm-navigation">
         <button type="button" onClick={props.onCompose} className="rm-compose"><Pencil size={16} aria-hidden="true" />Compose</button>
         <nav aria-label="Mail folders" className="rm-folders">
@@ -84,7 +99,7 @@ export function ResearcherInboxWorkspace(props: Props) {
               {empty ? <div className="rm-empty"><currentFolder.icon size={28} aria-hidden="true" /><h2>{currentFolder.empty}</h2></div> : errored && props.threads.length === 0 ? null : <ResearcherThreadRows {...props} />}
             </div>
           </section>
-          <div className="rm-reader">{props.reader}</div>
+          <div className="rm-reader" tabIndex={-1} role="region" aria-label="Selected conversation">{props.reader}</div>
         </div>
       </div>
     </div>
