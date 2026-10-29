@@ -232,7 +232,7 @@ export default function RegisterPage() {
                   </fieldset>
                   {collegesQuery.isLoading ? (
                     <div role="status" aria-label="Loading academic programs">
-                      <Skeleton className="h-12 w-full rounded-xl" />
+                      <Skeleton className="register-academic-skeleton w-full" />
                     </div>
                   ) : collegesQuery.isError ? (
                     <div role="alert" className="register-feedback">

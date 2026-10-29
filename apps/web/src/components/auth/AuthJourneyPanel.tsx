@@ -1,15 +1,11 @@
-import { useState } from "react";
 import {
   ClipboardCheck,
   FileText,
   GraduationCap,
   MessagesSquare,
-  Pause,
-  Play,
 } from "lucide-react";
 
 export function AuthJourneyPanel() {
-  const [journeyPaused, setJourneyPaused] = useState(false);
   return (
     <section className="login-story" aria-labelledby="login-story-title">
       <img
@@ -69,35 +65,14 @@ export function AuthJourneyPanel() {
           </p>
           <div
             className="login-journey"
-            data-paused={journeyPaused || undefined}
             role="group"
             aria-label="The research journey"
           >
             <div className="login-journey-caption">
               <span>One connected journey</span>
-              <div className="login-journey-controls">
-                <span className="login-journey-index" aria-hidden="true">
-                  01 — 04
-                </span>
-                <button
-                  type="button"
-                  className="login-journey-toggle"
-                  onClick={() => setJourneyPaused((paused) => !paused)}
-                  aria-label={
-                    journeyPaused
-                      ? "Resume research journey animation"
-                      : "Pause research journey animation"
-                  }
-                  aria-pressed={journeyPaused}
-                >
-                  {journeyPaused ? (
-                    <Play size={12} aria-hidden="true" />
-                  ) : (
-                    <Pause size={12} aria-hidden="true" />
-                  )}
-                  {journeyPaused ? "Play" : "Pause"}
-                </button>
-              </div>
+              <span className="login-journey-index" aria-hidden="true">
+                01 — 04
+              </span>
             </div>
             <div className="login-journey-map">
               <svg

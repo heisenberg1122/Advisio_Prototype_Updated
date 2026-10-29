@@ -137,10 +137,14 @@ export default function LoginPage() {
       if (cancelled || !googleButtonRef.current) return;
       const google = (window as Window & { google?: GoogleIdentityApi }).google;
       if (!google) return;
-      // Keep the native 14px label; enlarging the control also enlarges its text.
-      const availableWidth =
-        googleButtonRef.current.parentElement?.clientWidth || 500;
-      const width = Math.min(400, Math.round(availableWidth));
+      // Scale the native control with the whole design, keeping its 14px label
+      // proportional to the fields and primary action at every resolution.
+      const container = googleButtonRef.current.parentElement;
+      const root = googleButtonRef.current.closest(".advisio-login");
+      const scale = root ? parseFloat(getComputedStyle(root).fontSize) / 16 : 1;
+      container?.style.setProperty("--login-google-scale", String(scale));
+      const availableWidth = container?.clientWidth || 400;
+      const width = Math.min(400, Math.round(availableWidth / scale));
       if (renderedWidth === width && googleButtonRef.current.childElementCount)
         return;
       if (!googleInitialized) {
@@ -173,7 +177,7 @@ export default function LoginPage() {
     };
 
     const resizeObserver = new ResizeObserver(renderGoogleButton);
-    resizeObserver.observe(googleButtonRef.current);
+    resizeObserver.observe(googleButtonRef.current.parentElement!);
 
     if (script) {
       if ((window as Window & { google?: GoogleIdentityApi }).google)

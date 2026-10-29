@@ -1,15 +1,20 @@
 /* Registration-specific form layout, sharing the login identity and controls. */
+.advisio-register .register-academic-skeleton {
+  height: calc(48 * var(--auth-unit));
+  border-radius: calc(12 * var(--auth-unit));
+}
 .advisio-register .register-panel {
-  padding: 28px clamp(24px, 3vw, 56px);
+  padding: calc(28 * var(--auth-unit))
+    clamp(calc(24 * var(--auth-unit)), 3vw, calc(56 * var(--auth-unit)));
 }
 .advisio-register .register-content {
-  max-width: 540px;
+  max-width: calc(540 * var(--auth-unit));
 }
 .advisio-register .register-heading {
-  margin-bottom: 24px;
+  margin-bottom: calc(24 * var(--auth-unit));
 }
 .advisio-register .login-welcome {
-  font-size: 32px;
+  font-size: calc(32 * var(--auth-unit));
 }
 .advisio-register .register-fields,
 .advisio-register .register-role-fieldset {
@@ -21,29 +26,29 @@
 .advisio-register .register-fields {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: calc(14 * var(--auth-unit));
 }
 .advisio-register .register-label {
-  margin-bottom: 6px;
+  margin-bottom: calc(6 * var(--auth-unit));
 }
 .advisio-register .register-role-fieldset > legend {
-  margin-bottom: 8px;
+  margin-bottom: calc(8 * var(--auth-unit));
 }
 .advisio-register .register-roles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: calc(10 * var(--auth-unit));
 }
 .advisio-register .register-role {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 62px;
+  gap: calc(10 * var(--auth-unit));
+  min-height: calc(62 * var(--auth-unit));
   min-width: 0;
-  padding: 10px 12px;
-  border: 1px solid #cbd6dd;
-  border-radius: 12px;
+  padding: calc(10 * var(--auth-unit)) calc(12 * var(--auth-unit));
+  border: calc(1 * var(--auth-unit)) solid #cbd6dd;
+  border-radius: calc(12 * var(--auth-unit));
   background: #fff;
   text-align: left;
 }
@@ -59,9 +64,9 @@
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
+  width: calc(32 * var(--auth-unit));
+  height: calc(32 * var(--auth-unit));
+  border-radius: calc(9 * var(--auth-unit));
   background: #edf2f5;
   color: #5e7689;
 }
@@ -75,53 +80,59 @@
 .advisio-register .register-role strong {
   display: block;
   color: #17374f;
-  font-size: 12px;
-  line-height: 18px;
+  font-size: calc(12 * var(--auth-unit));
+  line-height: calc(18 * var(--auth-unit));
   font-weight: 600;
 }
 .advisio-register .register-role small {
   display: block;
-  margin-top: 2px;
+  margin-top: calc(2 * var(--auth-unit));
   color: #617486;
-  font-size: 10px;
-  line-height: 15px;
+  font-size: calc(10 * var(--auth-unit));
+  line-height: calc(15 * var(--auth-unit));
 }
 .advisio-register .register-role-check {
   position: absolute;
-  right: 8px;
-  top: 8px;
+  right: calc(8 * var(--auth-unit));
+  top: calc(8 * var(--auth-unit));
   color: #866522;
 }
 .advisio-register .register-select {
+  appearance: none;
   display: block;
   width: 100%;
   min-width: 0;
-  height: 48px;
-  border: 1px solid #cbd6dd;
-  border-radius: 12px;
+  height: calc(48 * var(--auth-unit));
+  border: calc(1 * var(--auth-unit)) solid #cbd6dd;
+  border-radius: calc(12 * var(--auth-unit));
   background: #fff;
-  padding: 10px 34px 10px 14px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2329465d' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right calc(14 * var(--auth-unit)) center;
+  background-size: calc(16 * var(--auth-unit)) calc(16 * var(--auth-unit));
+  padding: calc(10 * var(--auth-unit)) calc(34 * var(--auth-unit))
+    calc(10 * var(--auth-unit)) calc(14 * var(--auth-unit));
   color: #17374f;
   font: inherit;
-  font-size: 14px;
+  font-size: calc(14 * var(--auth-unit));
 }
 .advisio-register .register-select:focus {
-  outline: 2px solid #a47b2d;
-  outline-offset: 2px;
+  outline: calc(2 * var(--auth-unit)) solid #a47b2d;
+  outline-offset: calc(2 * var(--auth-unit));
   border-color: #a47b2d;
 }
 .advisio-register .register-assignment {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 4px 10px;
-  margin-top: 8px;
-  padding: 8px 12px;
-  border-left: 2px solid #d9b66f;
-  border-radius: 0 6px 6px 0;
+  gap: calc(4 * var(--auth-unit)) calc(10 * var(--auth-unit));
+  margin-top: calc(8 * var(--auth-unit));
+  padding: calc(8 * var(--auth-unit)) calc(12 * var(--auth-unit));
+  border-left: calc(2 * var(--auth-unit)) solid #d9b66f;
+  border-radius: 0 calc(6 * var(--auth-unit)) calc(6 * var(--auth-unit)) 0;
   background: #edf2f4;
-  font-size: 11px;
-  line-height: 18px;
+  font-size: calc(11 * var(--auth-unit));
+  line-height: calc(18 * var(--auth-unit));
 }
 .advisio-register .register-assignment > span {
   color: #607383;
@@ -133,43 +144,44 @@
 .advisio-register .register-field-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: calc(14 * var(--auth-unit));
 }
 .advisio-register .register-field-grid > div {
   min-width: 0;
 }
 .advisio-register .login-input {
-  height: 48px;
-  font-size: 14px;
+  --auth-field-font: calc(14 * var(--auth-unit));
+  height: calc(48 * var(--auth-unit));
+  font-size: var(--auth-field-font);
 }
 .advisio-register .login-input::placeholder {
-  font-size: 13px;
+  font-size: calc(13 * var(--auth-unit));
 }
 .advisio-register .login-password-toggle {
-  top: 2px;
-  right: 2px;
+  top: calc(2 * var(--auth-unit));
+  right: calc(2 * var(--auth-unit));
 }
 .advisio-register .register-hint {
   color: #617486;
-  font-size: 11px;
-  line-height: 18px;
+  font-size: calc(11 * var(--auth-unit));
+  line-height: calc(18 * var(--auth-unit));
 }
 .advisio-register .register-select + .register-hint {
-  margin-top: 8px;
+  margin-top: calc(8 * var(--auth-unit));
 }
 .advisio-register .register-consent {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: calc(10 * var(--auth-unit));
   color: #526779;
-  font-size: 12px;
-  line-height: 20px;
+  font-size: calc(12 * var(--auth-unit));
+  line-height: calc(20 * var(--auth-unit));
 }
 .advisio-register .register-consent input {
-  width: 18px;
-  height: 18px;
+  width: calc(18 * var(--auth-unit));
+  height: calc(18 * var(--auth-unit));
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: calc(2 * var(--auth-unit));
   accent-color: #0b3553;
   cursor: pointer;
 }
@@ -177,7 +189,7 @@
   background: transparent;
   color: #244e6b;
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-underline-offset: calc(3 * var(--auth-unit));
   font: inherit;
   font-weight: 500;
 }
@@ -192,35 +204,35 @@
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: 4px 7px;
-  margin-top: 14px;
+  gap: calc(4 * var(--auth-unit)) calc(7 * var(--auth-unit));
+  margin-top: calc(14 * var(--auth-unit));
   color: #617486;
-  font-size: 13px;
-  line-height: 22px;
+  font-size: calc(13 * var(--auth-unit));
+  line-height: calc(22 * var(--auth-unit));
 }
 .advisio-register .register-sign-in a {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 40px;
+  gap: calc(6 * var(--auth-unit));
+  min-height: calc(40 * var(--auth-unit));
   color: #0b3553;
   font-weight: 600;
 }
 .advisio-register .register-sign-in a:hover {
   text-decoration: underline;
-  text-underline-offset: 4px;
+  text-underline-offset: calc(4 * var(--auth-unit));
 }
 .advisio-register .register-footer {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #d9e0e4;
+  gap: calc(7 * var(--auth-unit));
+  margin-top: calc(16 * var(--auth-unit));
+  padding-top: calc(16 * var(--auth-unit));
+  border-top: calc(1 * var(--auth-unit)) solid #d9e0e4;
   color: #617486;
-  font-size: 10px;
-  line-height: 18px;
+  font-size: calc(10 * var(--auth-unit));
+  line-height: calc(18 * var(--auth-unit));
 }
 .advisio-register .register-footer > svg {
   flex-shrink: 0;
@@ -230,19 +242,19 @@
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
-  gap: 7px;
-  margin-bottom: 16px;
-  padding: 12px 14px;
-  border: 1px solid #edced3;
-  border-radius: 12px;
+  gap: calc(7 * var(--auth-unit));
+  margin-bottom: calc(16 * var(--auth-unit));
+  padding: calc(12 * var(--auth-unit)) calc(14 * var(--auth-unit));
+  border: calc(1 * var(--auth-unit)) solid #edced3;
+  border-radius: calc(12 * var(--auth-unit));
   background: #fff5f6;
   color: #9b3447;
-  font-size: 12px;
-  line-height: 20px;
+  font-size: calc(12 * var(--auth-unit));
+  line-height: calc(20 * var(--auth-unit));
 }
 .advisio-register .register-feedback svg {
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: calc(2 * var(--auth-unit));
 }
 .advisio-register .register-feedback button {
   color: #0b3553;
@@ -252,50 +264,80 @@
 .advisio-register .register-success-icon {
   display: grid;
   place-items: center;
-  width: 62px;
-  height: 62px;
-  margin-bottom: 24px;
-  border: 1px solid #c6ded1;
-  border-radius: 16px;
+  width: calc(62 * var(--auth-unit));
+  height: calc(62 * var(--auth-unit));
+  margin-bottom: calc(24 * var(--auth-unit));
+  border: calc(1 * var(--auth-unit)) solid #c6ded1;
+  border-radius: calc(16 * var(--auth-unit));
   background: #edf7f0;
   color: #18714f;
 }
 .advisio-register .register-success-identity {
-  margin: 26px 0;
-  padding: 16px;
-  border: 1px solid #d7e0e6;
-  border-radius: 12px;
+  margin: calc(26 * var(--auth-unit)) 0;
+  padding: calc(16 * var(--auth-unit));
+  border: calc(1 * var(--auth-unit)) solid #d7e0e6;
+  border-radius: calc(12 * var(--auth-unit));
   background: #f3f6f8;
   color: #526779;
-  font-size: 14px;
-  line-height: 24px;
+  font-size: calc(14 * var(--auth-unit));
+  line-height: calc(24 * var(--auth-unit));
   overflow-wrap: anywhere;
 }
 .advisio-register .register-success-identity strong {
   color: #17374f;
 }
 .advisio-register .register-policy-modal {
+  max-width: calc(672 * var(--auth-unit));
+  max-height: calc(100svh - 32 * var(--auth-unit));
+  border-radius: calc(16 * var(--auth-unit));
   background: #fafbf9;
+}
+.advisio-register .register-policy-modal > div {
+  min-height: 0;
+  padding: calc(24 * var(--auth-unit));
+}
+.advisio-register .register-policy-modal > div:first-child,
+.advisio-register .register-policy-modal > div:last-child {
+  flex-shrink: 0;
+}
+.advisio-register .register-policy-modal > div:nth-child(2) {
+  max-height: none;
+}
+.advisio-register .register-policy-modal > div:last-child {
+  gap: calc(10 * var(--auth-unit));
+}
+.advisio-register .register-policy-modal h3 {
+  font-size: calc(18 * var(--auth-unit));
+}
+.advisio-register .register-policy-modal h3 + p {
+  font-size: calc(16 * var(--auth-unit));
+}
+.advisio-register .register-policy-modal button[aria-label="Close dialog"] {
+  padding: calc(6 * var(--auth-unit));
+}
+.advisio-register .register-policy-modal button[aria-label="Close dialog"] svg {
+  width: calc(20 * var(--auth-unit));
+  height: calc(20 * var(--auth-unit));
 }
 .advisio-register .register-policy-copy {
   display: grid;
-  gap: 16px;
+  gap: calc(16 * var(--auth-unit));
   color: #526779;
-  font-size: 13px;
-  line-height: 22px;
+  font-size: calc(13 * var(--auth-unit));
+  line-height: calc(22 * var(--auth-unit));
 }
 .advisio-register .register-policy-copy strong {
   color: #17374f;
 }
 .advisio-register .register-policy-cancel,
 .advisio-register .register-policy-accept {
-  min-height: 44px;
-  padding: 10px 16px;
-  border: 1px solid #cbd6dd;
-  border-radius: 10px;
+  min-height: calc(44 * var(--auth-unit));
+  padding: calc(10 * var(--auth-unit)) calc(16 * var(--auth-unit));
+  border: calc(1 * var(--auth-unit)) solid #cbd6dd;
+  border-radius: calc(10 * var(--auth-unit));
   background: #fff;
   color: #17374f;
-  font-size: 13px;
+  font-size: calc(13 * var(--auth-unit));
   font-weight: 600;
 }
 .advisio-register .register-policy-accept {
@@ -304,42 +346,43 @@
 }
 @media (max-width: 599px) {
   .advisio-register .register-panel {
-    padding: 24px 24px 20px;
+    padding: calc(24 * var(--auth-unit)) calc(24 * var(--auth-unit))
+      calc(20 * var(--auth-unit));
   }
   .advisio-register .register-content {
-    max-width: 440px;
+    max-width: calc(440 * var(--auth-unit));
   }
   .advisio-register .register-field-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: calc(16 * var(--auth-unit));
   }
   .advisio-register .register-heading {
-    margin-bottom: 24px;
+    margin-bottom: calc(24 * var(--auth-unit));
   }
   .advisio-register .login-welcome {
-    font-size: 29px;
+    font-size: calc(29 * var(--auth-unit));
   }
   .advisio-register .register-role {
-    gap: 8px;
-    padding: 10px;
+    gap: calc(8 * var(--auth-unit));
+    padding: calc(10 * var(--auth-unit));
   }
   .advisio-register .register-role small {
-    font-size: 9px;
+    font-size: calc(9 * var(--auth-unit));
   }
   .advisio-register .register-role-icon {
-    width: 28px;
-    height: 28px;
+    width: calc(28 * var(--auth-unit));
+    height: calc(28 * var(--auth-unit));
   }
   .advisio-register .register-fields {
-    gap: 18px;
+    gap: calc(18 * var(--auth-unit));
   }
 }
 @media (max-width: 374px) {
   .advisio-register .register-panel {
-    padding-inline: 20px;
+    padding-inline: calc(20 * var(--auth-unit));
   }
   .advisio-register .register-roles {
-    gap: 8px;
+    gap: calc(8 * var(--auth-unit));
   }
   .advisio-register .register-role {
     align-items: flex-start;
