@@ -1,11 +1,10 @@
 import { createHash } from "node:crypto";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { renderEvaluationPdf } from "./structured-evaluation-pdf.js";
 import {
   structuredFormSchema,
   structuredAnswersSchema,
   sectionMaximum,
   sectionScore,
-  defenseResultLabels,
   type StructuredForm,
   type EvaluationRoster,
   type StructuredAnswers,
@@ -144,104 +143,13 @@ export function consolidatedScores(
   };
 }
 
-// Fixed-width character fallback keeps arbitrary names/comments printable with
-// the bundled standard font, without allowing unsupported glyphs to fail submission.
-const printable = (s: string) =>
-  s
-    .replace(/[–—]/g, "-")
-    .replace(/[‘’]/g, "'")
-    .replace(/[“”]/g, '"')
-    .replace(/[^\x20-\x7e\xa0-\xff\n]/g, "?");
 export async function renderStructuredEvaluation(
   snapshot: FormSnapshot,
   answers: StructuredAnswers,
   panelistName: string,
 ) {
   const { totals } = scoreStructuredEvaluation(snapshot, answers, true);
-  const pdf = await PDFDocument.create(),
-    font = await pdf.embedFont(StandardFonts.Helvetica),
-    bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  let page = pdf.addPage([595, 842]),
-    y = 790;
-  const line = (value: string, strong = false, size = 10) => {
-    const text = printable(value),
-      f = strong ? bold : font;
-    for (const paragraph of text.split("\n")) {
-      let current = "";
-      const flush = () => {
-        if (y < 62) {
-          page = pdf.addPage([595, 842]);
-          y = 790;
-        }
-        page.drawText(current, {
-          x: 44,
-          y,
-          size,
-          font: f,
-          color: rgb(0.09, 0.17, 0.24),
-        });
-        y -= size + 6;
-      };
-      for (const word of paragraph.split(/\s+/)) {
-        // Split overlong words as well as wrapping ordinary prose.
-        for (const part of word.match(/.{1,65}/g) || [""]) {
-          if (
-            f.widthOfTextAtSize((current ? current + " " : "") + part, size) >
-              505 &&
-            current
-          ) {
-            flush();
-            current = "";
-          }
-          current += (current ? " " : "") + part;
-        }
-      }
-      flush();
-    }
-  };
-  line(snapshot.spec.name, true, 16);
-  line(snapshot.researchTitle, true, 12);
-  line(`Panelist: ${panelistName}`);
-  line(`Published manuscript: ${snapshot.manuscriptVersionId}`);
-  line(snapshot.spec.scale.map((s) => `${s.value}: ${s.label}`).join(" | "));
-  for (const r of snapshot.roster) {
-    y -= 10;
-    line(`Individual presentation - ${r.name}`, true, 12);
-    for (const c of snapshot.spec.presentation)
-      line(
-        `${c.title}: ${answers.researchers[r.userId][c.id]} x ${c.weight} = ${answers.researchers[r.userId][c.id] * c.weight}`,
-      );
-    const t = totals.researchers.find((t) => t.userId === r.userId)!;
-    line(
-      `Presentation total: ${t.score.toFixed(2)} / ${t.maximum.toFixed(2)}`,
-      true,
-    );
-  }
-  y -= 10;
-  line("Group manuscript", true, 12);
-  for (const c of snapshot.spec.manuscript)
-    line(
-      `${c.title}: ${answers.manuscript[c.id]} x ${c.weight} = ${answers.manuscript[c.id] * c.weight}`,
-    );
-  line(
-    `Manuscript total: ${totals.manuscript.score.toFixed(2)} / ${totals.manuscript.maximum.toFixed(2)}`,
-    true,
-  );
-  y -= 10;
-  line(snapshot.spec.feedbackLabel, true, 12);
-  line(answers.feedback || "No additional feedback.");
-  line(
-    `Recommended defense result: ${defenseResultLabels[answers.recommendation as keyof typeof defenseResultLabels]}`,
-    true,
-  );
-  if (answers.signature) line(`Electronic signature: ${answers.signature}`);
-  line("Official defense result is released separately by the facilitator.");
-  for (const [i, p] of pdf.getPages().entries())
-    p.drawText(
-      `Advisio - Evaluation | Page ${i + 1} of ${pdf.getPageCount()}`,
-      { x: 44, y: 30, size: 8, font, color: rgb(0.35, 0.4, 0.45) },
-    );
-  return Buffer.from(await pdf.save());
+  return renderEvaluationPdf(snapshot, answers, panelistName, totals);
 }
 export const evaluationPdfHash = (data: Uint8Array) =>
   createHash("sha256").update(data).digest("hex");

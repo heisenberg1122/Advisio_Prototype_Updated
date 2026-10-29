@@ -41,7 +41,20 @@ export function StructuredDefensePacket({
   useEffect(() => {
     if (query.data) {
       setSimilarityReport(query.data.similarityReport || null);
-      setForm(query.data.snapshot?.spec || defaultStructuredForm);
+      const collegeName =
+        query.data.collegeName || defaultStructuredForm.branding!.collegeName;
+      const existing = query.data.snapshot?.spec;
+      setForm({
+        ...(existing || defaultStructuredForm),
+        branding: existing?.branding || {
+          ...defaultStructuredForm.branding!,
+          collegeName,
+          collegeLogo:
+            collegeName === defaultStructuredForm.branding!.collegeName
+              ? defaultStructuredForm.branding!.collegeLogo
+              : "",
+        },
+      });
       setManuscript(
         query.data.manuscriptVersionId ||
           (query.data.candidates.length === 1

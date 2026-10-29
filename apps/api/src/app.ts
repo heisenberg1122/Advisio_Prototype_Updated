@@ -68,6 +68,8 @@ app.use(
     "/api/defense-sessions/:id/pdf-evaluation/sign",
     "/api/defense-sessions/:id/pdf-evaluation",
     "/api/defense-sessions/:id/manuscript-annotations/:versionId",
+    "/api/defense-sessions/:id/structured-form",
+    "/api/structured-evaluation-templates",
   ],
   express.json({ limit: "3mb" }),
 );

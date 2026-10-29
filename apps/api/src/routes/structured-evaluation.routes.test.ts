@@ -87,6 +87,8 @@ const request = async (method: string, path = "", body?: unknown) => {
 };
 beforeAll(async () => {
   const app = express();
+  // Match the production parser for templates containing embedded logo PNGs.
+  app.use("/defense-sessions/:id/structured-form", express.json({ limit: "3mb" }));
   app.use(express.json());
   app.use(router);
   server = app.listen(0, "127.0.0.1");
@@ -119,6 +121,35 @@ beforeEach(() => {
   };
 });
 describe("structured evaluation HTTP access and submission", () => {
+  it("keeps the exact submitted branded PDF when template settings change later", async () => {
+    state.session.packet.structuredForm = structuredClone(
+      state.session.packet.structuredForm,
+    );
+    state.session.packet.structuredForm.spec.branding.collegeName =
+      "College of Architecture";
+    state.session.packet.structuredForm.spec.branding.templateName =
+      "ARCHITECTURE FORM 4";
+    await request("PUT", "", { revision: 0, answers: payload() });
+    const preview = await request("POST", "/preview", { revision: 1 });
+    expect(preview.status).toBe(200);
+    const original = Buffer.from(state.item.pdfData);
+    expect(
+      (
+        await request("POST", "/submit", {
+          revision: 1,
+          previewHash: preview.body.evaluation.previewHash,
+          confirmed: true,
+        })
+      ).status,
+    ).toBe(200);
+    state.session.packet.structuredForm.spec.branding.collegeName =
+      "Changed college";
+    const download = await fetch(
+      `${base}/defense-sessions/${id}/structured-evaluations/${panel}/pdf`,
+    );
+    expect(download.status).toBe(200);
+    expect(Buffer.from(await download.arrayBuffer())).toEqual(original);
+  });
   it("publishes for accepted panelists while preserving pending assignments for later acceptance", async () => {
     state.user = {
       id: "coordinator",
