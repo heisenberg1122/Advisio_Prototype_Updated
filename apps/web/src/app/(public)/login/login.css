@@ -489,19 +489,21 @@
   .advisio-login {
     /* One 1920 × 1080 design unit, shared by both panels through 8K.
        The shorter viewport dimension limits growth on ultrawide/short screens. */
-    --auth-unit: clamp(1px, min(0.052083333333vw, 0.092592592593svh), 4px);
+    --auth-unit: clamp(0.75px, min(0.052083333333vw, 0.092592592593svh), 4px);
     display: grid;
     grid-template-columns: minmax(0, 1.22fr) minmax(0, 1fr);
   }
   .advisio-login .login-story {
+    /* Fit the reference composition to both the panel width and viewport height.
+       Keep this independent of the form's readable control size. */
+    --auth-unit: min(0.066855vw, 0.133333333333svh);
     position: relative;
     display: flex;
     flex-direction: column;
     min-width: 0;
     min-height: 100svh;
-    padding: calc(28 * var(--auth-unit))
-      clamp(calc(28 * var(--auth-unit)), 3vw, calc(56 * var(--auth-unit)))
-      calc(24 * var(--auth-unit));
+    padding: calc(26 * var(--auth-unit)) calc(40 * var(--auth-unit))
+      calc(8 * var(--auth-unit));
     overflow: hidden;
     isolation: isolate;
     background:
@@ -532,7 +534,7 @@
     z-index: -1;
     right: calc(-72 * var(--auth-unit));
     bottom: calc(-88 * var(--auth-unit));
-    width: min(90%, calc(560 * var(--auth-unit)));
+    width: calc(560 * var(--auth-unit));
     height: auto;
     opacity: 0.055;
     filter: grayscale(1);
@@ -575,9 +577,10 @@
   }
   .advisio-login .login-university {
     display: flex;
-    flex-direction: row-reverse;
+    flex-direction: row;
     align-items: center;
     gap: calc(10 * var(--auth-unit));
+    text-align: right;
   }
   .advisio-login .login-university-name {
     color: #d6e2e9;
@@ -600,16 +603,11 @@
     align-items: flex-start;
     flex: 1;
     width: 100%;
-    padding-block: clamp(
-        calc(48 * var(--auth-unit)),
-        calc(5svh + calc(16 * var(--auth-unit))),
-        calc(64 * var(--auth-unit))
-      )
-      calc(24 * var(--auth-unit));
+    padding-block: calc(42 * var(--auth-unit)) calc(24 * var(--auth-unit));
   }
   .advisio-login .login-story-copy {
     width: 100%;
-    max-width: calc(720 * var(--auth-unit));
+    max-width: none;
   }
   .advisio-login .login-eyebrow {
     color: var(--login-gold);
@@ -622,11 +620,7 @@
   .advisio-login .login-story-headline {
     margin-top: calc(20 * var(--auth-unit));
     color: #f0f5f8;
-    font-size: clamp(
-      calc(35 * var(--auth-unit)),
-      3.55vw,
-      calc(58 * var(--auth-unit))
-    );
+    font-size: calc(56 * var(--auth-unit));
     line-height: 1.13;
     font-weight: 500;
     letter-spacing: -0.05em;
@@ -667,9 +661,8 @@
   .advisio-login .login-journey-map {
     position: relative;
     width: 100%;
-    max-width: calc(720 * var(--auth-unit));
-    aspect-ratio: 3.2 / 1;
-    min-height: calc(220 * var(--auth-unit));
+    max-width: none;
+    height: calc(220 * var(--auth-unit));
     margin: calc(8 * var(--auth-unit)) 0 0;
   }
   .advisio-login .login-journey-path {
@@ -751,7 +744,8 @@
     font-variant-numeric: tabular-nums;
   }
   .advisio-login .login-journey-note {
-    margin-top: calc(38 * var(--auth-unit));
+    margin-top: auto;
+    padding-top: calc(24 * var(--auth-unit));
     align-self: stretch;
     text-align: right;
     color: #a5becf;
@@ -799,23 +793,6 @@
   }
   .advisio-login .login-university > div {
     text-align: right;
-  }
-}
-@media (min-width: 1024px) and (max-height: 850px) {
-  .advisio-login .login-story-content {
-    padding-block: calc(40 * var(--auth-unit)) calc(24 * var(--auth-unit));
-  }
-  .advisio-login .login-story-description {
-    margin-top: calc(16 * var(--auth-unit));
-  }
-  .advisio-login .login-journey {
-    margin-top: calc(20 * var(--auth-unit));
-  }
-  .advisio-login .login-journey-map {
-    margin-top: calc(8 * var(--auth-unit));
-  }
-  .advisio-login .login-journey-note {
-    margin-top: calc(40 * var(--auth-unit));
   }
 }
 @media (max-width: 599px) {
