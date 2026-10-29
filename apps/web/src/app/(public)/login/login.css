@@ -1,213 +1,180 @@
-/* Login presentation only. Shared auth components and portal themes stay intact. */
+/* Login-only presentation. Match the landing palette without changing portal themes. */
 .advisio-login {
   --login-navy: #0b3553;
-  --login-gold: #d9b261;
-  --login-muted: #596b7c;
-  --login-border: #cfd8e1;
+  --login-gold: #d9b66f;
+  --login-muted: #5e6f82;
+  --login-border: #cbd6dd;
+  color-scheme: light;
   min-height: 100svh;
-  overflow-x: clip;
-  background: #f7f9fc;
-  color: #17374f;
+  background: #f3f6f8;
+  color: #102a43;
   font-family: var(--font-sans), sans-serif;
 }
-
 .advisio-login *,
 .advisio-login *::before,
 .advisio-login *::after {
   box-sizing: border-box;
 }
-
+.advisio-login :is(h1, h2, p) {
+  margin: 0;
+}
 .advisio-login :where(a, button, input) {
   -webkit-tap-highlight-color: transparent;
   transition:
-    color 200ms ease,
-    background-color 200ms ease,
-    border-color 200ms ease,
-    box-shadow 200ms ease,
-    opacity 200ms ease;
+    color 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
-
-.advisio-login :where(a, button, input[type="checkbox"]):focus-visible {
-  outline: 2px solid #9b772c;
+.advisio-login :is(a, button, input, form):focus-visible {
+  outline: 3px solid #9b772c;
   outline-offset: 4px;
 }
-
+.advisio-login a {
+  text-decoration: none;
+}
 .advisio-login button {
   cursor: pointer;
+  touch-action: manipulation;
 }
-
+.advisio-login .login-skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  padding: 12px 20px;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--login-navy);
+  transform: translateY(-160%);
+}
+.advisio-login .login-skip-link:focus {
+  transform: translateY(0);
+}
 .advisio-login .login-story {
   display: none;
 }
-
+.advisio-login .login-journey-toggle {
+  display: none;
+}
 .advisio-login .login-form-panel {
-  position: relative;
   display: flex;
-  justify-content: center;
   align-items: center;
-  min-width: 0;
+  justify-content: center;
   min-height: 100svh;
-  padding: 40px 32px;
-  isolation: isolate;
+  min-width: 0;
+  padding: 48px 32px;
+  background:
+    radial-gradient(ellipse at 100% 0, #e5eaf080, transparent 65%), #f5f6f4;
 }
-
-.advisio-login .login-form-glow {
-  position: absolute;
-  z-index: -1;
-  inset: 0 0 auto auto;
-  width: min(100%, 360px);
-  height: 360px;
-  background: radial-gradient(ellipse at top right, #e5c78015, transparent 70%);
-  pointer-events: none;
-}
-
 .advisio-login .login-form-content {
   width: 100%;
-  max-width: 440px;
+  max-width: 400px;
   min-width: 0;
 }
-
 .advisio-login .login-mobile-brand {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  border-bottom: 1px solid #dfe5eb;
+  gap: 20px;
   padding-bottom: 24px;
-  margin-bottom: 32px;
+  margin-bottom: 36px;
+  border-bottom: 1px solid #d9e0e4;
 }
-
 .advisio-login .login-mobile-brand-group {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
-
 .advisio-login .login-mobile-mark {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 1px solid #dfe5eb;
-  border-radius: 8px;
+  width: 38px;
+  height: 38px;
   padding: 4px;
   background: #fff;
+  border-radius: 6px;
 }
-
 .advisio-login .login-mobile-name {
-  font-size: 16px;
-  line-height: 20px;
-  font-weight: 750;
-  letter-spacing: 0.05em;
   color: var(--login-navy);
-}
-
-.advisio-login .login-mobile-caption {
-  font-size: 9px;
-  line-height: 16px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  color: #89651e;
-  text-transform: uppercase;
-}
-
-.advisio-login .login-mobile-seal {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-}
-
-.advisio-login .login-form-heading {
-  margin-bottom: 32px;
-}
-
-.advisio-login .login-form-logos {
-  display: none;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.advisio-login .login-form-logo {
-  width: 48px;
-  height: 48px;
-  padding: 6px;
-  border: 1px solid #e0e6ec;
-  border-radius: 8px;
-  background: #fff;
-}
-
-.advisio-login .login-form-seal {
-  padding: 4px;
-}
-
-.advisio-login .login-logo-divider {
-  height: 24px;
-  width: 1px;
-  background: #d8e1e8;
-}
-
-.advisio-login .login-welcome {
-  font-size: 32px;
-  line-height: 40px;
-  letter-spacing: -0.035em;
+  font-size: 25px;
+  line-height: 28px;
   font-weight: 650;
-  color: var(--login-navy);
+  letter-spacing: -0.065em;
 }
-
-.advisio-login .login-welcome-description {
-  margin-top: 8px;
-  font-size: 15px;
-  line-height: 24px;
+.advisio-login .login-brand-dot {
+  color: var(--login-gold);
+}
+.advisio-login .login-mobile-caption {
+  font-size: 10px;
+  line-height: 18px;
   color: var(--login-muted);
 }
-
+.advisio-login .login-mobile-seal {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+.advisio-login .login-form-heading {
+  margin-bottom: 46px;
+}
+.advisio-login .login-welcome {
+  color: var(--login-navy);
+  font-size: 34px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.045em;
+}
+.advisio-login .login-welcome-description {
+  margin-top: 10px;
+  max-width: 340px;
+  color: var(--login-muted);
+  font-size: 14px;
+  line-height: 23px;
+}
 .advisio-login .login-form {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 22px;
+  scroll-margin-top: 24px;
 }
-
 .advisio-login .login-field-label {
   display: block;
-  font-size: 13px;
-  line-height: 16px;
-  font-weight: 600;
   color: #29465d;
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: 0.085em;
+  text-transform: uppercase;
 }
-
 .advisio-login .login-form > div > .login-field-label {
   margin-bottom: 8px;
 }
-
 .advisio-login .login-password-label-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 8px 16px;
-  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 0 12px;
+  margin: -8px 0 0;
+  min-height: 34px;
 }
-
 .advisio-login .login-forgot-link {
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
   color: #315773;
-  border-radius: 2px;
+  font-size: 12px;
+  font-weight: 500;
 }
-
-.advisio-login .login-forgot-link:hover,
-.advisio-login .login-account-link:hover {
-  color: #89651e;
+.advisio-login
+  :is(.login-forgot-link, .login-account-link, .login-public-links a):hover {
+  color: #765719;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
-
 .advisio-login .login-input-wrap {
   position: relative;
 }
-
 .advisio-login .login-field-icon {
   position: absolute;
   top: 50%;
@@ -215,542 +182,734 @@
   transform: translateY(-50%);
   color: #738696;
   pointer-events: none;
-  transition: color 200ms ease;
+  transition: color 180ms ease;
 }
-
 .advisio-login .login-input {
   display: block;
   width: 100%;
-  height: 48px;
-  padding: 12px 16px 12px 44px;
+  height: 52px;
+  padding: 12px 16px 12px 46px;
   border: 1px solid var(--login-border);
-  border-radius: 8px;
-  outline: none;
-  background: #fff;
+  border-radius: 12px;
+  background: #ffffffb3;
   color: #17374f;
   font-size: 16px;
   line-height: 24px;
-  box-shadow: 0 1px 2px #0b355304;
 }
-
 .advisio-login .login-input::placeholder {
-  color: #697b8b;
+  color: #6b7b88;
   opacity: 1;
+  font-size: 14px;
 }
-
 .advisio-login .login-input:hover:not(:disabled) {
-  border-color: #9eafbe;
+  border-color: #8fa4b3;
 }
-
 .advisio-login .login-input:focus {
+  outline: 2px solid #a47b2d;
+  outline-offset: 2px;
   border-color: #a47b2d;
-  box-shadow: 0 0 0 3px #c9a34d20;
+  background: #fff;
 }
-
 .advisio-login .login-input-wrap:focus-within .login-field-icon {
   color: var(--login-navy);
 }
-
 .advisio-login .login-input:user-invalid {
-  border-color: #be5260;
-  background: #fffcfc;
+  border-color: #b44455;
+  background: #fffafa;
 }
-
-.advisio-login .login-input:user-invalid:focus {
-  box-shadow: 0 0 0 3px #be526016;
-}
-
 .advisio-login .login-input:disabled {
   cursor: wait;
-  background: #edf2f6;
+  background: #eaf0f3;
   color: #5e7080;
-  border-color: #d5dfe7;
 }
-
 .advisio-login .login-password-input {
-  padding-right: 48px;
+  padding-right: 54px;
 }
-
 .advisio-login .login-password-toggle {
   position: absolute;
   top: 4px;
   right: 4px;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 1px solid transparent;
-  border-radius: 6px;
-  color: #647b8d;
+  border-radius: 8px;
+  color: #597184;
   background: transparent;
 }
-
 .advisio-login .login-password-toggle:hover {
   color: var(--login-navy);
-  background: #eff3f6;
+  background: #edf2f5;
 }
-
-.advisio-login .login-remember {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 24px;
-  margin-top: -8px;
-  font-size: 13px;
-  line-height: 24px;
-  color: #4e6476;
-  cursor: pointer;
-}
-
-.advisio-login .login-checkbox {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  flex-shrink: 0;
-  accent-color: var(--login-navy);
-  cursor: pointer;
-}
-
 .advisio-login .login-submit {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 12px;
   width: 100%;
-  min-height: 48px;
-  padding: 12px 16px;
-  margin-top: -8px;
-  border: 1px solid #0b3553;
-  border-radius: 8px;
-  background: var(--login-navy);
-  color: #fff;
+  min-height: 52px;
+  margin-top: 4px;
+  padding: 12px 18px;
+  border: 1px solid #c4a157;
+  border-radius: 12px;
+  background: var(--login-gold);
+  color: #142f43;
   font-size: 14px;
-  line-height: 22px;
+  line-height: 24px;
   font-weight: 600;
-  box-shadow: 0 4px 10px #0b35530d;
+  box-shadow: 0 2px 3px #17374f08;
 }
-
 .advisio-login .login-submit:hover:not(:disabled) {
-  background: #164968;
-  border-color: #164968;
-  box-shadow: 0 5px 14px #0b35531a;
+  background: #e3c485;
+  border-color: #b69146;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px #17374f0d;
 }
-
 .advisio-login .login-submit:active:not(:disabled) {
-  background: #082b43;
-  box-shadow: 0 1px 3px #0b355314;
+  transform: translateY(0);
 }
-
 .advisio-login .login-submit:disabled {
   cursor: wait;
-  opacity: 0.78;
-  box-shadow: none;
+  opacity: 0.75;
 }
-
 .advisio-login .login-submit-success {
-  border-color: #18714f;
   background: #18714f;
+  border-color: #18714f;
+  color: #fff;
 }
-
 .advisio-login .login-submit-success:hover:not(:disabled) {
-  border-color: #145c41;
   background: #145c41;
+  border-color: #145c41;
 }
-
 .advisio-login .login-submit-arrow {
-  transition: transform 200ms ease;
+  transition: transform 180ms ease;
 }
-
 .advisio-login .login-submit:hover .login-submit-arrow {
   transform: translateX(3px);
 }
-
 .advisio-login #login-feedback {
-  gap: 8px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 24px;
+  margin-bottom: 22px;
+  padding: 12px 14px;
+  border-radius: 12px;
   font-size: 13px;
   line-height: 20px;
-  box-shadow: none;
   overflow-wrap: anywhere;
+  box-shadow: none;
 }
-
-.advisio-login #login-feedback > svg {
-  margin-top: 2px;
-}
-
 .advisio-login .login-google-section {
-  margin-top: 24px;
+  margin-top: 22px;
 }
-
-.advisio-login .login-divider {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-  font-size: 11px;
-  line-height: 16px;
-  color: #677b8b;
-}
-
-.advisio-login .login-divider-line {
-  flex: 1;
-  height: 1px;
-  background: #dce4eb;
-}
-
-/* Google owns its button's rendering; style only the existing outer wrapper. */
+/* Keep the official Google-rendered button and its authentication behavior intact. */
 .advisio-login .login-google-button {
   display: flex;
   justify-content: center;
   min-height: 44px;
-  max-width: 100%;
+  width: 100%;
+  max-width: 400px;
+  margin-inline: auto;
   overflow: hidden;
-  border-radius: 24px;
+  border-radius: 12px;
 }
-
+.advisio-login .login-google-button :is([role="button"], iframe) {
+  border-radius: 12px;
+}
 .advisio-login .login-google-pending {
   pointer-events: none;
   opacity: 0.6;
 }
-
 .advisio-login .login-google-guidance {
   max-width: 400px;
-  margin: 12px auto 0;
+  margin: 8px auto 0;
   text-align: center;
-  font-size: 12px;
-  line-height: 20px;
-  color: #5a6e7f;
-  text-wrap: pretty;
+  color: var(--login-muted);
+  font-size: 11px;
+  line-height: 18px;
 }
-
 .advisio-login .login-google-error {
-  margin-top: 16px;
-  padding: 12px 16px;
+  margin-top: 12px;
+  padding: 12px;
   border: 1px solid #edced3;
-  border-radius: 8px;
+  border-radius: 12px;
   background: #fff5f6;
   color: #9b3447;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 20px;
   overflow-wrap: anywhere;
 }
-
+.advisio-login .login-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 16px;
+  color: #657888;
+  font-size: 11px;
+  line-height: 18px;
+}
+.advisio-login .login-divider-line {
+  flex: 1;
+  height: 1px;
+  background: #d7dfe4;
+}
 .advisio-login .login-account-request {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
-  align-items: baseline;
-  gap: 4px 8px;
-  margin-top: 24px;
+  gap: 4px 6px;
+  margin-top: 18px;
+  color: var(--login-muted);
   font-size: 13px;
-  line-height: 24px;
-  color: #5a6e7f;
+  line-height: 22px;
 }
-
 .advisio-login .login-account-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
   color: var(--login-navy);
   font-weight: 600;
-  border-radius: 2px;
 }
-
 .advisio-login .login-access-note {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
   margin-top: 24px;
-  color: #637788;
+  padding-top: 22px;
+  border-top: 1px solid #d9e0e4;
+  color: #607383;
   font-size: 11px;
-  line-height: 16px;
+  line-height: 18px;
 }
-
 .advisio-login .login-access-note svg {
-  color: #93702a;
+  color: #866522;
 }
-
 .advisio-login .login-public-links {
-  margin-top: 16px;
-  color: #5a6e7f;
+  margin-top: 8px;
 }
-
 .advisio-login .login-public-links nav {
-  gap: 8px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #607383;
   font-size: 12px;
-  line-height: 20px;
 }
-
 .advisio-login .login-public-links a {
-  border-radius: 2px;
-  text-underline-offset: 4px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
 }
 
 @media (min-width: 1024px) {
   .advisio-login {
     display: grid;
-    grid-template-columns: minmax(0, 1.04fr) minmax(480px, 0.96fr);
+    grid-template-columns: minmax(0, 1.22fr) minmax(0, 1fr);
   }
-
   .advisio-login .login-story {
     position: relative;
     display: flex;
     flex-direction: column;
     min-width: 0;
     min-height: 100svh;
-    padding: 32px clamp(32px, 4vw, 72px);
+    padding: 28px clamp(28px, 3vw, 56px) 24px;
     overflow: hidden;
     isolation: isolate;
-    border-right: 1px solid #234960;
-    background: var(--login-navy);
-    color: #fff;
+    background:
+      radial-gradient(ellipse at 95% 60%, #26567565, transparent 65%), #0c2e46;
+    color: #f0f5f8;
   }
-
-  .advisio-login .login-watermark {
+  .advisio-login .login-story::before {
+    content: "";
     position: absolute;
     z-index: -1;
-    right: -96px;
-    bottom: -96px;
-    width: 480px;
-    height: 480px;
-    opacity: 0.035;
+    inset: 0;
+    background-image:
+      linear-gradient(#b4d3e707 1px, transparent 1px),
+      linear-gradient(90deg, #b4d3e707 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse at 75% 65%, #000, transparent 70%);
+    pointer-events: none;
+  }
+  .advisio-login .login-story-watermark {
+    position: absolute;
+    z-index: -1;
+    right: -72px;
+    bottom: -88px;
+    width: min(90%, 560px);
+    height: auto;
+    opacity: 0.055;
+    filter: grayscale(1);
     pointer-events: none;
     user-select: none;
   }
-
   .advisio-login .login-story-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 24px;
-    min-height: 48px;
+    gap: 20px;
   }
-
   .advisio-login .login-brand {
     display: flex;
     align-items: center;
     gap: 12px;
-    flex-shrink: 0;
   }
-
   .advisio-login .login-brand-mark {
-    display: grid;
-    place-items: center;
     width: 40px;
     height: 40px;
-    padding: 6px;
-    border-radius: 8px;
+    padding: 5px;
+    border-radius: 6px;
     background: #fff;
   }
-
   .advisio-login .login-brand-name {
-    font-size: 16px;
-    line-height: 24px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-  }
-
-  .advisio-login .login-brand-caption {
-    font-size: 9px;
-    line-height: 16px;
+    font-size: 30px;
+    line-height: 32px;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: var(--login-gold);
+    letter-spacing: -0.07em;
   }
-
+  .advisio-login .login-brand-caption {
+    margin-top: 2px;
+    font-size: 10px;
+    line-height: 18px;
+    color: #b3c7d4;
+  }
   .advisio-login .login-university {
     display: flex;
+    flex-direction: row-reverse;
     align-items: center;
-    justify-content: flex-end;
-    gap: 12px;
-    text-align: right;
-    min-width: 0;
+    gap: 10px;
   }
-
   .advisio-login .login-university-name {
+    color: #d6e2e9;
     font-size: 11px;
-    line-height: 16px;
-    font-weight: 600;
+    line-height: 18px;
   }
-
   .advisio-login .login-university-location {
-    margin-top: 4px;
-    font-size: 10px;
+    color: #9fb7c9;
+    font-size: 9px;
     line-height: 16px;
-    color: #bdcdd8;
   }
-
   .advisio-login .login-university-seal {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
     object-fit: contain;
   }
-
   .advisio-login .login-story-content {
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     flex: 1;
-    align-items: center;
     width: 100%;
-    padding-block: 48px;
+    padding-block: clamp(32px, 5svh, 48px) 24px;
   }
-
   .advisio-login .login-story-copy {
     width: 100%;
-    max-width: 560px;
+    max-width: 720px;
   }
-
   .advisio-login .login-eyebrow {
-    max-width: 440px;
-    color: var(--login-gold);
-    font-size: 10px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: #c4d4de;
+    font-size: 9px;
+    font-weight: 500;
     line-height: 20px;
-    font-weight: 600;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.15em;
     text-transform: uppercase;
   }
-
-  .advisio-login .login-story-headline {
-    margin-top: 16px;
-    font-size: clamp(38px, 3.65vw, 58px);
-    line-height: 1.12;
-    font-weight: 600;
-    letter-spacing: -0.04em;
+  .advisio-login .login-eyebrow > span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--login-gold);
   }
-
+  .advisio-login .login-story-headline {
+    margin-top: 20px;
+    color: #f0f5f8;
+    font-size: clamp(35px, 3.55vw, 58px);
+    line-height: 1.13;
+    font-weight: 500;
+    letter-spacing: -0.05em;
+  }
   .advisio-login .login-story-headline > span {
     display: block;
   }
-
   .advisio-login .login-headline-accent {
     color: var(--login-gold);
   }
-
   .advisio-login .login-story-description {
-    margin-top: 24px;
-    max-width: 480px;
-    color: #c5d3de;
-    font-size: 15px;
-    line-height: 26px;
+    margin-top: 20px;
+    max-width: 350px;
+    color: #b5c9d8;
+    font-size: 14px;
+    line-height: 24px;
   }
-
-  .advisio-login .login-features {
-    margin-top: 32px;
-    border-block: 1px solid #ffffff20;
+  .advisio-login .login-journey {
+    --login-journey-duration: 10s;
+    margin-top: 20px;
   }
-
-  .advisio-login .login-feature-row {
-    display: grid;
-    grid-template-columns: 32px minmax(0, 1fr);
-    gap: 4px 16px;
-    padding-block: 20px;
-    border-bottom: 1px solid #ffffff15;
+  .advisio-login .login-journey-caption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid #adc7d322;
+    color: #9fb8c9;
+    font-size: 9px;
+    line-height: 18px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
   }
-
-  .advisio-login .login-feature-row:last-child {
-    border-bottom: 0;
+  .advisio-login .login-journey-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
-
-  .advisio-login .login-feature-number {
-    grid-row: span 2;
-    padding-top: 2px;
-    color: var(--login-gold);
-    font-size: 11px;
-    line-height: 20px;
+  .advisio-login .login-journey-index {
+    color: #92adbf;
     font-variant-numeric: tabular-nums;
   }
-
-  .advisio-login .login-feature-title {
-    color: #fff;
-    font-size: 14px;
-    line-height: 20px;
-    font-weight: 600;
+  .advisio-login .login-journey-toggle {
+    align-items: center;
+    gap: 5px;
+    min-height: 32px;
+    padding: 4px 8px;
+    border: 1px solid #adc7d333;
+    border-radius: 6px;
+    background: transparent;
+    color: #c4d4de;
+    font: inherit;
+    font-size: 10px;
+    letter-spacing: 0;
+    text-transform: none;
   }
-
-  .advisio-login .login-feature-description {
-    grid-column: 2;
-    color: #bdcdd8;
-    font-size: 13px;
+  .advisio-login .login-journey-toggle:hover {
+    border-color: #d9b66f80;
+    background: #d9b66f0d;
+    color: var(--login-gold);
+  }
+  .advisio-login .login-journey-map {
+    position: relative;
+    width: 100%;
+    max-width: 720px;
+    aspect-ratio: 3.2 / 1;
+    min-height: 220px;
+    margin: 8px 0 0;
+  }
+  .advisio-login .login-journey-path {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  .advisio-login .login-path-track {
+    stroke: #69879b55;
+    stroke-width: 1;
+  }
+  .advisio-login .login-path-progress {
+    stroke: var(--login-gold);
+    stroke-width: 1.3;
+    opacity: 0.85;
+  }
+  .advisio-login .login-milestones {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .advisio-login .login-milestone {
+    --login-node-fill: var(--login-gold);
+    --login-node-ink: #15364c;
+    --login-node-border: var(--login-gold);
+    --login-stage-label: var(--login-gold);
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 13px;
+    transform: translate(-50%, -22px);
+  }
+  .advisio-login .login-milestone-1 {
+    left: 8.5714%;
+    top: 72.8571%;
+  }
+  .advisio-login .login-milestone-2 {
+    left: 33.5714%;
+    top: 54.2857%;
+  }
+  .advisio-login .login-milestone-3 {
+    left: 58.5714%;
+    top: 21.4286%;
+  }
+  .advisio-login .login-milestone-4 {
+    left: 91.4286%;
+    top: 14.2857%;
+  }
+  .advisio-login .login-milestone-node {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--login-node-border);
+    border-radius: 50%;
+    background: var(--login-node-fill);
+    color: var(--login-node-ink);
+    box-shadow: 0 0 0 6px #0e3048;
+  }
+  .advisio-login .login-milestone-label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    align-items: center;
+    color: var(--login-stage-label);
+    font-size: 12px;
+    line-height: 18px;
+  }
+  .advisio-login .login-milestone-number {
+    color: #9fb8c9;
+    font-size: 9px;
+    line-height: 14px;
+    letter-spacing: 0.1em;
+    font-variant-numeric: tabular-nums;
+  }
+  .advisio-login .login-journey-note {
+    margin-top: 38px;
+    align-self: stretch;
+    text-align: right;
+    color: #a5becf;
+    font-size: 11px;
     line-height: 20px;
   }
-
   .advisio-login .login-story-footer {
     display: flex;
-    flex-wrap: wrap;
+    align-items: center;
     justify-content: space-between;
-    gap: 8px 16px;
-    border-top: 1px solid #ffffff20;
+    flex-wrap: wrap;
+    gap: 8px 12px;
     padding-top: 16px;
-    color: #b5c7d5;
-    font-size: 10px;
-    line-height: 16px;
+    border-top: 1px solid #adc7d322;
+    color: #a8bdcb;
+    font-size: 9px;
+    line-height: 18px;
   }
-
+  .advisio-login .login-story-footer > span:last-child {
+    letter-spacing: 0.1em;
+  }
   .advisio-login .login-mobile-brand {
     display: none;
   }
-
-  .advisio-login .login-form-logos {
-    display: flex;
-  }
-
   .advisio-login .login-form-panel {
-    padding: 48px 32px;
+    padding: 40px clamp(28px, 3vw, 56px);
+  }
+  .advisio-login .login-form-content {
+    max-width: 500px;
+  }
+  .advisio-login .login-welcome-description {
+    max-width: none;
   }
 }
-
+@media (min-width: 1380px) {
+  .advisio-login .login-story-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .advisio-login .login-university {
+    flex-direction: row;
+  }
+  .advisio-login .login-university > div {
+    text-align: right;
+  }
+}
+@media (min-width: 1024px) and (max-height: 850px) {
+  .advisio-login .login-story-content {
+    padding-block: 24px;
+  }
+  .advisio-login .login-story-description {
+    margin-top: 16px;
+  }
+  .advisio-login .login-journey {
+    margin-top: 20px;
+  }
+  .advisio-login .login-journey-map {
+    margin-top: 8px;
+  }
+  .advisio-login .login-journey-note {
+    margin-top: 40px;
+  }
+}
 @media (max-width: 599px) {
   .advisio-login .login-form-panel {
     align-items: flex-start;
-    padding: 24px;
+    padding: 28px 24px 20px;
   }
-
+  .advisio-login .login-mobile-brand {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+  }
   .advisio-login .login-form-heading {
-    margin-bottom: 24px;
+    margin-bottom: 42px;
   }
-
   .advisio-login .login-welcome {
-    font-size: 30px;
-    line-height: 40px;
+    font-size: 31px;
+  }
+  .advisio-login .login-welcome-description {
+    font-size: 13px;
+    line-height: 22px;
+  }
+  .advisio-login .login-access-note {
+    margin-top: 20px;
+    padding-top: 20px;
   }
 }
-
-@media (max-width: 359px) {
+@media (max-width: 374px) {
   .advisio-login .login-form-panel {
     padding-inline: 20px;
   }
-
-  .advisio-login .login-remember {
-    align-items: flex-start;
-    line-height: 20px;
-  }
-
-  .advisio-login .login-checkbox {
-    margin-top: 2px;
-  }
-
-  .advisio-login .login-public-links nav {
-    gap: 8px 16px;
+  .advisio-login .login-form {
+    gap: 20px;
   }
 }
-
+/* Entrance motion stays finite; the pausable journey shares one synchronized cycle. */
 @media (prefers-reduced-motion: no-preference) {
-  /* Reuse the existing fadeInUp utility's gentle 6px entrance. */
-  .advisio-login .login-story-content {
-    animation: fadeInUp 500ms ease both;
-  }
-
   .advisio-login .login-form-content {
-    animation: fadeInUp 500ms ease 80ms both;
+    animation: login-enter 350ms ease-out both;
   }
-
-  .advisio-login #login-feedback,
-  .advisio-login .login-google-error {
-    animation: fadeInUp 200ms ease both;
+  .advisio-login .login-story-copy {
+    animation: login-enter 400ms ease-out both;
+  }
+  .advisio-login .login-path-progress {
+    stroke-dasharray: 1;
+    animation: login-path-cycle var(--login-journey-duration) linear infinite
+      both;
+  }
+  .advisio-login .login-journey-toggle {
+    display: inline-flex;
+  }
+  .advisio-login .login-milestone {
+    animation: login-proposal-pass var(--login-journey-duration) linear infinite
+      both;
+  }
+  .advisio-login .login-milestone-2 {
+    animation-name: login-advising-pass;
+  }
+  .advisio-login .login-milestone-3 {
+    animation-name: login-review-pass;
+  }
+  .advisio-login .login-milestone-4 {
+    animation-name: login-defense-pass;
+  }
+  .advisio-login
+    .login-journey[data-paused]
+    :is(.login-path-progress, .login-milestone) {
+    animation-play-state: paused;
+  }
+  .advisio-login #login-feedback {
+    animation: login-enter 180ms ease-out both;
+  }
+  @keyframes login-enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes login-path-cycle {
+    0%,
+    8% {
+      stroke-dashoffset: 1;
+      opacity: 0.85;
+    }
+    72%,
+    90% {
+      stroke-dashoffset: 0;
+      opacity: 0.85;
+    }
+    96%,
+    100% {
+      stroke-dashoffset: 0;
+      opacity: 0;
+    }
+  }
+  @keyframes login-proposal-pass {
+    0%,
+    7%,
+    96%,
+    100% {
+      --login-node-fill: #153b53;
+      --login-node-ink: #b5c9d8;
+      --login-node-border: #69879b;
+      --login-stage-label: #dfebf1;
+    }
+    10%,
+    95.9% {
+      --login-node-fill: var(--login-gold);
+      --login-node-ink: #15364c;
+      --login-node-border: var(--login-gold);
+      --login-stage-label: var(--login-gold);
+    }
+  }
+  @keyframes login-advising-pass {
+    0%,
+    27%,
+    96%,
+    100% {
+      --login-node-fill: #153b53;
+      --login-node-ink: #b5c9d8;
+      --login-node-border: #69879b;
+      --login-stage-label: #dfebf1;
+    }
+    30%,
+    95.9% {
+      --login-node-fill: var(--login-gold);
+      --login-node-ink: #15364c;
+      --login-node-border: var(--login-gold);
+      --login-stage-label: var(--login-gold);
+    }
+  }
+  @keyframes login-review-pass {
+    0%,
+    48%,
+    96%,
+    100% {
+      --login-node-fill: #153b53;
+      --login-node-ink: #b5c9d8;
+      --login-node-border: #69879b;
+      --login-stage-label: #dfebf1;
+    }
+    51%,
+    95.9% {
+      --login-node-fill: var(--login-gold);
+      --login-node-ink: #15364c;
+      --login-node-border: var(--login-gold);
+      --login-stage-label: var(--login-gold);
+    }
+  }
+  @keyframes login-defense-pass {
+    0%,
+    70%,
+    96%,
+    100% {
+      --login-node-fill: #153b53;
+      --login-node-ink: #b5c9d8;
+      --login-node-border: #69879b;
+      --login-stage-label: #dfebf1;
+    }
+    73%,
+    95.9% {
+      --login-node-fill: var(--login-gold);
+      --login-node-ink: #15364c;
+      --login-node-border: var(--login-gold);
+      --login-stage-label: var(--login-gold);
+    }
   }
 }
-
 @media (prefers-reduced-motion: reduce) {
   .advisio-login *,
   .advisio-login *::before,
@@ -758,7 +917,7 @@
     animation: none !important;
     transition: none !important;
   }
-
+  .advisio-login .login-submit:hover,
   .advisio-login .login-submit:hover .login-submit-arrow {
     transform: none;
   }
