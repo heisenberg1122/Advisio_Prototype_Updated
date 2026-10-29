@@ -1,0 +1,37 @@
+/* Keep the college atmosphere on Overview and the navigation chrome. Research
+   workspaces use the same neutral content surfaces as Researcher Documents.
+   Accent, focus, navigation and semantic status tokens remain inherited. */
+.researcher-shell .app-workspace:not(:has(.research-command-center)) {
+  --color-background: var(--color-white);
+  --color-surface: var(--color-white);
+  --color-surface-subtle: var(--color-slate-50);
+  --color-surface-muted: var(--color-slate-100);
+  --color-border: var(--color-slate-200);
+  --color-border-subtle: var(--color-slate-100);
+  --color-border-strong: var(--color-slate-300);
+
+  /* Resolve legacy aliases here so they follow these local surface tokens. */
+  --background: var(--color-background);
+  --surface: var(--color-surface);
+  --surface-secondary: var(--color-surface-muted);
+  --border: var(--color-border);
+  --border-color: var(--color-border);
+  --color-border-tertiary: var(--color-border-subtle);
+  --color-bg-primary: var(--color-surface);
+  --color-bg-secondary: var(--color-surface-muted);
+  --color-bg-tertiary: var(--color-background);
+  --color-border-t: var(--color-border-subtle);
+  --color-border-s: var(--color-border);
+
+  background: var(--color-background) !important;
+}
+
+.dark .researcher-shell .app-workspace:not(:has(.research-command-center)) {
+  --color-background: var(--color-slate-900);
+  --color-surface: var(--color-slate-900);
+  --color-surface-subtle: var(--color-slate-800);
+  --color-surface-muted: var(--color-slate-800);
+  --color-border: var(--color-slate-700);
+  --color-border-subtle: var(--color-slate-800);
+  --color-border-strong: var(--color-slate-600);
+}

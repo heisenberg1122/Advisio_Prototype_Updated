@@ -1,0 +1,208 @@
+/* Only the Researcher Task Details workspace owns these presentation rules. */
+.app-workspace:has(.td-academic-workspace) { background: var(--color-background) !important; }
+.td-academic-workspace {
+  --td-secondary: color-mix(in srgb, var(--color-text-primary) 76%, var(--color-surface));
+  --td-action-text: color-mix(in srgb, var(--color-primary) 80%, var(--color-text-primary));
+  --td-line: color-mix(in srgb, var(--color-text-primary) 16%, var(--color-surface));
+  width: calc(100% - clamp(32px, 4vw, 64px));
+  max-width: 1360px;
+  margin-inline: auto;
+  padding-block: 32px;
+  min-width: 0;
+  color: var(--color-text-primary);
+}
+.td-academic-workspace :where(p, h1, h2, h3, dd, span) { overflow-wrap: anywhere; }
+.td-academic-workspace :where(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+.td-academic-workspace > a { min-height: 44px; align-items: center; color: var(--td-action-text); }
+.td-academic-workspace .td-header {
+  margin-top: 8px;
+  padding-block: 0 20px;
+  border-bottom: 1px solid var(--td-line);
+}
+.td-academic-workspace .td-header nav { color: var(--td-secondary); font-size: 0.8125rem; line-height: 1.5; }
+.td-academic-workspace .td-header nav a { color: var(--td-action-text); }
+.td-academic-workspace .td-header > div { align-items: flex-start; gap: 16px; margin-top: 12px; }
+.td-academic-workspace .td-header h1 {
+  margin-top: 8px;
+  font-size: clamp(1.5rem, 2vw, 2rem);
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.td-academic-workspace .td-header > div > div > p:first-child {
+  color: var(--td-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  text-transform: none;
+}
+.td-academic-workspace .td-header > div > div > p:last-child { color: var(--td-secondary); font-size: 0.9375rem; line-height: 1.5; }
+.td-academic-workspace .td-header > div > span { flex-shrink: 0; margin-top: 0; max-width: 100%; }
+@media (min-width: 640px) {
+  .td-academic-workspace .td-header > div { align-items: center; }
+}
+.app-workspace .td-academic-workspace .td-header > div > span { color: var(--color-text-primary) !important; }
+.td-academic-workspace .td-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 8fr) minmax(280px, 4fr);
+  align-items: start;
+  gap: 32px;
+  margin-top: 24px;
+}
+.td-academic-workspace .td-document {
+  min-width: 0;
+  padding: 32px;
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+.td-academic-workspace .td-document > section {
+  margin: 0;
+  padding: 24px 0;
+  border: 0;
+  border-top: 1px solid var(--td-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.td-academic-workspace .td-document > section:first-child { padding-top: 0; border-top: 0; }
+.td-academic-workspace .td-document > section:last-child { padding-bottom: 0; }
+.td-academic-workspace :is(.td-document, .td-context) h2 {
+  font-size: 1.125rem;
+  font-weight: 650;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+}
+.td-academic-workspace .td-document h3 { font-size: 0.9375rem; font-weight: 600; letter-spacing: 0; text-transform: none; line-height: 1.5; }
+.td-academic-workspace .td-document p { font-size: 0.9375rem; line-height: 1.65; }
+.td-academic-workspace .td-instructions > p { border: 0; padding-top: 0; margin-top: 12px; }
+.td-academic-workspace .td-requirements {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 0;
+  margin-top: 20px;
+  color: var(--td-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.app-workspace .td-academic-workspace .td-requirements > span {
+  padding: 0 12px;
+  border: 0;
+  border-left: 1px solid var(--td-line);
+  border-radius: 0;
+  background: transparent !important;
+  color: var(--td-secondary) !important;
+  font-size: inherit;
+  font-weight: 500;
+}
+.td-academic-workspace .td-requirements > span:first-child { padding-left: 0; border-left: 0; }
+.td-academic-workspace .td-requirements > span > span { white-space: normal; overflow: visible; }
+.td-academic-workspace .td-action-area { margin: 0 0 24px; }
+.td-academic-workspace .td-action-area > section {
+  padding: 24px;
+  border: 1px solid var(--td-line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface) 80%, var(--color-surface-subtle));
+  box-shadow: none;
+}
+.td-academic-workspace .td-action-area > section > div > button {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 20px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+  background: var(--color-surface);
+  transition: border-color 180ms ease, background-color 180ms ease;
+}
+.td-academic-workspace .td-action-area > section > div > button:hover:not(:disabled) { border-color: var(--color-primary); background: var(--color-primary-light); }
+.td-academic-workspace .td-action-area > section > div > button:disabled { opacity: 1; cursor: not-allowed; border-color: var(--td-line); background: var(--color-surface-subtle); }
+.td-academic-workspace .td-action-area > section > div > button:disabled > :is(i, span) { color: var(--td-secondary); }
+.td-academic-workspace .td-action-area > section > div > button > i { font-size: 1.25rem; }
+.td-academic-workspace .td-action-area > section > div > button > span:first-of-type { margin-top: 12px; font-size: 0.9375rem; font-weight: 600; }
+.td-academic-workspace .td-action-area > section > div > button > span:last-child { line-height: 1.6; font-size: 0.875rem; }
+.td-academic-workspace .td-action-area :is(a, button):not([type="radio"]) { min-height: 44px; }
+.td-academic-workspace .td-action-area a { color: var(--td-action-text); line-height: 1.5; }
+.td-academic-workspace .td-action-area fieldset > label { background: var(--color-surface); border-color: var(--td-line); min-width: 0; }
+.td-academic-workspace .td-action-area fieldset > label:has(input:checked) { background: var(--color-primary-light); border-color: var(--color-primary); }
+.td-academic-workspace .td-action-area fieldset > label:hover { border-color: var(--color-primary); }
+.td-academic-workspace .td-action-area fieldset > label:focus-within { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.td-academic-workspace .td-action-area fieldset input { flex-shrink: 0; }
+.td-academic-workspace .td-action-area label:has(> input[type="file"]) { padding: 24px 16px; background: var(--color-surface); border-width: 1px; }
+.td-academic-workspace .td-action-area :is(input:not([type="radio"]), select, textarea) { border-color: var(--color-border-strong); }
+.td-academic-workspace .td-action-area .task-submission-review { min-height: 48px; }
+.td-academic-workspace .td-document > section ol { margin-top: 16px; }
+.td-academic-workspace .td-document > section ol > li,
+.td-academic-workspace .td-document > section article {
+  padding: 16px 0;
+  border: 0;
+  border-bottom: 1px solid var(--td-line);
+  border-radius: 0;
+  background: transparent;
+}
+.td-academic-workspace .td-document > section ol > li:last-child,
+.td-academic-workspace .td-document > section article:last-child { border-bottom: 0; padding-bottom: 0; }
+.td-academic-workspace .td-document > section > div:has(> button:first-child) { border: 0; border-radius: 0; }
+.td-academic-workspace .td-document > section > div > button > span:has(> i) { background: transparent; border-radius: 0; width: 24px; height: 24px; }
+.td-academic-workspace .td-document > section > div > button .truncate { white-space: normal; overflow: visible; }
+.td-academic-workspace .td-document > section > div:has(> h3) { border-color: var(--td-line); }
+.td-academic-workspace .td-document > section > div > h3 { color: var(--color-text-primary); }
+.td-academic-workspace .td-context {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid var(--td-line);
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+.td-academic-workspace .td-context > section {
+  margin: 0;
+  padding: 24px 0;
+  border: 0;
+  border-top: 1px solid var(--td-line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.td-academic-workspace .td-context > section:first-child { padding-top: 0; border-top: 0; }
+.td-academic-workspace .td-context > section:last-child { padding-bottom: 0; }
+.td-academic-workspace .td-context dl { margin-top: 16px; }
+.td-academic-workspace .td-context dl > div { border: 0; padding-block: 8px; }
+.td-academic-workspace .td-context dt { color: var(--td-secondary); font-size: 0.75rem; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.td-academic-workspace .td-context dd { margin-top: 4px; font-size: 0.875rem; font-weight: 550; line-height: 1.5; }
+.td-academic-workspace .td-context p { font-size: 0.875rem; line-height: 1.6; }
+.td-academic-workspace .td-context > section:last-child > p:first-of-type { margin-top: 12px; color: var(--color-text-primary); }
+.td-academic-workspace .td-context li { align-items: flex-start; gap: 8px; padding-block: 4px; }
+.td-academic-workspace .td-context li .truncate { white-space: normal; overflow: visible; line-height: 1.5; }
+.td-academic-workspace .td-context li > span.ml-auto { font-size: 0.75rem; line-height: 1.75; }
+.td-academic-workspace .td-context [role="progressbar"] { height: 8px; border: 1px solid var(--color-border-strong); }
+.td-academic-workspace .td-context [role="progressbar"] + p { font-variant-numeric: tabular-nums; }
+.td-academic-workspace :is(.td-document, .td-context) [class*="text-[var(--color-text-secondary)]"] { color: var(--td-secondary); }
+.app-workspace .td-academic-workspace :is(.td-document, .td-context) :is(p, span)[class*="text-slate"] { color: var(--td-secondary) !important; }
+@media (max-width: 1199px) {
+  .td-academic-workspace .td-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .td-academic-workspace .td-context { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+  .td-academic-workspace .td-context > section { padding: 0; border: 0; }
+  .td-academic-workspace .td-context > section + section { padding-left: 24px; border-left: 1px solid var(--td-line); }
+}
+@media (max-width: 767px) {
+  .td-academic-workspace { padding-block: 20px; }
+  .td-academic-workspace .td-header { padding-bottom: 20px; }
+  .td-academic-workspace .td-header > div { gap: 12px; }
+  .td-academic-workspace .td-document { padding: 24px; }
+  .td-academic-workspace .td-action-area > section { padding: 20px; }
+  .td-academic-workspace .td-context { display: block; padding: 24px; }
+  .td-academic-workspace .td-context > section + section { padding: 24px 0 0; margin-top: 24px; border-left: 0; border-top: 1px solid var(--td-line); }
+}
+@media (max-width: 479px) {
+  .td-academic-workspace .td-document { padding: 20px; }
+  .td-academic-workspace .td-action-area > section { padding: 16px; }
+  .td-academic-workspace .td-header h1 { font-size: 1.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .td-academic-workspace :is(button, a, input, textarea) { transition: none; }
+}

@@ -156,6 +156,7 @@
   font-size: 1.125rem;
 }
 .rcc-project {
+  border-width: 3px;
   padding: 24px var(--rcc-gutter) 0;
   box-shadow: var(--shadow-card);
   overflow: hidden;
@@ -439,6 +440,7 @@
 }
 .rcc-defense--success {
   --rcc-result-color: var(--color-success);
+  border-color: var(--rcc-result-color);
 }
 .rcc-defense--warning {
   --rcc-result-color: var(--color-warning);

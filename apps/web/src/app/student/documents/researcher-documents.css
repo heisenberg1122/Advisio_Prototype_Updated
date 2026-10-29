@@ -1,0 +1,355 @@
+/* All overrides are scoped to Researcher Documents; shared components and chrome
+   retain their original styling for every other role. */
+.researcher-documents {
+  --color-surface: var(--color-white);
+  --color-surface-subtle: var(--color-slate-50);
+  --color-surface-muted: var(--color-slate-100);
+  --color-border: var(--color-slate-200);
+  --color-border-subtle: var(--color-slate-100);
+  width: calc(100% - clamp(32px, 4vw, 64px));
+  max-width: 1360px;
+  margin-inline: auto;
+  padding: 24px 0 32px;
+  gap: 16px;
+  min-width: 0;
+  color: var(--color-text-primary);
+}
+.dark .researcher-documents {
+  --color-surface: var(--color-slate-900);
+  --color-surface-subtle: var(--color-slate-800);
+  --color-surface-muted: var(--color-slate-800);
+  --color-border: var(--color-slate-700);
+  --color-border-subtle: var(--color-slate-800);
+}
+.researcher-documents [hidden] {
+  display: none !important;
+}
+.researcher-documents :is(button, a, input, select):focus-visible {
+  outline: 2px solid var(--college-focus-ring);
+  outline-offset: 3px;
+}
+.researcher-documents #researcher-library-title:focus {
+  outline: none;
+}
+.researcher-documents #researcher-library-title h1 {
+  font-size: 26px;
+}
+.researcher-documents > div:has(> #research-project),
+.researcher-documents > div:has(#research-project) {
+  border-left: 0;
+  padding-left: 0;
+}
+.researcher-documents .rd-categories [role="tab"] {
+  min-height: 44px;
+}
+.researcher-documents
+  .rd-categories
+  [role="tab"]
+  > span:last-child:not(:first-child) {
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.researcher-documents .rd-categories > .flex {
+  gap: 8px;
+}
+.researcher-documents .rd-category-content > div {
+  padding-inline: 0;
+}
+.researcher-documents
+  .rd-category-content
+  [class*="bg-[var(--color-primary-light)]"] {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+}
+.researcher-documents button[id^="researcher-milestone-"] {
+  min-height: 44px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.rd-file-workspace {
+  min-width: 0;
+}
+.rd-library {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.rd-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 160px) minmax(
+      150px,
+      180px
+    );
+  gap: 8px;
+}
+.rd-filters > label {
+  min-width: 0;
+  grid-column: auto;
+}
+.rd-filters :is(input, select) {
+  min-height: 40px;
+}
+.rd-columns,
+.rd-file-row {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 2.5fr) minmax(72px, 0.6fr) minmax(0, 1.2fr)
+    minmax(110px, 0.85fr) 88px;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+}
+.rd-columns {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+.rd-file-item + .rd-file-item {
+  border-top: 1px solid var(--color-border);
+}
+.rd-file-row {
+  width: 100%;
+  min-width: 0;
+  min-height: 72px;
+  text-align: left;
+  cursor: pointer;
+  background: var(--color-surface);
+}
+.rd-file-row:hover,
+.rd-file-row[aria-current="true"] {
+  background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
+}
+.rd-file-row[aria-current="true"] {
+  box-shadow: inset 3px 0 var(--color-primary);
+}
+.rd-file-row:hover .rd-file-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.researcher-documents .rd-file-row:focus-visible {
+  outline-offset: -3px;
+}
+.rd-file-name {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.55;
+  font-weight: 600;
+}
+.rd-type,
+.rd-milestone,
+.rd-modified {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+.rd-mobile-label {
+  display: none;
+}
+.rd-file-subtitle {
+  display: block;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.researcher-documents .rd-file-row .rounded-full {
+  max-width: 100%;
+  border-color: transparent;
+}
+.researcher-documents .rd-file-row .rounded-full > span {
+  white-space: normal;
+  overflow: visible;
+}
+.rd-empty {
+  margin: 24px 0;
+  min-height: 240px;
+}
+.rd-viewer {
+  min-width: 0;
+  background: var(--color-surface);
+}
+.rd-viewer-header {
+  padding-bottom: 12px;
+}
+.rd-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+.rd-back:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.rd-context {
+  margin: 8px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+.rd-title-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.rd-title-copy {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.rd-document-title,
+.rd-title-measure {
+  font-size: clamp(21px, 2vw, 26px);
+  line-height: 1.35;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.rd-title-measure {
+  position: absolute;
+  inset: 0 0 auto;
+  visibility: hidden;
+  pointer-events: none;
+}
+.rd-document-title--wrapped {
+  font-size: clamp(20px, 2vw, 24px);
+}
+.rd-document-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 8px;
+}
+.rd-document-title:focus {
+  outline: none;
+}
+.rd-document-title:focus-visible {
+  outline: 2px solid var(--college-focus-ring);
+  outline-offset: 4px;
+}
+.rd-file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.rd-file-actions :is(button, a) {
+  min-height: 40px;
+}
+.rd-file-actions button[aria-label="Edit details"] {
+  min-width: 40px;
+}
+.researcher-documents .rd-viewer [role="tablist"] {
+  margin-inline: 0;
+}
+.researcher-documents .rd-viewer [role="tab"] {
+  min-height: 44px;
+}
+.researcher-documents .rd-viewer > div > [role="tabpanel"] {
+  padding-inline: 0;
+}
+.researcher-documents .rd-viewer select {
+  min-height: 40px;
+  white-space: normal;
+  max-width: 100%;
+}
+.rd-preview-frame {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+.rd-preview-frame > div > div > canvas {
+  max-width: none;
+}
+.rd-viewer [role="tabpanel"] :is(p, h2, h3) {
+  overflow-wrap: anywhere;
+}
+.rd-selection-error {
+  padding: 16px 0;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+@media (max-width: 1099px) {
+  .rd-columns,
+  .rd-file-row {
+    grid-template-columns:
+      minmax(0, 2fr) 64px minmax(0, 1fr) minmax(104px, 0.7fr)
+      72px;
+    gap: 12px;
+  }
+}
+@media (max-width: 767px) {
+  .researcher-documents {
+    padding-top: 16px;
+  }
+  .rd-columns {
+    display: none;
+  }
+  .rd-filters {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .rd-filters > label:first-child {
+    grid-column: 1 / -1;
+  }
+  .rd-file-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 16px;
+    padding: 16px;
+  }
+  .rd-file-row > span:first-child {
+    grid-column: 1 / -1;
+  }
+  .rd-file-row > span:first-child > span {
+    min-width: 0;
+  }
+  .rd-file-row .rd-type {
+    grid-column: 1;
+  }
+  .rd-file-row .rd-milestone {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+  .rd-file-row > span:has(.rounded-full) {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .rd-modified {
+    grid-column: 1 / -1;
+  }
+  .rd-modified::before {
+    content: "Modified: ";
+  }
+  .rd-mobile-label {
+    display: inline;
+  }
+  .rd-title-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .rd-file-actions {
+    justify-content: flex-start;
+  }
+  .rd-preview-frame [role="toolbar"] button {
+    min-height: 32px;
+  }
+}
