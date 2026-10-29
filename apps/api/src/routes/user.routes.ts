@@ -1,5 +1,5 @@
 import { changeAccountStatus } from "../services/account-status.service.js";
-import { previewUserDeletion, permanentlyDeleteUser } from "../services/user-deletion.service.js";
+import { previewUserDeletion } from "../services/user-deletion.service.js";
 import { Router, Request, Response, NextFunction } from "express";
 import { prisma, InstitutionalRole, AuditAction } from "../lib/prisma.js";
 import { Permissions } from "@research-management/auth";
@@ -199,6 +199,19 @@ router.get("/meta/roles", requireAuth, requirePermission(Permissions.ROLE_MANAGE
     res.status(500).json({ error: error.message || "Failed to fetch roles" });
   }
 });
+
+// Archiving is restricted to system administrators.
+const requireSystemAdmin = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  if (!req.user?.roles.includes("SYSTEM_ADMIN")) {
+    res.status(403).json({ error: "System administrator access is required" });
+    return;
+  }
+  next();
+};
 
 // GET /api/users/:id
 router.get("/:id", requireAuth, requirePermission(Permissions.USER_MANAGE), async (req: Request, res: Response) => {
@@ -427,43 +440,48 @@ router.get(
   },
 );
 
-// Permanent deletion requires both the exact phrase and a current impact preview.
+// Older clients must not be able to permanently delete account data.
 router.delete(
   "/:id",
   requireAuth,
   requirePermission(Permissions.USER_MANAGE),
   requirePermission(Permissions.ROLE_MANAGE),
-  async (req: Request, res: Response) => {
+  requireSystemAdmin,
+  (_req, res) => {
+    res
+      .status(410)
+      .json({
+        error:
+          "Permanent user deletion is no longer available. Archive the account to preserve its records and files.",
+      });
+  },
+);
+
+router.post(
+  "/:id/archive",
+  requireAuth,
+  requirePermission(Permissions.USER_MANAGE),
+  requirePermission(Permissions.ROLE_MANAGE),
+  requireSystemAdmin,
+  async (req, res) => {
     try {
-      res.json(
-        await permanentlyDeleteUser({
-          actor: req.user!,
-          userId: String(req.params.id),
-          confirmation: req.body.confirmation,
-          previewToken: req.body.previewToken,
-          deleteAllData: req.body.deleteAllData,
-          ipAddress: req.ip,
-          userAgent: req.get("user-agent"),
-        }),
-      );
+      const user = await changeAccountStatus({
+        actor: req.user!,
+        userId: String(req.params.id),
+        status: "INACTIVE",
+        verificationNote: req.body.reason,
+        ipAddress: req.ip,
+        userAgent: req.get("user-agent"),
+      });
+      res.json({
+        message: "User archived. All records and files are preserved.",
+        user,
+      });
     } catch (error: any) {
-      if (error.code === "P2003") {
-        res
-          .status(409)
-          .json({
-            error:
-              "Linked records changed or could not be removed. No data was deleted. Reload the deletion preview and try again.",
-          });
-        return;
-      }
       res
         .status(error.statusCode || (error.code === "P2034" ? 409 : 500))
         .json({
-          error: error.statusCode
-            ? error.message
-            : error.code === "P2034"
-              ? "Records changed during deletion. Reload the preview and try again. No data was deleted."
-              : "Failed to delete user. No data was deleted.",
+          error: error.statusCode ? error.message : "Could not archive user.",
         });
     }
   },
