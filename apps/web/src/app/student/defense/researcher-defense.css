@@ -3,6 +3,9 @@
 .researcher-defense {
   --rdf-surface: var(--color-white, #fff);
   --rdf-line: var(--color-slate-200, #e2e8f0);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
   width: calc(100% - clamp(32px, 4vw, 64px));
   max-width: 1360px;
   min-width: 0;
@@ -13,7 +16,7 @@
   line-height: 1.6;
 }
 .dark .researcher-defense {
-  --rdf-surface: var(--color-background);
+  --rdf-surface: var(--color-surface);
   --rdf-line: var(--color-border);
 }
 .researcher-defense :is(h1, h2, h3, p):not([role="dialog"] *) {
@@ -49,10 +52,13 @@
 }
 .researcher-defense .rdf-header {
   display: flex;
-  align-items: start;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding-bottom: 24px;
+  padding: 24px;
+  border: 1px solid var(--rdf-line);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card-soft);
 }
 .researcher-defense .rdf-identity {
   min-width: 0;
@@ -191,8 +197,8 @@
 }
 .researcher-defense .rdf-result {
   padding: 24px;
-  border-block: 1px solid var(--rdf-line);
-  border-inline-start: 3px solid var(--rdf-line);
+  border: 1px solid var(--rdf-line);
+  border-radius: 16px;
   background: var(--rdf-surface);
 }
 .researcher-defense
@@ -200,17 +206,25 @@
     [data-decision="APPROVED"],
     [data-decision="APPROVED_WITH_MINOR_REVISIONS"]
   ) {
-  border-inline-start-color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 40%, var(--rdf-line));
+  background: var(--color-success-light);
 }
 .researcher-defense
   .rdf-result:is(
     [data-decision="MAJOR_REVISIONS_REQUIRED"],
     [data-decision="REDEFENSE_REQUIRED"]
   ) {
-  border-inline-start-color: var(--color-warning);
+  border-color: color-mix(in srgb, var(--color-warning) 40%, var(--rdf-line));
+  background: var(--color-warning-light);
 }
 .researcher-defense .rdf-result[data-decision="REJECTED"] {
-  border-inline-start-color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 40%, var(--rdf-line));
+  background: var(--color-danger-light);
+}
+.researcher-defense
+  .rdf-result[data-decision]
+  :is(.rdf-secondary, .rdf-caption, .rdf-eyebrow) {
+  color: var(--color-text-primary);
 }
 .researcher-defense .rdf-result .rdf-eyebrow {
   margin-top: 16px;
@@ -245,8 +259,10 @@
 }
 .researcher-defense .rdf-section {
   min-width: 0;
-  padding-block: 32px;
-  border-bottom: 1px solid var(--rdf-line);
+  padding: 24px;
+  border: 1px solid var(--rdf-line);
+  border-radius: 16px;
+  background: var(--rdf-surface);
 }
 .researcher-defense .rdf-section-heading {
   display: flex;
@@ -525,6 +541,7 @@
 @media (max-width: 1023px) {
   .researcher-defense .rdf-header {
     flex-direction: column;
+    align-items: stretch;
   }
   .researcher-defense .rdf-header-actions {
     justify-content: start;
@@ -544,8 +561,8 @@
   .researcher-defense .rdf-decision {
     font-size: 22px;
   }
-  .researcher-defense .rdf-section {
-    padding-block: 24px;
+  .researcher-defense :is(.rdf-header, .rdf-section) {
+    padding: 16px;
   }
   .researcher-defense .rdf-identifiers {
     flex-direction: column;

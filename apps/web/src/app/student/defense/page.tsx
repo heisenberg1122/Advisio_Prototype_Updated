@@ -153,7 +153,7 @@ export default function DefensePage() {
 
   return (
     <div className="researcher-defense">
-      <header className="rdf-header">
+      <header className="college-hero-surface rdf-header">
         <div className="rdf-identity">
           <p className="rdf-eyebrow">Research defense</p>
           <div className="rdf-title-row">
