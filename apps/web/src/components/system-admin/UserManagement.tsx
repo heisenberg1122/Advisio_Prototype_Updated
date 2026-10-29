@@ -1,11 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
-import {
-  AccountActionDetails,
-  type DeletionPreview,
-} from "./AccountActionDetails";
+import { AccountActionDetails } from "./AccountActionDetails";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Button } from "@/components/ui/Button";
@@ -56,7 +53,7 @@ const statusTone: Record<User["status"], string> = {
 };
 
 type Dialog = {
-  type: "approve" | "roles" | "college" | "suspend" | "delete";
+  type: "approve" | "roles" | "college" | "suspend" | "archive";
   user: User;
 } | null;
 
@@ -80,9 +77,10 @@ export function UserManagement({
   const [verificationConfirmed, setVerificationConfirmed] = useState(false);
   const [verificationNote, setVerificationNote] = useState("");
   const [collegeReason, setCollegeReason] = useState("");
-  const [deletePhrase, setDeletePhrase] = useState("");
   const [suspensionReason, setSuspensionReason] = useState("");
-  const [deleteAcknowledged, setDeleteAcknowledged] = useState(false);
+  const [archivedView, setArchivedView] = useState(
+    initialStatus === "INACTIVE",
+  );
   const [working, setWorking] = useState(false);
   const [feedback, setFeedback] = useState<{
     tone: "success" | "error";
@@ -105,23 +103,6 @@ export function UserManagement({
       ),
   });
 
-  const deletionPreviewQuery = useQuery({
-    queryKey: ["user-deletion-preview", dialog?.user.id],
-    queryFn: () =>
-      apiClient.get<{ preview: DeletionPreview }>(
-        `/api/users/${dialog!.user.id}/deletion-preview`,
-      ),
-    enabled: dialog?.type === "delete",
-    retry: false,
-    staleTime: 0,
-    refetchOnMount: "always",
-  });
-  const deletionPreview = deletionPreviewQuery.data?.preview;
-  useEffect(() => {
-    setDeleteAcknowledged(false);
-    setDeletePhrase("");
-  }, [deletionPreview?.token]);
-
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase();
     return (usersQuery.data?.users || []).filter((user) => {
@@ -142,9 +123,17 @@ export function UserManagement({
         roleFilter === "ALL" || roleNames.includes(roleFilter as RoleName);
       const matchesStatus =
         statusFilter === "ALL" || user.status === statusFilter;
-      return matchesSearch && matchesRole && matchesStatus;
+      const matchesView = archivedView
+        ? user.status === "INACTIVE"
+        : user.status !== "INACTIVE";
+      return (
+        matchesView &&
+        matchesSearch &&
+        matchesRole &&
+        (archivedView || matchesStatus)
+      );
     });
-  }, [usersQuery.data, search, roleFilter, statusFilter]);
+  }, [usersQuery.data, search, roleFilter, statusFilter, archivedView]);
 
   const openDialog = (type: NonNullable<Dialog>["type"], user: User) => {
     setDialog({ type, user });
@@ -153,8 +142,6 @@ export function UserManagement({
     setVerificationConfirmed(false);
     setVerificationNote("");
     setCollegeReason("");
-    setDeletePhrase("");
-    setDeleteAcknowledged(false);
     setSuspensionReason("");
     setFeedback(null);
   };
@@ -182,7 +169,7 @@ export function UserManagement({
       setDialog(null);
       setFeedback({
         tone: "success",
-        message: `${dialog.user.universityId} was verified and approved.`,
+        message: `${dialog.user.universityId} was verified and ${dialog.user.status === "INACTIVE" || dialog.user.status === "SUSPENDED" ? "restored" : "approved"}.`,
       });
     } catch (error) {
       setFeedback({
@@ -273,37 +260,25 @@ export function UserManagement({
     }
   };
 
-  const handleDelete = async () => {
-    if (
-      !dialog ||
-      !deletionPreview ||
-      !deleteAcknowledged ||
-      deletionPreviewQuery.isFetching ||
-      working
-    )
-      return;
+  const handleArchive = async () => {
+    if (!dialog || suspensionReason.trim().length < 10 || working) return;
     setWorking(true);
+    setFeedback(null);
     try {
-      const result = await apiClient.delete<{
-        deletedRecords: number;
-        fileCleanupQueued: number;
-      }>(`/api/users/${dialog.user.id}`, {
-        body: JSON.stringify({
-          confirmation: deletePhrase,
-          previewToken: deletionPreview.token,
-          deleteAllData: true,
-        }),
+      await apiClient.post(`/api/users/${dialog.user.id}/archive`, {
+        reason: suspensionReason.trim(),
       });
       await refresh();
       setDialog(null);
       setFeedback({
         tone: "success",
-        message: `${dialog.user.universityId} and ${result.deletedRecords} records were permanently deleted.${result.fileCleanupQueued ? ` ${result.fileCleanupQueued} stored files are queued for cleanup; storage failures retry automatically.` : ""}`,
+        message: `${dialog.user.universityId} was archived. Access is blocked; all records and files are preserved. Find the account in Archived users.`,
       });
     } catch (error) {
       setFeedback({
         tone: "error",
-        message: error instanceof ApiError ? error.message : "Deletion failed.",
+        message:
+          error instanceof ApiError ? error.message : "Archiving failed.",
       });
     } finally {
       setWorking(false);
@@ -330,7 +305,8 @@ export function UserManagement({
               </h2>
               <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                 Verify accounts, assign multiple institutional roles, suspend
-                access, and manage every user category.
+                access, and archive accounts while preserving their records and
+                files.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -356,7 +332,8 @@ export function UserManagement({
               </select>
               <select
                 aria-label="Filter by account status"
-                value={statusFilter}
+                disabled={archivedView}
+                value={archivedView ? "INACTIVE" : statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value)}
                 className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white px-3 py-2 text-base"
               >
@@ -364,11 +341,41 @@ export function UserManagement({
                 <option value="PENDING">Pending verification</option>
                 <option value="ACTIVE">Active</option>
                 <option value="SUSPENDED">Suspended</option>
-                <option value="INACTIVE">Inactive</option>
+                {archivedView && <option value="INACTIVE">Archived</option>}
               </select>
             </div>
           </div>
         </div>
+
+        <div
+          className="flex gap-2 border-b border-slate-100 p-5 dark:border-white/5"
+          role="group"
+          aria-label="User account views"
+        >
+          <Button
+            variant={archivedView ? "secondary" : "primary"}
+            aria-pressed={!archivedView}
+            onClick={() => {
+              setArchivedView(false);
+              if (statusFilter === "INACTIVE") setStatusFilter("ALL");
+            }}
+          >
+            Current users
+          </Button>
+          <Button
+            variant={archivedView ? "primary" : "secondary"}
+            aria-pressed={archivedView}
+            onClick={() => setArchivedView(true)}
+          >
+            Archived users
+          </Button>
+        </div>
+        {archivedView && (
+          <p className="px-5 pt-4 text-sm text-slate-500">
+            Archived accounts cannot sign in. Their records and files are
+            preserved. Verify identity before restoring access.
+          </p>
+        )}
 
         <ActionFeedback feedback={feedback} className="m-5" />
 
@@ -453,7 +460,7 @@ export function UserManagement({
                       <span
                         className={`rounded-full border px-2.5 py-1 text-xs font-extrabold ${statusTone[user.status]}`}
                       >
-                        {user.status}
+                        {user.status === "INACTIVE" ? "ARCHIVED" : user.status}
                       </span>
                     </td>
                     <td className="px-5 py-4 text-xs text-slate-500 dark:text-slate-400">
@@ -468,7 +475,8 @@ export function UserManagement({
                             onClick={() => openDialog("approve", user)}
                             className="rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-3 py-1.5 font-extrabold text-white transition"
                           >
-                            {user.status === "SUSPENDED"
+                            {user.status === "SUSPENDED" ||
+                            user.status === "INACTIVE"
                               ? "Verify & restore"
                               : "Verify & approve"}
                           </button>
@@ -485,27 +493,30 @@ export function UserManagement({
                         >
                           Assign college
                         </button>
-                        {user.status !== "SUSPENDED" && (
+                        {user.status !== "SUSPENDED" &&
+                          user.status !== "INACTIVE" && (
+                            <button
+                              onClick={() => openDialog("suspend", user)}
+                              disabled={user.id === signedInUser?.id || working}
+                              title={
+                                user.id === signedInUser?.id
+                                  ? "You cannot suspend your own account"
+                                  : "Block sign-in while preserving records"
+                              }
+                              className="rounded-lg border border-amber-300 dark:border-amber-900/40 px-3 py-1.5 font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 disabled:opacity-50"
+                            >
+                              Suspend
+                            </button>
+                          )}
+                        {user.status !== "INACTIVE" && (
                           <button
-                            onClick={() => openDialog("suspend", user)}
                             disabled={user.id === signedInUser?.id || working}
-                            title={
-                              user.id === signedInUser?.id
-                                ? "You cannot suspend your own account"
-                                : "Block sign-in while preserving records"
-                            }
-                            className="rounded-lg border border-amber-300 dark:border-amber-900/40 px-3 py-1.5 font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 disabled:opacity-50"
+                            onClick={() => openDialog("archive", user)}
+                            className="rounded-lg border border-slate-200 px-3 py-1.5 font-bold text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5 disabled:opacity-50"
                           >
-                            Suspend
+                            Archive
                           </button>
                         )}
-                        <button
-                          disabled={user.id === signedInUser?.id || working}
-                          onClick={() => openDialog("delete", user)}
-                          className="rounded-lg border border-rose-200 dark:border-rose-900/40 px-3 py-1.5 font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-                        >
-                          Delete
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -536,14 +547,17 @@ export function UserManagement({
                   className="text-lg font-black text-slate-900 dark:text-white"
                 >
                   {dialog.type === "approve"
-                    ? "Verify and approve account"
+                    ? dialog.user.status === "INACTIVE" ||
+                      dialog.user.status === "SUSPENDED"
+                      ? "Verify and restore account"
+                      : "Verify and approve account"
                     : dialog.type === "roles"
                       ? "Manage verified roles"
                       : dialog.type === "college"
                         ? "Assign college or school"
                         : dialog.type === "suspend"
                           ? "Suspend user account"
-                          : "Permanently delete user"}
+                          : "Archive user account"}
                 </h2>
                 <p className="mt-1 text-base text-slate-400">
                   {dialog.user.universityId} · {dialog.user.email}
@@ -678,25 +692,12 @@ export function UserManagement({
               </div>
             )}
 
-            {(dialog.type === "suspend" || dialog.type === "delete") && (
+            {(dialog.type === "suspend" || dialog.type === "archive") && (
               <AccountActionDetails
                 type={dialog.type}
-                universityId={dialog.user.universityId}
                 working={working}
                 suspensionReason={suspensionReason}
                 setSuspensionReason={setSuspensionReason}
-                preview={deletionPreview}
-                loading={deletionPreviewQuery.isFetching}
-                error={
-                  deletionPreviewQuery.isError
-                    ? deletionPreviewQuery.error.message
-                    : null
-                }
-                retry={() => void deletionPreviewQuery.refetch()}
-                acknowledged={deleteAcknowledged}
-                setAcknowledged={setDeleteAcknowledged}
-                deletePhrase={deletePhrase}
-                setDeletePhrase={setDeletePhrase}
               />
             )}
 
@@ -716,9 +717,17 @@ export function UserManagement({
                     verificationNote.trim().length < 10
                   }
                   isLoading={working}
-                  loadingText="Approving account..."
+                  loadingText={
+                    dialog.user.status === "INACTIVE" ||
+                    dialog.user.status === "SUSPENDED"
+                      ? "Restoring account..."
+                      : "Approving account..."
+                  }
                 >
-                  Approve account
+                  {dialog.user.status === "INACTIVE" ||
+                  dialog.user.status === "SUSPENDED"
+                    ? "Restore account"
+                    : "Approve account"}
                 </Button>
               )}
               {dialog.type === "roles" && (
@@ -756,21 +765,14 @@ export function UserManagement({
                   Suspend account
                 </Button>
               )}
-              {dialog.type === "delete" && (
+              {dialog.type === "archive" && (
                 <Button
-                  onClick={() => void handleDelete()}
-                  disabled={
-                    !deletionPreview ||
-                    !deleteAcknowledged ||
-                    deletionPreviewQuery.isFetching ||
-                    deletionPreviewQuery.isError ||
-                    deletePhrase !== `delete ${dialog.user.universityId} sudo`
-                  }
+                  onClick={() => void handleArchive()}
+                  disabled={suspensionReason.trim().length < 10}
                   isLoading={working}
-                  loadingText="Deleting account data..."
-                  variant="danger"
+                  loadingText="Archiving account..."
                 >
-                  Permanently delete everything
+                  Archive account
                 </Button>
               )}
             </div>

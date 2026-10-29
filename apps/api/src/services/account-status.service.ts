@@ -1,5 +1,6 @@
 import { prisma, Prisma, UserStatus } from "../lib/prisma.js";
 import type { AuthenticatedUser } from "../middleware/auth.js";
+import { Permissions } from "@research-management/auth";
 import { emailNotification } from "./notification-email.service.js";
 
 export class AccountStatusError extends Error {
@@ -29,6 +30,25 @@ export async function changeAccountStatus(options: {
         include: { roles: { include: { role: true } } },
       });
       if (!user) throw new AccountStatusError("User not found", 404);
+      if (options.status === "INACTIVE" || user.status === "INACTIVE") {
+        if (
+          !options.actor.roles.includes("SYSTEM_ADMIN") ||
+          !options.actor.permissions.includes(Permissions.ROLE_MANAGE)
+        ) {
+          throw new AccountStatusError(
+            "System Administrator access with role management permission is required to archive or restore archived accounts.",
+            403,
+          );
+        }
+        if (
+          user.status === "INACTIVE" &&
+          !["INACTIVE", "ACTIVE"].includes(options.status)
+        ) {
+          throw new AccountStatusError(
+            "Restore the archived account before changing its status.",
+          );
+        }
+      }
       if (options.actor.id === user.id && options.status !== "ACTIVE") {
         throw new AccountStatusError(
           "You cannot suspend or deactivate your own signed-in account.",
@@ -84,6 +104,15 @@ export async function changeAccountStatus(options: {
           400,
         );
       }
+      if (
+        options.status === "INACTIVE" &&
+        (verificationNote.length < 10 || verificationNote.length > 2000)
+      ) {
+        throw new AccountStatusError(
+          "Provide an archive reason of 10-2000 characters.",
+          400,
+        );
+      }
       const updated = await tx.user.update({
         where: { id: user.id },
         data: {
@@ -108,19 +137,38 @@ export async function changeAccountStatus(options: {
           entityType: "USER_ACCOUNT",
           entityId: user.id,
           oldValues: { status: user.status },
-          newValues: { status: options.status, verificationNote },
+          newValues: {
+            status: options.status,
+            verificationNote,
+            ...(options.status === "INACTIVE"
+              ? { accountAction: "ARCHIVE" }
+              : user.status === "INACTIVE" && options.status === "ACTIVE"
+                ? { accountAction: "RESTORE" }
+                : {}),
+          },
           ipAddress: options.ipAddress,
           userAgent: options.userAgent,
         },
       });
-      if (user.status !== "ACTIVE" && options.status === "ACTIVE" && user.googleSubject) {
-        await tx.notification.create({ data: {
-          recipientId: user.id, audience: "account", type: "WORKFLOW_CHANGED",
-          title: "Your Advisio account has been approved",
-          message: "You can now sign in with Google and access your assigned workspace.",
-          actionUrl: "/login", entityType: "USER_ACCOUNT", entityId: user.id,
-          ...emailNotification("account_approved"),
-        } });
+      if (
+        user.status !== "ACTIVE" &&
+        options.status === "ACTIVE" &&
+        user.googleSubject
+      ) {
+        await tx.notification.create({
+          data: {
+            recipientId: user.id,
+            audience: "account",
+            type: "WORKFLOW_CHANGED",
+            title: "Your Advisio account has been approved",
+            message:
+              "You can now sign in with Google and access your assigned workspace.",
+            actionUrl: "/login",
+            entityType: "USER_ACCOUNT",
+            entityId: user.id,
+            ...emailNotification("account_approved"),
+          },
+        });
       }
       return updated;
     },
