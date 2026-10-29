@@ -880,7 +880,7 @@ export function DocumentSigningModal({
                         ? "document-signing-feedback"
                         : undefined
                     }
-                    className="mt-4 w-full"
+                    className="submission-action mt-4 w-full"
                   >
                     Confirm & Sign
                   </Button>

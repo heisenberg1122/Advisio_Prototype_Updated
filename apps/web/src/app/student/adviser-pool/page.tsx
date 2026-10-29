@@ -618,7 +618,7 @@ export default function AdviserPoolPage() {
               <button
                 onClick={() => applyMutation.mutate()}
                 disabled={applyMutation.isPending}
-                className="rounded-xl bg-[#0B3A53] hover:bg-[#072A3D] text-white px-5 py-2.5 text-sm font-extrabold shadow-xs transition disabled:opacity-60 cursor-pointer"
+                className="submission-action rounded-xl bg-[#0B3A53] hover:bg-[#072A3D] text-white px-5 py-2.5 text-sm font-extrabold shadow-xs transition disabled:opacity-60 cursor-pointer"
               >
                 {applyMutation.isPending
                   ? "Submitting…"

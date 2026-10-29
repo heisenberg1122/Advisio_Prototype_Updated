@@ -1276,7 +1276,7 @@ function PanelistDashboardContent() {
                                   handleSaveEvaluation(true);
                               }}
                               disabled={isSavingEvaluation}
-                              className="h-11 rounded-xl bg-[#f6a800] px-5 text-sm font-extrabold text-[#102f49] disabled:opacity-50"
+                              className="submission-action h-11 rounded-xl bg-[#f6a800] px-5 text-sm font-extrabold text-[#102f49] disabled:opacity-50"
                             >
                               <i className="ti ti-lock-check mr-2" />
                               Submit final & lock

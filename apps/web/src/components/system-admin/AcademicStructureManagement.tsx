@@ -841,7 +841,7 @@ export function AcademicStructureManagement() {
               <button
                 disabled={submitting}
                 type="submit"
-                className="rounded-xl bg-[#C9A227] px-4 py-2 text-sm font-black text-[#0B3A53] disabled:opacity-60"
+                className="submission-action rounded-xl bg-[#C9A227] px-4 py-2 text-sm font-black text-[#0B3A53] disabled:opacity-60"
               >
                 {submitting ? "Saving..." : "Confirm & save"}
               </button>
@@ -886,7 +886,7 @@ export function AcademicStructureManagement() {
               <button
                 disabled={submitting}
                 type="submit"
-                className="rounded-xl bg-[#C9A227] px-4 py-2 text-sm font-black text-[#0B3A53] disabled:opacity-60"
+                className={`rounded-xl bg-[#C9A227] px-4 py-2 text-sm font-black text-[#0B3A53] disabled:opacity-60 ${statusChange.isActive ? "" : "submission-action"}`}
               >
                 {submitting
                   ? "Confirming..."

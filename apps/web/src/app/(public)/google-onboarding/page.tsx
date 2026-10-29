@@ -434,7 +434,7 @@ export default function GoogleOnboardingPage() {
                   (!facultyStep &&
                     (!collegeId || !programId || !policiesAccepted))
                 }
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#ffad14] px-4 py-3 font-extrabold text-[#102f49] disabled:cursor-not-allowed disabled:opacity-60"
+                className="submission-action flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#ffad14] px-4 py-3 font-extrabold text-[#102f49] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving ? (
                   <>

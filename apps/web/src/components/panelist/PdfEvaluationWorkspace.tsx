@@ -747,7 +747,7 @@ export function PdfEvaluationWorkspace({
               )}
               {signatureBox && (
                 <button
-                  className={styleButton}
+                  className={`submission-action ${styleButton}`}
                   onClick={() => setSignOpen(true)}
                 >
                   {detail.evaluation?.signedAt
@@ -1357,7 +1357,7 @@ export function PdfEvaluationWorkspace({
                     !confirmed ||
                     (detail.signatureRequired && !detail.evaluation?.signedAt)
                   }
-                  className={primary}
+                  className={`submission-action ${primary}`}
                   onClick={() =>
                     action(async () => {
                       setBusy(true);

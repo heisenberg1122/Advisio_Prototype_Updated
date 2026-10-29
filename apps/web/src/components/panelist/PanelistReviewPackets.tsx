@@ -846,7 +846,7 @@ export function PanelistReviewPackets() {
                             "I reviewed the complete generated PDF. Lock this recommendation?",
                           ) && confirmRecommendation()
                         }
-                        className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-extrabold text-white"
+                        className="submission-action rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-extrabold text-white"
                       >
                         Confirm & lock
                       </button>

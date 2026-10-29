@@ -2029,7 +2029,7 @@ function ProfessorDashboardContent() {
                 type="button"
                 disabled={publishingWorkflow || !workflowReadyToPublish}
                 onClick={() => void handlePublishWorkflow()}
-                className="rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] disabled:opacity-50"
+                className="submission-action rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] disabled:opacity-50"
               >
                 <i
                   className={`ti ${publishingWorkflow ? "ti-loader-2 animate-spin" : "ti-send"} mr-1.5`}

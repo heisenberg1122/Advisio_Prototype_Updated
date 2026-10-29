@@ -269,7 +269,7 @@ export function TitleProposalPanel({
                       new Set(titles.map((title) => title.trim().toLowerCase()))
                         .size !== count
                     }
-                    className="rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
+                    className="submission-action rounded-lg bg-[var(--color-primary)] px-4 py-3 text-sm font-bold text-white disabled:opacity-50"
                   >
                     {busy ? "Submitting…" : "Submit title proposals"}
                   </button>

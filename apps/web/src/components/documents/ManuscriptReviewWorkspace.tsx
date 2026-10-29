@@ -1051,6 +1051,7 @@ export function ManuscriptReviewWorkspace({
               Cancel
             </Button>
             <Button
+              className="submission-action"
               onClick={() => void submitDecision()}
               status={decisionAction.status}
               successText="Decision submitted"
@@ -1375,6 +1376,11 @@ export function ManuscriptReviewWorkspace({
                     </Button>
                     <Button
                       size="sm"
+                      className={
+                        managementAction === "REVOKE"
+                          ? undefined
+                          : "submission-action"
+                      }
                       variant={
                         managementAction === "REVOKE" ? "danger" : "primary"
                       }

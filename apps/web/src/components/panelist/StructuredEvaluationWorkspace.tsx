@@ -197,7 +197,7 @@ export function StructuredEvaluationWorkspace({
             </button>
             <button
               disabled={!confirmed || busy}
-              className={`${evaluationButton} bg-[var(--color-primary)] text-white`}
+              className={`submission-action ${evaluationButton} bg-[var(--color-primary)] text-white`}
               onClick={submit}
             >
               Submit final evaluation

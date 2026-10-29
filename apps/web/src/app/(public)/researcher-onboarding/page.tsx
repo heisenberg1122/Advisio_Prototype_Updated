@@ -395,7 +395,7 @@ export default function ResearcherOnboardingPage() {
                 type="button"
                 onClick={submit}
                 disabled={submitting}
-                className="rounded-xl bg-[#ffa400] px-6 py-2.5 text-sm font-extrabold text-[#1b4264] shadow hover:bg-[#e09000] disabled:opacity-60"
+                className="submission-action rounded-xl bg-[#ffa400] px-6 py-2.5 text-sm font-extrabold text-[#1b4264] shadow hover:bg-[#e09000] disabled:opacity-60"
               >
                 {submitting ? "Submitting profile…" : "Submit for verification"}
               </button>

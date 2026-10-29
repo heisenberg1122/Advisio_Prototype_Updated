@@ -1096,7 +1096,7 @@ function AdviserDashboardContent() {
                           placeholder="Provide detailed feedback comments..." 
                           className="bg-white border border-slate-350 rounded-lg p-2.5 text-base focus:outline-none"
                         />
-                        <button onClick={()=>handleReviewComment(rev.id)} className="px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-lg border border-[var(--color-primary)] self-start mt-2 transition">
+                        <button onClick={()=>handleReviewComment(rev.id)} className="submission-action px-4 py-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-lg border border-[var(--color-primary)] self-start mt-2 transition">
                           Submit Comments
                         </button>
                       </div>

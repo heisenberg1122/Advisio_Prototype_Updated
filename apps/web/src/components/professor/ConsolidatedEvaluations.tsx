@@ -269,7 +269,7 @@ export function ConsolidatedEvaluations({
                 disabled={
                   busy || !clearanceVersion || instructions.trim().length < 10
                 }
-                className={evaluationButton}
+                className={`submission-action ${evaluationButton}`}
                 onClick={clear}
               >
                 Confirm revision clearance

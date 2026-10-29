@@ -2108,3 +2108,38 @@ body {
   content: none !important;
   width: 0 !important;
 }
+
+/* Explicitly opted-in, positive Submit/Confirm actions across roles.
+   These local action colors intentionally override legacy college button colors.
+   Destructive branches never opt in; completed/error feedback keeps its tone. */
+button.submission-action {
+  --submission-action-bg: #173f63;
+  --submission-action-text: #ffffff;
+  --submission-action-hover: #123451;
+}
+.dark button.submission-action {
+  --submission-action-bg: #93c5fd;
+  --submission-action-text: #0f172a;
+  --submission-action-hover: #bfdbfe;
+}
+body button.submission-action:not([data-action-status="success"]):not([data-action-status="error"]):is(:enabled, [aria-busy="true"]) {
+  background-color: var(--submission-action-bg) !important;
+  color: var(--submission-action-text) !important;
+  border-color: var(--submission-action-bg) !important;
+}
+body button.submission-action:not([data-action-status="success"]):not([data-action-status="error"]):enabled:hover {
+  background-color: var(--submission-action-hover) !important;
+  border-color: var(--submission-action-hover) !important;
+}
+body button.submission-action:disabled:not([aria-busy="true"]):not([data-action-status="success"]):not([data-action-status="error"]) {
+  background-color: var(--color-surface-muted) !important;
+  color: var(--color-text-secondary) !important;
+  border-color: var(--color-border) !important;
+}
+body button.submission-action:not([data-action-status="success"]):not([data-action-status="error"]) * {
+  color: inherit !important;
+}
+body button.submission-action:focus-visible {
+  outline: 2px solid var(--submission-action-bg);
+  outline-offset: 3px;
+}

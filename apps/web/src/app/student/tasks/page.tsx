@@ -1700,7 +1700,7 @@ export function MilestoneDetailsWorkspace({
               <SubmissionNote value={note} onChange={onNote} />
               {submissionError && <SubmissionError message={submissionError} />}
               <Button
-                className="task-submission-review mt-4 w-full"
+                className="submission-action task-submission-review mt-4 w-full"
                 size="lg"
                 onClick={() => setConfirmation("documents")}
                 disabled={!selectedOption || !canSubmit || submitting}
@@ -1743,7 +1743,7 @@ export function MilestoneDetailsWorkspace({
               <SubmissionNote value={note} onChange={onNote} />
               {submissionError && <SubmissionError message={submissionError} />}
               <Button
-                className="task-submission-review mt-4 w-full"
+                className="submission-action task-submission-review mt-4 w-full"
                 size="lg"
                 onClick={openUploadConfirmation}
                 disabled={!file || submitting || !canUpload}
@@ -2389,7 +2389,7 @@ function SubmissionConfirmation({
             Go back
           </Button>
           <Button
-            className="task-submission-confirm"
+            className="submission-action task-submission-confirm"
             onClick={onConfirm}
             isLoading={submitting}
             loadingText="Submitting…"

@@ -358,7 +358,12 @@ export function OverviewQuickActions({
       <h2>Quick Actions</h2>
       <div>
         {actions.map((action) => (
-          <button type="button" key={action.label} onClick={action.onClick}>
+          <button
+            type="button"
+            key={action.label}
+            onClick={action.onClick}
+            className={action.label === "Submit draft" ? "submission-action" : undefined}
+          >
             <i aria-hidden="true" className={`ti ${action.icon}`} />
             <span>{action.label}</span>
           </button>
