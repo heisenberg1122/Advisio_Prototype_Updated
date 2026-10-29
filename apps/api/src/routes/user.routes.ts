@@ -7,6 +7,8 @@ import { requireAuth } from "../middleware/auth";
 import { requirePermission } from "../middleware/rbac";
 import { ACTIVE_ADVISEE_STATUSES, capacitySummary, countActiveAdviseeGroups } from "../lib/adviser-capacity.js";
 import { getCollegeScope } from "../lib/college-scope.js";
+import { requestPasswordRecovery } from "../services/password-recovery.service.js";
+import { recoveryRateLimit } from "../middleware/recovery-rate-limit.js";
 
 const router = Router();
 const CAPACITY_MANAGER_ROLES = new Set(["DEAN", "SYSTEM_ADMIN"]);
@@ -197,6 +199,52 @@ router.get("/meta/roles", requireAuth, requirePermission(Permissions.ROLE_MANAGE
     res.json({ roles });
   } catch (error: any) {
     res.status(500).json({ error: error.message || "Failed to fetch roles" });
+  }
+});
+
+// Registration details and password recovery are restricted to system administrators.
+const requireSystemAdmin = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.user?.roles.includes("SYSTEM_ADMIN")) {
+    res.status(403).json({ error: "System administrator access is required" });
+    return;
+  }
+  next();
+};
+
+router.get("/:id/details", requireAuth, requireSystemAdmin, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: String(req.params.id) },
+      select: {
+        id: true, universityId: true, email: true, firstName: true, middleName: true,
+        lastName: true, status: true, college: true, program: true,
+        roles: { include: { role: true } },
+        researcherProfile: { include: { academicYear: true } }, facultyProfile: true,
+        googleSubject: true, googleOnboardingStage: true, passwordHash: true,
+        createdAt: true, updatedAt: true, lastLoginAt: true,
+        maxAdviseeGroups: true, isAcceptingAdvisees: true,
+      },
+    });
+    if (!user) return void res.status(404).json({ error: "User not found" });
+    const { passwordHash, googleSubject, ...details } = user;
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ user: { ...details, authentication: {
+      googleConnected: Boolean(googleSubject), hasPassword: Boolean(passwordHash),
+      passwordStorage: passwordHash ? "Hashed (bcrypt)" : "Managed by Google",
+    } } });
+  } catch {
+    res.status(500).json({ error: "Failed to load user details" });
+  }
+});
+
+router.post("/:id/reset-password", requireAuth, requireSystemAdmin, recoveryRateLimit, async (req, res) => {
+  try {
+    if (req.body.confirmed !== true) return void res.status(400).json({ error: "Confirm the password reset before continuing." });
+    const user = await prisma.user.findUnique({ where: { id: String(req.params.id) }, select: { email: true } });
+    if (!user) return void res.status(404).json({ error: "User not found" });
+    res.json({ message: await requestPasswordRecovery(user.email, req.user!.id) });
+  } catch (error: any) {
+    res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : "Could not request password reset." });
   }
 });
 
