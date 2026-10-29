@@ -353,6 +353,89 @@ databaseDescribe("Permanent account deletion with isolated PostgreSQL", () => {
     ).toBe(409);
   });
 
+  it("archives and restores while preserving linked records, file references, and shared work", async () => {
+    const before = await previewUserDeletion(admin, target.id);
+    const beforeUser = await prisma.user.findUniqueOrThrow({
+      where: { id: target.id },
+    });
+    const beforeJobs = await prisma.fileDeletionJob.count();
+    const response = await request(
+      `/users/${target.id}/archive`,
+      admin,
+      "POST",
+      { reason: "User has left the institution." },
+    );
+    expect(response.status).toBe(200);
+    const archived = await prisma.user.findUniqueOrThrow({
+      where: { id: target.id },
+    });
+    expect(archived.status).toBe("INACTIVE");
+    expect(archived.sessionVersion).toBe(beforeUser.sessionVersion + 1);
+    expect(
+      (
+        await request(
+          "/auth/me",
+          target,
+          "GET",
+          undefined,
+          beforeUser.sessionVersion,
+        )
+      ).status,
+    ).toBe(401);
+    expect(
+      (
+        await request(
+          "/auth/me",
+          target,
+          "GET",
+          undefined,
+          archived.sessionVersion,
+        )
+      ).status,
+    ).toBe(401);
+    const after = await previewUserDeletion(admin, target.id);
+    expect(after.records).toEqual(before.records);
+    expect(after.files).toBe(before.files);
+    expect(after.affectedOtherUsers).toBe(before.affectedOtherUsers);
+    expect(await prisma.fileDeletionJob.count()).toBe(beforeJobs);
+    expect(
+      (await request(`/users/${target.id}/approve`, admin, "POST", {})).status,
+    ).toBe(400);
+    expect(
+      (
+        await request(`/users/${target.id}/approve`, admin, "POST", {
+          verificationConfirmed: true,
+          verificationNote: "Verified institutional identity for return.",
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await request(
+          "/auth/me",
+          target,
+          "GET",
+          undefined,
+          beforeUser.sessionVersion,
+        )
+      ).status,
+    ).toBe(401);
+    expect(
+      (
+        await request(
+          "/auth/me",
+          target,
+          "GET",
+          undefined,
+          archived.sessionVersion + 1,
+        )
+      ).status,
+    ).toBe(200);
+    expect((await previewUserDeletion(admin, target.id)).records).toEqual(
+      before.records,
+    );
+  });
+
   it("previews restrictive archive records, legacy owner data, and shared impact without deleting", async () => {
     const response = await request(`/users/${target.id}/deletion-preview`);
     expect(response.status).toBe(200);
@@ -524,7 +607,7 @@ databaseDescribe("Permanent account deletion with isolated PostgreSQL", () => {
     }
   });
 
-  it("deletes account data through the API while preserving other accounts and unrelated work", async () => {
+  it("blocks legacy API deletion; internal deletion still preserves unrelated work", async () => {
     const options = await deletion();
     const response = await request(
       `/users/${target.id}`,
@@ -532,8 +615,9 @@ databaseDescribe("Permanent account deletion with isolated PostgreSQL", () => {
       "DELETE",
       options,
     );
-    expect(response.status).toBe(200);
-    expect((await response.json()).fileCleanupQueued).toBe(2);
+    expect(response.status).toBe(410);
+    expect(await prisma.user.count({ where: { id: target.id } })).toBe(1);
+    expect((await permanentlyDeleteUser(options)).fileCleanupQueued).toBe(2);
     expect(await prisma.user.count({ where: { id: target.id } })).toBe(0);
     expect(
       await prisma.facultyProfile.count({ where: { userId: target.id } }),
