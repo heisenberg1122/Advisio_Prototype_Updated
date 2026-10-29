@@ -9,6 +9,7 @@ import {
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Button } from "@/components/ui/Button";
+import { UserDetailsModal } from "./UserDetailsModal";
 
 type RoleName =
   | "RESEARCHER"
@@ -75,6 +76,7 @@ export function UserManagement({
       : "ALL",
   );
   const [dialog, setDialog] = useState<Dialog>(null);
+  const [detailsUserId, setDetailsUserId] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<RoleName[]>([]);
   const [selectedCollegeId, setSelectedCollegeId] = useState("");
   const [verificationConfirmed, setVerificationConfirmed] = useState(false);
@@ -463,6 +465,12 @@ export function UserManagement({
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => setDetailsUserId(user.id)}
+                          className="rounded-lg bg-[#0B3A53] px-3 py-1.5 font-bold text-white hover:bg-[#154d68]"
+                        >
+                          View details
+                        </button>
                         {user.status !== "ACTIVE" && (
                           <button
                             onClick={() => openDialog("approve", user)}
@@ -521,6 +529,7 @@ export function UserManagement({
         )}
       </section>
 
+      {detailsUserId && <UserDetailsModal userId={detailsUserId} onClose={() => setDetailsUserId(null)} />}
       {dialog && (
         <div
           role="dialog"
