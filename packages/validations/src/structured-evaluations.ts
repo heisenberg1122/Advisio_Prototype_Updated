@@ -1,4 +1,33 @@
 import { z } from "zod";
+import {
+  schoolLogo,
+  informationTechnologyLogo,
+} from "./evaluation-branding-assets.js";
+
+// Embedded, bounded PNGs keep a published form independent of mutable URLs.
+const logo = z
+  .string()
+  .max(350000)
+  .regex(/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/)
+  .or(z.literal(""));
+export const evaluationBrandingSchema = z.object({
+  schoolName: z.string().trim().min(1).max(150),
+  schoolAddress: z.string().trim().min(1).max(250),
+  collegeName: z.string().trim().min(1).max(150),
+  templateName: z.string().trim().min(1).max(150),
+  schoolLogo: logo,
+  collegeLogo: logo,
+});
+export type EvaluationBranding = z.infer<typeof evaluationBrandingSchema>;
+export const defaultEvaluationBranding: EvaluationBranding = {
+  schoolName: "UNIVERSITY of the ASSUMPTION",
+  schoolAddress:
+    "Unisite Subdivision, Del Pilar, City of San Fernando, 2000 Pampanga, Philippines",
+  collegeName: "College of Information Technology",
+  templateName: "CAPSTONE PROJECT FORM 4",
+  schoolLogo,
+  collegeLogo: informationTechnologyLogo,
+};
 
 export const defenseResults = [
   "APPROVED",
@@ -26,6 +55,7 @@ const criterion = z.object({
 export const structuredFormSchema = z
   .object({
     name: z.string().trim().min(3).max(150),
+    branding: evaluationBrandingSchema.optional(),
     scale: z
       .array(
         z.object({
@@ -82,6 +112,7 @@ export const structuredAnswersSchema = z.object({
 });
 export const defaultStructuredForm: StructuredForm = {
   name: "Capstone Proposal Defense Evaluation",
+  branding: defaultEvaluationBranding,
   scale: ["Very Poor", "Poor", "Fair", "Good", "Very Good"].map((label, i) => ({
     value: i + 1,
     label,
