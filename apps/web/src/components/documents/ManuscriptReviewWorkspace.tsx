@@ -565,6 +565,7 @@ export function ManuscriptReviewWorkspace({
     return (
       <article
         key={assignment.id}
+        aria-labelledby={`adviser-pending-${assignment.id}`}
         className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)]"
       >
         <div className="p-5 sm:p-6">
@@ -574,15 +575,22 @@ export function ManuscriptReviewWorkspace({
                 <Tag size="xs" variant={state.variant} dot>
                   {state.label}
                 </Tag>
-                <span>{readableStatus(assignment.reviewType)} review</span>
+                <span>
+                  <span className="sr-only">Review type: </span>
+                  {readableStatus(assignment.reviewType)} review
+                </span>
                 <span aria-hidden="true">·</span>
                 <span>
+                  <span className="sr-only">Assignment requirement: </span>
                   {assignment.isRequired
                     ? "Required assignment"
                     : "Optional assignment"}
                 </span>
               </div>
-              <h3 className="mt-3 text-lg font-black leading-snug text-[var(--color-text-primary)] sm:text-xl">
+              <h3
+                id={`adviser-pending-${assignment.id}`}
+                className="mt-3 text-lg font-black leading-snug text-[var(--color-text-primary)] sm:text-xl"
+              >
                 {assignment.document.title}
               </h3>
               <p className="mt-1.5 text-base font-medium text-[var(--color-text-secondary)]">
@@ -686,6 +694,7 @@ export function ManuscriptReviewWorkspace({
     return (
       <article
         key={assignment.id}
+        aria-labelledby={`adviser-history-${assignment.id}`}
         className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5"
       >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -698,10 +707,14 @@ export function ManuscriptReviewWorkspace({
                 Version {assignment.documentVersion.versionNumber}
               </span>
               <span className="text-xs text-[var(--color-text-muted)]">
+                <span className="sr-only">Review type: </span>
                 {readableStatus(assignment.reviewType)} review
               </span>
             </div>
-            <h3 className="mt-2 truncate text-lg font-bold text-[var(--color-text-primary)]">
+            <h3
+              id={`adviser-history-${assignment.id}`}
+              className="mt-2 truncate text-lg font-bold text-[var(--color-text-primary)]"
+            >
               {assignment.document.title}
             </h3>
             <p className="mt-1 truncate text-sm text-[var(--color-text-secondary)]">
@@ -812,17 +825,16 @@ export function ManuscriptReviewWorkspace({
       )}
     >
       {isAdviserPresentation ? (
-        <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B3A53] via-[#0E4968] to-[#072A3D] p-5 text-white shadow-lg sm:p-6 lg:p-7">
-          <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-[#C9A227]/20 blur-3xl" />
+        <header className="college-hero-surface relative overflow-hidden rounded-3xl border p-5 text-[var(--color-text-primary)] shadow-lg sm:p-6 lg:p-7">
           <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="max-w-3xl">
-              <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#E4C864]">
+              <p className="text-sm font-bold uppercase tracking-[0.16em] text-[var(--color-primary)]">
                 Global review center
               </p>
-              <h1 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
+              <h1 className="mt-2 text-2xl font-black tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
                 Manuscript Reviews
               </h1>
-              <p className="mt-2 text-base leading-6 text-white/75">
+              <p className="mt-2 text-base leading-6 text-[var(--color-text-secondary)]">
                 Review exact frozen manuscript versions assigned to you across
                 all research groups. Decisions remain permanent and
                 version-scoped.
@@ -831,7 +843,7 @@ export function ManuscriptReviewWorkspace({
             <Button
               variant="secondary"
               size="sm"
-              className="border-white/20 bg-white/10 text-white hover:bg-white/20"
+              className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-[var(--nav-hover-bg)]"
               icon={<RefreshCw className="h-4 w-4" />}
               onClick={() => void loadAssignments()}
               isLoading={loading}

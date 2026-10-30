@@ -1,0 +1,744 @@
+/* Route-local presentation only. The shared workspace owns all state, ordering,
+   permissions and callbacks. Its Modal renders inside this wrapper, not a portal. */
+.adviser-reviews {
+  width: 100%;
+  min-width: 0;
+  color: var(--color-text-primary);
+}
+
+.adviser-reviews > div {
+  max-width: 1360px;
+  gap: 32px;
+}
+
+.adviser-reviews :where(h1, h2, h3, p, dt, dd, summary) {
+  overflow-wrap: anywhere;
+}
+
+.adviser-reviews .truncate {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+
+.adviser-reviews :where(button, input:not([type="checkbox"]), select, summary) {
+  min-height: 44px;
+}
+
+.adviser-reviews
+  :where(button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--college-focus-ring);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
+.adviser-reviews button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.adviser-reviews > div > header {
+  border: 0;
+  border-radius: 0;
+  padding: 0 0 24px;
+  background: none;
+  box-shadow: none;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.adviser-reviews header h1 {
+  margin-top: 8px;
+  font-size: 1.75rem;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+.adviser-reviews header p {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.adviser-reviews header p:first-child {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--color-text-secondary);
+}
+
+/* Read-only summary: remove decorative icon tiles, keep every label and count. */
+.adviser-reviews [aria-label="Review assignment summary"] {
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+}
+
+.adviser-reviews [aria-label="Review assignment summary"] > div {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 16px 24px;
+  background: none;
+}
+
+.adviser-reviews [aria-label="Review assignment summary"] > div + div {
+  border-left: 1px solid var(--color-border);
+}
+
+.adviser-reviews
+  [aria-label="Review assignment summary"]
+  > div
+  > span:has(svg) {
+  display: none;
+}
+
+.adviser-reviews [aria-label="Review assignment summary"] .text-xl {
+  margin-block: 4px;
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Semantic section IDs are stable hooks shared with the existing headings. */
+.adviser-reviews
+  :is(
+    [aria-labelledby="pending-review-heading"],
+    [aria-labelledby="review-history-heading"]
+  ) {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: none;
+}
+
+.adviser-reviews section h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.adviser-reviews section h2 > svg {
+  display: none;
+}
+
+.adviser-reviews section h2 + p {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.adviser-reviews
+  :is(
+    [aria-labelledby="pending-review-heading"],
+    [aria-labelledby="review-history-heading"]
+  )
+  > .grid {
+  gap: 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.adviser-reviews
+  :is(
+    [aria-labelledby="pending-review-heading"],
+    [aria-labelledby="review-history-heading"]
+  )
+  article {
+  min-width: 0;
+  overflow: visible;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+.adviser-reviews [aria-labelledby="pending-review-heading"] article > div,
+.adviser-reviews [aria-labelledby="review-history-heading"] article {
+  padding: 24px 0;
+}
+
+.adviser-reviews article h3 {
+  font-size: 1.125rem;
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.adviser-reviews article dl {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 16px 24px;
+  margin-top: 16px;
+  padding-block: 16px;
+  border-top: 0;
+}
+
+.adviser-reviews article :is(dt, dd) {
+  line-height: 1.5;
+}
+
+.adviser-reviews article dd {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.adviser-reviews article details {
+  margin-top: 16px;
+  padding-top: 8px;
+}
+
+.adviser-reviews article summary {
+  align-content: center;
+  width: fit-content;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Adviser Reviews only. These direct-child scopes exclude the inline modal.
+   State, status meaning, wording, action eligibility and DOM order stay intact. */
+.adviser-reviews--workspace > div {
+  max-width: 1360px;
+  gap: 24px;
+}
+
+.adviser-reviews--workspace > div > header {
+  padding: 0 0 16px;
+}
+
+.adviser-reviews--workspace > div > header > div {
+  gap: 16px 24px;
+}
+
+.adviser-reviews--workspace > div > header h1 {
+  margin-block: 4px 8px;
+  font-size: clamp(1.5rem, 2.5vw, 1.75rem);
+  font-weight: 600;
+}
+
+.adviser-reviews--workspace > div > header p {
+  max-width: 76ch;
+  margin-top: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.adviser-reviews--workspace > div > header p:first-child {
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.adviser-reviews--workspace > div > header button {
+  flex-shrink: 0;
+  border-color: color-mix(in srgb, var(--color-text-secondary) 82%, var(--color-surface));
+}
+
+.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] > div {
+  padding: 12px 16px;
+}
+
+.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] > div > span:last-child {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 16px;
+  width: 100%;
+}
+
+.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] .text-xl {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+
+.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] .text-xs {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] .truncate {
+  grid-column: 1 / -1;
+  font-size: 0.875rem;
+}
+
+/* The pending label and count carry emphasis without inventing urgency rules. */
+.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] > div:first-child {
+  background-color: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
+  border-radius: 15px 0 0 15px;
+}
+
+.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] > div:first-child .text-xs {
+  color: var(--color-text-primary);
+}
+
+.adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) {
+  --review-control-border: color-mix(in srgb, var(--color-text-secondary) 82%, var(--color-surface));
+  --review-card-border: color-mix(in srgb, var(--color-text-secondary) 26%, var(--color-surface));
+}
+
+.adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) > .grid {
+  gap: 16px;
+  border: 0;
+}
+
+.adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) article {
+  border: 1px solid var(--review-card-border);
+  border-radius: 16px;
+  overflow: visible;
+}
+
+.adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article > div,
+.adviser-reviews--workspace > div > [aria-labelledby="review-history-heading"] article {
+  padding: 16px;
+}
+
+.adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) article :is(h3, p, dd) {
+  max-width: 80ch;
+  overflow-wrap: anywhere;
+}
+
+.adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) article h3 {
+  margin-top: 8px;
+  font-size: 1.125rem;
+  line-height: 1.4;
+}
+
+.adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) article :is(.text-xs, .text-sm, .text-base) {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Existing tag contents keep their semantic variant and status wording. */
+.adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) article .rounded-full.border {
+  padding: 4px 8px;
+  line-height: 1.25;
+}
+
+.adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) article [class~="bg-[#FEF7EA]"] {
+  color: #805209;
+}
+
+.dark .adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) article [class~="bg-[#FEF7EA]"] {
+  color: #fbbf24;
+}
+
+/* The legacy info-tag rule reads this token with high priority. Limit the
+   accessible information ink to that tag; program accents elsewhere remain. */
+.adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) article [class~="bg-[#EAF3F7]"] {
+  --color-primary: var(--color-text-primary);
+}
+
+.adviser-reviews--workspace > div > [aria-labelledby="review-history-heading"] article [class~="text-[var(--color-text-muted)]"] {
+  color: var(--color-text-secondary);
+}
+
+.adviser-reviews--workspace > div > [aria-labelledby="review-history-heading"] article [class~="bg-[#EAF5EE]"] {
+  color: #216044;
+}
+
+.dark .adviser-reviews--workspace > div > [aria-labelledby="review-history-heading"] article [class~="bg-[#EAF5EE]"] {
+  color: #4ade80;
+}
+
+/* Compact Version/value chip; both source spans remain in reading order. */
+.adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article > div > div:first-child {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article > div > div:first-child > .shrink-0 {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px;
+  border: 1px solid var(--review-card-border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+}
+
+.adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article > div > div:first-child > .shrink-0 > span {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article dl {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin-top: 16px;
+  padding-block: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) article :is(dt, .uppercase) {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+}
+
+.adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article > div > div:last-child {
+  margin-top: 12px;
+  gap: 12px 24px;
+}
+
+.adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article > div > div:last-child > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Retain the repeated source status, but remove its competing heading weight. */
+.adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article > div > div:last-child > div:first-child > p:first-child {
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article p[title] {
+  margin-top: 8px;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) article button {
+  min-height: 44px;
+  font-weight: 600;
+  border-color: var(--review-control-border);
+}
+
+/* Some existing college palettes use white on a light dark-mode accent.
+   Reuse the dark canvas ink locally while preserving each accent fill. */
+.dark .adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article button[class~="bg-[var(--color-primary)]"] {
+  --college-on-primary-dark: var(--color-background);
+}
+
+.adviser-reviews--workspace > div > [aria-labelledby="review-history-heading"] article {
+  background-color: var(--color-surface-subtle);
+}
+
+.adviser-reviews--workspace > div > [aria-labelledby="review-history-heading"] article details {
+  margin-top: 12px;
+  padding-top: 8px;
+}
+
+.adviser-reviews--workspace > div > [aria-labelledby="review-history-heading"] article summary {
+  color: var(--color-text-primary);
+}
+
+.adviser-reviews--workspace > div > [aria-labelledby="review-history-heading"] article details > .grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.adviser-reviews--workspace > div > :is(header, [aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) :is(button, summary):focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
+@media (max-width: 1279px) {
+  .adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article dl,
+  .adviser-reviews--workspace > div > [aria-labelledby="review-history-heading"] article details > .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .adviser-reviews--workspace > div > header button {
+    width: 100%;
+  }
+
+  .adviser-reviews--workspace > div > [aria-label="Review assignment summary"] > div {
+    padding: 12px 16px;
+  }
+
+  .adviser-reviews--workspace > div > [aria-label="Review assignment summary"] > div:first-child {
+    border-radius: 15px 15px 0 0;
+  }
+
+  .adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article > div,
+  .adviser-reviews--workspace > div > [aria-labelledby="review-history-heading"] article {
+    padding: 12px;
+  }
+
+  .adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article > div > div:first-child {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article > div > div:first-child > .flex-1 {
+    flex-basis: 100%;
+  }
+
+  .adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) article .flex.shrink-0:has(> button) {
+    display: grid;
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) article button {
+    width: 100%;
+  }
+}
+
+
+/* The dialog's sole panel has header/content/footer children. Only its body
+   (identified by the recommendation field) scrolls; callbacks stay untouched. */
+.adviser-reviews [role="dialog"] {
+  padding: 16px;
+}
+
+.adviser-reviews [role="dialog"] > div {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 760px;
+  min-height: 0;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  border-radius: 16px;
+}
+
+.adviser-reviews [role="dialog"] > div > div {
+  min-width: 0;
+  flex-shrink: 0;
+  padding: 24px;
+}
+
+.adviser-reviews [role="dialog"] > div > div:has(#review-recommendation) {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.adviser-reviews [role="dialog"] [class~="max-h-52"] {
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
+}
+
+.adviser-reviews [role="dialog"] h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.02em;
+}
+
+.adviser-reviews [role="dialog"] p {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.adviser-reviews [role="dialog"] [aria-label="Close dialog"] {
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.adviser-reviews
+  [role="dialog"]
+  > div
+  > div:has(> [aria-label="Close dialog"]) {
+  gap: 8px;
+}
+
+.adviser-reviews
+  [role="dialog"]
+  > div
+  > div:has(> [aria-label="Close dialog"])
+  > div {
+  min-width: 0;
+}
+
+.adviser-reviews [role="dialog"] label {
+  margin-bottom: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.adviser-reviews
+  [role="dialog"]
+  :is(input:not([type="checkbox"]), select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+  border-radius: 8px;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.adviser-reviews [role="dialog"] textarea {
+  resize: vertical;
+}
+
+/* These sections are anchored by their existing labeled controls, not order. */
+.adviser-reviews
+  [role="dialog"]
+  div:has(> div > [aria-label="Section or chapter"]) {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  padding: 24px 0 0;
+  background: none;
+}
+
+.adviser-reviews [role="dialog"] div:has(> [class~="max-h-52"]) {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  padding: 24px 0 0;
+}
+
+.adviser-reviews [role="dialog"] > div > div:has(> .submission-action) {
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-block: 16px;
+  background: var(--color-surface);
+}
+
+@media (max-width: 639px) {
+  .adviser-reviews [aria-label="Review assignment summary"] > div {
+    padding: 16px;
+  }
+
+  .adviser-reviews [aria-label="Review assignment summary"] > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .adviser-reviews [role="dialog"] > div > div {
+    padding: 16px;
+  }
+
+  .adviser-reviews [role="dialog"] > div > div:has(> .submission-action) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-height: 600px) {
+  .adviser-reviews [role="dialog"] {
+    padding: 8px;
+  }
+
+  .adviser-reviews [role="dialog"] > div {
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  .adviser-reviews [role="dialog"] > div > div {
+    padding: 12px 16px;
+  }
+}
+
+/* Adviser decision dialog: compact form, distinct fields and a stable footer. */
+.adviser-reviews--workspace [role="dialog"] > div {
+  max-width: 720px;
+  border: 1px solid color-mix(in srgb, var(--color-text-secondary) 32%, var(--color-surface));
+  background: var(--color-surface);
+}
+
+.adviser-reviews--workspace [role="dialog"] > div > div {
+  padding: 20px 24px;
+}
+
+.adviser-reviews--workspace [role="dialog"] > div > div:has(> [aria-label="Close dialog"]) {
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
+}
+
+.adviser-reviews--workspace [role="dialog"] h3 {
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.adviser-reviews--workspace [role="dialog"] h3 + p {
+  max-width: 72ch;
+  line-height: 1.45;
+}
+
+.adviser-reviews--workspace [role="dialog"] [aria-label="Close dialog"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid color-mix(in srgb, var(--color-text-secondary) 82%, var(--color-surface));
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.adviser-reviews--workspace [role="dialog"] [aria-label="Close dialog"]:hover {
+  background: var(--color-surface-muted);
+}
+
+.adviser-reviews--workspace [role="dialog"] [aria-label="Close dialog"] > svg {
+  color: var(--color-text-primary);
+}
+
+.adviser-reviews--workspace [role="dialog"] :is(input:not([type="checkbox"]), select, textarea) {
+  border: 1px solid color-mix(in srgb, var(--color-text-secondary) 72%, var(--color-surface));
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+}
+
+.adviser-reviews--workspace [role="dialog"] :is(input, textarea)::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 1;
+}
+
+.adviser-reviews--workspace [role="dialog"] :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 2px;
+}
+
+.adviser-reviews--workspace [role="dialog"] #review-overall {
+  min-height: 112px;
+  height: 112px;
+}
+
+.adviser-reviews--workspace [role="dialog"] [aria-label="Detailed review comment"] {
+  min-height: 88px;
+  height: 88px;
+}
+
+.adviser-reviews--workspace [role="dialog"] div:has(> div > [aria-label="Section or chapter"]) {
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.adviser-reviews--workspace [role="dialog"] > div > div:has(> .submission-action) {
+  border-top: 1px solid var(--color-border);
+  padding-block: 12px;
+}
+
+.adviser-reviews--workspace [role="dialog"] > div > div:has(> .submission-action) button {
+  min-height: 44px;
+}
+
+.dark .adviser-reviews--workspace [role="dialog"] .submission-action {
+  --college-on-primary-dark: var(--color-background);
+  --college-on-primary: var(--color-background);
+}
+
+@media (max-width: 639px) {
+  .adviser-reviews--workspace [role="dialog"] > div > div {
+    padding: 16px;
+  }
+
+  .adviser-reviews--workspace [role="dialog"] > div > div:has(> .submission-action) button {
+    width: 100%;
+  }
+}
