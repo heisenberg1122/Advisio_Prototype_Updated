@@ -1,9 +1,5 @@
 /* My Project owns these surfaces and ancestor adjustments. Shared layout and
    invitation components retain their implementation and appearance elsewhere. */
-.app-workspace:has(.mp-workspace),
-.app-workspace:has(.mp-project-container) {
-  background: var(--color-background) !important;
-}
 .app-workspace .w-full:has(> .mp-workspace),
 .app-workspace .w-full:has(> .mp-project-container) {
   width: calc(100% - clamp(32px, 4vw, 64px));

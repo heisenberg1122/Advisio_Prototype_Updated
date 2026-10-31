@@ -1,8 +1,4 @@
 /* Presentation is intentionally scoped to the Tasks listing, not task details. */
-.app-workspace:has(.research-tasks) {
-  background: var(--color-background) !important;
-}
-
 .research-tasks {
   --rt-text-secondary: color-mix(in srgb, var(--color-text-primary) 76%, var(--color-surface));
   --rt-action-text: color-mix(in srgb, var(--color-primary) 85%, var(--color-text-primary));
