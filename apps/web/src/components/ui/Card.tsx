@@ -38,7 +38,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 sm:p-7 transition-all duration-200",
+        "bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-5 sm:p-6 transition-all duration-200",
         "shadow-[var(--shadow-card-soft)]",
         interactive && "hover:shadow-[var(--shadow-card-hover)] hover:border-[var(--color-border-strong)] hover:-translate-y-0.5 cursor-pointer",
         accentColor && accentBorderMap[accentColor],

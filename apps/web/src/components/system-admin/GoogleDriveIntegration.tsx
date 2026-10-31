@@ -297,7 +297,7 @@ export function GoogleDriveIntegration({
         </div>
       )}
       <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
-        <div className="flex flex-col gap-4 border-b border-slate-100 p-6 dark:border-white/5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="workspace-page-header workspace-page-header--inset flex flex-col gap-4 border-b border-slate-100 p-6 dark:border-white/5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <span className="grid h-14 w-14 place-items-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
               <Cloud className="h-7 w-7" />

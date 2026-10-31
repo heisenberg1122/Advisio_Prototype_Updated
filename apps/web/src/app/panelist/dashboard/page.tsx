@@ -451,7 +451,7 @@ function PanelistDashboardContent() {
 
         {/* MAIN CONTAINER */}
         <div
-          className={`flex w-full flex-1 flex-col space-y-6 ${activeTab === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1540px] p-4 sm:p-6 lg:p-8"}`}
+          className={`workspace-page flex w-full flex-1 flex-col space-y-6 ${activeTab === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1540px] p-4 sm:p-6 lg:p-8"}`}
         >
           {dashboardError && activeTab !== "messages" && (
             <div

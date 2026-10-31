@@ -3597,7 +3597,7 @@ function ProfessorDashboardContent() {
 
       {/* MAIN CONTAINER */}
       <div
-        className={`flex w-full flex-1 flex-col space-y-6 ${activeTab === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}
+        className={`workspace-page flex w-full flex-1 flex-col space-y-6 ${activeTab === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}
       >
         {(() => {
           const tabContent: Record<string, React.ReactNode> = {
@@ -4035,7 +4035,7 @@ function ProfessorDashboardContent() {
             ),
             announcements: (
               <div className="mx-auto grid w-full max-w-[1440px] gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+                <section className="workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
@@ -4235,7 +4235,7 @@ function ProfessorDashboardContent() {
             ),
             defense: (
               <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+                <section className="workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
@@ -5332,7 +5332,7 @@ function ProfessorDashboardContent() {
               </div>
             ) : (
               <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+                <section className="workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
@@ -5428,7 +5428,7 @@ function ProfessorDashboardContent() {
                   />
                 ) : (
                   <>
-                    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+                    <section className="workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                         <div>
                           <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
@@ -5819,7 +5819,7 @@ function ProfessorDashboardContent() {
             ),
             builder: (
               <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-5 text-[var(--color-text-primary)]">
-                <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] lg:p-6">
+                <section className="workspace-page-header rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] lg:p-6">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--color-primary)]">

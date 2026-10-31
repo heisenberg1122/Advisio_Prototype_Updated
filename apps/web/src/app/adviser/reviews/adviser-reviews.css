@@ -40,12 +40,15 @@
 }
 
 .adviser-reviews > div > header {
-  border: 0;
-  border-radius: 0;
-  padding: 0 0 24px;
-  background: none;
-  box-shadow: none;
-  border-bottom: 1px solid var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 32px;
+  background: linear-gradient(
+    112deg,
+    color-mix(in srgb, var(--color-primary-light) 82%, var(--color-surface)) 0%,
+    var(--color-surface) 72%
+  );
+  box-shadow: var(--shadow-card-soft);
 }
 
 .adviser-reviews header h1 {
@@ -68,31 +71,30 @@
   color: var(--color-text-secondary);
 }
 
-/* Read-only summary: remove decorative icon tiles, keep every label and count. */
+/* Read-only summary tiles inside the header card. */
 .adviser-reviews [aria-label="Review assignment summary"] {
-  gap: 0;
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  background: var(--color-surface);
+  margin-top: 20px;
+  gap: 12px;
+  border: 0;
+  background: transparent;
 }
 
 .adviser-reviews [aria-label="Review assignment summary"] > div {
   min-width: 0;
-  border: 0;
-  border-radius: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
   padding: 16px 24px;
-  background: none;
-}
-
-.adviser-reviews [aria-label="Review assignment summary"] > div + div {
-  border-left: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
 
 .adviser-reviews
   [aria-label="Review assignment summary"]
   > div
   > span:has(svg) {
-  display: none;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
 }
 
 .adviser-reviews [aria-label="Review assignment summary"] .text-xl {
@@ -197,24 +199,25 @@
   font-weight: 600;
 }
 
-/* Adviser Reviews only. These direct-child scopes exclude the inline modal.
-   State, status meaning, wording, action eligibility and DOM order stay intact. */
+/* Adviser Reviews only. These direct-child scopes exclude the inline modal. */
 .adviser-reviews--workspace > div {
   max-width: 1360px;
   gap: 24px;
 }
 
 .adviser-reviews--workspace > div > header {
-  padding: 0 0 16px;
+  min-height: 220px;
+  padding: 24px;
 }
 
 .adviser-reviews--workspace > div > header > div {
   gap: 16px 24px;
+  min-height: 60px;
 }
 
 .adviser-reviews--workspace > div > header h1 {
   margin-block: 4px 8px;
-  font-size: clamp(1.5rem, 2.5vw, 1.75rem);
+  font-size: clamp(1.5rem, 2.5vw, 1.875rem);
   font-weight: 600;
 }
 
@@ -235,42 +238,42 @@
   border-color: color-mix(in srgb, var(--color-text-secondary) 82%, var(--color-surface));
 }
 
-.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] > div {
+.adviser-reviews--workspace > div > header > [aria-label="Review assignment summary"] > div {
+  min-height: 80px;
   padding: 12px 16px;
 }
 
-.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] > div > span:last-child {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 4px 16px;
-  width: 100%;
+.adviser-reviews--workspace > div > header > [aria-label="Review assignment summary"] > div > span:last-child {
+  display: block;
+  flex: 1;
 }
 
-.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] .text-xl {
-  margin: 0;
-  font-size: 1.5rem;
+.adviser-reviews--workspace > div > header > [aria-label="Review assignment summary"] .text-xl {
+  margin-top: 4px;
+  font-size: 1.625rem;
   line-height: 1.25;
 }
 
-.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] .text-xs {
-  font-size: 0.75rem;
+.adviser-reviews--workspace > div > header > [aria-label="Review assignment summary"] .text-xs {
+  font-size: 0.875rem;
+  text-transform: none;
+  letter-spacing: normal;
   line-height: 1.5;
   color: var(--color-text-secondary);
 }
 
-.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] .truncate {
+.adviser-reviews--workspace > div > header > [aria-label="Review assignment summary"] .truncate {
   grid-column: 1 / -1;
   font-size: 0.875rem;
 }
 
 /* The pending label and count carry emphasis without inventing urgency rules. */
-.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] > div:first-child {
+.adviser-reviews--workspace > div > header > [aria-label="Review assignment summary"] > div:first-child {
   background-color: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
-  border-radius: 15px 0 0 15px;
+  border-radius: 12px;
 }
 
-.adviser-reviews--workspace > div > [aria-label="Review assignment summary"] > div:first-child .text-xs {
+.adviser-reviews--workspace > div > header > [aria-label="Review assignment summary"] > div:first-child .text-xs {
   color: var(--color-text-primary);
 }
 
@@ -372,7 +375,7 @@
 }
 
 .adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article dl {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px 16px;
   margin-top: 16px;
   padding-block: 12px;
@@ -397,17 +400,14 @@
   min-width: 0;
 }
 
-/* Retain the repeated source status, but remove its competing heading weight. */
-.adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article > div > div:last-child > div:first-child > p:first-child {
-  font-weight: 500;
+.adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article .adviser-assignment-details {
+  margin: 0;
+  padding: 0;
   color: var(--color-text-secondary);
 }
 
-.adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article p[title] {
-  margin-top: 8px;
-  color: var(--color-text-primary);
-  font-size: 0.875rem;
-  line-height: 1.5;
+.adviser-reviews--workspace article .adviser-assignment-details summary {
+  min-height: 44px;
 }
 
 .adviser-reviews--workspace > div > :is([aria-labelledby="pending-review-heading"], [aria-labelledby="review-history-heading"]) article button {
@@ -453,17 +453,23 @@
 }
 
 @media (max-width: 639px) {
+  .adviser-reviews--workspace > div > header {
+    min-height: 0;
+    padding: 20px;
+  }
+
+  .adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .adviser-reviews--workspace > div > header button {
     width: 100%;
   }
 
-  .adviser-reviews--workspace > div > [aria-label="Review assignment summary"] > div {
+  .adviser-reviews--workspace > div > header > [aria-label="Review assignment summary"] > div {
     padding: 12px 16px;
   }
 
-  .adviser-reviews--workspace > div > [aria-label="Review assignment summary"] > div:first-child {
-    border-radius: 15px 15px 0 0;
-  }
 
   .adviser-reviews--workspace > div > [aria-labelledby="pending-review-heading"] article > div,
   .adviser-reviews--workspace > div > [aria-labelledby="review-history-heading"] article {
@@ -613,10 +619,6 @@
     padding: 16px;
   }
 
-  .adviser-reviews [aria-label="Review assignment summary"] > div + div {
-    border-left: 0;
-    border-top: 1px solid var(--color-border);
-  }
 
   .adviser-reviews [role="dialog"] > div > div {
     padding: 16px;

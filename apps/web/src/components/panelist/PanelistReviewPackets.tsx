@@ -460,12 +460,12 @@ export function PanelistReviewPackets() {
               />
             ) : (
               <div className="grid gap-4 p-4 lg:grid-cols-[1fr_250px]">
-                <section className="min-h-[590px] overflow-hidden rounded-xl border bg-slate-800">
+                <section className="document-preview-stage min-h-[590px] overflow-hidden rounded-xl border border-[var(--color-border)]">
                   {previewUrl ? (
                     <iframe
                       title="Defense manuscript PDF"
                       src={`${previewUrl}#page=${pageNumber}&view=FitH`}
-                      className="h-[650px] w-full bg-white"
+                      className="document-preview-embed h-[650px] w-full"
                     />
                   ) : (
                     <DocumentPreviewSkeleton className="h-[590px] min-h-0" />
@@ -854,7 +854,7 @@ export function PanelistReviewPackets() {
                     <iframe
                       title="Recommendation PDF preview"
                       src={recommendationPreviewUrl}
-                      className="mt-4 h-[620px] w-full rounded-lg border bg-white"
+                      className="document-preview-embed mt-4 h-[620px] w-full rounded-lg border"
                     />
                     <div className="mt-3 space-y-1">
                       {layoutReport?.fields

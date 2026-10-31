@@ -107,7 +107,7 @@ describe("manuscript review context failures", () => {
     harness.get.mockRejectedValueOnce(
       new Error("Unable to process the manuscript review."),
     );
-    button(render(), "Review and decide").props.onClick();
+    button(render(), "Review manuscript").props.onClick();
     await settle();
     let tree = render();
     expect(
@@ -146,7 +146,7 @@ describe("manuscript review context failures", () => {
 
   it("allows a decision after history fails and only posts once", async () => {
     harness.get.mockRejectedValueOnce(new Error("History unavailable"));
-    button(render(), "Review and decide").props.onClick();
+    button(render(), "Review manuscript").props.onClick();
     await settle();
     harness.get.mockResolvedValue({ assignments: [] });
     button(render(), "Submit permanent decision").props.onClick();
@@ -173,7 +173,7 @@ describe("manuscript review context failures", () => {
         ? Promise.reject(new Error("Candidates unavailable"))
         : Promise.resolve(workflow),
     );
-    button(render(), "Review and decide").props.onClick();
+    button(render(), "Review manuscript").props.onClick();
     await settle();
     const tree = render();
     expect(button(tree, "Retry review history")).toBeUndefined();

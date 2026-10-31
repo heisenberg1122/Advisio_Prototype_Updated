@@ -307,7 +307,7 @@ export function AcademicStructureManagement() {
         </div>
       )}
 
-      <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
+      <section className="workspace-page-header rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <p className="text-sm font-black uppercase tracking-[0.2em] text-[#C9A227]">

@@ -71,13 +71,13 @@ export function SubmissionDocumentPreview({
     mimeType === "application/pdf" || mimeType.startsWith("image/");
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <header className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="document-preview-shell overflow-hidden rounded-2xl border shadow-sm">
+      <header className="document-preview-toolbar flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="truncate text-sm font-extrabold text-[#102f49]">
+          <p className="truncate text-sm font-extrabold text-[var(--color-text-primary)]">
             {version?.fileName || title}
           </p>
-          <p className="mt-0.5 text-base text-slate-500">
+          <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
             {version
               ? `Version ${version.versionNumber} · ${version.mimeType}`
               : "No file"}
@@ -88,7 +88,7 @@ export function SubmissionDocumentPreview({
             <select
               value={version?.id || ""}
               onChange={(event) => setVersionId(event.target.value)}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-base font-bold text-slate-700"
+              className="document-preview-control rounded-lg border bg-[var(--color-surface)] px-3 py-2 text-base font-bold"
               aria-label="Document version"
             >
               {ordered.map((item) => (
@@ -104,7 +104,7 @@ export function SubmissionDocumentPreview({
                 href={previewUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-extrabold text-[#173f63]"
+                className="document-preview-control rounded-lg border px-3 py-2 text-sm font-extrabold"
               >
                 <i className="ti ti-maximize mr-1" /> Full screen
               </a>
@@ -120,21 +120,21 @@ export function SubmissionDocumentPreview({
         </div>
       </header>
 
-      <div className="relative grid min-h-[640px] place-items-center bg-slate-100">
+      <div className="document-preview-stage relative grid min-h-[640px] place-items-center">
         {loading && (
           <DocumentPreviewSkeleton className="absolute inset-0 min-h-[640px] w-full" />
         )}
         {!loading && error && (
           <div className="max-w-md p-8 text-center">
             <i className="ti ti-file-alert text-4xl text-amber-500" />
-            <p className="mt-3 text-base font-bold text-slate-700">{error}</p>
+            <p className="mt-3 text-base font-bold text-[var(--color-text-primary)]">{error}</p>
           </div>
         )}
         {!loading && !error && previewUrl && mimeType === "application/pdf" && (
           <iframe
             title={`Preview of ${version?.fileName || title}`}
             src={previewUrl}
-            className="h-[72vh] min-h-[640px] w-full border-0 bg-white"
+            className="document-preview-embed h-[72vh] min-h-[640px] w-full border-0"
           />
         )}
         {!loading && !error && previewUrl && mimeType.startsWith("image/") && (
@@ -146,13 +146,13 @@ export function SubmissionDocumentPreview({
         )}
         {!loading && !error && previewUrl && !canEmbed && (
           <div className="max-w-md p-8 text-center">
-            <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-white text-[#173f63] shadow-sm">
+            <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-sm">
               <i className="ti ti-file-description text-4xl" />
             </span>
-            <h3 className="mt-4 text-lg font-extrabold text-[#102f49]">
+            <h3 className="mt-4 text-lg font-extrabold text-[var(--color-text-primary)]">
               Preview is not available for this file type
             </h3>
-            <p className="mt-2 text-base leading-6 text-slate-500">
+            <p className="mt-2 text-base leading-6 text-[var(--color-text-secondary)]">
               Download the original file to review it. DOCX preview conversion
               can be added as the next phase.
             </p>

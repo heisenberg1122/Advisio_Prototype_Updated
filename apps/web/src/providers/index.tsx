@@ -8,12 +8,12 @@ import { ThemeProvider } from "./theme-provider";
 import { AuthProvider, useAuth } from "./auth-provider";
 
 function UserThemeProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, token, isLoading } = useAuth();
   const { pathname } = useLocation();
 
   return (
     <ThemeProvider
-      useDefaultAppearance={usesDefaultAuthAppearance(pathname)}
+      useDefaultAppearance={usesDefaultAuthAppearance(pathname, Boolean(token) && (isLoading || Boolean(user)))}
       userId={user?.id}
       college={user?.college}
       program={user?.program}
@@ -43,16 +43,14 @@ function SessionQueries({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider key={scope} client={queryClient}>
-      <UserThemeProvider>
-        {children}
-        <ReactQueryDevtools initialIsOpen={false} />
-      </UserThemeProvider>
+      {children}
+      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
 }
 
 export function Providers({ children }: { children: ReactNode }) {
-  return <AuthProvider><SessionQueries>{children}</SessionQueries></AuthProvider>;
+  return <AuthProvider><UserThemeProvider><SessionQueries>{children}</SessionQueries></UserThemeProvider></AuthProvider>;
 }
 
 export { ThemeProvider, useTheme } from "./theme-provider";

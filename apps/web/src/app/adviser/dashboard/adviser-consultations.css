@@ -1,0 +1,56 @@
+.adviser-consultation-summary {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  color: var(--color-text-primary);
+}
+
+.adviser-consultation-summary__calendar {
+  min-width: 0;
+}
+
+.adviser-consultation-summary__metrics {
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.adviser-consultation-summary__metrics > div {
+  min-width: 0;
+  min-height: 80px;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+.adviser-consultation-summary__metrics > div > span:first-child {
+  width: 36px;
+  height: 36px;
+}
+
+.adviser-consultation-summary__metrics > div > span:last-child > span:first-child {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.adviser-consultation-summary__metrics > div > span:last-child > span:last-child {
+  color: var(--color-text-primary);
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 639px) {
+  .adviser-consultation-summary {
+    padding: 20px;
+  }
+
+  .adviser-consultation-summary__calendar .grid-cols-7 > div {
+    min-width: 0;
+    padding-inline: 4px;
+  }
+}

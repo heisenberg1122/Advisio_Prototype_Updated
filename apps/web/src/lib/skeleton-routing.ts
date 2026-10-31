@@ -8,12 +8,15 @@ export type ContentSkeletonKind =
   | "mail"
   | "notifications"
   | "profile"
+  | "task-details"
   | "table";
 
 export function contentSkeletonKindForPath(
   pathname: string,
 ): ContentSkeletonKind {
   const path = pathname.toLowerCase();
+
+  if (/\/tasks\/[^/]+\/?$/.test(path)) return "task-details";
 
   if (
     path.includes("/profile/edit") ||

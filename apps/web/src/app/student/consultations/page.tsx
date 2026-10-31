@@ -26,7 +26,7 @@ export default function ConsultationsPage() {
 
   return (
     <PageContainer className="flex flex-col gap-6">
-      <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-5 py-4" aria-label="Consultation calendar">
+      <section className="workspace-page-header rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-5 py-4" aria-label="Consultation calendar">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="shrink-0">
             <p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">Consultation calendar</p>

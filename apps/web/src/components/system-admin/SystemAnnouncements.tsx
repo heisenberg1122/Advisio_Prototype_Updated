@@ -67,7 +67,7 @@ export function SystemAnnouncements() {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)] gap-6">
       <section className="bg-white dark:bg-[#101b2b] rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-xs p-6">
-        <div className="mb-5">
+        <div className="workspace-page-header mb-5">
           <h2 className="font-black text-slate-900 dark:text-white text-lg">Publish a system-wide announcement</h2>
           <p className="mt-1 text-base text-slate-500 dark:text-slate-400">Every active user will receive this as an unread notification. Publishing is recorded in the audit log.</p>
         </div>

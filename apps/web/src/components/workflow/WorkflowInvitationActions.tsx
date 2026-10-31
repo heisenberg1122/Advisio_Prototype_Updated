@@ -37,34 +37,39 @@ export function WorkflowInvitationActions({
     }
   }
   return (
-    <section className="space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm">
-      <strong>{invitation.workflow.name}</strong>
-      <p>Workflow invitation: {invitation.status.toLowerCase()}</p>
+    <section className="space-y-4 rounded-2xl border border-[var(--color-border)] border-l-4 border-l-[var(--color-primary)] bg-[var(--color-surface)] p-5 text-sm shadow-[var(--shadow-card-soft)]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">Workflow invitation</p>
+          <strong className="block break-words text-base text-[var(--color-text-primary)]">{invitation.workflow.name}</strong>
+        </div>
+        <span className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize ${invitation.status === "ACCEPTED" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-200" : "border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)]"}`}>{invitation.status.toLowerCase().replace(/_/g, " ")}</span>
+      </div>
       {error && (
-        <p role="alert" className="text-rose-600">
+        <p role="alert" className="text-rose-600 dark:text-rose-300">
           {error}
         </p>
       )}
       {invitation.userId === userId && invitation.status === "PENDING" ? (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             disabled={busy}
             onClick={() => void respond("accept")}
-            className="rounded-lg bg-[#173f63] px-4 py-2 font-bold text-white disabled:opacity-50"
+            className="min-h-11 rounded-lg bg-[var(--color-primary)] px-4 py-2 font-bold text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)] disabled:opacity-50"
           >
             Accept invitation
           </button>
           <button
             disabled={busy}
             onClick={() => void respond("decline")}
-            className="rounded-lg border px-4 py-2 font-bold disabled:opacity-50"
+            className="min-h-11 rounded-lg border border-[var(--color-border)] px-4 py-2 font-bold text-[var(--color-text-primary)] disabled:opacity-50"
           >
             Decline
           </button>
         </div>
       ) : invitation.userId === userId && invitation.status === "ACCEPTED" ? (
         <Link
-          className="font-bold text-[var(--color-primary)]"
+          className="inline-flex min-h-11 items-center rounded-lg border border-[var(--color-border)] px-4 py-2 font-semibold text-[var(--color-primary)] hover:bg-[var(--color-surface-subtle)]"
           to="/student/tasks"
         >
           View workflow tasks and requirements

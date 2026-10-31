@@ -25,6 +25,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { COLLEGE_THEMES } from "@/lib/college-themes";
+import "./account-settings.css";
 
 type SettingsTab = "account" | "notifications" | "appearance" | "security";
 type NotificationPreferences = Record<string, boolean>;
@@ -240,14 +241,14 @@ export default function AccountSettingsPage() {
         </div>
       )}
 
-      <div>
+      <div className="workspace-page-header">
         <p className="text-sm font-extrabold uppercase tracking-[0.14em] text-[var(--color-primary)]">My account</p>
         <h1 className="mt-1 text-2xl font-extrabold text-[#17212B] dark:text-white">Account Settings</h1>
         <p className="mt-1 text-base text-slate-500 dark:text-slate-400">Manage personal preferences for your Advisio account.</p>
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-[260px_1fr]">
-        <nav className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:pb-0" aria-label="Account settings sections">
+        <nav className="account-settings-nav flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:pb-0" aria-label="Account settings sections">
           {categories.map(({ id, label, description, icon: Icon }) => (
             <button key={id} type="button" onClick={() => setActiveTab(id)} className={cn("flex min-w-52 items-center gap-3 rounded-xl border p-3 text-left transition", activeTab === id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]" : "border-[var(--color-border)] bg-[var(--color-surface)] text-slate-700 hover:bg-[var(--color-primary-light)] dark:text-slate-200")}>
               <span className={cn("grid h-9 w-9 place-items-center rounded-lg", activeTab === id ? "bg-white/15" : "bg-slate-100 dark:bg-white/10")}><Icon className="h-4 w-4" /></span>

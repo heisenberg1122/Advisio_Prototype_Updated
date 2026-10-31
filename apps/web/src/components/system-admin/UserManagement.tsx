@@ -7,6 +7,7 @@ import { TableSkeleton } from "@/components/ui/Skeleton";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Button } from "@/components/ui/Button";
 import { UserDetailsModal } from "./UserDetailsModal";
+import "./user-management.css";
 
 type RoleName =
   | "RESEARCHER"
@@ -297,21 +298,24 @@ export function UserManagement({
   };
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-2xl border border-slate-200/80 bg-white dark:border-white/10 dark:bg-[#101b2b] shadow-xs">
-        <div className="border-b border-slate-100 dark:border-white/5 p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="admin-users space-y-5">
+      <section className="admin-users__panel rounded-2xl border border-slate-200/80 bg-white dark:border-white/10 dark:bg-[#101b2b] shadow-xs">
+        <div className="workspace-page-header workspace-page-header--inset admin-users__header border-b border-slate-100 dark:border-white/5 p-5">
+          <div className="admin-users__header-content flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h2 className="text-lg font-black text-slate-900 dark:text-white">
-                User Management
-              </h2>
+              <div className="admin-users__title-row">
+                <h2 className="text-lg font-black text-slate-900 dark:text-white">
+                  User Management
+                </h2>
+                <span className="admin-users__count">{filteredUsers.length} accounts</span>
+              </div>
               <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                 Verify accounts, assign multiple institutional roles, suspend
                 access, and archive accounts while preserving their records and
                 files.
               </p>
             </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="admin-users__filters grid grid-cols-1 gap-2 sm:grid-cols-3">
               <input
                 aria-label="Search users"
                 value={search}
@@ -350,7 +354,7 @@ export function UserManagement({
         </div>
 
         <div
-          className="flex gap-2 border-b border-slate-100 p-5 dark:border-white/5"
+          className="admin-users__views flex gap-2 border-b border-slate-100 p-5 dark:border-white/5"
           role="group"
           aria-label="User account views"
         >
@@ -400,8 +404,9 @@ export function UserManagement({
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1050px] text-left text-sm">
+          <div className="admin-users__table-scroll overflow-x-auto" role="region" aria-label="User accounts" tabIndex={0}>
+            <table className="admin-users__table w-full min-w-[1050px] text-left text-sm">
+              <caption className="sr-only">User accounts, roles, academic assignments, status, and available account actions.</caption>
               <thead className="bg-slate-50 dark:bg-white/[0.02] text-xs uppercase tracking-wider text-slate-400 font-black">
                 <tr>
                   {[
@@ -413,7 +418,7 @@ export function UserManagement({
                     "Last login",
                     "Actions",
                   ].map((heading) => (
-                    <th key={heading} className="px-5 py-3 font-extrabold">
+                    <th key={heading} scope="col" className="px-5 py-3 font-extrabold">
                       {heading}
                     </th>
                   ))}
@@ -471,7 +476,7 @@ export function UserManagement({
                         : "Never"}
                     </td>
                     <td className="px-5 py-4">
-                      <div className="flex flex-wrap gap-2">
+                      <div className="admin-users__actions flex flex-wrap gap-2">
                         <button
                           onClick={() => setDetailsUserId(user.id)}
                           className="rounded-lg bg-[#0B3A53] px-3 py-1.5 font-bold text-white hover:bg-[#154d68]"

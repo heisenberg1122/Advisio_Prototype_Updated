@@ -1,0 +1,167 @@
+/* Shared portal geometry. Page content owns gutters once; overlays, tables,
+   document readers and message panes keep their internal layouts. */
+.app-workspace[data-workspace-layout="standard"] {
+  --workspace-page-max: 1360px;
+  --workspace-page-gutter: clamp(16px, 2vw, 32px);
+  --workspace-page-top: 24px;
+  --workspace-page-bottom: 32px;
+  --workspace-card-padding: 24px;
+  --workspace-card-radius: 16px;
+  --workspace-header-height: 204px;
+  padding: 0;
+}
+
+/* Explicit page containers and legacy full-width route roots share one grid.
+   Narrow forms and dialog panels are intentionally outside this selector. */
+.app-workspace[data-workspace-layout="standard"] .workspace-page,
+.app-workspace[data-workspace-layout="standard"] > :is(
+  .universal-calendar,
+  .research-tasks,
+  .td-academic-workspace,
+  .researcher-defense,
+  .researcher-mail-page,
+  [class~="max-w-[1360px]"],
+  [class~="max-w-[1800px]"],
+  [class~="max-w-screen-2xl"]
+):not(.fixed, [role="dialog"]) {
+  box-sizing: border-box;
+  width: calc(100% - 2 * var(--workspace-page-gutter));
+  max-width: var(--workspace-page-max);
+  min-width: 0;
+  margin-inline: auto;
+  padding: var(--workspace-page-top) 0 var(--workspace-page-bottom);
+}
+
+.app-workspace[data-workspace-layout="standard"] .workspace-page[data-workspace-width="narrow"] {
+  max-width: 56rem;
+}
+
+/* A page reused inside another page (for example documents inside a dashboard)
+   reuses the parent's gutters rather than adding a second set. */
+.app-workspace[data-workspace-layout="standard"] .workspace-page .workspace-page {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Allow dashboard grids to shrink around long project titles and wide tables.
+   Tables keep their own horizontal scrolling instead of widening the page. */
+.app-workspace[data-workspace-layout="standard"] .workspace-page :where(.grid, .flex) > :not(.fixed, [role="dialog"]) {
+  min-width: 0;
+}
+
+.app-workspace[data-workspace-layout="standard"] :is(
+  .workspace-page-header:not(.adviser-overview__welcome),
+  .college-hero-surface:has(h1):not(.adviser-overview__welcome),
+  .adviser-overview__summary,
+  .adviser-consultation-summary,
+  .rt-workflow,
+  .mp-identity,
+  .researcher-consultation-hero,
+  .rd-library-hero,
+  .rdf-header
+):not([role="dialog"] *, .fixed *) {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--workspace-header-height);
+  padding: var(--workspace-card-padding);
+  border: 2px solid var(--color-border);
+  border-radius: var(--workspace-card-radius);
+  background: linear-gradient(
+    112deg,
+    color-mix(in srgb, var(--color-primary-light) 82%, var(--color-surface)) 0%,
+    var(--color-surface) 72%
+  );
+  box-shadow: var(--shadow-card-soft);
+}
+
+/* Dashboard greetings have more visual weight than regular page headers.
+   Adviser's greeting and metrics share one outer surface. */
+.app-workspace[data-workspace-layout="standard"] :is(
+  .workspace-dashboard-welcome:not(.adviser-overview__welcome),
+  .adviser-overview__summary
+) {
+  min-height: 240px;
+  padding: 28px;
+  border-width: 3px;
+  border-color: color-mix(in srgb, var(--color-border-strong) 80%, var(--color-primary));
+  box-shadow: 0 8px 22px rgb(0 0 0 / 9%);
+}
+
+/* Headers attached to a table or form retain a single outer card border. */
+.app-workspace[data-workspace-layout="standard"] .workspace-page-header--inset {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-width: 0 0 1px;
+  border-radius: var(--workspace-card-radius) var(--workspace-card-radius) 0 0;
+  box-shadow: none;
+}
+
+.app-workspace[data-workspace-layout="standard"] .workspace-page-header--inset > div {
+  width: 100%;
+}
+
+.app-workspace[data-workspace-layout="standard"] .workspace-page-header :is(h1, h2, h3) {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+}
+
+.app-workspace[data-workspace-layout="standard"] .workspace-page-header p:is([class*="text-slate-500"], [class*="text-slate-400"]) {
+  color: var(--color-text-secondary) !important;
+}
+
+.app-workspace[data-workspace-layout="standard"] .workspace-page-header :where(button, input, select) {
+  min-height: 44px;
+}
+
+/* Overview's project panel includes inset footers using this shared gutter. */
+.app-workspace[data-workspace-layout="standard"] .research-command-center {
+  --rcc-gutter: var(--workspace-card-padding);
+}
+
+.app-workspace[data-workspace-layout="standard"] .rcc-project {
+  border-radius: var(--workspace-card-radius);
+}
+
+.app-workspace[data-workspace-layout="standard"] :is(
+  .workspace-page-header,
+  .college-hero-surface
+) h1 {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.app-workspace[data-workspace-layout="standard"] .adviser-overview__welcome > div {
+  min-height: 60px;
+}
+
+.app-workspace[data-workspace-layout="standard"] .adviser-overview__metrics {
+  margin-top: 20px;
+}
+
+.app-workspace[data-workspace-layout="standard"] .adviser-overview__metric {
+  min-height: 80px;
+  padding: 12px 16px;
+}
+
+@media (max-width: 767px) {
+  .app-workspace[data-workspace-layout="standard"] {
+    --workspace-page-top: 16px;
+    --workspace-page-bottom: 24px;
+    --workspace-card-padding: 20px;
+    --workspace-header-height: 0px;
+  }
+
+  .app-workspace[data-workspace-layout="standard"] :is(
+    .workspace-dashboard-welcome:not(.adviser-overview__welcome),
+    .adviser-overview__summary
+  ) {
+    min-height: 0;
+    padding: var(--workspace-card-padding);
+  }
+}

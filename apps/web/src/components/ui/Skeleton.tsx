@@ -1,6 +1,8 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { contentSkeletonKindForPath } from "@/lib/skeleton-routing";
+import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
+import "@/components/layout/workspace-layout.css";
 
 export { contentSkeletonKindForPath } from "@/lib/skeleton-routing";
 
@@ -371,6 +373,28 @@ export function DocumentPreviewSkeleton({ className }: { className?: string }) {
   );
 }
 
+export function TaskDetailsSkeleton({ className, backLink = true }: { className?: string; backLink?: boolean }) {
+  return (
+    <LoadingRegion label="Loading task details" className={cn("mx-auto w-full max-w-[1360px] space-y-6 p-4 sm:p-6 lg:p-8", className)}>
+      {backLink && <Skeleton className="my-3 h-4 w-48" />}
+      <div className="flex min-h-[204px] flex-col justify-center gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-8 w-3/4 max-w-lg" />
+        <Skeleton className="h-4 w-4/5 max-w-xl" />
+      </div>
+      <div className="space-y-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+        <div className="flex flex-wrap gap-3"><Skeleton className="h-6 w-24 rounded-full" /><Skeleton className="h-6 w-56 max-w-full" /></div>
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-4 w-2/3 max-w-md" />
+      </div>
+      <div className="space-y-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+        <Skeleton className="h-5 w-44" />
+        <Skeleton className="h-4 w-60 max-w-full" />
+      </div>
+    </LoadingRegion>
+  );
+}
+
 export function ContentSkeletonForPath({ pathname }: { pathname: string }) {
   switch (contentSkeletonKindForPath(pathname)) {
     case "form": return <FormPageSkeleton />;
@@ -382,24 +406,26 @@ export function ContentSkeletonForPath({ pathname }: { pathname: string }) {
     case "dashboard": return <DashboardSkeleton />;
     case "cards": return <CardsPageSkeleton />;
     case "table": return <TablePageSkeleton />;
+    case "task-details": return <TaskDetailsSkeleton />;
     default: return <ListPageSkeleton />;
   }
 }
 
 export function AppShellSkeleton({ pathname = typeof window === "undefined" ? "/dashboard" : window.location.pathname }: { pathname?: string }) {
+  const { collapsed } = useSidebarCollapsed();
   return (
     <div className="min-h-screen bg-[var(--sidebar-background)] font-sans text-[var(--color-text-primary)] antialiased">
       {/* Universal Google Classroom-Inspired Institutional Sidebar Skeleton */}
-      <aside className="fixed inset-y-0 left-0 z-50 hidden w-[260px] flex-col bg-[var(--sidebar-background)] lg:flex">
-        <div className="flex h-16 shrink-0 items-center gap-3 px-4">
+      <aside className={cn("fixed inset-y-0 left-0 z-50 hidden flex-col bg-[var(--sidebar-background)] lg:flex", collapsed ? "w-[72px]" : "w-[260px]")}>
+        <div className={cn("flex h-16 shrink-0 items-center", collapsed ? "justify-center px-2" : "gap-3 px-4")}>
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-600/30 dark:text-slate-400/30">
             <div className="h-5 w-5 rounded-md bg-current opacity-40" />
           </div>
-          <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
-          <div className="min-w-0 flex-1 space-y-1">
+          {!collapsed && <img src="/ao-logo.png" alt="Advisio" className="h-9 w-9 shrink-0 rounded-xl" />}
+          {!collapsed && <div className="min-w-0 flex-1 space-y-1">
             <Skeleton className="h-4 w-20" />
             <Skeleton className="h-2.5 w-24 bg-[var(--color-primary)]/20" />
-          </div>
+          </div>}
         </div>
 
         <div className="flex-1 space-y-1.5 px-3 py-4">
@@ -407,28 +433,30 @@ export function AppShellSkeleton({ pathname = typeof window === "undefined" ? "/
             <div
               key={index}
               className={cn(
-                "flex h-11 items-center gap-3 rounded-xl px-3",
+                "flex h-11 items-center gap-3 rounded-xl",
+                collapsed ? "justify-center" : "px-3",
                 index === 0 && "bg-[var(--nav-active-bg)]/70"
               )}
             >
               <Skeleton className="h-5 w-5 shrink-0 rounded-md" />
-              <Skeleton className={cn("h-3.5", index % 2 === 0 ? "w-28" : "w-20")} />
+              {!collapsed && <Skeleton className={cn("h-3.5", index % 2 === 0 ? "w-28" : "w-20")} />}
             </div>
           ))}
         </div>
 
         <div className="p-3">
-          <div className="flex h-11 items-center gap-3 rounded-xl px-3">
+          <div className={cn("flex h-11 items-center gap-3 rounded-xl", collapsed ? "justify-center" : "px-3")}>
             <Skeleton className="h-5 w-5 shrink-0 rounded-md" />
-            <Skeleton className="h-3.5 w-16" />
+            {!collapsed && <Skeleton className="h-3.5 w-16" />}
           </div>
         </div>
       </aside>
 
       {/* Main Workspace Frame Area */}
-      <div className="flex min-h-screen min-w-0 flex-col bg-[var(--sidebar-background)] lg:pl-[260px]">
+      <div className={cn("flex min-h-screen min-w-0 flex-col bg-[var(--sidebar-background)]", collapsed ? "lg:pl-[72px]" : "lg:pl-[260px]")}>
         <header className="flex h-16 items-center justify-between bg-[var(--header-background)] px-4 sm:px-6">
           <div className="flex items-center gap-3">
+            {collapsed && <img src="/ao-logo.png" alt="Advisio" className="hidden h-9 w-9 rounded-xl lg:block" />}
             <Skeleton className="h-9 w-9 rounded-xl lg:hidden" />
             <Skeleton className="hidden h-9 w-64 rounded-xl sm:block" />
           </div>
@@ -438,7 +466,7 @@ export function AppShellSkeleton({ pathname = typeof window === "undefined" ? "/
           </div>
         </header>
 
-        <main className="app-workspace flex min-h-[calc(100vh-4rem)] min-w-0 flex-1 flex-col rounded-tl-[32px] border-0 bg-[var(--color-surface)] outline-none shadow-none">
+        <main data-workspace-layout="standard" className="app-workspace flex min-h-[calc(100vh-4rem)] min-w-0 flex-1 flex-col rounded-tl-[32px] border-0 bg-[var(--color-background)] outline-none shadow-none">
           <ContentSkeletonForPath pathname={pathname} />
         </main>
       </div>

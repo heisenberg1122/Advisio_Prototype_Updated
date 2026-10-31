@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 import { portalQuickLinks } from "@/lib/portal-navigation";
 import { DashboardSwitcher } from "@/components/layout/DashboardSwitcher";
 import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
-import { getRoleBadgeLabel } from "@/lib/dashboard-navigation";
+import { getRoleBadgeLabel, getRolePortalBadge } from "@/lib/dashboard-navigation";
 
 export interface AppTopbarProps {
   title?: string;
@@ -75,7 +75,7 @@ export function AppTopbar({
   const { profile } = useProfile();
   const { activeWorkspace } = useDashboardWorkspace();
   const { logout, user } = useAuth();
-  const { openMobile } = useSidebarCollapsed();
+  const { openMobile, collapsed } = useSidebarCollapsed();
   const { theme, isDark, toggleTheme } = useTheme();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -213,6 +213,16 @@ export function AppTopbar({
         >
           <Menu className="h-5 w-5" />
         </button>
+
+        <div className={cn("flex shrink-0 items-center gap-2.5 lg:hidden", collapsed && "lg:flex")}>
+          <div className="h-9 w-9 overflow-hidden rounded-xl ring-1 ring-[var(--color-border)]">
+            <img src="/ao-logo.png" alt="Advisio" className="h-full w-full object-cover" />
+          </div>
+          <div className="hidden lg:block">
+            <p className="text-sm font-bold tracking-tight text-[var(--color-text-primary)]">ADVISIO</p>
+            <p className="text-xs font-semibold text-[var(--color-primary)]">{getRolePortalBadge(activeWorkspace)}</p>
+          </div>
+        </div>
 
         <div className="min-w-0">
           {breadcrumbs && breadcrumbs.length > 0 ? (

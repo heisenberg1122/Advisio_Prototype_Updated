@@ -1,0 +1,156 @@
+/* Adviser-only version of the Researcher workspace background convention.
+   Theme accents, semantic colors, shared components and other portals retain
+   their existing styles. The Overview marker follows the rendered content. */
+.adviser-shell .app-workspace:not(:has(.adviser-overview)) {
+  --color-background: var(--color-white);
+  --color-surface: var(--color-white);
+  --color-surface-subtle: var(--color-slate-50);
+  --color-surface-muted: var(--color-slate-100);
+  --color-border: var(--color-slate-200);
+  --color-border-subtle: var(--color-slate-100);
+  --color-border-strong: var(--color-slate-300);
+  background: var(--color-background) !important;
+}
+
+.adviser-shell .app-workspace {
+  --background: var(--color-background);
+  --surface: var(--color-surface);
+  --surface-secondary: var(--color-surface-muted);
+  --border: var(--color-border);
+  --border-color: var(--color-border);
+  --color-border-tertiary: var(--color-border-subtle);
+  --color-bg-primary: var(--color-surface);
+  --color-bg-secondary: var(--color-surface-muted);
+  --color-bg-tertiary: var(--color-background);
+  --color-border-t: var(--color-border-subtle);
+  --color-border-s: var(--color-border);
+}
+
+/* Capture the frame's actual dark palette before neutralizing page tokens.
+   This also avoids inheriting light college surfaces from the root element. */
+.adviser-shell > .dark {
+  --adviser-dark-canvas: var(--color-background);
+  --adviser-dark-panel: var(--color-surface);
+  --adviser-dark-inset: var(--color-surface-subtle);
+  --adviser-dark-muted: var(--color-surface-muted);
+  --adviser-dark-border: var(--color-border);
+  --adviser-dark-border-subtle: var(--color-border-subtle);
+  --adviser-dark-border-strong: var(--color-border-strong);
+}
+
+.adviser-shell > .dark .app-workspace:not(:has(.adviser-overview)) {
+  --color-background: var(--adviser-dark-canvas);
+  --color-surface: var(--adviser-dark-panel);
+  --color-surface-subtle: var(--adviser-dark-inset);
+  --color-surface-muted: var(--adviser-dark-muted);
+  --color-border: var(--adviser-dark-border);
+  --color-border-subtle: var(--adviser-dark-border-subtle);
+  --color-border-strong: var(--adviser-dark-border-strong);
+}
+
+/* Only Overview joins the page canvas to the sidebar and topbar atmosphere. */
+.adviser-shell:has(.adviser-overview) > div {
+  --sidebar-background: var(--color-background);
+  --header-background: var(--color-background);
+}
+.adviser-shell .app-workspace:has(.adviser-overview) {
+  background: var(--color-background) !important;
+}
+
+/* Existing adviser cards sometimes specify the previous dark canvas directly. */
+.adviser-shell
+  > .dark
+  .app-workspace
+  :is([class~="dark:bg-[#101b2b]"], [class~="dark:bg-[#101B2B]"]) {
+  background-color: var(--color-surface);
+}
+
+/* Documents supplies its own Researcher-style responsive page gutters. */
+.adviser-shell .app-workspace:has(> .adviser-documents) {
+  padding: 0;
+}
+
+/* Calendar uses the same page gutters and header dimensions as Documents. */
+.adviser-shell .app-workspace:has(> .universal-calendar) {
+  padding: 0;
+}
+
+.adviser-shell .universal-calendar {
+  width: calc(100% - clamp(32px, 4vw, 64px));
+  max-width: 1360px;
+  margin-inline: auto;
+  padding: 24px 0 32px;
+}
+
+.adviser-shell .universal-calendar__header {
+  display: flex;
+  align-items: center;
+  min-height: 204px;
+  padding: 24px;
+  border-width: 2px;
+  border-radius: 16px;
+}
+
+.adviser-shell .universal-calendar__header > div {
+  width: 100%;
+}
+
+.adviser-shell .universal-calendar__header h1 {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.adviser-shell .universal-calendar__header button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .adviser-shell .universal-calendar {
+    padding-top: 16px;
+  }
+
+  .adviser-shell .universal-calendar__header {
+    min-height: 0;
+    padding: 20px;
+  }
+}
+
+/* Keep the existing college accent on the requested Documents cards. */
+.adviser-documents .rd-milestones-grid > section {
+  background-color: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+}
+
+/* Match the Researcher background transitions without replacing layout motion. */
+.adviser-shell > div,
+.adviser-shell .app-workspace,
+.adviser-shell > div > .flex > header {
+  transition:
+    background-color 240ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    color 200ms ease,
+    border-color 200ms ease;
+}
+.adviser-shell > div > .flex {
+  transition:
+    background-color 240ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    padding-left 300ms ease-in-out;
+}
+.adviser-shell > div > aside {
+  transition:
+    background-color 240ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    color 200ms ease,
+    border-color 200ms ease,
+    width 300ms ease-in-out,
+    transform 300ms ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .adviser-shell > div,
+  .adviser-shell > div > .flex,
+  .adviser-shell > div > aside,
+  .adviser-shell > div > .flex > header,
+  .adviser-shell .app-workspace {
+    transition: none !important;
+  }
+}

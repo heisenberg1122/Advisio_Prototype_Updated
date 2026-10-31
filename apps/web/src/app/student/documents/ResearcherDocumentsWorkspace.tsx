@@ -377,12 +377,12 @@ export function ResearcherDocumentsWorkspace({
               </p>
             </div>
           </div>
-          <a
-            href={taskHref}
+          <Link
+            to={taskHref!}
             className="inline-flex min-h-7 shrink-0 items-center justify-center rounded text-xs font-semibold text-[var(--color-primary)] underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
           >
             Return to task
-          </a>
+          </Link>
         </div>
       )}
 
@@ -790,7 +790,7 @@ export function ResearcherDocumentsWorkspace({
                     </p>
                   </div>
                 </div>
-                <div className="rd-preview-frame">
+                <div className="document-preview-shell rd-preview-frame">
                   {previewKind === "UNAVAILABLE" ? (
                     <EmptyState
                       icon={Info}
@@ -810,7 +810,7 @@ export function ResearcherDocumentsWorkspace({
                         selectedDocument.liveDocumentUrl,
                       )}
                       title={`${selectedDocument.title} — current working draft`}
-                      className="w-full bg-white"
+                      className="document-preview-embed w-full"
                       style={{ height: previewHeight }}
                       allow="clipboard-write"
                     />
@@ -846,7 +846,7 @@ export function ResearcherDocumentsWorkspace({
                       <iframe
                         src={storedPreviewUrl}
                         title={`${selectedDocument.title} — version ${selectedVersion?.versionNumber}`}
-                        className="w-full bg-white"
+                        className="document-preview-embed w-full"
                         style={{ height: previewHeight }}
                       />
                     )

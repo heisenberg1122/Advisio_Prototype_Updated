@@ -207,11 +207,13 @@ export function AdminAuditActivity() {
   if (!query.data) return <LoadError retry={() => void query.refetch()} />;
   return (
     <section className={`${panel} p-6`}>
-      <h1 className="text-2xl font-bold">Administrative audit events</h1>
-      <p className={`mt-1 text-base ${muted}`}>
-        The six latest recorded account and institutional changes. Times are in
-        Philippine Time.
-      </p>
+      <div className="workspace-page-header">
+        <h1 className="text-2xl font-bold">Administrative audit events</h1>
+        <p className={`mt-1 text-base ${muted}`}>
+          The six latest recorded account and institutional changes. Times are in
+          Philippine Time.
+        </p>
+      </div>
       <ActivityList events={query.data.activity} />
     </section>
   );
@@ -429,7 +431,7 @@ export function SystemAdminOverview() {
   ];
   return (
     <>
-      <header className="flex flex-wrap items-center justify-between gap-4">
+      <header className="workspace-page-header workspace-dashboard-welcome flex flex-wrap items-center justify-between gap-4">
         <div>
           <p
             className={`mb-2 text-sm font-bold uppercase tracking-[0.18em] ${ink}`}

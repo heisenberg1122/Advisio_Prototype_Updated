@@ -15,7 +15,7 @@ export interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
 
 /**
  * Standardized Page Header
- * Google Classroom-inspired banner or clean academic header with unified hierarchy, spacing, and action alignment.
+ * Academic page header with unified hierarchy, spacing, and action alignment.
  */
 export function PageHeader({
   title,
@@ -31,7 +31,7 @@ export function PageHeader({
     return (
       <section
         className={cn(
-          "rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)] flex flex-col md:flex-row md:items-center justify-between gap-4",
+          "workspace-page-header rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:p-7 shadow-[var(--shadow-card-soft)] flex flex-col md:flex-row md:items-center justify-between gap-4",
           className
         )}
         {...props}
@@ -115,7 +115,7 @@ export function PageHeader({
   return (
     <section
       className={cn(
-        "college-hero-surface rounded-2xl p-6 text-[var(--color-text-primary)] border relative overflow-hidden",
+        "workspace-page-header college-hero-surface rounded-2xl p-6 text-[var(--color-text-primary)] border relative overflow-hidden",
         className
       )}
       {...props}

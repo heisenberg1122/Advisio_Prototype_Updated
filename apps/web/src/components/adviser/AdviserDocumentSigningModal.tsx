@@ -454,9 +454,9 @@ export function DocumentSigningModal({
         <div className="grid min-h-0 flex-1 grid-rows-[minmax(260px,45dvh)_auto] overflow-y-auto min-[760px]:grid-cols-[minmax(0,1fr)_380px] min-[760px]:grid-rows-1 min-[760px]:overflow-hidden">
           <div
             ref={previewRef}
-            className="relative min-h-0 overflow-auto bg-slate-200 p-5 pt-16"
+            className="document-preview-stage relative min-h-0 overflow-auto p-5 pt-16"
           >
-            <div className="sticky top-0 z-20 -mt-11 mb-3 flex w-fit items-center gap-1 rounded-xl border border-slate-300 bg-white/95 p-1.5 shadow-lg backdrop-blur">
+            <div className="document-preview-toolbar sticky top-0 z-20 -mt-11 mb-3 flex w-fit flex-wrap items-center gap-1 rounded-xl border p-1.5 shadow-lg">
               <button
                 type="button"
                 onClick={() => changeZoom(zoom - 0.1)}
@@ -505,7 +505,7 @@ export function DocumentSigningModal({
             {!busy && pdf && (
               <div
                 ref={pageRef}
-                className="relative mx-auto w-fit bg-white shadow-xl"
+                className="document-preview-paper relative mx-auto w-fit"
               >
                 <canvas ref={canvasRef} className="block max-w-none" />
                 {signatureUrl && !signedPreview && (

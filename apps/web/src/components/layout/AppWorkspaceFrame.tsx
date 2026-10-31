@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/providers/theme-provider";
+import "./workspace-layout.css";
 
 interface AppWorkspaceFrameProps {
   children: React.ReactNode;
@@ -19,13 +19,8 @@ export function AppWorkspaceFrame({
   collapsed,
   sidebar,
   topbar,
-  dashboardPath,
-  padSecondaryPages = false,
 }: AppWorkspaceFrameProps) {
-  const pathname = usePathname() || "";
   const { isDark } = useTheme();
-  const shouldPadContent =
-    padSecondaryPages && Boolean(dashboardPath) && pathname !== dashboardPath;
 
   return (
     <div
@@ -44,9 +39,9 @@ export function AppWorkspaceFrame({
       >
         {topbar}
         <main
+          data-workspace-layout="standard"
           className={cn(
-            "app-workspace flex min-h-[calc(100vh-4rem)] min-w-0 flex-1 flex-col rounded-tl-[32px] bg-white dark:bg-[var(--color-surface)] border-0 outline-none shadow-none",
-            shouldPadContent && "p-4 sm:p-6 lg:p-8"
+            "app-workspace flex min-h-[calc(100vh-4rem)] min-w-0 flex-1 flex-col rounded-tl-[32px] bg-white dark:bg-[var(--color-surface)] border-0 outline-none shadow-none"
           )}
         >
           {children}

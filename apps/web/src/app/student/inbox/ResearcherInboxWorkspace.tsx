@@ -15,6 +15,7 @@ type Props = ComponentProps<typeof MailThreadList> & {
   onCompose: () => void;
   onFolderChange: (folder: ResearcherMailFolder) => void;
   reader: ReactNode;
+  additionalFolders?: ReactNode;
 };
 
 const folders = [
@@ -79,6 +80,7 @@ export function ResearcherInboxWorkspace(props: Props) {
               {count ? <span className="rm-folder-count">{count}</span> : null}
             </button>;
           })}
+          {props.additionalFolders}
         </nav>
         <div className="rm-note"><p>Formal correspondence</p><p>Inbox is separate from project group chats and uses authorized academic contacts only.</p></div>
       </aside>

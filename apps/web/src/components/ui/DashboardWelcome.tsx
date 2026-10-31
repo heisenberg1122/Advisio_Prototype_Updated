@@ -19,7 +19,7 @@ export function DashboardWelcome({
 
   return (
     <section
-      className={`college-hero-surface relative overflow-hidden rounded-2xl border p-6 text-[var(--color-text-primary)] sm:p-7 ${className}`}
+      className={`workspace-page-header workspace-dashboard-welcome college-hero-surface relative overflow-hidden rounded-2xl border p-6 text-[var(--color-text-primary)] sm:p-7 ${className}`}
     >
       <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 max-w-3xl">

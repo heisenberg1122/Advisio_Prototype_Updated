@@ -1,0 +1,50 @@
+/* Reader chrome follows the app theme; the document itself keeps its colors. */
+.document-preview-shell,
+.document-preview-toolbar {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+.document-preview-stage {
+  background-color: #e2e8f0;
+  color: var(--color-text-primary);
+  color-scheme: light;
+}
+
+.dark .document-preview-stage {
+  background-color: color-mix(in srgb, var(--color-background) 88%, #000);
+  color-scheme: dark;
+}
+
+.document-preview-paper {
+  background-color: #fff;
+  color: #0f172a;
+  color-scheme: light;
+  box-shadow: 0 2px 12px rgb(0 0 0 / 15%);
+}
+
+.dark .document-preview-paper {
+  box-shadow: 0 4px 20px rgb(0 0 0 / 35%);
+}
+
+/* Embedded services own their page colors; their surrounding frame is themed. */
+.document-preview-embed {
+  display: block;
+  background-color: var(--color-background);
+  border-color: var(--color-border);
+}
+
+.document-preview-control {
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.document-preview-control:hover:not(:disabled) {
+  background-color: var(--color-surface-subtle);
+}
+
+.document-preview-control:focus-visible {
+  outline: 2px solid var(--college-focus-ring, var(--color-primary));
+  outline-offset: 2px;
+}

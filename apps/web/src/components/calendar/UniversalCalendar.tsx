@@ -1,4 +1,6 @@
 "use client";
+import "./calendar-event-colors.css";
+import { Link } from "react-router-dom";
 
 import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -94,33 +96,25 @@ type AvailabilityConflict = {
 };
 
 const COLORS: Record<string, string> = {
-  CONSULTATION:
-    "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200",
-  DEFENSE:
-    "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200",
-  DEADLINE:
-    "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200",
-  MILESTONE:
-    "border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-200",
-  ACADEMIC:
-    "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200",
-  ANNOUNCEMENT:
-    "border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan-900/60 dark:bg-cyan-950/40 dark:text-cyan-200",
-  AVAILABILITY:
-    "border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100",
-  OTHER:
-    "border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200",
+  CONSULTATION: "calendar-event-tone calendar-event-tone--consultation",
+  DEFENSE: "calendar-event-tone calendar-event-tone--defense",
+  DEADLINE: "calendar-event-tone calendar-event-tone--deadline",
+  MILESTONE: "calendar-event-tone calendar-event-tone--milestone",
+  ACADEMIC: "calendar-event-tone calendar-event-tone--academic",
+  ANNOUNCEMENT: "calendar-event-tone calendar-event-tone--announcement",
+  AVAILABILITY: "calendar-event-tone calendar-event-tone--availability",
+  OTHER: "calendar-event-tone calendar-event-tone--other",
 };
 
 const LEGEND_DOTS: Record<CalendarEventType, string> = {
-  ACADEMIC: "bg-emerald-500",
-  CONSULTATION: "bg-blue-500",
-  DEFENSE: "bg-amber-500",
-  DEADLINE: "bg-rose-500",
-  MILESTONE: "bg-violet-500",
-  ANNOUNCEMENT: "bg-cyan-500",
-  AVAILABILITY: "bg-slate-500",
-  OTHER: "bg-slate-400",
+  ACADEMIC: "calendar-legend-dot calendar-event-tone--academic",
+  CONSULTATION: "calendar-legend-dot calendar-event-tone--consultation",
+  DEFENSE: "calendar-legend-dot calendar-event-tone--defense",
+  DEADLINE: "calendar-legend-dot calendar-event-tone--deadline",
+  MILESTONE: "calendar-legend-dot calendar-event-tone--milestone",
+  ANNOUNCEMENT: "calendar-legend-dot calendar-event-tone--announcement",
+  AVAILABILITY: "calendar-legend-dot calendar-event-tone--availability",
+  OTHER: "calendar-legend-dot calendar-event-tone--other",
 };
 
 const AVAILABILITY_LABELS: Record<AvailabilityStatus, string> = {
@@ -484,8 +478,8 @@ export default function UniversalCalendar() {
   if (calendar.isLoading) return <CalendarSkeleton />;
 
   return (
-    <div className="mx-auto w-full max-w-[1800px] space-y-5 p-3 sm:p-5 lg:p-6 xl:p-7">
-      <section className="college-hero-surface relative overflow-hidden rounded-[24px] border px-5 py-6 sm:px-7 sm:py-7">
+    <div className="universal-calendar mx-auto w-full max-w-[1800px] space-y-5 p-3 sm:p-5 lg:p-6 xl:p-7">
+      <section className="universal-calendar__header college-hero-surface relative overflow-hidden rounded-[24px] border px-5 py-6 sm:px-7 sm:py-7">
         <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[var(--color-primary-light)] text-[var(--color-primary)] ring-1 ring-[var(--college-focus-ring)]">
@@ -580,7 +574,7 @@ export default function UniversalCalendar() {
             </div>
           </div>
           <div className="flex items-center gap-4 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 py-3 sm:px-5">
-            <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-slate-400">
+            <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
               Event types
             </span>
             <div className="flex items-center gap-4">
@@ -596,10 +590,10 @@ export default function UniversalCalendar() {
               ).map((type) => (
                 <span
                   key={type}
-                  className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300"
+                  className="flex shrink-0 items-center gap-2 text-xs font-semibold text-[var(--color-text-primary)]"
                 >
                   <span
-                    className={`h-2 w-2 rounded-full ${LEGEND_DOTS[type]}`}
+                    className={`h-3 w-3 rounded-full ${LEGEND_DOTS[type]}`}
                   />
                   {prettyType(type)}
                 </span>
@@ -674,7 +668,7 @@ export default function UniversalCalendar() {
                       {dayEvents.slice(0, 3).map((calendarEvent) => (
                         <span
                           key={calendarEvent.id}
-                          className={`h-2 w-2 rounded-full border ${COLORS[calendarEvent.type] || COLORS.OTHER}`}
+                          className={`h-2 w-2 rounded-full ${LEGEND_DOTS[calendarEvent.type] || LEGEND_DOTS.OTHER}`}
                         />
                       ))}
                       {dayEvents.length > 0 && (
@@ -1104,12 +1098,12 @@ function EventDetailsDialog({
         )}
         <div className="mt-6 flex flex-wrap gap-2">
           {event.actionUrl && (
-            <a
-              href={event.actionUrl}
+            <Link
+              to={event.actionUrl}
               className="inline-flex rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-black text-[var(--college-on-primary)] hover:bg-[var(--color-primary-dark)] dark:text-[var(--college-on-primary-dark)]"
             >
               Open defense workspace
-            </a>
+            </Link>
           )}
           {event.meetingUrl && (
             <a

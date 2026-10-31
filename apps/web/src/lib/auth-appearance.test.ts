@@ -33,7 +33,7 @@ function initialAppearance(pathname: string, appearance: string, authenticated =
 
 describe("authentication screen appearance", () => {
   const authRoutes = [
-    "/login", "/register", "/forgot-password", "/reset-password",
+    "/register", "/forgot-password", "/reset-password",
     "/first-login-setup", "/google-onboarding", "/researcher-onboarding", "/choose-dashboard",
   ];
 
@@ -48,7 +48,7 @@ describe("authentication screen appearance", () => {
     }
   });
 
-  it.each(["/student/dashboard", "/admin/settings", "/calendar", "/login-history"])(
+  it.each(["/student/dashboard", "/admin/settings", "/calendar", "/login-history", "/adviser/tasks/task-1", "/professor/tasks/task-1", "/panelist/tasks/task-1", "/admin/tasks/task-1"])(
     "preserves the saved account theme on %s", (pathname) => {
       expect(usesDefaultAuthAppearance(pathname)).toBe(false);
       expect(initialAppearance(pathname, "dark")).toEqual({
@@ -62,5 +62,21 @@ describe("authentication screen appearance", () => {
     expect(initialAppearance("/login", "dark", false)).toEqual({
       dark: false, appearance: "light", collegeTheme: "default", colorScheme: "light",
     });
+  });
+
+  it("preserves the workspace theme while an existing login session is restored or redirected", () => {
+    for (const pathname of ["/login", "/login/"]) {
+      expect(usesDefaultAuthAppearance(pathname, true)).toBe(false);
+      expect(initialAppearance(pathname, "dark")).toEqual({
+        dark: true, appearance: "dark", collegeTheme: "bsit", colorScheme: "dark",
+      });
+      expect(initialAppearance(pathname, "system").dark).toBe(true);
+      expect(usesDefaultAuthAppearance(pathname, false)).toBe(true);
+    }
+  });
+
+  it("keeps other authentication forms in their standard appearance", () => {
+    expect(usesDefaultAuthAppearance("/register", true)).toBe(true);
+    expect(usesDefaultAuthAppearance("/choose-dashboard", true)).toBe(true);
   });
 });

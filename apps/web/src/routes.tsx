@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { LoginRoute } from "@/components/auth/LoginRoute";
 import { AppShellSkeleton } from "@/components/ui/Skeleton";
 import {
   legacyProfessorMilestonesDestination,
@@ -16,6 +17,7 @@ const StudentAdviserPoolPage = lazy(
   () => import("./app/student/adviser-pool/page"),
 );
 const StudentTasksPage = lazy(() => import("./app/student/tasks/page"));
+const FacultyTaskDetailsPage = lazy(() => import("./components/workflow/FacultyTaskDetailsPage"));
 const StudentDocumentsPage = lazy(() => import("./app/student/documents/page"));
 const StudentGroupFilesPage = lazy(
   () => import("./app/student/group-files/page"),
@@ -124,7 +126,8 @@ import GoogleOnboardingPage from "./app/(public)/google-onboarding/page";
 import ChooseDashboardPage from "./app/(public)/choose-dashboard/page";
 
 function RouteLoader() {
-  return <AppShellSkeleton />;
+  const { pathname } = useLocation();
+  return <AppShellSkeleton pathname={pathname} />;
 }
 
 function StudentPortal({ children }: { children: React.ReactNode }) {
@@ -179,7 +182,10 @@ export function AppRoutes() {
         <Route path="/" element={<HomePage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route path="/terms-of-service" element={<TermsOfServicePage />} />
-        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/login"
+          element={<LoginRoute><LoginPage /></LoginRoute>}
+        />
         <Route path="/register" element={<RegisterPage />} />
         <Route
           path="/researcher-onboarding"
@@ -192,6 +198,14 @@ export function AppRoutes() {
         <Route path="/choose-dashboard" element={<ChooseDashboardPage />} />
 
         {/* Student / Researcher Portal */}
+        {[
+          { portal: "adviser", roles: ["ADVISER"], Layout: AdviserLayout },
+          { portal: "professor", roles: ["PROFESSOR", "RESEARCH_COORDINATOR"], Layout: ProfessorLayout },
+          { portal: "panelist", roles: ["PANELIST"], Layout: PanelistLayout },
+          { portal: "admin", roles: ["DEAN"], Layout: AdminLayout },
+        ].map(({ portal, roles, Layout }) => (
+          <Route key={`${portal}-task-details`} path={`/${portal}/tasks/:taskId`} element={<ProtectedRoute allowedRoles={roles}><Layout><FacultyTaskDetailsPage /></Layout></ProtectedRoute>} />
+        ))}
         <Route
           path="/dashboard"
           element={
