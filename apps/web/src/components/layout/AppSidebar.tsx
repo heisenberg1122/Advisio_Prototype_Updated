@@ -6,6 +6,7 @@ import { LogOut, Menu, Settings, X } from "lucide-react";
 import { NavItem, NavItemProps } from "./NavItem";
 import { useAuth } from "@/hooks/use-auth";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
+import { AdvisioBrandMark } from "@/components/ui/AdvisioBrandMark";
 import { cn } from "@/lib/utils";
 
 export interface NavSection {
@@ -102,13 +103,7 @@ export function AppSidebar({
           )}
 
           {!isVisuallyCollapsed && (
-            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-xl bg-white shadow-xs ring-1 ring-[var(--color-border)]">
-              <img
-                src="/ao-logo.png"
-                alt="Advisio"
-                className="h-full w-full object-cover"
-              />
-            </div>
+            <AdvisioBrandMark />
           )}
 
           {!isVisuallyCollapsed && (

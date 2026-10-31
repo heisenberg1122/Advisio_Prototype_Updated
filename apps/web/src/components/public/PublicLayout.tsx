@@ -26,7 +26,7 @@ export default function PublicLayout({ title, children }: { title: string; child
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-5">
           <Link to="/" aria-label="Advisio home" className="flex items-center gap-3">
-            <img src="/ao-logo.png" alt="" className="h-11 w-11 object-contain" />
+            <img src="/advisio-logo.png" alt="" className="h-11 w-11 object-contain" />
             <span className="text-lg font-extrabold tracking-widest text-[#0b3553]">ADVISIO<span className="block text-xs font-semibold tracking-normal text-slate-500">Research, advising & management</span></span>
           </Link>
           <Link to="/login" className="rounded-xl bg-[#0b3553] px-5 py-3 text-sm font-bold text-white hover:bg-[#164866]">Sign in to Advisio</Link>

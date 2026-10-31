@@ -1,5 +1,79 @@
 /* Shared portal geometry. Page content owns gutters once; overlays, tables,
    document readers and message panes keep their internal layouts. */
+.workspace-frame {
+  --workspace-chrome: #DEE2E1;
+  --workspace-page-background: #fff;
+  --workspace-frame-edge: rgb(15 23 42 / 6%);
+  --workspace-page-radius: 32px;
+  --workspace-transition-duration: 420ms;
+  --workspace-transition-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --sidebar-background: var(--workspace-chrome);
+  --header-background: var(--workspace-chrome);
+  background-color: var(--workspace-chrome);
+}
+
+.workspace-frame.dark,
+.dark .workspace-frame {
+  --workspace-chrome: #19232D;
+  --workspace-page-background: #111820;
+  --workspace-frame-edge: rgb(255 255 255 / 7%);
+}
+
+/* The canvas joins the navigation on Overview. Other pages reveal a softly
+   outlined surface with matching navigation-colored corners. */
+.workspace-frame > .workspace-frame__body > .app-workspace[data-workspace-view] {
+  background-color: var(--workspace-page-background);
+  border-radius: var(--workspace-page-radius) 0 var(--workspace-page-radius) 0;
+  box-shadow: inset 0 0 0 1px var(--workspace-frame-edge);
+  transition:
+    background-color var(--workspace-transition-duration) var(--workspace-transition-ease),
+    border-radius var(--workspace-transition-duration) var(--workspace-transition-ease),
+    box-shadow var(--workspace-transition-duration) ease;
+}
+
+.workspace-frame > .workspace-frame__body > .app-workspace[data-workspace-view="overview"] {
+  background-color: var(--workspace-chrome);
+  border-radius: 0;
+  box-shadow: inset 0 0 0 1px transparent;
+}
+
+/* A newly loaded route also starts from the navigation color, so lazy pages
+   get the same gentle reveal as dashboard tabs. Content stays fully visible. */
+.workspace-frame > .workspace-frame__body > .app-workspace[data-workspace-view="page"] {
+  animation: workspace-canvas-reveal var(--workspace-transition-duration) var(--workspace-transition-ease) backwards;
+}
+
+@keyframes workspace-canvas-reveal {
+  from {
+    background-color: var(--workspace-chrome);
+    border-radius: 0;
+    box-shadow: inset 0 0 0 1px transparent;
+  }
+  to {
+    background-color: var(--workspace-page-background);
+    border-radius: var(--workspace-page-radius) 0 var(--workspace-page-radius) 0;
+    box-shadow: inset 0 0 0 1px var(--workspace-frame-edge);
+  }
+}
+
+.workspace-frame,
+.workspace-frame > .workspace-frame__body > header {
+  transition: background-color var(--workspace-transition-duration) var(--workspace-transition-ease);
+}
+
+.workspace-frame > .workspace-frame__body {
+  transition:
+    background-color var(--workspace-transition-duration) var(--workspace-transition-ease),
+    padding-left 300ms ease-in-out;
+}
+
+.workspace-frame > aside {
+  transition:
+    background-color var(--workspace-transition-duration) var(--workspace-transition-ease),
+    width 300ms ease-in-out,
+    transform 300ms ease-in-out;
+}
+
 .app-workspace[data-workspace-layout="standard"] {
   --workspace-page-max: 1360px;
   --workspace-page-gutter: clamp(16px, 2vw, 32px);
@@ -150,6 +224,9 @@
 }
 
 @media (max-width: 767px) {
+  .workspace-frame {
+    --workspace-page-radius: 24px;
+  }
   .app-workspace[data-workspace-layout="standard"] {
     --workspace-page-top: 16px;
     --workspace-page-bottom: 24px;
@@ -163,5 +240,16 @@
   ) {
     min-height: 0;
     padding: var(--workspace-card-padding);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-frame,
+  .workspace-frame > aside,
+  .workspace-frame > .workspace-frame__body,
+  .workspace-frame > .workspace-frame__body > header,
+  .workspace-frame > .workspace-frame__body > .app-workspace[data-workspace-view] {
+    transition: none !important;
+    animation: none !important;
   }
 }

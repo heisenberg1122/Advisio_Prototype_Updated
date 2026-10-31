@@ -4,6 +4,7 @@ import {
   GraduationCap,
   MessagesSquare,
 } from "lucide-react";
+import { AdvisioBrandMark } from "@/components/ui/AdvisioBrandMark";
 
 export function AuthJourneyPanel() {
   return (
@@ -18,13 +19,7 @@ export function AuthJourneyPanel() {
       <header className="login-story-header">
         <div className="login-brand">
           <div className="login-brand-mark">
-            <img
-              src="/advisio-symbol-transparent.webp"
-              alt="Advisio"
-              width={48}
-              height={44}
-              className="h-full w-full object-contain"
-            />
+            <AdvisioBrandMark className="h-full w-full" />
           </div>
           <div>
             <div className="login-brand-name">
@@ -135,13 +130,7 @@ export function AuthMobileBrand() {
     <div className="login-mobile-brand">
       <div className="login-mobile-brand-group">
         <div className="login-mobile-mark">
-          <img
-            src="/advisio-symbol-transparent.webp"
-            alt="Advisio"
-            width={44}
-            height={44}
-            className="h-full w-full object-contain"
-          />
+          <AdvisioBrandMark className="h-full w-full" />
         </div>
         <div>
           <p className="login-mobile-name">

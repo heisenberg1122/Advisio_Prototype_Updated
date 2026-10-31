@@ -126,8 +126,8 @@ import GoogleOnboardingPage from "./app/(public)/google-onboarding/page";
 import ChooseDashboardPage from "./app/(public)/choose-dashboard/page";
 
 function RouteLoader() {
-  const { pathname } = useLocation();
-  return <AppShellSkeleton pathname={pathname} />;
+  const { pathname, search } = useLocation();
+  return <AppShellSkeleton pathname={pathname} search={search} />;
 }
 
 function StudentPortal({ children }: { children: React.ReactNode }) {

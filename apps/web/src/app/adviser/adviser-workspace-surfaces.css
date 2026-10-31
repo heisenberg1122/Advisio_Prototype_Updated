@@ -9,7 +9,6 @@
   --color-border: var(--color-slate-200);
   --color-border-subtle: var(--color-slate-100);
   --color-border-strong: var(--color-slate-300);
-  background: var(--color-background) !important;
 }
 
 .adviser-shell .app-workspace {
@@ -46,15 +45,6 @@
   --color-border: var(--adviser-dark-border);
   --color-border-subtle: var(--adviser-dark-border-subtle);
   --color-border-strong: var(--adviser-dark-border-strong);
-}
-
-/* Only Overview joins the page canvas to the sidebar and topbar atmosphere. */
-.adviser-shell:has(.adviser-overview) > div {
-  --sidebar-background: var(--color-background);
-  --header-background: var(--color-background);
-}
-.adviser-shell .app-workspace:has(.adviser-overview) {
-  background: var(--color-background) !important;
 }
 
 /* Existing adviser cards sometimes specify the previous dark canvas directly. */
@@ -121,36 +111,4 @@
 .adviser-documents .rd-milestones-grid > section {
   background-color: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
   border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
-}
-
-/* Match the Researcher background transitions without replacing layout motion. */
-.adviser-shell > div,
-.adviser-shell .app-workspace,
-.adviser-shell > div > .flex > header {
-  transition:
-    background-color 240ms cubic-bezier(0.22, 0.61, 0.36, 1),
-    color 200ms ease,
-    border-color 200ms ease;
-}
-.adviser-shell > div > .flex {
-  transition:
-    background-color 240ms cubic-bezier(0.22, 0.61, 0.36, 1),
-    padding-left 300ms ease-in-out;
-}
-.adviser-shell > div > aside {
-  transition:
-    background-color 240ms cubic-bezier(0.22, 0.61, 0.36, 1),
-    color 200ms ease,
-    border-color 200ms ease,
-    width 300ms ease-in-out,
-    transform 300ms ease-in-out;
-}
-@media (prefers-reduced-motion: reduce) {
-  .adviser-shell > div,
-  .adviser-shell > div > .flex,
-  .adviser-shell > div > aside,
-  .adviser-shell > div > .flex > header,
-  .adviser-shell .app-workspace {
-    transition: none !important;
-  }
 }

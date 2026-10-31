@@ -1,0 +1,35 @@
+.advisio-brand-mark {
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 3px;
+  border: 1px solid rgb(15 23 42 / 10%);
+  border-radius: 12px;
+  background-color: #fff;
+}
+
+/* The original includes a wordmark below the symbol. Use a presentation-only
+   viewport so the navigation mark stays legible beside the portal name. */
+.advisio-brand-mark__viewport {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 930 / 720;
+  overflow: hidden;
+}
+
+.advisio-brand-mark .advisio-brand-mark__viewport > img {
+  position: absolute;
+  top: -25.5556%;
+  left: -17.2043%;
+  display: block;
+  width: 134.8387%;
+  max-width: none;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  object-fit: contain;
+}

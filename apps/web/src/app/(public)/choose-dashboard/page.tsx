@@ -194,7 +194,7 @@ export default function ChooseDashboardPage() {
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white p-1.5 shadow-sm border border-slate-200">
               <img
-                src="/ao-logo.png"
+                src="/advisio-logo.png"
                 alt="Advisio"
                 className="h-full w-full object-contain"
               />

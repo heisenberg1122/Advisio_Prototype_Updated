@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { NotificationPopover } from "@/components/notifications/NotificationPopover";
 import { Avatar } from "@/components/ui/Avatar";
+import { AdvisioBrandMark } from "@/components/ui/AdvisioBrandMark";
 import { useProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/hooks/use-auth";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
@@ -215,9 +216,7 @@ export function AppTopbar({
         </button>
 
         <div className={cn("flex shrink-0 items-center gap-2.5 lg:hidden", collapsed && "lg:flex")}>
-          <div className="h-9 w-9 overflow-hidden rounded-xl ring-1 ring-[var(--color-border)]">
-            <img src="/ao-logo.png" alt="Advisio" className="h-full w-full object-cover" />
-          </div>
+          <AdvisioBrandMark />
           <div className="hidden lg:block">
             <p className="text-sm font-bold tracking-tight text-[var(--color-text-primary)]">ADVISIO</p>
             <p className="text-xs font-semibold text-[var(--color-primary)]">{getRolePortalBadge(activeWorkspace)}</p>

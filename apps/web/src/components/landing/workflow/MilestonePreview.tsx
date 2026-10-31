@@ -63,7 +63,7 @@ export function MilestonePreview({
     <div className={`lp-milestone-preview ${animate ? "has-motion" : ""}`}>
       <div className="lp-milestone-preview-bar">
         <span>
-          <img src="/ao-logo.png" alt="" />
+          <img src="/advisio-logo.png" alt="" />
           advisio.
         </span>
         <span>Illustrative workspace</span>

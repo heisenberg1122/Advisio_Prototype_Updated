@@ -1,7 +1,9 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import { AdvisioBrandMark } from "./AdvisioBrandMark";
 import { contentSkeletonKindForPath } from "@/lib/skeleton-routing";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
+import { workspaceViewForLocation } from "@/lib/workspace-appearance";
 import "@/components/layout/workspace-layout.css";
 
 export { contentSkeletonKindForPath } from "@/lib/skeleton-routing";
@@ -411,17 +413,17 @@ export function ContentSkeletonForPath({ pathname }: { pathname: string }) {
   }
 }
 
-export function AppShellSkeleton({ pathname = typeof window === "undefined" ? "/dashboard" : window.location.pathname }: { pathname?: string }) {
+export function AppShellSkeleton({ pathname = typeof window === "undefined" ? "/dashboard" : window.location.pathname, search = typeof window === "undefined" ? "" : window.location.search }: { pathname?: string; search?: string }) {
   const { collapsed } = useSidebarCollapsed();
   return (
-    <div className="min-h-screen bg-[var(--sidebar-background)] font-sans text-[var(--color-text-primary)] antialiased">
+    <div className="workspace-frame min-h-screen bg-[var(--sidebar-background)] font-sans text-[var(--color-text-primary)] antialiased">
       {/* Universal Google Classroom-Inspired Institutional Sidebar Skeleton */}
       <aside className={cn("fixed inset-y-0 left-0 z-50 hidden flex-col bg-[var(--sidebar-background)] lg:flex", collapsed ? "w-[72px]" : "w-[260px]")}>
         <div className={cn("flex h-16 shrink-0 items-center", collapsed ? "justify-center px-2" : "gap-3 px-4")}>
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-600/30 dark:text-slate-400/30">
             <div className="h-5 w-5 rounded-md bg-current opacity-40" />
           </div>
-          {!collapsed && <img src="/ao-logo.png" alt="Advisio" className="h-9 w-9 shrink-0 rounded-xl" />}
+          {!collapsed && <AdvisioBrandMark />}
           {!collapsed && <div className="min-w-0 flex-1 space-y-1">
             <Skeleton className="h-4 w-20" />
             <Skeleton className="h-2.5 w-24 bg-[var(--color-primary)]/20" />
@@ -453,10 +455,10 @@ export function AppShellSkeleton({ pathname = typeof window === "undefined" ? "/
       </aside>
 
       {/* Main Workspace Frame Area */}
-      <div className={cn("flex min-h-screen min-w-0 flex-col bg-[var(--sidebar-background)]", collapsed ? "lg:pl-[72px]" : "lg:pl-[260px]")}>
+      <div className={cn("workspace-frame__body flex min-h-screen min-w-0 flex-col bg-[var(--sidebar-background)]", collapsed ? "lg:pl-[72px]" : "lg:pl-[260px]")}>
         <header className="flex h-16 items-center justify-between bg-[var(--header-background)] px-4 sm:px-6">
           <div className="flex items-center gap-3">
-            {collapsed && <img src="/ao-logo.png" alt="Advisio" className="hidden h-9 w-9 rounded-xl lg:block" />}
+            {collapsed && <AdvisioBrandMark className="hidden lg:inline-flex" />}
             <Skeleton className="h-9 w-9 rounded-xl lg:hidden" />
             <Skeleton className="hidden h-9 w-64 rounded-xl sm:block" />
           </div>
@@ -466,7 +468,7 @@ export function AppShellSkeleton({ pathname = typeof window === "undefined" ? "/
           </div>
         </header>
 
-        <main data-workspace-layout="standard" className="app-workspace flex min-h-[calc(100vh-4rem)] min-w-0 flex-1 flex-col rounded-tl-[32px] border-0 bg-[var(--color-background)] outline-none shadow-none">
+        <main data-workspace-layout="standard" data-workspace-view={workspaceViewForLocation(pathname, search)} className="app-workspace flex min-h-[calc(100vh-4rem)] min-w-0 flex-1 flex-col rounded-tl-[32px] border-0 bg-[var(--color-background)] outline-none shadow-none">
           <ContentSkeletonForPath pathname={pathname} />
         </main>
       </div>
