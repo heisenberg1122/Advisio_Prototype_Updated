@@ -1,4 +1,5 @@
 import React from "react";
+import { ProjectAuditHistory } from "@/components/workflow/ProjectAuditHistory";
 import {
   researchTitleLabel,
   resolveProjectNextStep,
@@ -124,7 +125,8 @@ export function StudentProjectOverview({
               </p>
             )}
           </div>
-          {isLeader && (
+      <ProjectAuditHistory key={project.id} researchId={project.id} />
+      {isLeader && (
             <button
               type="button"
               onClick={() => onAction({ kind: "edit" })}

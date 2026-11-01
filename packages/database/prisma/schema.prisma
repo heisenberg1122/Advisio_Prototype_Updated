@@ -556,7 +556,6 @@ model User {
   comments                  ReviewComment[]
   evaluations               Evaluation[]
   notifications             Notification[]
-  auditLogs                 AuditLog[]
   certificatesIssued        Certificate[]              @relation("CertificateIssuer")
   defenseBadgesIssued       DefenseBadge[]
   workflowTransitions       WorkflowTransition[]
@@ -2364,11 +2363,26 @@ model AuditLog {
   userAgent  String?     @map("user_agent") @db.Text
   createdAt  DateTime    @default(now()) @map("created_at")
 
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // Historical identifiers deliberately have no FK: account deletion must not rewrite evidence.
+  actorReference String? @map("actor_reference") @db.Uuid
+  actorRoles String[] @default([]) @map("actor_roles")
+  contractVersion Int @default(0) @map("contract_version")
+  eventType String? @map("event_type") @db.VarChar(100)
+  category String @default("LEGACY") @db.VarChar(20)
+  outcome String @default("UNKNOWN") @db.VarChar(20)
+  requestId String? @map("request_id") @db.Uuid
+  researchId String? @map("research_id") @db.Uuid
+  operationKey String? @unique @map("operation_key") @db.VarChar(160)
+  summaryCount Int? @map("summary_count")
+  firstOccurredAt DateTime? @map("first_occurred_at")
+  lastOccurredAt DateTime? @map("last_occurred_at")
 
   @@index([userId])
   @@index([entityType, entityId])
   @@index([createdAt])
+  @@index([createdAt, id])
+  @@index([category, createdAt, id])
+  @@index([researchId, createdAt, id])
   @@map("audit_logs")
 }
 

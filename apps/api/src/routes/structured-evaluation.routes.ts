@@ -865,6 +865,7 @@ router.post(
           userId: req.user!.id,
           action: "APPROVE",
           entityType: "DefenseRevisionClearance",
+            researchId: current.researchId,
           entityId: current.id,
           newValues: clearance,
         },

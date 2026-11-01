@@ -455,6 +455,7 @@ class ManuscriptLifecycleService {
             userId: options.user.id,
             action: "CREATE",
             entityType: "ManuscriptSubmission",
+            researchId: document.researchId,
             entityId: version.id,
             newValues: {
               documentId: document.id,

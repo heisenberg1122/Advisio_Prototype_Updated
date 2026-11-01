@@ -11,6 +11,7 @@ import {
   recoveryRateLimit,
 } from "../middleware/recovery-rate-limit.js";
 import { Router, Request, Response } from "express";
+import { recordAudit } from "../services/audit.service.js";
 import bcrypt from "bcryptjs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
@@ -174,7 +175,8 @@ router.post(
         return void res
           .status(503)
           .json({ error: "Registration is temporarily unavailable." });
-      const user = await prisma.user.create({
+      const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
         data: {
           universityId,
           email: normalizedEmail,
@@ -191,6 +193,10 @@ router.post(
             : null,
           roles: { create: { roleId: targetRole.id } },
         },
+      });
+
+      await recordAudit(tx, { userId: created.id, action: "CREATE", entityType: "USER_ACCOUNT", entityId: created.id, eventType: "ACCOUNT_REGISTERED", newValues: { status: initialStatus, requestedRole: roleName } });
+      return created;
       });
 
       if (initialStatus === "PENDING") {
@@ -447,15 +453,13 @@ router.post(
         return;
       }
 
-      // Update last login
-      try {
-        await prisma.user.update({
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({
           where: { id: user.id },
           data: { lastLoginAt: new Date() },
         });
-      } catch {
-        // Non-critical update, ignore
-      }
+        await recordAudit(tx, { userId: user.id, actorRoles: user.roles.map((r) => r.role.name), action: "LOGIN", entityType: "Authentication", entityId: user.id, eventType: "LOGIN_SUCCEEDED", newValues: { method: "PASSWORD" } });
+      });
 
       const token = generateToken(user.id, user.sessionVersion);
 
@@ -625,9 +629,12 @@ router.post("/google", loginRateLimit, async (req: Request, res: Response) => {
             : "Your Advisio account is not active. Please contact an administrator.";
       return void res.status(403).json({ error: message, status: user.status });
     }
-    await prisma.user.update({
+    await prisma.$transaction(async (tx) => {
+    await tx.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
+    });
+    await recordAudit(tx, { userId: user.id, actorRoles: user.roles.map((r) => r.role.name), action: "LOGIN", entityType: "Authentication", entityId: user.id, eventType: "LOGIN_SUCCEEDED", newValues: { method: "GOOGLE" } });
     });
 
     const token = generateToken(user.id, user.sessionVersion);
@@ -657,6 +664,13 @@ router.post("/google", loginRateLimit, async (req: Request, res: Response) => {
       error: "Google sign-in is temporarily unavailable. Please try again.",
     });
   }
+});
+
+router.post("/logout", requireAuth, async (req, res) => {
+  try {
+    await recordAudit(prisma, { userId: req.user!.id, actorRoles: req.user!.roles, action: "LOGOUT", entityType: "Session", entityId: req.user!.id, eventType: "LOGOUT_REQUESTED", newValues: { reason: "USER_LOGOUT", revokesOtherSessions: false } });
+    res.clearCookie("token").status(204).send();
+  } catch { res.status(503).json({ error: "Sign-out could not be recorded. Try again." }); }
 });
 
 // Onboarding tokens can only access these registration endpoints, never dashboards.

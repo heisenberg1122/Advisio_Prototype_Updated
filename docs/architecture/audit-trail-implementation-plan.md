@@ -1,7 +1,7 @@
 # Audit trail implementation plan
 
 Prepared: October 30, 2026 (Asia/Manila).
-Status: proposed implementation; application code and infrastructure are unchanged.
+Status: first application release implemented November 1, 2026. See `../audit-trail-operations.md` for delivered behavior, coverage limits, and production enablement gates. Redis provisioning, runtime-role activation, institutional retention, external monitoring and measured performance budgets are not claimed complete.
 
 ## Objective
 

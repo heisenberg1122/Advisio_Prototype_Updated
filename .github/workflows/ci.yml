@@ -65,6 +65,15 @@ jobs:
     timeout-minutes: 20
 
     services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
       postgres:
         image: postgres:16-alpine
         env:
@@ -82,6 +91,7 @@ jobs:
     env:
       NODE_ENV: "test"
       RUN_DATABASE_INTEGRATION_TESTS: "1"
+      AUDIT_TEST_REDIS_URL: "redis://127.0.0.1:6379"
       INTEGRATION_DATABASE_EXPECTED_NAME: "advisio_test"
       DATABASE_URL: "postgresql://advisio_test:advisio_test_password@127.0.0.1:5432/advisio_test?schema=public&application_name=advisio-integration-tests"
       DIRECT_URL: "postgresql://advisio_test:advisio_test_password@127.0.0.1:5432/advisio_test?schema=public&application_name=advisio-integration-tests"

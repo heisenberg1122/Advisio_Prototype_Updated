@@ -818,6 +818,7 @@ class OfficialCopyService {
           action: "UPDATE",
           entityType: "OfficialCopy",
           entityId: copy.id,
+          researchId: copy.researchId,
           oldValues: { status: copy.status },
           newValues: { status: "REVOKED", reason: options.reason.trim() },
           ipAddress: options.ipAddress,

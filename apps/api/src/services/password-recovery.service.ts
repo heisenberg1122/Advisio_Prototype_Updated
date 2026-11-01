@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { sendEmail } from "@research-management/email";
 import { prisma } from "../lib/prisma.js";
+import { recordAudit } from "./audit.service.js";
 
 export const recoveryTokenHash = (token: string) =>
   createHash("sha256").update(token).digest("hex");
@@ -109,7 +110,8 @@ export async function resetPassword(token: string, password: string) {
     fail("This reset link is invalid or has expired.", 400);
   const passwordHash = await bcrypt.hash(password, 12);
   // Conditional consume makes concurrent submissions and replay safe.
-  const changed = await prisma.user.updateMany({
+  await prisma.$transaction(async (tx) => {
+  const changed = await tx.user.updateMany({
     where: {
       id: user.id,
       status: "ACTIVE",
@@ -124,4 +126,6 @@ export async function resetPassword(token: string, password: string) {
     },
   });
   if (!changed.count) fail("This reset link is invalid or has expired.", 400);
+  await recordAudit(tx, { userId: user.id, action: "UPDATE", entityType: "PasswordReset", entityId: user.id, eventType: "PASSWORD_RESET_COMPLETED", newValues: { sessionsRevoked: true } });
+  });
 }

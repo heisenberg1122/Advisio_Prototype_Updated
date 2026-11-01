@@ -57,6 +57,23 @@ databaseDescribe(
       fixture.workflowIds.push(w.id);
       return w;
     }
+    it("records published workflow edits atomically without duplicate notification events", async () => {
+      const w = await workflow();
+      const created = await api(owner, `/${w.id}/topics`, "POST", { title: "Audit phase" });
+      expect(created.status).toBe(201);
+      expect(await prisma.auditLog.count({ where: { entityType: "WorkflowTopic", entityId: created.body.topic.id } })).toBe(1);
+      const functionName = `reject_topic_${crypto.randomUUID().replaceAll("-", "")}`;
+      try {
+        await prisma.$executeRawUnsafe(`CREATE FUNCTION ${functionName}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Injected audit insert failure'; END $$`);
+        await prisma.$executeRawUnsafe(`CREATE TRIGGER ${functionName} BEFORE INSERT ON audit_logs FOR EACH ROW WHEN (NEW.entity_type = 'WorkflowTopic' AND NEW.new_values->>'workflowId' = '${w.id}') EXECUTE FUNCTION ${functionName}()`);
+        const failed = await api(owner, `/${w.id}/topics`, "POST", { title: "Must roll back" });
+        expect(failed.status).toBe(500);
+        expect(await prisma.workflowTopic.count({ where: { workflowId: w.id, title: "Must roll back" } })).toBe(0);
+      } finally {
+        await prisma.$executeRawUnsafe(`DROP TRIGGER IF EXISTS ${functionName} ON audit_logs`);
+        await prisma.$executeRawUnsafe(`DROP FUNCTION IF EXISTS ${functionName}()`);
+      }
+    });
     beforeAll(async () => {
       await assertIsolatedIntegrationDatabase(prisma);
       fixture.databaseVerified = true;

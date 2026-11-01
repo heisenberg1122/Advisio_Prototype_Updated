@@ -9,8 +9,8 @@ import { GoogleDriveIntegration } from "@/components/system-admin/GoogleDriveInt
 import { AcademicStructureManagement } from "@/components/system-admin/AcademicStructureManagement";
 import {
   SystemAdminOverview,
-  AdminAuditActivity,
 } from "@/components/system-admin/SystemAdminOverview";
+import { AuditTrail } from "@/components/system-admin/AuditTrail";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import {
   Settings,
@@ -50,7 +50,7 @@ function SystemAdminDashboardContent() {
             return <AcademicStructureManagement />;
           }
 
-          if (activeTab === "logs") return <AdminAuditActivity />;
+          if (activeTab === "logs") return <AuditTrail />;
 
           if (activeTab === "backups") {
             return (
