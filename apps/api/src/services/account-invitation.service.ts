@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
-import { sendEmail } from "@research-management/email";
+import { renderNotificationEmail, sendEmail } from "@research-management/email";
 import {
   acceptAccountInvitationSchema,
   inviteAccountSchema,
@@ -29,14 +29,6 @@ function invalidLink(): never {
     400,
   );
 }
-const escaped = (value: string) =>
-  value.replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        c
-      ]!,
-  );
 const accountInclude = {
   college: true,
   roles: { include: { role: true } },
@@ -160,15 +152,21 @@ async function deliver(invitation: AccountInvitation, token: string) {
     where: { id: invitation.collegeId },
   });
   const roles = invitation.roleNames.map((role) => roleLabels[role]).join(", ");
-  const text = `Hello ${invitation.firstName},\nYou are invited to Advisio as ${roles} for ${college.name}.\nAccept within 48 hours: ${link.href}\nIf you already have an account, sign in to accept without changing your password. Otherwise, set your own password. This link can only be used once. If this was unexpected, contact your institution.`;
+  const rendered = renderNotificationEmail(
+    "institutional_invitation",
+    { firstName: invitation.firstName, collegeName: college.name, roles },
+    {
+      webUrl: link.origin,
+      actionUrl: link.href,
+      logoUrl: process.env.EMAIL_LOGO_URL,
+    },
+  );
   let success = false;
   try {
     success = (
       await sendEmail({
         to: invitation.email,
-        subject: "Your Advisio college access invitation",
-        text,
-        html: `<p>Hello ${escaped(invitation.firstName)},</p><p>You are invited to Advisio as <strong>${escaped(roles)}</strong> for ${escaped(college.name)}.</p><p><a href="${escaped(link.href)}">Accept invitation</a></p><p>This single-use link expires in 48 hours. Existing users sign in to accept using their current account. If unexpected, contact your institution.</p>`,
+        ...rendered,
       })
     ).success;
   } catch {
