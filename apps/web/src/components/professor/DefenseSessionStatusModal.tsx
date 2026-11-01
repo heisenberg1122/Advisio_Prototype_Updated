@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import "./defense-session-status.css";
 
 const invitationStatus: Record<
   string,
@@ -73,7 +74,7 @@ const titleCase = (value = "") =>
 
 function PersonCard({ member }: { member: any }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+    <div className="dss-person flex items-start gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-blue-50 text-xs font-extrabold text-[#173f63]">
         {member.user?.firstName?.[0] || "?"}
         {member.user?.lastName?.[0] || ""}
@@ -149,7 +150,7 @@ export function DefenseSessionStatusModal({
 
   return (
     <div
-      className="fixed inset-0 z-[110] grid place-items-center bg-slate-950/55 p-4"
+      className="defense-session-status fixed inset-0 z-[110] grid place-items-center bg-slate-950/55 p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="defense-session-status-title"
@@ -191,8 +192,8 @@ export function DefenseSessionStatusModal({
           </button>
         </header>
 
-        <div className="space-y-5 p-5">
-          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="dss-body space-y-5 p-5">
+          <section className="dss-summary grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
               <p className="text-sm font-bold uppercase tracking-wider text-slate-400">
                 Schedule
@@ -240,7 +241,7 @@ export function DefenseSessionStatusModal({
             </div>
           </section>
 
-          <section className="rounded-2xl border border-slate-200 p-4">
+          <section className="dss-panel rounded-2xl border border-slate-200 p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="font-extrabold text-[var(--color-text-primary)]">
@@ -255,7 +256,7 @@ export function DefenseSessionStatusModal({
               </span>
             </div>
             {invitations.length ? (
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="dss-panel-list mt-4 grid gap-3 md:grid-cols-2">
                 {invitations.map((invitation: any) => {
                   const status = invitationStatus[invitation.status] || {
                     label: titleCase(invitation.status),
@@ -265,7 +266,7 @@ export function DefenseSessionStatusModal({
                   return (
                     <article
                       key={invitation.id}
-                      className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                      className="dss-panel-member rounded-xl border border-slate-200 bg-slate-50 p-4"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -311,7 +312,7 @@ export function DefenseSessionStatusModal({
             )}
           </section>
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="dss-people grid gap-5 lg:grid-cols-2">
             <section className="rounded-2xl border border-slate-200 p-4">
               <div className="flex items-center justify-between">
                 <h3 className="font-extrabold text-[var(--color-text-primary)]">

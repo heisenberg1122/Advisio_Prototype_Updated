@@ -2,9 +2,13 @@ import { TitleProposalReviewModal, type TitleProposalReviewTarget } from "@/comp
 import { WorkflowMilestoneActions } from "@/components/professor/WorkflowMilestoneActions";
 import { WorkflowTopicActions } from "@/components/professor/WorkflowTopicActions";
 import "./professor-workflow.css";
+import "./professor-defense.css";
+import "./professor-projects-submissions.css";
+import "./professor-progress.css";
 import { buildMilestoneMove } from "@/lib/workflow-order";
 import { AdviserApprovalBadge, AdviserTaskReview, needsAdviserApproval } from "@/components/workflow/AdviserTaskReview";
 import React, { useState, Suspense, useEffect, useRef } from "react";
+import { ChartLine, Info } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
@@ -4287,8 +4291,8 @@ function ProfessorDashboardContent() {
               </div>
             ),
             defense: (
-              <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
-                <section className="workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+              <div className="coordinator-defense mx-auto flex w-full max-w-[1440px] flex-col gap-5">
+                <section className="cdf-header workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
@@ -4298,8 +4302,7 @@ function ProfessorDashboardContent() {
                         Defense Management
                       </h2>
                       <p className="mt-1 text-base text-slate-500">
-                        Build multi-group defense events, confirm the panel, and
-                        control the live queue.
+                        Schedule defenses and manage the panel.
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -4327,82 +4330,24 @@ function ProfessorDashboardContent() {
                     </div>
                   </div>
                   {!eligibleDefenseGroups.length && (
-                    <p className="mt-4 rounded-xl bg-blue-50 p-3 text-base text-blue-800">
-                      <i className="ti ti-info-circle mr-1" />A group becomes
-                      schedulable after its Defense Eligibility milestone is
-                      approved and the Dean letter for that cycle is signed.
-                    </p>
+                    <div className="cdf-guidance" role="note" aria-label="Requirements for scheduling a defense cycle">
+                      <span className="cdf-guidance-label">
+                        <Info size={15} aria-hidden="true" />
+                        Before scheduling
+                      </span>
+                      <ol>
+                        <li>
+                          <span aria-hidden="true">1</span>
+                          Approve eligibility
+                        </li>
+                        <li>
+                          <span aria-hidden="true">2</span>
+                          Get the Dean’s signed letter
+                        </li>
+                      </ol>
+                    </div>
                   )}
                 </section>
-                <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                  <h3 className="text-lg font-extrabold">
-                    Defense eligibility approvals
-                  </h3>
-                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                    Approve each group's next eligibility milestone. A passed
-                    defense consumes that milestone's approval.
-                  </p>
-                  {!eligibilityGroups.length && (
-                    <p className="mt-3 text-sm">
-                      Add a Defense Eligibility milestone in Workflow → Academic
-                      event → Advanced settings.
-                    </p>
-                  )}
-                  <div className="mt-4 space-y-3">
-                    {eligibilityGroups.map((group: any) => (
-                      <div
-                        key={group.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"
-                      >
-                        <div>
-                          <strong>{group.groupName || group.title}</strong>
-                          <p className="text-sm text-[var(--color-text-secondary)]">
-                            {group.milestone.name} ·{" "}
-                            {group.approved
-                              ? "Approved for one defense cycle"
-                              : group.canApprove
-                                ? "Ready for coordinator approval"
-                                : "Complete prerequisites and approve required submissions first"}
-                          </p>
-                        </div>
-                        {group.approved ? (
-                          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                            <i
-                              className="ti ti-circle-check-filled text-lg"
-                              aria-hidden="true"
-                            />
-                            {eligibleDefenseGroups.some(
-                              (project) => project.id === group.id,
-                            )
-                              ? "Ready to schedule"
-                              : "Defense cycle approved"}
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={!group.canApprove || defenseActionPending}
-                            onClick={() => approveDefenseGate(group)}
-                            className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
-                          >
-                            Approve eligibility
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-                <DefenseBadgeIssuance
-                  sessions={defenseSessions}
-                  canIssue={Boolean(
-                    user?.roles.includes("RESEARCH_COORDINATOR"),
-                  )}
-                  onIssued={() =>
-                    Promise.all([
-                      refetchDefenseManagement(),
-                      refetchDefenseEvents(),
-                    ])
-                  }
-                />
                 {liveDefense?.packet?.evaluationMode === "STRUCTURED" && <ConsolidatedEvaluations sessionId={liveDefense.id}/>}
                 {liveDefense && liveDefense.packet?.evaluationMode !== "STRUCTURED" && (
                   <section className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
@@ -4500,7 +4445,7 @@ function ProfessorDashboardContent() {
                     </p>
                   </div>
                 )}
-                <section className="grid gap-4 sm:grid-cols-3">
+                <section className="cdf-stats grid gap-4 sm:grid-cols-3">
                   {[
                     {
                       label: "Awaiting replies",
@@ -4548,9 +4493,9 @@ function ProfessorDashboardContent() {
                 {defenseEvents.map((defenseEvent: any) => (
                   <section
                     key={defenseEvent.id}
-                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6"
+                    className="cdf-event rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6"
                   >
-                    <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-start md:justify-between">
+                    <div className="cdf-event-heading flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-start md:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-extrabold text-[#102f49]">
@@ -4596,7 +4541,7 @@ function ProfessorDashboardContent() {
                         return (
                           <div
                             key={session.id}
-                            className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:flex-row lg:items-center lg:justify-between"
+                            className="cdf-session-row flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:flex-row lg:items-center lg:justify-between"
                           >
                             <div className="flex min-w-0 items-start gap-3">
                               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#173f63] text-sm font-extrabold text-white">
@@ -4652,7 +4597,7 @@ function ProfessorDashboardContent() {
                                 onClick={() => setPacketSession(session)}
                                 className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-extrabold text-[#173f63]"
                               >
-                                Review packet
+                                Defense documents
                               </button>
                               {session.status === "SCHEDULED" &&
                                 !["IN_PROGRESS", "COMPLETED"].includes(
@@ -4696,6 +4641,8 @@ function ProfessorDashboardContent() {
                     </div>
                   </section>
                 ))}
+                {(legacyDefenseSessions.length > 0 ||
+                  (!defenseLoadError && defenseEvents.length === 0)) && (
                 <section className="space-y-4">
                   {legacyDefenseSessions.map((session) => {
                     const activeInvitations = (
@@ -4769,7 +4716,7 @@ function ProfessorDashboardContent() {
                               className="rounded-xl border border-[#f6a800] bg-amber-50 px-4 py-2 text-sm font-extrabold text-[#7a5200]"
                             >
                               <i className="ti ti-files mr-1.5" />
-                              Review packet
+                              Defense documents
                             </button>
                             {[
                               "PENDING_ACKNOWLEDGEMENT",
@@ -4874,6 +4821,79 @@ function ProfessorDashboardContent() {
                       </div>
                     )}
                 </section>
+                )}
+                <section className="cdf-eligibility rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                  <h3 className="text-lg font-extrabold">
+                    Defense eligibility
+                  </h3>
+                  {!eligibilityGroups.length && (
+                    <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+                      No eligibility milestones available.
+                    </p>
+                  )}
+                  <details className="cdf-help mt-3">
+                    <summary>How it works</summary>
+                    <p>
+                      Approve each group’s next eligibility milestone. A passed
+                      defense uses that milestone’s approval for one cycle.
+                      Configure it in Workflow → Academic event → Advanced settings.
+                    </p>
+                  </details>
+                  <div className="mt-4 space-y-3">
+                    {eligibilityGroups.map((group: any) => (
+                      <div
+                        key={group.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"
+                      >
+                        <div>
+                          <strong>{group.groupName || group.title}</strong>
+                          <p className="text-sm text-[var(--color-text-secondary)]">
+                            {group.milestone.name} ·{" "}
+                            {group.approved
+                              ? "Approved for one defense cycle"
+                              : group.canApprove
+                                ? "Ready for coordinator approval"
+                                : "Complete prerequisites and approve required submissions first"}
+                          </p>
+                        </div>
+                        {group.approved ? (
+                          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                            <i
+                              className="ti ti-circle-check-filled text-lg"
+                              aria-hidden="true"
+                            />
+                            {eligibleDefenseGroups.some(
+                              (project) => project.id === group.id,
+                            )
+                              ? "Ready to schedule"
+                              : "Defense cycle approved"}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={!group.canApprove || defenseActionPending}
+                            onClick={() => approveDefenseGate(group)}
+                            className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
+                          >
+                            Approve eligibility
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+                <DefenseBadgeIssuance
+                  sessions={defenseSessions}
+                  canIssue={Boolean(
+                    user?.roles.includes("RESEARCH_COORDINATOR"),
+                  )}
+                  onIssued={() =>
+                    Promise.all([
+                      refetchDefenseManagement(),
+                      refetchDefenseEvents(),
+                    ])
+                  }
+                />
                 {showDefenseForm && (
                   <div
                     className="fixed inset-0 z-50 flex bg-slate-950/45"
@@ -5384,8 +5404,8 @@ function ProfessorDashboardContent() {
                 </div>
               </div>
             ) : (
-              <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
-                <section className="workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+              <div className="coordinator-submissions mx-auto flex w-full max-w-[1440px] flex-col gap-5">
+                <section className="csub-header workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
@@ -5399,7 +5419,7 @@ function ProfessorDashboardContent() {
                         from one place.
                       </p>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:w-[620px]">
+                    <div className="csub-search-filters grid gap-3 sm:grid-cols-2 lg:w-[620px]">
                       <label className="text-sm font-bold uppercase tracking-wider text-slate-500">
                         Workflow
                         <select
@@ -5436,7 +5456,7 @@ function ProfessorDashboardContent() {
                     </div>
                   </div>
                   <div
-                    className="mt-5 flex w-fit rounded-xl bg-slate-100 p-1"
+                    className="csub-tabs mt-5 flex w-fit rounded-xl bg-slate-100 p-1"
                     role="tablist"
                     aria-label="Submission workspace views"
                   >
@@ -5481,21 +5501,10 @@ function ProfessorDashboardContent() {
                   />
                 ) : (
                   <>
-                    <section className="workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
-                      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                        <div>
-                          <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
-                            Review queue
-                          </p>
-                          <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">
-                            Student submissions
-                          </h2>
-                          <p className="mt-1 text-base text-slate-500">
-                            Review deliverables, give feedback, and keep groups
-                            moving.
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
+                    <section className="csub-queue-toolbar rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6" aria-label="Review queue filters">
+                      <div className="csub-queue-controls flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                        <h3 className="sr-only">Review queue</h3>
+                        <div className="csub-status-filters flex flex-wrap gap-2">
                           {[
                             {
                               id: "NEEDS_REVIEW",
@@ -5518,7 +5527,7 @@ function ProfessorDashboardContent() {
                             </button>
                           ))}
                         </div>
-                        <label className="text-sm font-bold text-slate-500">
+                        <label className="csub-sort text-sm font-bold text-slate-500">
                           Sort by
                           <select
                             value={submissionSort}
@@ -5537,8 +5546,8 @@ function ProfessorDashboardContent() {
                         </label>
                       </div>
                     </section>
-                    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                      <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_130px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-extrabold uppercase tracking-wide text-slate-500 md:grid">
+                    <section className="csub-table overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <div className="csub-columns hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_130px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-extrabold uppercase tracking-wide text-slate-500 md:grid">
                         <span>Submission</span>
                         <span>Group / Researcher</span>
                         <span>Submitted</span>
@@ -5552,7 +5561,7 @@ function ProfessorDashboardContent() {
                             key={`${submission.submissionKind || "DOCUMENT"}:${submission.id}`}
                             type="button"
                             onClick={() => openSubmissionReview(submission)}
-                            className="grid w-full gap-3 px-5 py-4 text-left transition hover:bg-amber-50/40 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_130px] md:items-center md:gap-4"
+                            className="csub-row grid w-full gap-3 px-5 py-4 text-left transition hover:bg-amber-50/40 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_130px] md:items-center md:gap-4"
                           >
                             <span className="min-w-0">
                               <span className="block truncate font-extrabold text-[#102f49]">
@@ -5568,7 +5577,8 @@ function ProfessorDashboardContent() {
                               <span className="block truncate">{submission.projectTitle}</span>
                               {submission.submissionKind !== "TITLE_PROPOSAL" && <span className="mt-1.5 block"><AdviserApprovalBadge required={submission.adviserReviewRequired} submission={submission} /></span>}
                             </span>
-                            <span className="text-sm text-slate-500">
+                            <span className="csub-submitted text-sm text-slate-500">
+                              <span className="csub-mobile-label">Submitted </span>
                               {new Date(
                                 submission.submittedAt,
                               ).toLocaleDateString()}
@@ -5601,18 +5611,17 @@ function ProfessorDashboardContent() {
               </div>
             ),
             monitoring: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <div>
+              <div className="coordinator-projects bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
+                <div className="cproj-header workspace-page-header">
                   <h3 className="font-extrabold text-[#1b4264] text-lg">
                     Research Projects
                   </h3>
                   <p className="mt-1 text-base text-slate-500">
-                    View and manage the registered research projects across your
-                    workflows.
+                    Manage registered projects across your workflows.
                   </p>
                 </div>
                 {projects.length > 0 && (
-                  <div className="relative max-w-xl">
+                  <div className="cproj-search relative max-w-xl">
                     <i className="ti ti-search pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="search"
@@ -5763,7 +5772,7 @@ function ProfessorDashboardContent() {
                     <ListRowsSkeleton rows={5} avatars={false} />
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-3.5 mt-2">
+                  <div className="cproj-list flex flex-col gap-3.5 mt-2">
                     {registeredProjects
                       .filter((project: any) => {
                         const query = monitoringSearch.trim().toLowerCase();
@@ -5785,14 +5794,16 @@ function ProfessorDashboardContent() {
                       .map((p) => (
                         <div
                           key={p.id}
-                          className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-left text-[12.5px] shadow-sm transition hover:border-[#f6a800]"
+                          className="cproj-row p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-left text-[12.5px] shadow-sm transition hover:border-[#f6a800]"
                         >
                           <button
                             type="button"
                             onClick={() => setSelectedProject(p)}
-                            className="min-w-0 flex-1 text-left"
+                            className="cproj-open min-w-0 flex-1 text-left"
                           >
-                            <span className="font-bold text-[#1b4264] block">
+                            <span className="cproj-icon" aria-hidden="true"><i className="ti ti-folder" /></span>
+                            <span className="cproj-copy">
+                            <span className="cproj-title font-bold text-[#1b4264] block">
                               {p.group}
                             </span>
                             <span className="text-sm text-slate-500">
@@ -5802,9 +5813,11 @@ function ProfessorDashboardContent() {
                               · {p.currentStage?.name || "Not started"} ·{" "}
                               {p.progress}% complete
                             </span>
+                            </span>
+                            <i className="cproj-chevron ti ti-chevron-right" aria-hidden="true" />
                           </button>
-                          <div className="ml-4 flex shrink-0 items-center gap-2">
-                            <Tag variant="success">{p.status}</Tag>
+                          <div className="cproj-actions ml-4 flex shrink-0 items-center gap-2">
+                            <Tag className="capitalize" variant={p.status === "revision" ? "warning" : p.status === "completed" ? "success" : "neutral"}>{p.status}</Tag>
                             <button
                               type="button"
                               onClick={() =>
@@ -6789,38 +6802,62 @@ function ProfessorDashboardContent() {
               </div>
             ),
             tracking: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-lg">
-                  Student Group Progress Tracking
-                </h3>
-                <p className="text-base text-slate-400 font-bold">
-                  Track overall progress rates, metrics overlays, and visual
-                  completion trackers.
-                </p>
-                <div className="flex flex-col gap-4 mt-2">
+              <section className="coordinator-progress" aria-labelledby="coordinator-progress-title">
+                <header className="workspace-page-header cprogress-header">
+                  <div>
+                    <p className="cprogress-eyebrow">Research workspace</p>
+                    <h2 id="coordinator-progress-title">Research progress</h2>
+                    <p>Track each project's milestone completion.</p>
+                  </div>
+                  <Tag variant="neutral">
+                    {projects.length} {projects.length === 1 ? "project" : "projects"}
+                  </Tag>
+                </header>
+                <div className="cprogress-list">
                   {projects.map((p) => (
-                    <div
+                    <article
                       key={p.id}
-                      className="bg-slate-50 p-4 border border-slate-200 rounded-xl shadow-sm flex flex-col gap-2"
+                      className="cprogress-row"
                     >
-                      <div className="flex justify-between items-center text-[12px] font-extrabold text-[#1b4264]">
-                        <span>
-                          {p.group} — {p.title}
+                      <div className="cprogress-project">
+                        <span className="cprogress-icon" aria-hidden="true">
+                          <ChartLine size={21} />
                         </span>
-                        <span className="font-mono text-[#ffa400]">
-                          {p.progress}%
-                        </span>
+                        <div>
+                          <h3>{p.title || p.group}</h3>
+                          <p>
+                            <span>Current milestone</span>
+                            {p.currentStage?.name || "Not started"}
+                          </p>
+                        </div>
                       </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2">
+                      <div className="cprogress-meter">
+                        <div className="cprogress-value">
+                          <span>Milestone completion</span>
+                          <strong>{p.progress}<span>%</span></strong>
+                        </div>
                         <div
-                          className="bg-[#1b4264] h-full"
-                          style={{ width: `${p.progress}%` }}
-                        />
+                          className="cprogress-track"
+                          role="progressbar"
+                          aria-label={`Milestone completion for ${p.title || p.group}`}
+                          aria-valuenow={p.progress}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        >
+                          <div style={{ width: `${p.progress}%` }} />
+                        </div>
                       </div>
-                    </div>
+                    </article>
                   ))}
+                  {projects.length === 0 && (
+                    <div className="cprogress-empty">
+                      <ChartLine className="cprogress-empty-icon" size={28} aria-hidden="true" />
+                      <h3>No projects to track yet</h3>
+                      <p>Projects will appear here once they have a workflow.</p>
+                    </div>
+                  )}
                 </div>
-              </div>
+              </section>
             ),
             completion: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">

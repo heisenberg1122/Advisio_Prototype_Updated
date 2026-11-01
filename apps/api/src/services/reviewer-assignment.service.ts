@@ -521,6 +521,7 @@ class ReviewerAssignmentService {
       ...document,
       versions: document.versions.map((version) => ({
         ...version,
+        fileSize: Number(version.fileSize),
         reviews: version.reviews.map((review) => ({
           ...review,
           reviewer: isStudent ? null : review.reviewer,

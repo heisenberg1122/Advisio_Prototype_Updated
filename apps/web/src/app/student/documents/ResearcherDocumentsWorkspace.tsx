@@ -1,4 +1,4 @@
-// Researcher-local presentation of the existing file workspace. Shared role interfaces remain unchanged.
+// Shared library and dedicated document viewer for researcher, adviser and coordinator portals.
 "use client";
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -222,7 +222,7 @@ export function ResearcherDocumentsWorkspace({
     ? documentWorkspaceCapabilities(selectedDocument, permissions)
     : null;
 
-  // Only explicit researcher selection opens this local workspace.
+  // Open the viewer only after an explicit document selection or document deep link.
   const headingRef = useRef<HTMLHeadingElement>(null);
   const titleMeasureRef = useRef<HTMLSpanElement>(null);
   const [isTitleWrapped, setIsTitleWrapped] = useState(false);

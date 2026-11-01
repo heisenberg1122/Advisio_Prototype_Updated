@@ -393,7 +393,9 @@ export default function DocumentWorkspacePage() {
   const isPanelistPortal = pathname.startsWith("/panelist/");
   const isResearcherPortal = pathname.startsWith("/student/");
   const isAdviserPortal = pathname.startsWith("/adviser/");
-  const useDocumentLibrary = isResearcherPortal || isAdviserPortal;
+  const useDocumentLibrary =
+    isResearcherPortal || isAdviserPortal || pathname.startsWith("/professor/");
+  const useDocumentLibraryStyles = useDocumentLibrary;
   const milestoneParam = searchParams.get("milestoneId");
   const taskParam = searchParams.get("taskId");
   const documentParam = searchParams.get("documentId");
@@ -1182,16 +1184,16 @@ export default function DocumentWorkspacePage() {
     <PageContainer
       maxWidth="full"
       className={
-        useDocumentLibrary
+        useDocumentLibraryStyles
           ? `researcher-documents${isAdviserPortal ? " adviser-documents" : ""}`
           : "gap-2.5 py-4 sm:px-5 lg:px-6 lg:py-5"
       }
     >
       {!researcherViewerOpen && (
-        <div className={useDocumentLibrary ? `rd-library-hero${isAdviserPortal ? " college-hero-surface" : ""}` : "contents"}>
+        <div className={useDocumentLibraryStyles ? `rd-library-hero${isAdviserPortal ? " college-hero-surface" : ""}` : "contents"}>
           <div
-            id={useDocumentLibrary ? "researcher-library-title" : undefined}
-            tabIndex={useDocumentLibrary ? -1 : undefined}
+            id={useDocumentLibraryStyles ? "researcher-library-title" : undefined}
+            tabIndex={useDocumentLibraryStyles ? -1 : undefined}
           >
             <PageHeader
               variant="plain"
@@ -1350,7 +1352,7 @@ export default function DocumentWorkspacePage() {
           <div className="min-w-0">
             <div
               hidden={researcherViewerOpen}
-              className={useDocumentLibrary ? "rd-categories" : undefined}
+              className={useDocumentLibraryStyles ? "rd-categories" : undefined}
             >
               <Tabs
                 tabs={tabs}
@@ -1416,7 +1418,7 @@ export default function DocumentWorkspacePage() {
                 />
               </div>
             )}
-            <div hidden={researcherViewerOpen} className={useDocumentLibrary ? "rd-category-content" : undefined}>
+            <div hidden={researcherViewerOpen} className={useDocumentLibraryStyles ? "rd-category-content" : undefined}>
               {useDocumentLibrary && activeTab !== "workspace" && (
                 <h2 className="sr-only">
                   {tabs.find((tab) => tab.id === activeTab)?.label}

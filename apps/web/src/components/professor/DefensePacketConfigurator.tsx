@@ -99,7 +99,8 @@ export function DefensePacketConfigurator({
     return (
       <div className="fixed inset-0 z-[100] grid place-items-center bg-slate-950/55">
         <div className="rounded-xl bg-[var(--color-surface)] p-6">
-          Loading packet…
+
+          Loading defense documents…
         </div>
       </div>
     );
@@ -309,11 +310,11 @@ function LegacyDefensePacketConfigurator({
       });
       onSaved(
         publish
-          ? "Defense review packet published to accepted panelists."
-          : "Defense packet draft saved.",
+          ? "Defense documents shared with accepted panelists."
+          : "Defense documents saved as a draft.",
       );
     } catch (reason: any) {
-      setError(reason.message || "Unable to save the defense packet.");
+      setError(reason.message || "Unable to save the defense documents.");
     } finally {
       setSaving(false);
     }
@@ -539,7 +540,7 @@ function LegacyDefensePacketConfigurator({
           aria-busy="true"
           className="max-h-[94vh] w-full max-w-6xl overflow-hidden rounded-2xl bg-[var(--color-surface)] shadow-2xl"
         >
-          <span className="sr-only">Loading defense packet configuration</span>
+          <span className="sr-only">Loading defense documents</span>
           <div className="flex items-center justify-between border-b p-5">
             <div className="space-y-2">
               <Skeleton className="h-3 w-32" />
@@ -572,10 +573,10 @@ function LegacyDefensePacketConfigurator({
         <header className="sticky top-0 z-10 flex items-start justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] p-5">
           <div>
             <p className="text-sm font-extrabold uppercase tracking-[.16em] text-[#d98d00]">
-              Professor publishing
+              Defense preparation
             </p>
             <h2 className="mt-1 text-xl font-black text-[var(--color-text-primary)]">
-              Configure defense review packet
+              Defense documents
             </h2>
             <p className="mt-1 max-w-3xl text-base text-slate-500">
               {session.research?.title}
@@ -766,7 +767,7 @@ function LegacyDefensePacketConfigurator({
                 <textarea
                   value={publicationReason}
                   onChange={(event) => setPublicationReason(event.target.value)}
-                  placeholder="Explain why the already-published defense packet must be updated."
+                  placeholder="Explain why the shared defense documents need to be updated."
                   className="mt-2 min-h-24 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 font-normal text-[var(--color-text-primary)]"
                 />
                 <span className="mt-1 block text-xs font-normal text-slate-500">
@@ -778,7 +779,7 @@ function LegacyDefensePacketConfigurator({
           </section>
           {recommendationTemplateVersionId && (
             <MappingEditor
-              title="Recommendation PDF field mapping"
+              title="Set up the recommendation PDF"
               keys={recommendationKeys}
               items={recommendationMappings}
               setItems={setRecommendationMappings}
@@ -786,7 +787,7 @@ function LegacyDefensePacketConfigurator({
           )}
           {evaluationTemplateVersionId && evaluationMode !== "PDF" && (
             <MappingEditor
-              title="Evaluation PDF field mapping"
+              title="Set up the evaluation PDF"
               keys={evaluationKeys}
               items={evaluationMappings}
               setItems={setEvaluationMappings}
@@ -829,10 +830,10 @@ function LegacyDefensePacketConfigurator({
             className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 py-2.5 text-sm font-extrabold text-white transition disabled:opacity-50"
           >
             {publishedPacket && evaluationMode === "PDF"
-              ? "Publish PDF evaluation"
+              ? "Share evaluation form"
               : publishedPacket
-                ? "Publish approved update"
-                : "Publish to panelists"}
+                ? "Share updated documents"
+                : "Share with panelists"}
           </button>
         </footer>
       </div>

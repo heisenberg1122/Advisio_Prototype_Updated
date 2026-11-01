@@ -111,7 +111,7 @@ function formFor(a: Awaited<ReturnType<typeof access>>) {
     a.session.packet?.evaluationMode !== "STRUCTURED" ||
     a.session.packet.status !== "PUBLISHED"
   )
-    throw new Conflict("Publish the structured evaluation packet first.");
+    throw new Conflict("Share the evaluation form first.");
   return readForm(a.session.packet.structuredForm);
 }
 function canEdit(a: Awaited<ReturnType<typeof access>>) {
@@ -166,7 +166,7 @@ router.get(
         403,
       );
     if (!a.facilitator && a.session.packet?.status !== "PUBLISHED")
-      throw new Conflict("The packet is not published.");
+      throw new Conflict("The defense documents have not been shared yet.");
     const readiness = a.facilitator
       ? await defenseManuscriptService.getReadiness(a.session.id)
       : null;
@@ -257,7 +257,7 @@ router.put(
         Number(req.body.expectedMappingVersion) !== s.packet.mappingVersion
       )
         throw new Conflict(
-          "The packet changed in another tab. Reload before saving.",
+          "The defense documents changed in another tab. Reload before saving.",
         );
       if (
         s.packet?.status === "PUBLISHED" &&
@@ -277,7 +277,7 @@ router.put(
         );
       if (s.packet && s.packet.evaluationMode !== "STRUCTURED")
         throw new Conflict(
-          "Existing legacy packets retain their original evaluation mode.",
+          "Existing defense documents keep their original evaluation method.",
         );
       if (s.evaluationLedgerStartedAt) {
         const { verification } = await loadEvaluationIntegrity(tx, s.id);
@@ -430,7 +430,7 @@ router.put(
               recipientId: p.userId,
               audience: "panelist",
               type: "DEFENSE_CONFIRMED" as const,
-              title: "Defense review packet published",
+              title: "Defense documents shared",
               message: `The approved manuscript and digital evaluation form for ${s.research.title} are ready.`,
               entityType: "DefenseSession",
               entityId: s.id,

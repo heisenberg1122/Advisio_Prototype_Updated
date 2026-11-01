@@ -37,6 +37,7 @@ export function Card({
 }: CardProps) {
   return (
     <div
+      data-ui-card=""
       className={cn(
         "bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-5 sm:p-6 transition-all duration-200",
         "shadow-[var(--shadow-card-soft)]",

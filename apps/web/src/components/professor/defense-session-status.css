@@ -1,0 +1,234 @@
+/* Local to the coordinator's status dialog; data and response handling are untouched. */
+.defense-session-status {
+  --dss-panel: var(--color-white, #fff);
+  --dss-line: var(--color-slate-200, #e2e8f0);
+  --dss-inset: var(--color-slate-50, #f8fafc);
+}
+.dark .defense-session-status {
+  --dss-panel: var(--color-surface);
+  --dss-line: var(--color-border);
+  --dss-inset: var(--color-surface-subtle);
+}
+.defense-session-status > div {
+  max-width: 1040px;
+  max-height: 92dvh;
+  border: 1px solid var(--dss-line);
+  border-radius: 20px;
+  background: var(--dss-panel);
+}
+.defense-session-status :where(p, h2, h3) {
+  overflow-wrap: anywhere;
+}
+.defense-session-status > div > header {
+  gap: 20px;
+  padding: 24px 28px;
+  border-color: var(--dss-line);
+  background: var(--dss-panel);
+}
+.defense-session-status header > div {
+  min-width: 0;
+}
+.defense-session-status header > div > p:first-child {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--color-text-secondary);
+}
+.defense-session-status header h2 {
+  font-size: 21px;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.defense-session-status header > div > p:last-child {
+  margin-top: 9px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.defense-session-status header > button {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--dss-line);
+  border-radius: 10px;
+  background: var(--dss-panel);
+  color: var(--color-text-secondary);
+}
+.defense-session-status .dss-body {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 28px;
+}
+.defense-session-status .dss-body > * {
+  margin: 0;
+  min-width: 0;
+}
+.defense-session-status .dss-summary {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(
+      110px,
+      0.6fr
+    ) minmax(210px, 1fr);
+  align-items: stretch;
+  gap: 12px;
+}
+.defense-session-status .dss-summary > div,
+.defense-session-status .dss-summary > div > div {
+  min-width: 0;
+  padding: 16px;
+  border-radius: 12px;
+}
+.defense-session-status .dss-summary > div:first-child,
+.defense-session-status .dss-summary > div:nth-child(2) {
+  border-color: var(--dss-line);
+  background: var(--dss-inset);
+}
+.defense-session-status .dss-summary > div:last-child {
+  padding: 0;
+  gap: 10px;
+}
+.defense-session-status .dss-summary p:first-child {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  line-height: 1.5;
+}
+.defense-session-status .dss-summary p:last-child {
+  margin-top: 8px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+.defense-session-status .dss-summary > div:first-child p:last-child,
+.defense-session-status .dss-summary > div:nth-child(2) p:last-child {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.defense-session-status .dss-panel {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.defense-session-status .dss-panel > div:first-child {
+  align-items: start;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+}
+.defense-session-status .dss-panel h3,
+.defense-session-status .dss-people h3 {
+  font-size: 14px;
+  font-weight: 700;
+}
+.defense-session-status .dss-panel > div:first-child p {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+.defense-session-status .dss-panel-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+  margin: 0;
+  border-top: 1px solid var(--dss-line);
+}
+.defense-session-status .dss-panel-member {
+  min-width: 0;
+  padding: 18px 0;
+  border: 0;
+  border-bottom: 1px solid var(--dss-line);
+  border-radius: 0;
+  background: transparent !important;
+}
+.defense-session-status .dss-panel-member > div {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.defense-session-status .dss-panel-member p.truncate,
+.defense-session-status .dss-person p.truncate {
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.defense-session-status .dss-panel-member > div p:nth-child(2) {
+  margin-top: 3px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.defense-session-status .dss-panel-member > div p:nth-child(3) {
+  margin-top: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  color: var(--color-text-secondary);
+}
+.defense-session-status .dss-panel-member > p {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+.defense-session-status .dss-people {
+  gap: 24px;
+}
+.defense-session-status .dss-people > section {
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+.defense-session-status .dss-people > section > div:first-child {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--dss-line);
+}
+.defense-session-status .dss-person {
+  padding: 12px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.defense-session-status .dss-person p:nth-child(2) {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.defense-session-status > div > footer {
+  padding: 16px 28px;
+  border-color: var(--dss-line);
+  background: var(--dss-panel);
+}
+.defense-session-status footer button {
+  min-height: 40px;
+  border-radius: 9px;
+  background: var(--color-primary);
+  color: var(--college-on-primary);
+}
+.defense-session-status button:focus-visible {
+  outline: 2px solid var(--college-focus-ring);
+  outline-offset: 3px;
+}
+@media (max-width: 767px) {
+  .defense-session-status {
+    padding: 12px;
+  }
+  .defense-session-status > div > header,
+  .defense-session-status .dss-body {
+    padding: 20px;
+  }
+  .defense-session-status .dss-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .defense-session-status .dss-summary > div:last-child {
+    grid-column: 1 / -1;
+  }
+  .defense-session-status .dss-panel-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .defense-session-status header h2 {
+    font-size: 18px;
+  }
+  .defense-session-status > div > footer {
+    padding: 16px 20px;
+  }
+}

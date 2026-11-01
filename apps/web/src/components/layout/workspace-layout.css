@@ -81,6 +81,8 @@
   --workspace-page-bottom: 32px;
   --workspace-card-padding: 24px;
   --workspace-card-radius: 16px;
+  --workspace-panel-radius: 12px;
+  --workspace-panel-border-width: 1px;
   --workspace-header-height: 204px;
   padding: 0;
 }
@@ -221,6 +223,59 @@
 .app-workspace[data-workspace-layout="standard"] .adviser-overview__metric {
   min-height: 80px;
   padding: 12px 16px;
+}
+
+/* Shared secondary card geometry across every authenticated workspace.
+   Semantic cards cover newer pages; the scoped selectors also cover legacy
+   layouts without changing buttons, badges, avatars or document pages. */
+.app-workspace[data-workspace-layout="standard"] :is(
+  [data-ui-card],
+  :is(div, section, article, aside)[class~="border"]:is(
+    [class~="rounded-xl"],
+    [class~="rounded-2xl"],
+    [class~="rounded-3xl"]
+  ),
+  .rdw-browser,
+  .rdw-research-card,
+  .adviser-overview__panel,
+  .adviser-reviews--workspace article,
+  .coordinator-defense > section:not(.cdf-stats),
+  .coordinator-defense .cdf-stats > div,
+  .coordinator-projects .cproj-list:has(.cproj-row),
+  .coordinator-submissions .csub-table,
+  .professor-workflow .workflow-topic,
+  .professor-workflow .workflow-builder-sidebar > section,
+  .researcher-defense .rdf-result,
+  .researcher-defense .rdf-section,
+  .rm-panes,
+  .research-tasks .rt-milestone,
+  .task-details-workspace .task-submission-record,
+  .td-academic-workspace .td-document,
+  .td-academic-workspace .td-context,
+  .profile-workspace .profile-panel,
+  .coordinator-progress .cprogress-list,
+  .rcc-project
+):not(
+  .workspace-page-header,
+  .workspace-dashboard-welcome,
+  .college-hero-surface,
+  .adviser-overview__welcome,
+  .adviser-overview__summary,
+  .adviser-consultation-summary,
+  .researcher-consultation-hero,
+  .rd-library-hero,
+  .rdf-header,
+  .rt-workflow,
+  .mp-identity,
+  [role="dialog"],
+  [role="dialog"] *,
+  [role="alert"],
+  [role="status"],
+  .fixed,
+  .fixed *
+) {
+  border-radius: var(--workspace-panel-radius);
+  border-width: var(--workspace-panel-border-width);
 }
 
 @media (max-width: 767px) {

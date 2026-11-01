@@ -905,7 +905,7 @@ router.patch(
             );
           if (session.packet?.status !== "PUBLISHED")
             throw new Error(
-              "Publish an eligible approved manuscript packet before calling this defense.",
+              "Share an approved, eligible manuscript before calling this defense.",
             );
           const active = await tx.defenseSession.findFirst({
             where: {
@@ -1922,7 +1922,7 @@ router.post(
       if (scheduled.packet?.status !== "PUBLISHED")
         return void res.status(409).json({
           error:
-            "Publish an eligible approved manuscript packet before starting the defense.",
+            "Share an approved, eligible manuscript before starting the defense.",
         });
       const existing = await prisma.defenseSession.findFirst({
         where: {
@@ -2033,7 +2033,7 @@ router.put(
       }
       if (session.packet?.status !== "PUBLISHED") {
         res.status(409).json({
-          error: "The official defense manuscript packet is not published.",
+          error: "The official defense manuscript has not been shared yet.",
         });
         return;
       }
@@ -2348,7 +2348,7 @@ router.post(
       if (session.packet?.status !== "PUBLISHED") {
         return void res.status(409).json({
           error:
-            "The official approved manuscript packet must be published before releasing a defense result.",
+            "Share the approved defense manuscript before releasing the result.",
         });
       }
       const publishedPacket = session.packet;

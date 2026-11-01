@@ -100,7 +100,7 @@ async function access(
       },
     },
   });
-  if (!session) throw new ReviewError("Defense packet not found.", 404);
+  if (!session) throw new ReviewError("Defense documents were not found.", 404);
   const user = req.user!;
   const author =
     user.roles.includes("PANELIST") &&

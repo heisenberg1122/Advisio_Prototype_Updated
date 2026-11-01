@@ -68,22 +68,25 @@ export function DefenseBadgeIssuance({
   return (
     <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
       <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
-        Defense achievement badges
+        Defense badges
       </h2>
-      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-        Coordinators can award a group badge after releasing an Approved title
-        or final defense result. Results requiring revisions are not eligible.
-      </p>
       {error && (
         <p role="alert" className="mt-3 text-sm text-rose-600">
           {error}
         </p>
       )}
       {!eligible.length && (
-        <p className="mt-4 text-sm text-[var(--color-text-muted)]">
-          No title or final defense groups are eligible yet.
+        <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+          No groups are eligible for a badge yet.
         </p>
       )}
+      <details className="cdf-help mt-3">
+        <summary>How it works</summary>
+        <p>
+          Award badges after releasing an approved title or final defense result.
+          If revisions were required, clear them before issuing the badge.
+        </p>
+      </details>
       <div className="mt-4 space-y-4">
         {eligible.map((session) => {
           const badge = session.badge || issued[session.id];

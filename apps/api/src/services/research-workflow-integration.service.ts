@@ -990,7 +990,7 @@ export async function getManuscriptActivity(
       activity.push({
         id: `defense-packet:${session.packet.id}:published`,
         type: "DEFENSE_PACKET_PUBLISHED",
-        title: "Defense manuscript packet published",
+        title: "Defense manuscript shared",
         description:
           "The approved manuscript version was published for the defense session.",
         timestamp: session.packet.publishedAt,

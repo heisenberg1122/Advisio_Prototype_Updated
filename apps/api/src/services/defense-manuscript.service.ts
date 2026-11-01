@@ -76,7 +76,7 @@ const ELIGIBILITY_MESSAGES: Array<
   ],
   [
     "sessionOpen",
-    "A completed or cancelled defense packet cannot be published.",
+    "Documents cannot be shared after a defense is completed or cancelled.",
   ],
 ];
 
@@ -125,7 +125,7 @@ export function validateDefensePacketMutation(input: {
   if (input.existingStatus !== "PUBLISHED") return { replacement: false };
   if (!input.publish || !input.replacePublished)
     throw new DefensePacketPolicyError(
-      "This packet is already published. Use the explicit approved-update action to replace its documents.",
+      "These defense documents have already been shared. Use Share updated documents to replace them.",
       "PUBLISHED_PACKET_IMMUTABLE",
     );
   if (String(input.publicationReason || "").trim().length < 10)
@@ -136,7 +136,7 @@ export function validateDefensePacketMutation(input: {
     );
   if (input.expectedMappingVersion !== input.existingMappingVersion)
     throw new DefensePacketPolicyError(
-      "The published packet changed after you opened it. Refresh before attempting an approved replacement.",
+      "The shared defense documents changed. Refresh before updating them.",
       "PACKET_VERSION_CONFLICT",
     );
   return { replacement: true };

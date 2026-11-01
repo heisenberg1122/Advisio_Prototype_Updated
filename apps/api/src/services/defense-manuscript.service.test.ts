@@ -128,7 +128,7 @@ describe("published packet immutability", () => {
         publish: false,
         replacePublished: false,
       }),
-    ).toThrowError(/already published/i);
+    ).toThrowError(/already been shared/i);
   });
 
   it("rejects a stale concurrent replacement", () => {
@@ -141,7 +141,7 @@ describe("published packet immutability", () => {
         expectedMappingVersion: 3,
         publicationReason: "Correct the approved manuscript attachment.",
       }),
-    ).toThrowError(/changed after you opened/i);
+    ).toThrowError(/shared defense documents changed/i);
   });
 
   it("permits an explicit reasoned replacement at the expected revision", () => {

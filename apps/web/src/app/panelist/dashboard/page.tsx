@@ -789,7 +789,7 @@ function PanelistDashboardContent() {
                                   {document.research.title}
                                 </span>
                                 <span className="block truncate text-sm text-slate-500 dark:text-slate-400">
-                                  Defense packet · awaiting completed review
+                                  Defense documents · review not completed
                                 </span>
                               </span>
                             </button>

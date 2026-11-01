@@ -401,7 +401,7 @@ export class DefensePacketService {
     });
     if (!session?.packet || session.packet.status !== "PUBLISHED")
       throw new Error(
-        "The professor has not published a defense review packet.",
+        "The coordinator has not shared the defense documents yet.",
       );
     if (
       !session.invitations.some(

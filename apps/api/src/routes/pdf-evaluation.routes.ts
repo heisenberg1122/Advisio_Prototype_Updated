@@ -231,7 +231,7 @@ router.put(
       )
         throw new Conflict("This session cannot change evaluation settings.");
       if (current.packet.mappingVersion !== input.expectedMappingVersion)
-        throw new Conflict("The packet changed. Reopen its settings.");
+        throw new Conflict("The defense documents changed. Reopen their settings.");
       const used =
         (await tx.pdfEvaluation.count({
           where: { defenseSessionId: session.id },

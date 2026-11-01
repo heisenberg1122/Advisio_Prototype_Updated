@@ -18,6 +18,7 @@ import { ProfileSkeleton } from "@/components/ui/Skeleton";
 import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { Tag } from "@/components/ui/Tag";
+import "./profile-workspace.css";
 
 export function ProfileCard() {
   const { profile, loading } = useProfile();
@@ -44,76 +45,85 @@ export function ProfileCard() {
   const roleLabels: Record<string, string> = {
     student: "Student Researcher",
     adviser: "Faculty Research Adviser",
-    professor: "Professor / Research Supervisor",
+    professor: "Research Coordinator",
     panelist: "Defense Panelist",
     admin: "Portal Administrator",
     system_admin: "System Administrator",
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="profile-workspace profile-view">
       {/* Dynamic Profile Header Banner */}
-      <Card className="flex flex-col sm:flex-row items-center justify-between gap-5 p-6 sm:p-8 bg-gradient-to-r from-white via-white to-[#EAF3F7]/50 dark:from-[#101b2b] dark:to-[#080E18] relative overflow-hidden border border-[#DDE3E8] dark:border-white/10 shadow-[0_1px_3px_0_rgba(11,58,83,0.04)]">
-        {/* Decorative UA Gold Corner Accent */}
-        <div className="absolute right-0 top-0 w-32 h-32 bg-[#C9A227]/10 rounded-bl-full pointer-events-none" />
-
-        <div className="flex flex-col sm:flex-row items-center gap-5 z-10 text-center sm:text-left">
+      <Card className="workspace-page-header profile-summary">
+        <div className="profile-identity">
           <Avatar
             initials={profile.initials}
             name={profile.name}
             src={profile.photoUrl}
             colorVariant="accent"
             size="xl"
-            className="w-16 h-16 sm:w-20 sm:h-20 text-xl font-black shadow-md border-4 border-white dark:border-[#101b2b]"
+            className="profile-avatar"
           />
-          <div>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-[#17212B] dark:text-white">
-              {profile.name}
-            </h2>
-            <div className="text-xs sm:text-sm font-bold text-[#C9A227] mt-0.5">
+          <div className="profile-identity-copy">
+            <p className="profile-eyebrow">My profile</p>
+            <h1>{profile.name}</h1>
+            <div className="profile-role">
               {roleLabels[profile.role] || profile.role}
             </div>
-            <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-3">
-              <Tag variant="success" dot>Account Active</Tag>
-              {profile.college && <Tag variant="neutral">{profile.college}</Tag>}
-              {profile.academicYear && <Tag variant="neutral">{profile.academicYear}</Tag>}
+            <div className="profile-tags">
+              <Tag variant="success" dot>
+                Account Active
+              </Tag>
+              {profile.college && (
+                <Tag variant="neutral">{profile.college}</Tag>
+              )}
+              {profile.academicYear && (
+                <Tag variant="neutral">{profile.academicYear}</Tag>
+              )}
             </div>
           </div>
         </div>
 
         {/* Action Button */}
-        <div className="z-10 shrink-0">
-          <Link
-            href={editUrl}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0B3A53] hover:bg-[#072A3D] text-white text-sm font-bold rounded-xl shadow-sm transition-all cursor-pointer"
-          >
-            <Edit3 className="h-4 w-4 text-[#C9A227]" />
-            <span>Edit Profile Details</span>
+        <div className="profile-summary-action">
+          <Link href={editUrl} className="profile-edit-link">
+            <Edit3 className="h-4 w-4" aria-hidden="true" />
+            <span>Edit profile</span>
           </Link>
         </div>
       </Card>
 
       {/* 3-Column Profile Dashboard Details Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-[13px]">
+      <div className="profile-details-grid">
         {/* Column 1: Account Contact Details */}
-        <Card className="flex flex-col gap-4 border border-[#DDE3E8] dark:border-white/10 shadow-sm h-full">
-          <h4 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg border-b border-[#EEF2F6] dark:border-white/10 pb-3 flex items-center gap-2">
+        <Card className="profile-panel flex flex-col gap-4">
+          <h2 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg border-b border-[#EEF2F6] dark:border-white/10 pb-3 flex items-center gap-2">
             <Mail className="h-4 w-4 text-[#C9A227]" />
-            <span>Account Contact Info</span>
-          </h4>
+            <span>Contact details</span>
+          </h2>
 
           <div className="flex flex-col gap-1">
-            <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Email Address</span>
-            <span className="font-semibold text-slate-800 dark:text-slate-200 break-all">{profile.email}</span>
+            <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+              Email Address
+            </span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200 break-all">
+              {profile.email}
+            </span>
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Contact Number</span>
-            <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.contactNumber || "Not specified"}</span>
+            <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+              Contact Number
+            </span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200">
+              {profile.contactNumber || "Not specified"}
+            </span>
           </div>
 
           <div className="flex flex-col gap-1">
-            <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Portal Status</span>
+            <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+              Portal Status
+            </span>
             <span className="font-semibold text-[#2E7D5B] flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Verified Institutional Account
@@ -122,43 +132,66 @@ export function ProfileCard() {
         </Card>
 
         {/* Column 2: Institutional Records */}
-        <Card className="flex flex-col gap-4 border border-[#DDE3E8] dark:border-white/10 shadow-sm h-full">
-          <h4 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg border-b border-[#EEF2F6] dark:border-white/10 pb-3 flex items-center gap-2">
+        <Card className="profile-panel flex flex-col gap-4">
+          <h2 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg border-b border-[#EEF2F6] dark:border-white/10 pb-3 flex items-center gap-2">
             <Building2 className="h-4 w-4 text-[#C9A227]" />
-            <span>Institutional Records</span>
-          </h4>
+            <span>University details</span>
+          </h2>
 
           {profile.role === "student" ? (
             <>
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Student ID Number</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.studentId || "N/A"}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Program / Course</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.program || "N/A"}</span>
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Year Level & Section</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Student ID Number
+                </span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {profile.yearLevel || "N/A"} {profile.section ? ` - Section ${profile.section}` : ""}
+                  {profile.studentId || "N/A"}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Program / Course
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {profile.program || "N/A"}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Year Level & Section
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {profile.yearLevel || "N/A"}{" "}
+                  {profile.section ? ` - Section ${profile.section}` : ""}
                 </span>
               </div>
             </>
           ) : (
             <>
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Faculty Employee ID</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.employeeId || "N/A"}</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Faculty Employee ID
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {profile.employeeId || "N/A"}
+                </span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Department / Office</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.department || "N/A"}</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Department / Office
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {profile.department || "N/A"}
+                </span>
               </div>
               {profile.academicYear && (
                 <div className="flex flex-col gap-1">
-                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Academic Year Scope</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.academicYear}</span>
+                  <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                    Academic Year Scope
+                  </span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    {profile.academicYear}
+                  </span>
                 </div>
               )}
             </>
@@ -166,15 +199,17 @@ export function ProfileCard() {
         </Card>
 
         {/* Column 3: Specialized Supervision Details */}
-        <Card className="flex flex-col gap-4 border border-[#DDE3E8] dark:border-white/10 shadow-sm h-full">
-          <h4 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg border-b border-[#EEF2F6] dark:border-white/10 pb-3 flex items-center gap-2">
+        <Card className="profile-panel flex flex-col gap-4">
+          <h2 className="font-extrabold text-[#0B3A53] dark:text-[#C9A227] text-lg border-b border-[#EEF2F6] dark:border-white/10 pb-3 flex items-center gap-2">
             <Award className="h-4 w-4 text-[#C9A227]" />
-            <span>Specialized Details</span>
-          </h4>
+            <span>Research details</span>
+          </h2>
 
           {profile.role === "student" && (
             <div className="flex flex-col gap-1 h-full">
-              <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Research Interests</span>
+              <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                Research Interests
+              </span>
               <p className="font-semibold text-slate-800 dark:text-slate-200 leading-relaxed bg-[#F7F9FB] dark:bg-white/5 p-3 rounded-xl border border-[#EEF2F6] dark:border-white/10 mt-1">
                 {profile.researchInterests || "Not specified yet."}
               </p>
@@ -184,16 +219,28 @@ export function ProfileCard() {
           {profile.role === "adviser" && (
             <div className="flex flex-col gap-3 h-full">
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Areas of Expertise</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.expertise || "Not specified"}</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Areas of Expertise
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {profile.expertise || "Not specified"}
+                </span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Research Specialization</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.specialization || "Not specified"}</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Research Specialization
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {profile.specialization || "Not specified"}
+                </span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Availability Hours</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.availability || "Not specified"}</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Availability Hours
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {profile.availability || "Not specified"}
+                </span>
               </div>
             </div>
           )}
@@ -201,12 +248,20 @@ export function ProfileCard() {
           {profile.role === "professor" && (
             <div className="flex flex-col gap-3 h-full">
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Research Specialization</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.specialization || "Not specified"}</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Research Specialization
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {profile.specialization || "Not specified"}
+                </span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Handled Course Sections</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.subjects || "Not specified"}</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Handled Course Sections
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {profile.subjects || "Not specified"}
+                </span>
               </div>
             </div>
           )}
@@ -214,12 +269,20 @@ export function ProfileCard() {
           {profile.role === "panelist" && (
             <div className="flex flex-col gap-3 h-full">
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Research Specialization</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.specialization || "Not specified"}</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Research Specialization
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {profile.specialization || "Not specified"}
+                </span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Panel Assignment Details</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.panelDetails || "Not specified"}</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Panel Assignment Details
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {profile.panelDetails || "Not specified"}
+                </span>
               </div>
             </div>
           )}
@@ -227,11 +290,17 @@ export function ProfileCard() {
           {(profile.role === "admin" || profile.role === "system_admin") && (
             <div className="flex flex-col gap-3 h-full">
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Position Title</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{profile.position || "N/A"}</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Position Title
+                </span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {profile.position || "N/A"}
+                </span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">Access Scope</span>
+                <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
+                  Access Scope
+                </span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200 capitalize">
                   {profile.role.replace("_", " ")} Authorization
                 </span>
