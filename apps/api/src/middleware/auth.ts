@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import { resolveJwtSecret } from "../lib/security-config.js";
 import { prisma } from "../lib/prisma.js";
 import { getPermissionsForRoles, InstitutionalRole } from "@research-management/auth";
+import { resolveCollegeAuthorization } from "../lib/college-authorization.js";
+import { enforceCollegeResourceBoundary } from "../lib/college-resource-boundary.js";
 
 const JWT_SECRET = resolveJwtSecret();
 
@@ -17,6 +19,7 @@ export interface AuthenticatedUser {
   collegeId?: string | null;
   programId?: string | null;
   researcherPanel?: boolean;
+  primaryCollegeId?: string | null;
 }
 
 declare global {
@@ -47,13 +50,15 @@ export async function requireAuth(
       return;
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as { userId: string; sessionVersion?: number; purpose?: string };
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as { userId: string; sessionVersion?: number; purpose?: string; activeCollegeId?: string };
 
     if (typeof decoded.userId !== "string" || (decoded.purpose && decoded.purpose !== "session")) throw new jwt.JsonWebTokenError("Invalid session");
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       include: {
+        college: true,
+        collegeMemberships: { include: { college: true } },
         roles: {
           include: {
             role: {
@@ -75,10 +80,14 @@ export async function requireAuth(
       return;
     }
 
-    const roles = user.roles.map((ur) => ur.role.name as InstitutionalRole);
+    const identityOnly = ["/api/auth/active-college", "/api/account-invitations/accept-existing"].includes(req.originalUrl.split("?")[0]);
+    const context = resolveCollegeAuthorization(user, identityOnly ? undefined : decoded.activeCollegeId);
+    const roles = context.roles;
+    if (!roles.length && !identityOnly && !req.originalUrl.startsWith("/api/auth/")) { res.status(403).json({ error: "No approved role is available in the selected college." }); return; }
     const permissionSet = new Set<string>(getPermissionsForRoles(roles));
 
     for (const ur of user.roles) {
+      if (!roles.includes(ur.role.name as InstitutionalRole)) continue;
       for (const rp of ur.role.permissions) {
         permissionSet.add(rp.permission.key);
       }
@@ -92,8 +101,9 @@ export async function requireAuth(
       lastName: user.lastName,
       roles,
       permissions: Array.from(permissionSet),
-      collegeId: user.collegeId,
-      programId: user.programId,
+      collegeId: context.collegeId,
+      programId: context.programId,
+      primaryCollegeId: user.collegeId,
     };
 
     // Panel context can only restrict an authenticated account's access.
@@ -130,8 +140,10 @@ export async function requireAuth(
       }
     }
 
+    await enforceCollegeResourceBoundary(req);
     next();
   } catch (error) {
+    if ((error as any)?.statusCode === 403) { res.status(403).json({ error: (error as Error).message }); return; }
     if (!(error instanceof jwt.JsonWebTokenError) && !(error instanceof jwt.TokenExpiredError)) {
       res.status(503).json({ error: "Authentication service is temporarily unavailable." });
       return;
@@ -156,13 +168,15 @@ export async function optionalAuth(
     }
 
     if (token) {
-      const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as { userId: string; sessionVersion?: number; purpose?: string };
+      const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as { userId: string; sessionVersion?: number; purpose?: string; activeCollegeId?: string };
 
       if (typeof decoded.userId !== "string" || (decoded.purpose && decoded.purpose !== "session")) throw new jwt.JsonWebTokenError("Invalid session");
 
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
         include: {
+          college: true,
+          collegeMemberships: { include: { college: true } },
           roles: {
             include: {
               role: {
@@ -180,10 +194,12 @@ export async function optionalAuth(
       });
 
       if (user && user.status === "ACTIVE" && (decoded.sessionVersion || 0) === user.sessionVersion) {
-        const roles = user.roles.map((ur) => ur.role.name as InstitutionalRole);
+        const context = resolveCollegeAuthorization(user, decoded.activeCollegeId);
+        const roles = context.roles;
         const permissionSet = new Set<string>(getPermissionsForRoles(roles));
 
         for (const ur of user.roles) {
+          if (!roles.includes(ur.role.name as InstitutionalRole)) continue;
           for (const rp of ur.role.permissions) {
             permissionSet.add(rp.permission.key);
           }
@@ -197,8 +213,9 @@ export async function optionalAuth(
           lastName: user.lastName,
           roles,
           permissions: Array.from(permissionSet),
-          collegeId: user.collegeId,
-          programId: user.programId,
+          collegeId: context.collegeId,
+          programId: context.programId,
+          primaryCollegeId: user.collegeId,
         };
         next();
         return;
@@ -210,7 +227,7 @@ export async function optionalAuth(
   next();
 }
 
-export function generateToken(userId: string, sessionVersion = 0): string {
-  return jwt.sign({ userId, sessionVersion, purpose: "session" }, JWT_SECRET, { expiresIn: "7d" });
+export function generateToken(userId: string, sessionVersion = 0, activeCollegeId?: string): string {
+  return jwt.sign({ userId, sessionVersion, purpose: "session", ...(activeCollegeId ? { activeCollegeId } : {}) }, JWT_SECRET, { expiresIn: "7d" });
 }
 

@@ -1,5 +1,6 @@
 import type { Prisma } from "../lib/prisma.js";
 import type { AuthenticatedUser } from "../middleware/auth.js";
+import { collegeUserWhere } from "../lib/college-authorization.js";
 
 export async function announcementScope(
   db: Prisma.TransactionClient,
@@ -31,8 +32,7 @@ export async function announcementScope(
         scopeName: program!.name,
         actorName,
         recipients: {
-          collegeId: actor.collegeId,
-          programId,
+          AND: [collegeUserWhere(collegeId), { OR: [{ programId }, { collegeId: { not: collegeId } }] }],
         } satisfies Prisma.UserWhereInput,
       };
     }
@@ -43,7 +43,7 @@ export async function announcementScope(
       scopeName: "your college",
       actorName,
       recipients: {
-        collegeId: actor.collegeId,
+        ...collegeUserWhere(collegeId),
       } satisfies Prisma.UserWhereInput,
     };
   }
@@ -85,7 +85,7 @@ export async function announcementScope(
     scopeName: workflow.name,
     actorName,
     recipients: {
-      collegeId: actor.collegeId,
+      AND: [collegeUserWhere(collegeId)],
       OR: [
         {
           workflowEnrollments: {

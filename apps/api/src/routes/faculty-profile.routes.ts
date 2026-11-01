@@ -3,6 +3,7 @@ import { prisma, AuditAction, InstitutionalRole } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { countActiveAdviseeGroups, capacitySummary } from "../lib/adviser-capacity.js";
 import { getCollegeScope } from "../lib/college-scope.js";
+import { collegeUserWhere } from "../lib/college-authorization.js";
 import {
   facultyProfileUpdateSchema,
   certificationRecordSchema,
@@ -255,7 +256,7 @@ router.get("/:userId", requireAuth, async (req: Request, res: Response) => {
 
     // Check college scope if applicable
     const scope = getCollegeScope(req.user);
-    if (scope.kind === "college" && targetUser.collegeId && targetUser.collegeId !== scope.collegeId) {
+    if (scope.kind !== "institution" && (scope.kind === "unassigned" || !await prisma.user.findFirst({ where: { id: targetUser.id, ...collegeUserWhere(scope.collegeId, "ADVISER") }, select: { id: true } }))) {
       res.status(403).json({ error: "Adviser is from a different college" });
       return;
     }

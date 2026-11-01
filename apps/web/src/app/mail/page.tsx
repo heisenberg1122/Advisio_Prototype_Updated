@@ -121,6 +121,7 @@ export default function MailInboxPage() {
   const [filter, setFilter] = useState<MailFilter>("all");
   const [page, setPage] = useState(1);
   const [composeSeed, setComposeSeed] = useState<ComposeSeed | null>(null);
+  const [inlineComposeHost, setInlineComposeHost] = useState<HTMLDivElement | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [signingDocument, setSigningDocument] = useState<any | null>(null);
@@ -298,6 +299,8 @@ export default function MailInboxPage() {
   const replyToMessage = (message: MailMessage) => {
     setComposeSeed({
       key: `reply-${message.id}-${Date.now()}`,
+      inlineThreadId: detailThread?.id,
+      inlineAction: "reply",
       toIds: [message.senderId],
       subject: `${detailThread?.subject.toLowerCase().startsWith("re:") ? "" : "Re: "}${detailThread?.subject || ""}`,
       body: `\n\nOn ${formatMailDate(message.sentAt || message.createdAt)}, ${personName(message.sender)} wrote:\n> ${message.body.replace(/\n/g, "\n> ")}`,
@@ -307,6 +310,8 @@ export default function MailInboxPage() {
   const forwardMessage = (message: MailMessage) => {
     setComposeSeed({
       key: `forward-${message.id}-${Date.now()}`,
+      inlineThreadId: detailThread?.id,
+      inlineAction: "forward",
       subject: `${detailThread?.subject.toLowerCase().startsWith("fwd:") ? "" : "Fwd: "}${detailThread?.subject || ""}`,
       body: `\n\n---------- Forwarded message ----------\nFrom: ${personName(message.sender)} <${message.sender.email}>\nDate: ${formatMailDate(message.sentAt || message.createdAt)}\nSubject: ${detailThread?.subject || ""}\n\n${message.body}`,
       sourceAttachments: message.attachments,
@@ -339,6 +344,7 @@ export default function MailInboxPage() {
         <MailComposeWindow
           key={composeSeed.key}
           seed={composeSeed}
+          inlineHost={composeSeed.inlineThreadId === selectedId ? inlineComposeHost : null}
           contacts={contacts}
           pending={composeMutation.isPending || draftMutation.isPending}
           error={composeMutation.error?.message}
@@ -393,7 +399,9 @@ export default function MailInboxPage() {
               error={error}
               onBack={() => setSelectedId("")}
               onThreadAction={(action) => stateMutation.mutate(action)}
-              onReplyAll={(body, files) => replyMutation.mutate({ body, files })}
+              onReplyAll={(body, files) => replyMutation.mutateAsync({ body, files })}
+              onInlineComposeHost={setInlineComposeHost}
+              isComposingInline={Boolean(composeSeed?.inlineThreadId === selectedId)}
               onReply={replyToMessage}
               onForward={forwardMessage}
               onEditDraft={editDraft}

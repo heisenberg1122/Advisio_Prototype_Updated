@@ -115,6 +115,7 @@ databaseDescribe("Phase 4 formal manuscript review workflow", () => {
           programId: program.id,
         },
       });
+      if (["ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "DEAN"].includes(role)) await prisma.collegeMembership.create({ data: { userId: user.id, collegeId: college.id, roleNames: [role] } });
       fixture.userIds.push(user.id);
       await prisma.userRole.create({
         data: { userId: user.id, roleId: roles.get(role)!.id },

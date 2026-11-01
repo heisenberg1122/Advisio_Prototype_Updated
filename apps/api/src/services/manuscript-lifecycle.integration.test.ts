@@ -133,6 +133,7 @@ databaseDescribe(
           { userId: professorRecord.id, roleId: roles[2].id },
         ],
       });
+      await prisma.collegeMembership.createMany({ data: [ { userId: adviserRecord.id, collegeId, roleNames: ["ADVISER"] }, { userId: professorRecord.id, collegeId, roleNames: ["RESEARCH_COORDINATOR"] } ] });
       student = authenticated(
         studentRecord,
         ["RESEARCHER"],

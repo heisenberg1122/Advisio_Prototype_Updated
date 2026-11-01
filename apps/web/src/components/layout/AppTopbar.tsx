@@ -32,6 +32,7 @@ import { useTheme } from "@/providers/theme-provider";
 import { cn } from "@/lib/utils";
 import { portalQuickLinks } from "@/lib/portal-navigation";
 import { DashboardSwitcher } from "@/components/layout/DashboardSwitcher";
+import { CollegeSwitcher } from "@/components/layout/CollegeSwitcher";
 import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
 import { getRoleBadgeLabel, getRolePortalBadge } from "@/lib/dashboard-navigation";
 
@@ -421,6 +422,7 @@ export function AppTopbar({
 
 
               {/* Multi-role Dashboard Switcher */}
+              <div className="px-3 py-2"><CollegeSwitcher /></div>
               <DashboardSwitcher onCloseMenu={() => setIsProfileOpen(false)} />
 
               {/* Theme Toggle & Links */}

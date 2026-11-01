@@ -7,6 +7,7 @@ import {
 import { apiClient } from "@/lib/api-client";
 import { DefenseBadgeCard } from "@/components/defense/DefenseBadgeCard";
 import { SharedManuscriptFeedback } from "@/components/documents/SharedManuscriptFeedback";
+import { DefenseEvaluationsSkeleton } from "@/components/ui/Skeleton";
 
 export const readable = (value?: string | null) =>
   value
@@ -455,7 +456,7 @@ export function ResearcherDefenseRecord({
       )}
       {showEvaluations &&
         (query.isPending ? (
-          <p className="rdf-section">Loading consolidated evaluations…</p>
+          <DefenseEvaluationsSkeleton />
         ) : query.isError ? (
           <p className="rdf-section" role="alert">
             {query.error.message}

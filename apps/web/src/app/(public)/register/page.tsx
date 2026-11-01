@@ -30,7 +30,6 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/Skeleton";
 
-type AccountType = "RESEARCHER" | "ADVISER";
 type RegistrationProgram = {
   id: string;
   collegeId: string;
@@ -55,8 +54,6 @@ export default function RegisterPage() {
     password: "",
     confirmPassword: "",
   });
-  const [role, setRole] = useState<AccountType>("RESEARCHER");
-  const [collegeId, setCollegeId] = useState("");
   const [programId, setProgramId] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -81,12 +78,7 @@ export default function RegisterPage() {
     )
     .sort((a, b) => a.name.localeCompare(b.name));
   const selectedProgram = programs.find((program) => program.id === programId);
-  const assignedCollege =
-    role === "RESEARCHER"
-      ? selectedProgram?.college
-      : collegesQuery.data?.colleges.find(
-          (college) => college.id === collegeId,
-        );
+  const assignedCollege = selectedProgram?.college;
   const set = (key: keyof typeof form, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
 
@@ -109,10 +101,8 @@ export default function RegisterPage() {
       );
     setLoading(true);
     try {
-      if (role === "RESEARCHER" && !selectedProgram)
+      if (!selectedProgram)
         return setError("Please select your academic program.");
-      if (role === "ADVISER" && !collegeId)
-        return setError("Please select your assigned college or school.");
       const resolvedCollegeId = assignedCollege?.id || "";
       const result = await register({
         universityId: form.universityId.trim(),
@@ -120,9 +110,9 @@ export default function RegisterPage() {
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         password: form.password,
-        role,
+        role: "RESEARCHER",
         collegeId: resolvedCollegeId,
-        programId: role === "RESEARCHER" ? programId : undefined,
+        programId,
       });
       if (!result.success)
         return setError(result.error || "Failed to create account.");
@@ -135,9 +125,9 @@ export default function RegisterPage() {
         name: identity.name,
         email: identity.email,
         id: identity.universityId,
-        role: role === "ADVISER" ? "Faculty Member" : "Researcher",
+        role: "Researcher",
       });
-      if (role === "RESEARCHER" && result.onboardingToken) {
+      if (result.onboardingToken) {
         sessionStorage.setItem(
           "advisio_researcher_onboarding_token",
           result.onboardingToken,
@@ -209,27 +199,7 @@ export default function RegisterPage() {
                 tabIndex={-1}
               >
                 <fieldset className="register-fields" disabled={loading}>
-                  <fieldset className="register-role-fieldset">
-                    <legend className="login-field-label">
-                      How will you use Advisio?
-                    </legend>
-                    <div className="register-roles">
-                      <Role
-                        active={role === "RESEARCHER"}
-                        icon={<GraduationCap size={18} />}
-                        title="Researcher"
-                        subtitle="Undergraduate or graduate"
-                        onClick={() => setRole("RESEARCHER")}
-                      />
-                      <Role
-                        active={role === "ADVISER"}
-                        icon={<BookOpenCheck size={18} />}
-                        title="Faculty"
-                        subtitle="Institutional member"
-                        onClick={() => setRole("ADVISER")}
-                      />
-                    </div>
-                  </fieldset>
+                  <div className="register-invitation-info"><strong>Researcher registration</strong><p>Faculty members receive access through an invitation from their college Dean or System Administrator.</p></div>
                   {collegesQuery.isLoading ? (
                     <div role="status" aria-label="Loading academic programs">
                       <Skeleton className="register-academic-skeleton w-full" />
@@ -244,7 +214,7 @@ export default function RegisterPage() {
                         Try again
                       </button>
                     </div>
-                  ) : role === "RESEARCHER" ? (
+                  ) : (
                     <div className="register-academic">
                       <div>
                         <Label htmlFor="registration-program">
@@ -273,32 +243,6 @@ export default function RegisterPage() {
                         </strong>
                       </div>
                     </div>
-                  ) : (
-                    <div>
-                      <Label htmlFor="registration-college">
-                        Assigned College / School
-                      </Label>
-                      <select
-                        id="registration-college"
-                        value={collegeId}
-                        onChange={(event) => setCollegeId(event.target.value)}
-                        required
-                        className="register-select"
-                      >
-                        <option value="">
-                          Select your assigned college or school
-                        </option>
-                        {collegesQuery.data?.colleges.map((college) => (
-                          <option key={college.id} value={college.id}>
-                            {college.name}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="register-hint">
-                        This assignment remains pending until institutional
-                        verification.
-                      </p>
-                    </div>
                   )}
                   <div className="register-field-grid">
                     <Input
@@ -321,15 +265,11 @@ export default function RegisterPage() {
                     />
                     <Input
                       id="university-id"
-                      label={
-                        role === "ADVISER" ? "Employee number" : "Researcher ID"
-                      }
+                      label="Researcher ID"
                       icon={<IdCard size={17} />}
                       value={form.universityId}
                       setValue={(v) => set("universityId", v)}
-                      placeholder={
-                        role === "ADVISER" ? "FAC-2026-001" : "2026-10025"
-                      }
+                      placeholder="2026-10025"
                       autoComplete="off"
                     />
                     <Input

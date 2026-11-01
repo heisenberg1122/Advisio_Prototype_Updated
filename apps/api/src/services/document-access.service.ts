@@ -28,6 +28,7 @@ export function documentProjectAccessPolicy(
   user: AuthenticatedUser,
   context: DocumentProjectAccessContext,
 ): DocumentProjectAccess {
+  if (!user.roles.includes("SYSTEM_ADMIN") && user.collegeId !== context.collegeId) return { exists: true, canView: false, canManageWorkingDocuments: false, canSubmitManuscript: false, canReview: false, canApproveOfficialDocuments: false, reasons: [] };
   const roles = new Set(user.roles);
   const projectRoles = new Set(context.activeProjectRoles);
   const isResearcher = projectRoles.has("LEADER") || projectRoles.has("MEMBER");

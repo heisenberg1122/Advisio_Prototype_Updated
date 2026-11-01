@@ -7,6 +7,7 @@ import { TableSkeleton } from "@/components/ui/Skeleton";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Button } from "@/components/ui/Button";
 import { UserDetailsModal } from "./UserDetailsModal";
+import { AccountInvitations, InviteAccountDialog } from "./AccountInvitations";
 import "./user-management.css";
 
 type RoleName =
@@ -28,6 +29,7 @@ type User = {
   college?: { id: string; code: string; name: string } | null;
   program?: { code: string; name: string } | null;
   roles: { role: Role }[];
+  collegeMemberships?: { collegeId: string; roleNames: RoleName[]; college: { id: string; name: string; code: string } }[];
   createdAt: string;
   lastLoginAt?: string | null;
 };
@@ -74,6 +76,9 @@ export function UserManagement({
       : "ALL",
   );
   const [dialog, setDialog] = useState<Dialog>(null);
+  const [invitationView, setInvitationView] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteTarget, setInviteTarget] = useState<User | undefined>(undefined);
   const [detailsUserId, setDetailsUserId] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<RoleName[]>([]);
   const [selectedCollegeId, setSelectedCollegeId] = useState("");
@@ -101,7 +106,7 @@ export function UserManagement({
   const collegesQuery = useQuery({
     queryKey: ["institutional-units"],
     queryFn: () =>
-      apiClient.get<{ colleges: { id: string; code: string; name: string }[] }>(
+      apiClient.get<{ colleges: { id: string; code: string; name: string; isActive?: boolean }[] }>(
         "/api/colleges",
       ),
   });
@@ -140,8 +145,10 @@ export function UserManagement({
 
   const openDialog = (type: NonNullable<Dialog>["type"], user: User) => {
     setDialog({ type, user });
-    setSelectedRoles(user.roles.map((item) => item.role.name));
-    setSelectedCollegeId(user.college?.id || "");
+    const collegeId = user.college?.id || user.collegeMemberships?.[0]?.collegeId || "";
+    const collegeRoles = user.collegeMemberships?.find((membership) => membership.collegeId === collegeId)?.roleNames || [];
+    setSelectedRoles([...collegeRoles, ...user.roles.map(({ role }) => role.name).filter((role) => ["RESEARCHER", "SYSTEM_ADMIN"].includes(role))]);
+    setSelectedCollegeId(collegeId);
     setVerificationConfirmed(false);
     setVerificationNote("");
     setCollegeReason("");
@@ -189,6 +196,7 @@ export function UserManagement({
     setWorking(true);
     try {
       await apiClient.put(`/api/users/${dialog.user.id}/roles`, {
+        collegeId: selectedCollegeId || null,
         roleNames: selectedRoles,
         verificationConfirmed,
         verificationNote,
@@ -307,7 +315,8 @@ export function UserManagement({
                 <h2 className="text-lg font-black text-slate-900 dark:text-white">
                   User Management
                 </h2>
-                <span className="admin-users__count">{filteredUsers.length} accounts</span>
+                {!invitationView && <span className="admin-users__count">{filteredUsers.length} accounts</span>}
+                <Button onClick={() => { setInviteTarget(undefined); setInviteOpen(true); }}>Invite user</Button>
               </div>
               <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                 Verify accounts, assign multiple institutional roles, suspend
@@ -315,7 +324,7 @@ export function UserManagement({
                 files.
               </p>
             </div>
-            <div className="admin-users__filters grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {!invitationView && <div className="admin-users__filters grid grid-cols-1 gap-2 sm:grid-cols-3">
               <input
                 aria-label="Search users"
                 value={search}
@@ -349,20 +358,21 @@ export function UserManagement({
                 <option value="SUSPENDED">Suspended</option>
                 {archivedView && <option value="INACTIVE">Archived</option>}
               </select>
-            </div>
+            </div>}
           </div>
         </div>
 
         <div
-          className="admin-users__views flex gap-2 border-b border-slate-100 p-5 dark:border-white/5"
+          className="admin-users__views flex flex-wrap gap-2 border-b border-slate-100 p-5 dark:border-white/5"
           role="group"
           aria-label="User account views"
         >
           <Button
-            variant={archivedView ? "secondary" : "primary"}
-            aria-pressed={!archivedView}
+            variant={archivedView || invitationView ? "secondary" : "primary"}
+            aria-pressed={!archivedView && !invitationView}
             onClick={() => {
               setArchivedView(false);
+              setInvitationView(false);
               if (statusFilter === "INACTIVE") setStatusFilter("ALL");
             }}
           >
@@ -370,11 +380,12 @@ export function UserManagement({
           </Button>
           <Button
             variant={archivedView ? "primary" : "secondary"}
-            aria-pressed={archivedView}
-            onClick={() => setArchivedView(true)}
+            aria-pressed={archivedView && !invitationView}
+            onClick={() => { setArchivedView(true); setInvitationView(false); }}
           >
             Archived users
           </Button>
+          <Button variant={invitationView ? "primary" : "secondary"} aria-pressed={invitationView} onClick={() => { setInvitationView(true); setArchivedView(false); }}>Invitations</Button>
         </div>
         {archivedView && (
           <p className="px-5 pt-4 text-sm text-slate-500">
@@ -385,7 +396,7 @@ export function UserManagement({
 
         <ActionFeedback feedback={feedback} className="m-5" />
 
-        {usersQuery.isLoading ? (
+        {invitationView ? <AccountInvitations /> : usersQuery.isLoading ? (
           <div className="p-5">
             <TableSkeleton rows={5} columns={7} />
           </div>
@@ -545,6 +556,8 @@ export function UserManagement({
         )}
       </section>
 
+      {inviteOpen ? <InviteAccountDialog initialUser={inviteTarget} users={usersQuery.data?.users || []} colleges={collegesQuery.data?.colleges || []} onClose={() => setInviteOpen(false)} onSent={(message) => { setInviteOpen(false); setInvitationView(true); setArchivedView(false); setFeedback({ tone: "success", message }); }} onManageExisting={(id) => { const existing = usersQuery.data?.users.find((user) => user.id === id); if (existing) { setInviteOpen(false); openDialog("roles", existing); } }} /> : null}
+
       {detailsUserId && <UserDetailsModal userId={detailsUserId} onClose={() => setDetailsUserId(null)} />}
       {dialog && (
         <div
@@ -592,6 +605,9 @@ export function UserManagement({
 
             {dialog.type === "roles" && (
               <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label className="text-sm font-semibold sm:col-span-2">College scope<select value={selectedCollegeId} onChange={(event) => { const collegeId = event.target.value; setSelectedCollegeId(collegeId); const faculty = dialog.user.collegeMemberships?.find((item) => item.collegeId === collegeId)?.roleNames || []; setSelectedRoles([...faculty, ...(collegeId === dialog.user.college?.id || !collegeId ? dialog.user.roles.map(({ role }) => role.name).filter((role) => ["RESEARCHER", "SYSTEM_ADMIN"].includes(role)) : [])]); }} className="mt-1 min-h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[var(--color-text-primary)]">{!dialog.user.college && <option value="">Global account roles</option>}{[...new Map([...(dialog.user.college ? [dialog.user.college] : []), ...(dialog.user.collegeMemberships || []).map((item) => item.college)].map((college) => [college.id, college])).values()].map((college) => <option key={college.id} value={college.id}>{college.name}</option>)}</select></label>
+                <p className="text-sm text-[var(--color-text-secondary)] sm:col-span-2">Remove approved faculty roles here. New faculty roles and additional colleges require an invitation accepted by the account owner.</p>
+                <Button className="sm:col-span-2" variant="secondary" onClick={() => { setInviteTarget(dialog.user); setDialog(null); setInviteOpen(true); }}>Invite additional college access</Button>
                 {rolesQuery.data?.roles
                   .filter((role) => isAssignableRole(role.name))
                   .map((role) => (
@@ -602,6 +618,7 @@ export function UserManagement({
                       <input
                         type="checkbox"
                         checked={selectedRoles.includes(role.name)}
+                        disabled={role.name === "RESEARCHER" ? selectedCollegeId !== (dialog.user.college?.id || "") : !dialog.user.collegeMemberships?.find((membership) => membership.collegeId === selectedCollegeId)?.roleNames.includes(role.name)}
                         onChange={() => toggleRole(role.name)}
                         className="mt-0.5 accent-[#C9A227]"
                       />
@@ -748,7 +765,6 @@ export function UserManagement({
                 <Button
                   onClick={() => void handleRoles()}
                   disabled={
-                    selectedRoles.length === 0 ||
                     !verificationConfirmed ||
                     verificationNote.trim().length < 10
                   }

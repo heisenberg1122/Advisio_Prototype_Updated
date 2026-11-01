@@ -172,6 +172,7 @@ databaseDescribe("Faculty Profile End-to-End API Persistence Suite", () => {
         ],
       });
 
+      await tx.collegeMembership.create({ data: { userId: adviser.id, collegeId: adviserCollege.id, roleNames: ["ADVISER"] } });
       return {
         adviser: { id: adviser.id, collegeId: adviserCollege.id },
         student: { id: student.id, collegeId: adviserCollege.id },

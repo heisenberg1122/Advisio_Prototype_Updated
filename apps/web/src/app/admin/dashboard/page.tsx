@@ -77,6 +77,7 @@ type Adviser = {
   isAcceptingAdvisees: boolean;
   isFull: boolean;
   capacityNote?: string | null;
+  canManageSettings?: boolean;
   program: Program | null;
 };
 
@@ -677,13 +678,12 @@ function AdviserWorkloadView({
           {canManage ? (
             <button
               type="button"
-              onClick={openAdd}
-              disabled={!candidates.length}
-              title={candidates.length ? "Add an adviser" : "No eligible faculty accounts are available"}
+              onClick={() => window.location.assign("/admin/faculty-access")}
+              title="Invite an adviser to your college"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 py-2.5 text-sm font-extrabold text-white shadow-xs transition hover:bg-[#0E4968] disabled:cursor-not-allowed disabled:opacity-45"
             >
               <Plus className="h-4 w-4" />
-              Add adviser
+              Invite adviser
             </button>
           ) : null}
         </div>
@@ -754,7 +754,7 @@ function AdviserWorkloadView({
                   <span className="text-xs text-slate-500 dark:text-slate-400">
                     {adviser.availableSlots} {adviser.availableSlots === 1 ? "slot" : "slots"} available
                   </span>
-                  {canManage ? <div className="flex gap-1.5">
+                  {canManage && adviser.canManageSettings !== false ? <div className="flex gap-1.5">
                     <button type="button" onClick={() => openEdit(adviser)} className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-[#0B3A53] transition hover:border-[#C9A227] hover:bg-slate-50 dark:border-white/15 dark:text-sky-300 dark:hover:bg-white/5" aria-label={`Edit ${adviser.name}`}>
                       <Pencil className="h-4 w-4" />
                     </button>

@@ -86,6 +86,7 @@ export function officialCopyAccessPolicy(
   user: AuthenticatedUser,
   context: OfficialCopyAccessContext,
 ) {
+  if (!user.roles.includes("SYSTEM_ADMIN") && user.collegeId !== context.collegeId) return { canView: false, canFinalize: false, canSign: false, canRevoke: false, isStudentOwner: false, role: null };
   const roles = new Set(user.roles);
   const projectRoles = new Set(context.activeProjectRoles);
   const isResearcher =
@@ -599,7 +600,7 @@ class OfficialCopyService {
           data: {
             officialCopyId: copy.id,
             signedById: options.user.id,
-            signerRole: access.role,
+            signerRole: access.role!,
             fileName: stored.fileName,
             fileSize: BigInt(stored.sizeBytes),
             storagePath: stored.storagePath,

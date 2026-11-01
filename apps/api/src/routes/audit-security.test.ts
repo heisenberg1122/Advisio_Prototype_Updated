@@ -234,6 +234,7 @@ describe("audit authorization regressions", () => {
       programId,
       status: "ACTIVE",
       roles: [{ role: { name: "RESEARCHER" } }],
+      collegeMemberships: [],
     });
     await expect(
       assignResearchMember(
@@ -249,6 +250,7 @@ describe("audit authorization regressions", () => {
       programId,
       status: "ACTIVE",
       roles: [{ role: { name: "PANELIST" } }],
+      collegeMemberships: [{ collegeId, roleNames: ["PANELIST"] }],
     });
     db.researchMember.upsert.mockResolvedValue({ id: "member" });
     await assignResearchMember(

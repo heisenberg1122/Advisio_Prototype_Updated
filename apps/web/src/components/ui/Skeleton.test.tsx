@@ -4,9 +4,25 @@ import { describe, expect, it, vi } from "vitest";
 
 const sidebar = vi.hoisted(() => ({ collapsed: false }));
 vi.mock("@/hooks/use-sidebar-collapsed", () => ({ useSidebarCollapsed: () => sidebar }));
-import { AppShellSkeleton, TaskDetailsSkeleton } from "./Skeleton";
+import { AppShellSkeleton, ContentSkeletonForPath, DefenseEvaluationsSkeleton, TaskDetailsSkeleton } from "./Skeleton";
+import { DefenseSkeleton } from "@/components/defense/DefenseSkeleton";
 
 describe("shared loading skeletons", () => {
+  it("uses the same defense record layout while the route and data load", () => {
+    const page = renderToStaticMarkup(<DefenseSkeleton />);
+    const route = renderToStaticMarkup(<ContentSkeletonForPath pathname="/student/defense/session-1" />);
+    expect(route).toBe(page);
+    expect(page).toContain("Loading research defense");
+    expect(page).toContain('aria-busy="true"');
+    expect(page).not.toContain("Loading cards");
+  });
+
+  it("keeps evaluation placeholders accessible while released scores load", () => {
+    const html = renderToStaticMarkup(<DefenseEvaluationsSkeleton />);
+    expect(html).toContain("Loading consolidated evaluations");
+    expect(html).toContain('role="status"');
+    expect(html).toContain('data-slot="skeleton"');
+  });
   it.each([false, true])("preserves sidebar collapsed=%s while loading", collapsed => {
     sidebar.collapsed = collapsed;
     const html = renderToStaticMarkup(<AppShellSkeleton pathname="/adviser/tasks/task-1" />);

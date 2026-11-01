@@ -9,6 +9,7 @@ import { ACTIVE_ADVISEE_STATUSES, capacitySummary, countActiveAdviseeGroups } fr
 import { getCollegeScope } from "../lib/college-scope.js";
 import { requestPasswordRecovery } from "../services/password-recovery.service.js";
 import { recoveryRateLimit } from "../middleware/recovery-rate-limit.js";
+import { collegeUserWhere, isCollegeRole } from "../lib/college-authorization.js";
 
 const router = Router();
 const CAPACITY_MANAGER_ROLES = new Set(["DEAN", "SYSTEM_ADMIN"]);
@@ -43,12 +44,14 @@ router.get(
       const users = await prisma.user.findMany({
         where: {
           ...(scope.kind === "college"
-            ? { collegeId: scope.collegeId }
+            ? collegeUserWhere(scope.collegeId, role ? String(role) : undefined)
             : collegeId
-              ? { collegeId: String(collegeId) }
+              ? collegeUserWhere(String(collegeId), role ? String(role) : undefined)
               : {}),
           ...(status && { status: String(status) as any }),
-          ...(programId && { programId: String(programId) }),
+          ...(programId && (role && isCollegeRole(String(role)) && (scope.collegeId || collegeId)
+            ? { AND: [{ OR: [{ programId: String(programId) }, { collegeId: { not: String(scope.collegeId || collegeId) } }, { programId: null }] }] }
+            : { programId: String(programId) })),
           ...(role && {
             roles: {
               some: {
@@ -70,6 +73,8 @@ router.get(
           maxAdviseeGroups: true,
           isAcceptingAdvisees: true,
           college: true,
+          collegeId: true,
+          collegeMemberships: { where: scope.kind === "college" ? { collegeId: scope.collegeId } : {}, include: { college: true } },
           program: true,
           roles: {
             include: {
@@ -104,6 +109,7 @@ router.get(
       res.json({
         users: users.map(({ _count, ...user }) => ({
           ...user,
+          ...(scope.kind === "college" ? { roles: user.roles.filter(({ role }) => isCollegeRole(role.name) ? user.collegeMemberships.some((membership) => membership.roleNames.includes(role.name)) : role.name === "RESEARCHER" && user.collegeId === scope.collegeId) } : {}),
           ...capacitySummary(user, _count.memberships),
         })),
       });
@@ -313,6 +319,7 @@ router.post("/:id/approve", requireAuth, requirePermission(Permissions.USER_MANA
 router.put(
   "/:id/roles",
   requireAuth,
+  requireSystemAdmin,
   requirePermission(Permissions.ROLE_MANAGE),
   async (req: Request, res: Response) => {
     try {
@@ -331,7 +338,7 @@ router.put(
         res.status(400).json({ error: "Role eligibility must be verified, with a verification note of at least 10 characters" });
         return;
       }
-      if (roleNames.length === 0 || roleNames.some((role) => !validRoles.includes(role as InstitutionalRole))) {
+      if (roleNames.some((role) => !validRoles.includes(role as InstitutionalRole))) {
         res.status(400).json({ error: "At least one valid institutional role is required" });
         return;
       }
@@ -339,16 +346,30 @@ router.put(
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(72401801)`;
         const target = await tx.user.findUnique({ where: { id }, include: { roles: { include: { role: true } } } });
         if (!target) throw new Error("User not found");
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${target.email.toLowerCase()}))`;
         const oldRoleNames = target.roles.map((item) => item.role.name);
+        const collegeId = req.body.collegeId || target.collegeId;
+        if (collegeId && !/^[0-9a-f-]{36}$/i.test(collegeId)) throw new Error("A valid college is required");
+        const membership = collegeId ? await tx.collegeMembership.findUnique({ where: { userId_collegeId: { userId: id, collegeId } } }) : null;
+        const facultyRoles = roleNames.filter(isCollegeRole);
+        if (facultyRoles.some((role) => !membership?.roleNames.includes(role))) throw new Error("Add faculty access through an invitation that the account owner accepts.");
+        if (collegeId) {
+          if (facultyRoles.length) await tx.collegeMembership.update({ where: { userId_collegeId: { userId: id, collegeId } }, data: { roleNames: facultyRoles } });
+          else await tx.collegeMembership.deleteMany({ where: { userId: id, collegeId } });
+        }
+        const memberships = await tx.collegeMembership.findMany({ where: { userId: id } });
+        const globalRoles = collegeId === target.collegeId ? roleNames.filter((role) => !isCollegeRole(role)) : oldRoleNames.filter((role) => !isCollegeRole(role));
+        const finalRoles = [...new Set([...globalRoles, ...memberships.flatMap((item) => item.roleNames)])];
+        if (!finalRoles.length) throw new Error("Keep at least one role, or archive the account to remove all access.");
 
-        if (oldRoleNames.includes(InstitutionalRole.SYSTEM_ADMIN) && !roleNames.includes(InstitutionalRole.SYSTEM_ADMIN)) {
+        if (oldRoleNames.includes(InstitutionalRole.SYSTEM_ADMIN) && !finalRoles.includes(InstitutionalRole.SYSTEM_ADMIN)) {
           const systemAdminCount = await tx.user.count({
             where: { status: "ACTIVE", roles: { some: { role: { name: InstitutionalRole.SYSTEM_ADMIN } } } },
           });
           if (systemAdminCount <= 1) throw new Error("The last active System Administrator cannot lose that role");
         }
 
-        const roles = await tx.role.findMany({ where: { name: { in: roleNames as InstitutionalRole[] } } });
+        const roles = await tx.role.findMany({ where: { name: { in: finalRoles as InstitutionalRole[] } } });
         await tx.userRole.deleteMany({ where: { userId: id } });
         await tx.userRole.createMany({
           data: roles.map((role) => ({ userId: id, roleId: role.id, grantedBy: req.user!.id })),
@@ -360,7 +381,7 @@ router.put(
             entityType: "USER",
             entityId: id,
             oldValues: { roles: oldRoleNames },
-            newValues: { roles: roleNames, verificationNote },
+            newValues: { roles: finalRoles, collegeId, collegeRoles: facultyRoles, verificationNote },
             ipAddress: req.ip,
             userAgent: req.get("user-agent") || null,
           },
@@ -374,7 +395,7 @@ router.put(
       res.json({ message: "Verified roles updated successfully", user: result });
     } catch (error: any) {
       const message = error.message || "Failed to update roles";
-      res.status(message.includes("last active") ? 409 : message === "User not found" ? 404 : 500).json({ error: message });
+      res.status(message.includes("last active") ? 409 : message === "User not found" ? 404 : message.includes("invitation") || message.includes("college") || message.includes("at least one") ? 400 : 500).json({ error: message });
     }
   }
 );

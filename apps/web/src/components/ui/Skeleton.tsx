@@ -375,6 +375,65 @@ export function DocumentPreviewSkeleton({ className }: { className?: string }) {
   );
 }
 
+function DefenseEvaluationPlaceholder() {
+  const columns = { gridTemplateColumns: "minmax(180px, 1.8fr) repeat(3, minmax(90px, 1fr))" };
+  return (
+    <div className="min-h-[336px] min-w-0 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-5 w-56 max-w-full" /><Skeleton className="h-3 w-4/5 max-w-xl" /></div>
+        <Skeleton className="h-3 w-60 max-w-full" />
+      </div>
+      <div className="mt-5 overflow-x-auto">
+        <div className="min-w-[600px]">
+          <div className="grid items-center gap-5 border-y border-[var(--color-border)] py-5" style={columns}>
+            <Skeleton className="h-4 w-24" />
+            {Array.from({ length: 3 }).map((_, index) => <div key={index} className="space-y-2"><Skeleton className="ml-auto h-4 w-28 max-w-full" /><Skeleton className="ml-auto h-3 w-16" /></div>)}
+          </div>
+          {Array.from({ length: 2 }).map((_, row) => <div key={row} className="grid items-center gap-5 border-b border-[var(--color-border)] py-6" style={columns}>
+            <div className="space-y-2"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-24" /></div>
+            {Array.from({ length: 3 }).map((_, column) => <Skeleton key={column} className="ml-auto h-4 w-14" />)}
+          </div>)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function DefenseEvaluationsSkeleton() {
+  return <LoadingRegion label="Loading consolidated evaluations" className="min-w-0"><DefenseEvaluationPlaceholder /></LoadingRegion>;
+}
+
+export function DefensePageSkeleton({ className }: { className?: string }) {
+  return (
+    <LoadingRegion label="Loading research defense" className={cn("workspace-page flex w-full min-w-0 max-w-[1360px] flex-col gap-6", className)}>
+      <div className="workspace-page-header flex min-h-[204px] flex-col justify-center gap-5 rounded-2xl border-2 border-[var(--color-border)] bg-[var(--color-surface)] p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0 flex-1 space-y-4">
+          <Skeleton className="h-3 w-32" />
+          <div className="flex flex-wrap items-center gap-3"><Skeleton className="h-8 w-52" /><Skeleton className="h-6 w-24 rounded-full" /></div>
+          <Skeleton className="h-4 w-64 max-w-full" />
+          <div className="flex flex-wrap gap-6 pt-1"><Skeleton className="h-3 w-40" /><Skeleton className="h-3 w-72 max-w-full" /></div>
+        </div>
+        <Skeleton className="h-11 w-40 shrink-0 rounded-lg" />
+      </div>
+      <div className="flex min-h-[200px] flex-col justify-center gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-6">
+        <Skeleton className="h-5 w-52 max-w-full" />
+        <Skeleton className="mt-1 h-3 w-28" />
+        <Skeleton className="h-7 w-4/5 max-w-lg" />
+        <Skeleton className="h-3 w-52 max-w-full" />
+        <Skeleton className="h-3 w-3/4 max-w-xl" />
+      </div>
+      <DefenseEvaluationPlaceholder />
+      <div className="min-h-[188px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-6">
+        <Skeleton className="mb-5 h-5 w-64 max-w-full" />
+        {Array.from({ length: 2 }).map((_, index) => <div key={index} className="border-t border-[var(--color-border)] py-4"><Skeleton className="h-4 w-80 max-w-full" /></div>)}
+      </div>
+      <div className="min-h-[164px] space-y-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-6">
+        <Skeleton className="h-5 w-44" /><Skeleton className="h-4 w-56 max-w-full" /><Skeleton className="h-3 w-4/5 max-w-xl" /><Skeleton className="h-3 w-72 max-w-full" />
+      </div>
+    </LoadingRegion>
+  );
+}
+
 export function TaskDetailsSkeleton({ className, backLink = true }: { className?: string; backLink?: boolean }) {
   return (
     <LoadingRegion label="Loading task details" className={cn("mx-auto w-full max-w-[1360px] space-y-6 p-4 sm:p-6 lg:p-8", className)}>
@@ -406,6 +465,7 @@ export function ContentSkeletonForPath({ pathname }: { pathname: string }) {
     case "mail": return <MailPageSkeleton />;
     case "files": return <FilesPageSkeleton />;
     case "dashboard": return <DashboardSkeleton />;
+    case "defense-record": return <DefensePageSkeleton />;
     case "cards": return <CardsPageSkeleton />;
     case "table": return <TablePageSkeleton />;
     case "task-details": return <TaskDetailsSkeleton />;

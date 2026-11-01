@@ -687,6 +687,9 @@ async function seedLocalDemo() {
             },
           });
           users.set(account.key, user);
+          if (user.collegeId && ["ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "DEAN"].includes(account.role)) {
+            await tx.collegeMembership.create({ data: { userId: user.id, collegeId: user.collegeId, roleNames: [account.role] } });
+          }
           if (account.faculty) {
             await tx.facultyProfile.create({
               data: {

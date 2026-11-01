@@ -8,3 +8,4 @@ export * from "./evaluations.js";
 export * from "./structured-evaluations.js";
 export * from "./consultations.js";
 export * from "./faculty-profile.js";
+export * from "./account-invitations.js";

@@ -175,6 +175,9 @@ describe("task submission JSON responses", () => {
     mocks.findUser.mockResolvedValue({
       id: "professor-a",
       status: "ACTIVE",
+      collegeId: "college-a",
+      college: { id: "college-a", name: "College A", code: "A", isActive: true },
+      collegeMemberships: [{ collegeId: "college-a", roleNames: ["RESEARCH_COORDINATOR"], college: { id: "college-a", name: "College A", code: "A", isActive: true } }],
       sessionVersion: 0,
       roles: [{ role: { name: "RESEARCH_COORDINATOR", permissions: [] } }],
     });

@@ -2,6 +2,7 @@ export type ContentSkeletonKind =
   | "cards"
   | "calendar"
   | "dashboard"
+  | "defense-record"
   | "files"
   | "form"
   | "list"
@@ -15,6 +16,8 @@ export function contentSkeletonKindForPath(
   pathname: string,
 ): ContentSkeletonKind {
   const path = pathname.toLowerCase();
+
+  if (/^\/student\/defense(?:\/[^/]+)?\/?$/.test(path)) return "defense-record";
 
   if (/\/tasks\/[^/]+\/?$/.test(path)) return "task-details";
 

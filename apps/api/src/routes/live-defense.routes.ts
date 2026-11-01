@@ -13,6 +13,7 @@ import {
 } from "../services/evaluation-ledger.service.js";
 import { requireAuth } from "../middleware/auth.js";
 import { canAccessCollege, getCollegeScope } from "../lib/college-scope.js";
+import { collegeUserWhere } from "../lib/college-authorization.js";
 import { jsonSafe } from "../lib/json-response.js";
 import { defensePacketService } from "../services/defense-packet.service.js";
 import {
@@ -726,7 +727,7 @@ router.post(
         where: {
           id: { in: uniqueInvitees.map((item) => item.userId) },
           status: "ACTIVE",
-          collegeId: projects[0].collegeId,
+          collegeMemberships: { some: { collegeId: projects[0].collegeId, roleNames: { has: "PANELIST" } } },
         },
         select: { id: true },
       });
@@ -999,8 +1000,7 @@ router.get(
       const users = await prisma.user.findMany({
         where: {
           status: "ACTIVE",
-          ...(scope.kind === "college" && { collegeId: scope.collegeId }),
-          roles: { some: { role: { name: { in: ["PANELIST", "ADVISER"] } } } },
+          ...(scope.kind === "college" ? collegeUserWhere(scope.collegeId, "PANELIST") : { roles: { some: { role: { name: "PANELIST" } } } }),
         },
         select: {
           ...participantSelect,
@@ -1354,7 +1354,7 @@ router.post(
         where: {
           id: { in: uniqueInvitees.map((item) => item.userId) },
           status: "ACTIVE",
-          collegeId: research.collegeId,
+          collegeMemberships: { some: { collegeId: research.collegeId, roleNames: { has: "PANELIST" } } },
         },
         select: { id: true },
       });

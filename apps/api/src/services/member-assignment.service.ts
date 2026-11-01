@@ -59,16 +59,13 @@ export async function assignResearchMember(
         );
       const target = await tx.user.findUnique({
         where: { id: userId },
-        include: { roles: { include: { role: true } } },
+        include: { roles: { include: { role: true } }, collegeMemberships: true },
       });
       if (
         !target ||
         target.status !== "ACTIVE" ||
-        target.collegeId !== project.collegeId ||
-        !target.roles.some(
-          ({ role }) => role.name === requiredRole[projectRole],
-        ) ||
-        (target.programId && target.programId !== project.programId)
+        !target.collegeMemberships.some((membership) => membership.collegeId === project.collegeId && membership.roleNames.includes(requiredRole[projectRole])) ||
+        (target.collegeId === project.collegeId && target.programId && target.programId !== project.programId)
       )
         fail("The selected account is not eligible for this project role.");
     const studentMembership = await tx.researchMember.findFirst({
@@ -87,7 +84,7 @@ export async function assignResearchMember(
       )
         fail("The coordinator must own the project's workflow.");
       if (projectRole === "ADVISER") {
-        if (target.programId !== project.programId)
+        if (target.collegeId === project.collegeId && target.programId && target.programId !== project.programId)
           fail("The adviser must belong to the project's program.");
         const other = await tx.researchMember.findFirst({
           where: {

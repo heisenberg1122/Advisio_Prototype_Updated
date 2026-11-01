@@ -37,7 +37,7 @@ export function WorkflowInvitationActions({
     }
   }
   return (
-    <section className="space-y-4 rounded-2xl border border-[var(--color-border)] border-l-4 border-l-[var(--color-primary)] bg-[var(--color-surface)] p-5 text-sm shadow-[var(--shadow-card-soft)]">
+    <section className="space-y-4 rounded-2xl border-[3px] border-[var(--color-primary)] bg-[var(--color-surface)] p-5 text-sm shadow-[var(--shadow-card-soft)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-secondary)]">Workflow invitation</p>

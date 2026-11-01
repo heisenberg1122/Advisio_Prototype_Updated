@@ -106,6 +106,7 @@ const AdminProfileEditPage = lazy(
   () => import("./app/admin/profile/edit/page"),
 );
 const AdminReviewsPage = lazy(() => import("./app/admin/reviews/page"));
+const FacultyAccessPage = lazy(() => import("./app/admin/faculty-access/page"));
 const AdminNotificationsPage = lazy(
   () => import("./app/admin/notifications/page"),
 );
@@ -124,6 +125,7 @@ import ForgotPasswordPage from "./app/(public)/forgot-password/page";
 import FirstTimeSetupPage from "./app/(public)/first-login-setup/page";
 import GoogleOnboardingPage from "./app/(public)/google-onboarding/page";
 import ChooseDashboardPage from "./app/(public)/choose-dashboard/page";
+const AcceptInvitationPage = lazy(() => import("./app/(public)/accept-invitation/page"));
 
 function RouteLoader() {
   const { pathname, search } = useLocation();
@@ -196,6 +198,8 @@ export function AppRoutes() {
         <Route path="/first-login-setup" element={<FirstTimeSetupPage />} />
         <Route path="/google-onboarding" element={<GoogleOnboardingPage />} />
         <Route path="/choose-dashboard" element={<ChooseDashboardPage />} />
+        <Route path="/accept-invitation" element={<Suspense fallback={<main role="status" className="grid min-h-screen place-items-center bg-[var(--color-background)] text-[var(--color-text-secondary)]">Opening invitation…</main>}><AcceptInvitationPage /></Suspense>} />
+        <Route path="/admin/faculty-access" element={<ProtectedRoute allowedRoles={["DEAN", "SYSTEM_ADMIN"]}><AdminLayout><FacultyAccessPage /></AdminLayout></ProtectedRoute>} />
 
         {/* Student / Researcher Portal */}
         {[

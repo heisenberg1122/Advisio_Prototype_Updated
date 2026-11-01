@@ -13,6 +13,7 @@ const harness = vi.hoisted(() => ({
 vi.mock("@/providers/auth-provider", () => ({
   useAuth: () => harness.auth,
 }));
+vi.mock("react-router-dom", async (original) => ({ ...(await original<typeof import("react-router-dom")>()), useLocation: () => ({ search: "" }) }));
 
 import { LoginRoute } from "./LoginRoute";
 

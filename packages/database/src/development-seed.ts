@@ -321,6 +321,7 @@ async function main() {
     },
   });
 
+  await prisma.collegeMembership.upsert({ where: { userId_collegeId: { userId: workflowOwner.id, collegeId: cit.id } }, create: { userId: workflowOwner.id, collegeId: cit.id, roleNames: ["RESEARCH_COORDINATOR"] }, update: { roleNames: ["RESEARCH_COORDINATOR"] } });
   const capstoneWorkflow = await prisma.workflow.upsert({
     where: {
       researchTypeId_version: { researchTypeId: capstoneType.id, version: 1 },
@@ -652,6 +653,7 @@ async function main() {
       },
     });
 
+    if (["ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "DEAN"].includes(u.roleName)) await prisma.collegeMembership.upsert({ where: { userId_collegeId: { userId: user.id, collegeId: cit.id } }, create: { userId: user.id, collegeId: cit.id, roleNames: [u.roleName as InstitutionalRole] }, update: { roleNames: [u.roleName as InstitutionalRole] } });
     const roleId = rolesMap[u.roleName];
     if (roleId) {
       // Demo accounts have one deterministic primary role so dashboard routing is stable.

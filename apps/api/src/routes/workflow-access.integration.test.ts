@@ -98,7 +98,8 @@ databaseDescribe(
             roles: { create: { roleId: role.id } },
           },
         });
-        fixture.userIds.push(u.id);
+        if (["ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "DEAN"].includes(roleName)) await prisma.collegeMembership.create({ data: { userId: u.id, collegeId: c.id, roleNames: [roleName] } });
+      fixture.userIds.push(u.id);
         return u.id;
       }
       owner = await user("owner", "RESEARCH_COORDINATOR");

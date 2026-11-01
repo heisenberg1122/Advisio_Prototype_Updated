@@ -1,6 +1,7 @@
 import type { InstitutionalRole as DbInstitutionalRole, Prisma } from "@prisma/client";
 import type { AuthenticatedUser } from "../middleware/auth.js";
 import { prisma } from "../lib/prisma.js";
+import { collegeUserWhere } from "../lib/college-authorization.js";
 
 const FACULTY_ROLES: DbInstitutionalRole[] = [
   "ADVISER",
@@ -28,9 +29,10 @@ function hasAnyRole(
   return user.roles.some((role) => roles.has(role as DbInstitutionalRole));
 }
 
-async function relatedResearchIds(userId: string): Promise<string[]> {
+async function relatedResearchIds(userId: string, collegeId: string | null): Promise<string[]> {
   const projects = await prisma.researchProject.findMany({
     where: {
+      collegeId: collegeId || "00000000-0000-0000-0000-000000000000",
       OR: [
         { createdBy: userId },
         { members: { some: { userId, leftAt: null } } },
@@ -66,7 +68,7 @@ export async function authorizedMailRecipientWhere(
     return {
       ...base,
       OR: [
-        ...(user.collegeId ? [{ collegeId: user.collegeId }] : []),
+        ...(user.collegeId ? [collegeUserWhere(user.collegeId)] : []),
         {
           roles: {
             some: { role: { name: { in: INSTITUTION_ROLE_NAMES } } },
@@ -76,7 +78,7 @@ export async function authorizedMailRecipientWhere(
     };
   }
 
-  const researchIds = await relatedResearchIds(user.id);
+  const researchIds = await relatedResearchIds(user.id, user.collegeId || null);
   const isResearcher = user.roles.includes("RESEARCHER");
 
   if (isResearcher) {
@@ -100,16 +102,7 @@ export async function authorizedMailRecipientWhere(
         ...(user.collegeId
           ? [
               {
-                collegeId: user.collegeId,
-                roles: {
-                  some: {
-                    role: {
-                      name: {
-                        in: RESEARCHER_COLLEGE_CONTACT_ROLES,
-                      },
-                    },
-                  },
-                },
+                collegeMemberships: { some: { collegeId: user.collegeId, roleNames: { hasSome: RESEARCHER_COLLEGE_CONTACT_ROLES } } },
               },
             ]
           : []),
@@ -120,11 +113,8 @@ export async function authorizedMailRecipientWhere(
   return {
     ...base,
     OR: [
-      {
-        roles: {
-          some: { role: { name: { in: [...FACULTY_ROLES] } } },
-        },
-      },
+      { roles: { some: { role: { name: "SYSTEM_ADMIN" } } } },
+      ...(user.collegeId ? [{ collegeMemberships: { some: { collegeId: user.collegeId } } }] : []),
       ...(researchIds.length
         ? [
             {

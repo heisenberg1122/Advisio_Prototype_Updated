@@ -41,6 +41,7 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
       { label: "Official Copies", href: "/admin/documents?tab=official", icon: Archive },
       { label: "Progress & Risk", href: "/admin/dashboard?tab=progress", tabName: "progress", icon: ChartNoAxesCombined },
       { label: "Advisers", href: "/admin/dashboard?tab=advisers", tabName: "advisers", icon: UsersRound },
+      { label: "Faculty Access", href: "/admin/faculty-access", icon: UserRound },
       { label: "Defenses", href: "/admin/dashboard?tab=defenses", tabName: "defenses", icon: ClipboardList },
       { label: "Reports", href: "/admin/dashboard?tab=reports", tabName: "reports", icon: FileBarChart },
     ],

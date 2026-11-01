@@ -178,7 +178,7 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
     const identity = await assertIsolatedIntegrationDatabase(prisma);
     expect(identity).toMatchObject({
       databaseName: "advisio_test",
-      databaseUser: "advisio_test",
+      databaseUser: decodeURIComponent(new URL(process.env.INTEGRATION_DATABASE_URL!).username),
       applicationName: "advisio-integration-tests",
       isReplica: false,
     });
@@ -284,7 +284,8 @@ databaseDescribe("Professor to Panelist to Defense Result API workflow", () => {
               programId: program.id,
             },
           });
-          await tx.userRole.create({
+          if (["ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "DEAN"].includes(role)) await tx.collegeMembership.create({ data: { userId: user.id, collegeId: college.id, roleNames: [role] } });
+      await tx.userRole.create({
             data: { userId: user.id, roleId: roleByName.get(role)! },
           });
           return { id: user.id, token: generateToken(user.id) };

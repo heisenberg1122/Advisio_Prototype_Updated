@@ -133,6 +133,7 @@ async function workflowAccess(
   });
   const program = researchType?.program;
   const scope = getCollegeScope(user);
+  if (scope.kind !== "institution" && (!program || scope.kind !== "college" || scope.collegeId !== program.collegeId)) return null;
   const manages =
     user.roles.some((role) =>
       ["RESEARCH_COORDINATOR", "DEAN", "SYSTEM_ADMIN"].includes(role),

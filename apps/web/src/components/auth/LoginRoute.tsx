@@ -1,6 +1,7 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/providers/auth-provider";
+import { invitationReturnUrl } from "@/lib/invitation-return";
 import {
   getRememberedWorkspaceId,
   isOnboardingCompletedInSession,
@@ -9,6 +10,7 @@ import {
 
 export function LoginRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading, isAuthenticated } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -22,6 +24,7 @@ export function LoginRoute({ children }: { children: React.ReactNode }) {
 
   const action = resolvePostLoginAction({
     roles: user.roles,
+    returnUrl: invitationReturnUrl(location.search, location.hash),
     rememberedWorkspaceId: getRememberedWorkspaceId(user.id),
   });
   const destination =

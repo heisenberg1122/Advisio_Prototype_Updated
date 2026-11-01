@@ -83,6 +83,8 @@ export interface MailThreadListResponse {
 
 export interface ComposeSeed {
   key: string;
+  inlineThreadId?: string;
+  inlineAction?: "reply" | "forward";
   draftId?: string;
   toIds?: string[];
   ccIds?: string[];
