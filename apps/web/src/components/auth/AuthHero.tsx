@@ -25,7 +25,7 @@ export function AuthHero() {
 
       <header className="relative z-10 flex items-center justify-between pb-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white p-1.5">
+          <div className="flex h-11 w-11 items-center justify-center">
             <img src="/advisio-logo.png" alt="Advisio" className="h-full w-full object-contain" />
           </div>
           <div>

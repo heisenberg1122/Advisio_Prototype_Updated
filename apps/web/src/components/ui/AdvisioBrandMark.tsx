@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import "./advisio-brand-mark.css";
 
-/** Display the symbol from the supplied logo without changing the source image. */
+/** Display the supplied transparent symbol without a surrounding tile. */
 export function AdvisioBrandMark({
   className,
   alt = "Advisio",
@@ -15,8 +15,8 @@ export function AdvisioBrandMark({
         <img
           src="/advisio-logo.png"
           alt={alt}
-          width={1254}
-          height={1254}
+          width={480}
+          height={384}
           decoding="async"
           draggable={false}
         />

@@ -558,10 +558,10 @@
     width: calc(52 * var(--auth-unit));
     height: calc(52 * var(--auth-unit));
     flex-shrink: 0;
-    padding: calc(5 * var(--auth-unit));
-    border: calc(1 * var(--auth-unit)) solid #e9e4d7;
-    border-radius: calc(12 * var(--auth-unit));
-    background: #f8f8f3;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
   }
   .advisio-login .login-brand-name {
     font-size: calc(30 * var(--auth-unit));

@@ -107,6 +107,23 @@ async function request(
   return res;
 }
 
+describe("workflow order permissions", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    db.workflow.findUnique.mockResolvedValue({ id: "workflow", researchTypeId: "type" });
+    db.researchType.findUnique.mockResolvedValue({ program: { id: "program", collegeId: "college" } });
+    db.workflowEnrollment.findFirst.mockResolvedValue({ id: "enrollment" });
+  });
+  it.each(["/:id/stages/reorder", "/:id/topics/reorder"])("keeps %s restricted to managers in the correct college and program", async path => {
+    for (const user of [student, { ...professor, collegeId: "another-college" }, { ...professor, programId: "another-program" }]) {
+      const res = await request(path, "patch", { user });
+      expect(res.statusCode).toBe(404);
+    }
+    expect(db.$transaction).not.toHaveBeenCalled();
+    expect(db.workflowStage.update).not.toHaveBeenCalled();
+  });
+});
+
 describe("workflow deletion", () => {
   beforeEach(() => {
     vi.resetAllMocks();

@@ -1,0 +1,390 @@
+/* Presentation only: keep workflow ordering, approval rules and callbacks in the page. */
+.professor-workflow {
+  min-width: 0;
+  gap: 24px;
+}
+
+.professor-workflow :where(h2, h3, h4, p, button, select) {
+  overflow-wrap: anywhere;
+}
+
+.professor-workflow .workflow-builder-header {
+  padding: 24px 26px;
+}
+
+.professor-workflow .workflow-builder-header h2 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.3;
+}
+
+.professor-workflow .workflow-builder-header p:not(:first-child) {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.professor-workflow .workflow-builder-selector {
+  flex-wrap: wrap;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-color: var(--color-border-subtle);
+}
+
+.professor-workflow .workflow-builder-selector select {
+  min-height: 44px;
+  font-size: 14px;
+}
+
+.professor-workflow .workflow-builder-tabs {
+  align-self: flex-start;
+  max-width: 100%;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  padding: 4px;
+  background: var(--color-surface-subtle);
+  box-shadow: none;
+}
+
+.professor-workflow .workflow-builder-tabs [role="tab"] {
+  min-height: 42px;
+  border-radius: 8px;
+  padding: 10px 18px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.professor-workflow .workflow-builder-tabs [aria-selected="true"] {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 8%);
+}
+
+.professor-workflow .workflow-builder-tabs [role="tab"] > span {
+  display: none;
+}
+
+.professor-workflow .workflow-builder-layout {
+  align-items: start;
+  gap: 24px;
+}
+
+.professor-workflow .workflow-structure {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.professor-workflow .workflow-structure-heading {
+  align-items: center;
+  padding: 0 2px;
+}
+
+.professor-workflow .workflow-structure-heading h3 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.professor-workflow .workflow-structure-heading p {
+  max-width: 48ch;
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.professor-workflow .workflow-topic-list {
+  margin-top: 20px;
+  gap: 20px;
+}
+
+.professor-workflow .workflow-topic {
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  box-shadow: 0 2px 6px rgb(15 23 42 / 3%);
+}
+
+.professor-workflow .workflow-topic-heading {
+  gap: 12px;
+  padding: 17px 20px;
+  border-color: var(--color-border-subtle);
+  background: color-mix(
+    in srgb,
+    var(--color-surface-subtle) 55%,
+    var(--color-surface)
+  );
+}
+
+.professor-workflow .workflow-topic-heading h4 {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.professor-workflow .workflow-topic-heading p {
+  margin-top: 3px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.professor-workflow .workflow-milestone-row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+  padding: 22px 20px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition: background-color 160ms ease;
+}
+
+.professor-workflow .workflow-milestone-row:last-child {
+  border-bottom: 0;
+}
+
+.professor-workflow .workflow-milestone-list > button {
+  min-height: 96px;
+  padding: 28px 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.professor-workflow .workflow-milestone-list > button:hover {
+  background: var(--color-surface-subtle);
+  color: var(--color-primary);
+}
+
+.professor-workflow .workflow-milestone-row:hover {
+  background: color-mix(
+    in srgb,
+    var(--color-primary-light) 15%,
+    var(--color-surface)
+  );
+}
+
+.professor-workflow .workflow-milestone-number {
+  border: 0;
+  border-radius: 11px;
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.professor-workflow .workflow-milestone-edit {
+  padding: 2px 0;
+}
+
+.professor-workflow .workflow-milestone-heading {
+  gap: 8px;
+  line-height: 1.5;
+}
+
+.professor-workflow .workflow-milestone-heading > span:first-child {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.professor-workflow .workflow-milestone-heading > span:last-child {
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.professor-workflow .workflow-milestone-description {
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.professor-workflow .workflow-milestone-meta {
+  margin-top: 12px;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.professor-workflow .workflow-milestone-meta > span {
+  max-width: 100%;
+  padding: 5px 8px;
+  border-radius: 7px;
+  overflow-wrap: anywhere;
+}
+
+.professor-workflow .workflow-milestone-actions {
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.professor-workflow .workflow-milestone-actions button {
+  width: 30px;
+  height: 32px;
+  border-radius: 6px;
+}
+
+.professor-workflow .workflow-milestone-actions button:enabled:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.professor-workflow .workflow-milestone-actions button + button {
+  margin-left: 3px;
+  border-left: 1px solid var(--color-border-subtle);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.professor-workflow .workflow-builder-sidebar {
+  display: grid;
+  gap: 16px;
+}
+
+.professor-workflow .workflow-builder-sidebar > section {
+  min-width: 0;
+  margin: 0;
+  padding: 20px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.professor-workflow .workflow-builder-sidebar h3 {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.professor-workflow
+  .workflow-builder-sidebar
+  .workflow-sidebar-summary
+  > div:last-child {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.professor-workflow
+  .workflow-builder-sidebar
+  .workflow-sidebar-summary
+  > div:last-child
+  > div {
+  gap: 16px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.professor-workflow .workflow-builder-sidebar .workflow-sidebar-summary strong {
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.professor-workflow .workflow-builder-sidebar .workflow-sidebar-tip p {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.professor-workflow .workflow-builder-sidebar .workflow-sidebar-tip > div > i {
+  flex-shrink: 0;
+  color: var(--color-primary);
+}
+
+.professor-workflow
+  .workflow-builder-sidebar
+  .workflow-sidebar-quick-actions
+  button {
+  border-radius: 8px;
+  padding: 12px 4px;
+  transition: background-color 160ms ease;
+}
+
+.professor-workflow
+  .workflow-builder-sidebar
+  .workflow-sidebar-quick-actions
+  button:hover {
+  background: var(--color-surface-subtle);
+}
+
+.professor-workflow :where(button, select):focus-visible {
+  outline: 2px solid var(--college-focus-ring);
+  outline-offset: 3px;
+}
+
+@media (min-width: 1200px) {
+  .professor-workflow .workflow-builder-layout {
+    grid-template-columns: minmax(0, 1fr) 288px;
+  }
+}
+
+@media (min-width: 641px) and (max-width: 1199px) {
+  .professor-workflow .workflow-builder-sidebar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .professor-workflow .workflow-builder-header {
+    padding: 20px;
+  }
+
+  .professor-workflow .workflow-builder-header h2 {
+    font-size: 23px;
+  }
+
+  .professor-workflow .workflow-builder-tabs {
+    align-self: stretch;
+  }
+
+  .professor-workflow .workflow-structure-heading {
+    align-items: stretch;
+  }
+
+  .professor-workflow .workflow-topic-heading {
+    padding: 16px;
+  }
+
+  .professor-workflow .workflow-milestone-row {
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 10px;
+    padding: 18px 16px;
+  }
+
+  .professor-workflow .workflow-milestone-number {
+    width: 32px;
+    height: 34px;
+  }
+
+  .professor-workflow .workflow-milestone-actions {
+    grid-column: 2;
+    justify-self: start;
+    margin-top: 3px;
+  }
+
+  .professor-workflow .workflow-milestone-actions button {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .professor-workflow .workflow-milestone-row,
+  .professor-workflow .workflow-builder-sidebar button {
+    transition: none;
+  }
+}

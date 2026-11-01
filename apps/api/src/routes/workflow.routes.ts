@@ -10,6 +10,7 @@ import {
   createWorkflowTopicSchema,
   createWorkflowSchema,
   reorderWorkflowTopicsSchema,
+  reorderWorkflowMilestonesSchema,
   updateWorkflowTopicSchema,
   workflowTransitionSchema,
   targetCompletionDateSchema,
@@ -50,6 +51,7 @@ import {
 import { hasActiveWorkflowEnrollment } from "../services/workflow-enrollment-access.service.js";
 import { synchronizeAdviserMilestone } from "../services/adviser-milestone.service.js";
 import { workflowPublicationIssues } from "../services/workflow-publication.service.js";
+import { reorderWorkflowMilestones, reorderWorkflowTopics, resequenceMilestonesWithConditions } from "../services/workflow-order.service.js";
 import {
   assertMilestoneOrder,
   parseRequiredMilestoneId,
@@ -1301,49 +1303,46 @@ router.patch(
           .status(404)
           .json({ error: "Workflow not found in your academic scope." });
       }
-      const topics = await prisma.workflowTopic.findMany({
-        where: { workflowId },
-        select: { id: true },
-      });
-      const existingIds = new Set(topics.map((topic) => topic.id));
-      const requestedIds = req.body.topicIds as string[];
-      if (
-        requestedIds.length !== existingIds.size ||
-        new Set(requestedIds).size !== requestedIds.length ||
-        requestedIds.some((id) => !existingIds.has(id))
-      ) {
-        return void res.status(400).json({
-          error: "Topic order must contain every workflow topic exactly once.",
-        });
-      }
-      await prisma.$transaction(async (tx) => {
-        for (let index = 0; index < requestedIds.length; index += 1) {
-          await tx.workflowTopic.update({
-            where: { id: requestedIds[index] },
-            data: { sequence: 1_000_000 + index },
-          });
-        }
-        for (let index = 0; index < requestedIds.length; index += 1) {
-          await tx.workflowTopic.update({
-            where: { id: requestedIds[index] },
-            data: { sequence: index + 1 },
-          });
-        }
-        await resequenceWorkflowStagesByTopics(tx, workflowId);
-        await auditPublishedWorkflowChange(tx, workflowId, req.user!.id, "Workflow", workflowId, "Research phases and milestones reordered.");
-      });
-      await recordPublishedWorkflowChange(
+      const changed = await prisma.$transaction(async (tx) => {
+        const changed = await reorderWorkflowTopics(tx, workflowId, req.body.topicIds, req.user!.id, req.body.expectedTopicIds);
+        if (changed) await auditPublishedWorkflowChange(tx, workflowId, req.user!.id, "Workflow", workflowId, "Research phases reordered and required milestone conditions synchronized.");
+        return changed;
+      }, { isolationLevel: "Serializable", timeout: 30_000 });
+      if (changed) await recordPublishedWorkflowChange(
         workflowId,
         req.user!.id,
-        "The order of research phases and milestones changed.",
+        "Research phases and required milestone conditions were reordered. Existing work was retained.",
         "Workflow",
         workflowId,
       );
       res.json({ success: true });
     } catch (error: any) {
       res
-        .status(500)
-        .json({ error: error.message || "Failed to reorder workflow topics." });
+        .status(error.statusCode || (error.code === "P2034" ? 409 : 500))
+        .json({ error: error.code === "P2034" ? "This workflow changed. Refresh and try again." : error.message || "Failed to reorder workflow topics." });
+    }
+  },
+);
+
+router.patch(
+  "/:id/stages/reorder",
+  requireAuth,
+  requirePermission(Permissions.WORKFLOW_EDIT),
+  validateBody(reorderWorkflowMilestonesSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const workflowId = req.params.id as string;
+      if (!(await workflowAccess(workflowId, req.user!))?.manages)
+        return void res.status(404).json({ error: "Workflow not found in your academic scope." });
+      const changed = await prisma.$transaction(async tx => {
+        const changed = await reorderWorkflowMilestones(tx, workflowId, req.body, req.user!.id);
+        if (changed) await auditPublishedWorkflowChange(tx, workflowId, req.user!.id, "Workflow", workflowId, "Milestones reordered and required milestone conditions synchronized.");
+        return changed;
+      }, { isolationLevel: "Serializable", timeout: 30_000 });
+      if (changed) await recordPublishedWorkflowChange(workflowId, req.user!.id, "Milestones and their required conditions were reordered. Existing submissions and approvals were retained.", "Workflow", workflowId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(error.statusCode || (error.code === "P2034" ? 409 : 500)).json({ error: error.code === "P2034" ? "This workflow changed. Refresh and try again." : error.message || "Failed to move milestone." });
     }
   },
 );
@@ -2871,12 +2870,12 @@ router.patch(
           });
         }
         if (topicId !== undefined && topicId !== existing.topicId) {
-          await resequenceWorkflowStagesByTopics(tx, existing.workflowId);
+          await resequenceMilestonesWithConditions(tx, existing.workflowId, req.user!.id);
         }
         await validateMilestoneConditions(tx, existing.workflowId);
         await auditPublishedWorkflowChange(tx, existing.workflowId, req.user!.id, "WorkflowStage", stageId, "Milestone configuration updated.");
         return tx.workflowStage.findUniqueOrThrow({ where: { id: stageId } });
-      });
+      }, { isolationLevel: "Serializable", timeout: 30_000 });
 
       await recordPublishedWorkflowChange(
         existing.workflowId,
@@ -2888,8 +2887,8 @@ router.patch(
       res.json({ stage });
     } catch (error: any) {
       res
-        .status(error.statusCode || (error.code === "P2003" ? 409 : 500))
-        .json({ error: error.message || "Failed to update workflow stage" });
+        .status(error.statusCode || (["P2003", "P2034"].includes(error.code) ? 409 : 500))
+        .json({ error: error.code === "P2034" ? "This workflow changed. Refresh and try again." : error.message || "Failed to update workflow stage" });
     }
   },
 );
