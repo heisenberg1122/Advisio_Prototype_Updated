@@ -1240,6 +1240,7 @@ class ReviewerAssignmentService {
             userId: options.user.id,
             action: "CREATE",
             entityType: "ManuscriptReviewDecision",
+            researchId: assignment.document.researchId,
             entityId: review.id,
             newValues: {
               assignmentId: assignment.id,

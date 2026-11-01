@@ -523,6 +523,26 @@ async function normalizeWorkflowTopicSequences(tx: any, workflowId: string) {
   }
 }
 
+async function auditPublishedWorkflowChange(
+  tx: import("@prisma/client").Prisma.TransactionClient,
+  workflowId: string,
+  actorId: string,
+  entityType: string,
+  entityId: string,
+  summary: string,
+) {
+  const workflow = await tx.workflow.findUnique({
+    where: { id: workflowId },
+    select: { status: true },
+  });
+  if (workflow?.status === "PUBLISHED") {
+    await tx.auditLog.create({ data: {
+      userId: actorId, action: "UPDATE", entityType, entityId,
+      newValues: { workflowId, summary },
+    } });
+  }
+}
+
 async function recordPublishedWorkflowChange(
   workflowId: string,
   actorId: string,
@@ -570,15 +590,6 @@ async function recordPublishedWorkflowChange(
         recipients.add(member.userId);
 
     await prisma.$transaction(async (tx) => {
-      await tx.auditLog.create({
-        data: {
-          userId: actorId,
-          action: "UPDATE",
-          entityType,
-          entityId,
-          newValues: { workflowId, summary },
-        },
-      });
       await createNotificationsOnce(
         tx,
         Array.from(recipients).map((recipientId) => ({
@@ -1186,7 +1197,7 @@ router.post(
           orderBy: { sequence: "desc" },
           select: { sequence: true },
         });
-        return tx.workflowTopic.create({
+        const created = await tx.workflowTopic.create({
           data: {
             workflowId,
             title: req.body.title,
@@ -1194,6 +1205,8 @@ router.post(
             sequence: (lastTopic?.sequence || 0) + 1,
           },
         });
+        await auditPublishedWorkflowChange(tx, workflowId, req.user!.id, "WorkflowTopic", created.id, "Research phase created.");
+        return created;
       });
       await recordPublishedWorkflowChange(
         workflowId,
@@ -1244,7 +1257,8 @@ router.patch(
           });
         }
       }
-      const topic = await prisma.workflowTopic.update({
+      const topic = await prisma.$transaction(async (tx) => {
+      const updated = await tx.workflowTopic.update({
         where: { id: existing.id },
         data: {
           ...(req.body.title !== undefined && { title: req.body.title }),
@@ -1252,6 +1266,9 @@ router.patch(
             description: req.body.description || null,
           }),
         },
+      });
+      await auditPublishedWorkflowChange(tx, existing.workflowId, req.user!.id, "WorkflowTopic", updated.id, "Research phase updated.");
+      return updated;
       });
       await recordPublishedWorkflowChange(
         existing.workflowId,
@@ -1312,6 +1329,7 @@ router.patch(
           });
         }
         await resequenceWorkflowStagesByTopics(tx, workflowId);
+        await auditPublishedWorkflowChange(tx, workflowId, req.user!.id, "Workflow", workflowId, "Research phases and milestones reordered.");
       });
       await recordPublishedWorkflowChange(
         workflowId,
@@ -1360,6 +1378,7 @@ router.delete(
       await prisma.$transaction(async (tx) => {
         await tx.workflowTopic.delete({ where: { id: topic.id } });
         await normalizeWorkflowTopicSequences(tx, topic.workflowId);
+        await auditPublishedWorkflowChange(tx, topic.workflowId, req.user!.id, "WorkflowTopic", topic.id, "Research phase removed.");
       });
       await recordPublishedWorkflowChange(
         topic.workflowId,
@@ -2300,6 +2319,7 @@ router.post(
             createdStage.id,
             requestedPosition,
           );
+          await auditPublishedWorkflowChange(tx, workflowId, req.user!.id, "WorkflowStage", createdStage.id, "Milestone created.");
           return tx.workflowStage.findUniqueOrThrow({
             where: { id: createdStage.id },
           });
@@ -2453,7 +2473,10 @@ router.delete(
         ]);
 
       if (!activeUsage && !submissions && !transitions && !dependentRecords) {
-        await prisma.workflowStage.delete({ where: { id: stageId } });
+        await prisma.$transaction(async (tx) => {
+          await tx.workflowStage.delete({ where: { id: stageId } });
+          await auditPublishedWorkflowChange(tx, stage.workflowId, req.user!.id, "WorkflowStage", stageId, "Unused milestone removed.");
+        });
         await recordPublishedWorkflowChange(
           stage.workflowId,
           req.user!.id,
@@ -2495,6 +2518,7 @@ router.delete(
           data: { category: "Archived" },
         });
         await normalizeWorkflowStageSequences(tx, stage.workflowId);
+        await auditPublishedWorkflowChange(tx, stage.workflowId, req.user!.id, "WorkflowStage", stageId, "Milestone retired; submissions preserved.");
       });
       await recordPublishedWorkflowChange(
         stage.workflowId,
@@ -2849,6 +2873,7 @@ router.patch(
           await resequenceWorkflowStagesByTopics(tx, existing.workflowId);
         }
         await validateMilestoneConditions(tx, existing.workflowId);
+        await auditPublishedWorkflowChange(tx, existing.workflowId, req.user!.id, "WorkflowStage", stageId, "Milestone configuration updated.");
         return tx.workflowStage.findUniqueOrThrow({ where: { id: stageId } });
       });
 
@@ -2965,7 +2990,8 @@ router.post(
         where: { stageId },
         orderBy: { sequence: "desc" },
       });
-      const task = await prisma.workflowTask.create({
+      const task = await prisma.$transaction(async (tx) => {
+      const created = await tx.workflowTask.create({
         data: {
           stageId,
           title: title.trim(),
@@ -2975,6 +3001,9 @@ router.post(
           allowedFileTypes: normalizeTaskFileTypes(allowedFileTypes),
           isRequired: Boolean(isRequired),
         },
+      });
+      await auditPublishedWorkflowChange(tx, stage.workflowId, req.user!.id, "WorkflowTask", created.id, "Submission requirement created.");
+      return created;
       });
       await recordPublishedWorkflowChange(
         stage.workflowId,
@@ -3114,7 +3143,10 @@ router.delete(
         return void res.status(409).json({
           error: "A task with student submissions cannot be deleted.",
         });
-      await prisma.workflowTask.delete({ where: { id: taskId } });
+      await prisma.$transaction(async (tx) => {
+        await tx.workflowTask.delete({ where: { id: taskId } });
+        await auditPublishedWorkflowChange(tx, task.stage.workflowId, req.user!.id, "WorkflowTask", taskId, "Submission requirement removed.");
+      });
       await recordPublishedWorkflowChange(
         task.stage.workflowId,
         req.user!.id,

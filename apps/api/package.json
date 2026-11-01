@@ -18,6 +18,7 @@
   "dependencies": {
     "@research-management/auth": "*",
     "@research-management/database": "*",
+    "@research-management/email": "*",
     "@research-management/validations": "*",
     "@supabase/supabase-js": "^2.116.0",
     "bcryptjs": "^3.0.2",
@@ -32,8 +33,8 @@
     "morgan": "^1.10.0",
     "multer": "^2.3.0",
     "pdf-lib": "^1.17.1",
-    "zod": "^3.24.2",
-    "@research-management/email": "*"
+    "redis": "^5.12.1",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

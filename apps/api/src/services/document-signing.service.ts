@@ -447,6 +447,7 @@ export class DocumentSigningService {
           userId: options.signerId,
           action: "SIGN",
           entityType: "DocumentVersion",
+          researchId: source.document.researchId,
           entityId: signedVersion.id,
           newValues: {
             sourceVersionId: source.id,

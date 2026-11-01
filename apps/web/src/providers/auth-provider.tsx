@@ -201,7 +201,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const confirmLogout = () => {
+  const [loggingOut, setLoggingOut] = useState(false);
+  const confirmLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try { await apiClient.post("/api/auth/logout", undefined, { signal: AbortSignal.timeout(3000) }); }
+    catch {
+      // A failed audit acknowledgment must never trap a user in a local session.
+      console.warn("Server sign-out acknowledgment unavailable; clearing local credentials.");
+    }
     setShowLogoutModal(false);
     if (typeof window !== "undefined") {
       if (user?.id) {
@@ -276,6 +284,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={confirmLogout}
+                disabled={loggingOut}
                 className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-red-700 active:scale-[0.98] transition-all cursor-pointer"
               >
                 <i className="ti ti-logout text-base" />

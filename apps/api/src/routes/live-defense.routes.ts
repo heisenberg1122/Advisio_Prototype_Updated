@@ -2153,9 +2153,16 @@ router.put(
             data,
           )
         : null;
-      const evaluation = existing
-        ? await prisma.evaluation.update({ where: { id: existing.id }, data })
-        : await prisma.evaluation.create({ data });
+      const evaluation = await prisma.$transaction(async (tx) => {
+        const saved = existing
+          ? await tx.evaluation.update({ where: { id: existing.id }, data })
+          : await tx.evaluation.create({ data });
+        if (final) await tx.auditLog.create({ data: {
+          userId: req.user!.id, action: "CREATE", entityType: "EvaluationSubmission", entityId: saved.id,
+          researchId: session.researchId, newValues: { defenseSessionId: session.id, totalScore, recommendation, integrityHash },
+        } });
+        return saved;
+      });
       res.json(
         jsonSafe({
           evaluation,
@@ -2250,6 +2257,7 @@ router.post(
               userId: req.user!.id,
               action: "CREATE",
               entityType: "DefenseBadge",
+              researchId: session.researchId,
               entityId: badge.id,
               newValues: {
                 defenseSessionId: session.id,
@@ -2457,6 +2465,11 @@ router.post(
             payload: releasePayload({ ...ledger.state, decision, releasedAt, releasedBy: req.user!.id }, ledger.events, revisionInstructions),
           });
         }
+        await tx.auditLog.create({ data: {
+          userId: req.user!.id, action: "PUBLISH", entityType: "DefenseSession", entityId: session.id,
+          eventType: "DefenseResultReleased", researchId: session.researchId,
+          newValues: { decision, releasedAt: releasedAt.toISOString(), researchStatus },
+        } });
         await consumeDefenseEligibility(tx, session, decision, releasedAt);
         await tx.researchProject.update({
           where: { id: session.researchId },

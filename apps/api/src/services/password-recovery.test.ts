@@ -6,12 +6,13 @@ const mocks = vi.hoisted(() => ({
   audit: vi.fn(),
   sendEmail: vi.fn(),
 }));
-vi.mock("../lib/prisma.js", () => ({
-  prisma: {
+vi.mock("../lib/prisma.js", () => {
+  const db = {
     user: { findUnique: mocks.findUnique, updateMany: mocks.updateMany },
     auditLog: { create: mocks.audit },
-  },
-}));
+  };
+  return { prisma: { ...db, $transaction: async (operation: (tx: typeof db) => unknown) => operation(db) } };
+});
 vi.mock("@research-management/email", () => ({ sendEmail: mocks.sendEmail }));
 import {
   recoveryTokenHash,

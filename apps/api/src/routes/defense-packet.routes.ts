@@ -270,13 +270,12 @@ router.get(
           oldValues: true,
           newValues: true,
           createdAt: true,
-          user: {
-            select: { id: true, firstName: true, lastName: true },
-          },
+          userId: true,
         },
         orderBy: { createdAt: "desc" },
       });
-      res.json({ publications });
+      const actors = await prisma.user.findMany({ where: { id: { in: publications.flatMap((event) => event.userId ? [event.userId] : []) } }, select: { id: true, firstName: true, lastName: true } });
+      res.json({ publications: publications.map(({ userId, ...event }) => ({ ...event, user: actors.find((actor) => actor.id === userId) || null })) });
     } catch (error: any) {
       res.status(500).json({
         error: error.message || "Failed to load packet publication history.",

@@ -5,6 +5,8 @@ import { isAllowedOrigin } from "./lib/security-config.js";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
+import { auditMiddleware } from "./middleware/audit.js";
+import auditRoutes from "./routes/audit.routes.js";
 
 import healthRoutes from "./routes/health.routes";
 import authRoutes from "./routes/auth.routes";
@@ -75,9 +77,11 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+app.use(auditMiddleware);
 
 // API Routes
 app.use("/api/health", healthRoutes);
+app.use("/api", auditRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", organizationRoutes);
 app.use("/api/research", researchRoutes);

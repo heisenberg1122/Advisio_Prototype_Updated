@@ -141,6 +141,7 @@ export async function submitTitleProposals(options: {
         oldValues: existing
           ? { titles: existing.titles, version: existing.version }
           : {},
+        researchId: project.id,
         newValues: { titles, version: saved.version },
       },
     });
@@ -233,6 +234,7 @@ export async function reviewTitleProposals(options: {
           entityType: "TitleProposalSubmission",
           entityId: submission.id,
           oldValues: { title: project.title },
+          researchId: project.id,
           newValues: {
             title,
             selectedIndex: options.selectedIndex as number,
@@ -246,6 +248,10 @@ export async function reviewTitleProposals(options: {
         actorId: options.reviewerId,
       });
     }
+    if (!title) await db.auditLog.create({ data: {
+      userId: options.reviewerId, action: "UPDATE", entityType: "TitleProposalSubmission", entityId: submission.id,
+      newValues: { researchId: project.id, status: options.status, version: submission.version, reviewNote: note },
+    } });
     await db.notification.createMany({
       data: project.members
         .filter((member) => ["LEADER", "MEMBER"].includes(member.projectRole))
