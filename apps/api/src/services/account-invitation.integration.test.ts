@@ -210,6 +210,12 @@ databaseDescribe("account invitation persistence and access", () => {
     expect(body).not.toContain(stored.tokenHash);
     expect(body).toContain(input.verificationNote);
     expect(delivery.mock.calls[0][0].text).toContain("#token=");
+    const email = delivery.mock.calls[0][0];
+    expect(email.subject).toBe("Your Advisio college access invitation");
+    expect(email.html).toContain('alt="Advisio"');
+    expect(email.html).toContain("Accept invitation</a>");
+    expect(email.html).toContain(`/accept-invitation#token=${token}`);
+    expect(email.text).toContain("48 hours");
   });
   it.each(["ADVISER", "DEAN", "PANELIST", "RESEARCH_COORDINATOR"])(
     "creates only the approved %s role",

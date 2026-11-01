@@ -9,7 +9,10 @@ const state = vi.hoisted(() => ({
 vi.mock("../lib/prisma.js", () => ({
   prisma: { $transaction: state.transaction },
 }));
-vi.mock("@research-management/email", () => ({ sendEmail: state.sendEmail }));
+vi.mock("@research-management/email", async (original) => ({
+  ...(await original<typeof import("@research-management/email")>()),
+  sendEmail: state.sendEmail,
+}));
 vi.mock("bcryptjs", () => ({
   default: { hash: vi.fn().mockResolvedValue("hashed-test-password") },
 }));
@@ -47,12 +50,10 @@ function acceptanceTransaction(rotateWhileWaiting: boolean) {
       }),
     },
     user: {
-      findUnique: vi
-        .fn()
-        .mockResolvedValue({
-          status: "ACTIVE",
-          roles: [{ role: { name: "SYSTEM_ADMIN" } }],
-        }),
+      findUnique: vi.fn().mockResolvedValue({
+        status: "ACTIVE",
+        roles: [{ role: { name: "SYSTEM_ADMIN" } }],
+      }),
       findFirst: vi.fn().mockResolvedValue(null),
       create: state.createUser,
     },

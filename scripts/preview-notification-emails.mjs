@@ -15,7 +15,7 @@ const previewLogoUrl = new URL("/advisio-email-logo.png", webUrl).href;
 const out = path.join(root, ".local", "email-previews");
 await mkdir(out, { recursive: true });
 await copyFile(path.join(root, "apps/web/public/advisio-email-logo.png"), path.join(out, "advisio-email-logo.png"));
-const data = { firstName: "Maria", actorName: "Prof. Ana Reyes", title: "Chapter 1: Introduction", workflowName: "Research Methods · BS Information Technology", scope: "BS Information Technology", message: "Please review the feedback and supporting details inside your Advisio workspace.", dueDate: "October 30, 2026, 11:59 PM (Asia/Manila)", teamName: "Research Team Alpha", researchTitle: "Smart Campus Resource Management", result: "Approved" };
+const data = { collegeName: "College of Computing", roles: "Adviser, Panelist", firstName: "Maria", actorName: "Prof. Ana Reyes", title: "Chapter 1: Introduction", workflowName: "Research Methods · BS Information Technology", scope: "BS Information Technology", message: "Please review the feedback and supporting details inside your Advisio workspace.", dueDate: "October 30, 2026, 11:59 PM (Asia/Manila)", teamName: "Research Team Alpha", researchTitle: "Smart Campus Resource Management", result: "Approved" };
 for (const key of Object.keys(notificationTemplates)) {
   const rendered = renderNotificationEmail(key, data, { webUrl, logoUrl: previewLogoUrl, actionUrl: "/student/dashboard" });
   // Relative image path also lets the standalone HTML open from disk.

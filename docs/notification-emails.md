@@ -92,7 +92,7 @@ Common variables are `firstName`, `title`, and `message`. Event-specific variabl
 | Defense pass | `researchTitle`, `result` |
 
 For permanent source changes, edit `packages/email/src/templates/notifications.ts`.
-That file holds all fourteen definitions and the single shared layout.
+That file holds the fourteen event definitions, the institutional invitation template, and the single shared layout. Institutional invitations are sent directly by the invitation service rather than queued by the notification worker.
 
 ## Add another event
 
@@ -154,7 +154,7 @@ credentials, and email content are excluded from these diagnostics. Fix the
 configuration first; jobs that already reached five attempts need an explicit
 requeue, or use the separate connection-test command to validate the fix.
 
-Run `npm run email:preview` to generate all fourteen examples plus a desktop/mobile
+Run `npm run email:preview` to generate all fifteen examples plus a desktop/mobile
 gallery at `.local/email-previews/index.html`. Open that file locally. This sends
 no messages. The examples use sample names and links based on
 `EMAIL_PREVIEW_WEB_URL` (falling back to `WEB_URL`) from the root `.env`.

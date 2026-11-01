@@ -21,6 +21,8 @@ Adviser capacity is an existing person-wide limit. Deans manage capacity for hom
 
 ## Delivery and deployment
 
+Invitation emails use the shared Advisio notification layout with the logo, recipient greeting, college and assigned roles, an **Accept invitation** button, a fallback link, and a plain-text alternative. The message explains the 48-hour, single-use link and the acceptance steps for new and existing accounts. Invitations are sent directly, independently of the notification email worker.
+
 Configure `WEB_URL` with the web application URL (HTTPS in production), plus an existing supported email provider:
 
 - Gmail: `EMAIL_PROVIDER=gmail`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_SENDER_EMAIL`.
