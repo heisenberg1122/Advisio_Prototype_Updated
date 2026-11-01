@@ -2421,6 +2421,12 @@ model StorageIntegration {
   connectedAt           DateTime?         @map("connected_at")
   lastCheckedAt         DateTime?         @map("last_checked_at")
   lastHealthyAt         DateTime?         @map("last_healthy_at")
+  quotaLimitBytes       BigInt?           @map("quota_limit_bytes")
+  quotaUsedBytes        BigInt?           @map("quota_used_bytes")
+  quotaDriveBytes       BigInt?           @map("quota_drive_bytes")
+  quotaCheckedAt        DateTime?         @map("quota_checked_at")
+  quotaAttemptedAt      DateTime?         @map("quota_attempted_at")
+  quotaError            String?           @map("quota_error") @db.Text
   lastErrorCode         String?           @map("last_error_code") @db.VarChar(80)
   lastErrorMessage      String?           @map("last_error_message") @db.Text
   createdAt             DateTime          @default(now()) @map("created_at")

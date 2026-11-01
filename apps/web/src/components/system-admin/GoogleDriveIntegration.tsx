@@ -4,6 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { DriveStorageMetrics } from "./DriveStorageMetrics";
+import { STORAGE_FRESH_MS, type StorageQuota } from "./drive-storage-metrics";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -45,12 +47,7 @@ type DriveStatus = {
   lastHealthyAt: string | null;
   error: { code: string; message: string | null } | null;
   managedStorage: { fileCount: number; bytes: number };
-  quota?: {
-    limit?: string;
-    usage?: string;
-    usageInDrive?: string;
-    usageInDriveTrash?: string;
-  } | null;
+  quota?: StorageQuota | null;
   maxUploadSize?: string | null;
 };
 
@@ -102,16 +99,6 @@ const STATUS_META: Record<
   },
 };
 
-function bytesLabel(bytes: number) {
-  if (!bytes) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  const index = Math.min(
-    Math.floor(Math.log(bytes) / Math.log(1024)),
-    units.length - 1,
-  );
-  return `${(bytes / 1024 ** index).toFixed(index > 1 ? 1 : 0)} ${units[index]}`;
-}
-
 function dateLabel(value: string | null) {
   if (!value) return "Not checked yet";
   return new Intl.DateTimeFormat("en-PH", {
@@ -134,8 +121,38 @@ export function GoogleDriveIntegration({
   const [notice, setNotice] = useState<string | null>(null);
   const statusQuery = useQuery({
     queryKey: ["google-drive-integration"],
-    queryFn: () =>
-      apiClient.get<DriveStatus>("/api/integrations/google-drive/status"),
+    queryFn: async () => {
+      const data = await apiClient.get<DriveStatus>(
+        "/api/integrations/google-drive/status",
+      );
+      if (
+        !data.connected ||
+        (data.quota?.attemptedAt &&
+          Date.now() - new Date(data.quota.attemptedAt).getTime() <
+            STORAGE_FRESH_MS)
+      )
+        return data;
+      try {
+        return await apiClient.post<DriveStatus>(
+          "/api/integrations/google-drive/storage-refresh",
+          { force: false },
+        );
+      } catch {
+        return {
+          ...data,
+          quota: {
+            limit: null,
+            usage: null,
+            usageInDrive: null,
+            checkedAt: null,
+            attemptedAt: null,
+            ...data.quota,
+            error:
+              "Storage refresh failed. Showing the last available figures.",
+          },
+        };
+      }
+    },
     staleTime: 60_000,
     refetchInterval: 15 * 60_000,
   });
@@ -179,6 +196,22 @@ export function GoogleDriveIntegration({
     },
     onError: (error: Error) => setNotice(error.message),
   });
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const storageRefresh = useMutation({
+    mutationFn: () =>
+      apiClient.post<DriveStatus>(
+        "/api/integrations/google-drive/storage-refresh",
+        { force: true },
+      ),
+    onSuccess: (data) => {
+      setStorageError(null);
+      queryClient.setQueryData(["google-drive-integration"], data);
+    },
+    onError: () =>
+      setStorageError(
+        "Storage refresh failed. Showing the last available figures.",
+      ),
+  });
   const disconnect = useMutation({
     mutationFn: () =>
       apiClient.post<DriveStatus>("/api/integrations/google-drive/disconnect"),
@@ -194,9 +227,23 @@ export function GoogleDriveIntegration({
 
   if (statusQuery.isLoading)
     return (
-      <div role="status" aria-label="Loading Google Drive integration" className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#101b2b]">
-        <div className="flex items-center gap-4"><Skeleton className="h-12 w-12 rounded-xl" /><div className="flex-1 space-y-2"><Skeleton className="h-5 w-44" /><Skeleton className="h-3 w-72 max-w-full" /></div></div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-3"><Skeleton className="h-20 rounded-xl" /><Skeleton className="h-20 rounded-xl" /><Skeleton className="h-20 rounded-xl" /></div>
+      <div
+        role="status"
+        aria-label="Loading Google Drive integration"
+        className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#101b2b]"
+      >
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-12 w-12 rounded-xl" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-5 w-44" />
+            <Skeleton className="h-3 w-72 max-w-full" />
+          </div>
+        </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <Skeleton className="h-20 rounded-xl" />
+          <Skeleton className="h-20 rounded-xl" />
+          <Skeleton className="h-20 rounded-xl" />
+        </div>
       </div>
     );
   if (statusQuery.isError || !statusQuery.data) {
@@ -216,7 +263,23 @@ export function GoogleDriveIntegration({
   const data = statusQuery.data;
   const meta = STATUS_META[data.status];
   const StatusIcon = meta.icon;
-  const busy = connect.isPending || health.isPending || disconnect.isPending;
+  const busy =
+    connect.isPending ||
+    health.isPending ||
+    disconnect.isPending ||
+    storageRefresh.isPending;
+
+  const storageMetrics = (
+    <DriveStorageMetrics
+      quota={data.quota}
+      connected={data.connected}
+      managedBytes={data.managedStorage.bytes}
+      fileCount={data.managedStorage.fileCount}
+      refreshing={storageRefresh.isPending}
+      refresh={() => storageRefresh.mutate()}
+      error={storageError}
+    />
+  );
 
   if (compact) {
     return (
@@ -240,7 +303,7 @@ export function GoogleDriveIntegration({
             {meta.label}
           </span>
         </div>
-        <div className="mt-5 grid grid-cols-2 gap-3 text-xs">
+        <div className="mt-5 grid gap-3 text-xs">
           <div className="rounded-xl bg-slate-50 p-3 dark:bg-white/[0.03]">
             <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
               Connected account
@@ -249,19 +312,11 @@ export function GoogleDriveIntegration({
               {data.account?.email || "No account"}
             </span>
           </div>
-          <div className="rounded-xl bg-slate-50 p-3 dark:bg-white/[0.03]">
-            <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
-              Managed storage
-            </span>
-            <span className="mt-1 block font-bold text-slate-800 dark:text-white">
-              {bytesLabel(data.managedStorage.bytes)} ·{" "}
-              {data.managedStorage.fileCount} files
-            </span>
-          </div>
         </div>
+        {storageMetrics}
         <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-white/5">
           <span className="text-xs text-slate-400">
-            Checked {dateLabel(data.lastCheckedAt)}
+            Connection checked {dateLabel(data.lastCheckedAt)}
           </span>
           <button
             onClick={onManage}
@@ -366,6 +421,7 @@ export function GoogleDriveIntegration({
                 </div>
               </div>
             </div>
+            {storageMetrics}
             <div className="grid gap-3 sm:grid-cols-2">
               <Info
                 icon={UserRound}
@@ -384,12 +440,6 @@ export function GoogleDriveIntegration({
                     ? "Shared Drive"
                     : "My Drive / app folder"
                 }
-              />
-              <Info
-                icon={HardDrive}
-                label="Advisio-managed usage"
-                value={bytesLabel(data.managedStorage.bytes)}
-                secondary={`${data.managedStorage.fileCount} stored file${data.managedStorage.fileCount === 1 ? "" : "s"}`}
               />
               <Info
                 icon={RefreshCw}
@@ -561,9 +611,7 @@ function Info({
         <span className="mt-1 block truncate text-xs font-black text-slate-900 dark:text-white">
           {value}
         </span>
-        <span className="mt-0.5 block text-xs text-slate-400">
-          {secondary}
-        </span>
+        <span className="mt-0.5 block text-xs text-slate-400">{secondary}</span>
       </span>
     </div>
   );

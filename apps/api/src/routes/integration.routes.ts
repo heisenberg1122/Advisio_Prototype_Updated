@@ -28,6 +28,26 @@ router.get(
 );
 
 router.post(
+  "/integrations/google-drive/storage-refresh",
+  requireAuth,
+  async (req, res) => {
+    if (!requireSystemAdmin(req, res)) return;
+    try {
+      res.json(
+        await googleDriveService.refreshStorage(req.body?.force === true),
+      );
+    } catch {
+      res
+        .status(409)
+        .json({
+          error:
+            "Unable to refresh Google storage. Check the integration connection.",
+        });
+    }
+  },
+);
+
+router.post(
   "/integrations/google-drive/connect",
   requireAuth,
   async (req, res) => {
