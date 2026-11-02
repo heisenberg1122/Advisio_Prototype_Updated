@@ -46,7 +46,9 @@ function SessionQueries({ children }: { children: ReactNode }) {
     <QueryClientProvider key={scope} client={queryClient}>
       {isSwitchingCollege && <div role="status" className="fixed inset-0 z-[1000] grid place-items-center bg-[var(--color-background)] text-[var(--color-text-secondary)]">Switching college…</div>}
       {children}
-      <ReactQueryDevtools initialIsOpen={false} />
+      {import.meta.env.DEV && import.meta.env.VITE_QUERY_DEVTOOLS === "true" && (
+        <ReactQueryDevtools initialIsOpen={false} />
+      )}
     </QueryClientProvider>
   );
 }
