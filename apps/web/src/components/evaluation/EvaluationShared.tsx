@@ -1,0 +1,90 @@
+import React from "react";
+import { Link } from "react-router-dom";
+import { ExternalLink, Mail } from "lucide-react";
+
+export function EvaluationBrand() {
+  return (
+    <div className="evaluation-brand">
+      <img
+        className="evaluation-logo"
+        src="/advisio-logo.png"
+        alt="ADVISIO"
+        width="480"
+        height="384"
+      />
+      <span>Evaluation environment</span>
+    </div>
+  );
+}
+
+export function EvaluationSteps({
+  current = 0,
+  guideUrl,
+}: {
+  current?: number;
+  guideUrl?: string;
+}) {
+  return (
+    <ol className="evaluation-steps" aria-label="How the evaluation works">
+      {["Read the guide", "Explore ADVISIO", "Answer questionnaire"].map(
+        (title, index) => (
+          <li
+            key={title}
+            aria-current={current === index + 1 ? "step" : undefined}
+          >
+            <span>{index + 1}</span>
+            {index === 0 && guideUrl ? (
+              <Link to={guideUrl}>{title}</Link>
+            ) : (
+              <strong>{title}</strong>
+            )}
+          </li>
+        ),
+      )}
+    </ol>
+  );
+}
+
+export function EvaluationAbout({
+  temporary = false,
+}: {
+  temporary?: boolean;
+}) {
+  return (
+    <details className="evaluation-about">
+      <summary>About this evaluation</summary>
+      <p>
+        Your activities use fictional records in a temporary workspace.{" "}
+        {temporary
+          ? "If the session restarts, return to this page to begin again. "
+          : ""}
+        Submitted questionnaire responses are saved separately in Google Forms.
+      </p>
+      <a
+        href="https://advisio-prototype-updated.vercel.app"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Official ADVISIO website <ExternalLink size={13} aria-hidden="true" />
+      </a>
+      <p className="evaluation-help">
+        Short video walkthrough: coming soon. You can use the written guide now.
+      </p>
+    </details>
+  );
+}
+
+export function EvaluationSupport() {
+  return (
+    <div className="evaluation-support">
+      <Mail size={18} aria-hidden="true" />
+      <p>
+        <strong>Need help?</strong>
+        <br />
+        <a href="mailto:nagbolus.student@ua.edu.ph?subject=ADVISIO%20Evaluation%20Support">
+          nagbolus.student@ua.edu.ph
+        </a>
+      </p>
+    </div>
+  );
+}

@@ -1,60 +1,22 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, Mail, PlayCircle } from "lucide-react";
+import {
+  clearEvaluation,
+  evaluationRequest,
+  type EvaluationConfig,
+  type EvaluationSession,
+} from "./evaluation-client";
+import { evaluationLink, resolveInvitation } from "./evaluation-invitation";
+import {
+  EvaluationAbout,
+  EvaluationBrand,
+  EvaluationSteps,
+  EvaluationSupport,
+} from "./EvaluationShared";
 import "./evaluation.css";
 
-export type EvaluationSession = {
-  role: string;
-  roleLabel: string;
-  course: string;
-  courseLabel: string;
-  college: string;
-  title: string;
-  home: string;
-  projectId: string;
-  defenseId: string | null;
-  tasks: string[];
-  revisionName: string;
-  expiresAt: string;
-  surveyUrl: string | null;
-};
-type Config = {
-  roles: { id: string; label: string }[];
-  courses: { id: string; label: string; college: string }[];
-  entryUrl: string;
-  localOnly: boolean;
-  temporaryStorage: boolean;
-};
-export async function evaluationRequest<T>(
-  path: string,
-  options: RequestInit = {},
-) {
-  const response = await fetch(`/api/evaluation/${path}`, {
-    ...options,
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...options.headers },
-  });
-  const data = await response.json().catch(() => {
-    throw new Error(
-      "The evaluation is temporarily unavailable. Reload the page or ask the facilitator for help.",
-    );
-  });
-  if (!response.ok)
-    throw new Error(data.error || "Unable to connect to the evaluation.");
-  return data as T;
-}
-export function clearEvaluation() {
-  localStorage.removeItem("advisio_token");
-  for (const key of [
-    "advisio_theme:active",
-    "advisio_color-theme:active",
-    "advisio_college-theme:active",
-  ])
-    localStorage.removeItem(key);
-  window.location.assign("/evaluate");
-}
 export default function EvaluationPage({ print = false }: { print?: boolean }) {
-  const [config, setConfig] = useState<Config | null>(null);
+  const [config, setConfig] = useState<EvaluationConfig | null>(null);
   const [session, setSession] = useState<EvaluationSession | null>(null);
   const [role, setRole] = useState("");
   const [course, setCourse] = useState("");
@@ -67,16 +29,19 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
     let current = true;
     void (async () => {
       try {
-        const value = await evaluationRequest<Config>("config");
+        const value = await evaluationRequest<EvaluationConfig>("config");
         if (current) {
           setConfig(value);
-          const hint = new URLSearchParams(location.search).get("course");
-          if (value.courses.some((c) => c.id === hint)) setCourse(hint!);
+          const invitation = resolveInvitation(location.search, value);
+          setRole(invitation.role?.id || "");
+          setCourse(invitation.course?.id || "");
         }
-        const active = await evaluationRequest<EvaluationSession>(
-          "session",
-        ).catch(() => null);
-        if (current) setSession(active);
+        if (!print) {
+          const active = await evaluationRequest<EvaluationSession>(
+            "session",
+          ).catch(() => null);
+          if (current) setSession(active);
+        }
       } catch (e) {
         if (current) setError((e as Error).message);
       } finally {
@@ -86,18 +51,29 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
     return () => {
       current = false;
     };
-  }, []);
+  }, [print]);
+  const invitation = config ? resolveInvitation(location.search, config) : null;
+  const entryUrl = config
+    ? evaluationLink(config.entryUrl, { role, course })
+    : "";
+  const guideUrl = config
+    ? evaluationLink(config.entryUrl, { role, course }, "/evaluate/guide")
+    : "/evaluate/guide";
+  const conflictingInvitation =
+    session &&
+    ((invitation?.role && invitation.role.id !== session.role) ||
+      (invitation?.course && invitation.course.id !== session.course));
   async function begin(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError("");
     try {
-      const value = await evaluationRequest<EvaluationSession>("session", {
+      await evaluationRequest<EvaluationSession>("session", {
         method: "POST",
         body: JSON.stringify({ role, course, acknowledged }),
       });
       localStorage.setItem("advisio_token", "__evaluation__");
-      window.location.assign(value.home);
+      window.location.assign("/evaluate/guide");
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
@@ -107,7 +83,10 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
     setBusy(true);
     try {
       await evaluationRequest("end", { method: "POST" });
-      clearEvaluation();
+      clearEvaluation(session?.projectId, {
+        role: invitation?.role?.id,
+        course: invitation?.course?.id,
+      });
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
@@ -116,16 +95,7 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
   return (
     <main className="evaluation-page">
       <section className="evaluation-card">
-        <div className="evaluation-brand">
-          <img
-            className="evaluation-logo"
-            src="/advisio-logo.png"
-            alt="ADVISIO"
-            width="480"
-            height="384"
-          />
-          <span>Evaluation environment</span>
-        </div>
+        <EvaluationBrand />
         <h1>
           {print
             ? "Scan to begin your evaluation"
@@ -133,97 +103,121 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
         </h1>
         <p>
           Explore ADVISIO using fictional research records prepared for your
-          role and program. Your actions will stay in your own temporary
-          workspace.
+          assigned role and program. Your activities stay in your own temporary
+          evaluation workspace.
         </p>
         {error && (
           <p className="evaluation-error" role="alert">
             {error}
           </p>
         )}
-        {config?.temporaryStorage && !print && (
-          <p className="evaluation-help">
-            Practice workspaces may reset if the evaluation restarts. Return
-            here to begin again or ask your facilitator for help. Submitted
-            questionnaire answers are saved separately in Google Forms.
-          </p>
-        )}
         {loading && <p role="status">Connecting to the evaluation…</p>}
-        {config && print && (
-          <div className="evaluation-print">
-            <img
-              src="/api/evaluation/qr"
-              alt={`QR code linking to ${config.entryUrl}`}
-              width="320"
-              height="320"
-            />
-            <p>
-              <a href={config.entryUrl}>{config.entryUrl}</a>
-            </p>
-            {config.localOnly && (
-              <p className="evaluation-error">
-                Local preview: this address works only on this computer. Use the
-                link here to test it. A shared HTTPS address is needed for
-                respondents’ phones.
-              </p>
-            )}
-            <div className="evaluation-actions no-print">
-              <button onClick={() => window.print()}>Print QR sheet</button>
-              <a href="/api/evaluation/qr" download="ADVISIO_Evaluation_QR.png">
-                Download QR
-              </a>
-              <Link to="/evaluate">Entry page</Link>
-            </div>
-          </div>
-        )}
         {!print && (
           <section
-            className="evaluation-resources"
-            aria-labelledby="evaluation-resources-title"
+            className="evaluation-overview"
+            aria-labelledby="evaluation-how-title"
           >
-            <h2 id="evaluation-resources-title">Get to know ADVISIO</h2>
-            <div className="evaluation-resource-grid">
-              <a
-                className="evaluation-resource"
-                href="https://advisio-prototype-updated.vercel.app"
-                target="_blank"
-                rel="noopener noreferrer"
+            <h2 id="evaluation-how-title">How the evaluation works</h2>
+            <EvaluationSteps guideUrl={guideUrl} />
+          </section>
+        )}
+        {config && print && (
+          <>
+            <div className="evaluation-print-controls no-print">
+              <h2>Organizer QR sheet</h2>
+              <p>
+                Select a role and program to prepare an invitation QR, or leave
+                both blank for the general entry page.
+              </p>
+              <label htmlFor="qr-role">Role for this invitation</label>
+              <select
+                id="qr-role"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
               >
-                <ExternalLink size={20} aria-hidden="true" />
-                <span>
-                  <strong>Official website</strong>
-                  <small>Explore the system · opens in a new tab</small>
-                </span>
-              </a>
-              <div
-                className="evaluation-resource evaluation-resource-placeholder"
-                role="note"
+                <option value="">All roles</option>
+                {config.roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="qr-course">Program / College</label>
+              <select
+                id="qr-course"
+                value={course}
+                onChange={(e) => setCourse(e.target.value)}
               >
-                <PlayCircle size={22} aria-hidden="true" />
-                <span>
-                  <strong>Short video walkthrough</strong>
-                  <small>Coming soon</small>
-                </span>
+                <option value="">Select on entry page</option>
+                {config.courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label} — {c.college}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="evaluation-print">
+              {(role || course) && (
+                <p className="evaluation-assignment">
+                  <strong>
+                    {config.roles.find((r) => r.id === role)?.label ||
+                      "Select your assigned role"}
+                  </strong>
+                  <span>
+                    {config.courses.find((c) => c.id === course)?.label ||
+                      "Select your program on the entry page"}
+                  </span>
+                </p>
+              )}
+              <img
+                src={`/api/evaluation/qr${new URL(entryUrl).search}`}
+                alt={`QR code linking to ${entryUrl}`}
+                width="320"
+                height="320"
+              />
+              <p className="evaluation-invitation-url">
+                <a href={entryUrl}>{entryUrl}</a>
+              </p>
+              {config.localOnly && (
+                <p className="evaluation-error">
+                  Local preview: this address works only on this computer. A
+                  shared HTTPS address is needed for respondents’ phones.
+                </p>
+              )}
+              <div className="evaluation-actions no-print">
+                <button onClick={() => window.print()}>Print QR sheet</button>
+                <a
+                  href={`/api/evaluation/qr${new URL(entryUrl).search}`}
+                  download={`ADVISIO_${role || "all"}_${course || "programs"}_QR.png`}
+                >
+                  Download QR
+                </a>
+                <a href={entryUrl}>Open invitation</a>
               </div>
             </div>
-          </section>
+          </>
         )}
         {config && !print && session && (
           <div className="evaluation-resume">
-            <h2>Your workspace is ready</h2>
+            <h2>Continue your evaluation</h2>
             <p>
-              {session.roleLabel} · {session.courseLabel}
+              <strong>{session.roleLabel}</strong> · {session.courseLabel}
             </p>
-            <p>{session.title}</p>
+            {conflictingInvitation && (
+              <p className="evaluation-error">
+                This invitation differs from your open workspace. End the
+                current session before beginning with the new invitation.
+              </p>
+            )}
             <div className="evaluation-actions">
               <button
-                disabled={busy}
+                disabled={busy || Boolean(conflictingInvitation)}
                 onClick={() => {
                   localStorage.setItem("advisio_token", "__evaluation__");
-                  window.location.assign(session.home);
+                  window.location.assign("/evaluate/guide");
                 }}
               >
-                Resume activities
+                Continue evaluation
               </button>
               <button
                 className="secondary"
@@ -232,65 +226,93 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
               >
                 End session
               </button>
-              {confirmEnd && (
-                <div role="alert">
-                  <p>End this session and clear its practice records?</p>
-                  <div className="evaluation-actions">
-                    <button disabled={busy} onClick={end}>
-                      End and clear workspace
-                    </button>
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() => setConfirmEnd(false)}
-                    >
-                      Keep working
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
+            {confirmEnd && (
+              <div role="alert">
+                <p>End this session and clear its practice records?</p>
+                <div className="evaluation-actions">
+                  <button disabled={busy} onClick={end}>
+                    End and clear workspace
+                  </button>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => setConfirmEnd(false)}
+                  >
+                    Keep working
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
         {config && !print && !session && (
           <form onSubmit={begin}>
-            <label htmlFor="evaluation-role">
-              Your assigned respondent role
-            </label>
-            <select
-              id="evaluation-role"
-              required
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              disabled={busy}
-            >
-              <option value="">Choose your role</option>
-              {config.roles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-            <label htmlFor="evaluation-course">
-              Your assigned program or college scenario
-            </label>
-            <select
-              id="evaluation-course"
-              required
-              value={course}
-              onChange={(e) => setCourse(e.target.value)}
-              disabled={busy}
-            >
-              <option value="">Choose your assigned program</option>
-              {config.courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.label} — {c.college}
-                </option>
-              ))}
-            </select>
+            {invitation?.invalid && (
+              <p className="evaluation-error" role="alert">
+                Some invitation details were not recognized. Select the missing
+                information below, or email us for help.
+              </p>
+            )}
+            {invitation?.role ? (
+              <div className="evaluation-assigned-field">
+                <span>Your assigned role</span>
+                <strong>{invitation.role.label}</strong>
+              </div>
+            ) : (
+              <>
+                <label htmlFor="evaluation-role">
+                  Your assigned respondent role
+                </label>
+                <select
+                  id="evaluation-role"
+                  required
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  disabled={busy}
+                >
+                  <option value="">Select your assigned role</option>
+                  {config.roles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.label}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            {invitation?.course ? (
+              <div className="evaluation-assigned-field">
+                <span>Program / College for this evaluation</span>
+                <strong>{invitation.course.label}</strong>
+                <small>{invitation.course.college}</small>
+              </div>
+            ) : (
+              <>
+                <label htmlFor="evaluation-course">
+                  Program / College for this evaluation
+                </label>
+                <select
+                  id="evaluation-course"
+                  required
+                  value={course}
+                  onChange={(e) => setCourse(e.target.value)}
+                  disabled={busy}
+                >
+                  <option value="">
+                    Select your assigned program or college
+                  </option>
+                  {config.courses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.label} — {c.college}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
             <p className="evaluation-help">
-              Faculty and Deans: use the scenario assigned by the facilitator.
-              Each choice opens only the permissions for that role.
+              {invitation?.role && invitation?.course
+                ? "These details came from your invitation. If they look incorrect, email us before beginning."
+                : "Select the role and program or college indicated in your evaluation invitation."}
             </p>
             <label className="evaluation-check">
               <input
@@ -301,37 +323,31 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
                 disabled={busy}
               />
               <span>
-                I have received the facilitator’s study information and
-                understand that these are fictional records for the evaluation.
+                I understand that the records and activities are fictional and
+                are provided for system evaluation only.
               </span>
             </label>
             <button type="submit" disabled={busy || !acknowledged}>
               {busy ? "Preparing your private workspace…" : "Begin evaluation"}
             </button>
+            {busy && (
+              <p role="status" className="evaluation-help">
+                Preparing the records may take a moment. Keep this page open;
+                you do not need to begin again.
+              </p>
+            )}
             <p className="evaluation-help">
-              No registration, password, or participant code is needed. Complete
-              the guided activities, then answer your role’s TAM questionnaire.
+              No registration or personal account is required. Follow the guided
+              activities, then answer the questionnaire based on your experience
+              using ADVISIO.
             </p>
           </form>
         )}
         {!print && (
-          <div className="evaluation-support">
-            <Mail size={20} aria-hidden="true" />
-            <p>
-              <strong>Having trouble?</strong>
-              <br />
-              Email us at{" "}
-              <a href="mailto:nagbolus.student@ua.edu.ph?subject=ADVISIO%20Evaluation%20Support">
-                nagbolus.student@ua.edu.ph
-              </a>
-              .
-            </p>
-          </div>
-        )}
-        {config && !print && (
-          <p className="evaluation-help no-print">
-            <Link to="/evaluate/print">Facilitator QR sheet</Link>
-          </p>
+          <>
+            <EvaluationAbout temporary={config?.temporaryStorage} />
+            <EvaluationSupport />
+          </>
         )}
       </section>
     </main>

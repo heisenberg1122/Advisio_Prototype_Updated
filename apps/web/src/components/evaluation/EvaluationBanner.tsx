@@ -1,25 +1,40 @@
-import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   clearEvaluation,
   evaluationRequest,
   type EvaluationSession,
-} from "./EvaluationPage";
+} from "./evaluation-client";
+import {
+  readProgress,
+  saveProgress,
+  type EvaluationProgress,
+} from "./evaluation-progress";
+import { EvaluationSteps, EvaluationSupport } from "./EvaluationShared";
 
 export function EvaluationBanner() {
   const location = useLocation();
   const [session, setSession] = useState<EvaluationSession | null>(null);
+  const [progress, setProgress] = useState<EvaluationProgress>({
+    phase: "activities",
+    checked: [],
+  });
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const dialog = useRef<HTMLElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const active = localStorage.getItem("advisio_token") === "__evaluation__";
   useEffect(() => {
     if (!active) return;
     let current = true;
     evaluationRequest<EvaluationSession>("session")
       .then((value) => {
-        if (current) setSession(value);
+        if (current) {
+          setSession(value);
+          setProgress(readProgress(value.projectId, value.tasks.length));
+        }
       })
       .catch(() => {});
     return () => {
@@ -27,20 +42,68 @@ export function EvaluationBanner() {
     };
   }, [active]);
   useEffect(() => {
+    setOpen(false);
+    setConfirmEnd(false);
+  }, [location.pathname]);
+  useEffect(() => {
     if (!open) return;
+    dialog.current?.focus();
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const listener = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+        trigger.current?.focus();
+      }
+      if (event.key !== "Tab") return;
+      const items = dialog.current?.querySelectorAll<HTMLElement>(
+        "button:not([disabled]),a[href],input:not([disabled])",
+      );
+      if (!items?.length) return;
+      const first = items[0],
+        last = items[items.length - 1];
+      if (
+        event.shiftKey &&
+        (document.activeElement === first ||
+          document.activeElement === dialog.current)
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", listener);
-    return () => window.removeEventListener("keydown", listener);
-  }, [open]);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", listener);
+    };
+  }, [open, progress.phase]);
   if (!active || !session || location.pathname.startsWith("/evaluate"))
     return null;
+  const questionnaire = progress.phase === "questionnaire";
+  function update(next: EvaluationProgress) {
+    setProgress(next);
+    saveProgress(session!.projectId, next);
+  }
+  function toggle(index: number) {
+    update({
+      ...progress,
+      checked: progress.checked.includes(index)
+        ? progress.checked.filter((n) => n !== index)
+        : [...progress.checked, index],
+    });
+  }
+  function close() {
+    setOpen(false);
+    trigger.current?.focus();
+  }
   async function end() {
     setBusy(true);
     try {
       await evaluationRequest("end", { method: "POST" });
-      clearEvaluation();
+      clearEvaluation(session?.projectId);
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
@@ -50,13 +113,19 @@ export function EvaluationBanner() {
     <>
       <aside className="evaluation-banner" aria-label="Evaluation controls">
         <span>
-          <strong>Evaluation environment</strong>
+          <strong>Step {questionnaire ? 3 : 2} of 3</strong>
           <small>
             {session.roleLabel} · {session.courseLabel}
           </small>
         </span>
-        <button onClick={() => setOpen(true)}>
-          Activity guide &amp; questionnaire
+        <button
+          ref={trigger}
+          onClick={() => {
+            setProgress(readProgress(session.projectId, session.tasks.length));
+            setOpen(true);
+          }}
+        >
+          Evaluation guide
         </button>
       </aside>
       {open && (
@@ -67,82 +136,121 @@ export function EvaluationBanner() {
             aria-modal="true"
             aria-labelledby="evaluation-guide-title"
             tabIndex={-1}
-            ref={(node) => node?.focus()}
+            ref={dialog}
           >
             <div className="evaluation-actions">
-              <h2 id="evaluation-guide-title">Your evaluation activities</h2>
+              <h2 id="evaluation-guide-title">
+                {questionnaire
+                  ? "Ready for the questionnaire"
+                  : "Explore ADVISIO"}
+              </h2>
               <button
                 className="secondary"
-                onClick={() => setOpen(false)}
-                aria-label="Close activity guide"
+                onClick={close}
+                aria-label="Close evaluation guide"
               >
                 Close
               </button>
             </div>
+            <EvaluationSteps current={questionnaire ? 3 : 2} />
             <p>
               <strong>
                 {session.roleLabel} · {session.courseLabel}
               </strong>
+              <br />
+              {session.title}
             </p>
-            <p>{session.title}</p>
-            <ol>
-              {session.tasks.map((task) => (
-                <li key={task}>{task}</li>
-              ))}
-            </ol>
-            {session.role === "student" && (
-              <p>
-                <a
-                  href="/api/evaluation/revision"
-                  download={session.revisionName}
-                >
-                  Download the prepared revision PDF
-                </a>
-              </p>
-            )}
-            <p>
-              Use this private workspace to complete the activities. If
-              something fails or you need help, tell the facilitator; you may
-              still answer the questionnaire honestly.
-            </p>
-            <h3>After your activities</h3>
-            {session.surveyUrl ? (
+            {!questionnaire ? (
               <>
                 <p>
-                  Confirm that the questionnaire shows{" "}
-                  <strong>{session.roleLabel}</strong>
-                  {session.role === "student"
-                    ? ` and ${session.courseLabel} as your program`
-                    : ""}
-                  . Submit your response in Google Forms, then return here and
-                  end your session.
+                  Tick each activity as you try it. If you cannot complete one,
+                  you can still describe what happened in the questionnaire.
                 </p>
-                <a
-                  className="evaluation-link-button"
-                  href={session.surveyUrl}
-                  target="_blank"
-                  rel="noreferrer"
+                <p className="evaluation-help">
+                  {progress.checked.length} of {session.tasks.length} activities
+                  ticked ·{" "}
+                  <Link to="/evaluate/guide">Read the short guide</Link>
+                </p>
+                <ol className="evaluation-task-list">
+                  {session.tasks.map((task, index) => (
+                    <li key={task}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={progress.checked.includes(index)}
+                          onChange={() => toggle(index)}
+                        />
+                        <span>{task}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ol>
+                {session.role === "student" && (
+                  <p>
+                    <a
+                      href="/api/evaluation/revision"
+                      download={session.revisionName}
+                    >
+                      Download the prepared revision PDF
+                    </a>
+                  </p>
+                )}
+                <p>
+                  Try the available features before answering. You may explore
+                  beyond these activities and report any difficulties honestly.
+                </p>
+                <button
+                  onClick={() =>
+                    update({ ...progress, phase: "questionnaire" })
+                  }
                 >
-                  Open TAM questionnaire
-                </a>
+                  Finish exploration
+                </button>
               </>
             ) : (
-              <p className="evaluation-help">
-                The facilitator has not enabled the published questionnaire link
-                yet. Ask for the questionnaire after your activities.
-              </p>
+              <>
+                <p>
+                  Answer the TAM questionnaire based on{" "}
+                  <strong>your own experience using ADVISIO</strong> during this
+                  evaluation. Check the respondent group and, where applicable,
+                  program before answering.
+                </p>
+                {session.surveyUrl ? (
+                  <a
+                    className="evaluation-link-button"
+                    href={session.surveyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Answer TAM questionnaire
+                  </a>
+                ) : (
+                  <p className="evaluation-error">
+                    The questionnaire is temporarily unavailable. Email us for
+                    the correct link.
+                  </p>
+                )}
+                <p className="evaluation-help">
+                  Submit your response in Google Forms, then return here and end
+                  your practice session. Opening the form does not submit a
+                  response.
+                </p>
+                <button
+                  className="secondary"
+                  onClick={() => update({ ...progress, phase: "activities" })}
+                >
+                  Return to activity checklist
+                </button>
+              </>
             )}
-            <p className="evaluation-help">
-              Opening the questionnaire does not confirm that a response was
-              submitted.
-            </p>
+            <EvaluationSupport />
             {error && (
               <p role="alert" className="evaluation-error">
                 {error}
               </p>
             )}
             <button
-              className="secondary"
+              className="secondary evaluation-end"
               disabled={busy}
               onClick={() => setConfirmEnd(true)}
             >
@@ -150,7 +258,10 @@ export function EvaluationBanner() {
             </button>
             {confirmEnd && (
               <div role="alert">
-                <p>End this session and clear its practice records?</p>
+                <p>
+                  End this session and clear its practice records? Submitted
+                  questionnaire responses are saved separately.
+                </p>
                 <div className="evaluation-actions">
                   <button disabled={busy} onClick={end}>
                     End and clear workspace

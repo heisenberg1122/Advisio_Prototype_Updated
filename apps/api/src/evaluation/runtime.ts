@@ -163,7 +163,7 @@ export class EvaluationRuntime {
       if (count.total >= this.config.maxActive)
         throw Object.assign(
           new Error(
-            "All evaluation stations are in use. Please ask the facilitator when to begin.",
+            "All practice workspaces are currently in use. Please try again after a few minutes.",
           ),
           { statusCode: 429 },
         );

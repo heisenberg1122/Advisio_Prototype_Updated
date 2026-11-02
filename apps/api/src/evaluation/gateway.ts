@@ -3,7 +3,8 @@ import QRCode from "qrcode";
 import { randomBytes } from "node:crypto";
 import { evaluationContext } from "./context.js";
 import { COOKIE, EvaluationRuntime } from "./runtime.js";
-import { EVALUATION_COURSES, EVALUATION_ROLES } from "./catalog.js";
+import { EVALUATION_COURSES, EVALUATION_ROLES, ROLE_TASKS } from "./catalog.js";
+import { evaluationInvitationUrl } from "./invitation.js";
 import { generateToken } from "../middleware/auth.js";
 
 let runtime: EvaluationRuntime | undefined;
@@ -56,24 +57,34 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
           maxAge: service.config.lifetimeMs,
         });
       return void res.json({
-        roles: EVALUATION_ROLES.map(({ id, label }) => ({ id, label })),
-        courses: EVALUATION_COURSES.map(({ id, label, college, quota }) => ({
+        roles: EVALUATION_ROLES.map(({ id, label }) => ({
           id,
           label,
-          college,
-          quota,
+          tasks: ROLE_TASKS[id],
         })),
+        courses: EVALUATION_COURSES.map(
+          ({ id, label, college, collegeCode, quota }) => ({
+            id,
+            label,
+            college,
+            collegeCode,
+            quota,
+          }),
+        ),
         entryUrl: `${service.config.origin}/evaluate`,
         localOnly: !service.config.secure,
         temporaryStorage: service.config.ephemeralStorage,
       });
     }
     if (endpoint === "/api/evaluation/qr" && req.method === "GET") {
-      const png = await QRCode.toBuffer(`${service.config.origin}/evaluate`, {
-        width: 700,
-        margin: 4,
-        errorCorrectionLevel: "M",
-      });
+      const png = await QRCode.toBuffer(
+        evaluationInvitationUrl(service.config.origin, req.query),
+        {
+          width: 700,
+          margin: 4,
+          errorCorrectionLevel: "M",
+        },
+      );
       return void res.type("png").send(png);
     }
     if (endpoint === "/api/evaluation/session" && req.method === "POST") {
@@ -171,7 +182,7 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
     res.status(error.statusCode || 503).json({
       error: error.statusCode
         ? error.message
-        : "The evaluation workspace is temporarily unavailable. Please ask the facilitator for help.",
+        : "The evaluation workspace is temporarily unavailable. Try again or email nagbolus.student@ua.edu.ph for help.",
     });
   }
 };

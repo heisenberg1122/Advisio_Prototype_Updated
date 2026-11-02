@@ -1,6 +1,8 @@
 # ADVISIO local QR evaluation
 
-This implementation uses the existing ADVISIO portals and API workflows. It does not replace them with a separate demonstration interface. The entry page is `/evaluate`; the facilitator QR sheet is `/evaluate/print`.
+**Current status:** the hosted evaluation is live. Respondents now read `/evaluate/guide` before entering the portal, use a per-project checklist, then open the questionnaire after Finish exploration. Assigned invitation links and organizer QRs preselect the role/program. See [the current hosting handoff](qr-evaluation-hosting.md) for public links, the free-tier ten-session cap and deployment instructions. The historical records below describe the original local preparation.
+
+This implementation uses the existing ADVISIO portals and API workflows. It does not replace them with a separate demonstration interface. The entry page is `/evaluate`; the organizer QR sheet is `/evaluate/print`.
 
 ## Local use
 
@@ -9,7 +11,7 @@ Requirements: installed project dependencies, a generated Prisma client matching
 1. Run `npm run evaluation:init-local` once. It creates a separate loopback-only PostgreSQL cluster on port **5436**, a database named **advisio_evaluation**, and a private ignored `.env.evaluation.local`. It does not use the existing database on port 5432 or the local-demo target on port 5435.
 2. Run `npm run evaluation:dev`.
 3. Open **http://localhost:3100/evaluate**. Choose a role and assigned program, acknowledge the evaluation notice, and begin. Open **http://localhost:3100/evaluate/print** to preview or download the QR.
-4. Use the activity-guide button in the portal. Students can download a prepared revision PDF there. End the session when finished; its fictional records and files are removed.
+4. Read the written guide before opening the portal, then use the activity-guide button to track your activities. Select Finish exploration to reach the questionnaire handoff. Students can download a prepared revision PDF there. End the session when finished; its fictional records and files are removed.
 
 The initializer reuses its own cluster on later runs and never resets an unrelated database. If that cluster has been stopped, run `evaluation:init-local` again before starting. It does not erase existing evaluation sessions. Initializing a new cluster requires that port 5436 be available.
 
@@ -19,15 +21,15 @@ The local QR points to `localhost`, so it is a **preview for this computer only*
 
 Five allowed roles map to native permissions and portals:
 
-| Respondent          | Native role          | Portal                 |
-| ------------------- | -------------------- | ---------------------- |
-| Student             | RESEARCHER           | `/student/dashboard`   |
-| Capstone professor  | RESEARCH_COORDINATOR | `/professor/dashboard` |
-| Research adviser    | ADVISER              | `/adviser/dashboard`   |
-| Evaluation panelist | PANELIST             | `/panelist/dashboard`  |
-| College Dean        | DEAN                 | `/admin/dashboard`     |
+| Respondent           | Native role          | Portal                 |
+| -------------------- | -------------------- | ---------------------- |
+| Researchers/Students | RESEARCHER           | `/student/dashboard`   |
+| Research professor   | RESEARCH_COORDINATOR | `/professor/dashboard` |
+| Research adviser     | ADVISER              | `/adviser/dashboard`   |
+| Evaluation panelist  | PANELIST             | `/panelist/dashboard`  |
+| College Dean         | DEAN                 | `/admin/dashboard`     |
 
-Seven course templates cover IT (40 students), Education (20), Nursing (20), Accountancy (20), Tourism (20), Civil Engineering (20), and Architecture (10). Education currently maps to BEED in the verified local program catalog; confirm the intended education offering before collection. Civil Engineering and Architecture share CEA. Faculty use the program scenario assigned by the facilitator; the plan's seven Deans should not be interpreted as seven distinct colleges represented by these seven programs.
+Seven course templates cover IT (40 students), Education (20), Nursing (20), Accountancy (20), Tourism (20), Civil Engineering (20), and Architecture (10). Education currently maps to BEED in the verified local program catalog; confirm the intended education offering before collection. Civil Engineering and Architecture share CEA. Faculty use their invited program scenario; the plan's seven Deans should not be interpreted as seven distinct colleges represented by these seven programs.
 
 All names, topics, manuscript contents, comments, schedules, and starting records are fictional. Titles avoid “Sample” labels. Each scenario contains three-page readable manuscripts, version history, a prepared revision, specific feedback, milestone records, notifications, and a consultation. Professors and Deans receive three projects with distinct student groups, program-related titles, and manuscript titles matching the project records. Panelists receive an approved manuscript and a published structured evaluation packet, with **blank practice ratings**, in a live fictional defense. IT experts are not an entry choice.
 
@@ -63,7 +65,7 @@ Implementation files: `apps/api/src/evaluation/`, `apps/web/src/components/evalu
 
 Technical basis: [Node asynchronous context](https://nodejs.org/api/async_context.html), [Prisma connection management](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections/connection-management), and [OWASP session guidance](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html).
 
-## Local validation record — 3 November 2026
+## Historical local validation record — first implementation, 3 November 2026
 
 - All **35 role/program combinations** passed native API operations after the distinct faculty-roster update. These checks exercised the actual uploads, review decisions, consultation approval, Dean overview, and panel save/preview/final submission; no TAM responses were submitted.
 - A fresh **20-session concurrent wave** completed native activities across the five roles and seven program templates; a 21st session was refused. The final run, including setup, activities, and cleanup, took **26.6 seconds on this computer**. This is a local functional capacity check, not a prediction of hosted performance or a rehearsal with 20 real respondents.

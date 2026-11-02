@@ -1,72 +1,55 @@
-# QR evaluation: hosting and Google Forms handoff
+# Hosted QR evaluation — current handoff
 
-Initial preparation on **3 November 2026**: the TAM Google Form is published and connected to the local evaluation app. The hosted deployment files are prepared. Render sign-in and resource creation were deferred at the researcher's request. There is **no public evaluation website address yet**; the existing localhost QR remains a computer-only preview.
+Updated 3 November 2026. The evaluation is live at [the shared entry page](https://advisio-tam-evaluation-2026.onrender.com/evaluate). The researcher confirmed it opens on a phone. This evaluation uses its own branch, database and fictional records; the official backend remains separate.
 
-## Accounts
+## Respondent flow
 
-A different Render account can own this evaluation. It needs read access to the source repository and permission to create the proposed resources. For a private repository, connect a GitHub identity that already has repository access, or arrange access with the repository owner. Public repositories can be selected using the provider's public-repository flow when available.
+1. Open the shared QR or an assigned invitation link. The general entry asks for a role and program; valid invitations preselect those details and display them for confirmation.
+2. Acknowledge that the materials are fictional, then begin a private temporary workspace. No personal account, registration or participant code is required.
+3. Read the written guide at `/evaluate/guide` before opening the native portal. The guide provides navigation help and six activities for the assigned role. The video is a Coming soon placeholder and is optional.
+4. Explore the prepared records. Reopen **Evaluation guide** in the portal to tick activities as they are tried. Checklist notes persist only in this browser for this project. They are not proof of task completion or survey answers. Incomplete/failed activities do not prevent honest feedback.
+5. Select **Finish exploration**, then **Answer TAM questionnaire**. Confirm the group/program, enter personal ratings and comments, and submit in Google Forms. Opening the form does not submit it.
+6. Return and end the practice session before another person uses the device.
 
-The questionnaire can remain owned by the existing University of the Assumption Google account. Render receives only its public respondent link and the public role/program field identifiers. No Google password, OAuth credential, email list, respondent identifier, or response data is needed in Render.
+The written guide supplements the study team's separate eligibility, study information and informed-consent process. It does not replace them. Respondents may stop at any time.
 
-## Published questionnaire
+## Invitations and organizer QR sheet
 
-[Open the published TAM questionnaire](https://docs.google.com/forms/d/e/1FAIpQLSfo_25naabVASUIEI61rYzIForhdxLy8cXt5kKfwluIIIXqVA/viewform?usp=publish-editor).
+The entry accepts only known role/program assignments:
 
-The live form was published with **Anyone with the link** responder access and no publication notifications. Email collection, one-response Google sign-in, and respondent results-summary access remain off. No participant-code field was added.
+- Roles: `student`, `professor`, `adviser`, `panelist`, `dean`.
+- Programs: `BSIT`, `BEED`, `BSN`, `BSA`, `BSTM`, `BSCE`, `BSARCH` (use the exact IDs returned by `/api/evaluation/config` if the catalog changes).
+- Example: `/evaluate?role=dean&course=BSIT`.
+- Guide links preserve valid assignments. Duplicate/unknown assignments are ignored with a warning; an existing different session must be ended before starting another assignment.
 
-The app's questionnaire button prefills the assigned respondent group and, for students, the selected program. All ratings and comments stay blank. Respondents can change the prefilled values and must confirm the group/program before answering. Opening the link does not prove submission. Google may offer a previously saved draft to an already signed-in user; choose the current link's draft when testing a different role, and always check the selected respondent group.
+Open [the organizer QR sheet](https://advisio-tam-evaluation-2026.onrender.com/evaluate/print) directly to choose a role/program and print or download its QR. It is removed from respondent navigation but is **not access-controlled**. It contains public invitation links, no private administration or respondent data. `/api/evaluation/qr?role=dean&course=BSIT` returns a QR for the corresponding HTTPS entry link. Invalid/extra parameters are rejected. A QR contains no identity, session credential or participant code.
 
-The five live routes were inspected without submitting answers. A student Nursing link selected Students and Nursing, with no rating or comment answers. The four faculty links reached their corresponding questionnaire sections. Unit checks cover all 35 role/program URL combinations and remove unrelated prefilled answers or identifiers from supplied URLs.
+Assignments are conveniences, not permissions or eligibility controls. Every admitted session still receives only the native permissions of the validated chosen role. College assignments must name a specific program scenario; Civil Engineering and Architecture share a college, so an ambiguous college code is never silently converted to a program.
 
-## Prepared topology
+## Google Form and support
 
-`render.evaluation.yaml` describes a new evaluation-only stack:
+[Published TAM questionnaire](https://docs.google.com/forms/d/e/1FAIpQLSfo_25naabVASUIEI61rYzIForhdxLy8cXt5kKfwluIIIXqVA/viewform).
 
-| Resource                  | Draft configuration                                                                                      |
-| ------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Web service               | `advisio-tam-evaluation-2026`, Docker, Singapore, one `0.5c-512mb` instance                              |
-| Database                  | `advisio-tam-evaluation-db-2026`, database name `advisio_evaluation`, Singapore, `0.5c-1g`, 1 GB storage |
-| Persistent workspace disk | 1 GB mounted at `/var/lib/advisio-evaluation`                                                            |
-| Session capacity          | 20 active/provisioning sessions; evaluate respondents in waves                                           |
-| Deployment updates        | Automatic redeploys off; use a reviewed build for the event                                              |
+Public fields: role `entry.1428349663`, student program `entry.874351903`. Group values are Researchers/Students, Research professors, Research advisers, Evaluation panelists, College Deans. All ratings/comments remain blank; no session identifier is sent. Google may offer an old saved draft to signed-in users; check the current assignment before answering. Session counts and Form responses must be tracked separately. The shared QR does not prove one response per unique respondent.
 
-These are **paid-resource candidates, not purchased resources**. Review Render's current quoted recurring charges and the account owner's budget before creating them. Performance still needs a rehearsal on the selected host. The configured plans are an initial pilot configuration, not a guarantee that 202 people can use the site simultaneously.
+- [Official website](https://advisio-prototype-updated.vercel.app).
+- Video walkthrough: Coming soon; no external video link yet.
+- Support: [nagbolus.student@ua.edu.ph](mailto:nagbolus.student@ua.edu.ph).
 
-The website and API share one HTTPS origin. This keeps the evaluation cookie first-party on phone browsers. The normal application deployment and its database are not referenced by this Blueprint. Do not apply it over any resource with an existing matching name; choose fresh names and update all references if necessary.
+## Current free hosting
 
-The hosted startup derives its origin from Render's `RENDER_EXTERNAL_URL`; a custom HTTPS origin can be set with `EVALUATION_WEB_URL`. It requires the dedicated evaluation database name and normalizes only that URL. External integration credentials are rejected. The database's external IP allowlist is empty, so the service uses Render's internal connection. The container initializes only its literal storage mount, then runs the application as the unprivileged `node` user.
+Render service `srv-dbkes34ipgvc73apmh6g`: Free web + Free Postgres, Singapore, no persistent disk. `render.evaluation.yaml` targets branch `codex/qr-evaluation-local`; draft [PR #7](https://github.com/heisenberg1122/Advisio_Prototype_Updated/pull/7) remains separate from main. No card or paid resource was added.
 
-## Resume deployment after sign-in
+The deployment admits up to **10 active/provisioning sessions**, not 202 simultaneous workspaces. A hosted automated rehearsal admitted ten, handled 90 activity/PDF reads across three concurrent rounds, and correctly refused an eleventh. Ten actual devices performing the full activities still need a pilot. For 202 respondents, plan twenty groups of ten and a final group of two. Stagger starts in groups of five; simultaneous provisioning took about 109 seconds in that rehearsal.
 
-1. Sign into the Render account that should own the evaluation. No account change is required in Google Forms.
-2. Review the implementation branch, `codex/qr-evaluation-local`, including `apps/api/Dockerfile.evaluation`, `render.evaluation.yaml`, and the evaluation source. Keep all `.env` files and `.evaluation` contents out of Git.
-3. Commit and push the reviewed branch. Open a review PR so the existing checks and the new **Evaluation image** job can run. Verify GitHub Actions and deployment results separately. Do not interpret a push as a successful deployment.
-4. Create a new Blueprint from the repository, choose this branch, and specify `render.evaluation.yaml`. Confirm new resource names and the displayed charges before resource creation. The local branch has not been pushed as part of this preparation.
-5. Let the dedicated database and web service finish deploying. Record the actual HTTPS address assigned by Render; do not predict it from the service name. The container start command does not run the normal production migration command or a production seed.
-6. Verify `/api/health` returns evaluation mode with the database connected. Verify `/evaluate`, direct links to each role's portal, manuscript viewing/upload, reviews, consultations, panel PDF preview, session resume, and ending a session. Check that the questionnaire button points to the published Google Form with the expected role/program and blank ratings/comments.
-7. Perform the pilot with the intended 20 simultaneous devices. Inspect errors and response times, and adjust the selected resources before inviting respondents. Confirm that two people choosing the same course cannot affect each other's records.
-8. Test an actual phone using mobile data, then another phone/browser if available. Confirm QR scan, temporary access, PDF actions, questionnaire handoff, and session closure. These phone and hosted-service checks have not been performed during local preparation.
-9. Once those checks pass, open the hosted `/evaluate/print` page or download its `/api/evaluation/qr` image. The QR will automatically contain the actual hosted HTTPS `/evaluate` address. Replace the old localhost handout before printing or distributing it.
+The free site sleeps after 15 idle minutes. Open it before a group begins. A restart clears practice files and expires old sessions; respondents then begin again. Google Form submissions remain separate. Sessions expire after 20 idle minutes or 60 total minutes. The free database expires 30 days after creation; check availability before the evaluation date. Shared account allowances also apply. See [Render free-tier documentation](https://render.com/docs/free).
 
-The shared QR should open the evaluation activities first. Sending respondents directly to the Google Form bypasses those activities. Keep the existing eligibility and informed-consent procedure before the hands-on session.
+## Deploying updates
 
-## Validation and remaining limits
+1. Run `npm run test:evaluation`, API type checking, the evaluation frontend tests and the website build. Keep ignored `.env`/`.evaluation` files out of Git.
+2. Publish the reviewed branch with a lease on its existing head. Check both GitHub workflows (**Advisio CI Pipeline** and **Evaluation image**) and their exact commit separately from local results.
+3. Automatic deployments are off. In the existing evaluation Render service, choose **Manual Deploy → Deploy latest commit**. Do not create or overwrite unrelated resources.
+4. Confirm Render is live on the intended commit. Verify `/api/health` reports evaluation mode and database connected, then check entry, invitation, guide, portal checklist, correct blank questionnaire handoff, session end and a phone-width layout.
+5. Use the hosted QR. A localhost QR remains only a preview for this computer.
 
-`npm run test:evaluation:hosting` tests hosted environment guards and origin/database normalization. `npm run test:evaluation` includes the survey-link privacy checks and single-origin SPA routing/CSP tests. Website and API builds verify the application changes. The CI job builds the dedicated Linux container after the branch is reviewed/pushed.
-
-The Blueprint passed Render's published JSON-schema validation. Docker is not installed in the current local environment, so the Linux image build, selected-account resource validation, and actual deployment remain pending. No Render resources, public URL, remote deployment, or hosting charges were created during preparation. Local files, the Google Form, and its ownership remain available while hosting sign-in is postponed.
-
-Provider references checked on 3 November 2026: [Render Blueprint specification](https://render.com/docs/blueprint-spec), [compute plan IDs](https://render.com/docs/compute-plans), [persistent disks](https://render.com/docs/disks), and [Google Forms publishing and prefilled links](https://support.google.com/docs/answer/2839588).
-
-Local checks completed during this handoff: 3 hosted-configuration tests, 10 evaluation/SPA/survey tests, API type checking, and both website/API builds passed. Eleven actual session handoff links were checked (seven student programs plus the four faculty roles), and anonymous access to the published questionnaire returned the questionnaire. Google Forms showed 0 responses after the browser route checks. No survey answers were submitted.
-
-
-## Free-tier deployment selected
-
-The researcher subsequently signed into the School Render workspace and chose **free tier** after the paid draft requested a payment card. No card was entered and no paid resources were created. The implementation branch is published with draft [PR #7](https://github.com/heisenberg1122/Advisio_Prototype_Updated/pull/7); it remains separate from main and the official backend.
-
-`render.evaluation.yaml` now specifies **Free web + Free Postgres**, no persistent disk, and an initial limit of **5 active practice sessions**. Do not apply the earlier paid resource table. The file path, repository and branch remain the same. Creation is still pending provider validation.
-
-Free Render hosting sleeps after 15 idle minutes and can take about a minute to wake. Its filesystem is erased on restart or sleep, so the evaluation explicitly expires old practice sessions on startup before serving traffic. Respondents then begin a fresh fictional workspace; submitted Google Form answers remain in Google Forms. The free database expires 30 days after creation, and the workspace permits only one active free database. Confirm the evaluation dates fit that window before distribution. Shared free hours and bandwidth limits also apply; this workspace already has other services. See [Render's free-tier documentation](https://render.com/docs/free).
-
-Use a small phone pilot before scheduling respondents in waves. Five sessions is an admission cap, not a demonstrated capacity guarantee; 202 simultaneous users are not supported by this configuration. There is still no public evaluation QR until the new service finishes deploying and passes the hosted checks.
+The dedicated image workflow builds and starts the Linux container, checks its PDF/Form URLs, origin rejection and restart recovery. Keep the evaluation database separate from production and preserve the schema/session/file isolation guards. No survey answers are submitted by the automated checks.

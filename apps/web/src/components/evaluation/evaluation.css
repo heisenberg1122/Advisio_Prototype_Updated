@@ -354,3 +354,179 @@
     display: none;
   }
 }
+
+/* Compact, self-guided evaluation flow. */
+.evaluation-overview {
+  margin: 24px 0;
+}
+.evaluation-overview h2,
+.evaluation-written-guide h2,
+.evaluation-print-controls h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 22px 0 10px;
+}
+.evaluation-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  padding: 0;
+  margin: 16px 0 24px;
+  list-style: none;
+}
+.evaluation-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 0;
+}
+.evaluation-steps li > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e9f2ff;
+  color: #1959a5;
+  font-weight: 700;
+}
+.evaluation-steps li[aria-current="step"] > span {
+  background: #1959a5;
+  color: white;
+}
+.evaluation-steps li > strong,
+.evaluation-steps li > a {
+  padding-top: 3px;
+}
+.evaluation-assigned-field {
+  padding: 14px 16px;
+  margin: 14px 0;
+  border: 1px solid #ccdeef;
+  border-radius: 10px;
+  background: #f4f8fd;
+}
+.evaluation-assigned-field span,
+.evaluation-assigned-field strong,
+.evaluation-assigned-field small {
+  display: block;
+}
+.evaluation-assigned-field span,
+.evaluation-assigned-field small {
+  font-size: 13px;
+  color: #53677d;
+}
+.evaluation-assigned-field strong {
+  margin: 5px 0;
+  font-size: 16px;
+}
+.evaluation-about {
+  margin-top: 24px;
+  font-size: 13px;
+  color: #53677d;
+}
+.evaluation-about summary {
+  color: #1959a5;
+  cursor: pointer;
+  font-weight: 700;
+}
+.evaluation-about a svg {
+  display: inline;
+  vertical-align: middle;
+}
+.evaluation-page .evaluation-link-button {
+  color: white;
+  text-decoration: none;
+}
+.evaluation-eyebrow {
+  color: #1959a5;
+  font-weight: 700;
+  font-size: 13px;
+}
+.evaluation-assignment {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px;
+  background: #f2f7fc;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.evaluation-written-guide {
+  font-size: 15px;
+}
+.evaluation-written-guide ul,
+.evaluation-written-guide ol {
+  padding-left: 22px;
+  line-height: 1.65;
+}
+.evaluation-written-guide li {
+  margin: 10px 0;
+}
+.evaluation-written-guide ol {
+  list-style: decimal;
+}
+.evaluation-written-guide ul {
+  list-style: disc;
+}
+.evaluation-task-list {
+  list-style: none !important;
+  padding: 0 !important;
+}
+.evaluation-task-list li {
+  border-bottom: 1px solid #e1e9f1;
+  padding: 8px 0;
+}
+.evaluation-task-list label {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+.evaluation-task-list input {
+  min-width: 18px;
+  height: 18px;
+  margin-top: 4px;
+  accent-color: #1959a5;
+}
+.evaluation-dialog .evaluation-steps li {
+  margin: 0;
+}
+.evaluation-dialog .evaluation-steps {
+  padding: 0;
+}
+.evaluation-dialog .evaluation-support {
+  margin: 24px 0 18px;
+}
+.evaluation-end {
+  margin-top: 16px;
+}
+.evaluation-invitation-url {
+  overflow-wrap: anywhere;
+}
+.evaluation-print-controls {
+  margin-bottom: 24px;
+}
+.evaluation-print-controls p {
+  font-size: 13px;
+}
+@media (max-width: 600px) {
+  .evaluation-steps {
+    gap: 8px;
+  }
+  .evaluation-steps li {
+    flex-direction: column;
+    gap: 5px;
+    font-size: 12px;
+  }
+  .evaluation-banner small {
+    font-size: 11px;
+  }
+  .evaluation-banner > span {
+    min-width: 0;
+  }
+  .evaluation-banner button {
+    flex-shrink: 0;
+  }
+}
