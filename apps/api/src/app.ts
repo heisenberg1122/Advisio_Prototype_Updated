@@ -9,6 +9,7 @@ import { auditMiddleware } from "./middleware/audit.js";
 import auditRoutes from "./routes/audit.routes.js";
 
 import healthRoutes from "./routes/health.routes";
+import classRecordRoutes from "./routes/class-record.routes.js";
 import authRoutes from "./routes/auth.routes";
 import organizationRoutes from "./routes/organization.routes";
 import researchRoutes from "./routes/research.routes";
@@ -82,6 +83,7 @@ app.use(auditMiddleware);
 
 // API Routes
 app.use("/api/health", healthRoutes);
+app.use("/api/class-records", classRecordRoutes);
 app.use("/api", auditRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", organizationRoutes);

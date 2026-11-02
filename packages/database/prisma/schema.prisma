@@ -606,6 +606,9 @@ model User {
   chatMessagesSent          ChatMessage[]              @relation("ChatMessageSender")
   accountInvitationsCreated AccountInvitation[]
   collegeMemberships        CollegeMembership[]
+  classRecordScores        ClassRecordScore[] @relation("ClassRecordStudent")
+  classRecordAttendance    ClassRecordAttendance[]
+  classRecordReleases      ClassRecordRelease[] @relation("ClassRecordReleaseStudent")
 
   @@index([collegeId])
   @@index([programId])
@@ -1003,6 +1006,7 @@ model Workflow {
   accessEntries WorkflowAccessEntry[]
   enrollments   WorkflowEnrollment[]
   resources     WorkflowResource[]
+  classRecordPeriods ClassRecordPeriod[]
 
   @@unique([researchTypeId, version])
   @@index([status])
@@ -1147,10 +1151,94 @@ model WorkflowTask {
   stage              WorkflowStage           @relation(fields: [stageId], references: [id], onDelete: Cascade)
   submissions        TaskSubmission[]
   submissionAttempts TaskSubmissionAttempt[]
+  classRecordItem ClassRecordItem?
 
   @@unique([stageId, sequence])
   @@index([stageId])
   @@map("workflow_tasks")
+}
+
+model ClassRecordPeriod {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workflowId String @map("workflow_id") @db.Uuid
+  code String @db.VarChar(10)
+  weights Json?
+  overallWeight Int? @map("overall_weight")
+  lateCredit Int @default(100) @map("late_credit")
+  revision Int @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Restrict)
+  items ClassRecordItem[]
+  sessions ClassRecordSession[]
+  releases ClassRecordRelease[]
+  @@unique([workflowId, code])
+  @@map("class_record_periods")
+}
+
+model ClassRecordItem {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  periodId String @map("period_id") @db.Uuid
+  title String @db.VarChar(150)
+  kind String @db.VarChar(15)
+  maxPoints Int @map("max_points")
+  taskId String? @unique @map("task_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  period ClassRecordPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  task WorkflowTask? @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  scores ClassRecordScore[]
+  @@index([periodId])
+  @@map("class_record_items")
+}
+
+model ClassRecordScore {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  itemId String @map("item_id") @db.Uuid
+  studentId String @map("student_id") @db.Uuid
+  score Decimal? @db.Decimal(7,2)
+  state String @default("UNGRADED") @db.VarChar(10)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  item ClassRecordItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  student User @relation("ClassRecordStudent", fields: [studentId], references: [id], onDelete: Restrict)
+  @@unique([itemId, studentId])
+  @@map("class_record_scores")
+}
+
+model ClassRecordSession {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  periodId String @map("period_id") @db.Uuid
+  title String @db.VarChar(150)
+  date DateTime @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+  period ClassRecordPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  marks ClassRecordAttendance[]
+  @@unique([periodId, date])
+  @@map("class_record_sessions")
+}
+
+model ClassRecordAttendance {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId String @map("session_id") @db.Uuid
+  studentId String @map("student_id") @db.Uuid
+  status String @db.VarChar(10)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  session ClassRecordSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  student User @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  @@unique([sessionId, studentId])
+  @@map("class_record_attendance")
+}
+
+model ClassRecordRelease {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  periodId String @map("period_id") @db.Uuid
+  studentId String @map("student_id") @db.Uuid
+  releasedById String @map("released_by_id") @db.Uuid
+  releasedByName String @map("released_by_name") @db.VarChar(220)
+  snapshot Json
+  releasedAt DateTime @default(now()) @map("released_at")
+  period ClassRecordPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  student User @relation("ClassRecordReleaseStudent", fields: [studentId], references: [id], onDelete: Restrict)
+  @@index([periodId, studentId, releasedAt])
+  @@map("class_record_releases")
 }
 
 model TaskSubmission {
