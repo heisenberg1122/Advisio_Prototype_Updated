@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { ExternalLink, Mail, PlayCircle } from "lucide-react";
 import "./evaluation.css";
 
 export type EvaluationSession = {
@@ -116,7 +117,14 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
     <main className="evaluation-page">
       <section className="evaluation-card">
         <div className="evaluation-brand">
-          ADVISIO <span>Evaluation environment</span>
+          <img
+            className="evaluation-logo"
+            src="/advisio-brand-logo-v2.png"
+            alt="ADVISIO"
+            width="2172"
+            height="724"
+          />
+          <span>Evaluation environment</span>
         </div>
         <h1>
           {print
@@ -167,6 +175,38 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
               <Link to="/evaluate">Entry page</Link>
             </div>
           </div>
+        )}
+        {!print && (
+          <section
+            className="evaluation-resources"
+            aria-labelledby="evaluation-resources-title"
+          >
+            <h2 id="evaluation-resources-title">Get to know ADVISIO</h2>
+            <div className="evaluation-resource-grid">
+              <a
+                className="evaluation-resource"
+                href="https://advisio-prototype-updated.vercel.app"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink size={20} aria-hidden="true" />
+                <span>
+                  <strong>Official website</strong>
+                  <small>Explore the system · opens in a new tab</small>
+                </span>
+              </a>
+              <div
+                className="evaluation-resource evaluation-resource-placeholder"
+                role="note"
+              >
+                <PlayCircle size={22} aria-hidden="true" />
+                <span>
+                  <strong>Short video walkthrough</strong>
+                  <small>Coming soon</small>
+                </span>
+              </div>
+            </div>
+          </section>
         )}
         {config && !print && session && (
           <div className="evaluation-resume">
@@ -273,6 +313,20 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
               the guided activities, then answer your role’s TAM questionnaire.
             </p>
           </form>
+        )}
+        {!print && (
+          <div className="evaluation-support">
+            <Mail size={20} aria-hidden="true" />
+            <p>
+              <strong>Having trouble?</strong>
+              <br />
+              Email us at{" "}
+              <a href="mailto:nagbolus.student@ua.edu.ph?subject=ADVISIO%20Evaluation%20Support">
+                nagbolus.student@ua.edu.ph
+              </a>
+              .
+            </p>
+          </div>
         )}
         {config && !print && (
           <p className="evaluation-help no-print">

@@ -1,14 +1,14 @@
 export const EVALUATION_ROLES = [
   {
     id: "student",
-    label: "Student",
+    label: "Researchers/Students",
     institutionalRole: "RESEARCHER",
     home: "/student/dashboard",
     surveyRole: "Students",
   },
   {
     id: "professor",
-    label: "Capstone professor",
+    label: "Research professor",
     institutionalRole: "RESEARCH_COORDINATOR",
     home: "/professor/dashboard",
     surveyRole: "Capstone professors",

@@ -224,6 +224,82 @@
   outline: 3px solid #eea32b;
   outline-offset: 3px;
 }
+.evaluation-logo {
+  display: block;
+  width: 210px;
+  max-width: 100%;
+  height: auto;
+}
+.evaluation-resources {
+  margin: 24px 0;
+}
+.evaluation-resources h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.evaluation-resource-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.evaluation-page .evaluation-resource {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #cbdced;
+  border-radius: 12px;
+  background: #f3f8ff;
+  color: #1959a5;
+  text-decoration: none;
+}
+.evaluation-resource svg {
+  flex-shrink: 0;
+}
+.evaluation-resource strong,
+.evaluation-resource small {
+  display: block;
+}
+.evaluation-resource strong {
+  font-size: 14px;
+  line-height: 1.4;
+}
+.evaluation-resource small {
+  margin-top: 4px;
+  color: #53677d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.evaluation-page a.evaluation-resource:hover {
+  border-color: #1959a5;
+  background: #eaf3ff;
+}
+.evaluation-page .evaluation-resource-placeholder {
+  border-style: dashed;
+  background: #f7f9fc;
+  color: #53677d;
+}
+.evaluation-support {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border-top: 1px solid #d9e3ee;
+  margin-top: 28px;
+  padding-top: 20px;
+  font-size: 14px;
+}
+.evaluation-support svg {
+  flex-shrink: 0;
+  margin-top: 4px;
+  color: #1959a5;
+}
+.evaluation-support p {
+  margin: 0;
+}
+.evaluation-support a {
+  overflow-wrap: anywhere;
+}
 @media (max-width: 600px) {
   .evaluation-page {
     padding: 20px 12px;
@@ -232,8 +308,18 @@
     padding: 24px 18px;
   }
   .evaluation-brand {
-    align-items: flex-start;
-    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .evaluation-logo {
+    width: 160px;
+  }
+  .evaluation-brand span {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  .evaluation-resource-grid {
+    grid-template-columns: 1fr;
   }
   .evaluation-card h1 {
     font-size: 25px;
