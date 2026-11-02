@@ -1,6 +1,6 @@
 # QR evaluation: hosting and Google Forms handoff
 
-Status on **3 November 2026**: the TAM Google Form is published and connected to the local evaluation app. The hosted deployment files are prepared. Render sign-in and resource creation were deferred at the researcher's request. There is **no public evaluation website address yet**; the existing localhost QR remains a computer-only preview.
+Initial preparation on **3 November 2026**: the TAM Google Form is published and connected to the local evaluation app. The hosted deployment files are prepared. Render sign-in and resource creation were deferred at the researcher's request. There is **no public evaluation website address yet**; the existing localhost QR remains a computer-only preview.
 
 ## Accounts
 
@@ -59,3 +59,14 @@ The Blueprint passed Render's published JSON-schema validation. Docker is not in
 Provider references checked on 3 November 2026: [Render Blueprint specification](https://render.com/docs/blueprint-spec), [compute plan IDs](https://render.com/docs/compute-plans), [persistent disks](https://render.com/docs/disks), and [Google Forms publishing and prefilled links](https://support.google.com/docs/answer/2839588).
 
 Local checks completed during this handoff: 3 hosted-configuration tests, 10 evaluation/SPA/survey tests, API type checking, and both website/API builds passed. Eleven actual session handoff links were checked (seven student programs plus the four faculty roles), and anonymous access to the published questionnaire returned the questionnaire. Google Forms showed 0 responses after the browser route checks. No survey answers were submitted.
+
+
+## Free-tier deployment selected
+
+The researcher subsequently signed into the School Render workspace and chose **free tier** after the paid draft requested a payment card. No card was entered and no paid resources were created. The implementation branch is published with draft [PR #7](https://github.com/heisenberg1122/Advisio_Prototype_Updated/pull/7); it remains separate from main and the official backend.
+
+`render.evaluation.yaml` now specifies **Free web + Free Postgres**, no persistent disk, and an initial limit of **5 active practice sessions**. Do not apply the earlier paid resource table. The file path, repository and branch remain the same. Creation is still pending provider validation.
+
+Free Render hosting sleeps after 15 idle minutes and can take about a minute to wake. Its filesystem is erased on restart or sleep, so the evaluation explicitly expires old practice sessions on startup before serving traffic. Respondents then begin a fresh fictional workspace; submitted Google Form answers remain in Google Forms. The free database expires 30 days after creation, and the workspace permits only one active free database. Confirm the evaluation dates fit that window before distribution. Shared free hours and bandwidth limits also apply; this workspace already has other services. See [Render's free-tier documentation](https://render.com/docs/free).
+
+Use a small phone pilot before scheduling respondents in waves. Five sessions is an admission cap, not a demonstrated capacity guarantee; 202 simultaneous users are not supported by this configuration. There is still no public evaluation QR until the new service finishes deploying and passes the hosted checks.

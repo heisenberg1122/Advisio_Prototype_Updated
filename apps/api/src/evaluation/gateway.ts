@@ -65,6 +65,7 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
         })),
         entryUrl: `${service.config.origin}/evaluate`,
         localOnly: !service.config.secure,
+        temporaryStorage: service.config.ephemeralStorage,
       });
     }
     if (endpoint === "/api/evaluation/qr" && req.method === "GET") {

@@ -72,6 +72,12 @@ export class EvaluationRuntime {
       created_at timestamptz NOT NULL DEFAULT now(), touched_at timestamptz NOT NULL DEFAULT now(),
       state varchar(20) NOT NULL DEFAULT 'PROVISIONING', cleaned_at timestamptz);
       ALTER TABLE public.advisio_evaluation_sessions ADD COLUMN IF NOT EXISTS cleaned_at timestamptz;`);
+    // Free hosting loses local files on sleep/restart. Revoke those temporary
+    // sessions before serving traffic so nobody resumes missing manuscripts.
+    if (this.config.ephemeralStorage)
+      await this.pool.query(
+        "UPDATE public.advisio_evaluation_sessions SET state='EXPIRED',token_hash=NULL WHERE state IN ('ACTIVE','PROVISIONING')",
+      );
     await this.cleanup();
     this.timer = setInterval(
       () =>

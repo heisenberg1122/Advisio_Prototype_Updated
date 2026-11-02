@@ -18,6 +18,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: advisio_evaluation
+          POSTGRES_USER: evaluation_check
+          POSTGRES_PASSWORD: evaluation_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U evaluation_check -d advisio_evaluation"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -26,3 +40,20 @@ jobs:
       - run: node --test scripts/hosted-evaluation-config.test.mjs
       - name: Build the dedicated evaluation container
         run: docker build -f apps/api/Dockerfile.evaluation -t advisio-evaluation:check .
+      - name: Start the free-host evaluation image against a disposable database
+        run: |
+          docker run -d --name advisio-evaluation-check --network host \
+            -e EVALUATION_DATABASE_URL=postgresql://evaluation_check:evaluation_ci_only@127.0.0.1:5432/advisio_evaluation \
+            -e RENDER_EXTERNAL_URL=https://evaluation.example.org \
+            -e JWT_SECRET=ci-only-disposable-evaluation-check-secret-48-characters \
+            -e EVALUATION_EPHEMERAL_STORAGE=1 \
+            -e EVALUATION_MAX_ACTIVE=2 \
+            -e EVALUATION_SURVEY_URL='https://docs.google.com/forms/d/e/1FAIpQLSfo_25naabVASUIEI61rYzIForhdxLy8cXt5kKfwluIIIXqVA/viewform' \
+            -e EVALUATION_SURVEY_ROLE_ENTRY=entry.1428349663 \
+            -e EVALUATION_SURVEY_PROGRAM_ENTRY=entry.874351903 \
+            advisio-evaluation:check
+      - name: Verify actual startup and restart recovery
+        run: node scripts/verify-hosted-evaluation.mjs
+      - name: Show evaluation service logs
+        if: failure()
+        run: docker logs advisio-evaluation-check

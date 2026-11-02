@@ -1,6 +1,6 @@
-# Draft deployment specification: review the selected account, resource names,
-# and quoted recurring charges before applying. No existing production service
-# or database is referenced. The source branch must be pushed first.
+# Free evaluation-only deployment. No existing production service or database
+# is referenced. Practice workspaces reset on restart; the free DB expires
+# after 30 days. Survey responses remain in Google Forms.
 services:
   - type: web
     name: advisio-tam-evaluation-2026
@@ -10,14 +10,10 @@ services:
     dockerfilePath: ./apps/api/Dockerfile.evaluation
     dockerContext: .
     region: singapore
-    plan: 0.5c-512mb
+    plan: free
     numInstances: 1
     autoDeployTrigger: "off"
     healthCheckPath: /api/health
-    disk:
-      name: evaluation-workspaces
-      mountPath: /var/lib/advisio-evaluation
-      sizeGB: 1
     envVars:
       - key: ADVISIO_EVALUATION
         value: "1"
@@ -29,8 +25,10 @@ services:
         generateValue: true
       - key: EVALUATION_DATA_DIR
         value: /var/lib/advisio-evaluation
+      - key: EVALUATION_EPHEMERAL_STORAGE
+        value: "1"
       - key: EVALUATION_MAX_ACTIVE
-        value: "20"
+        value: "5"
       - key: STORAGE_PROVIDER
         value: LOCAL
       - key: EMAIL_PROVIDER
@@ -51,7 +49,5 @@ databases:
     databaseName: advisio_evaluation
     user: advisio_evaluation
     region: singapore
-    plan: 0.5c-1g
-    diskSizeGB: 1
-    storageAutoscalingEnabled: false
+    plan: free
     ipAllowList: []

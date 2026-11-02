@@ -22,6 +22,7 @@ type Config = {
   courses: { id: string; label: string; college: string }[];
   entryUrl: string;
   localOnly: boolean;
+  temporaryStorage: boolean;
 };
 export async function evaluationRequest<T>(
   path: string,
@@ -130,6 +131,13 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
         {error && (
           <p className="evaluation-error" role="alert">
             {error}
+          </p>
+        )}
+        {config?.temporaryStorage && !print && (
+          <p className="evaluation-help">
+            Practice workspaces may reset if the evaluation restarts. Return
+            here to begin again or ask your facilitator for help. Submitted
+            questionnaire answers are saved separately in Google Forms.
           </p>
         )}
         {loading && <p role="status">Connecting to the evaluation…</p>}

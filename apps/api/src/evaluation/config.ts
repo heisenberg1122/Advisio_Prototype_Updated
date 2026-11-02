@@ -82,6 +82,7 @@ export function evaluationConfig(env: NodeJS.ProcessEnv = process.env) {
       env.EVALUATION_SCHEMA_FILE || path.join(root, "schema.sql"),
     ),
     maxActive,
+    ephemeralStorage: env.EVALUATION_EPHEMERAL_STORAGE === "1",
     idleMs: 20 * 60_000,
     lifetimeMs: 60 * 60_000,
   };
