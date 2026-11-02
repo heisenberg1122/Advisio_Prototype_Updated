@@ -9,14 +9,13 @@ import {
   Send,
   Trash2,
 } from "lucide-react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { ResearcherInboxWorkspace } from "@/app/student/inbox/ResearcherInboxWorkspace";
 import { useAuth } from "@/providers/auth-provider";
 import { apiClient } from "@/lib/api-client";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 import { MailComposeWindow } from "@/components/messaging/MailComposeWindow";
 import { MailConversation } from "@/components/messaging/MailConversation";
-import { MailThreadList } from "@/components/messaging/MailThreadList";
 import type { MailAttachment } from "@/components/messaging/MailAttachmentMenu";
 import type {
   ComposeSeed,
@@ -96,8 +95,6 @@ const FOLDER_ITEMS = [
 
 export default function MailInboxPage() {
   const { user } = useAuth();
-  const { pathname } = useLocation();
-  const isResearcherPortal = pathname.startsWith("/student/");
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const canUseDeanInbox = Boolean(
@@ -124,6 +121,7 @@ export default function MailInboxPage() {
   const [filter, setFilter] = useState<MailFilter>("all");
   const [page, setPage] = useState(1);
   const [composeSeed, setComposeSeed] = useState<ComposeSeed | null>(null);
+  const [inlineComposeHost, setInlineComposeHost] = useState<HTMLDivElement | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [signingDocument, setSigningDocument] = useState<any | null>(null);
@@ -301,6 +299,8 @@ export default function MailInboxPage() {
   const replyToMessage = (message: MailMessage) => {
     setComposeSeed({
       key: `reply-${message.id}-${Date.now()}`,
+      inlineThreadId: detailThread?.id,
+      inlineAction: "reply",
       toIds: [message.senderId],
       subject: `${detailThread?.subject.toLowerCase().startsWith("re:") ? "" : "Re: "}${detailThread?.subject || ""}`,
       body: `\n\nOn ${formatMailDate(message.sentAt || message.createdAt)}, ${personName(message.sender)} wrote:\n> ${message.body.replace(/\n/g, "\n> ")}`,
@@ -310,6 +310,8 @@ export default function MailInboxPage() {
   const forwardMessage = (message: MailMessage) => {
     setComposeSeed({
       key: `forward-${message.id}-${Date.now()}`,
+      inlineThreadId: detailThread?.id,
+      inlineAction: "forward",
       subject: `${detailThread?.subject.toLowerCase().startsWith("fwd:") ? "" : "Fwd: "}${detailThread?.subject || ""}`,
       body: `\n\n---------- Forwarded message ----------\nFrom: ${personName(message.sender)} <${message.sender.email}>\nDate: ${formatMailDate(message.sentAt || message.createdAt)}\nSubject: ${detailThread?.subject || ""}\n\n${message.body}`,
       sourceAttachments: message.attachments,
@@ -326,7 +328,7 @@ export default function MailInboxPage() {
     replyMutation.isPending || stateMutation.isPending || draftMutation.isPending;
 
   return (
-    <div className={isResearcherPortal ? "researcher-mail-page" : "mx-auto flex h-[calc(100vh-4rem)] min-h-[560px] w-full max-w-[1920px] flex-1 flex-col overflow-hidden bg-[var(--color-surface)] xl:rounded-tl-[28px]"}>
+    <div className="researcher-mail-page mail-workspace-page">
       {signingDocument ? (
         <DocumentSigningModal
           document={signingDocument}
@@ -342,6 +344,7 @@ export default function MailInboxPage() {
         <MailComposeWindow
           key={composeSeed.key}
           seed={composeSeed}
+          inlineHost={composeSeed.inlineThreadId === selectedId ? inlineComposeHost : null}
           contacts={contacts}
           pending={composeMutation.isPending || draftMutation.isPending}
           error={composeMutation.error?.message}
@@ -354,8 +357,13 @@ export default function MailInboxPage() {
         />
       ) : null}
 
-      {isResearcherPortal && folder !== "signature-requests" ? (
+      {folder !== "signature-requests" ? (
         <ResearcherInboxWorkspace
+          additionalFolders={canUseDeanInbox ? (
+            <button type="button" onClick={() => chooseFolder("signature-requests")}>
+              <PenLine size={17} aria-hidden="true" /><span>Signature requests</span>
+            </button>
+          ) : undefined}
           folder={folder}
           data={listQuery.data}
           resolvedQuery={deferredQuery}
@@ -391,7 +399,9 @@ export default function MailInboxPage() {
               error={error}
               onBack={() => setSelectedId("")}
               onThreadAction={(action) => stateMutation.mutate(action)}
-              onReplyAll={(body, files) => replyMutation.mutate({ body, files })}
+              onReplyAll={(body, files) => replyMutation.mutateAsync({ body, files })}
+              onInlineComposeHost={setInlineComposeHost}
+              isComposingInline={Boolean(composeSeed?.inlineThreadId === selectedId)}
               onReply={replyToMessage}
               onForward={forwardMessage}
               onEditDraft={editDraft}
@@ -414,16 +424,16 @@ export default function MailInboxPage() {
           }
         />
       ) : (
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <aside className="shrink-0 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-3 md:w-56 md:border-b-0 md:border-r md:p-4">
+      <div className="researcher-mail">
+        <aside className="rm-navigation">
           <button
             type="button"
             onClick={() => setComposeSeed({ key: `new-${Date.now()}` })}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 text-sm font-bold text-white shadow-sm hover:bg-[var(--color-primary-dark)]"
+            className="rm-compose"
           >
             <Pencil className="h-4 w-4" />Compose
           </button>
-          <nav aria-label="Mail folders" className="mt-3 flex gap-1 overflow-x-auto pb-1 md:mt-5 md:block md:space-y-1 md:overflow-visible md:pb-0">
+          <nav aria-label="Mail folders" className="rm-folders">
             {FOLDER_ITEMS.map((item) => {
               const count = folderCount(item.id);
               return (
@@ -431,8 +441,6 @@ export default function MailInboxPage() {
                   key={item.id}
                   type="button"
                   onClick={() => chooseFolder(item.id)}
-                  aria-current={folder === item.id ? "page" : undefined}
-                  className={`${folder === item.id ? "bg-[var(--color-primary-light)] text-[var(--color-primary-dark)] dark:bg-white/10 dark:text-white" : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]"} flex h-10 shrink-0 items-center gap-3 rounded-xl px-3 text-sm font-bold md:w-full`}
                 >
                   <item.icon className="h-4 w-4" />
                   <span>{item.label}</span>
@@ -451,68 +459,13 @@ export default function MailInboxPage() {
               </button>
             ) : null}
           </nav>
-          <div className="mt-6 hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 md:block">
-            <p className="text-sm font-black uppercase tracking-[0.15em] text-[var(--color-text-muted)]">Formal correspondence</p>
-            <p className="mt-1 text-base leading-5 text-[var(--color-text-secondary)]">Inbox is separate from project group chats and uses authorized academic contacts only.</p>
+          <div className="rm-note">
+            <p>Formal correspondence</p>
+            <p>Inbox is separate from project group chats and uses authorized academic contacts only.</p>
           </div>
         </aside>
 
-        {folder === "signature-requests" ? (
-          <div className="min-h-0 flex-1 overflow-hidden"><SignatureCenterPage embedded /></div>
-        ) : (
-          <div className="flex min-h-0 min-w-0 flex-1">
-            <MailThreadList
-              folder={folder}
-              threads={threads}
-              selectedId={selectedId}
-              userId={user?.id}
-              query={query}
-              filter={filter}
-              pagination={listQuery.data?.pagination}
-              loading={listQuery.isLoading || listQuery.isFetching && !listQuery.data}
-              onQueryChange={setQuery}
-              onFilterChange={setFilter}
-              onPageChange={setPage}
-              onSelect={(id) => {
-                setSelectedId(id);
-                setNotice("");
-                setError("");
-              }}
-            />
-            <MailConversation
-              folder={folder}
-              thread={detailThread}
-              draftThread={folder === "drafts" ? selected : null}
-              userId={user?.id}
-              loading={detailQuery.isLoading}
-              canSignAttachments={canSignAttachments}
-              pendingAction={pendingAction}
-              notice={notice}
-              error={error}
-              onBack={() => setSelectedId("")}
-              onThreadAction={(action) => stateMutation.mutate(action)}
-              onReplyAll={(body, files) => replyMutation.mutate({ body, files })}
-              onReply={replyToMessage}
-              onForward={forwardMessage}
-              onEditDraft={editDraft}
-              onSendDraft={() => draftMessage && draftMutation.mutate({ id: draftMessage.id, action: "send" })}
-              onDeleteDraft={() => {
-                if (draftMessage && window.confirm("Permanently discard this draft?")) draftMutation.mutate({ id: draftMessage.id, action: "delete" });
-              }}
-              onOpenAttachment={(attachment) => openAttachment(attachment).catch((reason: Error) => setError(reason.message))}
-              onDownloadAttachment={(attachment) => downloadAttachment(attachment).catch((reason: Error) => setError(reason.message))}
-              onSignAttachment={(attachment) =>
-                setSigningDocument({
-                  versionId: attachment.id,
-                  docName: attachment.fileName,
-                  groupName: detailThread?.subject || "Inbox",
-                  fileUrl: `/api/mail/attachments/${attachment.id}?inline=1`,
-                  signUrl: `/api/mail/attachments/${attachment.id}/sign`,
-                })
-              }
-            />
-          </div>
-        )}
+        <div className="min-h-0 min-w-0 overflow-auto"><SignatureCenterPage embedded /></div>
       </div>
       )}
     </div>

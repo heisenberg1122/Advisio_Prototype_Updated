@@ -1,4 +1,6 @@
 import type { AuthenticatedUser } from "../middleware/auth.js";
+import { canAccessCollege } from "../lib/college-scope.js";
+import { collegeUserWhere } from "../lib/college-authorization.js";
 import { emailNotification } from "./notification-email.service.js";
 import {
   ManuscriptLifecycleStatus,
@@ -82,7 +84,7 @@ async function workflowAuthority(
       },
     },
   });
-  if (!project)
+  if (!project || !canAccessCollege(user, project.collegeId))
     throw new ReviewerAssignmentError(
       "Research project not found.",
       404,
@@ -142,6 +144,7 @@ async function validateReviewer(
       firstName: true,
       lastName: true,
       roles: { select: { role: { select: { name: true } } } },
+      collegeMemberships: { select: { collegeId: true, roleNames: true } },
     },
   });
   if (!project || !reviewer || reviewer.status !== "ACTIVE")
@@ -151,7 +154,7 @@ async function validateReviewer(
       "REVIEWER_UNAVAILABLE",
     );
 
-  const roles = reviewer.roles.map(({ role }) => role.name);
+  const roles = reviewer.collegeMemberships.find((membership) => membership.collegeId === project.collegeId)?.roleNames || [];
   const projectRoles = project.members.map(({ projectRole }) => projectRole);
   if (projectRoles.includes("LEADER") || projectRoles.includes("MEMBER")) {
     throw new ReviewerAssignmentError(
@@ -172,7 +175,7 @@ async function validateReviewer(
       roles.includes("PANELIST") &&
       (projectRoles.includes("PANELIST") || project.defenseSessions.length > 0)) ||
     (reviewType === ReviewType.DEAN &&
-      (roles.includes("DEAN") && reviewer.collegeId === project.collegeId));
+      roles.includes("DEAN"));
   if (!eligible) {
     throw new ReviewerAssignmentError(
       "The selected faculty member does not have the required project-scoped reviewer relationship.",
@@ -226,6 +229,7 @@ export async function createConfiguredAssignmentsForSubmission(
   const context = await tx.researchProject.findUnique({
     where: { id: options.researchId },
     select: {
+      collegeId: true,
       members: {
         where: { leftAt: null, projectRole: "ADVISER" },
         select: {
@@ -233,7 +237,7 @@ export async function createConfiguredAssignmentsForSubmission(
           user: {
             select: {
               status: true,
-              roles: { select: { role: { select: { name: true } } } },
+              collegeMemberships: { select: { collegeId: true, roleNames: true } },
             },
           },
         },
@@ -246,7 +250,7 @@ export async function createConfiguredAssignmentsForSubmission(
               creator: {
                 select: {
                   status: true,
-                  roles: { select: { role: { select: { name: true } } } },
+                  collegeMemberships: { select: { collegeId: true, roleNames: true } },
                 },
               },
             },
@@ -263,8 +267,8 @@ export async function createConfiguredAssignmentsForSubmission(
   if (!context || !milestone?.requiresApproval || !workflow) return [];
   const professorIsEligible =
     workflow.creator.status === "ACTIVE" &&
-    workflow.creator.roles.some(
-      ({ role }) => role.name === "RESEARCH_COORDINATOR",
+    workflow.creator.collegeMemberships.some(
+      (membership) => membership.collegeId === context.collegeId && membership.roleNames.includes("RESEARCH_COORDINATOR"),
     );
   if (!professorIsEligible) return [];
 
@@ -273,7 +277,7 @@ export async function createConfiguredAssignmentsForSubmission(
   for (const member of context.members) {
     if (
       member.user.status === "ACTIVE" &&
-      member.user.roles.some(({ role }) => role.name === "ADVISER") &&
+      member.user.collegeMemberships.some((membership) => membership.collegeId === context.collegeId && membership.roleNames.includes("ADVISER")) &&
       !seen.has(member.userId)
     ) {
       candidates.push({
@@ -382,8 +386,7 @@ class ReviewerAssignmentService {
             },
           },
           {
-            collegeId: project.collegeId,
-            roles: { some: { role: { name: { in: ["DEAN"] } } } },
+            ...collegeUserWhere(project.collegeId, "DEAN"),
           },
 
         ],
@@ -394,6 +397,7 @@ class ReviewerAssignmentService {
         lastName: true,
         email: true,
         roles: { select: { role: { select: { name: true } } } },
+        collegeMemberships: { where: { collegeId: project.collegeId }, select: { roleNames: true } },
         memberships: {
           where: { researchId: version.document.researchId, leftAt: null },
           select: { projectRole: true },
@@ -411,7 +415,7 @@ class ReviewerAssignmentService {
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });
     return candidates.flatMap((candidate) => {
-      const roles = candidate.roles.map(({ role }) => role.name);
+      const roles = candidate.collegeMemberships.flatMap(({ roleNames }) => roleNames);
       const projectRoles = candidate.memberships.map(
         ({ projectRole }) => projectRole,
       );
@@ -445,6 +449,8 @@ class ReviewerAssignmentService {
     return prisma.reviewerAssignment.findMany({
       where: {
         reviewerId: user.id,
+        ...(!user.roles.includes("SYSTEM_ADMIN") ? { research: { collegeId: user.collegeId || "00000000-0000-0000-0000-000000000000" } } : {}),
+        reviewType: { in: user.roles.map(reviewTypeForRole).filter((role): role is ReviewType => role !== null) },
         ...(status ? { status: status as any } : {}),
       },
       include: assignmentInclude,
@@ -459,6 +465,7 @@ class ReviewerAssignmentService {
         research: {
           select: {
             id: true,
+            collegeId: true,
             createdBy: true,
             members: {
               where: { userId: user.id, leftAt: null },
@@ -487,7 +494,7 @@ class ReviewerAssignmentService {
         },
       },
     });
-    if (!document)
+    if (!document || !canAccessCollege(user, document.research.collegeId))
       throw new ReviewerAssignmentError(
         "Document not found.",
         404,
@@ -516,6 +523,7 @@ class ReviewerAssignmentService {
       ...document,
       versions: document.versions.map((version) => ({
         ...version,
+        fileSize: Number(version.fileSize),
         reviews: version.reviews.map((review) => ({
           ...review,
           reviewer: isStudent ? null : review.reviewer,
@@ -857,6 +865,7 @@ class ReviewerAssignmentService {
             documentVersion: true,
             research: {
               select: {
+                collegeId: true,
                 members: {
                   where: {
                     userId: options.user.id,
@@ -869,7 +878,7 @@ class ReviewerAssignmentService {
             },
           },
         });
-        if (!assignment)
+        if (!assignment || !canAccessCollege(options.user, assignment.research.collegeId))
           throw new ReviewerAssignmentError(
             "Reviewer assignment not found.",
             404,
@@ -881,6 +890,7 @@ class ReviewerAssignmentService {
             403,
             "ASSIGNED_REVIEWER_REQUIRED",
           );
+        if (!options.user.roles.some((role) => reviewTypeForRole(role) === assignment.reviewType)) throw new ReviewerAssignmentError("The required reviewer role is not approved in this college.", 403, "COLLEGE_REVIEW_ROLE_REQUIRED");
         if (assignment.research.members.length)
           throw new ReviewerAssignmentError(
             "Students cannot approve their own manuscript.",
@@ -1242,6 +1252,7 @@ class ReviewerAssignmentService {
             userId: options.user.id,
             action: "CREATE",
             entityType: "ManuscriptReviewDecision",
+            researchId: assignment.document.researchId,
             entityId: review.id,
             newValues: {
               assignmentId: assignment.id,

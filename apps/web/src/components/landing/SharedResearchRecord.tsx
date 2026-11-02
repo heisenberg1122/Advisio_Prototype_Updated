@@ -8,7 +8,7 @@ export function SharedResearchRecord({ audience }: { audience: string }) {
       aria-label="Illustrative shared research record"
     >
       <div className="lp-shared-record-bar">
-        <img src="/ao-logo.png" alt="" />
+        <img src="/advisio-logo.png" alt="" />
         <span>Shared research record</span>
         <span className="lp-record-live-dot" aria-hidden="true" />
       </div>

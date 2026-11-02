@@ -85,8 +85,8 @@ export function StructuredDefensePacket({
       );
       onSaved(
         publish
-          ? "Defense packet published with the digital evaluation form."
-          : "Defense packet draft saved.",
+          ? "Defense documents and evaluation form shared with panelists."
+          : "Defense documents saved as a draft.",
       );
     } catch (e: any) {
       setError(e.issues?.[0]?.message || e.message);
@@ -132,7 +132,7 @@ export function StructuredDefensePacket({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Defense review packet"
+        aria-label="Defense documents"
         className="max-h-[94vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-2xl"
       >
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] p-5">
@@ -140,10 +140,10 @@ export function StructuredDefensePacket({
             <p className="text-xs text-[var(--color-text-secondary)]">
               Defense / {session.research?.groupName || session.research?.title}
             </p>
-            <h2 className="mt-1 text-xl font-bold">Review packet</h2>
+            <h2 className="mt-1 text-xl font-bold">Defense documents</h2>
           </div>
           <button
-            aria-label="Close packet"
+            aria-label="Close defense documents"
             className={evaluationButton}
             onClick={onClose}
           >
@@ -159,15 +159,15 @@ export function StructuredDefensePacket({
                 onClick={() => setTab(v)}
               >
                 {v === "packet"
-                  ? "Packet overview"
+                  ? "Documents"
                   : v === "evaluation"
-                    ? "Configure evaluation"
-                    : "Consolidated evaluations"}
+                    ? "Evaluation setup"
+                    : "Evaluation results"}
               </button>
             ))}
           </div>
           {query.isPending ? (
-            <p>Loading review packet…</p>
+            <p>Loading defense documents…</p>
           ) : query.isError ? (
             <p role="alert">{query.error.message}</p>
           ) : tab === "results" ? (
@@ -211,7 +211,7 @@ export function StructuredDefensePacket({
                       Status:{" "}
                       {published
                         ? "Published · saved manuscript snapshot"
-                        : "Draft packet"}
+                        : "Draft documents"}
                     </p>
                   </section>
                   <section className={evaluationCard}>
@@ -285,7 +285,7 @@ export function StructuredDefensePacket({
                         className={`${evaluationButton} mt-3`}
                         onClick={() => setSimilarityReport(null)}
                       >
-                        Remove attachment from packet
+                        Remove attached file
                       </button>
                     )}
                   </section>
@@ -359,8 +359,8 @@ export function StructuredDefensePacket({
                     {saving
                       ? "Saving…"
                       : published
-                        ? "Publish approved replacement"
-                        : "Publish packet"}
+                        ? "Share updated documents"
+                        : "Share with panelists"}
                   </button>
                 </div>
               )}

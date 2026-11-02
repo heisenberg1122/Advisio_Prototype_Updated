@@ -87,6 +87,12 @@ defense blocks clearance. Clearance is audited and students are notified.
 
 ## Deployment and verification
 
+New publications also enroll in the [evaluation integrity ledger](evaluation-integrity-ledger.md).
+Final submissions and result release append hash-linked records. Facilitators
+verify records and retain/compare a checkpoint from **Consolidated evaluations →
+Evaluation integrity** before release, then retain a new checkpoint covering the
+released result. Existing sessions without enrollment remain explicitly legacy.
+
 Deploy the frontend/backend together. API startup runs Prisma migrations; the
 additive migrations add the snapshot/submission tables and the structured packet
 mode constraint. They do not convert historical evaluations. Regenerate the

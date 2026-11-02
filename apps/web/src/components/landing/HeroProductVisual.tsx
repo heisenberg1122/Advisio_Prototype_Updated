@@ -88,7 +88,7 @@ export function HeroProductVisual() {
         <div className="lp-workspace-layout">
           <aside className="lp-preview-sidebar" aria-hidden="true">
             <div className="lp-preview-brand">
-              <img src="/ao-logo.png" alt="" /> advisio<span>®</span>
+              <img src="/advisio-logo.png" alt="" /> advisio<span>®</span>
             </div>
             <span className="lp-micro">Workspace</span>
             <div className="lp-preview-nav is-active">

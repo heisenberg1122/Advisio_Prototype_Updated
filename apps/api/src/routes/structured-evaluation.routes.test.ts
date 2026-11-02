@@ -14,6 +14,7 @@ const state = vi.hoisted(() => ({
   user: {} as any,
   session: {} as any,
   item: null as any,
+  events: [] as any[],
 }));
 vi.mock("../middleware/auth.js", () => ({
   requireAuth: (req: any, _res: any, next: any) => {
@@ -32,12 +33,31 @@ vi.mock("../services/defense-eligibility.service.js", () => ({
 }));
 vi.mock("../lib/prisma.js", () => {
   const db: any = {
-    defenseSession: { findUnique: async () => state.session },
+    defenseSession: {
+      findUnique: async () => state.session,
+      findUniqueOrThrow: async () => ({
+        ...state.session,
+        structuredEvaluations: state.item ? [state.item] : [],
+      }),
+      update: async ({ data }: any) =>
+        (state.session = { ...state.session, ...data }),
+    },
     defenseEligibility: { findUnique: async () => ({ milestoneId: "gate" }) },
     defensePacket: {
       upsert: vi.fn(async ({ create }: any) => ({ id: "packet", ...create })),
     },
     notification: { createMany: vi.fn() },
+    evaluationLedgerEvent: {
+      findUnique: async ({ where }: any) =>
+        state.events.find((e) => e.operationId === where.operationId) || null,
+      findFirst: async () => state.events.at(-1) || null,
+      findMany: async () => [...state.events],
+      create: async ({ data }: any) => {
+        const e = { id: `ledger-${state.events.length + 1}`, ...data };
+        state.events.push(e);
+        return e;
+      },
+    },
     structuredEvaluation: {
       count: async () => 0,
       findUnique: async () => state.item,
@@ -56,6 +76,10 @@ vi.mock("../lib/prisma.js", () => {
 });
 import router from "./structured-evaluation.routes.js";
 import { defenseManuscriptService } from "../services/defense-manuscript.service.js";
+import {
+  appendEvaluationEvent,
+  makeCheckpoint,
+} from "../services/evaluation-ledger.service.js";
 import { prisma } from "../lib/prisma.js";
 const id = "00000000-0000-4000-8000-000000000001",
   panel = "00000000-0000-4000-8000-000000000002",
@@ -88,7 +112,10 @@ const request = async (method: string, path = "", body?: unknown) => {
 beforeAll(async () => {
   const app = express();
   // Match the production parser for templates containing embedded logo PNGs.
-  app.use("/defense-sessions/:id/structured-form", express.json({ limit: "3mb" }));
+  app.use(
+    "/defense-sessions/:id/structured-form",
+    express.json({ limit: "3mb" }),
+  );
   app.use(express.json());
   app.use(router);
   server = app.listen(0, "127.0.0.1");
@@ -99,6 +126,7 @@ afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
 beforeEach(() => {
   vi.clearAllMocks();
   state.item = null;
+  state.events = [];
   state.user = { id: panel, roles: ["PANELIST"], collegeId: "college" };
   state.session = {
     id,
@@ -116,11 +144,87 @@ beforeEach(() => {
       },
     },
     invitations: [{ inviteeId: panel, status: "ACCEPTED", role: "PANELIST" }],
-    research: { collegeId: "college", members: [] },
+    research: { title: "Solo research", collegeId: "college", members: [] },
     structuredEvaluations: [],
   };
 });
 describe("structured evaluation HTTP access and submission", () => {
+  const enableLedger = async () => {
+    state.session.evaluationLedgerStartedAt = new Date();
+    state.session.releasedAt = null;
+    state.session.releasedBy = null;
+    state.session.decision = null;
+    state.session.packet.mappingVersion = 1;
+    state.session.packet.manuscriptVersionId = "v1";
+    await appendEvaluationEvent(prisma, {
+      sessionId: id,
+      eventType: "FORM_PUBLISHED",
+      actorId: panel,
+      actorRoles: ["RESEARCH_COORDINATOR"],
+      operationId: `form:${id}:1`,
+      payload: {
+        snapshot: state.session.packet.structuredForm,
+        mappingVersion: 1,
+        publicationReason: null,
+      },
+    });
+  };
+  it("links enrolled submissions, keeps retries idempotent, and detects modified PDFs", async () => {
+    await enableLedger();
+    await request("PUT", "", { revision: 0, answers: payload() });
+    const preview = await request("POST", "/preview", { revision: 1 });
+    const input = {
+      revision: 1,
+      previewHash: preview.body.evaluation.previewHash,
+      confirmed: true,
+    };
+    expect((await request("POST", "/submit", input)).status).toBe(200);
+    expect((await request("POST", "/submit", input)).status).toBe(200);
+    expect(state.events.map((e) => e.eventType)).toEqual([
+      "FORM_PUBLISHED",
+      "EVALUATION_SUBMITTED",
+    ]);
+    const receipt = await request("GET");
+    expect(receipt.body.receipt.eventHash).toBe(state.events[1].eventHash);
+    state.item.pdfData = Buffer.from("changed PDF");
+    expect((await request("POST", "/submit", input)).status).toBe(409);
+  });
+  it("restricts integrity access and returns metadata without evaluation payloads", async () => {
+    await enableLedger();
+    const url = `${base}/defense-sessions/${id}/evaluation-integrity`;
+    expect((await fetch(url)).status).toBe(403);
+    state.user = {
+      id: other,
+      roles: ["RESEARCH_COORDINATOR"],
+      collegeId: "college",
+    };
+    const report = await (await fetch(url)).json();
+    expect(report.status).toBe("CHAIN_VALID");
+    expect(report.history).toHaveLength(1);
+    expect(report.history[0].payload).toBeUndefined();
+    const compare = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ checkpoint: makeCheckpoint(state.events[0]) }),
+    });
+    expect((await compare.json()).status).toBe("CHECKPOINT_MATCH");
+    const invalid = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ checkpoint: { sequence: -1 } }),
+    });
+    expect(invalid.status).toBe(400);
+    state.user = { id: other, roles: ["STUDENT"], collegeId: "college" };
+    state.session.research.members = [{ userId: other }];
+    expect((await fetch(url)).status).toBe(403);
+    // A released student report exposes neither hashes per event nor evaluator IDs.
+    state.session.releasedAt = new Date();
+    const studentReport = await (await fetch(url)).json();
+    expect(studentReport.history).toEqual([]);
+    expect(studentReport.issues).toEqual([
+      "Evaluation integrity requires facilitator review.",
+    ]);
+  });
   it("keeps the exact submitted branded PDF when template settings change later", async () => {
     state.session.packet.structuredForm = structuredClone(
       state.session.packet.structuredForm,

@@ -6,6 +6,8 @@ import { requireRole } from "../middleware/rbac.js";
 const router = Router();
 const administrativeEntities = [
   "USER",
+  "USER_ACCOUNT",
+  "PASSWORD_RESET_REQUEST",
   "USER_COLLEGE_ASSIGNMENT",
   "College",
   "Program",
@@ -68,10 +70,15 @@ router.get(
             action: true,
             entityType: true,
             createdAt: true,
-            user: { select: { firstName: true, lastName: true } },
+            userId: true,
           },
         }),
       ]);
+      const actors = await prisma.user.findMany({
+        where: { id: { in: activity.flatMap((event) => event.userId ? [event.userId] : []) } },
+        select: { id: true, firstName: true, lastName: true },
+      });
+      const actorNames = new Map(actors.map((actor) => [actor.id, `${actor.firstName} ${actor.lastName}`]));
       const dailyCounts = new Map(
         registrations.map((row) => [row.date, row.count]),
       );
@@ -104,11 +111,9 @@ router.get(
           .sort(
             (a, b) => b.projects - a.projects || a.code.localeCompare(b.code),
           ),
-        activity: activity.map(({ user, ...event }) => ({
+        activity: activity.map(({ userId, ...event }) => ({
           ...event,
-          actor: user
-            ? `${user.firstName} ${user.lastName}`
-            : "System / unavailable account",
+          actor: userId ? actorNames.get(userId) || "Unavailable account" : "System",
         })),
       });
     } catch (error) {

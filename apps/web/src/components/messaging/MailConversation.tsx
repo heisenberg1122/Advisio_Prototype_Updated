@@ -1,5 +1,5 @@
 import { WorkflowInvitationActions } from "../workflow/WorkflowInvitationActions";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   ArrowLeft,
@@ -33,7 +33,9 @@ interface MailConversationProps {
   error?: string;
   onBack: () => void;
   onThreadAction: (action: "archive" | "trash" | "restore" | "mark-read" | "mark-unread") => void;
-  onReplyAll: (body: string, files: File[]) => void;
+  onReplyAll: (body: string, files: File[]) => Promise<unknown> | void;
+  onInlineComposeHost?: (node: HTMLDivElement | null) => void;
+  isComposingInline?: boolean;
   onReply: (message: MailMessage) => void;
   onForward: (message: MailMessage) => void;
   onEditDraft: () => void;
@@ -91,6 +93,8 @@ export function MailConversation({
   onBack,
   onThreadAction,
   onReplyAll,
+  onInlineComposeHost,
+  isComposingInline,
   onReply,
   onForward,
   onEditDraft,
@@ -100,9 +104,24 @@ export function MailConversation({
   onDownloadAttachment,
   onSignAttachment,
 }: MailConversationProps) {
-  const [replyBody, setReplyBody] = useState("");
-  const [replyFiles, setReplyFiles] = useState<File[]>([]);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, { body: string; files: File[] }>>({});
+  const [replyAllThreadId, setReplyAllThreadId] = useState<string | null>(null);
   const replyRef = useRef<HTMLTextAreaElement>(null);
+  const replyBody = thread ? replyDrafts[thread.id]?.body || "" : "";
+  const replyFiles = thread ? replyDrafts[thread.id]?.files || [] : [];
+  const setReplyBody = (body: string) => {
+    if (thread) setReplyDrafts((drafts) => ({ ...drafts, [thread.id]: { body, files: drafts[thread.id]?.files || [] } }));
+  };
+  const setReplyFiles = (files: File[]) => {
+    if (thread) setReplyDrafts((drafts) => ({ ...drafts, [thread.id]: { body: drafts[thread.id]?.body || "", files } }));
+  };
+  const showReplyAll = Boolean(thread && replyAllThreadId === thread.id && !isComposingInline);
+  useEffect(() => {
+    if (showReplyAll) {
+      replyRef.current?.focus({ preventScroll: true });
+      replyRef.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [showReplyAll]);
   const activeThread = folder === "drafts" ? draftThread : thread;
   const draft = draftThread?.messages[0];
 
@@ -182,12 +201,12 @@ export function MailConversation({
         {error ? <p role="alert" className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-base font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">{error}</p> : null}
       </header>
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[var(--color-surface-muted)]/45 p-4 sm:p-6">
+      <div className="mail-conversation-content min-h-0 flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
         {thread.workflowInvitation && <WorkflowInvitationActions invitation={thread.workflowInvitation} userId={userId}/>}
         {thread.messages.map((message) => {
           const mine = message.senderId === userId;
           return (
-            <article key={message.id} className="mx-auto max-w-4xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-5">
+            <article key={message.id} className="mail-message mx-auto max-w-4xl">
               <header className="flex items-start gap-3">
                 <span className={`${mine ? "bg-[var(--color-primary)] text-white" : "bg-[var(--color-primary-light)] text-[var(--color-primary-dark)]"} grid h-10 w-10 shrink-0 place-items-center rounded-full text-xs font-black`}>{personInitials(message.sender)}</span>
                 <div className="min-w-0 flex-1">
@@ -196,37 +215,49 @@ export function MailConversation({
                 </div>
                 <time className="shrink-0 text-xs text-[var(--color-text-muted)]">{formatMailDate(message.sentAt || message.createdAt)}</time>
               </header>
-              <div className="mt-4 text-[var(--color-text-secondary)]"><MailFormattedBody body={message.body} /></div>
+              <div className="mail-message__body mt-5 text-[var(--color-text-primary)]"><MailFormattedBody body={message.body} /></div>
+              <div className="mail-message__attachments">
               {message.attachments.map((attachment) => (
                 <MailAttachmentMenu key={attachment.id} attachment={attachment} mine={false} canSign={canSignAttachments} onOpen={() => onOpenAttachment(attachment)} onDownload={() => onDownloadAttachment(attachment)} onSign={() => onSignAttachment(attachment)} />
               ))}
-              <footer className="mt-4 flex gap-2 border-t border-[var(--color-border)] pt-3">
-                {!mine ? <button type="button" onClick={() => onReply(message)} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-bold text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"><Reply className="h-3.5 w-3.5" />Reply</button> : null}
-                <button type="button" onClick={() => onForward(message)} className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-bold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]"><Forward className="h-3.5 w-3.5" />Forward</button>
-              </footer>
+              </div>
+              {!isComposingInline && !showReplyAll ? <footer className="mail-message__actions mt-6 flex flex-wrap gap-2">
+                {!mine ? <button type="button" onClick={() => onReply(message)} className="mail-message__action"><Reply className="h-4 w-4" />Reply</button> : null}
+                {thread.participants.filter((participant) => participant.userId !== userId).length > 1 ? <button type="button" onClick={() => setReplyAllThreadId(thread.id)} className="mail-message__action"><ReplyAll className="h-4 w-4" />Reply all</button> : null}
+                <button type="button" onClick={() => onForward(message)} className="mail-message__action"><Forward className="h-4 w-4" />Forward</button>
+              </footer> : null}
             </article>
           );
         })}
-      </div>
-
-      <form
-        onSubmit={(event) => {
+      <div ref={onInlineComposeHost} className="mail-inline-composer-host mx-auto max-w-4xl" />
+      {showReplyAll ? <form
+        aria-label="Reply all"
+        onSubmit={async (event) => {
           event.preventDefault();
           if (!replyBody.trim() || pendingAction) return;
-          onReplyAll(replyBody, replyFiles);
-          setReplyBody("");
-          setReplyFiles([]);
+          const threadId = thread.id;
+          try {
+            await onReplyAll(replyBody, replyFiles);
+            setReplyDrafts((drafts) => ({ ...drafts, [threadId]: { body: "", files: [] } }));
+            setReplyAllThreadId((current) => current === threadId ? null : current);
+          } catch {
+            // The parent displays the send error; keep the reply and attachments for retry.
+          }
         }}
-        className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] p-3 sm:p-4"
+        className="mail-reply-all mx-auto max-w-4xl overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg"
       >
-        <div className="mx-auto flex max-w-4xl items-end gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/60 p-2 focus-within:border-[var(--color-primary)]">
+        <div className="border-b border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-secondary)]"><span className="font-bold">Reply all</span><p className="mt-1 break-words">{thread.participants.filter((participant) => participant.userId !== userId).map((participant) => participant.user.email).join(", ")}</p></div>
+        <textarea aria-label="Reply all message" ref={replyRef} value={replyBody} onChange={(event) => setReplyBody(event.target.value)} rows={6} placeholder="Write your reply" className="w-full resize-y bg-transparent p-4 text-base text-[var(--color-text-primary)] outline-none" />
+        {replyFiles.length ? <p className="px-4 pb-3 text-sm text-[var(--color-text-muted)]">{replyFiles.map((file) => file.name).join(", ")}</p> : null}
+        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--color-border)] p-3">
+          <button type="submit" disabled={!replyBody.trim() || pendingAction} className="inline-flex h-10 items-center gap-2 rounded-full bg-[var(--color-primary)] px-5 text-sm font-bold text-white disabled:opacity-40"><Send className="h-4 w-4" />{pendingAction ? "Sending…" : "Send"}</button>
           <label className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-xl text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)]" aria-label="Attach files to reply">
             <Paperclip className="h-4 w-4" /><input type="file" multiple accept=".pdf,.txt,.csv,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx" className="hidden" onChange={(event) => setReplyFiles(Array.from(event.target.files || []).slice(0, 5))} />
           </label>
-          <textarea ref={replyRef} value={replyBody} onChange={(event) => setReplyBody(event.target.value)} rows={2} placeholder={replyFiles.length ? `Reply all · ${replyFiles.length} attachment(s)` : "Reply all to this conversation"} className="min-h-10 flex-1 resize-none bg-transparent p-2 text-base text-[var(--color-text-primary)] outline-none" />
-          <button type="submit" disabled={!replyBody.trim() || pendingAction} aria-label="Send reply all" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--color-primary)] text-white disabled:opacity-40"><ReplyAll className="h-4 w-4" /></button>
+          <button type="button" disabled={pendingAction} onClick={() => setReplyAllThreadId(null)} className="ml-auto px-3 py-2 text-sm text-[var(--color-text-secondary)]">Close reply</button>
         </div>
-      </form>
+      </form> : null}
+      </div>
     </section>
   );
 }

@@ -1,0 +1,18 @@
+/* Shared category contrast, matching the Researcher settings treatment. */
+.account-settings-nav > button {
+  color: var(--color-text-primary) !important;
+}
+.account-settings-nav > button > span:last-child > span {
+  color: color-mix(in srgb, var(--color-text-primary) 80%, var(--color-surface)) !important;
+}
+.account-settings-nav > button[class~="bg-[var(--color-primary-light)]"] {
+  background-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface));
+  border-color: var(--color-primary);
+}
+.account-settings-nav > button:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
+}
+.account-settings-nav > button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}

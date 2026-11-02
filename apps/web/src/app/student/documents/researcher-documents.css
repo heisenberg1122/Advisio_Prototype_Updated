@@ -262,10 +262,15 @@
 }
 .rd-viewer {
   min-width: 0;
-  background: var(--color-surface);
+  /* This is the page layout, not a card. The reader has its own frame. */
+  background: transparent;
 }
 .rd-viewer-header {
   padding-bottom: 12px;
+}
+.researcher-documents .rd-viewer-footer {
+  background: transparent;
+  padding-inline: 0;
 }
 .rd-back {
   display: inline-flex;

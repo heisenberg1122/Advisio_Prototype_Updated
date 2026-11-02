@@ -23,7 +23,7 @@ export function SubmissionFileTypes({ value, onChange }: {
           </label>
         ))}
       </div>
-      <p className="mt-2 text-xs leading-5 text-slate-500">All files accepts the supported formats shown above. Maximum 10 MB per submission. Defense manuscript packets require PDF.</p>
+      <p className="mt-2 text-xs leading-5 text-slate-500">All files accepts the supported formats shown above. Maximum 10 MB per submission. Defense manuscripts must be PDFs.</p>
     </fieldset>
   );
 }

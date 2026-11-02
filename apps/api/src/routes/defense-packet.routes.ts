@@ -174,7 +174,7 @@ router.get("/defense-review-packets", requireAuth, async (req, res) => {
     res.json({ sessions });
   } catch (error: any) {
     res.status(500).json({
-      error: error.message || "Failed to load defense review packets.",
+      error: error.message || "Unable to load defense documents.",
     });
   }
 });
@@ -188,7 +188,7 @@ router.get(
       if (!allowed)
         return void res
           .status(404)
-          .json({ error: "Defense review packet was not found." });
+          .json({ error: "Defense documents were not found." });
       const packet = await prisma.defensePacket.findUnique({
         where: { defenseSessionId: allowed.session.id },
         include: {
@@ -201,7 +201,7 @@ router.get(
       if (!packet || (!allowed.facilitator && packet.status !== "PUBLISHED"))
         return void res
           .status(404)
-          .json({ error: "Defense review packet was not found." });
+          .json({ error: "Defense documents were not found." });
       const review = allowed.facilitator
         ? null
         : await prisma.panelistManuscriptReview.findUnique({
@@ -238,7 +238,7 @@ router.get(
     } catch (error: any) {
       res
         .status(500)
-        .json({ error: error.message || "Failed to load the review packet." });
+        .json({ error: error.message || "Unable to load the defense documents." });
     }
   },
 );
@@ -251,7 +251,7 @@ router.get(
       const allowed = await access(req.params.id as string, req.user!);
       if (!allowed?.facilitator && !allowed?.projectMember)
         return void res.status(403).json({
-          error: "Defense packet history is not available to this account.",
+          error: "Defense document history is not available to this account.",
         });
       const packet = await prisma.defensePacket.findUnique({
         where: { defenseSessionId: allowed.session.id },
@@ -270,16 +270,15 @@ router.get(
           oldValues: true,
           newValues: true,
           createdAt: true,
-          user: {
-            select: { id: true, firstName: true, lastName: true },
-          },
+          userId: true,
         },
         orderBy: { createdAt: "desc" },
       });
-      res.json({ publications });
+      const actors = await prisma.user.findMany({ where: { id: { in: publications.flatMap((event) => event.userId ? [event.userId] : []) } }, select: { id: true, firstName: true, lastName: true } });
+      res.json({ publications: publications.map(({ userId, ...event }) => ({ ...event, user: actors.find((actor) => actor.id === userId) || null })) });
     } catch (error: any) {
       res.status(500).json({
-        error: error.message || "Failed to load packet publication history.",
+        error: error.message || "Unable to load the history of shared documents.",
       });
     }
   },
@@ -314,7 +313,7 @@ router.put(
         return void res
           .status(409)
           .json({
-            error: "Use the structured evaluation editor for this packet.",
+            error: "Use Evaluation setup to edit this defense.",
           });
       if (
         existingPacket &&
@@ -324,7 +323,7 @@ router.put(
       )
         return void res.status(409).json({
           error:
-            "The packet is fixed after PDF evaluation drafts have started.",
+            "Defense documents cannot be changed after a panelist saves an evaluation draft.",
         });
       const publicationReason = String(req.body.publicationReason || "").trim();
       validateDefensePacketMutation({
@@ -374,7 +373,7 @@ router.put(
       if (versions.some((item) => item.mimeType !== "application/pdf"))
         return void res
           .status(400)
-          .json({ error: "Defense packet files must be PDFs." });
+          .json({ error: "Defense documents must be PDFs." });
       const recommendationFieldMappings =
         defensePacketService.normalizeMappings(
           req.body.recommendationFieldMappings,
@@ -473,7 +472,7 @@ router.put(
         )
           throw Object.assign(
             new Error(
-              "The packet is fixed after PDF evaluation drafts have started.",
+              "Defense documents cannot be changed after a panelist saves an evaluation draft.",
             ),
             { statusCode: 409 },
           );
@@ -489,7 +488,7 @@ router.put(
           });
           if (!updated.count) {
             const conflict = new Error(
-              "The defense packet changed concurrently. Refresh before saving again.",
+              "The defense documents changed. Refresh before saving again.",
             ) as Error & { statusCode?: number; code?: string };
             conflict.statusCode = 409;
             conflict.code = "PACKET_VERSION_CONFLICT";
@@ -568,7 +567,7 @@ router.put(
             type: "DOCUMENT_UPLOADED" as const,
             title: updatedPublication
               ? "Authorized defense document updated"
-              : "Defense packet published",
+              : "Defense documents shared",
             message: updatedPublication
               ? `${allowed.session.research.title} has an approved defense document update. The previous manuscript remains in the audit history.`
               : `${allowed.session.research.title} is ready for pre-defense manuscript review.`,
@@ -582,7 +581,7 @@ router.put(
             type: "DOCUMENT_REVIEWED" as const,
             title: updatedPublication
               ? "Defense manuscript updated"
-              : "Defense packet published",
+              : "Defense documents shared",
             message: updatedPublication
               ? "An authorized replacement was published without changing the original defense manuscript history."
               : "The approved manuscript version is now available to the accepted defense panel.",
@@ -603,8 +602,8 @@ router.put(
       res.status(error?.statusCode || (conflict ? 409 : 400)).json({
         error:
           error?.code === "P2002"
-            ? "Another packet publication completed first. Refresh before trying again."
-            : error.message || "Failed to save the defense review packet.",
+            ? "Another update was shared first. Refresh before trying again."
+            : error.message || "Unable to save the defense documents.",
         code: error?.code === "P2002" ? "PACKET_VERSION_CONFLICT" : error?.code,
         details: error?.details,
       });
@@ -704,7 +703,7 @@ router.post(
     } catch (error: any) {
       res
         .status(400)
-        .json({ error: error.message || "Failed to upload the packet file." });
+        .json({ error: error.message || "Unable to upload the defense document." });
     }
   },
 );

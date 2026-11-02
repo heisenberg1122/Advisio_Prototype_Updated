@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../components/documents/document-preview.css";
 
 @theme {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -1517,6 +1518,10 @@ body {
    Active navigation: #303744
    Primary text: #F1F5F9
    Secondary text: #A8B6C6 */
+/* Root dark colors must outrank each :root[data-college-theme] light palette.
+   Route/session loaders render before the nested portal frame exists. */
+:root.dark,
+:root[data-appearance="dark"],
 .dark {
   --color-primary: var(--college-primary-dark-mode);
   --color-primary-dark: var(--college-primary-dark-mode-hover);

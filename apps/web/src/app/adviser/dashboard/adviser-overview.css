@@ -1,0 +1,624 @@
+/* Overview presentation only. Shared components retain their default styles
+   everywhere outside this wrapper, including the My Advisees tab. */
+.adviser-dashboard-container:has(> .adviser-overview) {
+  min-width: 0;
+  padding: 16px 24px 24px;
+}
+
+.adviser-overview {
+  --overview-ink: var(--color-text-primary);
+  --overview-link: var(--color-primary);
+  /* Secondary text needs more contrast than the inherited muted palette. */
+  --overview-secondary: color-mix(in srgb, var(--color-text-primary) 76%, var(--color-surface));
+  --overview-pending-ink: #77520d;
+  --overview-pending-surface: #fff4d6;
+  gap: 16px;
+  color: var(--overview-ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.dark .adviser-overview {
+  --overview-link: color-mix(in srgb, var(--color-primary) 75%, var(--color-text-primary));
+  --college-on-primary-dark: var(--color-text-inverse);
+  --overview-pending-ink: #ffda8b;
+  --overview-pending-surface: #3b3221;
+  --overview-control-edge: color-mix(in srgb, var(--color-text-primary) 55%, var(--color-surface));
+}
+
+.adviser-overview :is(section, article, button, a, span, p, div) {
+  min-width: 0;
+}
+
+.adviser-overview :is(h2, h3, p) {
+  overflow-wrap: anywhere;
+}
+
+.adviser-overview :is(h2, h3) {
+  color: var(--overview-ink);
+  font-weight: 600;
+}
+
+.adviser-overview h2 {
+  font-size: 18px;
+  line-height: 24px;
+  letter-spacing: -0.02em;
+}
+
+.adviser-overview p {
+  color: var(--overview-secondary);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.adviser-overview :is(button, a) {
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.adviser-overview :is(button, a):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.adviser-overview :is(button, a):disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.adviser-overview__summary {
+  /* Match the Assigned Research Groups header's neutral surface beneath
+     the existing college-hero-surface gradient. */
+  --color-surface: var(--color-white);
+  --overview-secondary: color-mix(in srgb, var(--color-text-primary) 88%, var(--color-surface));
+  padding: 32px;
+  min-height: 300px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+}
+
+.dark .adviser-overview__summary {
+  --color-surface: var(--adviser-dark-panel);
+}
+
+.adviser-overview .adviser-overview__welcome {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.adviser-overview__welcome > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  min-height: 100px;
+  align-items: center;
+}
+
+.adviser-overview__welcome > div > div:last-child {
+  flex-shrink: 1;
+  gap: 8px;
+}
+
+.adviser-overview .adviser-overview__welcome h2 {
+  margin-top: 6px;
+  font-size: 30px;
+  line-height: 38px;
+}
+
+.adviser-overview__welcome p:first-child {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.adviser-overview__welcome p:last-child {
+  margin-top: 4px;
+}
+
+.adviser-overview__welcome button {
+  min-height: 44px;
+  height: auto;
+  padding: 8px 12px;
+  justify-content: center;
+  border-radius: 10px;
+  font-weight: 600;
+  white-space: normal;
+}
+
+.adviser-overview__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.adviser-overview__metric {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 12px;
+  min-height: 108px;
+  padding: 20px 16px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+  background: var(--color-surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.adviser-overview__metric:hover {
+  border-color: var(--color-primary);
+  background: var(--color-surface-subtle);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 8%);
+}
+
+.adviser-overview__metric:active {
+  background: var(--color-surface-muted);
+  box-shadow: none;
+}
+
+.adviser-overview__metric-arrow {
+  color: var(--overview-link);
+  font-size: 16px;
+}
+
+.adviser-overview__metric-icon {
+  display: grid;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--color-primary);
+  background: var(--color-surface-subtle);
+  font-size: 24px;
+}
+
+.adviser-overview__metric .adviser-overview__review-icon {
+  color: var(--overview-pending-ink);
+  background: var(--overview-pending-surface);
+}
+
+.adviser-overview__review-icon i {
+  color: inherit;
+}
+
+.adviser-overview__metric-label {
+  display: block;
+  color: var(--overview-secondary);
+  font-size: 14px;
+}
+
+.adviser-overview__metric-value {
+  display: block;
+  color: var(--overview-ink);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 40px;
+  font-variant-numeric: tabular-nums;
+}
+
+.adviser-overview__metric-value small {
+  color: var(--overview-secondary);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.adviser-overview__metric-value .adviser-overview__review-marker {
+  color: var(--overview-pending-ink);
+  font-weight: 600;
+}
+
+.adviser-overview__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 16px;
+}
+
+.adviser-overview__panel {
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+}
+
+.adviser-overview__attention {
+  border: 1px solid var(--color-primary);
+}
+
+.adviser-overview__section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.adviser-overview__section-heading p {
+  margin-top: 4px;
+}
+
+.adviser-overview__section-heading > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 4px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 4px;
+  color: var(--overview-link);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.adviser-overview__section-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.adviser-overview__review-task {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  color: var(--overview-ink);
+  text-align: left;
+}
+
+.adviser-overview__review-task:hover {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-primary);
+}
+
+.adviser-overview__task-icon {
+  display: grid;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--color-surface-subtle);
+  color: var(--color-primary);
+  font-size: 18px;
+}
+
+.adviser-overview__task-title,
+.adviser-overview__feed-title {
+  display: block;
+  color: var(--overview-ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.adviser-overview__task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 4px;
+  color: var(--overview-secondary);
+  font-size: 14px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.adviser-overview__waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: var(--overview-pending-surface);
+  color: var(--overview-pending-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.adviser-overview__task-action {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  color: var(--overview-link);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.adviser-overview__session {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adviser-overview__consultation,
+.adviser-overview__shortcuts {
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+}
+
+.adviser-overview__consultation > .adviser-overview__section-heading {
+  margin-bottom: 4px;
+}
+
+.adviser-overview__session-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--overview-secondary);
+}
+
+.adviser-overview .adviser-overview__session h3 {
+  margin-top: 4px;
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.adviser-overview__session-group {
+  margin-top: 4px;
+}
+
+.adviser-overview__session-date {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 4px;
+}
+
+.adviser-overview__session button {
+  display: flex;
+  flex: 0 0 48px;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  min-height: 44px;
+  max-height: 52px;
+  margin-top: 0;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.adviser-overview__research-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+}
+
+.adviser-overview__groups > .adviser-overview__section-heading {
+  margin-bottom: 8px;
+}
+
+/* Use the existing card className hook, without changing its component or props. */
+.adviser-overview .adviser-overview__research-card {
+  min-height: 0;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 3%);
+  transform: none;
+}
+
+.adviser-overview .adviser-overview__research-card > div:first-child {
+  min-height: 0;
+  padding: 8px 16px;
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+.adviser-overview__research-card > div:first-child > div:first-child {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.adviser-overview__research-card > div:first-child > div:first-child > span:first-child {
+  color: var(--overview-link);
+  max-width: 100%;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.adviser-overview__research-card > div:first-child > div:first-child > span:last-child {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.adviser-overview__research-card > div:first-child > div:last-child {
+  margin-top: 8px;
+}
+
+.adviser-overview .adviser-overview__research-card h3 {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  font-size: 16px;
+  line-height: 22px;
+}
+
+.adviser-overview .adviser-overview__research-card p {
+  margin-top: 4px;
+  white-space: normal;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.adviser-overview__research-card > div:last-child {
+  gap: 8px;
+  padding: 8px 16px;
+}
+
+.adviser-overview .adviser-overview__research-card > div:last-child > div:not(:last-child) {
+  margin-top: 0;
+}
+
+.adviser-overview .adviser-overview__research-card > div:last-child > div:first-child > p:first-child {
+  margin-top: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.adviser-overview__research-card > div:last-child > div:nth-child(2) > div:first-child {
+  font-size: 14px;
+}
+
+.adviser-overview__research-card > div:last-child > div:nth-child(2) > div:first-child > span:last-child {
+  color: var(--overview-link);
+}
+
+.adviser-overview__research-card > div:last-child > div:nth-child(3) > span {
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.adviser-overview__research-card > div:last-child > div:last-child {
+  color: var(--overview-link);
+  min-height: 32px;
+  padding-top: 8px;
+  font-size: 14px;
+}
+
+.adviser-overview__research-card :is(strong, [class~="font-bold"]) {
+  font-weight: 600;
+}
+
+.adviser-overview__research-card :is(p, span[class*="text-secondary"], p[class*="text-muted"]) {
+  color: var(--overview-secondary);
+}
+
+.adviser-overview__feed-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.adviser-overview__feed-item:first-child { padding-top: 0; }
+.adviser-overview__feed-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.adviser-overview__feed-item:hover .adviser-overview__feed-title { text-decoration: underline; }
+
+.adviser-overview__feed-group,
+.adviser-overview__feed-time {
+  display: block;
+  margin-top: 4px;
+  color: var(--overview-secondary);
+  font-size: 14px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.adviser-overview__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: auto;
+  align-items: start;
+  gap: 8px;
+}
+
+.adviser-overview__quick-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 104px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  text-align: center;
+  cursor: pointer;
+}
+
+.adviser-overview .adviser-overview__quick-action > span:last-child {
+  color: var(--overview-ink);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.adviser-overview__quick-action:hover {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-primary);
+}
+
+/* Dark-mode control boundaries remain distinguishable from both the tile
+   fill and the surrounding card, independently of the college accent. */
+.dark .adviser-overview .adviser-overview__metric,
+.dark .adviser-overview .adviser-overview__quick-action {
+  border-color: var(--overview-control-edge);
+}
+
+.dark .adviser-overview .adviser-overview__research-card > div:last-child > div:nth-child(2) > div:last-child {
+  background-color: var(--overview-control-edge);
+}
+
+@media (max-width: 1279px) {
+  .adviser-overview__welcome > div { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .adviser-overview__welcome > div > div:last-child { justify-content: flex-start; }
+  .adviser-overview__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .adviser-overview__metric { padding: 12px; }
+  .adviser-overview__split { grid-template-columns: minmax(0, 1fr); }
+  .adviser-overview__actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767px) {
+  .adviser-overview__summary { padding: 20px; min-height: 0; }
+  .adviser-overview__welcome > div { min-height: 0; }
+  .adviser-overview .adviser-overview__welcome h2 { font-size: 28px; line-height: 36px; }
+  .adviser-dashboard-container:has(> .adviser-overview) { padding: 16px; }
+  .adviser-overview__welcome > div > div:last-child { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
+  .adviser-overview__welcome button { width: 100%; }
+  .adviser-overview__metric { grid-template-columns: 32px minmax(0, 1fr) 16px; gap: 8px; padding: 12px; align-content: start; }
+  .adviser-overview__metric-icon { width: 32px; height: 32px; }
+  .adviser-overview__metric-content { grid-column: 1 / -1; grid-row: 2; }
+  .adviser-overview__metric-arrow { grid-column: 3; grid-row: 1; }
+  .adviser-overview__metric-value small { display: block; line-height: 20px; }
+  .adviser-overview__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .adviser-overview__section-heading { flex-wrap: wrap; gap: 4px; }
+  .adviser-overview__section-heading > button { padding: 0; }
+  .adviser-overview__review-task { flex-wrap: wrap; }
+  .adviser-overview__review-task > span:first-child { width: 100%; align-items: flex-start; gap: 8px; }
+  .adviser-overview__task-action { margin-left: 40px; min-height: 24px; }
+}
+
+@media (max-width: 359px) {
+  .adviser-dashboard-container:has(> .adviser-overview) { padding: 12px; }
+  .adviser-overview__panel { padding: 12px; }
+  .adviser-overview__actions { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adviser-overview,
+  .adviser-overview * { transition-duration: 0s; animation-duration: 0s; }
+}

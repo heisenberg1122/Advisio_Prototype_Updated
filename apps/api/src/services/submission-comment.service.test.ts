@@ -45,6 +45,7 @@ const user = (
     id,
     roles,
     permissions: [],
+    collegeId: "college-a",
     email: "user@example.test",
     universityId: id,
     ...extra,
@@ -76,6 +77,29 @@ beforeEach(() => {
 });
 
 describe("submission discussion access and persistence", () => {
+  it.each(["student", "professor", "adviser"])(
+    "keeps comments and grades inside the active college for %s",
+    async (id) => {
+      db.assignment.mockResolvedValue({ id: "assigned", status: "ACTIVE" });
+      const actor = user(
+        id,
+        id === "professor"
+          ? ["RESEARCH_COORDINATOR"]
+          : id === "adviser"
+            ? ["ADVISER"]
+            : ["RESEARCHER"],
+        { collegeId: "another-college" },
+      );
+      await expect(
+        listSubmissionComments("submission", versionId, actor),
+      ).rejects.toMatchObject({ statusCode: 403 });
+      await expect(
+        postSubmissionComment("submission", input, actor),
+      ).rejects.toMatchObject({ statusCode: 403 });
+      expect(db.list).not.toHaveBeenCalled();
+      expect(db.create).not.toHaveBeenCalled();
+    },
+  );
   it("saves the quoted passage and normalized highlight with the exact version", async () => {
     await postSubmissionComment(
       "submission",

@@ -37,6 +37,7 @@ import {
 } from "@/components/adviser/AdviserDocumentSigningModal";
 import { ResearchFileManager } from "@/components/documents/ResearchFileManager";
 import { ResearcherDocumentsWorkspace } from "./ResearcherDocumentsWorkspace";
+import { documentTaskDetailsHref, type TaskPortal } from "@/lib/document-task-navigation";
 import "./researcher-documents.css";
 import { DocumentAddMenu } from "@/components/documents/DocumentAddMenu";
 import {
@@ -391,6 +392,10 @@ export default function DocumentWorkspacePage() {
   const pathname = usePathname();
   const isPanelistPortal = pathname.startsWith("/panelist/");
   const isResearcherPortal = pathname.startsWith("/student/");
+  const isAdviserPortal = pathname.startsWith("/adviser/");
+  const useDocumentLibrary =
+    isResearcherPortal || isAdviserPortal || pathname.startsWith("/professor/");
+  const useDocumentLibraryStyles = useDocumentLibrary;
   const milestoneParam = searchParams.get("milestoneId");
   const taskParam = searchParams.get("taskId");
   const documentParam = searchParams.get("documentId");
@@ -431,7 +436,7 @@ export default function DocumentWorkspacePage() {
     x: number;
     y: number;
   } | null>(
-    isResearcherPortal && documentParam
+    useDocumentLibrary && documentParam
       ? {
           search: location.search,
           focusId: "",
@@ -445,14 +450,14 @@ export default function DocumentWorkspacePage() {
   // Remember their archive context before version selection returns to workspace.
   useEffect(() => {
     if (
-      isResearcherPortal && documentParam &&
+      useDocumentLibrary && documentParam &&
       (!libraryReturn.current || activeTab === "official")
     ) {
       libraryReturn.current = { search: location.search, focusId: "", x: 0, y: 0 };
     }
-  }, [isResearcherPortal, documentParam, activeTab, location.search]);
+  }, [useDocumentLibrary, documentParam, activeTab, location.search]);
   const selectDocument = (documentId: string, versionId?: string | null) => {
-    if (isResearcherPortal && !researcherViewerOpen) {
+    if (useDocumentLibrary && !researcherViewerOpen) {
       libraryReturn.current = {
         search: location.search,
         focusId:
@@ -522,7 +527,7 @@ export default function DocumentWorkspacePage() {
   const selectedDocument =
     documents.find((document) => document.id === selectedDocumentId) || null;
   const researcherViewerOpen =
-    isResearcherPortal &&
+    useDocumentLibrary &&
     Boolean(
       documentParam &&
       documents.some((document) => document.id === documentParam),
@@ -646,7 +651,7 @@ export default function DocumentWorkspacePage() {
       setOfficialPermissions(archive?.permissions || null);
       if (!response && archive) setActiveTab("official");
       setSelectedDocumentId((current) =>
-        isResearcherPortal
+        useDocumentLibrary
           ? response?.documents.some(
               (document) => document.id === documentParam,
             )
@@ -1179,16 +1184,16 @@ export default function DocumentWorkspacePage() {
     <PageContainer
       maxWidth="full"
       className={
-        isResearcherPortal
-          ? "researcher-documents"
+        useDocumentLibraryStyles
+          ? `researcher-documents${isAdviserPortal ? " adviser-documents" : ""}`
           : "gap-2.5 py-4 sm:px-5 lg:px-6 lg:py-5"
       }
     >
       {!researcherViewerOpen && (
-        <div className={isResearcherPortal ? "rd-library-hero" : "contents"}>
+        <div className={useDocumentLibraryStyles ? `rd-library-hero${isAdviserPortal ? " college-hero-surface" : ""}` : "contents"}>
           <div
-            id={isResearcherPortal ? "researcher-library-title" : undefined}
-            tabIndex={isResearcherPortal ? -1 : undefined}
+            id={useDocumentLibraryStyles ? "researcher-library-title" : undefined}
+            tabIndex={useDocumentLibraryStyles ? -1 : undefined}
           >
             <PageHeader
               variant="plain"
@@ -1288,7 +1293,7 @@ export default function DocumentWorkspacePage() {
         </div>
       )}
 
-      {isResearcherPortal && !activeProjectId && <h2 className="sr-only">Research project</h2>}
+      {useDocumentLibrary && !activeProjectId && <h2 className="sr-only">Research project</h2>}
       {!activeProjectId ? (
         <EmptyState
           icon={FolderKanban}
@@ -1347,7 +1352,7 @@ export default function DocumentWorkspacePage() {
           <div className="min-w-0">
             <div
               hidden={researcherViewerOpen}
-              className={isResearcherPortal ? "rd-categories" : undefined}
+              className={useDocumentLibraryStyles ? "rd-categories" : undefined}
             >
               <Tabs
                 tabs={tabs}
@@ -1374,7 +1379,7 @@ export default function DocumentWorkspacePage() {
                 </div>
               )}
             </div>
-            {isResearcherPortal &&
+            {useDocumentLibrary &&
               documentParam &&
               !loadingDocuments &&
               !researcherViewerOpen && (
@@ -1383,7 +1388,7 @@ export default function DocumentWorkspacePage() {
                   access to it.
                 </p>
               )}
-            {isResearcherPortal && !loadingDocuments && (
+            {useDocumentLibrary && !loadingDocuments && (
               <div hidden={!researcherViewerOpen && activeTab !== "workspace"}>
                 <ResearcherDocumentsWorkspace
                   documents={documents}
@@ -1403,7 +1408,7 @@ export default function DocumentWorkspacePage() {
                   permissions={permissions}
                   stages={stages}
                   taskId={taskParam}
-                  taskHref={taskHref}
+                  taskHref={isResearcherPortal ? taskHref : undefined}
                   requestedVersionId={versionParam}
                   onOpenStoredFile={openStoredFile}
                   onUpdateMilestone={updateMilestone}
@@ -1413,8 +1418,8 @@ export default function DocumentWorkspacePage() {
                 />
               </div>
             )}
-            <div hidden={researcherViewerOpen} className={isResearcherPortal ? "rd-category-content" : undefined}>
-              {isResearcherPortal && activeTab !== "workspace" && (
+            <div hidden={researcherViewerOpen} className={useDocumentLibraryStyles ? "rd-category-content" : undefined}>
+              {useDocumentLibrary && activeTab !== "workspace" && (
                 <h2 className="sr-only">
                   {tabs.find((tab) => tab.id === activeTab)?.label}
                 </h2>
@@ -1424,7 +1429,7 @@ export default function DocumentWorkspacePage() {
                   <ListRowsSkeleton rows={5} />
                 </div>
               ) : activeTab === "workspace" ? (
-                isResearcherPortal ? null : (
+                useDocumentLibrary ? null : (
                   <ResearchFileManager
                     documents={documents}
                     selectedDocumentId={selectedDocumentId}
@@ -1498,7 +1503,7 @@ export default function DocumentWorkspacePage() {
                             · Version {version.versionNumber}
                           </p>
                           <Button
-                            id={isResearcherPortal ? `researcher-review-${assignment.id}` : undefined}
+                            id={useDocumentLibrary ? `researcher-review-${assignment.id}` : undefined}
                             className="mt-3"
                             variant="secondary"
                             size="sm"
@@ -1604,9 +1609,9 @@ export default function DocumentWorkspacePage() {
 
                             <div className="mt-4 space-y-2">
                               {milestone.tasks.map((task) => (
-                                <a
+                                <Link
                                   key={task.id}
-                                  href={`/student/tasks?projectId=${activeProjectId}&taskId=${task.id}`}
+                                  to={documentTaskDetailsHref(pathname.split("/")[1] as TaskPortal, task.id, activeProjectId)}
                                   className="rd-milestone-task flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm transition hover:border-[var(--color-primary)]"
                                 >
                                   <span className="min-w-0 truncate font-semibold text-[var(--color-text-primary)]">
@@ -1620,17 +1625,17 @@ export default function DocumentWorkspacePage() {
                                       ? ` · ${task.attempts.length} attempt${task.attempts.length === 1 ? "" : "s"}`
                                       : ""}
                                   </span>
-                                  {isResearcherPortal && (
+                                  {useDocumentLibrary && (
                                     <span className="rd-milestone-task-action" aria-hidden="true">
                                       Open task <span aria-hidden="true">→</span>
                                     </span>
                                   )}
-                                </a>
+                                </Link>
                               ))}
                               {stageDocuments.map((document) => (
                                 <button
                                   key={document.id}
-                                  id={isResearcherPortal ? `researcher-milestone-${milestone.id}-${document.id}` : undefined}
+                                  id={useDocumentLibrary ? `researcher-milestone-${milestone.id}-${document.id}` : undefined}
                                   onClick={() => {
                                     selectDocument(document.id);
                                   }}
@@ -1662,12 +1667,12 @@ export default function DocumentWorkspacePage() {
                             project record.
                           </p>
                         </div>
-                        <a
-                          href={`/student/dashboard?tab=milestones&projectId=${activeProjectId}`}
+                        <Link
+                          to={`/student/dashboard?tab=milestones&projectId=${activeProjectId}`}
                           className="text-sm font-bold text-[var(--color-primary)] hover:underline"
                         >
                           Open project timeline
-                        </a>
+                        </Link>
                       </div>
                       {activity.length ? (
                         <ol className="mt-4 space-y-3">

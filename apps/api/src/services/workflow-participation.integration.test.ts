@@ -88,6 +88,7 @@ databaseDescribe("untitled workflow participation integration", () => {
           },
         },
       });
+      if (["ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "DEAN"].includes(role)) await prisma.collegeMembership.create({ data: { userId: user.id, collegeId: college.id, roleNames: [role] } });
       fixture.userIds.push(user.id);
       return {
         id: user.id,

@@ -15,7 +15,7 @@ export function OverviewHeader({
   actions: ReactNode;
 }) {
   return (
-    <header className="rcc-header">
+    <header className="workspace-page-header workspace-dashboard-welcome rcc-header">
       <div>
         <p className="rcc-eyebrow">Today&apos;s overview</p>
         <h1>Good day, {firstName?.trim() || "Student Researcher"}</h1>

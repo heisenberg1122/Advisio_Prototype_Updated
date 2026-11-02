@@ -62,7 +62,7 @@ router.get("/", requireAuth, async (req, res) => {
         ).map((project) => project.id);
 
     const consultations = await prisma.consultation.findMany({
-      where: { researchId: { in: memberships } },
+      where: { researchId: { in: memberships }, ...(!req.user!.roles.includes("SYSTEM_ADMIN") ? { research: { collegeId: req.user!.collegeId || "00000000-0000-0000-0000-000000000000" } } : {}) },
       include: consultationInclude,
       orderBy: { scheduledStart: "desc" },
     });

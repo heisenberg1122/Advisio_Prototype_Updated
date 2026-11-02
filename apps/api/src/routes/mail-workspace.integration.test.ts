@@ -140,7 +140,8 @@ databaseDescribe("Formal mail workspace authorization and persistence", () => {
             programId: otherCollege ? outsiderProgram.id : program.id,
           },
         });
-        await tx.userRole.create({
+        if (["ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "DEAN"].includes(role)) await tx.collegeMembership.create({ data: { userId: user.id, collegeId: user.collegeId!, roleNames: [role] } });
+      await tx.userRole.create({
           data: { userId: user.id, roleId: roleId.get(role)! },
         });
         return { id: user.id, token: generateToken(user.id), email: user.email };

@@ -48,7 +48,7 @@ export function LandingNavbar({
     <header className={`lp-header ${scrolled ? "is-scrolled" : ""}`}>
       <div className="lp-nav">
         <Link to="/" className="lp-brand" aria-label="Advisio home">
-          <img src="/ao-logo.png" alt="" />
+          <img src="/advisio-logo.png" alt="" />
           <span>
             advisio<span className="lp-brand-dot">.</span>
           </span>

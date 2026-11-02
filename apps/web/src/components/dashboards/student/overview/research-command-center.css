@@ -789,12 +789,8 @@
   }
 }
 
-/* The 1360px convention now describes usable content, not content plus padding.
-   Ancestor adjustments apply only while this Overview is actually rendered. */
-.app-workspace:has(.research-command-center) {
-  /* Override the legacy dark bg-white rule only while Overview is present. */
-  background: var(--color-background) !important;
-}
+/* The shared frame owns the full-page background. This Overview only sizes
+   its content, leaving the surrounding canvas joined to the navigation. */
 .app-workspace .w-full:has(> .research-command-center) {
   width: calc(100% - clamp(32px, 4vw, 64px));
   max-width: 1360px;

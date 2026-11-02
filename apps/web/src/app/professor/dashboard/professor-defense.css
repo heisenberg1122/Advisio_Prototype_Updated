@@ -1,0 +1,272 @@
+/* Coordinator Defense presentation only. Actions and eligibility stay in the page. */
+.coordinator-defense {
+  --cdf-panel: var(--color-white, #fff);
+  --cdf-line: var(--color-slate-200, #e2e8f0);
+  gap: 24px;
+  min-width: 0;
+  color: var(--color-text-primary);
+}
+
+.dark .coordinator-defense {
+  --cdf-panel: var(--color-surface);
+  --cdf-line: var(--color-border);
+}
+
+.coordinator-defense :where(h2, h3, p, strong) {
+  overflow-wrap: anywhere;
+}
+
+.coordinator-defense > section:not(.cdf-stats) {
+  padding: 24px;
+  border: 1px solid var(--cdf-line);
+  border-radius: 16px;
+  background-color: var(--cdf-panel);
+  box-shadow: none;
+}
+
+.coordinator-defense > section h3,
+.coordinator-defense > section:not(.cdf-header) h2 {
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.coordinator-defense > section > p {
+  max-width: 95ch;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+.coordinator-defense > section > div:empty {
+  display: none;
+}
+
+.coordinator-defense .cdf-help {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+.coordinator-defense .cdf-help summary {
+  width: fit-content;
+  padding: 4px 0;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.coordinator-defense .cdf-help summary:focus-visible {
+  outline: 2px solid var(--college-focus-ring);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.coordinator-defense .cdf-help p {
+  max-width: 78ch;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.coordinator-defense .cdf-header > div > div:first-child > p:first-child {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--color-text-secondary);
+}
+
+.coordinator-defense .cdf-header > div > div:first-child > p:last-child {
+  max-width: 65ch;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.coordinator-defense .cdf-header > div > div:last-child {
+  flex-shrink: 0;
+}
+
+.coordinator-defense .cdf-header button {
+  min-height: 44px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.coordinator-defense .cdf-header button:first-child {
+  border-color: var(--color-border-strong);
+  background: var(--cdf-panel);
+  color: var(--color-text-primary);
+}
+
+.coordinator-defense .cdf-header button:last-child {
+  background: var(--color-primary);
+  color: var(--college-on-primary);
+}
+
+.coordinator-defense .cdf-header .cdf-guidance {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-top: 22px;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.coordinator-defense .cdf-guidance-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.coordinator-defense .cdf-guidance-label svg {
+  flex-shrink: 0;
+}
+
+.coordinator-defense .cdf-guidance ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.coordinator-defense .cdf-guidance li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.coordinator-defense .cdf-guidance li > span {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.coordinator-defense .cdf-stats {
+  gap: 16px;
+}
+
+.coordinator-defense .cdf-stats > div {
+  gap: 14px;
+  min-height: 100px;
+  padding: 20px;
+  border: 1px solid var(--cdf-line);
+  border-radius: 14px;
+  background: var(--cdf-panel);
+}
+
+.coordinator-defense .cdf-stats > div > span {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.coordinator-defense .cdf-stats p:first-child {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.coordinator-defense .cdf-stats p:last-child {
+  margin-top: 4px;
+  font-size: 26px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.coordinator-defense .cdf-event-heading {
+  gap: 16px;
+  padding-bottom: 20px;
+  border-color: var(--cdf-line);
+}
+
+.coordinator-defense .cdf-event-heading p {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.coordinator-defense .cdf-event-heading > div:last-child {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.coordinator-defense .cdf-session-row {
+  gap: 20px;
+  margin: 0;
+  padding: 20px 0;
+  border: 0;
+  border-bottom: 1px solid var(--cdf-line);
+  border-radius: 0;
+  background: transparent !important;
+}
+
+.coordinator-defense .cdf-session-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.coordinator-defense .cdf-session-row p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.coordinator-defense .cdf-session-row > div:first-child > span {
+  border-radius: 12px;
+}
+
+.coordinator-defense .cdf-session-row > div:last-child {
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.coordinator-defense .cdf-session-row button {
+  min-height: 40px;
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.coordinator-defense :where(button, select, input):focus-visible {
+  outline: 2px solid var(--college-focus-ring);
+  outline-offset: 3px;
+}
+
+@media (max-width: 767px) {
+  .coordinator-defense {
+    gap: 18px;
+  }
+  .coordinator-defense > section:not(.cdf-stats) {
+    padding: 20px;
+  }
+  .coordinator-defense .cdf-header > div > div:last-child {
+    width: 100%;
+  }
+  .coordinator-defense .cdf-header button {
+    flex: 1 1 180px;
+  }
+  .coordinator-defense .cdf-session-row > div:last-child {
+    padding-left: 0;
+  }
+  .coordinator-defense .cdf-session-row button {
+    flex: 1 1 auto;
+  }
+}

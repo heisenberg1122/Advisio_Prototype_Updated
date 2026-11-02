@@ -120,7 +120,7 @@ export function CollaborationSection() {
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700 shadow-2xs hover:bg-slate-50">
                 <Share2 className="h-3.5 w-3.5" />
-                <span>Share Packet</span>
+                <span>Share documents</span>
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#0b3553] px-3.5 py-1.5 font-bold text-white shadow-2xs hover:bg-[#124569]">
                 <Download className="h-3.5 w-3.5" />

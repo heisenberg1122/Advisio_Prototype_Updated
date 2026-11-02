@@ -16,14 +16,16 @@ const data = {
   teamName: "Team Alpha",
   researchTitle: "Campus Research",
   result: "Approved",
+  collegeName: "College of Computing",
+  roles: "Adviser, Panelist",
 };
 const options = {
   webUrl: "https://advisio.example",
   actionUrl: "/student/tasks?projectId=123&taskId=456",
 };
 describe("branded notification templates", () => {
-  it("renders all fourteen with resolved variables, plain text, branding, and accessible actions", () => {
-    expect(Object.keys(notificationTemplates)).toHaveLength(14);
+  it("renders all fifteen with resolved variables, plain text, branding, and accessible actions", () => {
+    expect(Object.keys(notificationTemplates)).toHaveLength(15);
     for (const key of Object.keys(notificationTemplates)) {
       const rendered = renderNotificationEmail(key, data, options);
       expect(rendered.subject).not.toMatch(/\{\w+\}/);
@@ -34,6 +36,29 @@ describe("branded notification templates", () => {
       expect(rendered.text).toContain("Hello Maria");
       expect(rendered.text).toContain("https://advisio.example/student/tasks");
     }
+  });
+  it("preserves the invitation token fragment and escapes recipient and college details", () => {
+    const token = "a".repeat(64);
+    const actionUrl = `/accept-invitation#token=${token}`;
+    const rendered = renderNotificationEmail(
+      "institutional_invitation",
+      { ...data, firstName: "<Maria>", collegeName: "Arts & Sciences" },
+      { ...options, actionUrl },
+    );
+    expect(rendered.subject).toBe("Your Advisio college access invitation");
+    expect(rendered.html).toContain("Hello &lt;Maria&gt;");
+    expect(rendered.html).toContain("Arts &amp; Sciences");
+    expect(rendered.html).toContain(
+      `href="https://advisio.example${actionUrl}"`,
+    );
+    expect(rendered.html).toContain("Accept invitation</a>");
+    expect(rendered.text).toContain(`https://advisio.example${actionUrl}`);
+    expect(rendered.text).toContain("Adviser, Panelist");
+    expect(rendered.text).toContain("48 hours");
+    expect(rendered.text).toContain("This link can only be used once");
+    expect(rendered.text).toContain(
+      "Your password, home college, and access to other colleges will remain unchanged",
+    );
   });
   it("escapes all dynamic HTML and renders user content as text", () => {
     const rendered = renderNotificationEmail(

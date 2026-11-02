@@ -5,6 +5,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   Bold,
   Italic,
@@ -141,6 +142,7 @@ function RecipientPicker({
 
 interface MailComposeWindowProps {
   seed: ComposeSeed;
+  inlineHost?: HTMLDivElement | null;
   contacts: MailContact[];
   pending: boolean;
   error?: string;
@@ -151,6 +153,7 @@ interface MailComposeWindowProps {
 
 export function MailComposeWindow({
   seed,
+  inlineHost,
   contacts,
   pending,
   error,
@@ -165,19 +168,29 @@ export function MailComposeWindow({
   const [ccIds, setCcIds] = useState(seed.ccIds || []);
   const [bccIds, setBccIds] = useState(seed.bccIds || []);
   const [subject, setSubject] = useState(seed.subject || "");
-  const [body, setBody] = useState(seed.body || "");
+  const [body, setBody] = useState(seed.inlineThreadId ? "" : seed.body || "");
+  const [quotedBody, setQuotedBody] = useState(seed.inlineThreadId ? seed.body || "" : "");
   const [files, setFiles] = useState<File[]>([]);
   const [existingAttachments, setExistingAttachments] = useState(
     seed.existingAttachments || [],
   );
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const isInline = Boolean(inlineHost && !expanded);
+  const messageBody = `${body}${quotedBody}`;
+  const recipientSummary = toIds.map((id) => contacts.find((contact) => contact.id === id)?.email || id).join(", ");
+
+  useEffect(() => {
+    if (!isInline) return;
+    bodyRef.current?.focus({ preventScroll: true });
+    inlineHost?.scrollIntoView({ block: "nearest" });
+  }, [isInline, inlineHost]);
 
   const dirty = Boolean(
     toIds.length ||
       ccIds.length ||
       bccIds.length ||
       subject.trim() ||
-      body.trim() ||
+      messageBody.trim() ||
       files.length ||
       existingAttachments.length !== (seed.existingAttachments?.length || 0),
   );
@@ -234,7 +247,7 @@ export function MailComposeWindow({
       ccIds,
       bccIds,
       subject,
-      body,
+      body: messageBody,
       files,
       keepAttachmentIds: existingAttachments.map((attachment) => attachment.id),
       sourceAttachmentIds: (seed.sourceAttachments || []).map(
@@ -246,28 +259,30 @@ export function MailComposeWindow({
   const handleShortcut = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
       event.preventDefault();
-      if (toIds.length && subject.trim() && body.trim() && !pending) submit("send");
+      if (toIds.length && subject.trim() && messageBody.trim() && !pending) submit("send");
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/35 p-0 sm:items-center sm:p-4">
+  const composer = (
+    <div className={isInline ? "mail-inline-compose" : "fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/35 p-0 sm:items-center sm:p-4"}>
       <section
-        role="dialog"
-        aria-modal="true"
+        role={isInline ? "region" : "dialog"}
+        aria-modal={isInline ? undefined : true}
         aria-labelledby="mail-compose-title"
         className={`${
-          expanded
+          isInline
+            ? "mail-inline-compose__panel"
+            : expanded
             ? "h-[calc(100vh-1rem)] max-w-6xl sm:h-[calc(100vh-2rem)]"
             : "h-[min(760px,calc(100vh-1rem))] max-w-3xl sm:h-[min(720px,calc(100vh-3rem))]"
-        } flex w-full flex-col overflow-hidden rounded-t-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl sm:rounded-2xl`}
+        } flex w-full flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg`}
       >
-        <header className="flex h-14 shrink-0 items-center justify-between bg-[var(--color-primary)] px-4 text-white">
+        <header className={isInline ? "mail-inline-compose__header" : "flex h-14 shrink-0 items-center justify-between bg-[var(--color-primary)] px-4 text-white"}>
           <div>
             <h2 id="mail-compose-title" className="text-lg font-bold">
-              {seed.draftId ? "Edit draft" : "New academic correspondence"}
+              {isInline ? (seed.inlineAction === "forward" ? "Forward" : "Reply") : seed.draftId ? "Edit draft" : "New academic correspondence"}
             </h2>
-            <p className="text-base text-white/70">Internal Advisio mail</p>
+            <p className={isInline ? "mail-inline-compose__recipients" : "text-base text-white/70"}>{isInline ? recipientSummary || "Choose recipients below" : "Internal Advisio mail"}</p>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -289,52 +304,55 @@ export function MailComposeWindow({
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className={isInline ? "flex-none" : "min-h-0 flex-1 overflow-y-auto"}>
           {error ? (
             <p role="alert" className="m-3 rounded-xl bg-rose-50 p-3 text-base font-bold text-rose-700 dark:bg-rose-500/10 dark:text-rose-200">
               {error}
             </p>
           ) : null}
-          <RecipientPicker
-            label="To"
-            contacts={contacts}
-            selectedIds={toIds}
-            unavailableIds={unavailableFor("to")}
-            onChange={setToIds}
-            required
-          />
-          {showCc ? (
+          <details className="mail-compose-details" open={isInline && toIds.length ? undefined : true}>
+            <summary className={isInline ? "mail-compose-details__summary" : "hidden"}>Edit recipients and subject</summary>
             <RecipientPicker
-              label="Cc"
+              label="To"
               contacts={contacts}
-              selectedIds={ccIds}
-              unavailableIds={unavailableFor("cc")}
-              onChange={setCcIds}
+              selectedIds={toIds}
+              unavailableIds={unavailableFor("to")}
+              onChange={setToIds}
+              required
             />
-          ) : null}
-          {showBcc ? (
-            <RecipientPicker
-              label="Bcc"
-              contacts={contacts}
-              selectedIds={bccIds}
-              unavailableIds={unavailableFor("bcc")}
-              onChange={setBccIds}
-            />
-          ) : null}
-          <div className="flex justify-end gap-3 border-b border-[var(--color-border)] px-4 py-1.5 text-xs font-bold text-[var(--color-primary)]">
-            {!showCc ? <button type="button" onClick={() => setShowCc(true)}>Add Cc</button> : null}
-            {!showBcc ? <button type="button" onClick={() => setShowBcc(true)}>Add Bcc</button> : null}
-          </div>
-          <label className="block border-b border-[var(--color-border)]">
-            <span className="sr-only">Subject</span>
-            <input
-              value={subject}
-              maxLength={255}
-              onChange={(event) => setSubject(event.target.value)}
-              placeholder="Subject"
-              className="h-12 w-full bg-transparent px-4 text-base font-semibold text-[var(--color-text-primary)] outline-none placeholder:font-normal placeholder:text-[var(--color-text-muted)]"
-            />
-          </label>
+            {showCc ? (
+              <RecipientPicker
+                label="Cc"
+                contacts={contacts}
+                selectedIds={ccIds}
+                unavailableIds={unavailableFor("cc")}
+                onChange={setCcIds}
+              />
+            ) : null}
+            {showBcc ? (
+              <RecipientPicker
+                label="Bcc"
+                contacts={contacts}
+                selectedIds={bccIds}
+                unavailableIds={unavailableFor("bcc")}
+                onChange={setBccIds}
+              />
+            ) : null}
+            <div className="flex justify-end gap-3 border-b border-[var(--color-border)] px-4 py-1.5 text-xs font-bold text-[var(--color-primary)]">
+              {!showCc ? <button type="button" onClick={() => setShowCc(true)}>Add Cc</button> : null}
+              {!showBcc ? <button type="button" onClick={() => setShowBcc(true)}>Add Bcc</button> : null}
+            </div>
+            <label className="block border-b border-[var(--color-border)]">
+              <span className="sr-only">Subject</span>
+              <input
+                value={subject}
+                maxLength={255}
+                onChange={(event) => setSubject(event.target.value)}
+                placeholder="Subject"
+                className="h-12 w-full bg-transparent px-4 text-base font-semibold text-[var(--color-text-primary)] outline-none placeholder:font-normal placeholder:text-[var(--color-text-muted)]"
+              />
+            </label>
+          </details>
           <div className="flex items-center gap-1 border-b border-[var(--color-border)] px-3 py-2" aria-label="Message formatting">
             <button type="button" onClick={() => insertFormatting("bold")} aria-label="Bold" className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[var(--color-surface-muted)]"><Bold className="h-4 w-4" /></button>
             <button type="button" onClick={() => insertFormatting("italic")} aria-label="Italic" className="grid h-8 w-8 place-items-center rounded-lg hover:bg-[var(--color-surface-muted)]"><Italic className="h-4 w-4" /></button>
@@ -347,9 +365,16 @@ export function MailComposeWindow({
             maxLength={50_000}
             onChange={(event) => setBody(event.target.value)}
             onKeyDown={handleShortcut}
+            aria-label="Message body"
             placeholder="Write your message"
-            className="min-h-56 w-full resize-none bg-transparent p-4 text-base leading-6 text-[var(--color-text-primary)] outline-none sm:min-h-72"
+            className={`${isInline ? "min-h-40" : "min-h-56 sm:min-h-72"} w-full resize-y bg-transparent p-4 text-base leading-6 text-[var(--color-text-primary)] outline-none`}
           />
+          {quotedBody ? (
+            <details className="px-4 pb-3">
+              <summary className="w-fit cursor-pointer rounded px-2 py-1 text-xs text-[var(--color-text-muted)] hover:bg-[var(--color-surface-muted)]">Show quoted message</summary>
+              <textarea aria-label="Quoted message" value={quotedBody} onChange={(event) => setQuotedBody(event.target.value)} className="mt-2 min-h-32 w-full resize-y border-l-2 border-[var(--color-border)] bg-transparent pl-3 text-sm text-[var(--color-text-muted)]" />
+            </details>
+          ) : null}
           {existingAttachments.length || seed.sourceAttachments?.length || files.length ? (
             <div className="space-y-2 border-t border-[var(--color-border)] px-4 py-3">
               {existingAttachments.map((attachment) => (
@@ -377,7 +402,7 @@ export function MailComposeWindow({
         <footer className="flex shrink-0 flex-wrap items-center gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 sm:px-4">
           <button
             type="button"
-            disabled={!toIds.length || !subject.trim() || !body.trim() || pending}
+            disabled={!toIds.length || !subject.trim() || !messageBody.trim() || pending}
             onClick={() => submit("send")}
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 text-sm font-bold text-white hover:bg-[var(--color-primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -417,4 +442,5 @@ export function MailComposeWindow({
       </section>
     </div>
   );
+  return isInline && inlineHost ? createPortal(composer, inlineHost) : composer;
 }

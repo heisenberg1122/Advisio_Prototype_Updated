@@ -44,7 +44,7 @@ export default function ResearchDashboardWalkthrough() {
   return (
     <main className="rdw-root">
       <header className="rdw-topbar">
-        <div className="rdw-brand"><span className="rdw-brandmark"><img src="/ao-logo.png" alt="" /></span><span><strong>ADVISIO</strong><small>Product walkthrough</small></span></div>
+        <div className="rdw-brand"><span className="rdw-brandmark"><img src="/advisio-logo.png" alt="" /></span><span><strong>ADVISIO</strong><small>Product walkthrough</small></span></div>
         <div className="rdw-topbar-title"><span>Research Dashboard</span><small>Getting started</small></div>
         <div className="rdw-topbar-actions">
           <button type="button" onClick={() => setPlaying((value) => !value)}>{playing ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}{playing ? "Pause" : "Play"}</button>
@@ -59,12 +59,12 @@ export default function ResearchDashboardWalkthrough() {
           <div className={`rdw-scene rdw-login-scene ${dashboardVisible ? "is-hidden" : ""}`}>
             <section className="rdw-login-story">
               <div className="rdw-login-grid" />
-              <div className="rdw-story-brand"><img src="/ao-logo.png" alt="Advisio" /><span><b>ADVISIO</b><small>Research portal</small></span></div>
+              <div className="rdw-story-brand"><img src="/advisio-logo.png" alt="Advisio" /><span><b>ADVISIO</b><small>Research portal</small></span></div>
               <div className="rdw-story-copy"><p>UNIVERSITY RESEARCH, SIMPLIFIED</p><h1>Research moves<br />better <em>together.</em></h1><span>From first proposal to final defense, keep your team, feedback, and deadlines in one clear place.</span><div className="rdw-story-steps"><b>1</b> Plan <i /><b>2</b> Review <i /><b>3</b> Defend</div></div>
               <div className="rdw-research-card"><small>RESEARCH WORKSPACE</small><strong>Capstone progress</strong><div><span>Chapter 3 review</span><b>72%</b></div><progress max="100" value="72" /><p><CheckCircle2 size={14} /> Proposal approved</p><p><CheckCircle2 size={14} /> Adviser review</p><p><CalendarDays size={14} /> Defense schedule</p></div>
             </section>
             <section className="rdw-login-form"><div className="rdw-form-wrap">
-              <div className="rdw-form-logos"><img src="/ao-logo.png" alt="" /><i /><img src="/school-logo.png" alt="" /></div><h2>Welcome back</h2><p>Sign in to continue your research journey.</p>
+              <div className="rdw-form-logos"><img src="/advisio-logo.png" alt="" /><i /><img src="/school-logo.png" alt="" /></div><h2>Welcome back</h2><p>Sign in to continue your research journey.</p>
               <label>UNIVERSITY EMAIL</label><div className={`rdw-input ${emailVisible ? "is-filled" : ""}`}><Mail size={16} /><span>{emailVisible || "name@university.edu.ph"}</span>{emailVisible && <i className="rdw-caret" />}</div>
               <div className="rdw-password-label"><label>PASSWORD</label><span>Forgot password?</span></div><div className={`rdw-input ${passwordVisible ? "is-filled" : ""}`}><LockKeyhole size={16} /><span>{passwordVisible || "Enter your password"}</span></div>
               <div className="rdw-remember"><i /> Keep me signed in on this device</div><button className={signingIn ? "is-loading" : ""} type="button">{signingIn ? <><span className="rdw-spinner" /> Signing in…</> : <>Sign in to Advisio <ArrowRight size={16} /></>}</button>
@@ -73,7 +73,7 @@ export default function ResearchDashboardWalkthrough() {
           </div>
 
           <div className={`rdw-scene rdw-dashboard-scene ${dashboardVisible ? "is-visible" : ""}`}>
-            <aside className="rdw-sidebar"><div className="rdw-side-brand"><img src="/ao-logo.png" alt="" /><span><b>ADVISIO</b><small>Research portal</small></span></div><nav><small>WORKSPACE</small><a className="active"><LayoutDashboard size={16} /> Dashboard</a><a><BookOpenCheck size={16} /> My research</a><a><FileText size={16} /> Documents</a><a><UsersRound size={16} /> Research group</a><small>ACADEMIC</small><a><CalendarDays size={16} /> Consultations</a><a><CheckCircle2 size={16} /> Milestones</a></nav><div className="rdw-side-profile"><span>JR</span><p><b>Juan Reyes</b><small>Lead Researcher</small></p><ChevronRight size={14} /></div></aside>
+            <aside className="rdw-sidebar"><div className="rdw-side-brand"><img src="/advisio-logo.png" alt="" /><span><b>ADVISIO</b><small>Research portal</small></span></div><nav><small>WORKSPACE</small><a className="active"><LayoutDashboard size={16} /> Dashboard</a><a><BookOpenCheck size={16} /> My research</a><a><FileText size={16} /> Documents</a><a><UsersRound size={16} /> Research group</a><small>ACADEMIC</small><a><CalendarDays size={16} /> Consultations</a><a><CheckCircle2 size={16} /> Milestones</a></nav><div className="rdw-side-profile"><span>JR</span><p><b>Juan Reyes</b><small>Lead Researcher</small></p><ChevronRight size={14} /></div></aside>
             <section className="rdw-dashboard-main"><div className="rdw-dashbar"><div><Search size={15} /> Search your workspace…</div><button><Bell size={17} /><i /></button><span><CircleUserRound size={23} /></span></div><div className="rdw-dash-content">
               <div className="rdw-welcome"><div><small>FRIDAY, OCTOBER 9</small><h2>Good morning, Juan.</h2><p>Here’s what’s happening with your research today.</p></div><button>Open research workspace <ArrowRight size={15} /></button></div>
               <div className="rdw-metrics">{metrics.map(({ label, value, note, icon: Icon, tone }, index) => <article key={label} style={{ "--delay": `${index * 120}ms` } as React.CSSProperties}><span className={tone}><Icon size={18} /></span><div><small>{label}</small><strong>{value}</strong><p>{note}</p></div></article>)}</div>

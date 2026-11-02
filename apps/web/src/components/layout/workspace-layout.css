@@ -1,0 +1,310 @@
+/* Shared portal geometry. Page content owns gutters once; overlays, tables,
+   document readers and message panes keep their internal layouts. */
+.workspace-frame {
+  --workspace-chrome: #DEE2E1;
+  --workspace-page-background: #fff;
+  --workspace-frame-edge: rgb(15 23 42 / 6%);
+  --workspace-page-radius: 32px;
+  --workspace-transition-duration: 420ms;
+  --workspace-transition-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --sidebar-background: var(--workspace-chrome);
+  --header-background: var(--workspace-chrome);
+  background-color: var(--workspace-chrome);
+}
+
+.workspace-frame.dark,
+.dark .workspace-frame {
+  --workspace-chrome: #19232D;
+  --workspace-page-background: #111820;
+  --workspace-frame-edge: rgb(255 255 255 / 7%);
+}
+
+/* The canvas joins the navigation on Overview. Other pages reveal a softly
+   outlined surface with matching navigation-colored corners. */
+.workspace-frame > .workspace-frame__body > .app-workspace[data-workspace-view] {
+  background-color: var(--workspace-page-background);
+  border-radius: var(--workspace-page-radius) 0 var(--workspace-page-radius) 0;
+  box-shadow: inset 0 0 0 1px var(--workspace-frame-edge);
+  transition:
+    background-color var(--workspace-transition-duration) var(--workspace-transition-ease),
+    border-radius var(--workspace-transition-duration) var(--workspace-transition-ease),
+    box-shadow var(--workspace-transition-duration) ease;
+}
+
+.workspace-frame > .workspace-frame__body > .app-workspace[data-workspace-view="overview"] {
+  background-color: var(--workspace-chrome);
+  border-radius: 0;
+  box-shadow: inset 0 0 0 1px transparent;
+}
+
+/* A newly loaded route also starts from the navigation color, so lazy pages
+   get the same gentle reveal as dashboard tabs. Content stays fully visible. */
+.workspace-frame > .workspace-frame__body > .app-workspace[data-workspace-view="page"] {
+  animation: workspace-canvas-reveal var(--workspace-transition-duration) var(--workspace-transition-ease) backwards;
+}
+
+@keyframes workspace-canvas-reveal {
+  from {
+    background-color: var(--workspace-chrome);
+    border-radius: 0;
+    box-shadow: inset 0 0 0 1px transparent;
+  }
+  to {
+    background-color: var(--workspace-page-background);
+    border-radius: var(--workspace-page-radius) 0 var(--workspace-page-radius) 0;
+    box-shadow: inset 0 0 0 1px var(--workspace-frame-edge);
+  }
+}
+
+.workspace-frame,
+.workspace-frame > .workspace-frame__body > header {
+  transition: background-color var(--workspace-transition-duration) var(--workspace-transition-ease);
+}
+
+.workspace-frame > .workspace-frame__body {
+  transition:
+    background-color var(--workspace-transition-duration) var(--workspace-transition-ease),
+    padding-left 300ms ease-in-out;
+}
+
+.workspace-frame > aside {
+  transition:
+    background-color var(--workspace-transition-duration) var(--workspace-transition-ease),
+    width 300ms ease-in-out,
+    transform 300ms ease-in-out;
+}
+
+.app-workspace[data-workspace-layout="standard"] {
+  --workspace-page-max: 1360px;
+  --workspace-page-gutter: clamp(16px, 2vw, 32px);
+  --workspace-page-top: 24px;
+  --workspace-page-bottom: 32px;
+  --workspace-card-padding: 24px;
+  --workspace-card-radius: 16px;
+  --workspace-panel-radius: 12px;
+  --workspace-panel-border-width: 1px;
+  --workspace-header-height: 204px;
+  padding: 0;
+}
+
+/* Explicit page containers and legacy full-width route roots share one grid.
+   Narrow forms and dialog panels are intentionally outside this selector. */
+.app-workspace[data-workspace-layout="standard"] .workspace-page,
+.app-workspace[data-workspace-layout="standard"] > :is(
+  .universal-calendar,
+  .research-tasks,
+  .td-academic-workspace,
+  .researcher-defense,
+  .researcher-mail-page,
+  [class~="max-w-[1360px]"],
+  [class~="max-w-[1800px]"],
+  [class~="max-w-screen-2xl"]
+):not(.fixed, [role="dialog"]) {
+  box-sizing: border-box;
+  width: calc(100% - 2 * var(--workspace-page-gutter));
+  max-width: var(--workspace-page-max);
+  min-width: 0;
+  margin-inline: auto;
+  padding: var(--workspace-page-top) 0 var(--workspace-page-bottom);
+}
+
+.app-workspace[data-workspace-layout="standard"] .workspace-page[data-workspace-width="narrow"] {
+  max-width: 56rem;
+}
+
+/* A page reused inside another page (for example documents inside a dashboard)
+   reuses the parent's gutters rather than adding a second set. */
+.app-workspace[data-workspace-layout="standard"] .workspace-page .workspace-page {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Allow dashboard grids to shrink around long project titles and wide tables.
+   Tables keep their own horizontal scrolling instead of widening the page. */
+.app-workspace[data-workspace-layout="standard"] .workspace-page :where(.grid, .flex) > :not(.fixed, [role="dialog"]) {
+  min-width: 0;
+}
+
+.app-workspace[data-workspace-layout="standard"] :is(
+  .workspace-page-header:not(.adviser-overview__welcome),
+  .college-hero-surface:has(h1):not(.adviser-overview__welcome),
+  .adviser-overview__summary,
+  .adviser-consultation-summary,
+  .rt-workflow,
+  .mp-identity,
+  .researcher-consultation-hero,
+  .rd-library-hero,
+  .rdf-header
+):not([role="dialog"] *, .fixed *) {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: var(--workspace-header-height);
+  padding: var(--workspace-card-padding);
+  border: 2px solid var(--color-border);
+  border-radius: var(--workspace-card-radius);
+  background: linear-gradient(
+    112deg,
+    color-mix(in srgb, var(--color-primary-light) 82%, var(--color-surface)) 0%,
+    var(--color-surface) 72%
+  );
+  box-shadow: var(--shadow-card-soft);
+}
+
+/* Dashboard greetings have more visual weight than regular page headers.
+   Adviser's greeting and metrics share one outer surface. */
+.app-workspace[data-workspace-layout="standard"] :is(
+  .workspace-dashboard-welcome:not(.adviser-overview__welcome),
+  .adviser-overview__summary
+) {
+  min-height: 240px;
+  padding: 28px;
+  border-width: 3px;
+  border-color: color-mix(in srgb, var(--color-border-strong) 80%, var(--color-primary));
+  box-shadow: 0 8px 22px rgb(0 0 0 / 9%);
+}
+
+/* Headers attached to a table or form retain a single outer card border. */
+.app-workspace[data-workspace-layout="standard"] .workspace-page-header--inset {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-width: 0 0 1px;
+  border-radius: var(--workspace-card-radius) var(--workspace-card-radius) 0 0;
+  box-shadow: none;
+}
+
+.app-workspace[data-workspace-layout="standard"] .workspace-page-header--inset > div {
+  width: 100%;
+}
+
+.app-workspace[data-workspace-layout="standard"] .workspace-page-header :is(h1, h2, h3) {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+}
+
+.app-workspace[data-workspace-layout="standard"] .workspace-page-header p:is([class*="text-slate-500"], [class*="text-slate-400"]) {
+  color: var(--color-text-secondary) !important;
+}
+
+.app-workspace[data-workspace-layout="standard"] .workspace-page-header :where(button, input, select) {
+  min-height: 44px;
+}
+
+/* Overview's project panel includes inset footers using this shared gutter. */
+.app-workspace[data-workspace-layout="standard"] .research-command-center {
+  --rcc-gutter: var(--workspace-card-padding);
+}
+
+.app-workspace[data-workspace-layout="standard"] .rcc-project {
+  border-radius: var(--workspace-card-radius);
+}
+
+.app-workspace[data-workspace-layout="standard"] :is(
+  .workspace-page-header,
+  .college-hero-surface
+) h1 {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.app-workspace[data-workspace-layout="standard"] .adviser-overview__welcome > div {
+  min-height: 60px;
+}
+
+.app-workspace[data-workspace-layout="standard"] .adviser-overview__metrics {
+  margin-top: 20px;
+}
+
+.app-workspace[data-workspace-layout="standard"] .adviser-overview__metric {
+  min-height: 80px;
+  padding: 12px 16px;
+}
+
+/* Shared secondary card geometry across every authenticated workspace.
+   Semantic cards cover newer pages; the scoped selectors also cover legacy
+   layouts without changing buttons, badges, avatars or document pages. */
+.app-workspace[data-workspace-layout="standard"] :is(
+  [data-ui-card],
+  :is(div, section, article, aside)[class~="border"]:is(
+    [class~="rounded-xl"],
+    [class~="rounded-2xl"],
+    [class~="rounded-3xl"]
+  ),
+  .rdw-browser,
+  .rdw-research-card,
+  .adviser-overview__panel,
+  .adviser-reviews--workspace article,
+  .coordinator-defense > section:not(.cdf-stats),
+  .coordinator-defense .cdf-stats > div,
+  .coordinator-projects .cproj-list:has(.cproj-row),
+  .coordinator-submissions .csub-table,
+  .professor-workflow .workflow-topic,
+  .professor-workflow .workflow-builder-sidebar > section,
+  .researcher-defense .rdf-result,
+  .researcher-defense .rdf-section,
+  .rm-panes,
+  .research-tasks .rt-milestone,
+  .task-details-workspace .task-submission-record,
+  .td-academic-workspace .td-document,
+  .td-academic-workspace .td-context,
+  .profile-workspace .profile-panel,
+  .coordinator-progress .cprogress-list,
+  .rcc-project
+):not(
+  .workspace-page-header,
+  .workspace-dashboard-welcome,
+  .college-hero-surface,
+  .adviser-overview__welcome,
+  .adviser-overview__summary,
+  .adviser-consultation-summary,
+  .researcher-consultation-hero,
+  .rd-library-hero,
+  .rdf-header,
+  .rt-workflow,
+  .mp-identity,
+  [role="dialog"],
+  [role="dialog"] *,
+  [role="alert"],
+  [role="status"],
+  .fixed,
+  .fixed *
+) {
+  border-radius: var(--workspace-panel-radius);
+  border-width: var(--workspace-panel-border-width);
+}
+
+@media (max-width: 767px) {
+  .workspace-frame {
+    --workspace-page-radius: 24px;
+  }
+  .app-workspace[data-workspace-layout="standard"] {
+    --workspace-page-top: 16px;
+    --workspace-page-bottom: 24px;
+    --workspace-card-padding: 20px;
+    --workspace-header-height: 0px;
+  }
+
+  .app-workspace[data-workspace-layout="standard"] :is(
+    .workspace-dashboard-welcome:not(.adviser-overview__welcome),
+    .adviser-overview__summary
+  ) {
+    min-height: 0;
+    padding: var(--workspace-card-padding);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-frame,
+  .workspace-frame > aside,
+  .workspace-frame > .workspace-frame__body,
+  .workspace-frame > .workspace-frame__body > header,
+  .workspace-frame > .workspace-frame__body > .app-workspace[data-workspace-view] {
+    transition: none !important;
+    animation: none !important;
+  }
+}

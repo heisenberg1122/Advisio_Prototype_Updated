@@ -82,7 +82,9 @@ export function ThemeProvider({
   const [theme, setThemeState] = useState<Theme>(storedActiveTheme);
   const [colorThemePreference, setColorThemePreferenceState] =
     useState<ColorThemePreference>(storedActiveColorThemePreference);
-  const [systemIsDark, setSystemIsDark] = useState(false);
+  const [systemIsDark, setSystemIsDark] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches,
+  );
   const normalizedRoles = useMemo(
     () => (roles || []).map((role) => role.toUpperCase()),
     [roles],

@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { LoginRoute } from "@/components/auth/LoginRoute";
 import { AppShellSkeleton } from "@/components/ui/Skeleton";
 import {
   legacyProfessorMilestonesDestination,
@@ -16,6 +17,7 @@ const StudentAdviserPoolPage = lazy(
   () => import("./app/student/adviser-pool/page"),
 );
 const StudentTasksPage = lazy(() => import("./app/student/tasks/page"));
+const FacultyTaskDetailsPage = lazy(() => import("./components/workflow/FacultyTaskDetailsPage"));
 const StudentDocumentsPage = lazy(() => import("./app/student/documents/page"));
 const StudentGroupFilesPage = lazy(
   () => import("./app/student/group-files/page"),
@@ -104,6 +106,7 @@ const AdminProfileEditPage = lazy(
   () => import("./app/admin/profile/edit/page"),
 );
 const AdminReviewsPage = lazy(() => import("./app/admin/reviews/page"));
+const FacultyAccessPage = lazy(() => import("./app/admin/faculty-access/page"));
 const AdminNotificationsPage = lazy(
   () => import("./app/admin/notifications/page"),
 );
@@ -122,9 +125,11 @@ import ForgotPasswordPage from "./app/(public)/forgot-password/page";
 import FirstTimeSetupPage from "./app/(public)/first-login-setup/page";
 import GoogleOnboardingPage from "./app/(public)/google-onboarding/page";
 import ChooseDashboardPage from "./app/(public)/choose-dashboard/page";
+const AcceptInvitationPage = lazy(() => import("./app/(public)/accept-invitation/page"));
 
 function RouteLoader() {
-  return <AppShellSkeleton />;
+  const { pathname, search } = useLocation();
+  return <AppShellSkeleton pathname={pathname} search={search} />;
 }
 
 function StudentPortal({ children }: { children: React.ReactNode }) {
@@ -179,7 +184,10 @@ export function AppRoutes() {
         <Route path="/" element={<HomePage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         <Route path="/terms-of-service" element={<TermsOfServicePage />} />
-        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/login"
+          element={<LoginRoute><LoginPage /></LoginRoute>}
+        />
         <Route path="/register" element={<RegisterPage />} />
         <Route
           path="/researcher-onboarding"
@@ -190,8 +198,18 @@ export function AppRoutes() {
         <Route path="/first-login-setup" element={<FirstTimeSetupPage />} />
         <Route path="/google-onboarding" element={<GoogleOnboardingPage />} />
         <Route path="/choose-dashboard" element={<ChooseDashboardPage />} />
+        <Route path="/accept-invitation" element={<Suspense fallback={<main role="status" className="grid min-h-screen place-items-center bg-[var(--color-background)] text-[var(--color-text-secondary)]">Opening invitation…</main>}><AcceptInvitationPage /></Suspense>} />
+        <Route path="/admin/faculty-access" element={<ProtectedRoute allowedRoles={["DEAN", "SYSTEM_ADMIN"]}><AdminLayout><FacultyAccessPage /></AdminLayout></ProtectedRoute>} />
 
         {/* Student / Researcher Portal */}
+        {[
+          { portal: "adviser", roles: ["ADVISER"], Layout: AdviserLayout },
+          { portal: "professor", roles: ["PROFESSOR", "RESEARCH_COORDINATOR"], Layout: ProfessorLayout },
+          { portal: "panelist", roles: ["PANELIST"], Layout: PanelistLayout },
+          { portal: "admin", roles: ["DEAN"], Layout: AdminLayout },
+        ].map(({ portal, roles, Layout }) => (
+          <Route key={`${portal}-task-details`} path={`/${portal}/tasks/:taskId`} element={<ProtectedRoute allowedRoles={roles}><Layout><FacultyTaskDetailsPage /></Layout></ProtectedRoute>} />
+        ))}
         <Route
           path="/dashboard"
           element={

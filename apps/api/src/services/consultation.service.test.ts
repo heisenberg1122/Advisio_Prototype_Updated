@@ -13,6 +13,7 @@ const user = (roles: string[]) => ({
 
 const context = (overrides: Record<string, unknown> = {}) => ({
   exists: true,
+  collegeId: null,
   isProjectCreator: false,
   isWorkflowOwner: false,
   activeProjectRoles: [] as string[],

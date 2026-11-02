@@ -7,6 +7,12 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
+    "./account-invitations": {
+      "types": "./dist/account-invitations.d.ts",
+      "import": "./dist/account-invitations.js",
+      "require": "./dist/account-invitations.js",
+      "default": "./dist/account-invitations.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",

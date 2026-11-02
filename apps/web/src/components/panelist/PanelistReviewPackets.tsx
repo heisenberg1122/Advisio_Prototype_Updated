@@ -307,7 +307,7 @@ export function PanelistReviewPackets() {
   if (error)
     return (
       <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
-        Unable to load defense packets.
+        Unable to load defense documents.
       </div>
     );
   if (!sessions.length)
@@ -318,8 +318,8 @@ export function PanelistReviewPackets() {
           No manuscript is ready for review
         </h3>
         <p className="mt-1 text-base text-slate-500">
-          An accepted defense invitation and a packet published by the professor
-          are required.
+          Accept your defense invitation to view the documents once the
+          coordinator shares them.
         </p>
       </div>
     );
@@ -346,7 +346,7 @@ export function PanelistReviewPackets() {
               Ready for review
             </p>
             <h2 className="mt-1 text-lg font-black text-[var(--color-text-primary)]">
-              Defense packets
+              Defense documents
             </h2>
           </div>
           <div className="space-y-2">
@@ -375,7 +375,7 @@ export function PanelistReviewPackets() {
           </div>
           <div className="mt-4 border-t p-2">
             <p className="text-sm font-extrabold uppercase text-slate-400">
-              Packet progress
+              Review progress
             </p>
             {progress.map((item) => (
               <div
@@ -460,12 +460,12 @@ export function PanelistReviewPackets() {
               />
             ) : (
               <div className="grid gap-4 p-4 lg:grid-cols-[1fr_250px]">
-                <section className="min-h-[590px] overflow-hidden rounded-xl border bg-slate-800">
+                <section className="document-preview-stage min-h-[590px] overflow-hidden rounded-xl border border-[var(--color-border)]">
                   {previewUrl ? (
                     <iframe
                       title="Defense manuscript PDF"
                       src={`${previewUrl}#page=${pageNumber}&view=FitH`}
-                      className="h-[650px] w-full bg-white"
+                      className="document-preview-embed h-[650px] w-full"
                     />
                   ) : (
                     <DocumentPreviewSkeleton className="h-[590px] min-h-0" />
@@ -854,7 +854,7 @@ export function PanelistReviewPackets() {
                     <iframe
                       title="Recommendation PDF preview"
                       src={recommendationPreviewUrl}
-                      className="mt-4 h-[620px] w-full rounded-lg border bg-white"
+                      className="document-preview-embed mt-4 h-[620px] w-full rounded-lg border"
                     />
                     <div className="mt-3 space-y-1">
                       {layoutReport?.fields
@@ -926,7 +926,7 @@ export function PanelistReviewPackets() {
                 The professor’s criteria are available in the live evaluation
                 workspace when the defense begins. Final submission
                 automatically produces the mapped evaluation PDF when an
-                evaluation template is included in this packet.
+                evaluation template is included in these defense documents.
               </p>
               {selected.evaluations?.[0] ? (
                 <div className="mt-5 rounded-xl border p-4">

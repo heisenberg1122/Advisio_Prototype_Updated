@@ -631,6 +631,9 @@ async function createPanelDemo(context: VerifiedContext): Promise<void> {
           },
         });
         users.set(account.key, user);
+        if (["ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "DEAN"].includes(account.role)) {
+          await tx.collegeMembership.create({ data: { userId: user.id, collegeId: context.college.id, roleNames: [account.role] } });
+        }
         if (account.faculty)
           await tx.facultyProfile.create({
             data: {

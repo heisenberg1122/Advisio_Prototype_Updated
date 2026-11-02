@@ -12,7 +12,7 @@ const sessionSchema = z.object({
 });
 export const googleOnboardingSessionSchema = sessionSchema;
 export const googleOnboardingIdentitySchema = sessionSchema.extend({
-  accountType: z.enum(["RESEARCHER", "FACULTY"]),
+  accountType: z.literal("RESEARCHER"),
   universityId: z
     .string()
     .trim()
@@ -119,6 +119,7 @@ export async function issueGoogleOnboardingSession(
   stage: string,
   expectedStage: string | null = stage,
 ) {
+  if (stage === "FACULTY") throw new GoogleOnboardingError("Faculty access is invitation-only. Contact your Dean or System Administrator.", 403);
   const onboardingToken = randomBytes(32).toString("hex");
   return prisma.$transaction(async (tx) => {
     const updated = await tx.user.updateMany({
@@ -157,6 +158,7 @@ export async function getGoogleOnboardingSession(onboardingToken: string) {
 export async function saveGoogleOnboardingIdentity(
   input: z.infer<typeof googleOnboardingIdentitySchema>,
 ) {
+  if ((input.accountType as string) !== "RESEARCHER") throw new GoogleOnboardingError("Faculty access requires an invitation from your Dean or System Administrator.", 403);
   return prisma.$transaction(
     async (tx) => {
       const account = await pendingAccount(
@@ -185,7 +187,7 @@ export async function saveGoogleOnboardingIdentity(
         }),
         tx.role.findUnique({
           where: {
-            name: input.accountType === "FACULTY" ? "ADVISER" : "RESEARCHER",
+            name: "RESEARCHER",
           },
         }),
       ]);

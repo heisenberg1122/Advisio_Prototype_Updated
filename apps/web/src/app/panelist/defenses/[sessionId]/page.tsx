@@ -162,7 +162,7 @@ export default function PanelistDefenseWorkspacePage() {
         at: invitation.respondedAt,
       },
       packet?.publishedAt && {
-        label: "Defense packet published",
+        label: "Defense documents shared",
         at: packet.publishedAt,
       },
       review?.reviewedAt && {
@@ -312,7 +312,7 @@ export default function PanelistDefenseWorkspacePage() {
                   )
                 }
               >
-                Open defense packet
+                Open defense documents
               </Button>
             )}
             {isLive && invitationAccepted && !evaluationLocked && (
@@ -455,7 +455,7 @@ export default function PanelistDefenseWorkspacePage() {
         />
         <ReadinessItem
           done={packetReady}
-          label="Defense packet"
+          label="Defense documents"
           detail={
             packetReady
               ? `Published ${dateTime(packet.publishedAt)}`
@@ -470,7 +470,7 @@ export default function PanelistDefenseWorkspacePage() {
               ? `Completed ${dateTime(review.reviewedAt)}`
               : packetReady
                 ? "Available for your review"
-                : "Waiting for a published packet"
+                : "Waiting for the defense documents"
           }
         />
         <ReadinessItem
@@ -492,7 +492,7 @@ export default function PanelistDefenseWorkspacePage() {
         <Card className="p-5 sm:p-6">
           <CardHeader>
             <div>
-              <CardTitle icon={FileCheck2}>Defense packet and review</CardTitle>
+              <CardTitle icon={FileCheck2}>Defense documents and review</CardTitle>
               <p className="mt-1 text-base text-[var(--color-text-secondary)]">
                 The immutable manuscript and your project-specific panel review.
               </p>
@@ -557,7 +557,8 @@ export default function PanelistDefenseWorkspacePage() {
                 }
                 icon={<ExternalLink className="h-4 w-4" />}
               >
-                Open packet workspace
+
+                Open defense documents
               </Button>
             </div>
           ) : (
@@ -566,12 +567,12 @@ export default function PanelistDefenseWorkspacePage() {
               icon={FileText}
               title={
                 packetReady
-                  ? "Accept to open the defense packet"
-                  : "Defense packet not published"
+                  ? "Accept to open the defense documents"
+                  : "Defense documents not shared yet"
               }
               description={
                 packetReady
-                  ? "The packet is ready, but its contents remain restricted until you accept this panel assignment."
+                  ? "The documents are ready. Accept your panel invitation to view them."
                   : "The professor must publish an approved immutable manuscript before panel review becomes available."
               }
             />

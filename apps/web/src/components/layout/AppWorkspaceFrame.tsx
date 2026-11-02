@@ -1,9 +1,11 @@
 "use client";
 
 import React from "react";
-import { usePathname } from "next/navigation";
+import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { workspaceViewForLocation } from "@/lib/workspace-appearance";
 import { useTheme } from "@/providers/theme-provider";
+import "./workspace-layout.css";
 
 interface AppWorkspaceFrameProps {
   children: React.ReactNode;
@@ -19,18 +21,14 @@ export function AppWorkspaceFrame({
   collapsed,
   sidebar,
   topbar,
-  dashboardPath,
-  padSecondaryPages = false,
 }: AppWorkspaceFrameProps) {
-  const pathname = usePathname() || "";
   const { isDark } = useTheme();
-  const shouldPadContent =
-    padSecondaryPages && Boolean(dashboardPath) && pathname !== dashboardPath;
+  const { pathname, search } = useLocation();
 
   return (
     <div
       className={cn(
-        "min-h-screen bg-[var(--sidebar-background)] text-[var(--color-text-primary)]",
+        "workspace-frame min-h-screen bg-[var(--sidebar-background)] text-[var(--color-text-primary)]",
         isDark && "dark"
       )}
     >
@@ -38,15 +36,16 @@ export function AppWorkspaceFrame({
 
       <div
         className={cn(
-          "flex min-h-screen min-w-0 flex-col transition-all duration-300 ease-in-out bg-[var(--sidebar-background)]",
+          "workspace-frame__body flex min-h-screen min-w-0 flex-col transition-all duration-300 ease-in-out bg-[var(--sidebar-background)]",
           collapsed ? "lg:pl-[72px]" : "lg:pl-[260px]"
         )}
       >
         {topbar}
         <main
+          data-workspace-layout="standard"
+          data-workspace-view={workspaceViewForLocation(pathname, search)}
           className={cn(
-            "app-workspace flex min-h-[calc(100vh-4rem)] min-w-0 flex-1 flex-col rounded-tl-[32px] bg-white dark:bg-[var(--color-surface)] border-0 outline-none shadow-none",
-            shouldPadContent && "p-4 sm:p-6 lg:p-8"
+            "app-workspace flex min-h-[calc(100vh-4rem)] min-w-0 flex-1 flex-col border-0 outline-none shadow-none"
           )}
         >
           {children}

@@ -450,6 +450,7 @@ export function ManuscriptReviewWorkspace({
     return (
       <article
         key={assignment.id}
+        aria-labelledby={`adviser-pending-${assignment.id}`}
         className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)]"
       >
         <div className="p-5 sm:p-6">
@@ -459,15 +460,11 @@ export function ManuscriptReviewWorkspace({
                 <Tag size="xs" variant={state.variant} dot>
                   {state.label}
                 </Tag>
-                <span>{readableStatus(assignment.reviewType)} review</span>
-                <span aria-hidden="true">·</span>
-                <span>
-                  {assignment.isRequired
-                    ? "Required assignment"
-                    : "Optional assignment"}
-                </span>
               </div>
-              <h3 className="mt-3 text-lg font-black leading-snug text-[var(--color-text-primary)] sm:text-xl">
+              <h3
+                id={`adviser-pending-${assignment.id}`}
+                className="mt-3 text-lg font-black leading-snug text-[var(--color-text-primary)] sm:text-xl"
+              >
                 {assignment.document.title}
               </h3>
               <p className="mt-1.5 text-base font-medium text-[var(--color-text-secondary)]">
@@ -484,7 +481,7 @@ export function ManuscriptReviewWorkspace({
             </div>
           </div>
 
-          <dl className="mt-5 grid gap-x-6 gap-y-3 border-y border-[var(--color-border-subtle)] py-4 sm:grid-cols-2 xl:grid-cols-4">
+          <dl className="mt-5 grid gap-x-6 gap-y-3 border-y border-[var(--color-border-subtle)] py-4 sm:grid-cols-2">
             <div>
               <dt className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Milestone
@@ -502,40 +499,23 @@ export function ManuscriptReviewWorkspace({
                 {dateLabel(assignment.documentVersion.submittedAt)}
               </dd>
             </div>
-            <div>
-              <dt className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                Assignment status
-              </dt>
-              <dd className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">
-                {readableStatus(assignment.status)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                Review status
-              </dt>
-              <dd className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">
-                {assignment.review
-                  ? readableStatus(assignment.review.status)
-                  : "Not started"}
-              </dd>
-            </div>
           </dl>
 
           <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="min-w-0">
-              <p className="text-base font-bold text-[var(--color-text-primary)]">
-                {state.label}
-              </p>
-              <p className="mt-0.5 text-base leading-5 text-[var(--color-text-secondary)]">
-                {state.description}
-              </p>
-              <p
-                className="mt-1 truncate text-sm text-[var(--color-text-muted)]"
-                title={assignment.documentVersion.fileName}
-              >
-                Frozen file: {assignment.documentVersion.fileName}
-              </p>
+              <details className="adviser-assignment-details text-sm text-[var(--color-text-secondary)]">
+                <summary className="cursor-pointer font-semibold">
+                  Assignment details
+                </summary>
+                <div className="space-y-1 pt-2">
+                  <p>
+                    {readableStatus(assignment.reviewType)} review ·{" "}
+                    {assignment.isRequired ? "Required" : "Optional"}
+                  </p>
+                  <p>Submitted file: {assignment.documentVersion.fileName}</p>
+                  {assignment.statusReason && <p>{assignment.statusReason}</p>}
+                </div>
+              </details>
             </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               {canDecide && (
@@ -546,7 +526,7 @@ export function ManuscriptReviewWorkspace({
                 >
                   {assignment.review?.status === "DRAFT"
                     ? "Continue review"
-                    : "Review and decide"}
+                    : "Review manuscript"}
                 </Button>
               )}
               <Button
@@ -556,7 +536,7 @@ export function ManuscriptReviewWorkspace({
                 isLoading={openingId === assignment.id}
                 onClick={() => void openSnapshot(assignment)}
               >
-                Open frozen version
+                View submitted PDF
               </Button>
             </div>
           </div>
@@ -571,6 +551,7 @@ export function ManuscriptReviewWorkspace({
     return (
       <article
         key={assignment.id}
+        aria-labelledby={`adviser-history-${assignment.id}`}
         className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5"
       >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -582,11 +563,11 @@ export function ManuscriptReviewWorkspace({
               <span className="text-xs font-semibold text-[var(--color-text-secondary)]">
                 Version {assignment.documentVersion.versionNumber}
               </span>
-              <span className="text-xs text-[var(--color-text-muted)]">
-                {readableStatus(assignment.reviewType)} review
-              </span>
             </div>
-            <h3 className="mt-2 truncate text-lg font-bold text-[var(--color-text-primary)]">
+            <h3
+              id={`adviser-history-${assignment.id}`}
+              className="mt-2 truncate text-lg font-bold text-[var(--color-text-primary)]"
+            >
               {assignment.document.title}
             </h3>
             <p className="mt-1 truncate text-sm text-[var(--color-text-secondary)]">
@@ -609,16 +590,25 @@ export function ManuscriptReviewWorkspace({
               isLoading={openingId === assignment.id}
               onClick={() => void openSnapshot(assignment)}
             >
-              Open frozen version
+              View submitted PDF
             </Button>
           </div>
         </div>
 
         <details className="mt-3 border-t border-[var(--color-border-subtle)] pt-3">
           <summary className="cursor-pointer text-xs font-bold text-[var(--color-primary)]">
-            View complete review details
+            Review details
           </summary>
           <div className="mt-3 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+            <div>
+              <p className="font-semibold text-[var(--color-text-primary)]">
+                Review type
+              </p>
+              <p>
+                {readableStatus(assignment.reviewType)} ·{" "}
+                {assignment.isRequired ? "Required" : "Optional"}
+              </p>
+            </div>
             <div>
               <p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
                 Assignment
@@ -689,6 +679,56 @@ export function ManuscriptReviewWorkspace({
     );
   };
 
+  const adviserSummary = !loading && (
+    <section
+      aria-label="Review assignment summary"
+      className="grid gap-3 sm:grid-cols-3"
+    >
+      {[
+        {
+          label: "Pending reviews",
+          value: active.length,
+          icon: Clock3,
+          tone: "text-[#C58A18] bg-[#FEF7EA] dark:bg-[#C58A18]/15",
+        },
+        {
+          label: "Completed reviews",
+          value: completedCount,
+          icon: CheckCircle2,
+          tone: "text-[#2E7D5B] bg-[#EAF5EE] dark:bg-[#2E7D5B]/15",
+        },
+        {
+          label: "Total assignments",
+          value: assignments.length,
+          icon: Layers3,
+          tone: "text-[var(--color-primary)] bg-[var(--color-primary-light)]",
+        },
+      ].map((stat) => (
+        <div
+          key={stat.label}
+          className="flex items-center gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3.5"
+        >
+          <span
+            className={cn(
+              "grid h-10 w-10 shrink-0 place-items-center rounded-xl",
+              stat.tone,
+            )}
+          >
+            <stat.icon className="h-5 w-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
+              {stat.label}
+            </span>
+            <span className="mt-0.5 block text-xl font-black text-[var(--color-text-primary)]">
+              {stat.value}
+            </span>
+          </span>
+        </div>
+      ))}
+    </section>
+  );
+
   return (
     <PageContainer
       maxWidth={isAdviserPresentation ? "full" : "default"}
@@ -697,33 +737,28 @@ export function ManuscriptReviewWorkspace({
       )}
     >
       {isAdviserPresentation ? (
-        <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B3A53] via-[#0E4968] to-[#072A3D] p-5 text-white shadow-lg sm:p-6 lg:p-7">
-          <div className="pointer-events-none absolute -right-24 -top-28 h-72 w-72 rounded-full bg-[#C9A227]/20 blur-3xl" />
+        <header className="college-hero-surface relative overflow-hidden rounded-3xl border p-5 text-[var(--color-text-primary)] shadow-lg sm:p-6 lg:p-7">
           <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="max-w-3xl">
-              <p className="text-sm font-bold uppercase tracking-[0.16em] text-[#E4C864]">
-                Global review center
-              </p>
-              <h1 className="mt-2 text-2xl font-black tracking-tight text-white sm:text-3xl">
+              <h1 className="mt-2 text-2xl font-black tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
                 Manuscript Reviews
               </h1>
-              <p className="mt-2 text-base leading-6 text-white/75">
-                Review exact frozen manuscript versions assigned to you across
-                all research groups. Decisions remain permanent and
-                version-scoped.
+              <p className="mt-2 text-base leading-6 text-[var(--color-text-secondary)]">
+                Review manuscripts assigned to you across research groups.
               </p>
             </div>
             <Button
               variant="secondary"
               size="sm"
-              className="border-white/20 bg-white/10 text-white hover:bg-white/20"
+              className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-[var(--nav-hover-bg)]"
               icon={<RefreshCw className="h-4 w-4" />}
               onClick={() => void loadAssignments()}
               isLoading={loading}
             >
-              Refresh assignments
+              Refresh
             </Button>
           </div>
+          {adviserSummary}
         </header>
       ) : (
         <PageHeader
@@ -743,62 +778,6 @@ export function ManuscriptReviewWorkspace({
             </Button>
           }
         />
-      )}
-
-      {isAdviserPresentation && !loading && (
-        <section
-          aria-label="Review assignment summary"
-          className="grid gap-3 sm:grid-cols-3"
-        >
-          {[
-            {
-              label: "Pending assignments",
-              value: active.length,
-              detail: "Active assignments requiring attention",
-              icon: Clock3,
-              tone: "text-[#C58A18] bg-[#FEF7EA] dark:bg-[#C58A18]/15",
-            },
-            {
-              label: "Completed reviews",
-              value: completedCount,
-              detail: "Version-scoped decisions submitted",
-              icon: CheckCircle2,
-              tone: "text-[#2E7D5B] bg-[#EAF5EE] dark:bg-[#2E7D5B]/15",
-            },
-            {
-              label: "Total assignments",
-              value: assignments.length,
-              detail: "Including retained audit history",
-              icon: Layers3,
-              tone: "text-[var(--color-primary)] bg-[var(--color-primary-light)]",
-            },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className="flex items-center gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-subtle)] p-3.5"
-            >
-              <span
-                className={cn(
-                  "grid h-10 w-10 shrink-0 place-items-center rounded-xl",
-                  stat.tone,
-                )}
-              >
-                <stat.icon className="h-5 w-5" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                  {stat.label}
-                </span>
-                <span className="mt-0.5 block text-xl font-black text-[var(--color-text-primary)]">
-                  {stat.value}
-                </span>
-                <span className="block truncate text-xs text-[var(--color-text-secondary)]">
-                  {stat.detail}
-                </span>
-              </span>
-            </div>
-          ))}
-        </section>
       )}
 
       {error && !selected && (
@@ -839,9 +818,11 @@ export function ManuscriptReviewWorkspace({
                   <Clock3 className="h-5 w-5 text-[var(--color-primary)]" />{" "}
                   Pending reviews
                 </h2>
-                <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-                  Only active assignments for your account can be decided.
-                </p>
+                {!isAdviserPresentation && (
+                  <p className="mt-1 text-base text-[var(--color-text-secondary)]">
+                    Only active assignments for your account can be decided.
+                  </p>
+                )}
               </div>
               {!isAdviserPresentation && (
                 <Tag variant={active.length ? "warning" : "success"}>
@@ -888,8 +869,9 @@ export function ManuscriptReviewWorkspace({
                 Review history
               </h2>
               <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-                Completed, revoked, reassigned, and superseded assignments
-                remain auditable.
+                {isAdviserPresentation
+                  ? "Past reviews and assignment changes."
+                  : "Completed, revoked, reassigned, and superseded assignments remain auditable."}
               </p>
             </div>
             {history.length ? (
@@ -1158,9 +1140,19 @@ export function ManuscriptReviewWorkspace({
                 )}
               </div>
               <p className="text-base leading-5 text-[var(--color-text-secondary)]">
-                This decision is recorded against the exact submitted snapshot
-                and cannot be edited afterward. A revision request requires the
-                researchers to submit a new version.
+                {isAdviserPresentation ? (
+                  <>
+                    Your decision is permanent and applies only to Version{" "}
+                    {selected?.documentVersion.versionNumber}. Revision requests
+                    require a new manuscript version.
+                  </>
+                ) : (
+                  <>
+                    This decision is recorded against the exact submitted
+                    snapshot and cannot be edited afterward. A revision request
+                    requires the researchers to submit a new version.
+                  </>
+                )}
               </p>
             </div>
           </div>

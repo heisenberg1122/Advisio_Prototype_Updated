@@ -1,0 +1,91 @@
+/* Keep semantic colors independent of the portal's college surface mappings. */
+.calendar-event-tone--academic {
+  --calendar-event-color: #059669;
+  --calendar-event-ink: #065f46;
+}
+.calendar-event-tone--consultation {
+  --calendar-event-color: #2563eb;
+  --calendar-event-ink: #1e40af;
+}
+.calendar-event-tone--defense {
+  --calendar-event-color: #d97706;
+  --calendar-event-ink: #92400e;
+}
+.calendar-event-tone--deadline {
+  --calendar-event-color: #e11d48;
+  --calendar-event-ink: #9f1239;
+}
+.calendar-event-tone--milestone {
+  --calendar-event-color: #7c3aed;
+  --calendar-event-ink: #5b21b6;
+}
+.calendar-event-tone--announcement {
+  --calendar-event-color: #0891b2;
+  --calendar-event-ink: #155e75;
+}
+.calendar-event-tone--availability {
+  --calendar-event-color: #64748b;
+  --calendar-event-ink: #334155;
+}
+.calendar-event-tone--other {
+  --calendar-event-color: #78716c;
+  --calendar-event-ink: #44403c;
+}
+
+.dark .calendar-event-tone--academic {
+  --calendar-event-color: #34d399;
+}
+.dark .calendar-event-tone--consultation {
+  --calendar-event-color: #60a5fa;
+}
+.dark .calendar-event-tone--defense {
+  --calendar-event-color: #fbbf24;
+}
+.dark .calendar-event-tone--deadline {
+  --calendar-event-color: #fb7185;
+}
+.dark .calendar-event-tone--milestone {
+  --calendar-event-color: #c4b5fd;
+}
+.dark .calendar-event-tone--announcement {
+  --calendar-event-color: #22d3ee;
+}
+.dark .calendar-event-tone--availability {
+  --calendar-event-color: #cbd5e1;
+}
+.dark .calendar-event-tone--other {
+  --calendar-event-color: #d6d3d1;
+}
+
+.calendar-event-tone {
+  border-color: color-mix(
+    in srgb,
+    var(--calendar-event-color) 45%,
+    transparent
+  );
+  background-color: color-mix(
+    in srgb,
+    var(--calendar-event-color) 10%,
+    var(--color-surface)
+  );
+  color: var(--calendar-event-ink);
+}
+.dark .calendar-event-tone {
+  border-color: color-mix(
+    in srgb,
+    var(--calendar-event-color) 65%,
+    transparent
+  );
+  background-color: color-mix(
+    in srgb,
+    var(--calendar-event-color) 18%,
+    var(--color-surface)
+  );
+  color: var(--calendar-event-color);
+}
+.calendar-legend-dot {
+  flex-shrink: 0;
+  background-color: var(--calendar-event-color);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--calendar-event-color) 18%, transparent);
+}

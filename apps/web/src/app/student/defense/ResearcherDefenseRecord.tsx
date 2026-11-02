@@ -7,6 +7,7 @@ import {
 import { apiClient } from "@/lib/api-client";
 import { DefenseBadgeCard } from "@/components/defense/DefenseBadgeCard";
 import { SharedManuscriptFeedback } from "@/components/documents/SharedManuscriptFeedback";
+import { DefenseEvaluationsSkeleton } from "@/components/ui/Skeleton";
 
 export const readable = (value?: string | null) =>
   value
@@ -321,7 +322,7 @@ export function ResearcherDefenseDocuments({
     >
       <h2 id="rdf-manuscript">Published defense manuscript</h2>
       <p className="rdf-caption">
-        The exact immutable version published in this defense packet.
+        The saved manuscript version shared for this defense. Changes to the working draft do not change this copy.
       </p>
       {packet?.manuscriptVersion ? (
         <div className="rdf-manuscript-row">
@@ -357,8 +358,8 @@ export function ResearcherDefenseDocuments({
         </div>
       ) : (
         <p className="rdf-secondary rdf-empty-line">
-          No published defense manuscript packet is available for this session
-          yet.
+
+          No defense manuscript has been shared for this session yet.
         </p>
       )}
       <div className="rdf-related">
@@ -455,7 +456,7 @@ export function ResearcherDefenseRecord({
       )}
       {showEvaluations &&
         (query.isPending ? (
-          <p className="rdf-section">Loading consolidated evaluations…</p>
+          <DefenseEvaluationsSkeleton />
         ) : query.isError ? (
           <p className="rdf-section" role="alert">
             {query.error.message}

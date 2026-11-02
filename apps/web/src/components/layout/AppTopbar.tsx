@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { NotificationPopover } from "@/components/notifications/NotificationPopover";
 import { Avatar } from "@/components/ui/Avatar";
+import { AdvisioBrandMark } from "@/components/ui/AdvisioBrandMark";
 import { useProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/hooks/use-auth";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
@@ -31,8 +32,9 @@ import { useTheme } from "@/providers/theme-provider";
 import { cn } from "@/lib/utils";
 import { portalQuickLinks } from "@/lib/portal-navigation";
 import { DashboardSwitcher } from "@/components/layout/DashboardSwitcher";
+import { CollegeSwitcher } from "@/components/layout/CollegeSwitcher";
 import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
-import { getRoleBadgeLabel } from "@/lib/dashboard-navigation";
+import { getRoleBadgeLabel, getRolePortalBadge } from "@/lib/dashboard-navigation";
 
 export interface AppTopbarProps {
   title?: string;
@@ -75,7 +77,7 @@ export function AppTopbar({
   const { profile } = useProfile();
   const { activeWorkspace } = useDashboardWorkspace();
   const { logout, user } = useAuth();
-  const { openMobile } = useSidebarCollapsed();
+  const { openMobile, collapsed } = useSidebarCollapsed();
   const { theme, isDark, toggleTheme } = useTheme();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -213,6 +215,14 @@ export function AppTopbar({
         >
           <Menu className="h-5 w-5" />
         </button>
+
+        <div className={cn("flex shrink-0 items-center gap-2.5 lg:hidden", collapsed && "lg:flex")}>
+          <AdvisioBrandMark />
+          <div className="hidden lg:block">
+            <p className="text-sm font-bold tracking-tight text-[var(--color-text-primary)]">ADVISIO</p>
+            <p className="text-xs font-semibold text-[var(--color-primary)]">{getRolePortalBadge(activeWorkspace)}</p>
+          </div>
+        </div>
 
         <div className="min-w-0">
           {breadcrumbs && breadcrumbs.length > 0 ? (
@@ -412,6 +422,7 @@ export function AppTopbar({
 
 
               {/* Multi-role Dashboard Switcher */}
+              <div className="px-3 py-2"><CollegeSwitcher /></div>
               <DashboardSwitcher onCloseMenu={() => setIsProfileOpen(false)} />
 
               {/* Theme Toggle & Links */}

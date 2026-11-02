@@ -11,6 +11,7 @@ import {
   recoveryRateLimit,
 } from "../middleware/recovery-rate-limit.js";
 import { Router, Request, Response } from "express";
+import { recordAudit } from "../services/audit.service.js";
 import bcrypt from "bcryptjs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
@@ -31,6 +32,8 @@ import {
 } from "@research-management/validations";
 import { validateBody } from "../middleware/validate";
 import { requireAuth, generateToken } from "../middleware/auth";
+import { resolveCollegeAuthorization } from "../lib/college-authorization.js";
+import { z } from "zod";
 import {
   googleOnboardingSessionSchema,
   googleOnboardingIdentitySchema,
@@ -101,8 +104,8 @@ router.post(
       } = req.body;
 
       const normalizedEmail = email.toLowerCase().trim();
-      const requestedRole = String(role || "RESEARCHER").toUpperCase();
-      const isResearcher = requestedRole === "RESEARCHER";
+      if (role && role !== "RESEARCHER") return void res.status(403).json({ error: "Faculty access requires an institutional invitation." });
+      const isResearcher = true;
 
       const existingUser = await prisma.user.findFirst({
         where: {
@@ -152,24 +155,6 @@ router.post(
 
         resolvedProgramId = selectedProgram.id;
         resolvedCollegeId = selectedProgram.collegeId;
-      } else {
-        if (!collegeId) {
-          res
-            .status(400)
-            .json({ error: "Select your assigned college or school." });
-          return;
-        }
-        const selectedCollege = await prisma.college.findFirst({
-          where: { id: collegeId, isActive: true },
-          select: { id: true },
-        });
-        if (!selectedCollege) {
-          res
-            .status(400)
-            .json({ error: "The selected college or school is unavailable." });
-          return;
-        }
-        resolvedCollegeId = selectedCollege.id;
       }
 
       const passwordHash = await bcrypt.hash(password, 10);
@@ -182,7 +167,7 @@ router.post(
         ? createHash("sha256").update(onboardingToken).digest("hex")
         : null;
 
-      const roleName = isResearcher ? "RESEARCHER" : "ADVISER";
+      const roleName = "RESEARCHER";
       const targetRole = await prisma.role.findUnique({
         where: { name: roleName },
       });
@@ -190,7 +175,8 @@ router.post(
         return void res
           .status(503)
           .json({ error: "Registration is temporarily unavailable." });
-      const user = await prisma.user.create({
+      const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
         data: {
           universityId,
           email: normalizedEmail,
@@ -207,6 +193,10 @@ router.post(
             : null,
           roles: { create: { roleId: targetRole.id } },
         },
+      });
+
+      await recordAudit(tx, { userId: created.id, action: "CREATE", entityType: "USER_ACCOUNT", entityId: created.id, eventType: "ACCOUNT_REGISTERED", newValues: { status: initialStatus, requestedRole: roleName } });
+      return created;
       });
 
       if (initialStatus === "PENDING") {
@@ -406,6 +396,8 @@ router.post(
         user = await prisma.user.findUnique({
           where: { email: normalizedEmail },
           include: {
+            college: true,
+            collegeMemberships: { include: { college: true } },
             roles: {
               include: {
                 role: true,
@@ -461,15 +453,13 @@ router.post(
         return;
       }
 
-      // Update last login
-      try {
-        await prisma.user.update({
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({
           where: { id: user.id },
           data: { lastLoginAt: new Date() },
         });
-      } catch {
-        // Non-critical update, ignore
-      }
+        await recordAudit(tx, { userId: user.id, actorRoles: user.roles.map((r) => r.role.name), action: "LOGIN", entityType: "Authentication", entityId: user.id, eventType: "LOGIN_SUCCEEDED", newValues: { method: "PASSWORD" } });
+      });
 
       const token = generateToken(user.id, user.sessionVersion);
 
@@ -482,7 +472,7 @@ router.post(
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          roles: user.roles.map((r) => r.role.name),
+          roles: resolveCollegeAuthorization(user).roles,
         },
       });
     } catch {
@@ -527,7 +517,7 @@ router.post("/google", loginRateLimit, async (req: Request, res: Response) => {
     }
 
     const email = identity.email.trim().toLowerCase();
-    const includeRoles = { roles: { include: { role: true } } } as const;
+    const includeRoles = { college: true, collegeMemberships: { include: { college: true } }, roles: { include: { role: true } } } as const;
     let user = await prisma.user.findUnique({
       where: { googleSubject: identity.sub },
       include: includeRoles,
@@ -639,9 +629,12 @@ router.post("/google", loginRateLimit, async (req: Request, res: Response) => {
             : "Your Advisio account is not active. Please contact an administrator.";
       return void res.status(403).json({ error: message, status: user.status });
     }
-    await prisma.user.update({
+    await prisma.$transaction(async (tx) => {
+    await tx.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
+    });
+    await recordAudit(tx, { userId: user.id, actorRoles: user.roles.map((r) => r.role.name), action: "LOGIN", entityType: "Authentication", entityId: user.id, eventType: "LOGIN_SUCCEEDED", newValues: { method: "GOOGLE" } });
     });
 
     const token = generateToken(user.id, user.sessionVersion);
@@ -655,7 +648,7 @@ router.post("/google", loginRateLimit, async (req: Request, res: Response) => {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        roles: user.roles.map((userRole) => userRole.role.name),
+        roles: resolveCollegeAuthorization(user).roles,
       },
     });
   } catch (error: any) {
@@ -671,6 +664,13 @@ router.post("/google", loginRateLimit, async (req: Request, res: Response) => {
       error: "Google sign-in is temporarily unavailable. Please try again.",
     });
   }
+});
+
+router.post("/logout", requireAuth, async (req, res) => {
+  try {
+    await recordAudit(prisma, { userId: req.user!.id, actorRoles: req.user!.roles, action: "LOGOUT", entityType: "Session", entityId: req.user!.id, eventType: "LOGOUT_REQUESTED", newValues: { reason: "USER_LOGOUT", revokesOtherSessions: false } });
+    res.clearCookie("token").status(204).send();
+  } catch { res.status(503).json({ error: "Sign-out could not be recorded. Try again." }); }
 });
 
 // Onboarding tokens can only access these registration endpoints, never dashboards.
@@ -723,7 +723,7 @@ router.post(
   validateBody(googleFacultyOnboardingSchema),
   async (req, res) => {
     try {
-      res.json(await submitGoogleFacultyOnboarding(req.body));
+      res.status(403).json({ error: "Faculty registration is invitation-only. Contact your college Dean or System Administrator." });
     } catch (error: any) {
       res
         .status(error.statusCode || (error.code === "P2034" ? 409 : 500))
@@ -809,6 +809,14 @@ router.patch(
 );
 
 // GET /api/auth/me
+router.post("/active-college", requireAuth, validateBody(z.object({ collegeId: z.string().uuid() })), async (req, res) => {
+  try {
+    const account = await prisma.user.findUniqueOrThrow({ where: { id: req.user!.id }, include: { college: true, roles: { include: { role: true } }, collegeMemberships: { include: { college: true } } } });
+    resolveCollegeAuthorization(account, req.body.collegeId);
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ token: generateToken(account.id, account.sessionVersion, req.body.collegeId) });
+  } catch (error: any) { res.status(error.statusCode || 503).json({ error: error.statusCode ? error.message : "Unable to switch colleges. Please try again." }); }
+});
 router.get("/me", requireAuth, async (req: Request, res: Response) => {
   try {
     if (!req.user) {
@@ -820,6 +828,7 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
       where: { id: req.user.id },
       include: {
         college: true,
+        collegeMemberships: { include: { college: true } },
         program: true,
         roles: {
           include: {
@@ -842,8 +851,10 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
         firstName: user.firstName,
         middleName: user.middleName,
         lastName: user.lastName,
-        college: user.college,
-        program: user.program,
+        college: req.user.collegeId === user.collegeId ? user.college : user.collegeMemberships.find((membership) => membership.collegeId === req.user!.collegeId)?.college || null,
+        program: req.user.collegeId === user.collegeId ? user.program : null,
+        primaryCollegeId: user.collegeId,
+        collegeMemberships: resolveCollegeAuthorization(user).availableColleges,
         appearancePreference: user.appearancePreference,
         colorThemePreference: effectiveColorThemePreference(
           user.colorThemePreference,

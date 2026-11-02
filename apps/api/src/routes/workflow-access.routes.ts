@@ -54,8 +54,9 @@ async function loadWorkflow(id: string, db: Prisma.TransactionClient = prisma) {
 }
 function canManage(user: User, w: Awaited<ReturnType<typeof loadWorkflow>>) {
   const scope = getCollegeScope(user);
+  if (scope.kind !== "institution" && (scope.kind !== "college" || scope.collegeId !== w.program.collegeId)) return false;
   return (
-    w.createdBy === user.id ||
+    (w.createdBy === user.id && user.roles.includes("RESEARCH_COORDINATOR")) ||
     (user.roles.some((r) => ["SYSTEM_ADMIN", "DEAN"].includes(r)) &&
       (scope.kind === "institution" ||
         (scope.kind === "college" &&

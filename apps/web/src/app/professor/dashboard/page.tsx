@@ -1,6 +1,14 @@
 import { TitleProposalReviewModal, type TitleProposalReviewTarget } from "@/components/professor/TitleProposalReviewModal";
+import { WorkflowMilestoneActions } from "@/components/professor/WorkflowMilestoneActions";
+import { WorkflowTopicActions } from "@/components/professor/WorkflowTopicActions";
+import "./professor-workflow.css";
+import "./professor-defense.css";
+import "./professor-projects-submissions.css";
+import "./professor-progress.css";
+import { buildMilestoneMove } from "@/lib/workflow-order";
 import { AdviserApprovalBadge, AdviserTaskReview, needsAdviserApproval } from "@/components/workflow/AdviserTaskReview";
-import React, { useState, Suspense, useEffect } from "react";
+import React, { useState, Suspense, useEffect, useRef } from "react";
+import { ChartLine, Info } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
@@ -237,6 +245,7 @@ function ProfessorDashboardContent() {
   const professorProjectKey = professorProjectIds.join(",");
   const {
     data: milestoneProgressByProject = EMPTY_MILESTONE_PROGRESS_BY_PROJECT,
+    refetch: refetchMilestoneProgress,
   } = useQuery({
     queryKey: ["professor-milestone-progress", professorProjectKey],
     queryFn: async () => {
@@ -491,6 +500,9 @@ function ProfessorDashboardContent() {
   );
   const [draggedTopicId, setDraggedTopicId] = useState<string | null>(null);
   const [topicOrderSaving, setTopicOrderSaving] = useState(false);
+  const [draggedMilestoneId, setDraggedMilestoneId] = useState<string | null>(null);
+  const [milestoneDropTarget, setMilestoneDropTarget] = useState<{ id: string; after: boolean } | null>(null);
+  const orderSavingRef = useRef(false);
   const [showAdvancedMilestoneOptions, setShowAdvancedMilestoneOptions] =
     useState(false);
   const [editingMilestone, setEditingMilestone] = useState<any | null>(null);
@@ -814,20 +826,45 @@ function ProfessorDashboardContent() {
   };
 
   const saveTopicOrder = async (reordered: any[]) => {
-    if (!selectedWorkflowId || topicOrderSaving) return;
+    if (!selectedWorkflowId || orderSavingRef.current) return;
+    orderSavingRef.current = true;
     setTopicOrderSaving(true);
     try {
       await apiClient.patch(
         `/api/workflows/${selectedWorkflowId}/topics/reorder`,
-        { topicIds: reordered.map((topic: any) => topic.id) },
+        { topicIds: reordered.map((topic: any) => topic.id), expectedTopicIds: selectedWorkflowTopics.map((topic: any) => topic.id) },
       );
-      await refetchWorkflows();
-      triggerToast("Topic order updated.");
+      await Promise.all([refetchWorkflows(), refetchResearch(), refetchMilestoneProgress()]);
+      triggerToast("Phase order and required milestones updated.");
     } catch (error: any) {
       triggerToast(error?.message || "The topic could not be moved.");
     } finally {
+      orderSavingRef.current = false;
       setTopicOrderSaving(false);
       setDraggedTopicId(null);
+    }
+  };
+
+  const handleMoveMilestone = async (stageId: string, topicId: string | null, beforeId: string | null): Promise<boolean> => {
+    if (!selectedWorkflowId || orderSavingRef.current) return false;
+    orderSavingRef.current = true;
+    setTopicOrderSaving(true);
+    try {
+      const expectedStages = selectedWorkflowMilestones.map(({ id, topicId }) => ({ id, topicId }));
+      const stages = buildMilestoneMove(expectedStages, selectedWorkflowTopics.map((topic: any) => topic.id), stageId, topicId, beforeId);
+      if (JSON.stringify(stages) === JSON.stringify(expectedStages)) return true;
+      await apiClient.patch(`/api/workflows/${selectedWorkflowId}/stages/reorder`, { stages, expectedStages });
+      await Promise.all([refetchWorkflows(), refetchResearch(), refetchMilestoneProgress()]);
+      triggerToast("Milestone moved. Required milestones now follow the new order.");
+      return true;
+    } catch (error: any) {
+      triggerToast(error?.message || "The milestone could not be moved.");
+      return false;
+    } finally {
+      orderSavingRef.current = false;
+      setTopicOrderSaving(false);
+      setDraggedMilestoneId(null);
+      setMilestoneDropTarget(null);
     }
   };
 
@@ -1273,8 +1310,8 @@ function ProfessorDashboardContent() {
       }
     : null;
   const selectedWorkflowMilestones = milestones.filter(
-    (item) => item.workflowId === selectedWorkflowId,
-  );
+    (item) => item.workflowId === selectedWorkflowId && item.scope !== "Archived",
+  ).sort((left, right) => left.sequence - right.sequence);
   const milestoneConditionOptions = (topicId: string, editingId?: string) => {
     const editing = selectedWorkflowMilestones.find(
       (item) => item.id === editingId,
@@ -1391,8 +1428,24 @@ function ProfessorDashboardContent() {
             ? "bg-violet-50 text-violet-700"
             : "bg-amber-50 text-amber-700";
     return (
-      <article key={milestone.id} className="group flex flex-wrap items-start gap-3 border-t border-[var(--color-border-subtle)] px-4 py-4 first:border-t-0 sm:px-5">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-sm font-extrabold text-[var(--color-primary)]">
+      <article key={milestone.id}
+        onDragOver={event => { if (draggedMilestoneId) {
+          event.preventDefault(); event.stopPropagation(); event.dataTransfer.dropEffect = "move";
+          const rect = event.currentTarget.getBoundingClientRect();
+          const after = event.clientY > rect.top + rect.height / 2;
+          setMilestoneDropTarget(current => current?.id === milestone.id && current.after === after ? current : { id: milestone.id, after });
+        } }}
+        onDrop={event => {
+          if (!draggedMilestoneId) return;
+          event.preventDefault(); event.stopPropagation();
+          const rect = event.currentTarget.getBoundingClientRect();
+          const after = event.clientY > rect.top + rect.height / 2;
+          const next = selectedWorkflowMilestones.find(item => item.topicId === milestone.topicId && item.sequence > milestone.sequence);
+          void handleMoveMilestone(draggedMilestoneId, milestone.topicId, after ? next?.id || null : milestone.id);
+        }}
+        className={`workflow-milestone-row group relative flex flex-wrap items-start gap-3 border-t border-[var(--color-border-subtle)] px-4 py-4 first:border-t-0 sm:px-5 ${draggedMilestoneId === milestone.id ? "opacity-50" : ""}`}>
+        {milestoneDropTarget?.id === milestone.id && draggedMilestoneId !== milestone.id && <span aria-hidden="true" className={`pointer-events-none absolute inset-x-3 z-10 h-0.5 rounded-full bg-[var(--color-primary)] ${milestoneDropTarget.after ? "bottom-0" : "top-0"}`} />}
+        <span className="workflow-milestone-number grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-sm font-extrabold text-[var(--color-primary)]">
           {topicPosition}
         </span>
         <button
@@ -1402,25 +1455,29 @@ function ProfessorDashboardContent() {
             openMilestoneEditor(milestone);
           }}
           aria-label={`Edit milestone ${milestone.title}`}
-          className="min-w-0 flex-1 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+          className="workflow-milestone-edit min-w-0 flex-1 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
         >
-          <span className="flex flex-wrap items-center gap-2">
+          <span className="workflow-milestone-heading flex flex-wrap items-center gap-2">
             <span className="text-[15px] font-extrabold text-[var(--color-text-primary)]">{milestone.title}</span>
             <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${typeStyle}`}>{typeLabel}</span>
           </span>
-          <span className="mt-1.5 block line-clamp-2 text-sm leading-5 text-[var(--color-text-secondary)]">
+          <span className="workflow-milestone-description mt-1.5 block line-clamp-2 text-sm leading-5 text-[var(--color-text-secondary)]">
             {milestone.description || "No student instructions added yet."}
           </span>
-          <span className="mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--color-text-secondary)]">
+          <span className="workflow-milestone-meta mt-3 flex flex-wrap gap-2 text-xs font-semibold text-[var(--color-text-secondary)]">
             <span className="rounded-lg bg-[var(--color-surface-subtle)] px-2.5 py-1.5"><i className="ti ti-users mr-1" />{milestone.submissionMode === "INDIVIDUAL" ? "Individual" : milestone.submissionMode === "GROUP" ? "Research group" : "Individual or group"}</span>
             <span className="rounded-lg bg-[var(--color-surface-subtle)] px-2.5 py-1.5"><i className="ti ti-calendar mr-1" />{formatMilestoneTarget(milestone)}</span>
             {milestone.requiredMilestoneId && <span className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-amber-700"><i className="ti ti-lock-check mr-1" />Required: {selectedWorkflowMilestones.find((item) => item.id === milestone.requiredMilestoneId)?.title || "earlier milestone"}</span>}
-            {prerequisite && <span className="rounded-lg bg-[var(--color-surface-subtle)] px-2.5 py-1.5"><i className="ti ti-link mr-1" />Prerequisite: {prerequisite.title}</span>}
+            {!milestone.requiredMilestoneId && prerequisite && <span className="rounded-lg bg-[var(--color-surface-subtle)] px-2.5 py-1.5"><i className="ti ti-link mr-1" />Prerequisite: {prerequisite.title}</span>}
             {milestone.locked && <span className="rounded-lg bg-[var(--color-surface-subtle)] px-2.5 py-1.5"><i className="ti ti-lock mr-1" />Approval required</span>}
             {milestone.milestoneType === "DEFENSE_ELIGIBILITY" && <span className="rounded-lg bg-[var(--color-primary-light)] px-2.5 py-1.5 text-[var(--color-primary)]"><i className="ti ti-shield-check mr-1" />One defense cycle</span>}
           </span>
         </button>
-        <span className="flex shrink-0 items-center gap-1 pt-1 text-[var(--color-text-muted)]" aria-hidden="true"><i className="ti ti-dots text-lg" /><i className="ti ti-grip-vertical text-lg" /></span>
+        <WorkflowMilestoneActions milestone={milestone} stages={selectedWorkflowMilestones} topics={selectedWorkflowTopics} busy={topicOrderSaving}
+          onMove={(topicId, beforeId) => handleMoveMilestone(milestone.id, topicId, beforeId)}
+          onEdit={() => { setShowAdvancedMilestoneOptions(false); openMilestoneEditor(milestone); }}
+          onDragStart={event => { event.stopPropagation(); event.dataTransfer.setData("text/plain", milestone.id); event.dataTransfer.effectAllowed = "move"; setDraggedTopicId(null); setDraggedMilestoneId(milestone.id); }}
+          onDragEnd={() => { setDraggedMilestoneId(null); setMilestoneDropTarget(null); }} />
       </article>
     );
   };
@@ -3609,7 +3666,7 @@ function ProfessorDashboardContent() {
 
       {/* MAIN CONTAINER */}
       <div
-        className={`flex w-full flex-1 flex-col space-y-6 ${(activeTab === "messages" || (activeTab === "submissions" && selectedSubmission)) ? "max-w-none p-3 sm:p-4" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}
+        className={`workspace-page flex w-full flex-1 flex-col space-y-6 ${(activeTab === "messages" || (activeTab === "submissions" && selectedSubmission)) ? "max-w-none p-3 sm:p-4" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}
       >
         {(() => {
           const tabContent: Record<string, React.ReactNode> = {
@@ -4047,7 +4104,7 @@ function ProfessorDashboardContent() {
             ),
             announcements: (
               <div className="mx-auto grid w-full max-w-[1440px] gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+                <section className="workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
@@ -4246,8 +4303,8 @@ function ProfessorDashboardContent() {
               </div>
             ),
             defense: (
-              <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+              <div className="coordinator-defense mx-auto flex w-full max-w-[1440px] flex-col gap-5">
+                <section className="cdf-header workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
@@ -4257,8 +4314,7 @@ function ProfessorDashboardContent() {
                         Defense Management
                       </h2>
                       <p className="mt-1 text-base text-slate-500">
-                        Build multi-group defense events, confirm the panel, and
-                        control the live queue.
+                        Schedule defenses and manage the panel.
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -4286,82 +4342,24 @@ function ProfessorDashboardContent() {
                     </div>
                   </div>
                   {!eligibleDefenseGroups.length && (
-                    <p className="mt-4 rounded-xl bg-blue-50 p-3 text-base text-blue-800">
-                      <i className="ti ti-info-circle mr-1" />A group becomes
-                      schedulable after its Defense Eligibility milestone is
-                      approved and the Dean letter for that cycle is signed.
-                    </p>
+                    <div className="cdf-guidance" role="note" aria-label="Requirements for scheduling a defense cycle">
+                      <span className="cdf-guidance-label">
+                        <Info size={15} aria-hidden="true" />
+                        Before scheduling
+                      </span>
+                      <ol>
+                        <li>
+                          <span aria-hidden="true">1</span>
+                          Approve eligibility
+                        </li>
+                        <li>
+                          <span aria-hidden="true">2</span>
+                          Get the Dean’s signed letter
+                        </li>
+                      </ol>
+                    </div>
                   )}
                 </section>
-                <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-                  <h3 className="text-lg font-extrabold">
-                    Defense eligibility approvals
-                  </h3>
-                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                    Approve each group's next eligibility milestone. A passed
-                    defense consumes that milestone's approval.
-                  </p>
-                  {!eligibilityGroups.length && (
-                    <p className="mt-3 text-sm">
-                      Add a Defense Eligibility milestone in Workflow → Academic
-                      event → Advanced settings.
-                    </p>
-                  )}
-                  <div className="mt-4 space-y-3">
-                    {eligibilityGroups.map((group: any) => (
-                      <div
-                        key={group.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"
-                      >
-                        <div>
-                          <strong>{group.groupName || group.title}</strong>
-                          <p className="text-sm text-[var(--color-text-secondary)]">
-                            {group.milestone.name} ·{" "}
-                            {group.approved
-                              ? "Approved for one defense cycle"
-                              : group.canApprove
-                                ? "Ready for coordinator approval"
-                                : "Complete prerequisites and approve required submissions first"}
-                          </p>
-                        </div>
-                        {group.approved ? (
-                          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                            <i
-                              className="ti ti-circle-check-filled text-lg"
-                              aria-hidden="true"
-                            />
-                            {eligibleDefenseGroups.some(
-                              (project) => project.id === group.id,
-                            )
-                              ? "Ready to schedule"
-                              : "Defense cycle approved"}
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={!group.canApprove || defenseActionPending}
-                            onClick={() => approveDefenseGate(group)}
-                            className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
-                          >
-                            Approve eligibility
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </section>
-                <DefenseBadgeIssuance
-                  sessions={defenseSessions}
-                  canIssue={Boolean(
-                    user?.roles.includes("RESEARCH_COORDINATOR"),
-                  )}
-                  onIssued={() =>
-                    Promise.all([
-                      refetchDefenseManagement(),
-                      refetchDefenseEvents(),
-                    ])
-                  }
-                />
                 {liveDefense?.packet?.evaluationMode === "STRUCTURED" && <ConsolidatedEvaluations sessionId={liveDefense.id}/>}
                 {liveDefense && liveDefense.packet?.evaluationMode !== "STRUCTURED" && (
                   <section className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5">
@@ -4459,7 +4457,7 @@ function ProfessorDashboardContent() {
                     </p>
                   </div>
                 )}
-                <section className="grid gap-4 sm:grid-cols-3">
+                <section className="cdf-stats grid gap-4 sm:grid-cols-3">
                   {[
                     {
                       label: "Awaiting replies",
@@ -4507,9 +4505,9 @@ function ProfessorDashboardContent() {
                 {defenseEvents.map((defenseEvent: any) => (
                   <section
                     key={defenseEvent.id}
-                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6"
+                    className="cdf-event rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6"
                   >
-                    <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-start md:justify-between">
+                    <div className="cdf-event-heading flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-start md:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="text-lg font-extrabold text-[#102f49]">
@@ -4555,7 +4553,7 @@ function ProfessorDashboardContent() {
                         return (
                           <div
                             key={session.id}
-                            className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:flex-row lg:items-center lg:justify-between"
+                            className="cdf-session-row flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:flex-row lg:items-center lg:justify-between"
                           >
                             <div className="flex min-w-0 items-start gap-3">
                               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#173f63] text-sm font-extrabold text-white">
@@ -4611,7 +4609,7 @@ function ProfessorDashboardContent() {
                                 onClick={() => setPacketSession(session)}
                                 className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-extrabold text-[#173f63]"
                               >
-                                Review packet
+                                Defense documents
                               </button>
                               {session.status === "SCHEDULED" &&
                                 !["IN_PROGRESS", "COMPLETED"].includes(
@@ -4655,6 +4653,8 @@ function ProfessorDashboardContent() {
                     </div>
                   </section>
                 ))}
+                {(legacyDefenseSessions.length > 0 ||
+                  (!defenseLoadError && defenseEvents.length === 0)) && (
                 <section className="space-y-4">
                   {legacyDefenseSessions.map((session) => {
                     const activeInvitations = (
@@ -4728,7 +4728,7 @@ function ProfessorDashboardContent() {
                               className="rounded-xl border border-[#f6a800] bg-amber-50 px-4 py-2 text-sm font-extrabold text-[#7a5200]"
                             >
                               <i className="ti ti-files mr-1.5" />
-                              Review packet
+                              Defense documents
                             </button>
                             {[
                               "PENDING_ACKNOWLEDGEMENT",
@@ -4833,6 +4833,79 @@ function ProfessorDashboardContent() {
                       </div>
                     )}
                 </section>
+                )}
+                <section className="cdf-eligibility rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+                  <h3 className="text-lg font-extrabold">
+                    Defense eligibility
+                  </h3>
+                  {!eligibilityGroups.length && (
+                    <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+                      No eligibility milestones available.
+                    </p>
+                  )}
+                  <details className="cdf-help mt-3">
+                    <summary>How it works</summary>
+                    <p>
+                      Approve each group’s next eligibility milestone. A passed
+                      defense uses that milestone’s approval for one cycle.
+                      Configure it in Workflow → Academic event → Advanced settings.
+                    </p>
+                  </details>
+                  <div className="mt-4 space-y-3">
+                    {eligibilityGroups.map((group: any) => (
+                      <div
+                        key={group.id}
+                        className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] p-3"
+                      >
+                        <div>
+                          <strong>{group.groupName || group.title}</strong>
+                          <p className="text-sm text-[var(--color-text-secondary)]">
+                            {group.milestone.name} ·{" "}
+                            {group.approved
+                              ? "Approved for one defense cycle"
+                              : group.canApprove
+                                ? "Ready for coordinator approval"
+                                : "Complete prerequisites and approve required submissions first"}
+                          </p>
+                        </div>
+                        {group.approved ? (
+                          <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-bold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                            <i
+                              className="ti ti-circle-check-filled text-lg"
+                              aria-hidden="true"
+                            />
+                            {eligibleDefenseGroups.some(
+                              (project) => project.id === group.id,
+                            )
+                              ? "Ready to schedule"
+                              : "Defense cycle approved"}
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={!group.canApprove || defenseActionPending}
+                            onClick={() => approveDefenseGate(group)}
+                            className="rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
+                          >
+                            Approve eligibility
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+                <DefenseBadgeIssuance
+                  sessions={defenseSessions}
+                  canIssue={Boolean(
+                    user?.roles.includes("RESEARCH_COORDINATOR"),
+                  )}
+                  onIssued={() =>
+                    Promise.all([
+                      refetchDefenseManagement(),
+                      refetchDefenseEvents(),
+                    ])
+                  }
+                />
                 {showDefenseForm && (
                   <div
                     className="fixed inset-0 z-50 flex bg-slate-950/45"
@@ -5217,8 +5290,8 @@ function ProfessorDashboardContent() {
                 onReview={(status) => handleReviewTaskSubmission(selectedSubmission.id, status)}
               />
             ) : (
-              <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
+              <div className="coordinator-submissions mx-auto flex w-full max-w-[1440px] flex-col gap-5">
+                <section className="csub-header workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
@@ -5232,7 +5305,7 @@ function ProfessorDashboardContent() {
                         from one place.
                       </p>
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:w-[620px]">
+                    <div className="csub-search-filters grid gap-3 sm:grid-cols-2 lg:w-[620px]">
                       <label className="text-sm font-bold uppercase tracking-wider text-slate-500">
                         Workflow
                         <select
@@ -5269,7 +5342,7 @@ function ProfessorDashboardContent() {
                     </div>
                   </div>
                   <div
-                    className="mt-5 flex w-fit rounded-xl bg-slate-100 p-1"
+                    className="csub-tabs mt-5 flex w-fit rounded-xl bg-slate-100 p-1"
                     role="tablist"
                     aria-label="Submission workspace views"
                   >
@@ -5314,21 +5387,10 @@ function ProfessorDashboardContent() {
                   />
                 ) : (
                   <>
-                    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
-                      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                        <div>
-                          <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
-                            Review queue
-                          </p>
-                          <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">
-                            Student submissions
-                          </h2>
-                          <p className="mt-1 text-base text-slate-500">
-                            Review deliverables, give feedback, and keep groups
-                            moving.
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
+                    <section className="csub-queue-toolbar rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6" aria-label="Review queue filters">
+                      <div className="csub-queue-controls flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                        <h3 className="sr-only">Review queue</h3>
+                        <div className="csub-status-filters flex flex-wrap gap-2">
                           {[
                             {
                               id: "NEEDS_REVIEW",
@@ -5351,7 +5413,7 @@ function ProfessorDashboardContent() {
                             </button>
                           ))}
                         </div>
-                        <label className="text-sm font-bold text-slate-500">
+                        <label className="csub-sort text-sm font-bold text-slate-500">
                           Sort by
                           <select
                             value={submissionSort}
@@ -5370,8 +5432,8 @@ function ProfessorDashboardContent() {
                         </label>
                       </div>
                     </section>
-                    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                      <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_130px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-extrabold uppercase tracking-wide text-slate-500 md:grid">
+                    <section className="csub-table overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                      <div className="csub-columns hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_130px] gap-4 border-b border-slate-200 bg-slate-50 px-5 py-3 text-xs font-extrabold uppercase tracking-wide text-slate-500 md:grid">
                         <span>Submission</span>
                         <span>Group / Researcher</span>
                         <span>Submitted</span>
@@ -5385,7 +5447,7 @@ function ProfessorDashboardContent() {
                             key={`${submission.submissionKind || "DOCUMENT"}:${submission.id}`}
                             type="button"
                             onClick={() => openSubmissionReview(submission)}
-                            className="grid w-full gap-3 px-5 py-4 text-left transition hover:bg-amber-50/40 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_130px] md:items-center md:gap-4"
+                            className="csub-row grid w-full gap-3 px-5 py-4 text-left transition hover:bg-amber-50/40 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_130px] md:items-center md:gap-4"
                           >
                             <span className="min-w-0">
                               <span className="block truncate font-extrabold text-[#102f49]">
@@ -5401,7 +5463,8 @@ function ProfessorDashboardContent() {
                               <span className="block truncate">{submission.projectTitle}</span>
                               {submission.submissionKind !== "TITLE_PROPOSAL" && <span className="mt-1.5 block"><AdviserApprovalBadge required={submission.adviserReviewRequired} submission={submission} /></span>}
                             </span>
-                            <span className="text-sm text-slate-500">
+                            <span className="csub-submitted text-sm text-slate-500">
+                              <span className="csub-mobile-label">Submitted </span>
                               {new Date(
                                 submission.submittedAt,
                               ).toLocaleDateString()}
@@ -5434,18 +5497,17 @@ function ProfessorDashboardContent() {
               </div>
             ),
             monitoring: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <div>
+              <div className="coordinator-projects bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
+                <div className="cproj-header workspace-page-header">
                   <h3 className="font-extrabold text-[#1b4264] text-lg">
                     Research Projects
                   </h3>
                   <p className="mt-1 text-base text-slate-500">
-                    View and manage the registered research projects across your
-                    workflows.
+                    Manage registered projects across your workflows.
                   </p>
                 </div>
                 {projects.length > 0 && (
-                  <div className="relative max-w-xl">
+                  <div className="cproj-search relative max-w-xl">
                     <i className="ti ti-search pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       type="search"
@@ -5596,7 +5658,7 @@ function ProfessorDashboardContent() {
                     <ListRowsSkeleton rows={5} avatars={false} />
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-3.5 mt-2">
+                  <div className="cproj-list flex flex-col gap-3.5 mt-2">
                     {registeredProjects
                       .filter((project: any) => {
                         const query = monitoringSearch.trim().toLowerCase();
@@ -5618,14 +5680,16 @@ function ProfessorDashboardContent() {
                       .map((p) => (
                         <div
                           key={p.id}
-                          className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-left text-[12.5px] shadow-sm transition hover:border-[#f6a800]"
+                          className="cproj-row p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-left text-[12.5px] shadow-sm transition hover:border-[#f6a800]"
                         >
                           <button
                             type="button"
                             onClick={() => setSelectedProject(p)}
-                            className="min-w-0 flex-1 text-left"
+                            className="cproj-open min-w-0 flex-1 text-left"
                           >
-                            <span className="font-bold text-[#1b4264] block">
+                            <span className="cproj-icon" aria-hidden="true"><i className="ti ti-folder" /></span>
+                            <span className="cproj-copy">
+                            <span className="cproj-title font-bold text-[#1b4264] block">
                               {p.group}
                             </span>
                             <span className="text-sm text-slate-500">
@@ -5635,9 +5699,11 @@ function ProfessorDashboardContent() {
                               · {p.currentStage?.name || "Not started"} ·{" "}
                               {p.progress}% complete
                             </span>
+                            </span>
+                            <i className="cproj-chevron ti ti-chevron-right" aria-hidden="true" />
                           </button>
-                          <div className="ml-4 flex shrink-0 items-center gap-2">
-                            <Tag variant="success">{p.status}</Tag>
+                          <div className="cproj-actions ml-4 flex shrink-0 items-center gap-2">
+                            <Tag className="capitalize" variant={p.status === "revision" ? "warning" : p.status === "completed" ? "success" : "neutral"}>{p.status}</Tag>
                             <button
                               type="button"
                               onClick={() =>
@@ -5704,8 +5770,8 @@ function ProfessorDashboardContent() {
               </div>
             ),
             builder: (
-              <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-5 text-[var(--color-text-primary)]">
-                <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] lg:p-6">
+              <div className="professor-workflow mx-auto flex w-full max-w-[1360px] flex-col gap-5 text-[var(--color-text-primary)]">
+                <section className="workflow-builder-header workspace-page-header rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] lg:p-6">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--color-primary)]">
@@ -5763,7 +5829,7 @@ function ProfessorDashboardContent() {
                       </button>
                     </div>
                   </div>
-                  <div className="mt-5 flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center">
+                  <div className="workflow-builder-selector mt-5 flex flex-col gap-3 border-t border-[var(--color-border)] pt-4 sm:flex-row sm:items-center">
                     <label className="text-sm font-bold text-[var(--color-text-primary)]">
                       Workflow
                     </label>
@@ -5806,7 +5872,7 @@ function ProfessorDashboardContent() {
                   )}
                 </section>
                 <div
-                  className="overflow-x-auto rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-sm"
+                  className="workflow-builder-tabs overflow-x-auto rounded-t-2xl border-b border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-sm"
                   role="tablist"
                   aria-label="Workflow sections"
                 >
@@ -6054,15 +6120,15 @@ function ProfessorDashboardContent() {
                       </section>
                     )}
                     {!workflowsLoading && !workflowsError && (
-                      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
-                        <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
-                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="workflow-builder-layout grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
+                        <section className="workflow-structure rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+                          <div className="workflow-structure-heading flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                               <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
                                 Workflow structure
                               </h3>
                               <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">
-                                Organize topics and select a milestone to edit its details.
+                                Drag to reorder, or use the options menu to move a milestone.
                               </p>
                             </div>
                             <div className="flex shrink-0 flex-wrap items-center gap-3 self-end sm:self-auto">
@@ -6203,23 +6269,23 @@ function ProfessorDashboardContent() {
                               </div>
                             </div>
                           </div>
-                          <div className="mt-5 flex flex-col gap-5">
+                          <div className="workflow-topic-list mt-5 flex flex-col gap-5">
                             {ungroupedWorkflowMilestones.length > 0 && (
-                              <section className="order-2 overflow-hidden rounded-2xl border border-dashed border-amber-300 bg-amber-50/40">
-                                <div className="flex items-center gap-3 border-b border-amber-200 px-4 py-3">
+                              <section className="workflow-topic workflow-topic-ungrouped order-2 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+                                <div className="workflow-topic-heading flex items-center gap-3 border-b border-[var(--color-border)] px-4 py-3">
                                   <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-100 text-amber-700">
                                     <i className="ti ti-folder-question" />
                                   </span>
                                   <div>
                                     <h4 className="font-extrabold text-[var(--color-text-primary)]">
-                                      Needs organization
+                                      Ungrouped milestones
                                     </h4>
                                     <p className="text-base text-[var(--color-text-secondary)]">
-                                      Open a milestone to assign it to a topic.
+                                      Assign milestones to a topic to organize your workflow.
                                     </p>
                                   </div>
                                 </div>
-                                <div>
+                                <div className="workflow-milestone-list">
                                   {ungroupedWorkflowMilestones.map(
                                     renderWorkflowMilestone,
                                   )}
@@ -6236,21 +6302,24 @@ function ProfessorDashboardContent() {
                                 return (
                                   <section
                                     key={topic.id}
-                                    onDragOver={(event) =>
-                                      event.preventDefault()
-                                    }
-                                    onDrop={() =>
-                                      void handleDropTopic(topic.id)
-                                    }
-                                    className={`order-1 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition ${draggedTopicId === topic.id ? "opacity-60 ring-2 ring-[var(--college-focus-ring)]" : ""}`}
+                                    onDragOver={(event) => { if (draggedTopicId || draggedMilestoneId) event.preventDefault(); }}
+                                    onDrop={(event) => {
+                                      event.preventDefault();
+                                      if (draggedMilestoneId) void handleMoveMilestone(draggedMilestoneId, topic.id, null);
+                                      else void handleDropTopic(topic.id);
+                                    }}
+                                    className={`workflow-topic order-1 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] transition ${draggedTopicId === topic.id ? "opacity-60 ring-2 ring-[var(--college-focus-ring)]" : ""}`}
                                   >
-                                    <header className="flex flex-col gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <header className="workflow-topic-heading flex flex-col gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                       <div className="flex min-w-0 items-start gap-3">
                                         <span
                                           draggable={!topicOrderSaving}
-                                          onDragStart={() =>
-                                            setDraggedTopicId(topic.id)
-                                          }
+                                          onDragStart={(event) => {
+                                            event.dataTransfer.setData("text/plain", topic.id);
+                                            event.dataTransfer.effectAllowed = "move";
+                                            setDraggedMilestoneId(null);
+                                            setDraggedTopicId(topic.id);
+                                          }}
                                           onDragEnd={() =>
                                             setDraggedTopicId(null)
                                           }
@@ -6306,55 +6375,10 @@ function ProfessorDashboardContent() {
                                             className={`ti ${collapsedTopicIds.has(topic.id) ? "ti-chevron-down" : "ti-chevron-up"}`}
                                           />
                                         </button>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            void handleMoveTopic(topic.id, -1)
-                                          }
-                                          disabled={topicIndex === 0}
-                                          aria-label={`Move ${topic.title} up`}
-                                          className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-white disabled:opacity-30"
-                                        >
-                                          <i className="ti ti-arrow-up" />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            void handleMoveTopic(topic.id, 1)
-                                          }
-                                          disabled={
-                                            topicIndex ===
-                                            selectedWorkflowTopics.length - 1
-                                          }
-                                          aria-label={`Move ${topic.title} down`}
-                                          className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-white disabled:opacity-30"
-                                        >
-                                          <i className="ti ti-arrow-down" />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => openTopicEditor(topic)}
-                                          aria-label={`Edit ${topic.title}`}
-                                          className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-white"
-                                        >
-                                          <i className="ti ti-pencil" />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            void handleDeleteTopic(topic)
-                                          }
-                                          disabled={topicMilestones.length > 0}
-                                          title={
-                                            topicMilestones.length
-                                              ? "Move the topic's milestones before deleting it"
-                                              : "Delete topic"
-                                          }
-                                          aria-label={`Delete ${topic.title}`}
-                                          className="grid h-9 w-9 place-items-center rounded-lg text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-30"
-                                        >
-                                          <i className="ti ti-trash" />
-                                        </button>
+                                        <WorkflowTopicActions title={topic.title} busy={topicOrderSaving}
+                                          canMoveUp={topicIndex > 0} canMoveDown={topicIndex < selectedWorkflowTopics.length - 1} canDelete={topicMilestones.length === 0}
+                                          onMoveUp={() => handleMoveTopic(topic.id, -1)} onMoveDown={() => handleMoveTopic(topic.id, 1)}
+                                          onEdit={() => openTopicEditor(topic)} onDelete={() => handleDeleteTopic(topic)} />
                                         <button
                                           type="button"
                                           onClick={() =>
@@ -6373,7 +6397,7 @@ function ProfessorDashboardContent() {
                                     <div
                                       id={`workflow-topic-${topic.id}`}
                                       hidden={collapsedTopicIds.has(topic.id)}
-                                      className="p-0"
+                                      className="workflow-milestone-list p-0"
                                     >
                                       {topicMilestones.length ? (
                                         topicMilestones.map(
@@ -6433,8 +6457,18 @@ function ProfessorDashboardContent() {
                               )}
                           </div>
                         </section>
-                        <aside className="space-y-4">
-                          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+                        <aside className="workflow-builder-sidebar space-y-4">
+                          <section className="workflow-sidebar-quick-actions rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+                            <h3 className="font-extrabold text-[var(--color-text-primary)]">Quick actions</h3>
+                            <div className="mt-3 divide-y divide-[var(--color-border-subtle)]">
+                              <button type="button" onClick={() => setShowStudentPreview(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]"><i className="ti ti-eye" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Preview as Student</strong><span className="text-xs text-[var(--color-text-secondary)]">See the published student view</span></span></button>
+                              <button type="button" onClick={() => setWorkflowView("resources")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-books" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Guides & Templates</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage shared workflow resources</span></span></button>
+                              <button type="button" onClick={() => setWorkflowView("participants")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-users" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Participants</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage assigned researchers</span></span></button>
+                              <button type="button" onClick={() => setCreatingWorkflow(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-copy-plus" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Create another workflow</strong><span className="text-xs text-[var(--color-text-secondary)]">Start a separate workflow configuration</span></span></button>
+                              <button type="button" disabled={!selectedWorkflow || deletingWorkflow} onClick={() => { if (!selectedWorkflow) return; setWorkflowToDelete({ id: selectedWorkflow.id, name: selectedWorkflow.name }); setDeleteConfirmation(""); setDeleteWorkflowError(""); }} className="flex w-full items-center gap-3 py-3 text-left disabled:opacity-50"><span className="grid h-9 w-9 place-items-center rounded-full bg-rose-50 text-rose-600"><i className="ti ti-trash" /></span><span><strong className="block text-sm text-rose-700">Delete workflow</strong><span className="text-xs text-[var(--color-text-secondary)]">Available only when no project is linked</span></span></button>
+                            </div>
+                          </section>
+                          <section className="workflow-sidebar-summary rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <h3 className="font-extrabold text-[var(--color-text-primary)]">
@@ -6454,16 +6488,16 @@ function ProfessorDashboardContent() {
                             </div>
                             <div className="mt-4 space-y-3">
                               <div className="flex justify-between text-sm">
-                                <span className="text-slate-500">Topics</span>
-                                <strong className="text-[#102f49]">
+                                <span className="text-[var(--color-text-secondary)]">Topics</span>
+                                <strong className="text-[var(--color-text-primary)]">
                                   {selectedWorkflowTopics.length}
                                 </strong>
                               </div>
                               <div className="flex justify-between text-sm">
-                                <span className="text-slate-500">
+                                <span className="text-[var(--color-text-secondary)]">
                                   Milestones
                                 </span>
-                                <strong className="text-[#102f49]">
+                                <strong className="text-[var(--color-text-primary)]">
                                   {
                                     milestones.filter(
                                       (item) =>
@@ -6473,26 +6507,26 @@ function ProfessorDashboardContent() {
                                 </strong>
                               </div>
                               <div className="flex justify-between text-sm">
-                                <span className="text-slate-500">
+                                <span className="text-[var(--color-text-secondary)]">
                                   Document milestones
                                 </span>
-                                <strong className="text-[#102f49]">
+                                <strong className="text-[var(--color-text-primary)]">
                                   {workflowDocumentMilestoneCount}
                                 </strong>
                               </div>
                               <div className="flex justify-between text-sm">
-                                <span className="text-slate-500">
+                                <span className="text-[var(--color-text-secondary)]">
                                   Submission requirements
                                 </span>
-                                <strong className="text-[#102f49]">
+                                <strong className="text-[var(--color-text-primary)]">
                                   {workflowRequirementCount}
                                 </strong>
                               </div>
                               <div className="flex justify-between text-sm">
-                                <span className="text-slate-500">
+                                <span className="text-[var(--color-text-secondary)]">
                                   Approval gates
                                 </span>
-                                <strong className="text-[#102f49]">
+                                <strong className="text-[var(--color-text-primary)]">
                                   {
                                     milestones.filter(
                                       (item) =>
@@ -6503,32 +6537,31 @@ function ProfessorDashboardContent() {
                                 </strong>
                               </div>
                               <div className="flex justify-between text-sm">
-                                <span className="text-slate-500">
+                                <span className="text-[var(--color-text-secondary)]">
                                   Active researchers
                                 </span>
-                                <strong className="text-[#102f49]">
+                                <strong className="text-[var(--color-text-primary)]">
                                   {workflowEnrollmentCount}
                                 </strong>
                               </div>
                             </div>
                           </section>
-                          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-primary-subtle)] p-5">
+                          <section className="workflow-sidebar-tip rounded-2xl border border-[var(--color-border)] bg-[var(--color-primary-subtle)] p-5">
                             <div className="flex gap-3">
-                              <i className="ti ti-bulb text-xl text-blue-700" />
+                              <i className="ti ti-bulb text-xl text-[var(--color-primary)]" />
                               <div>
                                 <h3 className="font-extrabold text-[var(--color-text-primary)]">
-                                  Keep it simple
+                                  Planning tip
                                 </h3>
                                 <p className="mt-1 text-base leading-5 text-[var(--color-text-secondary)]">
-                                  Professors only need a name and target
-                                  duration. Submission requirements and advanced
-                                  rules can be added later.
+                                  Name each milestone, set its target, then add
+                                  requirements and approval rules.
                                 </p>
                               </div>
                             </div>
                           </section>
-                          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
-                            <h3 className="font-extrabold text-[var(--color-text-primary)]">Workflow progress</h3>
+                          <section className="workflow-sidebar-progress rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
+                            <h3 className="font-extrabold text-[var(--color-text-primary)]">Organization progress</h3>
                             <div className="mt-4 flex items-center gap-4">
                               <div className="relative grid h-20 w-20 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(var(--color-primary) ${workflowConfigurationPercent}%, var(--color-surface-muted) 0)` }}>
                                 <span className="grid h-14 w-14 place-items-center rounded-full bg-[var(--color-surface)] text-sm font-black text-[var(--color-text-primary)]">{workflowConfigurationPercent}%</span>
@@ -6537,16 +6570,6 @@ function ProfessorDashboardContent() {
                                 <p className="text-sm font-bold text-[var(--color-text-primary)]">{selectedWorkflowMilestones.filter((item) => item.topicId).length} of {selectedWorkflowMilestones.length} milestones organized</p>
                                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--color-surface-muted)]"><div className="h-full rounded-full bg-[var(--color-primary)]" style={{ width: `${workflowConfigurationPercent}%` }} /></div>
                               </div>
-                            </div>
-                          </section>
-                          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-sm">
-                            <h3 className="font-extrabold text-[var(--color-text-primary)]">Quick actions</h3>
-                            <div className="mt-3 divide-y divide-[var(--color-border-subtle)]">
-                              <button type="button" onClick={() => setShowStudentPreview(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]"><i className="ti ti-eye" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Preview as Student</strong><span className="text-xs text-[var(--color-text-secondary)]">See the published student view</span></span></button>
-                              <button type="button" onClick={() => setWorkflowView("resources")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-books" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Guides & Templates</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage shared workflow resources</span></span></button>
-                              <button type="button" onClick={() => setWorkflowView("participants")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-users" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Participants</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage assigned researchers</span></span></button>
-                              <button type="button" onClick={() => setCreatingWorkflow(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-copy-plus" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Create another workflow</strong><span className="text-xs text-[var(--color-text-secondary)]">Start a separate workflow configuration</span></span></button>
-                              <button type="button" disabled={!selectedWorkflow || deletingWorkflow} onClick={() => { if (!selectedWorkflow) return; setWorkflowToDelete({ id: selectedWorkflow.id, name: selectedWorkflow.name }); setDeleteConfirmation(""); setDeleteWorkflowError(""); }} className="flex w-full items-center gap-3 py-3 text-left disabled:opacity-50"><span className="grid h-9 w-9 place-items-center rounded-full bg-rose-50 text-rose-600"><i className="ti ti-trash" /></span><span><strong className="block text-sm text-rose-700">Delete workflow</strong><span className="text-xs text-[var(--color-text-secondary)]">Available only when no project is linked</span></span></button>
                             </div>
                           </section>
                         </aside>
@@ -6665,38 +6688,62 @@ function ProfessorDashboardContent() {
               </div>
             ),
             tracking: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-lg">
-                  Student Group Progress Tracking
-                </h3>
-                <p className="text-base text-slate-400 font-bold">
-                  Track overall progress rates, metrics overlays, and visual
-                  completion trackers.
-                </p>
-                <div className="flex flex-col gap-4 mt-2">
+              <section className="coordinator-progress" aria-labelledby="coordinator-progress-title">
+                <header className="workspace-page-header cprogress-header">
+                  <div>
+                    <p className="cprogress-eyebrow">Research workspace</p>
+                    <h2 id="coordinator-progress-title">Research progress</h2>
+                    <p>Track each project's milestone completion.</p>
+                  </div>
+                  <Tag variant="neutral">
+                    {projects.length} {projects.length === 1 ? "project" : "projects"}
+                  </Tag>
+                </header>
+                <div className="cprogress-list">
                   {projects.map((p) => (
-                    <div
+                    <article
                       key={p.id}
-                      className="bg-slate-50 p-4 border border-slate-200 rounded-xl shadow-sm flex flex-col gap-2"
+                      className="cprogress-row"
                     >
-                      <div className="flex justify-between items-center text-[12px] font-extrabold text-[#1b4264]">
-                        <span>
-                          {p.group} — {p.title}
+                      <div className="cprogress-project">
+                        <span className="cprogress-icon" aria-hidden="true">
+                          <ChartLine size={21} />
                         </span>
-                        <span className="font-mono text-[#ffa400]">
-                          {p.progress}%
-                        </span>
+                        <div>
+                          <h3>{p.title || p.group}</h3>
+                          <p>
+                            <span>Current milestone</span>
+                            {p.currentStage?.name || "Not started"}
+                          </p>
+                        </div>
                       </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2">
+                      <div className="cprogress-meter">
+                        <div className="cprogress-value">
+                          <span>Milestone completion</span>
+                          <strong>{p.progress}<span>%</span></strong>
+                        </div>
                         <div
-                          className="bg-[#1b4264] h-full"
-                          style={{ width: `${p.progress}%` }}
-                        />
+                          className="cprogress-track"
+                          role="progressbar"
+                          aria-label={`Milestone completion for ${p.title || p.group}`}
+                          aria-valuenow={p.progress}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                        >
+                          <div style={{ width: `${p.progress}%` }} />
+                        </div>
                       </div>
-                    </div>
+                    </article>
                   ))}
+                  {projects.length === 0 && (
+                    <div className="cprogress-empty">
+                      <ChartLine className="cprogress-empty-icon" size={28} aria-hidden="true" />
+                      <h3>No projects to track yet</h3>
+                      <p>Projects will appear here once they have a workflow.</p>
+                    </div>
+                  )}
                 </div>
-              </div>
+              </section>
             ),
             completion: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">

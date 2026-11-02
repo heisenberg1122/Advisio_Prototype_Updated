@@ -35,10 +35,8 @@ const notifyMobile = (val: boolean) => {
 export function useSidebarCollapsed() {
   const [collapsed, setCollapsed] = useState(globalCollapsed);
   const [mobileOpen, setMobileOpen] = useState(globalMobileOpen);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     setCollapsed(globalCollapsed);
 
     const handleListener = (val: boolean) => {
@@ -77,9 +75,9 @@ export function useSidebarCollapsed() {
   }, []);
 
   return {
-    collapsed: mounted ? collapsed : false,
+    collapsed,
     toggle,
-    mobileOpen: mounted ? mobileOpen : false,
+    mobileOpen,
     openMobile,
     closeMobile,
   };

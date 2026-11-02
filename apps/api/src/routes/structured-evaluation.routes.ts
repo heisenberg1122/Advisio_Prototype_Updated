@@ -3,6 +3,13 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { structuredFormSchema } from "@research-management/validations";
 import { prisma } from "../lib/prisma.js";
+import {
+  appendEvaluationEvent,
+  loadEvaluationIntegrity,
+  assertEvaluationIntegrity,
+  submissionPayload,
+  checkpointSchema,
+} from "../services/evaluation-ledger.service.js";
 import { validateEvaluationLogos } from "../services/structured-evaluation-pdf.js";
 import { requireAuth } from "../middleware/auth.js";
 import { canAccessCollege } from "../lib/college-scope.js";
@@ -104,7 +111,7 @@ function formFor(a: Awaited<ReturnType<typeof access>>) {
     a.session.packet?.evaluationMode !== "STRUCTURED" ||
     a.session.packet.status !== "PUBLISHED"
   )
-    throw new Conflict("Publish the structured evaluation packet first.");
+    throw new Conflict("Share the evaluation form first.");
   return readForm(a.session.packet.structuredForm);
 }
 function canEdit(a: Awaited<ReturnType<typeof access>>) {
@@ -159,7 +166,7 @@ router.get(
         403,
       );
     if (!a.facilitator && a.session.packet?.status !== "PUBLISHED")
-      throw new Conflict("The packet is not published.");
+      throw new Conflict("The defense documents have not been shared yet.");
     const readiness = a.facilitator
       ? await defenseManuscriptService.getReadiness(a.session.id)
       : null;
@@ -250,7 +257,7 @@ router.put(
         Number(req.body.expectedMappingVersion) !== s.packet.mappingVersion
       )
         throw new Conflict(
-          "The packet changed in another tab. Reload before saving.",
+          "The defense documents changed in another tab. Reload before saving.",
         );
       if (
         s.packet?.status === "PUBLISHED" &&
@@ -270,8 +277,12 @@ router.put(
         );
       if (s.packet && s.packet.evaluationMode !== "STRUCTURED")
         throw new Conflict(
-          "Existing legacy packets retain their original evaluation mode.",
+          "Existing defense documents keep their original evaluation method.",
         );
+      if (s.evaluationLedgerStartedAt) {
+        const { verification } = await loadEvaluationIntegrity(tx, s.id);
+        assertEvaluationIntegrity(verification);
+      }
       const verified = await defenseManuscriptService.getReadiness(
         s.id,
         manuscriptId,
@@ -358,6 +369,26 @@ router.put(
         create: { defenseSessionId: s.id, ...data },
         update: data,
       });
+      if (publish) {
+        if (!s.evaluationLedgerStartedAt)
+          await tx.defenseSession.update({
+            where: { id: s.id },
+            data: { evaluationLedgerStartedAt: new Date() },
+          });
+        await appendEvaluationEvent(tx, {
+          sessionId: s.id,
+          eventType: "FORM_PUBLISHED",
+          actorId: req.user!.id,
+          actorRoles: req.user!.roles,
+          operationId: `form:${s.id}:${data.mappingVersion}`,
+          payload: {
+            snapshot,
+            mappingVersion: data.mappingVersion,
+            publicationReason:
+              String(req.body.publicationReason || "").trim() || null,
+          },
+        });
+      }
       if (publish)
         await tx.auditLog.create({
           data: {
@@ -399,7 +430,7 @@ router.put(
               recipientId: p.userId,
               audience: "panelist",
               type: "DEFENSE_CONFIRMED" as const,
-              title: "Defense review packet published",
+              title: "Defense documents shared",
               message: `The approved manuscript and digital evaluation form for ${s.research.title} are ready.`,
               entityType: "DefenseSession",
               entityId: s.id,
@@ -425,9 +456,22 @@ router.get(
     const item = await prisma.structuredEvaluation.findUnique({
       where: key(a.session.id, req.user!.id),
     });
+    const ledgerEntry =
+      a.session.evaluationLedgerStartedAt && item?.lockedAt
+        ? await prisma.evaluationLedgerEvent.findUnique({
+            where: { operationId: `evaluation:${item.id}:${item.revision}` },
+          })
+        : null;
     res.json({
       snapshot,
       evaluation: metadata(item),
+      receipt: ledgerEntry
+        ? {
+            sequence: ledgerEntry.sequence,
+            eventHash: ledgerEntry.eventHash,
+            recordedAt: ledgerEntry.occurredAt,
+          }
+        : null,
       sessionStatus: a.session.status,
     });
   }),
@@ -551,6 +595,13 @@ router.post(
         where: key(a.session.id, req.user!.id),
       });
       if (!e) throw new Conflict("Save and preview your evaluation first.");
+      if (a.session.evaluationLedgerStartedAt) {
+        const { verification } = await loadEvaluationIntegrity(
+          tx,
+          a.session.id,
+        );
+        assertEvaluationIntegrity(verification);
+      }
       if (e.lockedAt) {
         if (
           e.previewHash === input.previewHash &&
@@ -571,6 +622,15 @@ router.post(
         where: { id: e.id },
         data: { lockedAt: new Date() },
       });
+      if (a.session.evaluationLedgerStartedAt)
+        await appendEvaluationEvent(tx, {
+          sessionId: a.session.id,
+          eventType: "EVALUATION_SUBMITTED",
+          actorId: req.user!.id,
+          actorRoles: req.user!.roles,
+          operationId: `evaluation:${e.id}:${e.revision}`,
+          payload: submissionPayload(saved),
+        });
       await tx.auditLog.create({
         data: {
           userId: req.user!.id,
@@ -605,6 +665,59 @@ router.get(
     res.type("application/pdf").send(Buffer.from(item.pdfData));
   }),
 );
+// Consistent snapshot: never verify an old head against a newly committed submission.
+const integrityHandler = run(async (req, res) => {
+  const checkpoint =
+    req.method === "POST"
+      ? checkpointSchema.parse(req.body.checkpoint)
+      : undefined;
+  const result = await prisma.$transaction(
+    async (tx) => {
+      const a = await access(req, tx);
+      if (!a.facilitator && (!a.researcher || !a.session.releasedAt))
+        throw new Conflict(
+          "Integrity reports are available to facilitators and to researchers after result release.",
+          403,
+        );
+      const { verification, events } = await loadEvaluationIntegrity(
+        tx,
+        a.session.id,
+        checkpoint,
+      );
+      return {
+        ...verification,
+        // Raw payloads contain private evaluations and are never returned here.
+        issues: a.facilitator
+          ? verification.issues
+          : verification.issues.length
+            ? ["Evaluation integrity requires facilitator review."]
+            : [],
+        history: a.facilitator
+          ? events.map((e) => ({
+              sequence: e.sequence,
+              eventType: e.eventType,
+              occurredAt: e.occurredAt,
+              eventHash: e.eventHash,
+            }))
+          : [],
+      };
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+  );
+  res.setHeader("Cache-Control", "private, no-store");
+  res.json(result);
+});
+router.get(
+  "/defense-sessions/:id/evaluation-integrity",
+  requireAuth,
+  integrityHandler,
+);
+router.post(
+  "/defense-sessions/:id/evaluation-integrity",
+  requireAuth,
+  integrityHandler,
+);
+
 router.get(
   "/defense-sessions/:id/structured-results",
   requireAuth,
@@ -752,6 +865,7 @@ router.post(
           userId: req.user!.id,
           action: "APPROVE",
           entityType: "DefenseRevisionClearance",
+            researchId: current.researchId,
           entityId: current.id,
           newValues: clearance,
         },

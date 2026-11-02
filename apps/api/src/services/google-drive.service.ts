@@ -5,6 +5,7 @@ import path from "node:path";
 import fs from "node:fs";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
+import { emptyQuota, quotaSnapshot } from "./drive-storage.js";
 
 const PROVIDER = "GOOGLE_DRIVE";
 const ROOT_FOLDER_NAME = "ADVISIO_RESEARCH_DOCUMENTS";
@@ -305,6 +306,7 @@ class GoogleDriveService {
       connectedAt: now,
       lastCheckedAt: now,
       lastHealthyAt: now,
+      ...emptyQuota,
       lastErrorCode: null,
       lastErrorMessage: null,
     };
@@ -313,6 +315,7 @@ class GoogleDriveService {
       create: { provider: PROVIDER, ...data },
       update: data,
     });
+    await this.saveQuota(integration, about.data.storageQuota, now);
     await prisma.auditLog.create({
       data: {
         userId,
@@ -408,11 +411,91 @@ class GoogleDriveService {
             message: integration.lastErrorMessage,
           }
         : null,
+      quota: integration?.encryptedRefreshToken
+        ? {
+            limit: integration.quotaLimitBytes?.toString() ?? null,
+            usage: integration.quotaUsedBytes?.toString() ?? null,
+            usageInDrive: integration.quotaDriveBytes?.toString() ?? null,
+            checkedAt: integration.quotaCheckedAt,
+            attemptedAt: integration.quotaAttemptedAt,
+            error: integration.quotaError,
+          }
+        : null,
       managedStorage: {
         fileCount: aggregate._count._all,
         bytes: Number(aggregate._sum.fileSize || 0),
       },
     };
+  }
+
+  private async saveQuota(
+    integration: { id: string; encryptedRefreshToken: string | null },
+    quota: drive_v3.Schema$About["storageQuota"],
+    now: Date,
+  ) {
+    let data;
+    try {
+      data = quotaSnapshot(quota, now);
+    } catch {
+      data = {
+        quotaAttemptedAt: now,
+        quotaError:
+          "Google did not report storage usage. Try refreshing later.",
+      };
+    }
+    await prisma.storageIntegration.updateMany({
+      where: {
+        id: integration.id,
+        encryptedRefreshToken: integration.encryptedRefreshToken,
+      },
+      data,
+    });
+  }
+
+  public async refreshStorage(force = false) {
+    const connection = await this.connectedClient();
+    if (!connection?.integration)
+      throw new Error(
+        "Google Drive is not connected through System Administration",
+      );
+    const { drive, integration } = connection;
+    const now = new Date();
+    // Persist the claim so concurrent requests and multiple API instances share a throttle.
+    const claim = await prisma.storageIntegration.updateMany({
+      where: {
+        id: integration.id,
+        encryptedRefreshToken: integration.encryptedRefreshToken,
+        OR: [
+          { quotaAttemptedAt: null },
+          {
+            quotaAttemptedAt: {
+              lt: new Date(now.getTime() - (force ? 60_000 : 15 * 60_000)),
+            },
+          },
+        ],
+      },
+      data: { quotaAttemptedAt: now },
+    });
+    if (!claim.count) return this.getStatus();
+    try {
+      const about = await drive.about.get(
+        { fields: "storageQuota" },
+        { timeout: DRIVE_REQUEST_TIMEOUT_MS },
+      );
+      await this.saveQuota(integration, about.data.storageQuota, now);
+    } catch {
+      await prisma.storageIntegration.updateMany({
+        where: {
+          id: integration.id,
+          encryptedRefreshToken: integration.encryptedRefreshToken,
+        },
+        data: {
+          quotaError:
+            "Storage refresh failed. Showing the last available figures; check the connection and try again.",
+        },
+      });
+    }
+    return this.getStatus();
   }
 
   public async healthCheck() {
@@ -423,11 +506,15 @@ class GoogleDriveService {
       );
     const { drive, integration } = connection;
     const now = new Date();
+    let quotaRetrieved = false;
     try {
       const about = await drive.about.get({
         fields:
           "user(displayName,emailAddress,photoLink),storageQuota,maxUploadSize",
       });
+      // A folder failure must not discard a successful quota retrieval.
+      await this.saveQuota(integration, about.data.storageQuota, now);
+      quotaRetrieved = true;
       if (!integration.rootFolderId)
         throw Object.assign(new Error("Root folder is not configured"), {
           code: 404,
@@ -448,8 +535,11 @@ class GoogleDriveService {
         throw Object.assign(new Error("Root folder is read-only"), {
           code: 403,
         });
-      await prisma.storageIntegration.update({
-        where: { provider: PROVIDER },
+      await prisma.storageIntegration.updateMany({
+        where: {
+          id: integration.id,
+          encryptedRefreshToken: integration.encryptedRefreshToken,
+        },
         data: {
           status: "HEALTHY",
           accountEmail:
@@ -468,21 +558,30 @@ class GoogleDriveService {
       });
       return {
         ...(await this.getStatus()),
-        quota: about.data.storageQuota || null,
         maxUploadSize: about.data.maxUploadSize || null,
       };
     } catch (error: any) {
       const safe = safeDriveError(error);
-      await prisma.storageIntegration.update({
-        where: { provider: PROVIDER },
+      await prisma.storageIntegration.updateMany({
+        where: {
+          id: integration.id,
+          encryptedRefreshToken: integration.encryptedRefreshToken,
+        },
         data: {
           status: safe.status,
+          ...(!quotaRetrieved
+            ? {
+                quotaAttemptedAt: now,
+                quotaError:
+                  "Storage refresh failed. Showing the last available figures; check the connection and try again.",
+              }
+            : {}),
           lastCheckedAt: now,
           lastErrorCode: safe.code,
           lastErrorMessage: safe.message,
         },
       });
-      return { ...(await this.getStatus()), quota: null, maxUploadSize: null };
+      return { ...(await this.getStatus()), maxUploadSize: null };
     }
   }
 
@@ -496,16 +595,21 @@ class GoogleDriveService {
     } catch {
       /* Token may already be invalid. */
     }
-    await prisma.storageIntegration.update({
-      where: { provider: PROVIDER },
+    const disconnected = await prisma.storageIntegration.updateMany({
+      where: {
+        id: integration.id,
+        encryptedRefreshToken: integration.encryptedRefreshToken,
+      },
       data: {
         status: "DISCONNECTED",
         encryptedRefreshToken: null,
+        ...emptyQuota,
         lastCheckedAt: new Date(),
         lastErrorCode: null,
         lastErrorMessage: null,
       },
     });
+    if (!disconnected.count) return this.getStatus();
     await prisma.auditLog.create({
       data: {
         userId,

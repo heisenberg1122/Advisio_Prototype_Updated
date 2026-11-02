@@ -7,6 +7,11 @@ import {
 } from "@research-management/validations";
 import { apiClient } from "@/lib/api-client";
 import {
+  EvaluationIntegrity,
+  type EvaluationCheckpoint,
+  type IntegrityReport,
+} from "@/components/defense/EvaluationIntegrity";
+import {
   evaluationCard,
   evaluationInput,
   evaluationButton,
@@ -23,7 +28,41 @@ export function ConsolidatedEvaluations({
     [instructions, setInstructions] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [checkpoint, setCheckpoint] = useState<EvaluationCheckpoint | undefined>(),
+    [checkpointReport, setCheckpointReport] = useState<
+      IntegrityReport | undefined
+    >(),
+    [verifying, setVerifying] = useState(false),
     [clearanceVersion, setClearanceVersion] = useState("");
+  const integrity = useQuery({
+    queryKey: ["evaluation-integrity", sessionId],
+    queryFn: () =>
+      apiClient.get<IntegrityReport>(
+        `/api/defense-sessions/${sessionId}/evaluation-integrity`,
+      ),
+    retry: false,
+  });
+  const verify = async () => {
+    setCheckpointReport(undefined);
+    setCheckpoint(undefined);
+    await integrity.refetch();
+  };
+  const compareCheckpoint = async (value: EvaluationCheckpoint) => {
+    setVerifying(true);
+    setCheckpoint(undefined);
+    try {
+      const result = await apiClient.post<IntegrityReport>(
+        `/api/defense-sessions/${sessionId}/evaluation-integrity`,
+        { checkpoint: value },
+      );
+      setCheckpointReport(result);
+      if (result.status === "CHECKPOINT_MATCH" && result.checkpointCoversHead)
+        setCheckpoint(value);
+    } finally {
+      setVerifying(false);
+    }
+  };
+  const integrityReport = checkpointReport || integrity.data;
   const query = useQuery({
     queryKey: ["structured-results", sessionId],
     queryFn: () =>
@@ -42,8 +81,10 @@ export function ConsolidatedEvaluations({
       await apiClient.post(`/api/defense-sessions/${sessionId}/release`, {
         decision,
         revisionInstructions: instructions,
+        evaluationCheckpoint: checkpoint,
       });
       await query.refetch();
+      await verify();
       await queryClient.invalidateQueries({ queryKey: ["defense-management"] });
     } catch (e: any) {
       setError(e.message);
@@ -70,6 +111,14 @@ export function ConsolidatedEvaluations({
   if (query.isError) return <p role="alert">{query.error.message}</p>;
   return (
     <div className="space-y-4">
+      <EvaluationIntegrity
+        report={integrityReport}
+        error={integrity.error?.message}
+        busy={integrity.isFetching || verifying}
+        student={student}
+        onVerify={() => void verify()}
+        onCheckpoint={compareCheckpoint}
+      />
       <section className={evaluationCard}>
         <div className="flex flex-wrap justify-between gap-2">
           <h3 className="font-bold">Consolidated evaluations</h3>
@@ -216,7 +265,14 @@ export function ConsolidatedEvaluations({
                 </label>
               )}
             <button
-              disabled={!report.final || !decision || busy}
+              disabled={
+                !report.final ||
+                !decision ||
+                busy ||
+                !integrityReport ||
+                integrityReport.status === "MISMATCH" ||
+                (integrityReport.status !== "LEGACY" && !checkpoint)
+              }
               className={`${evaluationButton} bg-[var(--color-primary)] text-white`}
               onClick={release}
             >

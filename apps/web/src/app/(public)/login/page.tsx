@@ -6,6 +6,7 @@ import {
 } from "@/components/auth/AuthJourneyPanel";
 import Link from "next/link";
 import { useLocation, useNavigate } from "react-router-dom";
+import { invitationReturnUrl } from "@/lib/invitation-return";
 import {
   ArrowRight,
   CheckCircle2,
@@ -78,7 +79,7 @@ export default function LoginPage() {
     const requestedLocation = (location.state as any)?.from;
     const returnUrl = requestedLocation
       ? `${requestedLocation.pathname || ""}${requestedLocation.search || ""}${requestedLocation.hash || ""}`
-      : null;
+      : invitationReturnUrl(location.search, location.hash);
 
     if (userId) {
       resetOnboardingForSession(userId);

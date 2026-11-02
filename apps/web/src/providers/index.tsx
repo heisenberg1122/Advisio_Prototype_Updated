@@ -8,12 +8,12 @@ import { ThemeProvider } from "./theme-provider";
 import { AuthProvider, useAuth } from "./auth-provider";
 
 function UserThemeProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, token, isLoading } = useAuth();
   const { pathname } = useLocation();
 
   return (
     <ThemeProvider
-      useDefaultAppearance={usesDefaultAuthAppearance(pathname)}
+      useDefaultAppearance={usesDefaultAuthAppearance(pathname, Boolean(token) && (isLoading || Boolean(user)))}
       userId={user?.id}
       college={user?.college}
       program={user?.program}
@@ -27,10 +27,10 @@ function UserThemeProvider({ children }: { children: ReactNode }) {
 }
 
 function SessionQueries({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, isSwitchingCollege } = useAuth();
   const { pathname } = useLocation();
   const panel = pathname.split("/")[1] || "public";
-  const scope = `${user?.id || "anonymous"}:${panel}`;
+  const scope = `${user?.id || "anonymous"}:${user?.college?.id || "unassigned"}:${(user?.roles || []).join(",")}:${panel}`;
   const queryClient = useMemo(() => makeQueryClient(), [scope]);
   const previousClient = useRef(queryClient);
   useEffect(() => {
@@ -40,19 +40,19 @@ function SessionQueries({ children }: { children: ReactNode }) {
       previousClient.current = queryClient;
     }
   }, [queryClient]);
+  useEffect(() => () => { void queryClient.cancelQueries(); queryClient.clear(); }, [queryClient]);
 
   return (
     <QueryClientProvider key={scope} client={queryClient}>
-      <UserThemeProvider>
-        {children}
-        <ReactQueryDevtools initialIsOpen={false} />
-      </UserThemeProvider>
+      {isSwitchingCollege && <div role="status" className="fixed inset-0 z-[1000] grid place-items-center bg-[var(--color-background)] text-[var(--color-text-secondary)]">Switching college…</div>}
+      {children}
+      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
 }
 
 export function Providers({ children }: { children: ReactNode }) {
-  return <AuthProvider><SessionQueries>{children}</SessionQueries></AuthProvider>;
+  return <AuthProvider><UserThemeProvider><SessionQueries>{children}</SessionQueries></UserThemeProvider></AuthProvider>;
 }
 
 export { ThemeProvider, useTheme } from "./theme-provider";

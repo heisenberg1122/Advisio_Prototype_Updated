@@ -5,6 +5,8 @@ import { isAllowedOrigin } from "./lib/security-config.js";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
+import { auditMiddleware } from "./middleware/audit.js";
+import auditRoutes from "./routes/audit.routes.js";
 
 import healthRoutes from "./routes/health.routes";
 import authRoutes from "./routes/auth.routes";
@@ -13,6 +15,7 @@ import researchRoutes from "./routes/research.routes";
 import workspaceRoutes from "./routes/workspace.routes";
 import workflowRoutes from "./routes/workflow.routes";
 import userRoutes from "./routes/user.routes";
+import accountInvitationRoutes from "./routes/account-invitation.routes";
 import documentRoutes from "./routes/document.routes";
 import evaluationRoutes from "./routes/evaluation.routes";
 import structuredEvaluationRoutes from "./routes/structured-evaluation.routes.js";
@@ -75,15 +78,18 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+app.use(auditMiddleware);
 
 // API Routes
 app.use("/api/health", healthRoutes);
+app.use("/api", auditRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api", organizationRoutes);
 app.use("/api/research", researchRoutes);
 app.use("/api/workspaces", workspaceRoutes);
 app.use("/api/workflows", workflowRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/account-invitations", accountInvitationRoutes);
 app.use("/api", documentRoutes);
 app.use("/api", evaluationRoutes);
 app.use("/api", structuredEvaluationRoutes);

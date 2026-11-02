@@ -15,6 +15,8 @@ export interface UserProfile {
   colorThemePreference?: "DEFAULT_ADVISIO" | "COLLEGE_PROGRAM";
   roles: string[];
   permissions: string[];
+  primaryCollegeId?: string | null;
+  collegeMemberships?: { college: { id: string; name: string; code: string }; roleNames: string[] }[];
 }
 
 export interface AuthContextType {
@@ -29,6 +31,8 @@ export interface AuthContextType {
   loginWithGoogle: (credential: string) => Promise<{ success: boolean; user?: UserProfile; role?: string; needsAcademicSetup?: boolean; error?: string }>;
   register: (payload: any) => Promise<{ success: boolean; isPending?: boolean; message?: string; user?: any; onboardingToken?: string | null; error?: string }>;
   logout: () => void;
+  isSwitchingCollege: boolean;
+  switchCollege: (collegeId: string) => Promise<UserProfile>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,19 +43,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return typeof window !== "undefined" ? localStorage.getItem("advisio_token") : null;
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [isSwitchingCollege, setIsSwitchingCollege] = useState(false);
 
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [sessionAttempt, setSessionAttempt] = useState(0);
   const hydratedToken = useRef<string | null>(null);
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== "advisio_token") return;
+      hydratedToken.current = null;
+      setUser(null);
+      setSessionError(null);
+      setIsLoading(Boolean(event.newValue));
+      setToken(event.newValue);
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
   const retrySession = () => { setIsLoading(true); setSessionAttempt((value) => value + 1); };
 
   const refreshUser = async (): Promise<UserProfile | null> => {
     if (!token) return null;
     try {
       const data = await apiClient.get<{ user: UserProfile }>("/api/auth/me");
+      if (localStorage.getItem("advisio_token") !== token) return null;
       setUser(data.user);
       return data.user;
     } catch (error) {
+      if (localStorage.getItem("advisio_token") !== token) return null;
       if (error instanceof ApiError && error.statusCode === 401) {
         localStorage.removeItem("advisio_token");
         for (const key of ["advisio_theme:active", "advisio_color-theme:active", "advisio_college-theme:active"]) {
@@ -201,7 +220,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const confirmLogout = () => {
+  const [loggingOut, setLoggingOut] = useState(false);
+  const confirmLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try { await apiClient.post("/api/auth/logout", undefined, { signal: AbortSignal.timeout(3000) }); }
+    catch {
+      // A failed audit acknowledgment must never trap a user in a local session.
+      console.warn("Server sign-out acknowledgment unavailable; clearing local credentials.");
+    }
     setShowLogoutModal(false);
     if (typeof window !== "undefined") {
       if (user?.id) {
@@ -219,6 +246,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const switchCollege = async (collegeId: string): Promise<UserProfile> => {
+    if (isSwitchingCollege) throw new Error("A college switch is already in progress.");
+    setIsSwitchingCollege(true);
+    try {
+      const result = await apiClient.post<{ token: string }>("/api/auth/active-college", { collegeId });
+      const profile = await apiClient.get<{ user: UserProfile }>("/api/auth/me", { headers: { Authorization: `Bearer ${result.token}` } });
+      if (localStorage.getItem("advisio_token") !== token) throw new Error("Your session changed. Please try again.");
+      if (profile.user.college?.id !== collegeId) throw new Error("College access could not be verified.");
+      localStorage.setItem("advisio_token", result.token);
+      hydratedToken.current = result.token;
+      setUser(profile.user); setToken(result.token); setSessionError(null);
+      return profile.user;
+    } finally { setIsSwitchingCollege(false); }
+  };
   const logout = () => {
     setShowLogoutModal(true);
   };
@@ -237,6 +278,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithGoogle,
         register,
         logout,
+        isSwitchingCollege,
+        switchCollege,
       }}
     >
       {children}
@@ -276,6 +319,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={confirmLogout}
+                disabled={loggingOut}
                 className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-red-700 active:scale-[0.98] transition-all cursor-pointer"
               >
                 <i className="ti ti-logout text-base" />
@@ -303,6 +347,8 @@ export function useAuth(): AuthContextType {
       login: async () => ({ success: false, role: undefined, error: "AuthProvider not mounted" }),
       loginWithGoogle: async () => ({ success: false, needsAcademicSetup: false, error: "AuthProvider not mounted" }),
       register: async () => ({ success: false, error: "AuthProvider not mounted" }),
+      isSwitchingCollege: false,
+      switchCollege: async () => { throw new Error("AuthProvider not mounted"); },
       logout: () => {
         if (typeof window !== "undefined") {
           localStorage.removeItem("advisio_token");

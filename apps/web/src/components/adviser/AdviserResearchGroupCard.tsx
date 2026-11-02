@@ -49,28 +49,26 @@ export function AdviserResearchGroupCard({
         className,
       )}
     >
-      <div className="relative min-h-[142px] overflow-hidden bg-gradient-to-br from-[#0B3A53] via-[#0E4968] to-[#072A3D] p-5 text-white">
-        <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-[#C9A227]/20 blur-2xl" />
-        <div className="pointer-events-none absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#C9A227] via-[#E4C864] to-transparent" />
+      <div className="college-hero-surface relative min-h-[142px] overflow-hidden border-b p-5 text-[var(--color-text-primary)]">
         <div className="relative flex items-start justify-between gap-3">
-          <span className="max-w-[70%] truncate rounded-full border border-white/15 bg-black/20 px-2.5 py-1 text-xs font-black uppercase tracking-[0.14em] text-white/90">
+          <span className="max-w-[70%] truncate rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-black uppercase tracking-[0.14em] text-[var(--color-primary)]">
             {groupName}
           </span>
           <span className={cn(
             "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold uppercase tracking-wider",
             active
-              ? "border-emerald-300/30 bg-emerald-400/15 text-emerald-100"
-              : "border-white/20 bg-white/10 text-white/90",
+              ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/15 dark:text-emerald-200"
+              : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]",
           )}>
-            <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-emerald-300" : "bg-[#E4C864]")} />
+            <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-emerald-500" : "bg-[var(--color-primary)]")} />
             {readableStatus(status)}
           </span>
         </div>
         <div className="relative mt-6">
-          <h3 className="line-clamp-2 text-lg font-bold leading-snug tracking-tight text-white group-hover:underline group-hover:decoration-[#E4C864] group-hover:underline-offset-4">
+          <h3 className="line-clamp-2 text-lg font-bold leading-snug tracking-tight text-[var(--color-text-primary)] group-hover:underline group-hover:decoration-[var(--color-primary)] group-hover:underline-offset-4">
             {title}
           </h3>
-          <p className="mt-2 truncate text-sm font-medium text-white/75">Group lead: {leader}</p>
+          <p className="mt-2 truncate text-sm font-medium text-[var(--color-text-secondary)]">Group lead: {leader}</p>
         </div>
       </div>
 
@@ -87,7 +85,7 @@ export function AdviserResearchGroupCard({
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-[var(--color-surface-muted)] dark:bg-white/10">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-[#0B3A53] to-[#C9A227] transition-[width] duration-500"
+              className="h-full rounded-full bg-[var(--color-primary)] transition-[width] duration-500"
               style={{ width: `${normalizedProgress}%` }}
             />
           </div>

@@ -1,4 +1,14 @@
 /* Registration-specific form layout, sharing the login identity and controls. */
+.advisio-register .register-invitation-info {
+  padding: calc(14 * var(--auth-unit));
+  border: 1px solid #d9e4eb;
+  border-radius: calc(12 * var(--auth-unit));
+  background: #f3f7fa;
+  color: #315168;
+  font-size: calc(12 * var(--auth-unit));
+  line-height: 1.7;
+}
+.advisio-register .register-invitation-info p { margin: calc(4 * var(--auth-unit)) 0 0; }
 .advisio-register .register-academic-skeleton {
   height: calc(48 * var(--auth-unit));
   border-radius: calc(12 * var(--auth-unit));

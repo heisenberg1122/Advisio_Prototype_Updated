@@ -1,4 +1,21 @@
-/* This surface is rendered only by the researcher portal branch. */
+/* Shared Inbox presentation, originally established in the Researcher portal. */
+.app-workspace:has(> .mail-workspace-page) {
+  padding: 0;
+}
+.mail-workspace-page {
+  --color-surface: var(--color-white);
+  --color-surface-subtle: var(--color-slate-50);
+  --color-surface-muted: var(--color-slate-100);
+  --color-border: var(--color-slate-200);
+  --color-border-subtle: var(--color-slate-100);
+}
+.dark .mail-workspace-page {
+  --color-surface: inherit;
+  --color-surface-subtle: inherit;
+  --color-surface-muted: inherit;
+  --color-border: inherit;
+  --color-border-subtle: inherit;
+}
 .researcher-mail-page {
   width: calc(100% - clamp(32px, 4vw, 64px));
   max-width: 1600px;
@@ -76,27 +93,42 @@
 .rm-reader > section:not(:has(header)) { background: var(--color-surface-subtle); }
 .rm-reader > section > header { padding: 16px 24px; }
 .rm-reader > section > header > div { flex-wrap: wrap; }
-.rm-reader > section > header > div > div:not(:last-child) { flex-basis: calc(100% - 56px); }
+.rm-reader > section > header > div > div:not(:last-child) { flex: 1; min-width: 0; }
 .rm-reader > section > header button[aria-label^="Back to"] { display: grid; }
 .rm-reader > section > header > div > div:last-child { margin-left: auto; }
 .rm-reader > section > header p[class*="text-amber"] { color: var(--color-text-secondary); }
 .rm-reader svg { color: inherit !important; }
 .rm-reader h2 { white-space: normal; overflow-wrap: anywhere; font-size: 20px; line-height: 1.4; letter-spacing: -.015em; }
 .rm-reader > section > div { background: var(--color-surface); }
-.rm-reader article { max-width: 70ch; padding: 24px 0; border: 0; border-bottom: 1px solid var(--color-border); border-radius: 0; box-shadow: none; background: transparent; }
-.rm-reader article:first-of-type { padding-top: 0; }
+.rm-reader > section > div > section { width: 100%; max-width: 56rem; margin-inline: auto; }
+.rm-reader article { width: 100%; max-width: 56rem; padding: 8px 0 24px; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.rm-reader article + article { border-top: 1px solid var(--color-border); padding-top: 24px; }
 .rm-reader article > header { flex-wrap: wrap; }
 .rm-reader article > header > span { background: var(--color-surface-muted); color: var(--color-text-secondary); }
 .rm-reader article > header > div { min-width: 120px; }
 .rm-reader article > div { max-width: 70ch; line-height: 1.75; overflow-wrap: anywhere; }
+.mail-message__body, .mail-message__attachments, .mail-message__actions { margin-left: 52px; }
+.mail-message__action { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--color-border); border-radius: 999px; padding: 8px 20px; font-size: 14px; font-weight: 600; }
+.mail-message__action:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .rm-reader article footer button { min-height: 44px; color: var(--color-text-secondary); }
 .rm-reader article footer button:hover { background: var(--color-surface-muted); }
 .rm-reader :is(input, textarea) { background: transparent; }
 .rm-reader textarea { min-width: 0; }
+.rm-reader form textarea { min-height: 160px; line-height: 1.6; }
 .rm-reader button { min-height: 44px; }
 .rm-reader > section > header button { min-width: 44px; color: var(--color-text-secondary); }
-.rm-reader form > div { max-width: 70ch; background: var(--color-surface); border-radius: 8px; }
-.rm-reader form button[type="submit"] { background: var(--color-text-primary); color: var(--color-surface); }
+.mail-inline-composer-host:empty { display: none; }
+.mail-inline-compose, .mail-reply-all { margin-left: 52px; }
+.mail-inline-compose__panel { min-height: 300px; }
+.mail-inline-compose__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; color: var(--color-text-primary); }
+.mail-inline-compose__header > div:first-child { min-width: 0; }
+.rm-reader .mail-inline-compose h2 { font-size: 14px; }
+.mail-inline-compose__recipients { color: var(--color-text-secondary); font-size: 13px; overflow-wrap: anywhere; }
+.mail-compose-details__summary { cursor: pointer; padding: 8px 16px; color: var(--color-text-secondary); font-size: 13px; border-bottom: 1px solid var(--color-border); }
+.mail-inline-compose__header button:hover { background: var(--color-surface-muted); }
+.mail-inline-compose textarea { min-width: 0; }
+.mail-inline-compose__panel:focus-within, .mail-reply-all:focus-within { border-color: var(--color-primary); }
+.mail-inline-compose footer > button:first-child, .mail-reply-all button[type="submit"] { color: var(--color-text-inverse); }
 .rm-reader [class*="group/attachment"] > button:first-child { background: var(--color-surface-muted); color: var(--color-text-primary); font-weight: 600; border-radius: 8px; }
 .rm-reader [class*="group/attachment"] > button[aria-haspopup] { min-height: 36px; }
 .rm-thread-row { align-items: center; min-height: 64px; padding: 12px 20px; }
@@ -150,9 +182,12 @@
   .researcher-mail[data-selected="true"] .rm-reader > section > header button[class*="md:hidden"] { display: grid; }
   .rm-reader > section > header { padding: 16px; }
   .rm-reader > section > header > div { flex-wrap: wrap; }
-  .rm-reader > section > header > div > div:not(:last-child) { flex-basis: calc(100% - 56px); }
+  .rm-reader > section > header > div > div:not(:last-child) { flex-basis: 0; }
 }
 @media (max-width: 600px) {
+  .rm-reader article { padding: 8px 0 16px; }
+  .mail-message__body, .mail-message__attachments, .mail-message__actions, .mail-inline-compose, .mail-reply-all { margin-left: 0; }
+  .rm-reader > section > header > div > div:last-child { flex-basis: 100%; justify-content: flex-end; }
   .researcher-mail-page { padding: 24px 0; }
   .rm-tools { grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 12px; }
   .rm-title { margin-bottom: 16px; }

@@ -480,13 +480,15 @@ databaseDescribe("Permanent account deletion with isolated PostgreSQL", () => {
   });
 
   it("rolls back records and file jobs if the final audit write fails", async () => {
-    // Inject a nonexistent audit actor to force a real FK failure at the end of the transaction.
+    // Force an invalid UUID in the final audit INSERT to verify transaction rollback.
     await expect(
       permanentlyDeleteUser({
         ...(await deletion()),
-        actor: { ...admin, id: crypto.randomUUID() },
+        // Actor IDs are historical references now, without an account FK.
+        // An invalid UUID still forces the final audit INSERT to fail inside the transaction.
+        actor: { ...admin, id: "invalid-audit-actor-uuid" },
       }),
-    ).rejects.toMatchObject({ code: "P2003" });
+    ).rejects.toMatchObject({ code: "P2023" });
     expect(await prisma.user.count({ where: { id: target.id } })).toBe(1);
     expect(
       await prisma.researchProject.count({ where: { id: ownedProjectId } }),

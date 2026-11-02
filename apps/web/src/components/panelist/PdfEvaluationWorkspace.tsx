@@ -783,7 +783,7 @@ export function PdfEvaluationWorkspace({
           </aside>
         )}
         <div className={expanded ? "flex h-full min-w-0 flex-col" : "min-w-0"}>
-          <div className="flex shrink-0 justify-center bg-slate-200/60 px-2 pt-3 pb-2">
+          <div className="document-preview-stage flex shrink-0 justify-center px-2 pt-3 pb-2">
             <div
               role="toolbar"
               aria-label="Annotation tools"
@@ -883,7 +883,7 @@ export function PdfEvaluationWorkspace({
           </div>
           <nav
             aria-label="PDF page controls"
-            className="flex shrink-0 flex-wrap items-center justify-center gap-3 bg-slate-200/60 px-3 pb-3"
+            className="document-preview-stage flex shrink-0 flex-wrap items-center justify-center gap-3 px-3 pb-3"
           >
             <button
               className={styleButton}
@@ -935,7 +935,7 @@ export function PdfEvaluationWorkspace({
           </nav>
           <div
             ref={viewport}
-            className={`overflow-auto bg-slate-200/60 p-4 ${expanded ? "min-h-0 flex-1" : "h-[min(78vh,850px)] min-h-[280px]"}`}
+            className={`document-preview-stage overflow-auto p-4 ${expanded ? "min-h-0 flex-1" : "h-[min(78vh,850px)] min-h-[280px]"}`}
           >
             <div
               ref={surface}
@@ -944,7 +944,7 @@ export function PdfEvaluationWorkspace({
               onPointerMove={move}
               onPointerUp={endDrag}
               onPointerCancel={endDrag}
-              className="relative mx-auto bg-white shadow-lg touch-none"
+              className="document-preview-paper relative mx-auto touch-none"
               style={{
                 width: displayWidth,
                 height: (displayWidth * size.height) / size.width,

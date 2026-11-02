@@ -238,13 +238,13 @@ export function PdfDocumentPreview({
   return (
     <div
       ref={host}
-      className={`min-h-0 flex flex-1 flex-col overflow-hidden bg-[var(--color-surface)] ${compact ? "" : "rounded-lg border border-[var(--color-border)]"} ${expanded ? "h-screen w-screen" : ""}`}
+      className={`document-preview-shell min-h-0 flex flex-1 flex-col overflow-hidden ${compact ? "" : "rounded-lg border border-[var(--color-border)]"} ${expanded ? "h-screen w-screen" : ""}`}
     >
       {compact ? (
         <div
           role="toolbar"
           aria-label="PDF preview controls"
-          className="flex min-h-10 flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 text-xs"
+          className="document-preview-toolbar flex min-h-10 flex-wrap items-center justify-between gap-2 border-b px-2 py-1 text-xs"
         >
           <div className="flex items-center gap-1">
             <button
@@ -343,10 +343,14 @@ export function PdfDocumentPreview({
           </div>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center justify-center gap-3 bg-[var(--color-surface)] p-2 text-sm">
+        <div
+          role="toolbar"
+          aria-label="PDF preview controls"
+          className="document-preview-toolbar flex flex-wrap items-center justify-center gap-3 border-b p-2 text-sm"
+        >
           <button
             disabled={!pdf || page <= 1}
-            className="rounded border px-3 py-2 disabled:opacity-40"
+            className="document-preview-control rounded border px-3 py-2 disabled:opacity-40"
             onClick={() => setPage((p) => p - 1)}
           >
             Previous preview page
@@ -358,7 +362,7 @@ export function PdfDocumentPreview({
           </span>
           <button
             disabled={!pdf || page >= pdf.numPages}
-            className="rounded border px-3 py-2 disabled:opacity-40"
+            className="document-preview-control rounded border px-3 py-2 disabled:opacity-40"
             onClick={() => setPage((p) => p + 1)}
           >
             Next preview page
@@ -367,7 +371,7 @@ export function PdfDocumentPreview({
         </div>
       )}
       {(error || fullscreenError) && (
-        <p role="alert" className="p-4 text-rose-600">
+        <p role="alert" className="p-4 text-rose-600 dark:text-rose-300">
           {error || fullscreenError}
         </p>
       )}
@@ -418,7 +422,7 @@ export function PdfDocumentPreview({
           )}
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-auto bg-slate-200 p-4">
+      <div className="document-preview-stage min-h-0 flex-1 overflow-auto p-4">
         <div
           ref={pageHost}
           className="advisio-pdf-page shadow"
@@ -430,7 +434,7 @@ export function PdfDocumentPreview({
           <canvas
             ref={canvas}
             aria-label={`Completed PDF page ${page}`}
-            className="block bg-white"
+            className="document-preview-paper block bg-white"
           />
           {discussion && (
             <>

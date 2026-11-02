@@ -72,6 +72,17 @@ export const updateWorkflowTopicSchema = createWorkflowTopicSchema
 
 export const reorderWorkflowTopicsSchema = z.object({
   topicIds: z.array(z.string().uuid("Invalid topic ID")).min(1),
+  expectedTopicIds: z.array(z.string().uuid()).optional(),
+});
+
+const orderedMilestoneSchema = z.object({
+  id: z.string().uuid("Invalid milestone ID"),
+  topicId: z.string().uuid("Invalid topic ID").nullable(),
+});
+
+export const reorderWorkflowMilestonesSchema = z.object({
+  stages: z.array(orderedMilestoneSchema).min(1),
+  expectedStages: z.array(orderedMilestoneSchema).min(1),
 });
 
 export const workflowTransitionSchema = z.object({

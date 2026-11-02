@@ -92,6 +92,7 @@ databaseDescribe("Audit remediation with isolated PostgreSQL", () => {
           roles: { create: { roleId: role.id } },
         },
       });
+      if (["ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "DEAN"].includes(roleName)) await prisma.collegeMembership.create({ data: { userId: row.id, collegeId: collegeId, roleNames: [roleName] } });
       fixture.userIds.push(row.id);
       return {
         id: row.id,

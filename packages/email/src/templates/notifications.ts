@@ -8,6 +8,17 @@ export type NotificationTemplate = {
 // Add a template here, then attach its key and variables to an event's
 // emailNotification() metadata. All templates share the layout below.
 export const notificationTemplates: Record<string, NotificationTemplate> = {
+  institutional_invitation: {
+    subject: "Your Advisio college access invitation",
+    heading: "You’re invited to Advisio",
+    paragraphs: [
+      "You have been invited to join {collegeName} with the following roles: {roles}.",
+      "Accept this invitation within 48 hours. This link can only be used once.",
+      "If you already have an account, sign in to accept using your current account. Your password, home college, and access to other colleges will remain unchanged. If you’re new to Advisio, set your own password to accept.",
+      "If you weren’t expecting this invitation, contact your institution before continuing.",
+    ],
+    button: "Accept invitation",
+  },
   account_approved: {
     subject: "Your Advisio account has been approved",
     heading: "Your account is approved",

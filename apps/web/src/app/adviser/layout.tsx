@@ -5,31 +5,44 @@ import { AdviserSidebar } from "@/components/dashboards/adviser/AdviserSidebar";
 import { AdviserTopbar } from "@/components/dashboards/adviser/AdviserTopbar";
 import { AppWorkspaceFrame } from "@/components/layout/AppWorkspaceFrame";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
+import "./adviser-workspace-surfaces.css";
 
 function AdviserLayoutInner({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebarCollapsed();
 
   return (
-    <AppWorkspaceFrame
-      collapsed={collapsed}
-      dashboardPath="/adviser/dashboard"
-      padSecondaryPages
-      sidebar={
-        <Suspense fallback={<div className="fixed inset-y-0 left-0 hidden w-[260px] bg-[var(--sidebar-background)] lg:block" />}>
-          <AdviserSidebar />
-        </Suspense>
-      }
-      topbar={
-        <Suspense fallback={<header className="h-16 bg-[var(--header-background)]" />}>
-          <AdviserTopbar />
-        </Suspense>
-      }
-    >
-      {children}
-    </AppWorkspaceFrame>
+    <div className="adviser-shell">
+      <AppWorkspaceFrame
+        collapsed={collapsed}
+        dashboardPath="/adviser/dashboard"
+        padSecondaryPages
+        sidebar={
+          <Suspense
+            fallback={
+              <div className="fixed inset-y-0 left-0 hidden w-[260px] bg-[var(--sidebar-background)] lg:block" />
+            }
+          >
+            <AdviserSidebar />
+          </Suspense>
+        }
+        topbar={
+          <Suspense
+            fallback={<header className="h-16 bg-[var(--header-background)]" />}
+          >
+            <AdviserTopbar />
+          </Suspense>
+        }
+      >
+        {children}
+      </AppWorkspaceFrame>
+    </div>
   );
 }
 
-export default function AdviserLayout({ children }: { children: React.ReactNode }) {
+export default function AdviserLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return <AdviserLayoutInner>{children}</AdviserLayoutInner>;
 }

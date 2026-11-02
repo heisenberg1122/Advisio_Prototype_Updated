@@ -77,6 +77,7 @@ type Adviser = {
   isAcceptingAdvisees: boolean;
   isFull: boolean;
   capacityNote?: string | null;
+  canManageSettings?: boolean;
   program: Program | null;
 };
 
@@ -255,7 +256,7 @@ function DeanDashboardContent() {
         </div>
       )}
 
-      <div className={`flex w-full flex-col gap-6 ${activeView === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
+      <div className={`workspace-page flex w-full flex-col gap-6 ${activeView === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
         {activeView === "overview" && (
           <DashboardWelcome
             firstName={user?.firstName}
@@ -489,18 +490,18 @@ function DeanDashboardContent() {
                     <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Recent Research Activity</h2>
                     <p className="mt-1 text-base font-medium text-slate-500 dark:text-slate-400">Latest project updates recorded within your college scope.</p>
                   </div>
-                  <a href="/admin/dashboard?tab=research" className="shrink-0 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]">View projects <ArrowRight className="ml-1 inline h-3.5 w-3.5" /></a>
+                  <Link href="/admin/dashboard?tab=research" className="shrink-0 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]">View projects <ArrowRight className="ml-1 inline h-3.5 w-3.5" /></Link>
                 </div>
                 <div className="mt-5 space-y-3">
                   {data.projects.slice(0, 4).map((project) => (
-                    <a key={project.id} href="/admin/dashboard?tab=research" className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/[0.02]">
+                    <Link key={project.id} href="/admin/dashboard?tab=research" className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/[0.02]">
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><BookOpen className="h-4 w-4" /></span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-extrabold text-slate-900 dark:text-white">{project.title}</span>
                         <span className="block truncate text-sm text-slate-500 dark:text-slate-400">{project.program.code} · {project.stage} · {project.progress}% complete</span>
                       </span>
                       <Pill tone={project.risk === "high" ? "red" : project.risk === "medium" ? "gold" : "green"}>{project.risk}</Pill>
-                    </a>
+                    </Link>
                   ))}
                   {!data.projects.length && <EmptyState title="No recent research activity" detail="Project updates will appear here as research groups begin their work." />}
                 </div>
@@ -516,10 +517,10 @@ function DeanDashboardContent() {
                     { label: "Progress monitoring", href: "/admin/dashboard?tab=progress", icon: TrendingUp },
                     { label: "Adviser workload", href: "/admin/dashboard?tab=advisers", icon: UsersRound },
                   ].map((action) => (
-                    <a key={action.label} href={action.href} className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 transition hover:border-[#0B3A53]/30 hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/[0.02]">
+                    <Link key={action.label} href={action.href} className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 transition hover:border-[#0B3A53]/30 hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/[0.02]">
                       <action.icon className="h-5 w-5 text-[#0B3A53] dark:text-[#C9A227]" />
                       <span className="mt-3 block text-sm font-bold text-slate-900 dark:text-white">{action.label}</span>
-                    </a>
+                    </Link>
                   ))}
                 </div>
               </article>
@@ -665,7 +666,7 @@ function AdviserWorkloadView({
   return (
     <>
       <div className="space-y-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="workspace-page-header flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Adviser Directory & Workload</h2>
             <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
@@ -677,13 +678,12 @@ function AdviserWorkloadView({
           {canManage ? (
             <button
               type="button"
-              onClick={openAdd}
-              disabled={!candidates.length}
-              title={candidates.length ? "Add an adviser" : "No eligible faculty accounts are available"}
+              onClick={() => window.location.assign("/admin/faculty-access")}
+              title="Invite an adviser to your college"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 py-2.5 text-sm font-extrabold text-white shadow-xs transition hover:bg-[#0E4968] disabled:cursor-not-allowed disabled:opacity-45"
             >
               <Plus className="h-4 w-4" />
-              Add adviser
+              Invite adviser
             </button>
           ) : null}
         </div>
@@ -754,7 +754,7 @@ function AdviserWorkloadView({
                   <span className="text-xs text-slate-500 dark:text-slate-400">
                     {adviser.availableSlots} {adviser.availableSlots === 1 ? "slot" : "slots"} available
                   </span>
-                  {canManage ? <div className="flex gap-1.5">
+                  {canManage && adviser.canManageSettings !== false ? <div className="flex gap-1.5">
                     <button type="button" onClick={() => openEdit(adviser)} className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 text-[#0B3A53] transition hover:border-[#C9A227] hover:bg-slate-50 dark:border-white/15 dark:text-sky-300 dark:hover:bg-white/5" aria-label={`Edit ${adviser.name}`}>
                       <Pencil className="h-4 w-4" />
                     </button>
@@ -940,7 +940,7 @@ function RegistryView({
 }) {
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
-      <div className="flex flex-col gap-3 border-b border-slate-200 dark:border-white/10 p-5 md:flex-row md:items-center md:justify-between">
+      <div className="workspace-page-header workspace-page-header--inset flex flex-col gap-3 border-b border-slate-200 dark:border-white/10 p-5 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
             {activeView === "students"

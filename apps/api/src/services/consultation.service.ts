@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import type { AuthenticatedUser } from "../middleware/auth.js";
 
 export type ConsultationAccessContext = {
+  collegeId: string | null;
   exists: boolean;
   isProjectCreator: boolean;
   isWorkflowOwner: boolean;
@@ -13,6 +14,7 @@ export function consultationAccessPolicy(
   user: AuthenticatedUser,
   context: ConsultationAccessContext,
 ) {
+  if (!user.roles.includes("SYSTEM_ADMIN") && user.collegeId !== context.collegeId) return { exists: context.exists, canView: false, canRequest: false, canApprove: false, isAssignedFaculty: false };
   const institutionalRoles = new Set(user.roles);
   const projectRoles = new Set(context.activeProjectRoles);
   if (user.researcherPanel) {
@@ -56,6 +58,7 @@ export async function consultationProjectAccess(
     select: {
       id: true,
       title: true,
+      collegeId: true,
       createdBy: true,
       members: {
         where: { userId: user.id, leftAt: null },
@@ -68,6 +71,7 @@ export async function consultationProjectAccess(
   });
 
   const access = consultationAccessPolicy(user, {
+    collegeId: project?.collegeId || null,
     exists: Boolean(project),
     isProjectCreator: project?.createdBy === user.id,
     isWorkflowOwner: project?.workflowInstance?.workflow.createdBy === user.id,

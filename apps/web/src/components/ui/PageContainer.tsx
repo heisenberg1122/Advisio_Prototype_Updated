@@ -29,8 +29,9 @@ export function PageContainer({
 }: PageContainerProps) {
   return (
     <div
+      data-workspace-width={maxWidth}
       className={cn(
-        "mx-auto flex w-full flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8",
+        "workspace-page mx-auto flex w-full flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8",
         maxWidthMap[maxWidth],
         className
       )}

@@ -120,13 +120,13 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
     const adviser = await prisma.user.findFirst({
       where: {
         id: adviserId,
-        roles: { some: { role: { name: "ADVISER" } } },
+        collegeMemberships: { some: { collegeId: project.collegeId, roleNames: { has: "ADVISER" } } },
         status: "ACTIVE",
       },
     });
     if (!adviser)
       return void res.status(404).json({ error: "Adviser is unavailable" });
-    if (!adviser.programId || adviser.programId !== project.programId) {
+    if (adviser.collegeId === project.collegeId && adviser.programId && adviser.programId !== project.programId) {
       return void res
         .status(409)
         .json({ error: "This adviser is not assigned to your program" });

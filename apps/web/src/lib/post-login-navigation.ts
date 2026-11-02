@@ -15,6 +15,7 @@ export interface PostLoginResolutionInput {
 }
 
 export type PostLoginAction =
+  | { type: "ACCOUNT_INVITATION"; url: string }
   | { type: "ACADEMIC_SETUP"; url: "/google-onboarding" }
   | {
       type: "NO_ROLE";
@@ -41,6 +42,7 @@ export function resolvePostLoginAction(
   if (input.needsAcademicSetup) {
     return { type: "ACADEMIC_SETUP", url: "/google-onboarding" };
   }
+  if (input.returnUrl && /^\/accept-invitation#token=[a-f0-9]{64}$/.test(input.returnUrl)) return { type: "ACCOUNT_INVITATION", url: input.returnUrl };
 
   const eligibleWorkspaces = getEligibleWorkspaces(input.roles);
 

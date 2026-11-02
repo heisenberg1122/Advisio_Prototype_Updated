@@ -85,7 +85,7 @@ export function ProblemSolution() {
             ))}
           </svg>
           <div className="lp-network-core">
-            <img src="/ao-logo.png" alt="" />
+            <img src="/advisio-logo.png" alt="" />
             <strong>advisio</strong>
             <span>One research workspace</span>
           </div>

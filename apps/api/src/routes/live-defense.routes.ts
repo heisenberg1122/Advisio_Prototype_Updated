@@ -7,8 +7,13 @@ import { emailNotification } from "../services/notification-email.service.js";
 import { Router, Request, Response, NextFunction } from "express";
 import { prisma } from "../lib/prisma.js";
 import { readForm } from "../services/structured-evaluation.service.js";
+import {
+  appendEvaluationEvent, loadEvaluationIntegrity, assertEvaluationIntegrity,
+  checkpointSchema, releasePayload, EvaluationIntegrityError,
+} from "../services/evaluation-ledger.service.js";
 import { requireAuth } from "../middleware/auth.js";
 import { canAccessCollege, getCollegeScope } from "../lib/college-scope.js";
+import { collegeUserWhere } from "../lib/college-authorization.js";
 import { jsonSafe } from "../lib/json-response.js";
 import { defensePacketService } from "../services/defense-packet.service.js";
 import {
@@ -722,7 +727,7 @@ router.post(
         where: {
           id: { in: uniqueInvitees.map((item) => item.userId) },
           status: "ACTIVE",
-          collegeId: projects[0].collegeId,
+          collegeMemberships: { some: { collegeId: projects[0].collegeId, roleNames: { has: "PANELIST" } } },
         },
         select: { id: true },
       });
@@ -900,7 +905,7 @@ router.patch(
             );
           if (session.packet?.status !== "PUBLISHED")
             throw new Error(
-              "Publish an eligible approved manuscript packet before calling this defense.",
+              "Share an approved, eligible manuscript before calling this defense.",
             );
           const active = await tx.defenseSession.findFirst({
             where: {
@@ -995,8 +1000,7 @@ router.get(
       const users = await prisma.user.findMany({
         where: {
           status: "ACTIVE",
-          ...(scope.kind === "college" && { collegeId: scope.collegeId }),
-          roles: { some: { role: { name: { in: ["PANELIST", "ADVISER"] } } } },
+          ...(scope.kind === "college" ? collegeUserWhere(scope.collegeId, "PANELIST") : { roles: { some: { role: { name: "PANELIST" } } } }),
         },
         select: {
           ...participantSelect,
@@ -1350,7 +1354,7 @@ router.post(
         where: {
           id: { in: uniqueInvitees.map((item) => item.userId) },
           status: "ACTIVE",
-          collegeId: research.collegeId,
+          collegeMemberships: { some: { collegeId: research.collegeId, roleNames: { has: "PANELIST" } } },
         },
         select: { id: true },
       });
@@ -1918,7 +1922,7 @@ router.post(
       if (scheduled.packet?.status !== "PUBLISHED")
         return void res.status(409).json({
           error:
-            "Publish an eligible approved manuscript packet before starting the defense.",
+            "Share an approved, eligible manuscript before starting the defense.",
         });
       const existing = await prisma.defenseSession.findFirst({
         where: {
@@ -2029,7 +2033,7 @@ router.put(
       }
       if (session.packet?.status !== "PUBLISHED") {
         res.status(409).json({
-          error: "The official defense manuscript packet is not published.",
+          error: "The official defense manuscript has not been shared yet.",
         });
         return;
       }
@@ -2149,9 +2153,16 @@ router.put(
             data,
           )
         : null;
-      const evaluation = existing
-        ? await prisma.evaluation.update({ where: { id: existing.id }, data })
-        : await prisma.evaluation.create({ data });
+      const evaluation = await prisma.$transaction(async (tx) => {
+        const saved = existing
+          ? await tx.evaluation.update({ where: { id: existing.id }, data })
+          : await tx.evaluation.create({ data });
+        if (final) await tx.auditLog.create({ data: {
+          userId: req.user!.id, action: "CREATE", entityType: "EvaluationSubmission", entityId: saved.id,
+          researchId: session.researchId, newValues: { defenseSessionId: session.id, totalScore, recommendation, integrityHash },
+        } });
+        return saved;
+      });
       res.json(
         jsonSafe({
           evaluation,
@@ -2246,6 +2257,7 @@ router.post(
               userId: req.user!.id,
               action: "CREATE",
               entityType: "DefenseBadge",
+              researchId: session.researchId,
               entityId: badge.id,
               newValues: {
                 defenseSessionId: session.id,
@@ -2336,7 +2348,7 @@ router.post(
       if (session.packet?.status !== "PUBLISHED") {
         return void res.status(409).json({
           error:
-            "The official approved manuscript packet must be published before releasing a defense result.",
+            "Share the approved defense manuscript before releasing the result.",
         });
       }
       const publishedPacket = session.packet;
@@ -2402,6 +2414,30 @@ router.post(
             : "APPROVED";
       const result = await prisma.$transaction(async (tx) => {
         await lockDefenseGroup(tx, session.researchId);
+        await tx.$queryRaw`SELECT id FROM defense_sessions WHERE id = ${session.id}::uuid FOR UPDATE`;
+        let ledger: Awaited<ReturnType<typeof loadEvaluationIntegrity>> | undefined;
+        if (session.packet?.evaluationMode === "STRUCTURED") {
+          // Re-read under the same lock used by publication and final submission.
+          ledger = await loadEvaluationIntegrity(tx, session.id);
+          assertEvaluationIntegrity(ledger.verification);
+          if (ledger.state.evaluationLedgerStartedAt || ledger.events.length) {
+            const parsed = checkpointSchema.safeParse(req.body.evaluationCheckpoint);
+            if (!parsed.success) throw new EvaluationIntegrityError("Export and retain an evaluation checkpoint before releasing this result.");
+            ledger = await loadEvaluationIntegrity(tx, session.id, parsed.data);
+            assertEvaluationIntegrity(ledger.verification);
+            if (!ledger.verification.checkpointCoversHead)
+              throw new EvaluationIntegrityError("The checkpoint must cover the current evaluation history. Export a new checkpoint and review it before release.");
+          }
+          const snapshot = readForm(ledger.state.packet!.structuredForm);
+          const currentInvitations = await tx.defenseInvitation.findMany({ where: {
+            defenseSessionId: session.id, status: "ACCEPTED", isRequired: true,
+            role: { in: ["PANEL_CHAIR", "PANELIST"] },
+          } });
+          const publishedIds = snapshot.panelists.filter((p) => p.required).map((p) => p.userId);
+          if (!publishedIds.length || currentInvitations.length !== publishedIds.length || currentInvitations.some((i) => !publishedIds.includes(i.inviteeId)) ||
+            publishedIds.some((id) => !ledger!.state.structuredEvaluations.some((e) => e.panelistId === id && e.lockedAt)))
+            throw new EvaluationIntegrityError("Required panel assignments or final submissions changed. Refresh before releasing.");
+        }
         const releasedAt = new Date();
         const released = await tx.defenseSession.updateMany({
           where: { id: session.id, status: { in: ["LIVE", "DELIBERATION"] } },
@@ -2421,6 +2457,19 @@ router.post(
           conflict.statusCode = 409;
           throw conflict;
         }
+        if (ledger && (ledger.state.evaluationLedgerStartedAt || ledger.events.length)) {
+          await appendEvaluationEvent(tx, {
+            sessionId: session.id, eventType: "RESULT_RELEASED",
+            actorId: req.user!.id, actorRoles: req.user!.roles,
+            operationId: `release:${session.id}`,
+            payload: releasePayload({ ...ledger.state, decision, releasedAt, releasedBy: req.user!.id }, ledger.events, revisionInstructions),
+          });
+        }
+        await tx.auditLog.create({ data: {
+          userId: req.user!.id, action: "PUBLISH", entityType: "DefenseSession", entityId: session.id,
+          eventType: "DefenseResultReleased", researchId: session.researchId,
+          newValues: { decision, releasedAt: releasedAt.toISOString(), researchStatus },
+        } });
         await consumeDefenseEligibility(tx, session, decision, releasedAt);
         await tx.researchProject.update({
           where: { id: session.researchId },

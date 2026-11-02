@@ -13,6 +13,7 @@ export function canReviewTaskSubmission(
   user: AuthenticatedUser,
   context: TaskSubmissionReviewContext,
 ) {
+  if (!user.roles.includes("SYSTEM_ADMIN") && user.collegeId !== context.researchCollegeId) return false;
   if (user.id === context.submittedBy) return false;
   if (
     user.roles.includes("RESEARCH_COORDINATOR") &&

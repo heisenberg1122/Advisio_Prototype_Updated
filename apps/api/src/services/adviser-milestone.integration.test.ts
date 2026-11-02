@@ -83,6 +83,7 @@ databaseDescribe("adviser milestone integration", () => {
           programId: program.id,
         },
       });
+      if (["ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "DEAN"].includes(roleName)) await prisma.collegeMembership.create({ data: { userId: user.id, collegeId: college.id, roleNames: [roleName] } });
       fixture.userIds.push(user.id);
       await prisma.userRole.create({
         data: { userId: user.id, roleId: roles.get(roleName)! },

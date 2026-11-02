@@ -1,5 +1,5 @@
-import { CardsPageSkeleton } from "@/components/ui/Skeleton";
+import { DefensePageSkeleton } from "@/components/ui/Skeleton";
 
 export function DefenseSkeleton() {
-  return <CardsPageSkeleton cards={3} />;
+  return <DefensePageSkeleton />;
 }

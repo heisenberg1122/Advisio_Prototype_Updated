@@ -23,6 +23,15 @@ enum UserStatus {
   PENDING
 }
 
+enum AccountInvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  DELIVERY_FAILED
+  AWAITING_APPROVAL
+  REJECTED
+}
+
 enum AppearancePreference {
   LIGHT
   DARK
@@ -434,6 +443,8 @@ model College {
   announcements      SystemAnnouncement[]
   calendarEvents     CalendarEvent[]
   defenseEvents      DefenseEvent[]
+  accountInvitations AccountInvitation[]
+  collegeMemberships CollegeMembership[]
 
   @@index([isActive])
   @@map("colleges")
@@ -549,7 +560,6 @@ model User {
   submissionGradeEvents     TaskSubmissionGradeEvent[]
   evaluations               Evaluation[]
   notifications             Notification[]
-  auditLogs                 AuditLog[]
   certificatesIssued        Certificate[]              @relation("CertificateIssuer")
   defenseBadgesIssued       DefenseBadge[]
   workflowTransitions       WorkflowTransition[]
@@ -594,11 +604,56 @@ model User {
   chatParticipations        ChatParticipant[]          @relation("ChatParticipantUser")
   chatInvitationsSent       ChatParticipant[]          @relation("ChatParticipantInviter")
   chatMessagesSent          ChatMessage[]              @relation("ChatMessageSender")
+  accountInvitationsCreated AccountInvitation[]
+  collegeMemberships        CollegeMembership[]
 
   @@index([collegeId])
   @@index([programId])
   @@index([status])
   @@map("users")
+}
+
+model AccountInvitation {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                 String                  @db.Citext
+  universityId          String                  @map("university_id") @db.VarChar(50)
+  firstName             String                  @map("first_name") @db.VarChar(100)
+  lastName              String                  @map("last_name") @db.VarChar(100)
+  roleNames             InstitutionalRole[]      @map("role_names")
+  collegeId             String                  @map("college_id") @db.Uuid
+  createdById           String                  @map("created_by_id") @db.Uuid
+  verificationNote      String                  @map("verification_note") @db.VarChar(1000)
+  tokenHash             String                  @unique @map("token_hash") @db.VarChar(64)
+  status                AccountInvitationStatus @default(PENDING)
+  expiresAt             DateTime                @map("expires_at")
+  deliveredAt           DateTime?               @map("delivered_at")
+  acceptedAt            DateTime?               @map("accepted_at")
+  approvedById          String?                 @map("approved_by_id") @db.Uuid
+  reviewedAt            DateTime?               @map("reviewed_at")
+  reviewNote            String?                 @map("review_note") @db.VarChar(1000)
+  lastSentAt            DateTime?               @map("last_sent_at")
+  createdAt             DateTime                @default(now()) @map("created_at")
+  college               College                 @relation(fields: [collegeId], references: [id], onDelete: Restrict)
+  createdBy             User                    @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([email, status])
+  @@index([createdAt])
+  @@map("account_invitations")
+}
+
+model CollegeMembership {
+  userId      String              @map("user_id") @db.Uuid
+  collegeId   String              @map("college_id") @db.Uuid
+  roleNames   InstitutionalRole[] @map("role_names")
+  grantedById String?             @map("granted_by_id") @db.Uuid
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  college     College             @relation(fields: [collegeId], references: [id], onDelete: Restrict)
+
+  @@id([userId, collegeId])
+  @@index([collegeId])
+  @@map("college_memberships")
 }
 
 model ResearcherProfile {
@@ -1985,6 +2040,7 @@ model DefenseSession {
   preparedAt     DateTime?            @map("prepared_at")
   calledAt       DateTime?            @map("called_at")
   revisionClearance Json?             @map("revision_clearance")
+  evaluationLedgerStartedAt DateTime? @map("evaluation_ledger_started_at")
 
   research              ResearchProject            @relation(fields: [researchId], references: [id], onDelete: Cascade)
   eligibility           DefenseEligibility?         @relation(fields: [eligibilityId], references: [id], onDelete: Restrict)
@@ -2006,6 +2062,25 @@ model DefenseSession {
   @@index([createdBy])
   @@index([defenseEventId, queuePosition])
   @@map("defense_sessions")
+}
+
+// Standalone history survives account/project deletion without rewriting hashes.
+model EvaluationLedgerEvent {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  defenseSessionId String @map("defense_session_id") @db.Uuid
+  sequence Int
+  eventType String @map("event_type") @db.VarChar(40)
+  payloadVersion Int @default(1) @map("payload_version")
+  actorId String @map("actor_id") @db.Uuid
+  actorRoles Json @map("actor_roles")
+  occurredAt DateTime @map("occurred_at")
+  operationId String @unique(map: "evaluation_ledger_events_operation_id_key") @map("operation_id") @db.VarChar(200)
+  payload Json
+  previousHash String @map("previous_hash") @db.VarChar(64)
+  eventHash String @map("event_hash") @db.VarChar(64)
+
+  @@unique([defenseSessionId, sequence], map: "evaluation_ledger_events_session_sequence_key")
+  @@map("evaluation_ledger_events")
 }
 
 model StructuredEvaluationTemplate {
@@ -2355,11 +2430,26 @@ model AuditLog {
   userAgent  String?     @map("user_agent") @db.Text
   createdAt  DateTime    @default(now()) @map("created_at")
 
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // Historical identifiers deliberately have no FK: account deletion must not rewrite evidence.
+  actorReference String? @map("actor_reference") @db.Uuid
+  actorRoles String[] @default([]) @map("actor_roles")
+  contractVersion Int @default(0) @map("contract_version")
+  eventType String? @map("event_type") @db.VarChar(100)
+  category String @default("LEGACY") @db.VarChar(20)
+  outcome String @default("UNKNOWN") @db.VarChar(20)
+  requestId String? @map("request_id") @db.Uuid
+  researchId String? @map("research_id") @db.Uuid
+  operationKey String? @unique @map("operation_key") @db.VarChar(160)
+  summaryCount Int? @map("summary_count")
+  firstOccurredAt DateTime? @map("first_occurred_at")
+  lastOccurredAt DateTime? @map("last_occurred_at")
 
   @@index([userId])
   @@index([entityType, entityId])
   @@index([createdAt])
+  @@index([createdAt, id])
+  @@index([category, createdAt, id])
+  @@index([researchId, createdAt, id])
   @@map("audit_logs")
 }
 
@@ -2398,6 +2488,12 @@ model StorageIntegration {
   connectedAt           DateTime?         @map("connected_at")
   lastCheckedAt         DateTime?         @map("last_checked_at")
   lastHealthyAt         DateTime?         @map("last_healthy_at")
+  quotaLimitBytes       BigInt?           @map("quota_limit_bytes")
+  quotaUsedBytes        BigInt?           @map("quota_used_bytes")
+  quotaDriveBytes       BigInt?           @map("quota_drive_bytes")
+  quotaCheckedAt        DateTime?         @map("quota_checked_at")
+  quotaAttemptedAt      DateTime?         @map("quota_attempted_at")
+  quotaError            String?           @map("quota_error") @db.Text
   lastErrorCode         String?           @map("last_error_code") @db.VarChar(80)
   lastErrorMessage      String?           @map("last_error_message") @db.Text
   createdAt             DateTime          @default(now()) @map("created_at")

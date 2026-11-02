@@ -15,8 +15,27 @@ import { useAuth } from "@/providers/auth-provider";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import { AdviserDocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 import { calculateMilestoneProgress } from "@/lib/workflow-progress";
+import "./adviser-overview.css";
+import "./adviser-consultations.css";
 
 const EMPTY_MILESTONE_PROGRESS_BY_PROJECT: Record<string, any[]> = {};
+
+// The API already supplies a calendar date and a separately formatted time.
+// Format the date's parts directly: no UTC/local conversion or locale-dependent output.
+const formatOverviewDate = (value: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return value;
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const month = months[Number(match[2]) - 1];
+  return month ? `${Number(match[3])} ${month} ${match[1]}` : value;
+};
+
+// Keep the source wording intact. Only recognized waiting labels get a chip;
+// other submission labels remain ordinary metadata, without an amber status.
+function OverviewSubmissionAge({ label }: { label: string }) {
+  if (!/^Waiting \d+ days?$/.test(label)) return <span>{label}</span>;
+  return <span className="adviser-overview__waiting"><i className="ti ti-clock" aria-hidden="true" />{label}</span>;
+}
 
 const resolveApiFileUrl = (value: string) => value.startsWith("/")
   ? `${(import.meta.env.VITE_API_URL || "").replace(/\/$/, "")}${value}`
@@ -655,42 +674,44 @@ function AdviserDashboardContent() {
       )}
 
       {/* MAIN CONTAINER */}
-      <div className={`flex w-full flex-1 flex-col space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
+      <div className={`workspace-page adviser-dashboard-container flex w-full flex-1 flex-col space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
         
         {(() => {
           const tabContent: Record<string, React.ReactNode> = {
             overview: (
-              <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6">
+              <div className="adviser-overview mx-auto flex w-full max-w-[1360px] flex-col gap-6">
+                <section className="adviser-overview__summary college-hero-surface" aria-label="Adviser overview">
                 <DashboardWelcome
+                  className="adviser-overview__welcome"
                   firstName={user?.firstName}
                   fallbackName="Adviser"
-                  summary="Here's an overview of your advisees, reviews, and upcoming consultations."
+                  summary="Your research groups, reviews, and upcoming consultations."
                   actions={
                     <>
                       <button
                         onClick={() => handleTabChange("reviews")}
                         className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition dark:text-[var(--college-on-primary-dark)]"
                       >
-                        <i className="ti ti-file-search text-base" /> Review Documents {reviews.length > 0 && `(${reviews.length})`}
+                        <i aria-hidden="true" className="ti ti-file-search text-base" /> Review Documents {reviews.length > 0 && `(${reviews.length})`}
                       </button>
                       <button
                         onClick={() => setShowScheduleModal(true)}
                         className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
                       >
-                        <i className="ti ti-calendar-plus text-base" /> Schedule Consultation
+                        <i aria-hidden="true" className="ti ti-calendar-plus text-base" /> Schedule Consultation
                       </button>
                       <button
                         onClick={() => handleTabChange("advisees")}
                         className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
                       >
-                        <i className="ti ti-users text-base" /> All Advisees ({advisees.length})
+                        <i aria-hidden="true" className="ti ti-users text-base" /> All Advisees ({advisees.length})
                       </button>
                     </>
                   }
                 />
 
                 {/* Key Metrics Grid */}
-                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <section className="adviser-overview__metrics" aria-label="Advising overview metrics">
                   {[
                     { label: "Advisee Groups", value: adviserCapacity?.adviseeCount ?? advisees.length, suffix: adviserCapacity ? `of ${adviserCapacity.maxAdviseeGroups}` : "assigned", icon: "ti-users", tone: "bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#38bdf8]", tab: "advisees" },
                     { label: "Document Reviews", value: reviews.length, suffix: "pending", icon: "ti-file-text", tone: "bg-[#C9A227]/15 text-[#8A6A0B] dark:text-[#C9A227]", tab: "reviews" },
@@ -700,76 +721,27 @@ function AdviserDashboardContent() {
                     <button
                       key={item.label}
                       onClick={() => handleTabChange(item.tab)}
-                      className="group flex min-h-[96px] items-center gap-4 rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-4 sm:p-5 text-left shadow-xs transition hover:shadow-md hover:border-[#0B3A53]/40 hover:-translate-y-0.5"
+                      className="adviser-overview__metric"
                     >
-                      <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl ${item.tone}`}>
-                        <i className={`ti ${item.icon}`} />
+                      <span className={`adviser-overview__metric-icon ${item.tab === "reviews" ? "adviser-overview__review-icon" : item.tone}`} aria-hidden="true">
+                        <i aria-hidden="true" className={`ti ${item.icon}`} />
                       </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-slate-500 dark:text-slate-400">{item.label}</span>
-                        <span className="mt-0.5 block text-2xl font-black text-[#0B3A53] dark:text-white">
-                          {item.value} <small className="text-xs font-semibold text-slate-400">· {item.suffix}</small>
+                      <span className="adviser-overview__metric-content min-w-0">
+                        <span className="adviser-overview__metric-label">{item.label}</span>
+                        <span className="adviser-overview__metric-value">
+                          {item.value} <small className={item.tab === "reviews" ? "adviser-overview__review-marker" : undefined}>· {item.suffix}</small>
                         </span>
                       </span>
+                      <i className="adviser-overview__metric-arrow ti ti-chevron-right" aria-hidden="true" />
                     </button>
                   ))}
                 </section>
-
-                {/* Active Advisee Groups - Google Classroom Cards Grid */}
-                <div>
-                  <div className="mb-4 flex items-center justify-between">
-                    <div>
-                      <h2 className="text-lg font-bold text-[#17212B] dark:text-white">
-                        Advisee Research Overview
-                      </h2>
-                      <p className="text-base text-slate-500 dark:text-slate-400">
-                        Active research teams currently assigned under your faculty guidance.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleTabChange("advisees")}
-                      className="flex items-center gap-1 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
-                    >
-                      View All ({advisees.length}) <i className="ti ti-chevron-right text-xs" />
-                    </button>
-                  </div>
-
-                  {advisees.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                      {advisees.slice(0, 3).map((adv) => (
-                        <AdviserResearchGroupCard
-                          key={adv.id}
-                          title={adv.projectTitle || "Research Study"}
-                          groupName={adv.groupName}
-                          status={adv.status}
-                          currentStage={adv.currentStage}
-                          progress={adv.progress}
-                          memberCount={adv.members.length}
-                          pendingTasks={adv.pendingTasks}
-                          leader={adv.leader}
-                          href={`/adviser/advisees/${adv.id}`}
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#DDE3E8] bg-white p-8 text-center shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
-                      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#C9A227]">
-                        <i className="ti ti-users text-3xl" />
-                      </div>
-                      <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
-                        No Advisee Groups Assigned Yet
-                      </h3>
-                      <p className="mt-1 max-w-md text-base text-slate-500 dark:text-slate-400">
-                        When student research groups send you adviser requests and you accept them, their course cards will appear here.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                </section>
 
                 {/* Attention & Consultation Section */}
-                <section className="grid grid-cols-1 gap-6 xl:grid-cols-5">
-                  <div className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs xl:col-span-3">
-                    <div className="mb-4 flex items-center justify-between">
+                <section className="adviser-overview__split adviser-overview__priorities" aria-label="Your next steps">
+                  <div className="adviser-overview__panel adviser-overview__attention">
+                    <div className="adviser-overview__section-heading">
                       <div>
                         <h2 className="flex items-center gap-2 text-lg font-bold text-[#17212B] dark:text-white">
                           Needs your attention{" "}
@@ -779,13 +751,13 @@ function AdviserDashboardContent() {
                             </span>
                           )}
                         </h2>
-                        <p className="text-base text-slate-400">Your highest-priority advising reviews and approvals.</p>
+                        <p>Reviews, requests, and approvals ready for your attention.</p>
                       </div>
                       <button
                         onClick={() => handleTabChange("approvals")}
-                        className="text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
+                        className="adviser-overview__section-link"
                       >
-                        View all <i className="ti ti-chevron-right text-xs" />
+                        View all <i aria-hidden="true" className="ti ti-chevron-right text-xs" />
                       </button>
                     </div>
 
@@ -799,7 +771,7 @@ function AdviserDashboardContent() {
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex min-w-0 gap-3">
                                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#101b2b] text-[#0B3A53] dark:text-[#C9A227] shadow-xs">
-                                  <i className="ti ti-user-plus" />
+                                  <i aria-hidden="true" className="ti ti-user-plus" />
                                 </span>
                                 <div className="min-w-0">
                                   <p className="truncate text-sm font-bold text-[#17212B] dark:text-white">
@@ -852,7 +824,7 @@ function AdviserDashboardContent() {
                           >
                             <div className="flex min-w-0 items-center gap-3">
                               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#C9A227]/20 text-[#8A6A0B] dark:text-[#C9A227]">
-                                <i className="ti ti-flag" />
+                                <i aria-hidden="true" className="ti ti-flag" />
                               </span>
                               <div className="min-w-0">
                                 <p className="truncate text-sm font-bold text-[#17212B] dark:text-white">{a.groupName}</p>
@@ -872,29 +844,30 @@ function AdviserDashboardContent() {
                           <button
                             key={review.id}
                             onClick={() => openAssignedReview(review)}
-                            className="flex w-full items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5"
+                            className="adviser-overview__review-task"
                           >
                             <span className="flex min-w-0 items-center gap-3">
-                              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-white">
-                                <i className="ti ti-file-text" />
+                              <span className="adviser-overview__task-icon" aria-hidden="true">
+                                <i aria-hidden="true" className="ti ti-file-text" />
                               </span>
                               <span className="min-w-0">
-                                <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">
+                                <span className="adviser-overview__task-title">
                                   {review.docName || "Document review"}
                                 </span>
-                                <span className="block truncate text-sm text-slate-500 dark:text-slate-400">
-                                  {review.groupName} · {getWaitingLabel(review.submittedAt)}
+                                <span className="adviser-overview__task-meta">
+                                  <span>{review.groupName}</span>
+                                  <OverviewSubmissionAge label={getWaitingLabel(review.submittedAt)} />
                                 </span>
                               </span>
                             </span>
-                            <i className="ti ti-chevron-right text-slate-400" />
+                            <span className="adviser-overview__task-action">Review <i className="ti ti-chevron-right" aria-hidden="true" /></span>
                           </button>
                         ))}
                       </div>
                     ) : (
                       <div className="flex min-h-36 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 text-center dark:border-white/10 dark:bg-white/5">
                         <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                          <i className="ti ti-circle-check text-lg" />
+                          <i aria-hidden="true" className="ti ti-circle-check text-lg" />
                         </span>
                         <p className="text-base font-bold text-[#17212B] dark:text-white">You’re all caught up</p>
                         <p className="text-base text-slate-400">New reviews and approvals will appear here.</p>
@@ -902,39 +875,39 @@ function AdviserDashboardContent() {
                     )}
                   </div>
 
-                  <div className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs xl:col-span-2">
-                    <div className="mb-4 flex items-center justify-between">
+                  <div className="adviser-overview__panel adviser-overview__consultation">
+                    <div className="adviser-overview__section-heading">
                       <h2 className="text-lg font-bold text-[#17212B] dark:text-white">Next Consultation</h2>
                       <button
                         onClick={() => handleTabChange("consultations")}
-                        className="text-slate-400 hover:text-[#0B3A53] dark:hover:text-white"
-                        aria-label="Open consultations"
+                        className="adviser-overview__section-link"
+                        aria-label="View all consultations"
                       >
-                        <i className="ti ti-chevron-right" />
+                        <span>View all</span>
+                        <i aria-hidden="true" className="ti ti-chevron-right" />
                       </button>
                     </div>
                     {consultations.length > 0 ? (
-                      <div className="flex min-h-40 flex-col justify-between rounded-xl bg-gradient-to-br from-[#0B3A53] to-[#0E4968] p-5 text-white shadow-xs">
+                      <div className="adviser-overview__session">
                         <div>
-                          <span className="inline-flex rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
+                          <span className="adviser-overview__session-label">
                             Upcoming Session
                           </span>
                           <h3 className="mt-3 text-lg font-bold">{consultations[0].topic}</h3>
-                          <p className="mt-1 text-base text-slate-200">
-                            {consultations[0].groupName} · {consultations[0].date} · {consultations[0].time}
-                          </p>
+                          <p className="adviser-overview__session-group">{consultations[0].groupName}</p>
+                          <p className="adviser-overview__session-date"><i className="ti ti-calendar-event" aria-hidden="true" /> <time dateTime={consultations[0].date}>{formatOverviewDate(consultations[0].date)}</time><span aria-hidden="true">·</span>{consultations[0].time}</p>
                         </div>
                         <button
                           onClick={() => handleStartConference(consultations[0].meetingUrl || DEFAULT_SHARED_MEET_URL, consultations[0].topic, consultations[0].researchId)}
-                          className="mt-4 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] py-2.5 text-sm font-bold text-white shadow-xs transition"
+                          className="mt-4 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] py-2.5 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition dark:text-[var(--college-on-primary-dark)]"
                         >
-                          <i className="ti ti-video mr-1.5" /> Join Google Meet
+                          <i aria-hidden="true" className="ti ti-video mr-1.5" /> Join Google Meet
                         </button>
                       </div>
                     ) : (
                       <div className="flex min-h-40 flex-col items-center justify-center rounded-xl bg-slate-50/50 px-4 text-center dark:bg-white/5">
                         <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-white">
-                          <i className="ti ti-calendar-time text-lg" />
+                          <i aria-hidden="true" className="ti ti-calendar-time text-lg" />
                         </span>
                         <p className="text-base font-bold text-[#17212B] dark:text-white">No consultation scheduled</p>
                         <button
@@ -948,40 +921,94 @@ function AdviserDashboardContent() {
                   </div>
                 </section>
 
+                {/* Active Advisee Groups - Google Classroom Cards Grid */}
+                <section className="adviser-overview__groups" aria-labelledby="adviser-groups-title">
+                  <div className="adviser-overview__section-heading">
+                    <div>
+                      <h2 id="adviser-groups-title" className="text-lg font-bold text-[#17212B] dark:text-white">
+                        Advisee Research Overview
+                      </h2>
+                      <p className="text-base text-slate-500 dark:text-slate-400">
+                        Active research teams currently assigned under your faculty guidance.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleTabChange("advisees")}
+                      className="adviser-overview__section-link"
+                    >
+                      View All ({advisees.length}) <i aria-hidden="true" className="ti ti-chevron-right text-xs" />
+                    </button>
+                  </div>
+
+                  {advisees.length > 0 ? (
+                    <div className="adviser-overview__research-grid">
+                      {advisees.slice(0, 3).map((adv) => (
+                        <AdviserResearchGroupCard
+                          className="adviser-overview__research-card"
+                          key={adv.id}
+                          title={adv.projectTitle || "Research Study"}
+                          groupName={adv.groupName}
+                          status={adv.status}
+                          currentStage={adv.currentStage}
+                          progress={adv.progress}
+                          memberCount={adv.members.length}
+                          pendingTasks={adv.pendingTasks}
+                          leader={adv.leader}
+                          href={`/adviser/advisees/${adv.id}`}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#DDE3E8] bg-white p-8 text-center shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
+                      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#C9A227]">
+                        <i aria-hidden="true" className="ti ti-users text-3xl" />
+                      </div>
+                      <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
+                        No Advisee Groups Assigned Yet
+                      </h3>
+                      <p className="mt-1 max-w-md text-base text-slate-500 dark:text-slate-400">
+                        When student research groups send you adviser requests and you accept them, their course cards will appear here.
+                      </p>
+                    </div>
+                  )}
+                </section>
+
                 {/* Recent Activity & Quick Actions */}
-                <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_.85fr]">
-                  <article className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
-                    <div className="mb-4 flex items-center justify-between gap-4">
+                <section className="adviser-overview__split adviser-overview__secondary" aria-label="Activity and shortcuts">
+                  <article className="adviser-overview__panel adviser-overview__activity">
+                    <div className="adviser-overview__section-heading">
                       <div>
                         <h2 className="text-lg font-bold text-[#17212B] dark:text-white">Recent Advisee Activity</h2>
-                        <p className="mt-1 text-base text-slate-500 dark:text-slate-400">Latest submissions and scheduled advising sessions.</p>
+                        <p>Latest submissions and scheduled advising sessions.</p>
                       </div>
-                      <button onClick={() => handleTabChange("reviews")} className="shrink-0 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]">
-                        View reviews <i className="ti ti-chevron-right" />
+                      <button onClick={() => handleTabChange("reviews")} className="adviser-overview__section-link">
+                        View reviews <i aria-hidden="true" className="ti ti-chevron-right" />
                       </button>
                     </div>
-                    <div className="space-y-2.5">
+                    <div className="adviser-overview__feed">
                       {reviews.slice(0, 3).map((review) => (
-                        <button key={review.id} onClick={() => openAssignedReview(review)} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i className="ti ti-file-text" /></span>
+                        <button key={review.id} onClick={() => openAssignedReview(review)} className="adviser-overview__feed-item">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i aria-hidden="true" className="ti ti-file-text" /></span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">{review.docName || "Document submission"}</span>
-                            <span className="block truncate text-sm text-slate-500 dark:text-slate-400">{review.groupName} · {getWaitingLabel(review.submittedAt)}</span>
+                            <span className="adviser-overview__feed-title">{review.docName || "Document submission"}</span>
+                            <span className="adviser-overview__feed-group">{review.groupName}</span>
+                            <time className="adviser-overview__feed-time" dateTime={review.submittedAt}>{getWaitingLabel(review.submittedAt)}</time>
                           </span>
                         </button>
                       ))}
                       {reviews.length === 0 && consultations.slice(0, 3).map((consultation) => (
-                        <button key={consultation.id} onClick={() => handleTabChange("consultations")} className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i className="ti ti-calendar-event" /></span>
+                        <button key={consultation.id} onClick={() => handleTabChange("consultations")} className="adviser-overview__feed-item">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i aria-hidden="true" className="ti ti-calendar-event" /></span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">{consultation.topic}</span>
-                            <span className="block truncate text-sm text-slate-500 dark:text-slate-400">{consultation.groupName} · {consultation.date}</span>
+                            <span className="adviser-overview__feed-title">{consultation.topic}</span>
+                            <span className="adviser-overview__feed-group">{consultation.groupName}</span>
+                            <time className="adviser-overview__feed-time" dateTime={consultation.date}>{formatOverviewDate(consultation.date)}</time>
                           </span>
                         </button>
                       ))}
                       {reviews.length === 0 && consultations.length === 0 && (
                         <div className="flex min-h-32 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 px-4 text-center dark:border-white/10">
-                          <i className="ti ti-activity text-2xl text-slate-300" />
+                          <i aria-hidden="true" className="ti ti-activity text-2xl text-slate-300" />
                           <p className="mt-2 text-base font-bold text-[#17212B] dark:text-white">No recent advisee activity</p>
                           <p className="text-base text-slate-400">New reviews and consultations will appear here.</p>
                         </div>
@@ -989,9 +1016,9 @@ function AdviserDashboardContent() {
                     </div>
                   </article>
 
-                  <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
+                  <article className="adviser-overview__panel adviser-overview__shortcuts">
                   <h2 className="mb-4 text-lg font-bold text-[#17212B] dark:text-white">Quick Actions</h2>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="adviser-overview__actions">
                     {[
                       { label: "View advisees", icon: "ti-users", tab: "advisees" },
                       { label: "Review documents", icon: "ti-file-search", tab: "reviews" },
@@ -1001,10 +1028,10 @@ function AdviserDashboardContent() {
                       <button
                         key={action.label}
                         onClick={() => handleTabChange(action.tab)}
-                        className="flex items-center gap-3 rounded-xl border border-[#E2E8F0] dark:border-white/10 bg-slate-50/50 dark:bg-white/5 p-3 text-left transition hover:border-[#0B3A53] dark:hover:border-[#C9A227] hover:bg-white hover:shadow-xs"
+                        className="adviser-overview__quick-action"
                       >
-                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0B3A53]/10 dark:bg-white/10 text-lg text-[#0B3A53] dark:text-[#C9A227]">
-                          <i className={`ti ${action.icon}`} />
+                        <span className="adviser-overview__task-icon" aria-hidden="true">
+                          <i aria-hidden="true" className={`ti ${action.icon}`} />
                         </span>
                         <span className="text-sm font-bold text-[#17212B] dark:text-white">{action.label}</span>
                       </button>
@@ -1016,31 +1043,31 @@ function AdviserDashboardContent() {
             ),
             advisees: (
               <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-[#101b2b] p-6 rounded-2xl border border-[#DDE3E8] dark:border-white/10 shadow-[0_1px_3px_0_rgba(11,58,83,0.04)]">
+                <div className="workspace-page-header college-hero-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl border text-[var(--color-text-primary)]">
                   <div>
-                    <h2 className="text-xl font-bold text-[#17212B] dark:text-white">
+                    <h2 className="text-xl font-bold text-[var(--color-text-primary)]">
                       Assigned Research Groups
                     </h2>
-                    <p className="text-base text-slate-500 dark:text-slate-400 mt-1">
-                      Google Classroom-style course view for your active capstone and thesis advisee cohorts.
+                    <p className="text-base text-[var(--color-text-secondary)] mt-1">
+                      View your research groups, track progress, and open their workspaces.
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     {adviserCapacity && (
-                      <div className="min-w-56 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 p-3">
+                      <div className="min-w-56 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-[#102f4d] dark:text-white">Capacity</span>
-                          <span className="font-extrabold text-[#102f4d] dark:text-white">{adviserCapacity.adviseeCount} / {adviserCapacity.maxAdviseeGroups}</span>
+                          <span className="font-bold text-[var(--color-text-primary)]">Capacity</span>
+                          <span className="font-extrabold text-[var(--color-text-primary)]">{adviserCapacity.adviseeCount} / {adviserCapacity.maxAdviseeGroups}</span>
                         </div>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
                           <div className={`h-full rounded-full ${adviserCapacity.isFull ? "bg-rose-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, adviserCapacity.maxAdviseeGroups ? (adviserCapacity.adviseeCount / adviserCapacity.maxAdviseeGroups) * 100 : 100)}%` }} />
                         </div>
-                        <p className="mt-1.5 text-base font-semibold text-slate-500 dark:text-slate-400">
+                        <p className="mt-1.5 text-base font-semibold text-[var(--color-text-secondary)]">
                           {!adviserCapacity.isAcceptingAdvisees ? "New requests are paused." : adviserCapacity.isFull ? "Capacity reached." : `${adviserCapacity.availableSlots} available.`}
                         </p>
                       </div>
                     )}
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-[#0B3A53]/30 dark:text-[#38bdf8] text-xs font-bold">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)] text-xs font-bold">
                       <span>{advisees.length} Active Groups</span>
                     </div>
                   </div>
@@ -1111,6 +1138,7 @@ function AdviserDashboardContent() {
             ),
             consultations: (
               <div className="flex flex-col gap-6">
+                <section className="adviser-consultation-summary college-hero-surface" aria-label="Consultation overview">
                 {(() => {
                   const today = new Date();
                   const visibleDays = Array.from({ length: 7 }, (_, index) => {
@@ -1119,7 +1147,7 @@ function AdviserDashboardContent() {
                     return date;
                   });
                   return (
-                    <section className="rounded-2xl bg-slate-50/80 px-4 py-4 dark:bg-white/[0.04] sm:px-6" aria-label="Consultation calendar">
+                    <section className="adviser-consultation-summary__calendar" aria-label="Consultation calendar">
                       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                         <div className="flex items-center justify-between gap-4 xl:block">
                           <div>
@@ -1142,12 +1170,13 @@ function AdviserDashboardContent() {
                   );
                 })()}
 
-                <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <section className="adviser-consultation-summary__metrics grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Consultation summary">
                   {[
                     { label: "Scheduled sessions", value: consultations.filter((item) => ["scheduled", "confirmed", "approved"].includes(String(item.status).toLowerCase())).length, icon: "ti-calendar-event" },
                     { label: "Pending approval", value: consultations.filter((item) => ["pending", "requested"].includes(String(item.status).toLowerCase())).length, icon: "ti-clock" },
                     { label: "Advisee groups", value: advisees.length, icon: "ti-users" },
                   ].map((metric) => <div key={metric.label} className="flex min-h-24 items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-white/10 dark:bg-[#101B2B]"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#EAF3F7] text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i className={`ti ${metric.icon} text-lg`} /></span><span><span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{metric.label}</span><span className="mt-1 block text-2xl font-black text-[#0B3A53] dark:text-white">{metric.value}</span></span></div>)}
+                </section>
                 </section>
 
                 {/* SCHEDULE MODAL */}

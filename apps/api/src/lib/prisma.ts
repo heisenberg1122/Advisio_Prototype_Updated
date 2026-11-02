@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { prepareAuditData } from "../services/audit-contract.js";
 
 // ESM safe directory name
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -30,7 +31,26 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-export const prisma = global.prisma || new PrismaClient();
+function createClient(): PrismaClient {
+  return new PrismaClient().$extends({
+    name: "audit-context",
+    query: {
+      auditLog: {
+        create({ args, query }) {
+          args.data = prepareAuditData(args.data);
+          return query(args);
+        },
+        createMany({ args, query }) {
+          args.data = Array.isArray(args.data)
+            ? args.data.map((data) => prepareAuditData(data))
+            : prepareAuditData(args.data);
+          return query(args);
+        },
+      },
+    },
+  }) as unknown as PrismaClient; // Query-only extension preserves model/transaction inputs and results.
+}
+export const prisma = global.prisma || createClient();
 
 if (process.env.NODE_ENV !== "production") {
   global.prisma = prisma;

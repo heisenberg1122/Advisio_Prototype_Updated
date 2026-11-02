@@ -1,0 +1,480 @@
+/* Route-local UI only. Search, filtering, review, and removal stay in the dashboard. */
+.coordinator-projects,
+.coordinator-submissions {
+  --cp-panel: var(--color-white, #fff);
+  --cp-inset: var(--color-slate-50, #f8fafc);
+  --cp-line: var(--color-slate-200, #e2e8f0);
+  container-type: inline-size;
+  min-width: 0;
+  gap: 24px;
+  color: var(--color-text-primary);
+}
+
+.dark :is(.coordinator-projects, .coordinator-submissions) {
+  --cp-panel: var(--color-surface);
+  --cp-inset: var(--color-surface-subtle);
+  --cp-line: var(--color-border);
+}
+
+.coordinator-projects {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+}
+
+:is(.coordinator-projects, .coordinator-submissions)
+  :where(h2, h3, p, button, label, select) {
+  overflow-wrap: anywhere;
+}
+
+:is(.coordinator-projects, .coordinator-submissions)
+  :where(button, input, select):focus-visible {
+  outline: 2px solid var(--college-focus-ring);
+  outline-offset: 3px;
+}
+
+.coordinator-projects .cproj-header {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  justify-content: center;
+  gap: 8px;
+}
+
+.coordinator-projects .cproj-header h3 {
+  margin: 0;
+}
+
+.coordinator-projects .cproj-header p {
+  margin: 0;
+  max-width: 65ch;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.coordinator-projects .cproj-search {
+  width: 100%;
+  max-width: none;
+}
+
+.coordinator-projects .cproj-search input {
+  min-height: 46px;
+  border-color: var(--cp-line);
+  border-radius: 10px;
+  background: var(--cp-panel);
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+.coordinator-projects .cproj-list {
+  gap: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.coordinator-projects .cproj-list:has(.cproj-row) {
+  overflow: hidden;
+  border: 1px solid var(--cp-line);
+  border-radius: 14px;
+  background: var(--cp-panel);
+}
+
+.coordinator-projects .cproj-row {
+  gap: 20px;
+  min-width: 0;
+  padding: 20px;
+  border: 0;
+  border-bottom: 1px solid var(--cp-line);
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+}
+
+.coordinator-projects .cproj-row:last-child {
+  border-bottom: 0;
+}
+
+.coordinator-projects .cproj-row:hover {
+  background: color-mix(
+    in srgb,
+    var(--color-primary-light) 14%,
+    var(--cp-panel)
+  ) !important;
+}
+
+.coordinator-projects .cproj-open {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 3px 0;
+  border-radius: 6px;
+}
+
+.coordinator-projects .cproj-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 42px;
+  height: 46px;
+  border-radius: 11px;
+  background: var(--cp-inset);
+  color: var(--color-primary);
+  font-size: 21px;
+}
+
+.coordinator-projects .cproj-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.coordinator-projects .cproj-title {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.6;
+}
+
+.coordinator-projects .cproj-copy > span:last-child {
+  display: block;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.coordinator-projects .cproj-chevron {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.coordinator-projects .cproj-actions {
+  gap: 14px;
+  margin: 0;
+}
+
+.coordinator-projects .cproj-actions button {
+  min-height: 40px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.coordinator-submissions .csub-header > div:first-child {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 22px;
+}
+
+.coordinator-submissions
+  .csub-header
+  > div:first-child
+  > div:first-child
+  > p:first-child {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--color-text-secondary);
+}
+
+.coordinator-submissions
+  .csub-header
+  > div:first-child
+  > div:first-child
+  > p:last-child {
+  max-width: 62ch;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+.coordinator-submissions .csub-search-filters {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.coordinator-submissions .csub-search-filters label {
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.coordinator-submissions .csub-search-filters :is(input, select) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border-color: var(--color-border);
+  border-radius: 10px;
+  background: var(--cp-panel);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.coordinator-submissions .csub-tabs {
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 11px;
+  background: var(--color-surface-subtle);
+}
+
+.coordinator-submissions .csub-tabs button {
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.coordinator-submissions .csub-queue-toolbar {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none;
+}
+
+.coordinator-submissions .csub-queue-controls {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 16px 24px;
+  min-width: 0;
+}
+
+.coordinator-submissions .csub-status-filters {
+  flex: 1 1 470px;
+  min-width: 0;
+  gap: 8px;
+}
+
+.coordinator-submissions .csub-status-filters button {
+  min-height: 40px;
+  padding: 9px 13px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.coordinator-submissions .csub-sort {
+  display: flex;
+  flex: 0 1 285px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.coordinator-submissions .csub-sort select {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 42px;
+  margin: 0;
+  border-color: var(--cp-line);
+  border-radius: 9px;
+  background: var(--cp-panel);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.coordinator-submissions .csub-table {
+  min-width: 0;
+  max-width: 100%;
+  border-color: var(--cp-line);
+  border-radius: 14px;
+  background: var(--cp-panel);
+  box-shadow: none;
+}
+
+.coordinator-submissions :is(.csub-columns, .csub-row) {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.15fr) 110px 120px;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 20px;
+}
+
+.coordinator-submissions .csub-columns {
+  display: grid;
+  border-color: var(--cp-line);
+  background: var(--cp-inset);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+}
+
+.coordinator-submissions .csub-row {
+  min-width: 0;
+  min-height: 92px;
+  padding-block: 20px;
+}
+
+.coordinator-submissions .csub-row:hover {
+  background: var(--cp-inset);
+}
+
+.coordinator-submissions .csub-row .truncate {
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+
+.coordinator-submissions .csub-row > span {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.coordinator-submissions .csub-row > span:first-child > span:first-child {
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.coordinator-submissions .csub-row > span:first-child > span:last-child {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.coordinator-submissions .csub-row > span:last-child {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.coordinator-submissions .csub-mobile-label {
+  display: none;
+}
+
+/* Deadline view retains its own horizontal table scroll, within the page. */
+.coordinator-submissions
+  > section:not(.csub-header, .csub-queue-toolbar, .csub-table) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.coordinator-submissions
+  > section:not(.csub-header, .csub-queue-toolbar, .csub-table)
+  select {
+  max-width: 100%;
+}
+
+.coordinator-submissions .workflow-deadline-tracker {
+  border-color: var(--cp-line);
+  background: var(--cp-panel);
+  box-shadow: none;
+}
+
+.coordinator-submissions
+  .workflow-deadline-tracker
+  > div:first-child
+  > div:first-child {
+  flex-wrap: wrap;
+  align-items: start;
+}
+
+.coordinator-submissions
+  .workflow-deadline-tracker
+  > div:first-child
+  > div:first-child
+  > div:last-child {
+  flex: 0 1 440px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.coordinator-submissions .workflow-deadline-tracker label {
+  display: flex;
+  flex: 1 1 240px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.coordinator-submissions .workflow-deadline-tracker label select {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  margin: 0;
+  font-size: 12px;
+}
+
+@container (min-width: 1100px) {
+  .coordinator-submissions .csub-header > div:first-child {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+@container (max-width: 950px) {
+  .coordinator-submissions .csub-columns {
+    display: none;
+  }
+  .coordinator-submissions .csub-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px 16px;
+  }
+  .coordinator-submissions .csub-row > span:first-child,
+  .coordinator-submissions .csub-row > span:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .coordinator-submissions .csub-row > span:last-child {
+    justify-self: end;
+  }
+  .coordinator-submissions .csub-mobile-label {
+    display: inline;
+  }
+}
+
+@container (max-width: 600px) {
+  .coordinator-projects .cproj-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 18px 16px;
+  }
+  .coordinator-projects .cproj-actions {
+    padding-left: 56px;
+    justify-content: space-between;
+  }
+  .coordinator-submissions .csub-search-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .coordinator-submissions .csub-sort {
+    flex: 1 1 100%;
+  }
+  .coordinator-submissions .csub-status-filters {
+    flex-basis: 100%;
+  }
+  .coordinator-submissions .csub-status-filters button {
+    flex: 1 1 auto;
+  }
+  .coordinator-submissions .csub-row {
+    padding: 18px 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.coordinator-projects, .coordinator-submissions) button {
+    transition: none;
+  }
+}

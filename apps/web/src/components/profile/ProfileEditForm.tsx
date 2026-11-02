@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/Button";
 import { ProfileSkeleton } from "@/components/ui/Skeleton";
 import { useRouter, usePathname } from "next/navigation";
 import { useAsyncAction } from "@/hooks/use-async-action";
+import { UserRound, Building2, Award, Save } from "lucide-react";
+import "./profile-workspace.css";
 
 export function ProfileEditForm() {
   const router = useRouter();
@@ -134,30 +136,32 @@ export function ProfileEditForm() {
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="profile-workspace profile-edit">
+      <header className="profile-edit-heading">
+        <p className="profile-eyebrow">My profile</p>
+        <h1>Edit profile</h1>
+        <p>Update your contact and university details.</p>
+      </header>
       <ActionFeedback
         id="profile-save-feedback"
         feedback={saveAction.feedback}
       />
 
-      <form
-        onSubmit={handleSave}
-        className="flex flex-col gap-6 text-[12.5px] w-full"
-      >
+      <form onSubmit={handleSave} className="profile-form">
         {/* Form Body - 3 Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="profile-details-grid">
           {/* Card 1: Identity & Contact */}
-          <Card className="flex flex-col gap-4 border border-slate-200 shadow-sm h-full">
-            <h4 className="font-extrabold text-[#1b4264] text-lg border-b border-slate-100 pb-2 flex items-center gap-2">
-              <i className="ti ti-user text-[#ffa400] text-[15px]" />
-              Personal & Account Info
-            </h4>
+          <Card className="profile-panel profile-panel--personal flex flex-col gap-4">
+            <h2 className="font-extrabold text-[#1b4264] text-lg border-b border-slate-100 pb-2 flex items-center gap-2">
+              <UserRound size={18} aria-hidden="true" />
+              Personal details
+            </h2>
 
             {/* Read-Only sensitive area */}
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 flex flex-col gap-3">
+            <div className="profile-account-details">
               <div className="flex flex-col gap-0.5">
                 <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
-                  System Email Address
+                  Email address
                 </span>
                 <span className="font-semibold text-slate-700 break-all">
                   {profile.email}
@@ -165,7 +169,7 @@ export function ProfileEditForm() {
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="font-bold text-slate-400 uppercase tracking-wider text-xs">
-                  Account Role
+                  Account role
                 </span>
                 <span className="font-semibold text-slate-700 capitalize">
                   {profile.role.replace("_", " ")}
@@ -210,11 +214,11 @@ export function ProfileEditForm() {
           </Card>
 
           {/* Card 2: Institutional Info */}
-          <Card className="flex flex-col gap-4 border border-slate-200 shadow-sm h-full">
-            <h4 className="font-extrabold text-[#1b4264] text-lg border-b border-slate-100 pb-2 flex items-center gap-2">
-              <i className="ti ti-building text-[#ffa400] text-[15px]" />
-              Institutional Info
-            </h4>
+          <Card className="profile-panel flex flex-col gap-4">
+            <h2 className="font-extrabold text-[#1b4264] text-lg border-b border-slate-100 pb-2 flex items-center gap-2">
+              <Building2 size={18} aria-hidden="true" />
+              University details
+            </h2>
 
             {profile.role === "student" ? (
               <>
@@ -331,11 +335,11 @@ export function ProfileEditForm() {
           </Card>
 
           {/* Card 3: Research / Specific Details */}
-          <Card className="flex flex-col gap-4 border border-slate-200 shadow-sm h-full">
-            <h4 className="font-extrabold text-[#1b4264] text-lg border-b border-slate-100 pb-2 flex items-center gap-2">
-              <i className="ti ti-award text-[#ffa400] text-[15px]" />
-              Specialized Profile Info
-            </h4>
+          <Card className="profile-panel flex flex-col gap-4">
+            <h2 className="font-extrabold text-[#1b4264] text-lg border-b border-slate-100 pb-2 flex items-center gap-2">
+              <Award size={18} aria-hidden="true" />
+              Research details
+            </h2>
 
             {/* Student details */}
             {profile.role === "student" && (
@@ -542,7 +546,7 @@ export function ProfileEditForm() {
         </div>
 
         {/* Form Action Controls */}
-        <div className="border-t border-slate-200 pt-5 flex justify-end gap-3.5">
+        <div className="profile-form-actions">
           <Button
             type="button"
             onClick={handleCancel}
@@ -562,9 +566,9 @@ export function ProfileEditForm() {
               saveAction.feedback ? "profile-save-feedback" : undefined
             }
             size="lg"
-            icon={<i className="ti ti-device-floppy text-base" />}
+            icon={<Save size={18} aria-hidden="true" />}
           >
-            Save Profile Changes
+            Save changes
           </Button>
         </div>
       </form>

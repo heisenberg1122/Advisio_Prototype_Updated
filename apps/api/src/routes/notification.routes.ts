@@ -114,12 +114,11 @@ router.get(
   requireAuth,
   async (req: Request, res: Response) => {
     try {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user!.id },
-        select: { collegeId: true, programId: true },
-      });
+      const user = { collegeId: req.user!.collegeId, programId: req.user!.programId };
+      const allowedTypes = req.user!.roles.includes("SYSTEM_ADMIN") ? null : await prisma.researchType.findMany({ where: { program: { collegeId: req.user!.collegeId || "00000000-0000-0000-0000-000000000000" } }, select: { id: true } });
       const workflows = await prisma.workflow.findMany({
         where: {
+          ...(allowedTypes ? { researchTypeId: { in: allowedTypes.map(({ id }) => id) } } : {}),
           OR: [
             { createdBy: req.user!.id },
             { enrollments: { some: { userId: req.user!.id, status: "ACTIVE" } } },
@@ -206,10 +205,7 @@ router.post(
               "Professor access is required to publish a college announcement.",
           });
       }
-      const user = await prisma.user.findUnique({
-        where: { id: req.user!.id },
-        select: { collegeId: true, college: { select: { name: true } } },
-      });
+      const user = { collegeId: req.user!.collegeId, college: req.user!.collegeId ? await prisma.college.findUnique({ where: { id: req.user!.collegeId }, select: { name: true } }) : null };
       if (!user?.collegeId)
         return void res
           .status(409)

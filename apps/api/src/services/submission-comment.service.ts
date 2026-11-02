@@ -64,6 +64,14 @@ export async function assertSubmissionCommentAccess(
   if (!submission)
     throw new SubmissionCommentError("Submission not found.", 404);
   if (
+    !user.roles.includes("SYSTEM_ADMIN") &&
+    user.collegeId !== submission.research.collegeId
+  )
+    throw new SubmissionCommentError(
+      "Switch to this submission's authorized college before opening its comments, grade, or history.",
+      403,
+    );
+  if (
     versionId !== submission.documentVersionId &&
     !submission.attempts.some((a) => a.documentVersionId === versionId)
   )
@@ -122,7 +130,12 @@ export async function listSubmissionComments(
   user: AuthenticatedUser,
   cursor?: string,
 ) {
-  const canComment = await assertSubmissionCommentAccess(submissionId, versionId, user, false);
+  const canComment = await assertSubmissionCommentAccess(
+    submissionId,
+    versionId,
+    user,
+    false,
+  );
   const comments = await prisma.taskSubmissionComment.findMany({
     where: { taskSubmissionId: submissionId, documentVersionId: versionId },
     select: commentSelect,
@@ -143,7 +156,12 @@ export async function postSubmissionComment(
   user: AuthenticatedUser,
 ) {
   const data = submissionCommentSchema.parse(input);
-  await assertSubmissionCommentAccess(submissionId, data.documentVersionId, user, true);
+  await assertSubmissionCommentAccess(
+    submissionId,
+    data.documentVersionId,
+    user,
+    true,
+  );
   // Comments are shared conversation, independent of permanent review decisions.
   // They never change submission status, manuscript bytes, or workflow progress.
   return prisma.taskSubmissionComment.create({

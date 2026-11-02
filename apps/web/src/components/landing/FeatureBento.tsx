@@ -35,7 +35,7 @@ const features = [
     icon: Award,
     title: "A prepared defense",
     description:
-      "Share defense packets with assigned panelists and record rubric scores and recommendations.",
+      "Share defense documents with assigned panelists and record their scores and recommendations.",
     detail: "Panel evaluation",
   },
   {

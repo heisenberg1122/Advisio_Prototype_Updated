@@ -91,8 +91,8 @@ export function SubmissionDocumentPreview({
     mimeType === "application/pdf" || mimeType.startsWith("image/");
 
   return (
-    <section className="submission-preview">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] px-4 py-3">
+    <section className="document-preview-shell submission-preview">
+      <header className="document-preview-toolbar flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] px-4 py-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-[var(--color-text-primary)]">
             {version?.fileName || title}
@@ -112,7 +112,7 @@ export function SubmissionDocumentPreview({
                   onVersionChange?.(event.target.value);
                 else setVersionId(event.target.value);
               }}
-              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
+              className="document-preview-control rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
               aria-label="Document version"
             >
               {ordered.map((item) => (
@@ -128,7 +128,7 @@ export function SubmissionDocumentPreview({
                 href={previewUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-bold text-[var(--color-primary)]"
+                className="document-preview-control rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-bold text-[var(--color-primary)]"
               >
                 <i className="ti ti-external-link mr-1" aria-hidden="true" />{" "}
                 Open file
@@ -145,7 +145,7 @@ export function SubmissionDocumentPreview({
         </div>
       </header>
 
-      <div className="submission-preview-stage">
+      <div className="document-preview-stage submission-preview-stage">
         {loading && (
           <DocumentPreviewSkeleton className="absolute inset-0 h-full w-full" />
         )}
@@ -185,13 +185,13 @@ export function SubmissionDocumentPreview({
         )}
         {!loading && !error && previewUrl && !canEmbed && (
           <div className="m-auto max-w-md p-8 text-center">
-            <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-white text-[#173f63] shadow-sm">
+            <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[var(--color-surface)] text-[var(--color-text-primary)] shadow-sm">
               <i className="ti ti-file-description text-4xl" />
             </span>
-            <h3 className="mt-4 text-lg font-extrabold text-[#102f49]">
+            <h3 className="mt-4 text-lg font-extrabold text-[var(--color-text-primary)]">
               Preview is not available for this file type
             </h3>
-            <p className="mt-2 text-base leading-6 text-slate-500">
+            <p className="mt-2 text-base leading-6 text-[var(--color-text-secondary)]">
               Download this submitted version to review its contents, then add
               your comments and decision alongside it.
             </p>

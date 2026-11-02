@@ -13,6 +13,7 @@ import {
   createWorkflowTopicSchema,
   createWorkflowSchema,
   reorderWorkflowTopicsSchema,
+  reorderWorkflowMilestonesSchema,
   updateWorkflowTopicSchema,
   workflowTransitionSchema,
   targetCompletionDateSchema,
@@ -53,6 +54,7 @@ import {
 import { hasActiveWorkflowEnrollment } from "../services/workflow-enrollment-access.service.js";
 import { synchronizeAdviserMilestone } from "../services/adviser-milestone.service.js";
 import { workflowPublicationIssues } from "../services/workflow-publication.service.js";
+import { reorderWorkflowMilestones, reorderWorkflowTopics, resequenceMilestonesWithConditions } from "../services/workflow-order.service.js";
 import {
   assertMilestoneOrder,
   parseRequiredMilestoneId,
@@ -138,6 +140,7 @@ async function workflowAccess(
   });
   const program = researchType?.program;
   const scope = getCollegeScope(user);
+  if (scope.kind !== "institution" && (!program || scope.kind !== "college" || scope.collegeId !== program.collegeId)) return null;
   const manages =
     user.roles.some((role) =>
       ["RESEARCH_COORDINATOR", "DEAN", "SYSTEM_ADMIN"].includes(role),
@@ -528,6 +531,26 @@ async function normalizeWorkflowTopicSequences(tx: any, workflowId: string) {
   }
 }
 
+async function auditPublishedWorkflowChange(
+  tx: import("@prisma/client").Prisma.TransactionClient,
+  workflowId: string,
+  actorId: string,
+  entityType: string,
+  entityId: string,
+  summary: string,
+) {
+  const workflow = await tx.workflow.findUnique({
+    where: { id: workflowId },
+    select: { status: true },
+  });
+  if (workflow?.status === "PUBLISHED") {
+    await tx.auditLog.create({ data: {
+      userId: actorId, action: "UPDATE", entityType, entityId,
+      newValues: { workflowId, summary },
+    } });
+  }
+}
+
 async function recordPublishedWorkflowChange(
   workflowId: string,
   actorId: string,
@@ -575,15 +598,6 @@ async function recordPublishedWorkflowChange(
         recipients.add(member.userId);
 
     await prisma.$transaction(async (tx) => {
-      await tx.auditLog.create({
-        data: {
-          userId: actorId,
-          action: "UPDATE",
-          entityType,
-          entityId,
-          newValues: { workflowId, summary },
-        },
-      });
       await createNotificationsOnce(
         tx,
         Array.from(recipients).map((recipientId) => ({
@@ -1191,7 +1205,7 @@ router.post(
           orderBy: { sequence: "desc" },
           select: { sequence: true },
         });
-        return tx.workflowTopic.create({
+        const created = await tx.workflowTopic.create({
           data: {
             workflowId,
             title: req.body.title,
@@ -1199,6 +1213,8 @@ router.post(
             sequence: (lastTopic?.sequence || 0) + 1,
           },
         });
+        await auditPublishedWorkflowChange(tx, workflowId, req.user!.id, "WorkflowTopic", created.id, "Research phase created.");
+        return created;
       });
       await recordPublishedWorkflowChange(
         workflowId,
@@ -1249,7 +1265,8 @@ router.patch(
           });
         }
       }
-      const topic = await prisma.workflowTopic.update({
+      const topic = await prisma.$transaction(async (tx) => {
+      const updated = await tx.workflowTopic.update({
         where: { id: existing.id },
         data: {
           ...(req.body.title !== undefined && { title: req.body.title }),
@@ -1257,6 +1274,9 @@ router.patch(
             description: req.body.description || null,
           }),
         },
+      });
+      await auditPublishedWorkflowChange(tx, existing.workflowId, req.user!.id, "WorkflowTopic", updated.id, "Research phase updated.");
+      return updated;
       });
       await recordPublishedWorkflowChange(
         existing.workflowId,
@@ -1288,48 +1308,46 @@ router.patch(
           .status(404)
           .json({ error: "Workflow not found in your academic scope." });
       }
-      const topics = await prisma.workflowTopic.findMany({
-        where: { workflowId },
-        select: { id: true },
-      });
-      const existingIds = new Set(topics.map((topic) => topic.id));
-      const requestedIds = req.body.topicIds as string[];
-      if (
-        requestedIds.length !== existingIds.size ||
-        new Set(requestedIds).size !== requestedIds.length ||
-        requestedIds.some((id) => !existingIds.has(id))
-      ) {
-        return void res.status(400).json({
-          error: "Topic order must contain every workflow topic exactly once.",
-        });
-      }
-      await prisma.$transaction(async (tx) => {
-        for (let index = 0; index < requestedIds.length; index += 1) {
-          await tx.workflowTopic.update({
-            where: { id: requestedIds[index] },
-            data: { sequence: 1_000_000 + index },
-          });
-        }
-        for (let index = 0; index < requestedIds.length; index += 1) {
-          await tx.workflowTopic.update({
-            where: { id: requestedIds[index] },
-            data: { sequence: index + 1 },
-          });
-        }
-        await resequenceWorkflowStagesByTopics(tx, workflowId);
-      });
-      await recordPublishedWorkflowChange(
+      const changed = await prisma.$transaction(async (tx) => {
+        const changed = await reorderWorkflowTopics(tx, workflowId, req.body.topicIds, req.user!.id, req.body.expectedTopicIds);
+        if (changed) await auditPublishedWorkflowChange(tx, workflowId, req.user!.id, "Workflow", workflowId, "Research phases reordered and required milestone conditions synchronized.");
+        return changed;
+      }, { isolationLevel: "Serializable", timeout: 30_000 });
+      if (changed) await recordPublishedWorkflowChange(
         workflowId,
         req.user!.id,
-        "The order of research phases and milestones changed.",
+        "Research phases and required milestone conditions were reordered. Existing work was retained.",
         "Workflow",
         workflowId,
       );
       res.json({ success: true });
     } catch (error: any) {
       res
-        .status(500)
-        .json({ error: error.message || "Failed to reorder workflow topics." });
+        .status(error.statusCode || (error.code === "P2034" ? 409 : 500))
+        .json({ error: error.code === "P2034" ? "This workflow changed. Refresh and try again." : error.message || "Failed to reorder workflow topics." });
+    }
+  },
+);
+
+router.patch(
+  "/:id/stages/reorder",
+  requireAuth,
+  requirePermission(Permissions.WORKFLOW_EDIT),
+  validateBody(reorderWorkflowMilestonesSchema),
+  async (req: Request, res: Response) => {
+    try {
+      const workflowId = req.params.id as string;
+      if (!(await workflowAccess(workflowId, req.user!))?.manages)
+        return void res.status(404).json({ error: "Workflow not found in your academic scope." });
+      const changed = await prisma.$transaction(async tx => {
+        const changed = await reorderWorkflowMilestones(tx, workflowId, req.body, req.user!.id);
+        if (changed) await auditPublishedWorkflowChange(tx, workflowId, req.user!.id, "Workflow", workflowId, "Milestones reordered and required milestone conditions synchronized.");
+        return changed;
+      }, { isolationLevel: "Serializable", timeout: 30_000 });
+      if (changed) await recordPublishedWorkflowChange(workflowId, req.user!.id, "Milestones and their required conditions were reordered. Existing submissions and approvals were retained.", "Workflow", workflowId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(error.statusCode || (error.code === "P2034" ? 409 : 500)).json({ error: error.code === "P2034" ? "This workflow changed. Refresh and try again." : error.message || "Failed to move milestone." });
     }
   },
 );
@@ -1365,6 +1383,7 @@ router.delete(
       await prisma.$transaction(async (tx) => {
         await tx.workflowTopic.delete({ where: { id: topic.id } });
         await normalizeWorkflowTopicSequences(tx, topic.workflowId);
+        await auditPublishedWorkflowChange(tx, topic.workflowId, req.user!.id, "WorkflowTopic", topic.id, "Research phase removed.");
       });
       await recordPublishedWorkflowChange(
         topic.workflowId,
@@ -2310,6 +2329,7 @@ router.post(
             createdStage.id,
             requestedPosition,
           );
+          await auditPublishedWorkflowChange(tx, workflowId, req.user!.id, "WorkflowStage", createdStage.id, "Milestone created.");
           return tx.workflowStage.findUniqueOrThrow({
             where: { id: createdStage.id },
           });
@@ -2463,7 +2483,10 @@ router.delete(
         ]);
 
       if (!activeUsage && !submissions && !transitions && !dependentRecords) {
-        await prisma.workflowStage.delete({ where: { id: stageId } });
+        await prisma.$transaction(async (tx) => {
+          await tx.workflowStage.delete({ where: { id: stageId } });
+          await auditPublishedWorkflowChange(tx, stage.workflowId, req.user!.id, "WorkflowStage", stageId, "Unused milestone removed.");
+        });
         await recordPublishedWorkflowChange(
           stage.workflowId,
           req.user!.id,
@@ -2505,6 +2528,7 @@ router.delete(
           data: { category: "Archived" },
         });
         await normalizeWorkflowStageSequences(tx, stage.workflowId);
+        await auditPublishedWorkflowChange(tx, stage.workflowId, req.user!.id, "WorkflowStage", stageId, "Milestone retired; submissions preserved.");
       });
       await recordPublishedWorkflowChange(
         stage.workflowId,
@@ -2856,11 +2880,12 @@ router.patch(
           });
         }
         if (topicId !== undefined && topicId !== existing.topicId) {
-          await resequenceWorkflowStagesByTopics(tx, existing.workflowId);
+          await resequenceMilestonesWithConditions(tx, existing.workflowId, req.user!.id);
         }
         await validateMilestoneConditions(tx, existing.workflowId);
+        await auditPublishedWorkflowChange(tx, existing.workflowId, req.user!.id, "WorkflowStage", stageId, "Milestone configuration updated.");
         return tx.workflowStage.findUniqueOrThrow({ where: { id: stageId } });
-      });
+      }, { isolationLevel: "Serializable", timeout: 30_000 });
 
       await recordPublishedWorkflowChange(
         existing.workflowId,
@@ -2872,8 +2897,8 @@ router.patch(
       res.json({ stage });
     } catch (error: any) {
       res
-        .status(error.statusCode || (error.code === "P2003" ? 409 : 500))
-        .json({ error: error.message || "Failed to update workflow stage" });
+        .status(error.statusCode || (["P2003", "P2034"].includes(error.code) ? 409 : 500))
+        .json({ error: error.code === "P2034" ? "This workflow changed. Refresh and try again." : error.message || "Failed to update workflow stage" });
     }
   },
 );
@@ -2978,7 +3003,8 @@ router.post(
         orderBy: { sequence: "desc" },
       });
       if (pointsResult.data !== null && (!stage.requiresDocument || stage.milestoneType !== "STANDARD")) return void res.status(400).json({ error: "Grading is available for standard submission requirements only." });
-      const task = await prisma.workflowTask.create({
+      const task = await prisma.$transaction(async (tx) => {
+      const created = await tx.workflowTask.create({
         data: {
           stageId,
           title: title.trim(),
@@ -2989,6 +3015,9 @@ router.post(
           isRequired: Boolean(isRequired),
           maxPoints: pointsResult.data,
         },
+      });
+      await auditPublishedWorkflowChange(tx, stage.workflowId, req.user!.id, "WorkflowTask", created.id, "Submission requirement created.");
+      return created;
       });
       await recordPublishedWorkflowChange(
         stage.workflowId,
@@ -3128,7 +3157,10 @@ router.delete(
         return void res.status(409).json({
           error: "A task with student submissions cannot be deleted.",
         });
-      await prisma.workflowTask.delete({ where: { id: taskId } });
+      await prisma.$transaction(async (tx) => {
+        await tx.workflowTask.delete({ where: { id: taskId } });
+        await auditPublishedWorkflowChange(tx, task.stage.workflowId, req.user!.id, "WorkflowTask", taskId, "Submission requirement removed.");
+      });
       await recordPublishedWorkflowChange(
         task.stage.workflowId,
         req.user!.id,

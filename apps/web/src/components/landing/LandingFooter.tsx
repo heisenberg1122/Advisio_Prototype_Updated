@@ -7,7 +7,7 @@ export function LandingFooter() {
         <div className="lp-footer-top">
           <div>
             <Link to="/" className="lp-brand" aria-label="Advisio home">
-              <img src="/ao-logo.png" alt="" />
+              <img src="/advisio-logo.png" alt="" />
               <span>advisio.</span>
             </Link>
             <p>Research advising and management, connected.</p>

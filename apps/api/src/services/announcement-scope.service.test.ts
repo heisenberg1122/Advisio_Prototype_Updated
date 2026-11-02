@@ -36,7 +36,7 @@ describe("announcement email audience", () => {
       }),
     );
     expect(scope.recipients).toMatchObject({
-      collegeId: "college",
+      AND: [expect.objectContaining({ OR: expect.any(Array) })],
       OR: [
         {
           workflowEnrollments: {
@@ -66,10 +66,7 @@ describe("announcement email audience", () => {
       { ...actor, roles: ["DEAN"] },
       { programId: "foreign-program" },
     );
-    expect(scope.recipients).toEqual({
-      collegeId: "college",
-      programId: "program",
-    });
+    expect(scope.recipients).toEqual({ AND: [expect.objectContaining({ OR: expect.any(Array) }), { OR: [{ programId: "program" }, { collegeId: { not: "college" } }] }] });
     tx.program.findFirst.mockResolvedValue(null);
     await expect(
       announcementScope(

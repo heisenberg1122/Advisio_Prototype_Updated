@@ -9,8 +9,8 @@ import { GoogleDriveIntegration } from "@/components/system-admin/GoogleDriveInt
 import { AcademicStructureManagement } from "@/components/system-admin/AcademicStructureManagement";
 import {
   SystemAdminOverview,
-  AdminAuditActivity,
 } from "@/components/system-admin/SystemAdminOverview";
+import { AuditTrail } from "@/components/system-admin/AuditTrail";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import {
   Settings,
@@ -33,7 +33,7 @@ function SystemAdminDashboardContent() {
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent text-slate-800 transition-colors dark:text-slate-100">
       {/* MAIN CONTAINER */}
-      <main className="mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-6 overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <main className="workspace-page mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-6 overflow-y-auto p-4 sm:p-6 lg:p-8">
         {/* TAB CONTENTS */}
         {(() => {
           if (activeTab === "announcements") return <SystemAnnouncements />;
@@ -50,18 +50,19 @@ function SystemAdminDashboardContent() {
             return <AcademicStructureManagement />;
           }
 
-          if (activeTab === "logs") return <AdminAuditActivity />;
+          if (activeTab === "logs") return <AuditTrail />;
 
           if (activeTab === "backups") {
             return (
               <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs p-6 flex flex-col gap-4 dark:border-white/10 dark:bg-[#101b2b]">
-                <h3 className="font-black text-slate-900 dark:text-white text-lg">
-                  Backup & Restore Management
-                </h3>
-                <p className="text-base text-slate-500 dark:text-slate-400 font-medium">
-                  Initiate database snapshots or restore historical state
-                  records.
-                </p>
+                <div className="workspace-page-header">
+                  <h3 className="font-black text-slate-900 dark:text-white text-lg">
+                    Backup & Restore Management
+                  </h3>
+                  <p className="text-base text-slate-500 dark:text-slate-400 font-medium">
+                    Initiate database snapshots or restore historical state records.
+                  </p>
+                </div>
                 <div className="bg-slate-50/70 dark:bg-white/[0.02] p-8 border border-slate-200 dark:border-white/10 rounded-2xl text-center flex flex-col items-center gap-4">
                   <div className="w-16 h-16 bg-[#0B3A53]/10 dark:bg-white/10 rounded-2xl flex items-center justify-center text-[#0B3A53] dark:text-[#C9A227]">
                     <Database className="h-8 w-8" />
@@ -89,13 +90,15 @@ function SystemAdminDashboardContent() {
           if (activeTab === "roles") {
             return (
               <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs p-6 flex flex-col gap-4 dark:border-white/10 dark:bg-[#101b2b]">
-                <h3 className="font-black text-slate-900 dark:text-white text-lg">
-                  Global Role Permission Matrix
-                </h3>
-                <p className="text-base text-slate-500 dark:text-slate-400 font-medium">
-                  Active role capabilities for Student, Adviser, Professor,
-                  Panelist, Dean, and Administrator accounts.
-                </p>
+                <div className="workspace-page-header">
+                  <h3 className="font-black text-slate-900 dark:text-white text-lg">
+                    Global Role Permission Matrix
+                  </h3>
+                  <p className="text-base text-slate-500 dark:text-slate-400 font-medium">
+                    Active role capabilities for Student, Adviser, Professor, Panelist, Dean,
+                    and Administrator accounts.
+                  </p>
+                </div>
                 <div className="overflow-x-auto mt-2">
                   <table className="w-full min-w-[720px] border-collapse text-left text-sm">
                     <thead>
@@ -199,13 +202,14 @@ function SystemAdminDashboardContent() {
           if (activeTab === "config") {
             return (
               <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs p-6 flex flex-col gap-4 dark:border-white/10 dark:bg-[#101b2b]">
-                <h3 className="font-black text-slate-900 dark:text-white text-lg">
-                  System Parameter Configuration
-                </h3>
-                <p className="text-base text-slate-500 dark:text-slate-400 font-medium">
-                  Manage global database pooling, cache lifetime, and platform
-                  status.
-                </p>
+                <div className="workspace-page-header">
+                  <h3 className="font-black text-slate-900 dark:text-white text-lg">
+                    System Parameter Configuration
+                  </h3>
+                  <p className="text-base text-slate-500 dark:text-slate-400 font-medium">
+                    Manage global database pooling, cache lifetime, and platform status.
+                  </p>
+                </div>
                 <div className="bg-slate-50/70 dark:bg-white/[0.02] p-5 border border-slate-200/80 dark:border-white/10 rounded-2xl flex flex-col gap-4">
                   <div className="flex justify-between items-center pb-3 border-b border-slate-200/80 dark:border-white/5">
                     <div>
@@ -243,12 +247,14 @@ function SystemAdminDashboardContent() {
           if (activeTab === "settings") {
             return (
               <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs p-6 flex flex-col gap-4 dark:border-white/10 dark:bg-[#101b2b]">
-                <h3 className="font-black text-slate-900 dark:text-white text-lg">
-                  Portal Settings
-                </h3>
-                <p className="text-base text-slate-500 dark:text-slate-400 font-medium">
-                  Manage notification channels and administrative preferences.
-                </p>
+                <div className="workspace-page-header">
+                  <h3 className="font-black text-slate-900 dark:text-white text-lg">
+                    Portal Settings
+                  </h3>
+                  <p className="text-base text-slate-500 dark:text-slate-400 font-medium">
+                    Manage notification channels and administrative preferences.
+                  </p>
+                </div>
                 <div className="bg-slate-50/70 dark:bg-white/[0.02] p-5 border border-slate-200/80 dark:border-white/10 rounded-2xl flex flex-col gap-4">
                   <div className="flex justify-between items-center pb-3 border-b border-slate-200/80 dark:border-white/5">
                     <div className="flex items-center gap-3">

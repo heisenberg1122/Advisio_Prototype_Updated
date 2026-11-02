@@ -1,3 +1,4 @@
+import { collegeUserWhere } from "../lib/college-authorization.js";
 import { Router, Request, Response, NextFunction } from "express";
 import { AuditAction, prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -120,16 +121,16 @@ router.get(
           }),
           prisma.user.findMany({
             where: {
-              ...(collegeId && { collegeId }),
+              ...(collegeId ? collegeUserWhere(collegeId, "ADVISER") : { roles: { some: { role: { name: "ADVISER" } } } }),
               status: "ACTIVE",
-              ...(programId && { programId }),
-              roles: { some: { role: { name: "ADVISER" } } },
+              ...(programId && { AND: [{ OR: [{ programId }, ...(collegeId ? [{ collegeId: { not: collegeId } }] : [])] }] }),
             },
             select: {
               id: true,
               firstName: true,
               lastName: true,
               email: true,
+              collegeId: true,
               program: { select: { id: true, code: true, name: true } },
               maxAdviseeGroups: true,
               isAcceptingAdvisees: true,
@@ -268,6 +269,8 @@ router.get(
           id: adviser.id,
           name: `${adviser.firstName} ${adviser.lastName}`,
           email: adviser.email,
+          program: adviser.collegeId === collegeId ? adviser.program : null,
+          canManageSettings: adviser.collegeId === req.user!.collegeId,
           groups: _count.memberships,
           attention,
           capacityNote: adviser.adviserCapacityNote,
@@ -358,50 +361,7 @@ async function deanProgram(programId: string, collegeId: string) {
   });
 }
 
-router.post(
-  "/dean/advisers",
-  requireAuth,
-  requireDean,
-  async (req: Request, res: Response) => {
-    try {
-      const collegeId = req.user!.collegeId;
-      if (!collegeId) return void res.status(400).json({ error: "This dean account is not assigned to a college." });
-      const userId = String(req.body.userId || "");
-      const programId = String(req.body.programId || "");
-      const maxAdviseeGroups = validCapacity(req.body.maxAdviseeGroups);
-      const isAcceptingAdvisees = req.body.isAcceptingAdvisees;
-      if (maxAdviseeGroups == null) return void res.status(400).json({ error: "Maximum groups must be a whole number from 0 to 50." });
-      if (typeof isAcceptingAdvisees !== "boolean") return void res.status(400).json({ error: "Choose whether this adviser accepts new requests." });
-
-      const [target, program, adviserRole] = await Promise.all([
-        prisma.user.findFirst({ where: { id: userId, collegeId, status: "ACTIVE" }, include: { roles: { include: { role: true } } } }),
-        deanProgram(programId, collegeId),
-        prisma.role.findUnique({ where: { name: "ADVISER" } }),
-      ]);
-      if (!target) return void res.status(404).json({ error: "Choose an active faculty account from your college." });
-      if (!program) return void res.status(400).json({ error: "Choose an active program from your college." });
-      if (!adviserRole) return void res.status(500).json({ error: "The Adviser role is not configured." });
-      if (target.roles.some((entry) => entry.role.name === "ADVISER")) return void res.status(409).json({ error: "This faculty member is already an adviser." });
-
-      const adviser = await prisma.$transaction(async (tx) => {
-        await tx.userRole.create({ data: { userId: target.id, roleId: adviserRole.id, grantedBy: req.user!.id } });
-        const updated = await tx.user.update({
-          where: { id: target.id },
-          data: { programId: program.id, maxAdviseeGroups, isAcceptingAdvisees, adviserCapacitySetBy: req.user!.id, adviserCapacitySetAt: new Date() },
-          select: { id: true, firstName: true, lastName: true, email: true },
-        });
-        await tx.auditLog.create({
-          data: { userId: req.user!.id, action: AuditAction.ROLE_CHANGE, entityType: "ADVISER", entityId: target.id, oldValues: { roles: target.roles.map((entry) => entry.role.name) }, newValues: { addedRole: "ADVISER", programId: program.id, maxAdviseeGroups, isAcceptingAdvisees }, ipAddress: req.ip, userAgent: req.get("user-agent") || null },
-        });
-        await tx.notification.create({ data: { audience: "account", recipientId: target.id, type: "WORKFLOW_CHANGED", title: "Adviser access added", message: `You are now an adviser for ${program.code}.`, entityType: "ADVISER", entityId: target.id } });
-        return updated;
-      });
-      res.status(201).json({ adviser });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message || "Failed to add adviser." });
-    }
-  },
-);
+router.post("/dean/advisers", requireAuth, requireDean, (_req, res) => { res.status(409).json({ error: "Invite the adviser from Faculty access. The account owner must accept before access is granted." }); });
 
 router.patch(
   "/dean/advisers/:id",
@@ -465,7 +425,12 @@ router.delete(
       if (!adviserRole) return void res.status(404).json({ error: "Adviser role not found." });
 
       await prisma.$transaction(async (tx) => {
-        await tx.userRole.delete({ where: { userId_roleId: { userId: target.id, roleId: adviserRole.roleId } } });
+        const membership = await tx.collegeMembership.findUnique({ where: { userId_collegeId: { userId: target.id, collegeId } } });
+        if (!membership) throw new Error("No adviser access in this college.");
+        const roles = membership.roleNames.filter((role) => role !== "ADVISER");
+        if (roles.length) await tx.collegeMembership.update({ where: { userId_collegeId: { userId: target.id, collegeId } }, data: { roleNames: roles } });
+        else await tx.collegeMembership.delete({ where: { userId_collegeId: { userId: target.id, collegeId } } });
+        if (!(await tx.collegeMembership.count({ where: { userId: target.id, roleNames: { has: "ADVISER" } } }))) await tx.userRole.delete({ where: { userId_roleId: { userId: target.id, roleId: adviserRole.roleId } } });
         await tx.adviserRequest.updateMany({ where: { adviserId: target.id, status: "PENDING" }, data: { status: "REJECTED", responseNote: "Adviser access was removed by the Dean.", respondedAt: new Date() } });
         await tx.auditLog.create({ data: { userId: req.user!.id, action: AuditAction.ROLE_CHANGE, entityType: "ADVISER", entityId: target.id, oldValues: { roles: target.roles.map((entry) => entry.role.name), programId: target.programId }, newValues: { removedRole: "ADVISER" }, ipAddress: req.ip, userAgent: req.get("user-agent") || null } });
         await tx.notification.create({ data: { audience: "account", recipientId: target.id, type: "WORKFLOW_CHANGED", title: "Adviser access removed", message: "The Dean removed your adviser assignment. Your other account access is unchanged.", entityType: "ADVISER", entityId: target.id } });
