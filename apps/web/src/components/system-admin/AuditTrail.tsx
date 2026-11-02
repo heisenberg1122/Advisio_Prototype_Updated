@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { CheckCircle2, CircleHelp, XCircle } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 
 type Event = {
@@ -45,6 +46,59 @@ const words = (value: string) =>
     .toLowerCase();
 const inputStyle =
   "rounded-lg border border-slate-300 bg-transparent px-3 py-2 dark:border-slate-600";
+const badgeStyle =
+  "inline-flex max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium";
+const neutralBadgeStyle =
+  "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
+
+function ActionBadge({ action }: { action: string }) {
+  let tone = neutralBadgeStyle;
+  switch (action) {
+    case "CREATE":
+    case "UPDATE":
+      tone = "bg-blue-50 text-blue-800 dark:bg-blue-950 dark:text-blue-200";
+      break;
+    case "ROLE_CHANGE":
+    case "PERMISSION_CHANGE":
+      tone =
+        "bg-purple-50 text-purple-800 dark:bg-purple-950 dark:text-purple-200";
+      break;
+    case "DELETE":
+    case "REJECT":
+      tone = "bg-amber-50 text-amber-800 dark:bg-amber-950 dark:text-amber-200";
+      break;
+  }
+  return (
+    <span className={`${badgeStyle} ${tone}`}>
+      <span className="capitalize break-words">
+        {words(action) || "Unknown action"}
+      </span>
+    </span>
+  );
+}
+
+function OutcomeBadge({ outcome }: { outcome: string }) {
+  const { tone, Icon } =
+    outcome === "SUCCESS"
+      ? {
+          tone: "bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-200",
+          Icon: CheckCircle2,
+        }
+      : outcome === "FAILURE"
+        ? {
+            tone: "bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200",
+            Icon: XCircle,
+          }
+        : { tone: neutralBadgeStyle, Icon: CircleHelp };
+  return (
+    <span className={`${badgeStyle} ${tone}`}>
+      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span className="capitalize break-words">
+        {words(outcome) || "Unknown"}
+      </span>
+    </span>
+  );
+}
 
 function EventDetail({ id, close }: { id: string; close: () => void }) {
   const query = useQuery({
@@ -91,7 +145,8 @@ function EventDetail({ id, close }: { id: string; close: () => void }) {
               Actor: event.actorReference || "System / unauthenticated",
               "Roles at event":
                 event.actorRoles.join(", ") || "Unknown / not recorded",
-              Outcome: event.outcome,
+              Action: <ActionBadge action={event.action} />,
+              Outcome: <OutcomeBadge outcome={event.outcome} />,
               "Affected record": event.entityId || "—",
               Project: event.researchId || "—",
               "Request ID": event.requestId || "—",
@@ -395,6 +450,9 @@ export function AuditTrail() {
                         {event.category}
                         {event.contractVersion === 0 ? " · legacy record" : ""}
                       </p>
+                      <div className="mt-2">
+                        <ActionBadge action={event.action} />
+                      </div>
                       {typeof event.summaryCount === "number" && (
                         <p className="text-xs">
                           {event.summaryCount} observations
@@ -410,7 +468,9 @@ export function AuditTrail() {
                         {event.actorRoles.join(", ") || "Role not recorded"}
                       </p>
                     </td>
-                    <td className="border-b p-3">{event.outcome}</td>
+                    <td className="border-b p-3">
+                      <OutcomeBadge outcome={event.outcome} />
+                    </td>
                     <td className="border-b p-3">
                       <button
                         type="button"
