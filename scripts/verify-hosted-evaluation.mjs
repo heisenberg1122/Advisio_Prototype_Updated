@@ -50,7 +50,10 @@ async function begin() {
 }
 const initial = await begin();
 const survey = new URL(initial.surveyUrl);
-assert.equal(survey.searchParams.get("entry.1428349663"), "Students");
+assert.equal(
+  survey.searchParams.get("entry.1428349663"),
+  "Researchers/Students",
+);
 assert.equal(
   survey.searchParams.get("entry.874351903"),
   "Information Technology",

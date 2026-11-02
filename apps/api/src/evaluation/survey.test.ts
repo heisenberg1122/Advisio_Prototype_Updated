@@ -9,8 +9,8 @@ const env = {
 };
 test("only role and student program are prefilled across all 35 combinations", () => {
   const labels = [
-    "Students",
-    "Capstone professors",
+    "Researchers/Students",
+    "Research professors",
     "Research advisers",
     "Evaluation panelists",
     "College Deans",
