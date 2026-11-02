@@ -998,7 +998,7 @@ function RegistryView({
                 <tr key={student.id} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
                   <td className="px-5 py-4">
                     <p className="font-extrabold text-slate-900 dark:text-white">{student.name}</p>
-                    <p className="text-base text-slate-400 dark:text-slate-500">
+                    <p className="readable-metadata text-base">
                       {student.universityId} · {student.email}
                     </p>
                   </td>

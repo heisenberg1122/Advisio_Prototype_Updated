@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import { History as HistoryIcon } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
 
 type History = {
   events: {
@@ -90,16 +92,21 @@ function HistoryEntries({ researchId }: { researchId: string }) {
 export function ProjectAuditHistory({ researchId }: { researchId: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <section className="mp-panel">
+    <>
       <button
         type="button"
-        className="mp-button mp-button--secondary"
+        className="mp-button mp-button--secondary mp-history-trigger"
+        aria-label="View project history"
+        title="View project history"
+        aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        {open ? "Hide project history" : "View project history"}
+        <HistoryIcon size={19} strokeWidth={1.8} aria-hidden="true" />
       </button>
-      {open && <HistoryEntries researchId={researchId} />}
-    </section>
+      <Modal isOpen={open} onClose={() => setOpen(false)} title="Project history" maxWidth="lg">
+        {open && <HistoryEntries researchId={researchId} />}
+      </Modal>
+    </>
   );
 }

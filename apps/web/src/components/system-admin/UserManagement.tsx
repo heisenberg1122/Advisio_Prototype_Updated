@@ -450,7 +450,7 @@ export function UserManagement({
                         {user.middleName ? `${user.middleName} ` : ""}
                         {user.lastName}
                       </p>
-                      <p className="mt-0.5 text-base text-slate-400">
+                      <p className="readable-metadata mt-0.5 text-base">
                         {user.email}
                       </p>
                     </td>

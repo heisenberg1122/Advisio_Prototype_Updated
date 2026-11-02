@@ -125,6 +125,7 @@ export function StudentProjectOverview({
               </p>
             )}
           </div>
+      <div className="mp-identity-actions">
       <ProjectAuditHistory key={project.id} researchId={project.id} />
       {isLeader && (
             <button
@@ -135,6 +136,7 @@ export function StudentProjectOverview({
               Edit details
             </button>
           )}
+      </div>
         </div>
       </section>
 

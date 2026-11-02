@@ -137,6 +137,8 @@
 .mp-project > * { grid-column: 1 / -1; min-width: 0; }
 .mp-project .mp-identity { padding: 28px 32px; border-width: 2px; }
 .mp-identity-layout { display: flex; align-items: flex-start; gap: 24px; }
+.mp-identity-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.mp-workspace .mp-history-trigger { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; }
 .mp-identity-copy { flex: 1; min-width: 0; }
 .mp-identity .mp-button { flex-shrink: 0; }
 .mp-workflow-meta,

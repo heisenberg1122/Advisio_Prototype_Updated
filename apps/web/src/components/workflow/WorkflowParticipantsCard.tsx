@@ -182,8 +182,8 @@ function WorkflowMembersCard({
                     aria-label={`View ${participantName(participant)}`}
                   >
                     <td className="px-6 py-4 font-extrabold text-[#102f49]">{participantName(participant)}</td>
-                    <td className="px-6 py-4 font-semibold text-slate-600">{participant.user.universityId || "—"}</td>
-                    <td className="px-6 py-4 text-slate-600">{participant.user.email}</td>
+                    <td className="readable-metadata px-6 py-4 font-semibold">{participant.user.universityId || "—"}</td>
+                    <td className="readable-metadata px-6 py-4">{participant.user.email}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-slate-500">{joinedDate(participant.joinedAt)}</td>
                   </tr>
                 ))}

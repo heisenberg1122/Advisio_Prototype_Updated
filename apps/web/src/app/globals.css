@@ -22,6 +22,12 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Essential IDs and contact information need stronger contrast than decorative
+   muted labels. Blend the active theme's text/surface colors, keeping its hue. */
+.app-workspace .readable-metadata {
+  color: color-mix(in srgb, var(--color-text-primary) 80%, var(--color-surface)) !important;
+}
+
 /* ─── University of the Assumption (UA) Design Tokens ────────────── */
 :root {
   /* Active academic identity. Defaults preserve Advisio UA branding for users
