@@ -1,0 +1,57 @@
+# Draft deployment specification: review the selected account, resource names,
+# and quoted recurring charges before applying. No existing production service
+# or database is referenced. The source branch must be pushed first.
+services:
+  - type: web
+    name: advisio-tam-evaluation-2026
+    runtime: docker
+    repo: https://github.com/heisenberg1122/Advisio_Prototype_Updated
+    branch: codex/qr-evaluation-local
+    dockerfilePath: ./apps/api/Dockerfile.evaluation
+    dockerContext: .
+    region: singapore
+    plan: 0.5c-512mb
+    numInstances: 1
+    autoDeployTrigger: "off"
+    healthCheckPath: /api/health
+    disk:
+      name: evaluation-workspaces
+      mountPath: /var/lib/advisio-evaluation
+      sizeGB: 1
+    envVars:
+      - key: ADVISIO_EVALUATION
+        value: "1"
+      - key: EVALUATION_DATABASE_URL
+        fromDatabase:
+          name: advisio-tam-evaluation-db-2026
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: EVALUATION_DATA_DIR
+        value: /var/lib/advisio-evaluation
+      - key: EVALUATION_MAX_ACTIVE
+        value: "20"
+      - key: STORAGE_PROVIDER
+        value: LOCAL
+      - key: EMAIL_PROVIDER
+        value: disabled
+      - key: NOTIFICATION_EMAILS_ENABLED
+        value: "false"
+      - key: DEADLINE_EMAILS_ENABLED
+        value: "false"
+      - key: EVALUATION_SURVEY_ROLE_ENTRY
+        value: entry.1428349663
+      - key: EVALUATION_SURVEY_PROGRAM_ENTRY
+        value: entry.874351903
+      - key: EVALUATION_SURVEY_URL
+        value: https://docs.google.com/forms/d/e/1FAIpQLSfo_25naabVASUIEI61rYzIForhdxLy8cXt5kKfwluIIIXqVA/viewform?usp=publish-editor
+
+databases:
+  - name: advisio-tam-evaluation-db-2026
+    databaseName: advisio_evaluation
+    user: advisio_evaluation
+    region: singapore
+    plan: 0.5c-1g
+    diskSizeGB: 1
+    storageAutoscalingEnabled: false
+    ipAllowList: []

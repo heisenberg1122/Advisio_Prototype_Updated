@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { evaluationContext } from "../evaluation/context.js";
 
 type LocalUpload = {
   fileName: string;
@@ -10,6 +11,12 @@ type LocalUpload = {
 };
 
 function uploadRoot() {
+  if (process.env.ADVISIO_EVALUATION === "1") {
+    const scope = evaluationContext.getStore();
+    if (!scope)
+      throw new Error("An evaluation workspace is required for file access.");
+    return scope.storageRoot;
+  }
   return path.resolve(process.cwd(), "uploads", "local");
 }
 

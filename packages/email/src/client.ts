@@ -16,6 +16,7 @@ export interface SendEmailResult {
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
+  if (process.env.ADVISIO_EVALUATION === '1' || process.env.EMAIL_PROVIDER === 'disabled') return { success: false, error: 'Email delivery is disabled for evaluation.' };
   const provider = process.env.EMAIL_PROVIDER || (process.env.RESEND_API_KEY ? "resend" : "mock");
   if (provider === "gmail") return sendGmail(options);
   if (!["mock", "resend"].includes(provider)) return { success: false, error: "Unknown email provider." };

@@ -1,4 +1,5 @@
 import React, { Suspense, lazy } from "react";
+import EvaluationPage from "./components/evaluation/EvaluationPage";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { LoginRoute } from "@/components/auth/LoginRoute";
@@ -187,6 +188,8 @@ export function AppRoutes() {
   return (
     <Suspense fallback={<RouteLoader />}>
       <Routes>
+        <Route path="/evaluate" element={<EvaluationPage />} />
+        <Route path="/evaluate/print" element={<EvaluationPage print />} />
         {/* Public Auth Routes */}
         <Route path="/" element={<HomePage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />

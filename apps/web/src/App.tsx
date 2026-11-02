@@ -4,6 +4,7 @@ import { Providers } from './providers';
 import { DashboardWorkspaceProvider } from './providers/dashboard-workspace-provider';
 import { ActiveProjectProvider } from './providers/active-project-provider';
 import { AppRoutes } from './routes';
+import { EvaluationBanner } from './components/evaluation/EvaluationBanner';
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <DashboardWorkspaceProvider>
           <ActiveProjectProvider>
             <AppRoutes />
+            <EvaluationBanner />
           </ActiveProjectProvider>
         </DashboardWorkspaceProvider>
       </Providers>

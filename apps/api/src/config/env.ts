@@ -1,19 +1,24 @@
 import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { evaluationConfig } from "../evaluation/config.js";
 
 const configDir = path.dirname(fileURLToPath(import.meta.url));
 
 // Load the repository-level configuration before services are evaluated.
 // A service-specific apps/api/.env may override it when present.
-dotenv.config({ path: path.resolve(configDir, "../../../../.env") });
-dotenv.config({
-  path: path.resolve(configDir, "../../.env"),
-  override:
-    process.env.NODE_ENV !== "test" &&
-    process.env.NODE_ENV !== "production" &&
-    process.env.ADVISIO_LOCAL_DEMO !== "1",
-});
+if (process.env.ADVISIO_EVALUATION !== "1") {
+  dotenv.config({ path: path.resolve(configDir, "../../../../.env") });
+  dotenv.config({
+    path: path.resolve(configDir, "../../.env"),
+    override:
+      process.env.NODE_ENV !== "test" &&
+      process.env.NODE_ENV !== "production" &&
+      process.env.ADVISIO_LOCAL_DEMO !== "1",
+  });
+}
+
+if (process.env.ADVISIO_EVALUATION === "1") evaluationConfig();
 
 if (process.env.ADVISIO_LOCAL_DEMO === "1") {
   const expected = {

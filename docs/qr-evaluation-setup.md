@@ -1,0 +1,77 @@
+# ADVISIO local QR evaluation
+
+This implementation uses the existing ADVISIO portals and API workflows. It does not replace them with a separate demonstration interface. The entry page is `/evaluate`; the facilitator QR sheet is `/evaluate/print`.
+
+## Local use
+
+Requirements: installed project dependencies, a generated Prisma client matching the checked-in schema, and PostgreSQL 18 binaries. On this Windows computer PostgreSQL is installed under `C:/Program Files/PostgreSQL/18/bin`. Override `EVALUATION_PG_BIN` if needed.
+
+1. Run `npm run evaluation:init-local` once. It creates a separate loopback-only PostgreSQL cluster on port **5436**, a database named **advisio_evaluation**, and a private ignored `.env.evaluation.local`. It does not use the existing database on port 5432 or the local-demo target on port 5435.
+2. Run `npm run evaluation:dev`.
+3. Open **http://localhost:3100/evaluate**. Choose a role and assigned program, acknowledge the evaluation notice, and begin. Open **http://localhost:3100/evaluate/print** to preview or download the QR.
+4. Use the activity-guide button in the portal. Students can download a prepared revision PDF there. End the session when finished; its fictional records and files are removed.
+
+The initializer reuses its own cluster on later runs and never resets an unrelated database. If that cluster has been stopped, run `evaluation:init-local` again before starting. It does not erase existing evaluation sessions. Initializing a new cluster requires that port 5436 be available.
+
+The local QR points to `localhost`, so it is a **preview for this computer only**. Respondents' phones cannot use that address to reach this computer. Shared phone access needs a separately configured HTTPS evaluation deployment and a QR generated for that origin. This implementation does not publish the service or change production.
+
+## Respondent coverage
+
+Five allowed roles map to native permissions and portals:
+
+| Respondent          | Native role          | Portal                 |
+| ------------------- | -------------------- | ---------------------- |
+| Student             | RESEARCHER           | `/student/dashboard`   |
+| Capstone professor  | RESEARCH_COORDINATOR | `/professor/dashboard` |
+| Research adviser    | ADVISER              | `/adviser/dashboard`   |
+| Evaluation panelist | PANELIST             | `/panelist/dashboard`  |
+| College Dean        | DEAN                 | `/admin/dashboard`     |
+
+Seven course templates cover IT (40 students), Education (20), Nursing (20), Accountancy (20), Tourism (20), Civil Engineering (20), and Architecture (10). Education currently maps to BEED in the verified local program catalog; confirm the intended education offering before collection. Civil Engineering and Architecture share CEA. Faculty use the program scenario assigned by the facilitator; the plan's seven Deans should not be interpreted as seven distinct colleges represented by these seven programs.
+
+All names, topics, manuscript contents, comments, schedules, and starting records are fictional. Titles avoid “Sample” labels. Each scenario contains three-page readable manuscripts, version history, a prepared revision, specific feedback, milestone records, notifications, and a consultation. Professors and Deans receive three projects with distinct student groups, program-related titles, and manuscript titles matching the project records. Panelists receive an approved manuscript and a published structured evaluation packet, with **blank practice ratings**, in a live fictional defense. IT experts are not an entry choice.
+
+Program-specific research types, rubric criteria, faculty tasks, and the college/program mapping require the study team's discipline review before the event. The app's actual permissions still govern which actions a role may perform.
+
+## Workspace and session isolation
+
+- Each session creates a fresh PostgreSQL schema `eval_<server-generated random ID>`, with its own native tables, constraints, accounts, projects, and records. Native API queries resolve their Prisma client from the request context. Missing evaluation context fails closed, so an evaluation request cannot fall back to the ordinary app database.
+- Accounts have one role. Respondents receive an opaque **HttpOnly**, **SameSite=Strict** cookie; the registry stores its SHA-256 hash. No password, JWT, schema ID, or participant code is placed in the shared QR. The browser uses a non-secret evaluation marker only to hydrate the existing portal.
+- Request authentication is supplied server-side from the selected session. Client-supplied bearer credentials cannot change its identity. Role switching, institutional invitations, external integrations, signatures, official copy issuance, and ordinary account management are blocked for evaluation requests.
+- Files are stored under that session's directory. Local file reads and deletions verify that they stay inside it. The prepared revision endpoint resolves only the current session.
+- Sessions expire after **20 minutes idle** or **60 minutes total**. Refresh resumes the same session. Repeated Begin requests with the same browser cookie return the existing session. Ending a session revokes access and removes only its schema/files. Cleanup also runs once a minute and at startup; registry rows remain as operational metadata, not questionnaire responses.
+- Native requests are aborted when their session is ended/expired, including long-running streams. Each request also has a bounded session lifetime.
+- There is a configurable cap of 20 active/provisioning sessions by default (maximum 50). Provisioning reservations use a database lock to enforce it across API instances. Each workspace uses a one-connection Prisma pool.
+
+This is application-level schema isolation within a **dedicated evaluation database**. The local provisioner owns that evaluation database and is not a hardened public multi-tenant hosting service. Public release needs deployment review, database/user permissions, capacity testing on the intended host, monitoring, and an approved retention policy. Keep the production database and credentials entirely separate.
+
+## Questionnaire handoff
+
+The questionnaire button stays disabled/unavailable until `EVALUATION_SURVEY_URL` is set to a **published Google Forms `/viewform` respondent URL** in `.env.evaluation.local` (then restart the API). A Form editor or preview URL is rejected. The application does not publish or alter Google Forms.
+
+Respondents select/confirm their role and students' program in the existing five-branch form. No ratings or comments are prefilled; no session identifier is sent to Google Forms. Opening the link is not proof of submission. Keep platform-session counts and survey-response counts separate, allow honest ratings after failed/assisted tasks, and use supervised attendance to discourage duplicates. No registration/code workflow means the shared QR cannot itself prove one response per unique respondent.
+
+## Checks and maintenance
+
+- `npm run test:evaluation` checks deployment guards, generated schema identifiers, expiry, concurrent request isolation, and all course/role coverage.
+- `npm run test:evaluation:local` requires the evaluation preview to be running. It creates **disposable fictional sessions**, verifies all 35 combinations against native API actions, and ends its own sessions. It exercises student revision uploads, professor review decisions, adviser review/consultation approval, Dean review/overview, panel save/preview/submit, repeated Begin, refresh, cross-session access, replay after end, and idle expiry. It never submits TAM answers.
+- `node scripts/verify-qr-evaluation.mjs --course=BSIT` is the focused five-role variant.
+- Run the API/web type checks and relevant native tests after changes. `evaluation:prepare` regenerates the empty schema SQL and compiles database/email packages. It avoids regenerating the Windows Prisma engine while an existing app is using it. After a model change, regenerate Prisma with dependent servers stopped, then prepare and test again.
+- PostgreSQL can be stopped with the installed `pg_ctl` using the exact `.evaluation/postgres` data directory. Stop the evaluation app first. Do not stop the user's ordinary PostgreSQL service or other ADVISIO server.
+
+Implementation files: `apps/api/src/evaluation/`, `apps/web/src/components/evaluation/`, and `scripts/evaluation.mjs`. All evaluation data, credentials, and PostgreSQL files are ignored by Git. The original local-demo safeguards remain intact.
+
+Technical basis: [Node asynchronous context](https://nodejs.org/api/async_context.html), [Prisma connection management](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections/connection-management), and [OWASP session guidance](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html).
+
+## Local validation record — 3 November 2026
+
+- All **35 role/program combinations** passed native API operations after the distinct faculty-roster update. These checks exercised the actual uploads, review decisions, consultation approval, Dean overview, and panel save/preview/final submission; no TAM responses were submitted.
+- A fresh **20-session concurrent wave** completed native activities across the five roles and seven program templates; a 21st session was refused. The final run, including setup, activities, and cleanup, took **26.6 seconds on this computer**. This is a local functional capacity check, not a prediction of hosted performance or a rehearsal with 20 real respondents.
+- The API regression suite passed **599 tests**, with **99 opt-in database integration tests skipped**. The website suite passed **427 tests**. The dedicated evaluation tests are included in the API total.
+- API and website type checks/builds passed. The website build retains a bundle-size warning; this does not prevent the local build.
+- Browser review verified the entry page, Nursing student portal, Architecture Dean portal, role activity guide, and QR sheet. Session-close prompts now use an in-page confirmation. Screenshots were saved with the evaluation plan outputs.
+- Services were verified listening on loopback only: website **3100**, API **5100**, and dedicated database **5436**. No deployment or Git push was performed. The published Google Forms respondent link remains unconfigured.
+
+## Update: Google Form connected; hosted setup prepared
+
+On 3 November 2026 the Form was published with link access and connected to the local app. Role and student program are prefilled using public question entry identifiers; ratings and comments remain blank. See [the hosting handoff](qr-evaluation-hosting.md) for the new Docker/Render files and the remaining deployment steps. The earlier validation record above describes the first local implementation. Hosting sign-in was deferred by the researcher; no public site or phone QR is active yet.

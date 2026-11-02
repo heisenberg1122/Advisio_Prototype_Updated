@@ -7,6 +7,13 @@
     "packages/*"
   ],
   "scripts": {
+    "evaluation:serve": "node scripts/start-evaluation.mjs",
+    "test:evaluation:hosting": "node --test scripts/hosted-evaluation-config.test.mjs",
+    "evaluation:init-local": "node scripts/evaluation.mjs init-local",
+    "evaluation:prepare": "node scripts/evaluation.mjs prepare",
+    "evaluation:dev": "node scripts/evaluation.mjs dev",
+    "test:evaluation": "npm --workspace=api run test -- src/evaluation",
+    "test:evaluation:local": "node scripts/verify-qr-evaluation.mjs",
     "email:test": "node scripts/test-email.mjs",
     "email:preview": "npm --workspace=@research-management/email run build && node scripts/preview-notification-emails.mjs",
     "dev": "node scripts/dev.mjs",

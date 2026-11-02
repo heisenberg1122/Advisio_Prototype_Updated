@@ -10,6 +10,14 @@
 **/*.log
 **/*.test.ts
 **/*.test.tsx
+.evaluation
+.demo-local
+.panel-demo
+.local
+.work
+.review
+output
+tmp
 
 # Demo-only database entry points are intentionally omitted from production
 # images. Keep local-demo.ts and its theme account helper together so the

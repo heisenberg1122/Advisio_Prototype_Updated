@@ -4,12 +4,13 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { prepareAuditData } from "../services/audit-contract.js";
+import { evaluationContext, scopedClient } from "../evaluation/context.js";
 
 // ESM safe directory name
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Ensure environment variables are loaded regardless of current working directory
-dotenv.config();
+if (process.env.ADVISIO_EVALUATION !== "1") dotenv.config();
 
 const possibleEnvPaths = [
   path.resolve(process.cwd(), ".env"),
@@ -21,7 +22,7 @@ const possibleEnvPaths = [
 ];
 
 for (const envPath of possibleEnvPaths) {
-  if (fs.existsSync(envPath)) {
+  if (process.env.ADVISIO_EVALUATION !== "1" && fs.existsSync(envPath)) {
     dotenv.config({ path: envPath });
   }
 }
@@ -31,8 +32,10 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-function createClient(): PrismaClient {
-  return new PrismaClient().$extends({
+export function createClient(databaseUrl?: string): PrismaClient {
+  return new PrismaClient(
+    databaseUrl ? { datasources: { db: { url: databaseUrl } } } : undefined,
+  ).$extends({
     name: "audit-context",
     query: {
       auditLog: {
@@ -50,10 +53,15 @@ function createClient(): PrismaClient {
     },
   }) as unknown as PrismaClient; // Query-only extension preserves model/transaction inputs and results.
 }
-export const prisma = global.prisma || createClient();
+const defaultClient = global.prisma || createClient();
+export const prisma = scopedClient(
+  defaultClient,
+  evaluationContext,
+  () => process.env.ADVISIO_EVALUATION === "1",
+);
 
 if (process.env.NODE_ENV !== "production") {
-  global.prisma = prisma;
+  global.prisma = defaultClient;
 }
 
 export * from "@prisma/client";

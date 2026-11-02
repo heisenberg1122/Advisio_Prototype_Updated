@@ -14,10 +14,10 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true,
+    open: process.env.ADVISIO_EVALUATION !== '1',
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://127.0.0.1:5000',
+        target: process.env.VITE_API_PROXY || process.env.VITE_API_URL || 'http://127.0.0.1:5000',
         changeOrigin: true,
         secure: false,
       },
@@ -27,7 +27,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://127.0.0.1:5000',
+        target: process.env.VITE_API_PROXY || process.env.VITE_API_URL || 'http://127.0.0.1:5000',
         changeOrigin: true,
         secure: false,
       },

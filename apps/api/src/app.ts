@@ -39,6 +39,8 @@ import reviewerAssignmentRoutes from "./routes/reviewer-assignment.routes";
 import officialCopyRoutes from "./routes/official-copy.routes";
 import facultyProfileRoutes from "./routes/faculty-profile.routes";
 import { errorHandler } from "./middleware/errorHandler";
+import { evaluationGateway } from "./evaluation/gateway.js";
+import { evaluationSpa } from "./evaluation/spa.js";
 
 const app = express();
 
@@ -79,6 +81,7 @@ app.use(
 );
 app.use(express.json());
 app.use(cookieParser());
+app.use(evaluationGateway);
 app.use(auditMiddleware);
 
 // API Routes
@@ -115,6 +118,9 @@ app.use("/api", officialCopyRoutes);
 app.use("/api/faculty-profiles", facultyProfileRoutes);
 
 // Root fallback
+if (process.env.ADVISIO_EVALUATION === "1" && process.env.EVALUATION_WEB_DIST) {
+  app.use(evaluationSpa(process.env.EVALUATION_WEB_DIST));
+}
 app.get("/", (_req, res) => {
   res.json({
     name: "Advisio Research Management API",

@@ -1,0 +1,28 @@
+name: Evaluation image
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - apps/api/**
+      - apps/web/**
+      - packages/**
+      - scripts/*evaluation*
+      - package*.json
+      - render.evaluation.yaml
+      - .dockerignore
+      - .github/workflows/evaluation-image.yml
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test scripts/hosted-evaluation-config.test.mjs
+      - name: Build the dedicated evaluation container
+        run: docker build -f apps/api/Dockerfile.evaluation -t advisio-evaluation:check .

@@ -1,0 +1,51 @@
+FROM node:22-bookworm-slim AS base
+RUN apt-get update && apt-get install -y --no-install-recommends openssl gosu && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+
+FROM base AS build
+COPY package*.json turbo.json ./
+COPY apps/api/package.json ./apps/api/
+COPY apps/web/package.json ./apps/web/
+COPY packages/auth/package.json ./packages/auth/
+COPY packages/database/package.json ./packages/database/
+COPY packages/database/prisma ./packages/database/prisma/
+COPY packages/validations/package.json ./packages/validations/
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/email/package.json ./packages/email/
+RUN npm ci
+COPY apps/api ./apps/api
+COPY apps/web ./apps/web
+COPY packages ./packages
+RUN npx prisma generate --schema=packages/database/prisma/schema.prisma \
+    && npm run build --workspace=@research-management/database \
+    && npm run build --workspace=@research-management/auth \
+    && npm run build --workspace=@research-management/validations \
+    && npm run build --workspace=@research-management/email
+# Schema generation is offline: no migration or seed runs against a live DB.
+RUN DATABASE_URL=postgresql://build:build@localhost:5432/advisio_evaluation \
+    DIRECT_URL=postgresql://build:build@localhost:5432/advisio_evaluation \
+    npx prisma migrate diff --from-empty --to-schema-datamodel packages/database/prisma/schema.prisma --script --output /app/evaluation-schema.sql
+RUN VITE_API_URL= VITE_GOOGLE_SIGN_IN_CLIENT_ID= npm run build --workspace=web \
+    && npm run build --workspace=api
+
+FROM base AS runtime
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/apps/api/package.json ./apps/api/package.json
+COPY --from=build /app/apps/web/dist ./apps/web/dist
+COPY --from=build /app/evaluation-schema.sql ./evaluation-schema.sql
+COPY scripts/start-evaluation.mjs scripts/hosted-evaluation-config.mjs ./scripts/
+COPY scripts/evaluation-container-entrypoint.sh ./scripts/
+RUN chmod 755 /app/scripts/evaluation-container-entrypoint.sh
+ENV NODE_ENV=production \
+    ADVISIO_EVALUATION=1 \
+    STORAGE_PROVIDER=LOCAL \
+    EMAIL_PROVIDER=disabled \
+    NOTIFICATION_EMAILS_ENABLED=false \
+    DEADLINE_EMAILS_ENABLED=false \
+    EVALUATION_DATA_DIR=/var/lib/advisio-evaluation \
+    EVALUATION_MAX_ACTIVE=20 \
+    PORT=10000
+EXPOSE 10000
+ENTRYPOINT ["/app/scripts/evaluation-container-entrypoint.sh"]

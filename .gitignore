@@ -20,6 +20,8 @@ build/
 !.env.production.example
 .panel-demo/
 .demo-local/
+.evaluation/
+.evaluation-schema-check.sql
 
 # Turbo cache
 .turbo/

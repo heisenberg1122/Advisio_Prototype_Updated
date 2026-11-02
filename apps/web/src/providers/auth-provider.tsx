@@ -79,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(null);
         setUser(null);
         hydratedToken.current = null;
+        if (token === '__evaluation__' && !window.location.pathname.startsWith('/evaluate')) window.location.assign('/evaluate');
       }
       return null;
     }
@@ -114,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.removeItem("advisio_token");
           for (const key of ["advisio_theme:active", "advisio_color-theme:active", "advisio_college-theme:active"]) localStorage.removeItem(key);
           setToken(null); setUser(null); hydratedToken.current = null;
+          if (token === '__evaluation__' && !window.location.pathname.startsWith('/evaluate')) window.location.assign('/evaluate');
         } else { setSessionError("We could not restore your session. Check your connection and try again."); }
       } finally { if (!cancelled) setIsLoading(false); }
     }
@@ -242,7 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem("advisio_college-theme:active");
       setToken(null);
       setUser(null);
-      window.location.href = "/login";
+      window.location.href = token === '__evaluation__' ? '/evaluate' : '/login';
     }
   };
 

@@ -1,0 +1,270 @@
+.evaluation-page {
+  min-height: 100vh;
+  padding: 56px 20px;
+  background: #f0f4f9;
+  color: #15283f;
+  font-family: Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+.evaluation-card {
+  width: 100%;
+  max-width: 700px;
+  background: #fff;
+  padding: 36px;
+  border: 1px solid #d9e3ee;
+  border-radius: 20px;
+  box-shadow: 0 16px 44px #1936530d;
+}
+.evaluation-brand {
+  font-size: 24px;
+  font-weight: 800;
+  color: #1959a5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.evaluation-brand span {
+  font-size: 12px;
+  font-weight: 600;
+  background: #e9f2ff;
+  padding: 7px 10px;
+  border-radius: 20px;
+  color: #254e7b;
+}
+.evaluation-card h1 {
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 750;
+  margin: 0 0 18px;
+}
+.evaluation-card p,
+.evaluation-dialog p {
+  line-height: 1.6;
+  margin: 14px 0;
+}
+.evaluation-card form {
+  margin-top: 28px;
+}
+.evaluation-card label:not(.evaluation-check) {
+  display: block;
+  margin: 20px 0 8px;
+  font-weight: 700;
+}
+.evaluation-card select {
+  width: 100%;
+  padding: 13px;
+  border: 1px solid #aab9ca;
+  border-radius: 9px;
+  background: white;
+  color: #15283f;
+  font-size: 15px;
+}
+.evaluation-page button,
+.evaluation-dialog button,
+.evaluation-link-button {
+  border: 0;
+  border-radius: 9px;
+  background: #1959a5;
+  color: white;
+  padding: 12px 18px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  display: inline-block;
+}
+.evaluation-page button:disabled,
+.evaluation-dialog button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.evaluation-card form > button {
+  width: 100%;
+  margin-top: 22px;
+}
+.evaluation-help {
+  font-size: 13px;
+  color: #53677d;
+}
+.evaluation-check {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 24px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.evaluation-check input {
+  margin-top: 4px;
+  accent-color: #1959a5;
+  min-width: 18px;
+  min-height: 18px;
+}
+.evaluation-error {
+  background: #fff3ee;
+  color: #9b3418;
+  border: 1px solid #efcfbf;
+  padding: 12px;
+  border-radius: 8px;
+}
+.evaluation-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.evaluation-page a,
+.evaluation-dialog a {
+  color: #1959a5;
+  text-decoration: underline;
+}
+.evaluation-page .secondary,
+.evaluation-dialog .secondary {
+  background: #eaf0f6;
+  color: #193653;
+}
+.evaluation-print {
+  text-align: center;
+}
+.evaluation-print img {
+  display: block;
+  max-width: 100%;
+  margin: 20px auto;
+}
+.evaluation-print .evaluation-actions {
+  justify-content: center;
+}
+.evaluation-resume {
+  padding: 20px 0;
+}
+.evaluation-resume h2,
+.evaluation-dialog h2 {
+  font-size: 22px;
+  font-weight: 700;
+}
+.evaluation-banner {
+  position: fixed;
+  bottom: 14px;
+  right: 18px;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #b8cfe6;
+  border-radius: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  box-shadow: 0 6px 24px #19365326;
+  color: #15283f;
+  font:
+    13px Arial,
+    sans-serif;
+}
+.evaluation-banner small {
+  display: block;
+  margin-top: 4px;
+}
+.evaluation-banner button {
+  background: #1959a5;
+  color: white;
+  border: 0;
+  padding: 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.evaluation-overlay {
+  position: fixed;
+  inset: 0;
+  background: #10253db3;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.evaluation-dialog {
+  max-width: 700px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: auto;
+  background: white;
+  color: #15283f;
+  border-radius: 16px;
+  padding: 28px;
+  font:
+    15px Arial,
+    sans-serif;
+  outline: none;
+}
+.evaluation-dialog ol {
+  list-style: decimal;
+  padding-left: 24px;
+  line-height: 1.6;
+}
+.evaluation-dialog li {
+  margin: 10px 0;
+}
+.evaluation-dialog .evaluation-actions {
+  justify-content: space-between;
+}
+.evaluation-dialog .evaluation-link-button {
+  color: white;
+  text-decoration: none;
+}
+.evaluation-dialog h3 {
+  font-weight: 700;
+  font-size: 18px;
+  margin-top: 24px;
+}
+.evaluation-card :focus-visible,
+.evaluation-banner :focus-visible,
+.evaluation-dialog :focus-visible {
+  outline: 3px solid #eea32b;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .evaluation-page {
+    padding: 20px 12px;
+  }
+  .evaluation-card {
+    padding: 24px 18px;
+  }
+  .evaluation-brand {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .evaluation-card h1 {
+    font-size: 25px;
+  }
+  .evaluation-banner {
+    right: 10px;
+    left: 10px;
+    bottom: 8px;
+    padding: 10px;
+    gap: 8px;
+  }
+  .evaluation-banner button {
+    font-size: 12px;
+  }
+  .evaluation-dialog {
+    padding: 20px;
+  }
+}
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .evaluation-page {
+    background: white;
+    padding: 0;
+  }
+  .evaluation-card {
+    box-shadow: none;
+    border: 0;
+  }
+  .evaluation-banner {
+    display: none;
+  }
+}
