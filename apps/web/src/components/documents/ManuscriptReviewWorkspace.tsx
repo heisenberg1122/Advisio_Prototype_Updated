@@ -31,8 +31,12 @@ import { Tag } from "@/components/ui/Tag";
 import { apiClient } from "@/lib/api-client";
 import { assignmentDisplayState } from "@/lib/review-assignment-display";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/providers/auth-provider";
 import { useAsyncAction } from "@/hooks/use-async-action";
+import { SubmissionDocumentPreview } from "@/components/professor/SubmissionDocumentPreview";
+import { SubmissionComments } from "./SubmissionComments";
+import { SubmissionGradePanel } from "./SubmissionGradePanel";
+import { SubmissionHighlightProvider } from "./SubmissionHighlightContext";
+import "@/components/professor/submission-review-workspace.css";
 
 type Recommendation =
   | "APPROVE"
@@ -56,6 +60,8 @@ type Assignment = {
     submittedAt?: string | null;
     manuscriptStatus?: string | null;
     googleDriveFileId?: string | null;
+    mimeType?: string;
+    taskSubmissionAttempts?: Array<{ taskSubmissionId: string }>;
     milestone?: { id: string; name: string; sequence: number } | null;
   };
   research: { id: string; title: string; groupName?: string | null };
@@ -86,14 +92,6 @@ type ReviewWorkflow = {
     manuscriptStatus?: string | null;
     reviewerAssignments: Assignment[];
   }>;
-};
-
-type ReviewerCandidate = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  reviewType: string;
 };
 
 const recommendationLabels: Record<Recommendation, string> = {
@@ -133,7 +131,6 @@ interface ManuscriptReviewWorkspaceProps {
 export function ManuscriptReviewWorkspace({
   presentation = "default",
 }: ManuscriptReviewWorkspaceProps) {
-  const { user } = useAuth();
   const searchParams = useSearchParams();
   const contextualAssignmentId = searchParams.get("assignmentId");
   const contextualVersionId = searchParams.get("versionId");
@@ -157,20 +154,7 @@ export function ManuscriptReviewWorkspace({
   );
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
-  const [candidatesError, setCandidatesError] = useState("");
   const contextRequestRef = useRef(0);
-  const [candidates, setCandidates] = useState<ReviewerCandidate[]>([]);
-  const [managementAction, setManagementAction] = useState<
-    "ASSIGN" | "REASSIGN" | "REVOKE" | null
-  >(null);
-  const [managementTarget, setManagementTarget] = useState<Assignment | null>(
-    null,
-  );
-  const [candidateKey, setCandidateKey] = useState("");
-  const [managementReason, setManagementReason] = useState("");
-  const [managementRequired, setManagementRequired] = useState(true);
-  const [managing, setManaging] = useState(false);
-  const isCoordinator = Boolean(user?.roles.includes("RESEARCH_COORDINATOR"));
   const isAdviserPresentation = presentation === "adviser";
 
   const loadAssignments = useCallback(async () => {
@@ -206,21 +190,9 @@ export function ManuscriptReviewWorkspace({
         .length,
     [assignments],
   );
-  const selectedWorkflowVersion = reviewWorkflow?.versions.find(
-    (version) => version.id === selected?.documentVersion.id,
-  );
-  const availableCandidates =
-    managementAction === "REASSIGN" && managementTarget
-      ? candidates.filter(
-          (candidate) =>
-            candidate.reviewType === managementTarget.reviewType &&
-            candidate.id !== managementTarget.reviewer?.id,
-        )
-      : candidates;
-
   const openSnapshot = async (assignment: Assignment) => {
-    const fileId = assignment.documentVersion.googleDriveFileId;
-    if (!fileId) {
+    const versionId = assignment.documentVersion.id;
+    if (!versionId) {
       setError("This submitted version does not have a stored snapshot.");
       return;
     }
@@ -228,7 +200,7 @@ export function ManuscriptReviewWorkspace({
     setError("");
     try {
       const blob = await apiClient.file(
-        `/api/documents/files/${encodeURIComponent(fileId)}`,
+        `/api/documents/versions/${encodeURIComponent(versionId)}/content`,
       );
       const objectUrl = URL.createObjectURL(blob);
       window.open(objectUrl, "_blank", "noopener,noreferrer");
@@ -246,31 +218,20 @@ export function ManuscriptReviewWorkspace({
     const requestId = ++contextRequestRef.current;
     setHistoryLoading(true);
     setHistoryError("");
-    setCandidatesError("");
-    const [workflowResult, candidateResult] = await Promise.allSettled([
-      apiClient.get<{ document: ReviewWorkflow }>(
+    try {
+      const response = await apiClient.get<{ document: ReviewWorkflow }>(
         `/api/documents/${assignment.document.id}/review-workflow`,
-      ),
-      isCoordinator
-        ? apiClient.get<{ candidates: ReviewerCandidate[] }>(
-            `/api/documents/versions/${assignment.documentVersion.id}/reviewer-candidates`,
-          )
-        : Promise.resolve({ candidates: [] }),
-    ]);
-    if (requestId !== contextRequestRef.current) return;
-    if (workflowResult.status === "fulfilled") {
-      setReviewWorkflow(workflowResult.value.document);
-    } else {
-      setHistoryError(
-        "Previous versions and decisions could not be loaded. You can still submit your decision for this version.",
       );
+      if (requestId === contextRequestRef.current)
+        setReviewWorkflow(response.document);
+    } catch {
+      if (requestId === contextRequestRef.current)
+        setHistoryError(
+          "Previous versions and decisions could not be loaded. You can still submit your decision for this version.",
+        );
+    } finally {
+      if (requestId === contextRequestRef.current) setHistoryLoading(false);
     }
-    if (candidateResult.status === "fulfilled") {
-      setCandidates(candidateResult.value.candidates);
-    } else {
-      setCandidatesError("Eligible reviewers could not be loaded.");
-    }
-    setHistoryLoading(false);
   };
 
   const openDecision = async (assignment: Assignment) => {
@@ -283,11 +244,6 @@ export function ManuscriptReviewWorkspace({
     setDetailPage("");
     setError("");
     setReviewWorkflow(null);
-    setCandidates([]);
-    setManagementAction(null);
-    setManagementTarget(null);
-    setCandidateKey("");
-    setManagementReason("");
     await loadReviewContext(assignment);
   };
 
@@ -303,77 +259,6 @@ export function ManuscriptReviewWorkspace({
     openedContextRef.current = contextKey;
     if (assignment) void openDecision(assignment);
   }, [assignments, contextualAssignmentId, contextualVersionId, loading]);
-
-  const reloadWorkflow = async (assignment: Assignment) => {
-    const [workflowResponse, candidateResponse] = await Promise.all([
-      apiClient.get<{ document: ReviewWorkflow }>(
-        `/api/documents/${assignment.document.id}/review-workflow`,
-      ),
-      apiClient.get<{ candidates: ReviewerCandidate[] }>(
-        `/api/documents/versions/${assignment.documentVersion.id}/reviewer-candidates`,
-      ),
-    ]);
-    setReviewWorkflow(workflowResponse.document);
-    setCandidates(candidateResponse.candidates);
-    setHistoryError("");
-    setCandidatesError("");
-  };
-
-  const manageAssignment = async () => {
-    if (!selected || !managementAction) return;
-    if (
-      (managementAction === "REASSIGN" || managementAction === "REVOKE") &&
-      managementReason.trim().length < 3
-    ) {
-      setError("Provide a short reason for this reviewer assignment change.");
-      return;
-    }
-    const [reviewerId, reviewType] = candidateKey.split("::");
-    if (managementAction !== "REVOKE" && (!reviewerId || !reviewType)) {
-      setError("Select an eligible reviewer.");
-      return;
-    }
-    setManaging(true);
-    setError("");
-    try {
-      if (managementAction === "ASSIGN") {
-        await apiClient.post(
-          `/api/documents/versions/${selected.documentVersion.id}/reviewer-assignments`,
-          { reviewerId, reviewType, isRequired: managementRequired },
-        );
-      } else if (managementAction === "REASSIGN" && managementTarget) {
-        await apiClient.post(
-          `/api/reviewer-assignments/${managementTarget.id}/reassign`,
-          { reviewerId, reason: managementReason.trim() },
-        );
-      } else if (managementAction === "REVOKE" && managementTarget) {
-        await apiClient.patch(
-          `/api/reviewer-assignments/${managementTarget.id}/revoke`,
-          { reason: managementReason.trim() },
-        );
-      }
-      await Promise.all([reloadWorkflow(selected), loadAssignments()]);
-      setNotice(
-        "Reviewer assignments were updated and recorded in the audit history.",
-      );
-      if (
-        managementAction !== "ASSIGN" &&
-        managementTarget?.id === selected.id
-      ) {
-        setSelected(null);
-      }
-      setManagementAction(null);
-      setManagementTarget(null);
-      setCandidateKey("");
-      setManagementReason("");
-    } catch (requestError: any) {
-      setError(
-        requestError.message || "Unable to update this reviewer assignment.",
-      );
-    } finally {
-      setManaging(false);
-    }
-  };
 
   const submitDecision = async () => {
     if (!selected) return;
@@ -1035,6 +920,7 @@ export function ManuscriptReviewWorkspace({
         isOpen={Boolean(selected)}
         onClose={() => !submitting && setSelected(null)}
         title="Submit manuscript decision"
+        className="max-w-[1400px]"
         subtitle={
           selected
             ? `${selected.document.title} · Version ${selected.documentVersion.versionNumber}`
@@ -1062,344 +948,223 @@ export function ManuscriptReviewWorkspace({
           </>
         }
       >
-        <div className="space-y-5">
-          <ActionFeedback
-            feedback={decisionAction.feedback}
-            tone={error ? "error" : undefined}
-            message={error}
-          />
-          <div>
-            <label
-              htmlFor="review-recommendation"
-              className="mb-2 block text-sm font-bold text-[var(--color-text-primary)]"
-            >
-              Recommendation
-            </label>
-            <select
-              id="review-recommendation"
-              value={recommendation}
-              onChange={(event) =>
-                setRecommendation(event.target.value as Recommendation)
-              }
-              className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-base text-[var(--color-text-primary)] outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)]"
-            >
-              {(Object.keys(recommendationLabels) as Recommendation[]).map(
-                (value) => (
-                  <option key={value} value={value}>
-                    {recommendationLabels[value]}
-                  </option>
-                ),
+        <SubmissionHighlightProvider
+          key={selected?.id || "none"}
+          versionId={selected?.documentVersion.id || ""}
+        >
+          <div className="grid gap-5 lg:h-[65vh] lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="flex h-[55vh] min-h-80 min-w-0 overflow-hidden rounded-xl border border-[var(--color-border)] lg:h-full">
+              {selected && (
+                <SubmissionDocumentPreview
+                  key={selected.id}
+                  versions={[
+                    {
+                      ...selected.documentVersion,
+                      mimeType:
+                        selected.documentVersion.mimeType ||
+                        "application/octet-stream",
+                    },
+                  ]}
+                  initialVersionId={selected.documentVersion.id}
+                  title={selected.document.title}
+                />
               )}
-            </select>
-          </div>
-          <div>
-            <label
-              htmlFor="review-overall"
-              className="mb-2 block text-sm font-bold text-[var(--color-text-primary)]"
-            >
-              Overall feedback{" "}
-              {recommendation !== "APPROVE" && (
-                <span className="text-rose-600">*</span>
-              )}
-            </label>
-            <textarea
-              id="review-overall"
-              rows={5}
-              value={overallComment}
-              onChange={(event) => setOverallComment(event.target.value)}
-              placeholder="Summarize your decision and give actionable guidance."
-              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base text-[var(--color-text-primary)] outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)]"
-            />
-          </div>
-          <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
-            <p className="mb-3 text-base font-bold text-[var(--color-text-primary)]">
-              Optional page or section comment
-            </p>
-            <div className="mb-3 grid gap-3 sm:grid-cols-[1fr_120px]">
-              <input
-                aria-label="Section or chapter"
-                value={detailSection}
-                onChange={(event) => setDetailSection(event.target.value)}
-                placeholder="Section or chapter"
-                className="h-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-base text-[var(--color-text-primary)] outline-none"
-              />
-              <input
-                aria-label="Page number"
-                type="number"
-                min="1"
-                value={detailPage}
-                onChange={(event) => setDetailPage(event.target.value)}
-                placeholder="Page"
-                className="h-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-base text-[var(--color-text-primary)] outline-none"
-              />
             </div>
-            <textarea
-              aria-label="Detailed review comment"
-              rows={3}
-              value={detailComment}
-              onChange={(event) => setDetailComment(event.target.value)}
-              placeholder="Add a precise comment tied to this location."
-              className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base text-[var(--color-text-primary)] outline-none"
-            />
-          </div>
-          <div className="rounded-xl border border-[var(--color-border)] p-4">
-            <p className="text-base font-bold text-[var(--color-text-primary)]">
-              Previous versions and decisions
-            </p>
-            {historyLoading ? (
-              <p className="mt-3 text-base text-[var(--color-text-secondary)]">
-                Loading review history…
-              </p>
-            ) : historyError ? (
-              <div className="mt-3 space-y-3">
-                <ActionFeedback tone="warning" message={historyError} />
-                <Button
-                  variant="ghost"
-                  onClick={() => selected && void loadReviewContext(selected)}
+            <div className="min-h-0 min-w-0 space-y-5 overflow-x-hidden lg:overflow-y-auto lg:pr-2">
+              {selected?.documentVersion.taskSubmissionAttempts?.[0]
+                ?.taskSubmissionId && (
+                <SubmissionGradePanel
+                  key={`grade:${selected.id}`}
+                  submissionId={
+                    selected.documentVersion.taskSubmissionAttempts[0]
+                      .taskSubmissionId
+                  }
+                  versionId={selected.documentVersion.id}
+                />
+              )}
+              {selected?.documentVersion.taskSubmissionAttempts?.[0]
+                ?.taskSubmissionId && (
+                <SubmissionComments
+                  key={selected.id}
+                  submissionId={
+                    selected.documentVersion.taskSubmissionAttempts[0]
+                      .taskSubmissionId
+                  }
+                  versionId={selected.documentVersion.id}
+                  versionNumber={selected.documentVersion.versionNumber}
+                />
+              )}
+              <ActionFeedback
+                feedback={decisionAction.feedback}
+                tone={error ? "error" : undefined}
+                message={error}
+              />
+              <div>
+                <label
+                  htmlFor="review-recommendation"
+                  className="mb-2 block text-sm font-bold text-[var(--color-text-primary)]"
                 >
-                  Retry review history
-                </Button>
+                  Recommendation
+                </label>
+                <select
+                  id="review-recommendation"
+                  value={recommendation}
+                  onChange={(event) =>
+                    setRecommendation(event.target.value as Recommendation)
+                  }
+                  className="h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-base text-[var(--color-text-primary)] outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+                >
+                  {(Object.keys(recommendationLabels) as Recommendation[]).map(
+                    (value) => (
+                      <option key={value} value={value}>
+                        {recommendationLabels[value]}
+                      </option>
+                    ),
+                  )}
+                </select>
               </div>
-            ) : reviewWorkflow?.versions.some((version) =>
-                version.reviewerAssignments.some(
-                  (assignment) =>
-                    assignment.id !== selected?.id &&
-                    Boolean(assignment.review),
-                ),
-              ) ? (
-              <div className="mt-3 max-h-52 space-y-2 overflow-y-auto pr-1">
-                {reviewWorkflow.versions.flatMap((version) =>
-                  version.reviewerAssignments
-                    .filter(
+              <div>
+                <label
+                  htmlFor="review-overall"
+                  className="mb-2 block text-sm font-bold text-[var(--color-text-primary)]"
+                >
+                  Overall feedback{" "}
+                  {recommendation !== "APPROVE" && (
+                    <span className="text-rose-600">*</span>
+                  )}
+                </label>
+                <textarea
+                  id="review-overall"
+                  rows={5}
+                  value={overallComment}
+                  onChange={(event) => setOverallComment(event.target.value)}
+                  placeholder="Summarize your decision and give actionable guidance."
+                  className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base text-[var(--color-text-primary)] outline-none focus:ring-2 focus:ring-[var(--college-focus-ring)]"
+                />
+              </div>
+              <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
+                <p className="mb-3 text-base font-bold text-[var(--color-text-primary)]">
+                  Optional page or section comment
+                </p>
+                <div className="mb-3 grid min-w-0 grid-cols-[minmax(0,1fr)_88px] gap-2">
+                  <input
+                    aria-label="Section or chapter"
+                    value={detailSection}
+                    onChange={(event) => setDetailSection(event.target.value)}
+                    placeholder="Section or chapter"
+                    className="h-10 min-w-0 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-base text-[var(--color-text-primary)] outline-none"
+                  />
+                  <input
+                    aria-label="Page number"
+                    type="number"
+                    min="1"
+                    value={detailPage}
+                    onChange={(event) => setDetailPage(event.target.value)}
+                    placeholder="Page"
+                    className="h-10 min-w-0 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-base text-[var(--color-text-primary)] outline-none"
+                  />
+                </div>
+                <textarea
+                  aria-label="Detailed review comment"
+                  rows={3}
+                  value={detailComment}
+                  onChange={(event) => setDetailComment(event.target.value)}
+                  placeholder="Add a precise comment tied to this location."
+                  className="block min-w-0 w-full resize-y rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base text-[var(--color-text-primary)] outline-none"
+                />
+              </div>
+              <div className="rounded-xl border border-[var(--color-border)] p-4">
+                <p className="text-base font-bold text-[var(--color-text-primary)]">
+                  Previous versions and decisions
+                </p>
+                {historyLoading ? (
+                  <p className="mt-3 text-base text-[var(--color-text-secondary)]">
+                    Loading review history…
+                  </p>
+                ) : historyError ? (
+                  <div className="mt-3 space-y-3">
+                    <ActionFeedback tone="warning" message={historyError} />
+                    <Button
+                      variant="ghost"
+                      onClick={() =>
+                        selected && void loadReviewContext(selected)
+                      }
+                    >
+                      Retry review history
+                    </Button>
+                  </div>
+                ) : reviewWorkflow?.versions.some((version) =>
+                    version.reviewerAssignments.some(
                       (assignment) =>
                         assignment.id !== selected?.id &&
                         Boolean(assignment.review),
-                    )
-                    .map((assignment) => (
-                      <div
-                        key={assignment.id}
-                        className="rounded-lg bg-[var(--color-surface-subtle)] p-3 text-xs"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-bold text-[var(--color-text-primary)]">
-                            Version {version.versionNumber} ·{" "}
-                            {assignment.reviewType.replace(/_/g, " ")}
-                          </span>
-                          <Tag
-                            size="xs"
-                            variant={
-                              assignment.review?.recommendation === "APPROVE"
-                                ? "success"
-                                : "warning"
-                            }
+                    ),
+                  ) ? (
+                  <div className="mt-3 max-h-52 space-y-2 overflow-y-auto pr-1">
+                    {reviewWorkflow.versions.flatMap((version) =>
+                      version.reviewerAssignments
+                        .filter(
+                          (assignment) =>
+                            assignment.id !== selected?.id &&
+                            Boolean(assignment.review),
+                        )
+                        .map((assignment) => (
+                          <div
+                            key={assignment.id}
+                            className="rounded-lg bg-[var(--color-surface-subtle)] p-3 text-xs"
                           >
-                            {assignment.review?.recommendation?.replace(
-                              /_/g,
-                              " ",
-                            ) || "DECIDED"}
-                          </Tag>
-                        </div>
-                        <p className="mt-1 text-[var(--color-text-secondary)]">
-                          {assignment.reviewer
-                            ? `${assignment.reviewer.firstName} ${assignment.reviewer.lastName}`
-                            : "Authorized reviewer"}
-                          {assignment.review?.submittedAt
-                            ? ` · ${dateLabel(assignment.review.submittedAt)}`
-                            : ""}
-                        </p>
-                        {assignment.review?.overallComment && (
-                          <p className="mt-2 whitespace-pre-wrap text-[var(--color-text-secondary)]">
-                            {assignment.review.overallComment}
-                          </p>
-                        )}
-                      </div>
-                    )),
-                )}
-              </div>
-            ) : (
-              <p className="mt-3 text-base text-[var(--color-text-secondary)]">
-                No earlier faculty decisions are recorded for this manuscript.
-              </p>
-            )}
-          </div>
-          {isCoordinator && candidatesError && (
-            <div className="space-y-3">
-              <ActionFeedback tone="warning" message={candidatesError} />
-              <Button
-                variant="ghost"
-                disabled={historyLoading}
-                onClick={() => selected && void loadReviewContext(selected)}
-              >
-                Retry eligible reviewers
-              </Button>
-            </div>
-          )}
-          {isCoordinator && selectedWorkflowVersion && (
-            <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-base font-bold text-[var(--color-text-primary)]">
-                    Reviewer assignments
-                  </p>
-                  <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-                    Only eligible project-scoped faculty appear in this list.
-                  </p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    setManagementAction("ASSIGN");
-                    setManagementTarget(null);
-                    setCandidateKey("");
-                    setManagementReason("");
-                  }}
-                >
-                  Assign reviewer
-                </Button>
-              </div>
-              <div className="mt-3 space-y-2">
-                {selectedWorkflowVersion.reviewerAssignments.map(
-                  (assignment) => (
-                    <div
-                      key={assignment.id}
-                      className="flex flex-col gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0 text-xs">
-                        <p className="truncate font-bold text-[var(--color-text-primary)]">
-                          {assignment.reviewer
-                            ? `${assignment.reviewer.firstName} ${assignment.reviewer.lastName}`
-                            : "Authorized reviewer"}
-                        </p>
-                        <p className="mt-1 text-[var(--color-text-secondary)]">
-                          {assignment.reviewType.replace(/_/g, " ")} ·{" "}
-                          {assignment.isRequired ? "Required" : "Optional"} ·{" "}
-                          {assignment.status.replace(/_/g, " ")}
-                        </p>
-                      </div>
-                      {assignment.status === "ACTIVE" && (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setManagementAction("REASSIGN");
-                              setManagementTarget(assignment);
-                              setCandidateKey("");
-                              setManagementReason("");
-                            }}
-                          >
-                            Reassign
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-rose-600"
-                            onClick={() => {
-                              setManagementAction("REVOKE");
-                              setManagementTarget(assignment);
-                              setCandidateKey("");
-                              setManagementReason("");
-                            }}
-                          >
-                            Revoke
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ),
-                )}
-              </div>
-
-              {managementAction && (
-                <div className="mt-4 space-y-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                  <p className="text-sm font-extrabold uppercase tracking-wide text-[var(--color-primary)]">
-                    {managementAction === "ASSIGN"
-                      ? "New assignment"
-                      : managementAction === "REASSIGN"
-                        ? "Reassign reviewer"
-                        : "Revoke assignment"}
-                  </p>
-                  {managementAction !== "REVOKE" && (
-                    <select
-                      aria-label="Eligible reviewer"
-                      value={candidateKey}
-                      onChange={(event) => setCandidateKey(event.target.value)}
-                      className="h-10 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-base text-[var(--color-text-primary)] outline-none"
-                    >
-                      <option value="">Select an eligible reviewer</option>
-                      {availableCandidates.map((candidate) => (
-                        <option
-                          key={`${candidate.id}-${candidate.reviewType}`}
-                          value={`${candidate.id}::${candidate.reviewType}`}
-                        >
-                          {candidate.firstName} {candidate.lastName} —{" "}
-                          {candidate.reviewType.replace(/_/g, " ")}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  {managementAction === "ASSIGN" ? (
-                    <label className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text-secondary)]">
-                      <input
-                        type="checkbox"
-                        checked={managementRequired}
-                        onChange={(event) =>
-                          setManagementRequired(event.target.checked)
-                        }
-                        className="accent-[var(--color-primary)]"
-                      />
-                      This reviewer is mandatory for version approval
-                    </label>
-                  ) : (
-                    <textarea
-                      rows={2}
-                      value={managementReason}
-                      onChange={(event) =>
-                        setManagementReason(event.target.value)
-                      }
-                      placeholder="Reason for this assignment change"
-                      className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base text-[var(--color-text-primary)] outline-none"
-                    />
-                  )}
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={managing}
-                      onClick={() => {
-                        setManagementAction(null);
-                        setManagementTarget(null);
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      className={
-                        managementAction === "REVOKE"
-                          ? undefined
-                          : "submission-action"
-                      }
-                      variant={
-                        managementAction === "REVOKE" ? "danger" : "primary"
-                      }
-                      isLoading={managing}
-                      onClick={() => void manageAssignment()}
-                    >
-                      Confirm
-                    </Button>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="font-bold text-[var(--color-text-primary)]">
+                                Version {version.versionNumber} ·{" "}
+                                {assignment.reviewType.replace(/_/g, " ")}
+                              </span>
+                              <Tag
+                                size="xs"
+                                variant={
+                                  assignment.review?.recommendation ===
+                                  "APPROVE"
+                                    ? "success"
+                                    : "warning"
+                                }
+                              >
+                                {assignment.review?.recommendation?.replace(
+                                  /_/g,
+                                  " ",
+                                ) || "DECIDED"}
+                              </Tag>
+                            </div>
+                            <p className="mt-1 text-[var(--color-text-secondary)]">
+                              {assignment.reviewer
+                                ? `${assignment.reviewer.firstName} ${assignment.reviewer.lastName}`
+                                : "Authorized reviewer"}
+                              {assignment.review?.submittedAt
+                                ? ` · ${dateLabel(assignment.review.submittedAt)}`
+                                : ""}
+                            </p>
+                            {assignment.review?.overallComment && (
+                              <p className="mt-2 whitespace-pre-wrap text-[var(--color-text-secondary)]">
+                                {assignment.review.overallComment}
+                              </p>
+                            )}
+                          </div>
+                        )),
+                    )}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p className="mt-3 text-base text-[var(--color-text-secondary)]">
+                    No earlier faculty decisions are recorded for this
+                    manuscript.
+                  </p>
+                )}
+              </div>
+              <p className="text-base leading-5 text-[var(--color-text-secondary)]">
+                This decision is recorded against the exact submitted snapshot
+                and cannot be edited afterward. A revision request requires the
+                researchers to submit a new version.
+              </p>
             </div>
-          )}
-          <p className="text-base leading-5 text-[var(--color-text-secondary)]">
-            This decision is recorded against the exact submitted snapshot and
-            cannot be edited afterward. A revision request requires the
-            researchers to submit a new version.
-          </p>
-        </div>
+          </div>
+        </SubmissionHighlightProvider>
       </Modal>
     </PageContainer>
   );

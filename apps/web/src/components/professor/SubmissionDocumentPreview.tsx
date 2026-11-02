@@ -1,8 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { DocumentPreviewSkeleton } from "@/components/ui/Skeleton";
 import { apiClient } from "@/lib/api-client";
+const PdfDocumentPreview = lazy(() =>
+  import("@/components/documents/PdfDocumentPreview").then((module) => ({
+    default: module.PdfDocumentPreview,
+  })),
+);
 
-type DocumentVersion = {
+export type SubmissionDocumentVersion = {
   id: string;
   versionNumber: number;
   fileName: string;
@@ -14,40 +19,55 @@ type DocumentVersion = {
 export function SubmissionDocumentPreview({
   versions,
   title,
+  initialVersionId,
+  onVersionChange,
+  selectedVersionId,
 }: {
-  versions: DocumentVersion[];
+  versions: SubmissionDocumentVersion[];
   title: string;
+  initialVersionId?: string;
+  onVersionChange?: (id: string) => void;
+  selectedVersionId?: string;
 }) {
   const ordered = useMemo(
     () =>
       [...(versions || [])].sort((a, b) => b.versionNumber - a.versionNumber),
     [versions],
   );
-  const [versionId, setVersionId] = useState(ordered[0]?.id || "");
+  const [versionId, setVersionId] = useState(
+    initialVersionId || ordered[0]?.id || "",
+  );
+  const [retry, setRetry] = useState(0);
   const [previewUrl, setPreviewUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const version = ordered.find((item) => item.id === versionId) || ordered[0];
+  const activeVersionId = selectedVersionId ?? versionId;
+  const version = ordered.find((item) => item.id === activeVersionId);
 
   useEffect(() => {
-    setVersionId(ordered[0]?.id || "");
-  }, [ordered[0]?.id]);
+    setVersionId(initialVersionId || ordered[0]?.id || "");
+  }, [initialVersionId, ordered[0]?.id]);
+
+  useEffect(() => {
+    onVersionChange?.(activeVersionId);
+  }, [activeVersionId, onVersionChange]);
 
   useEffect(() => {
     let active = true;
     let objectUrl = "";
     setPreviewUrl("");
-    if (!version?.googleDriveFileId) {
+    if (!version?.id) {
       setLoading(false);
       setError("This version does not have an available stored file.");
       return;
     }
     setLoading(true);
     setError("");
-    apiClient.file(
-      `/api/documents/files/${encodeURIComponent(version.googleDriveFileId)}`,
-      { expectedMimeType: version.mimeType },
-    )
+    apiClient
+      .file(
+        `/api/documents/versions/${encodeURIComponent(version.id)}/content`,
+        { expectedMimeType: version.mimeType },
+      )
       .then((blob) => {
         if (!active) return;
         objectUrl = URL.createObjectURL(blob);
@@ -64,22 +84,22 @@ export function SubmissionDocumentPreview({
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [version?.googleDriveFileId, version?.mimeType]);
+  }, [version?.id, version?.googleDriveFileId, version?.mimeType, retry]);
 
   const mimeType = version?.mimeType || "";
   const canEmbed =
     mimeType === "application/pdf" || mimeType.startsWith("image/");
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <header className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <section className="submission-preview">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] px-4 py-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-extrabold text-[#102f49]">
+          <p className="truncate text-sm font-bold text-[var(--color-text-primary)]">
             {version?.fileName || title}
           </p>
-          <p className="mt-0.5 text-base text-slate-500">
+          <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
             {version
-              ? `Version ${version.versionNumber} · ${version.mimeType}`
+              ? `Version ${version.versionNumber}${version.id === initialVersionId ? " · Current submission" : " · Earlier submission"}`
               : "No file"}
           </p>
         </div>
@@ -87,8 +107,12 @@ export function SubmissionDocumentPreview({
           {ordered.length > 1 && (
             <select
               value={version?.id || ""}
-              onChange={(event) => setVersionId(event.target.value)}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-base font-bold text-slate-700"
+              onChange={(event) => {
+                if (selectedVersionId !== undefined)
+                  onVersionChange?.(event.target.value);
+                else setVersionId(event.target.value);
+              }}
+              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text-primary)]"
               aria-label="Document version"
             >
               {ordered.map((item) => (
@@ -104,14 +128,15 @@ export function SubmissionDocumentPreview({
                 href={previewUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-extrabold text-[#173f63]"
+                className="rounded-lg border border-[var(--color-border)] px-3 py-2 text-xs font-bold text-[var(--color-primary)]"
               >
-                <i className="ti ti-maximize mr-1" /> Full screen
+                <i className="ti ti-external-link mr-1" aria-hidden="true" />{" "}
+                Open file
               </a>
               <a
                 href={previewUrl}
                 download={version?.fileName || title}
-                className="rounded-lg bg-[#173f63] px-3 py-2 text-sm font-extrabold text-white"
+                className="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-xs font-bold text-[var(--college-on-primary)]"
               >
                 <i className="ti ti-download mr-1" /> Download
               </a>
@@ -120,32 +145,46 @@ export function SubmissionDocumentPreview({
         </div>
       </header>
 
-      <div className="relative grid min-h-[640px] place-items-center bg-slate-100">
+      <div className="submission-preview-stage">
         {loading && (
-          <DocumentPreviewSkeleton className="absolute inset-0 min-h-[640px] w-full" />
+          <DocumentPreviewSkeleton className="absolute inset-0 h-full w-full" />
         )}
         {!loading && error && (
-          <div className="max-w-md p-8 text-center">
+          <div className="m-auto max-w-md p-8 text-center">
             <i className="ti ti-file-alert text-4xl text-amber-500" />
-            <p className="mt-3 text-base font-bold text-slate-700">{error}</p>
+            <p
+              role="alert"
+              className="mt-3 text-sm text-[var(--color-text-primary)]"
+            >
+              {error}
+            </p>
+            {version?.id && (
+              <button
+                type="button"
+                onClick={() => setRetry((value) => value + 1)}
+                className="mt-3 text-sm font-bold text-[var(--color-primary)]"
+              >
+                Retry preview
+              </button>
+            )}
           </div>
         )}
         {!loading && !error && previewUrl && mimeType === "application/pdf" && (
-          <iframe
-            title={`Preview of ${version?.fileName || title}`}
-            src={previewUrl}
-            className="h-[72vh] min-h-[640px] w-full border-0 bg-white"
-          />
+          <Suspense
+            fallback={<DocumentPreviewSkeleton className="h-full w-full" />}
+          >
+            <PdfDocumentPreview key={version?.id} url={previewUrl} compact />
+          </Suspense>
         )}
         {!loading && !error && previewUrl && mimeType.startsWith("image/") && (
           <img
             src={previewUrl}
             alt={`Preview of ${version?.fileName || title}`}
-            className="max-h-[72vh] max-w-full object-contain p-5"
+            className="m-auto max-h-full max-w-full object-contain p-5"
           />
         )}
         {!loading && !error && previewUrl && !canEmbed && (
-          <div className="max-w-md p-8 text-center">
+          <div className="m-auto max-w-md p-8 text-center">
             <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-white text-[#173f63] shadow-sm">
               <i className="ti ti-file-description text-4xl" />
             </span>
@@ -153,8 +192,8 @@ export function SubmissionDocumentPreview({
               Preview is not available for this file type
             </h3>
             <p className="mt-2 text-base leading-6 text-slate-500">
-              Download the original file to review it. DOCX preview conversion
-              can be added as the next phase.
+              Download this submitted version to review its contents, then add
+              your comments and decision alongside it.
             </p>
             <a
               href={previewUrl}

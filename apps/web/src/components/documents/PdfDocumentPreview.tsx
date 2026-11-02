@@ -10,9 +10,16 @@ import {
 import {
   GlobalWorkerOptions,
   getDocument,
+  TextLayer,
   type PDFDocumentProxy,
 } from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { useSubmissionHighlights } from "./SubmissionHighlightContext";
+import {
+  captureTextAnchor,
+  type SubmissionTextAnchor,
+} from "@/lib/submission-highlight";
+import "./pdf-text-selection.css";
 GlobalWorkerOptions.workerSrc = pdfWorker;
 
 // Render within Advisio so previews work even in browsers without a PDF plugin.
@@ -31,9 +38,19 @@ export function PdfDocumentPreview({
   const [pageInput, setPageInput] = useState("1");
   const [expanded, setExpanded] = useState(false);
   const [fullscreenError, setFullscreenError] = useState("");
+  const discussion = useSubmissionHighlights();
+  const withTextLayer = Boolean(discussion);
+  const [selection, setSelection] = useState<SubmissionTextAnchor | null>(null);
+  const [textMessage, setTextMessage] = useState("");
+  const pageHost = useRef<HTMLDivElement>(null);
+  const textHost = useRef<HTMLDivElement>(null);
+  const [pageSize, setPageSize] = useState({ width: 300, height: 150 });
   const canvas = useRef<HTMLCanvasElement>(null),
     host = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(700);
+  const renderKey = `${url}:${page}:${width}:${zoom}`;
+  const [renderedKey, setRenderedKey] = useState("");
+  const isRendering = rendering || renderedKey !== renderKey;
   useEffect(() => {
     let active = true;
     let task: ReturnType<typeof getDocument> | null = null;
@@ -69,6 +86,10 @@ export function PdfDocumentPreview({
     if (!pdf || !canvas.current) return;
     let cancelled = false;
     let task: any;
+    let textLayer: TextLayer | null = null;
+    setSelection(null);
+    setTextMessage("");
+    textHost.current?.replaceChildren();
     setRendering(true);
     pdf
       .getPage(page)
@@ -79,6 +100,7 @@ export function PdfDocumentPreview({
           scale: (width / natural.width) * zoom,
         });
         const ratio = window.devicePixelRatio || 1;
+        setPageSize({ width: viewport.width, height: viewport.height });
         canvas.current.width = viewport.width * ratio;
         canvas.current.height = viewport.height * ratio;
         canvas.current.style.width = `${viewport.width}px`;
@@ -89,9 +111,43 @@ export function PdfDocumentPreview({
           viewport,
           transform: [ratio, 0, 0, ratio, 0, 0],
         });
-        return task.promise;
+        const renderText = async () => {
+          if (!withTextLayer || !textHost.current) return;
+          try {
+            const content = await p.getTextContent();
+            if (cancelled || !textHost.current) return;
+            textHost.current.style.setProperty(
+              "--total-scale-factor",
+              String(viewport.scale * viewport.userUnit),
+            );
+            textLayer = new TextLayer({
+              textContentSource: content,
+              container: textHost.current,
+              viewport,
+            });
+            await textLayer.render();
+            if (
+              !cancelled &&
+              !textLayer.textContentItemsStr.some((text) => text.trim())
+            )
+              setTextMessage(
+                "This page has no selectable text. You can still post a page comment.",
+              );
+          } catch {
+            if (!cancelled)
+              setTextMessage(
+                "Text selection is unavailable on this page. You can still post a page comment.",
+              );
+          }
+        };
+        return Promise.all([task.promise, renderText()]);
       })
-      .then(() => !cancelled && setRendering(false))
+      .then(() => {
+        if (!cancelled) {
+          setRendering(false);
+          setRenderedKey(renderKey);
+        }
+      })
       .catch((e) => {
         if (!cancelled && e.name !== "RenderingCancelledException") {
           setError("Unable to render this preview.");
@@ -101,8 +157,53 @@ export function PdfDocumentPreview({
     return () => {
       cancelled = true;
       task?.cancel();
+      textLayer?.cancel();
     };
-  }, [pdf, page, width, zoom]);
+  }, [pdf, page, width, zoom, withTextLayer]);
+  useEffect(() => {
+    if (!discussion?.canComment || isRendering) return;
+    const capture = () => {
+      if (!textHost.current || !pageHost.current) return;
+      const nativeSelection = window.getSelection();
+      const anchor = captureTextAnchor(
+        nativeSelection,
+        textHost.current,
+        page,
+        pageHost.current,
+      );
+      if (anchor) {
+        setSelection(anchor);
+        setTextMessage("");
+      } else if (nativeSelection && !nativeSelection.isCollapsed)
+        setSelection(null);
+    };
+    document.addEventListener("selectionchange", capture);
+    return () => document.removeEventListener("selectionchange", capture);
+  }, [discussion?.canComment, isRendering, page]);
+  const focused = discussion?.focused;
+  useEffect(() => {
+    if (focused) setPage(focused.textAnchor.pageNumber);
+  }, [focused]);
+  useEffect(() => {
+    if (
+      !focused ||
+      isRendering ||
+      focused.textAnchor.pageNumber !== page ||
+      !pageHost.current
+    )
+      return;
+    const first = focused.textAnchor.rects[0];
+    const container = pageHost.current.parentElement!;
+    container.scrollTo({
+      top:
+        pageHost.current.offsetTop -
+        container.offsetTop +
+        first.y * pageSize.height -
+        60,
+      left: Math.max(0, first.x * pageSize.width - 40),
+      behavior: "smooth",
+    });
+  }, [focused, isRendering, page, pageSize]);
   useEffect(() => setPageInput(String(page)), [page]);
   useEffect(() => {
     const updateFullscreen = () =>
@@ -270,12 +371,127 @@ export function PdfDocumentPreview({
           {error || fullscreenError}
         </p>
       )}
+      {discussion && (
+        <div
+          className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-text-secondary)]"
+          role="status"
+        >
+          <span>
+            {textMessage ||
+              (discussion.canComment
+                ? "Select text on the page to attach a comment."
+                : "Select a quoted comment to locate its highlight.")}
+          </span>
+          {discussion.canComment && (
+            <button
+              type="button"
+              disabled={!selection}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                const nativeSelection = window.getSelection();
+                const hasNativeSelection =
+                  nativeSelection && !nativeSelection.isCollapsed;
+                const anchor =
+                  hasNativeSelection && textHost.current && pageHost.current
+                    ? captureTextAnchor(
+                        nativeSelection,
+                        textHost.current,
+                        page,
+                        pageHost.current,
+                      )
+                    : selection;
+                if (anchor) {
+                  discussion.compose(anchor);
+                  setSelection(null);
+                  window.getSelection()?.removeAllRanges();
+                } else {
+                  setSelection(null);
+                  setTextMessage(
+                    "Select a shorter passage within this page, up to 5,000 characters.",
+                  );
+                }
+              }}
+              className={`rounded-lg bg-[var(--color-primary)] px-3 py-2 font-bold text-[var(--college-on-primary)] ${selection ? "" : "invisible"}`}
+            >
+              Comment on selection
+            </button>
+          )}
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-auto bg-slate-200 p-4">
-        <canvas
-          ref={canvas}
-          aria-label={`Completed PDF page ${page}`}
-          className="mx-auto bg-white shadow"
-        />
+        <div
+          ref={pageHost}
+          className="advisio-pdf-page shadow"
+          data-page-number={page}
+          data-rendering={isRendering}
+          aria-busy={isRendering}
+          style={{ width: pageSize.width, height: pageSize.height }}
+        >
+          <canvas
+            ref={canvas}
+            aria-label={`Completed PDF page ${page}`}
+            className="block bg-white"
+          />
+          {discussion && (
+            <>
+              <div className="advisio-pdf-highlights" aria-hidden="true">
+                {[
+                  ...discussion.highlights.map((item) => ({
+                    ...item,
+                    draft: false,
+                  })),
+                  ...(discussion.draft
+                    ? [
+                        {
+                          id: "draft",
+                          textAnchor: discussion.draft,
+                          draft: true,
+                        },
+                      ]
+                    : []),
+                ]
+                  .filter((item) => item.textAnchor.pageNumber === page)
+                  .flatMap((item) =>
+                    item.textAnchor.rects.map((rect, index) => (
+                      <span
+                        key={`${item.id}:${index}`}
+                        data-highlight-id={item.id}
+                        className={`advisio-pdf-highlight ${focused?.id === item.id || item.draft ? "is-focused" : ""}`}
+                        style={{
+                          left: `${rect.x * 100}%`,
+                          top: `${rect.y * 100}%`,
+                          width: `${rect.width * 100}%`,
+                          height: `${rect.height * 100}%`,
+                        }}
+                      />
+                    )),
+                  )}
+              </div>
+              <div ref={textHost} className="advisio-pdf-text" />
+              {discussion.highlights
+                .filter((item) => item.textAnchor.pageNumber === page)
+                .map((item, index) => {
+                  const rect = item.textAnchor.rects[0];
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="advisio-pdf-comment-marker"
+                      aria-label={`Show comment on: ${item.textAnchor.selectedText.slice(0, 100)}`}
+                      title="Show attached comment"
+                      style={{
+                        left: `${Math.min(0.96, rect.x + rect.width) * 100}%`,
+                        top: `${rect.y * 100}%`,
+                      }}
+                      onClick={() => discussion.focusHighlight(item)}
+                    >
+                      {index + 1}
+                    </button>
+                  );
+                })}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

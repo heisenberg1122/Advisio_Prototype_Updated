@@ -1,0 +1,81 @@
+/* TextLayer layout follows Mozilla PDF.js (Apache-2.0). Keep these properties
+   aligned with the installed pdfjs-dist TextLayer implementation. */
+.advisio-pdf-page {
+  position: relative;
+  margin-inline: auto;
+  isolation: isolate;
+  background: white;
+}
+.advisio-pdf-text {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  text-align: initial;
+  line-height: 1;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+}
+.advisio-pdf-text :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+.advisio-pdf-text > :not(.markedContent),
+.advisio-pdf-text .markedContent span:not(.markedContent) {
+  --font-height: 0;
+  --scale-x: 1;
+  --rotate: 0deg;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x))
+    scale(var(--min-font-size-inv));
+}
+.advisio-pdf-text .markedContent {
+  display: contents;
+}
+.advisio-pdf-text ::selection {
+  background: rgb(59 130 246 / 35%);
+}
+.advisio-pdf-text[data-main-rotation="90"] {
+  transform: rotate(90deg) translateY(-100%);
+}
+.advisio-pdf-text[data-main-rotation="180"] {
+  transform: rotate(180deg) translate(-100%, -100%);
+}
+.advisio-pdf-text[data-main-rotation="270"] {
+  transform: rotate(270deg) translateX(-100%);
+}
+.advisio-pdf-highlights {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.advisio-pdf-highlight {
+  position: absolute;
+  background: rgb(250 204 21 / 35%);
+}
+.advisio-pdf-highlight.is-focused {
+  background: rgb(251 146 60 / 45%);
+  outline: 1px solid #b45309;
+}
+.advisio-pdf-comment-marker {
+  position: absolute;
+  pointer-events: auto;
+  border-radius: 4px;
+  background: #facc15;
+  color: #422006;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 18px;
+  padding: 0 3px;
+}

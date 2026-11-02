@@ -47,6 +47,8 @@ const assignmentInclude = {
       contentChecksum: true,
       manuscriptStatus: true,
       googleDriveFileId: true,
+      mimeType: true,
+      taskSubmissionAttempts: { select: { taskSubmissionId: true }, take: 1, orderBy: { submittedAt: "desc" as const } },
       milestone: { select: { id: true, name: true, sequence: true } },
     },
   },

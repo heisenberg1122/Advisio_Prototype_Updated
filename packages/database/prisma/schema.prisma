@@ -543,6 +543,10 @@ model User {
   reviewerAssignmentsMade   ReviewerAssignment[]       @relation("ReviewerAssignmentAssigner")
   reviewerAssignmentEvents  ReviewerAssignmentEvent[]  @relation("ReviewerAssignmentEventActor")
   comments                  ReviewComment[]
+  submissionComments        TaskSubmissionComment[]
+  submissionGradesUpdated   TaskSubmissionGrade[] @relation("SubmissionGradeUpdater")
+  submissionGradesReleased  TaskSubmissionGrade[] @relation("SubmissionGradeReleaser")
+  submissionGradeEvents     TaskSubmissionGradeEvent[]
   evaluations               Evaluation[]
   notifications             Notification[]
   auditLogs                 AuditLog[]
@@ -1081,6 +1085,7 @@ model WorkflowTask {
   dueDays          Int?     @map("due_days")
   allowedFileTypes String   @default("PDF,DOCX") @map("allowed_file_types") @db.VarChar(100)
   isRequired       Boolean  @default(true) @map("is_required")
+  maxPoints        Int?     @map("max_points")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
@@ -1113,12 +1118,72 @@ model TaskSubmission {
   documentVersion DocumentVersion?        @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
   submittedByUser User                    @relation("TaskSubmissionSubmitter", fields: [submittedBy], references: [id], onDelete: Restrict)
   attempts        TaskSubmissionAttempt[]
+  comments        TaskSubmissionComment[]
+  grades          TaskSubmissionGrade[]
 
   @@unique([researchId, taskId])
   @@index([taskId, status])
   @@index([submittedBy])
   @@index([documentVersionId])
   @@map("task_submissions")
+}
+
+model TaskSubmissionGrade {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskSubmissionId  String   @map("task_submission_id") @db.Uuid
+  documentVersionId String   @map("document_version_id") @db.Uuid
+  maxPoints         Int      @map("max_points")
+  draftScore        Decimal? @map("draft_score") @db.Decimal(7, 2)
+  releasedScore     Decimal? @map("released_score") @db.Decimal(7, 2)
+  revision          Int      @default(1)
+  updatedById       String   @map("updated_by_id") @db.Uuid
+  releasedById      String?  @map("released_by_id") @db.Uuid
+  releasedAt        DateTime? @map("released_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  submission      TaskSubmission  @relation(fields: [taskSubmissionId], references: [id], onDelete: Cascade)
+  documentVersion DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
+  updatedBy       User @relation("SubmissionGradeUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
+  releasedBy      User? @relation("SubmissionGradeReleaser", fields: [releasedById], references: [id], onDelete: Restrict)
+  events          TaskSubmissionGradeEvent[]
+
+  @@unique([taskSubmissionId, documentVersionId], map: "submission_grade_version_key")
+  @@index([documentVersionId])
+  @@map("task_submission_grades")
+}
+
+model TaskSubmissionGradeEvent {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gradeId     String   @map("grade_id") @db.Uuid
+  actorId     String   @map("actor_id") @db.Uuid
+  action      String   @db.VarChar(30)
+  score       Decimal  @db.Decimal(7, 2)
+  maxPoints   Int      @map("max_points")
+  createdAt   DateTime @default(now()) @map("created_at")
+  grade       TaskSubmissionGrade @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  actor       User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([gradeId, createdAt])
+  @@map("task_submission_grade_events")
+}
+
+model TaskSubmissionComment {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskSubmissionId  String   @map("task_submission_id") @db.Uuid
+  documentVersionId String   @map("document_version_id") @db.Uuid
+  authorId          String   @map("author_id") @db.Uuid
+  body              String   @db.VarChar(2000)
+  pageNumber        Int?     @map("page_number")
+  textAnchor        Json?    @map("text_anchor")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  submission      TaskSubmission  @relation(fields: [taskSubmissionId], references: [id], onDelete: Cascade)
+  documentVersion DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
+  author          User            @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([taskSubmissionId, documentVersionId, createdAt, id], map: "task_submission_comments_thread_idx")
+  @@map("task_submission_comments")
 }
 
 model TaskSubmissionAttempt {
@@ -1261,6 +1326,8 @@ model DocumentVersion {
   document                      Document                 @relation(fields: [documentId], references: [id], onDelete: Cascade)
   reviews                       Review[]
   comments                      ReviewComment[]
+  submissionComments            TaskSubmissionComment[]
+  submissionGrades              TaskSubmissionGrade[]
   sourceSignature               DocumentSignature?       @relation("SignatureSourceVersion")
   signedSignature               DocumentSignature?       @relation("SignatureOutputVersion")
   deanInboxAttachments          DeanInboxMessage[]       @relation("DeanInboxAttachment")

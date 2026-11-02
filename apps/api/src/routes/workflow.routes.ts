@@ -1,4 +1,7 @@
 import { startWorkflowParticipation } from "../services/workflow-participation.service.js";
+import submissionCommentRoutes from "./submission-comment.routes.js";
+import submissionGradingRoutes from "./submission-grading.routes.js";
+import { maxPointsSchema } from "../services/submission-grading.service.js";
 import { z } from "zod";
 import { submitTitleProposals, reviewTitleProposals } from "../services/title-proposal.service.js";
 import { Router, Request, Response } from "express";
@@ -59,6 +62,8 @@ import {
 } from "../services/milestone-condition.service.js";
 
 const router = Router();
+router.use(submissionCommentRoutes);
+router.use(submissionGradingRoutes);
 router.use(workflowAccessRoutes);
 const resourceUpload = multer({
   storage: multer.memoryStorage(),
@@ -2113,6 +2118,10 @@ router.post(
         position,
       } = req.body;
       const allowedFileTypes = normalizeTaskFileTypes(req.body.allowedFileTypes ?? "PDF,DOCX");
+      const pointsResult = maxPointsSchema.safeParse(req.body.maxPoints ?? null);
+      if (!pointsResult.success) return void res.status(400).json({ error: "Points must be a whole number from 1 to 10,000, or Ungraded." });
+      const maxPoints = pointsResult.data;
+      if (maxPoints !== null && (milestoneType !== "STANDARD" || !requiresDocument)) return void res.status(400).json({ error: "Use grading only for standard document submission milestones." });
       if (!Number.isInteger(titleProposalCount) || titleProposalCount < 1 || titleProposalCount > 10)
         return void res.status(400).json({ error: "Choose between 1 and 10 title fields." });
       const requiredCondition = parseRequiredMilestoneId(requiredMilestoneId);
@@ -2290,6 +2299,7 @@ router.post(
                 dueDays: deadline,
                 allowedFileTypes,
                 isRequired: true,
+                maxPoints,
               },
             });
           }
@@ -2929,6 +2939,8 @@ router.post(
         allowedFileTypes = "PDF,DOCX",
         isRequired = true,
       } = req.body;
+      const pointsResult = maxPointsSchema.safeParse(req.body.maxPoints ?? null);
+      if (!pointsResult.success) return void res.status(400).json({ error: "Points must be a whole number from 1 to 10,000, or Ungraded." });
       if (!title || typeof title !== "string" || title.trim().length < 3)
         return void res
           .status(400)
@@ -2965,6 +2977,7 @@ router.post(
         where: { stageId },
         orderBy: { sequence: "desc" },
       });
+      if (pointsResult.data !== null && (!stage.requiresDocument || stage.milestoneType !== "STANDARD")) return void res.status(400).json({ error: "Grading is available for standard submission requirements only." });
       const task = await prisma.workflowTask.create({
         data: {
           stageId,
@@ -2974,6 +2987,7 @@ router.post(
           dueDays: stage.targetCompletionDate ? null : deadline,
           allowedFileTypes: normalizeTaskFileTypes(allowedFileTypes),
           isRequired: Boolean(isRequired),
+          maxPoints: pointsResult.data,
         },
       });
       await recordPublishedWorkflowChange(

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { SubmissionFileTypes } from "./SubmissionFileTypes";
+import { GradingPointsInput } from "./RequirementGradingSettings";
 
 type MilestoneComposerProps = {
   mode: "create" | "edit";
@@ -14,6 +15,8 @@ type MilestoneComposerProps = {
   requiresDocument: boolean;
   allowedFileTypes?: string;
   onAllowedFileTypesChange?: (value: string) => void;
+  maxPoints?: string;
+  onMaxPointsChange?: (value: string) => void;
   requiresApproval: boolean;
   category: string;
   milestoneType?: "STANDARD" | "ADVISER_SELECTION" | "DEFENSE_ELIGIBILITY" | "TITLE_PROPOSAL";
@@ -58,6 +61,8 @@ export function MilestoneComposer({
   requiresDocument,
   allowedFileTypes = "PDF,DOCX",
   onAllowedFileTypesChange,
+  maxPoints = "",
+  onMaxPointsChange,
   requiresApproval,
   category,
   milestoneType = "STANDARD",
@@ -97,6 +102,7 @@ export function MilestoneComposer({
     submissionMode,
     requiresDocument,
     allowedFileTypes,
+    maxPoints,
     requirementsSignature,
     requiresApproval,
     category,
@@ -271,6 +277,7 @@ export function MilestoneComposer({
                 ) : requiresDocument ? (
                   <>
                   {onAllowedFileTypesChange && <SubmissionFileTypes value={allowedFileTypes} onChange={onAllowedFileTypesChange} />}
+                  {onMaxPointsChange && milestoneType === "STANDARD" && <div className="mt-4 rounded-xl border border-slate-200 p-4"><GradingPointsInput value={maxPoints} onChange={onMaxPointsChange} disabled={saving} /></div>}
                   {requirementsContent || (
                     <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/70 p-4 text-sm text-blue-900">
                       <div className="flex gap-3">

@@ -22,7 +22,7 @@ import {
   TablePageSkeleton,
 } from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
-import { SubmissionDocumentPreview } from "@/components/professor/SubmissionDocumentPreview";
+import { SubmissionReviewWorkspace } from "@/components/professor/SubmissionReviewWorkspace";
 import { ProfessorDeanRequestModal } from "@/components/professor/ProfessorDeanRequestModal";
 import { DefensePacketConfigurator } from "@/components/professor/DefensePacketConfigurator";
 import { ConsolidatedEvaluations } from "@/components/professor/ConsolidatedEvaluations";
@@ -36,6 +36,7 @@ import {
 } from "@/components/workflow/MilestoneAttachmentsCard";
 import { SubmissionFileTypes } from "@/components/workflow/SubmissionFileTypes";
 import { MilestoneComposer } from "@/components/workflow/MilestoneComposer";
+import { GradingPointsInput, RequirementGradingSettings } from "@/components/workflow/RequirementGradingSettings";
 import { WorkflowParticipantsCard } from "@/components/workflow/WorkflowParticipantsCard";
 import {
   WorkflowDeadlineTracker,
@@ -437,6 +438,8 @@ function ProfessorDashboardContent() {
   >([]);
   const [selectedMilestoneId, setSelectedMilestoneId] = useState("");
   const [newRequirementTitle, setNewRequirementTitle] = useState("");
+  const [newMilestoneMaxPoints, setNewMilestoneMaxPoints] = useState("");
+  const [newRequirementMaxPoints, setNewRequirementMaxPoints] = useState("");
   const [newRequirementInstructions, setNewRequirementInstructions] =
     useState("");
   const [newRequirementDueDays, setNewRequirementDueDays] = useState("");
@@ -700,6 +703,7 @@ function ProfessorDashboardContent() {
           requiresApproval: newMilestoneRequiresApproval,
           requiresDocument: newMilestoneRequiresDocument,
           allowedFileTypes: newMilestoneFileTypes,
+          maxPoints: newMilestoneType === "STANDARD" && newMilestoneRequiresDocument && newMilestoneMaxPoints !== "" ? Number(newMilestoneMaxPoints) : null,
           submissionMode: newMilestoneSubmissionMode,
           milestoneType: newMilestoneType,
           titleProposalCount: newTitleProposalCount,
@@ -742,6 +746,7 @@ function ProfessorDashboardContent() {
       ).length;
       await refetchWorkflows();
       setNewMilestoneTitle("");
+      setNewMilestoneMaxPoints("");
       setNewMilestoneDescription("");
       setTargetCompletionDate("");
       setNewMilestoneRequiresApproval(false);
@@ -892,6 +897,7 @@ function ProfessorDashboardContent() {
               ? Number(newRequirementDueDays)
               : null,
           allowedFileTypes: newRequirementFileTypes,
+          maxPoints: newRequirementMaxPoints === "" ? null : Number(newRequirementMaxPoints),
         },
       );
       setEditingMilestone((current: any) =>
@@ -902,6 +908,7 @@ function ProfessorDashboardContent() {
       await refetchWorkflows();
       setNewRequirementTitle("");
       setNewRequirementInstructions("");
+      setNewRequirementMaxPoints("");
       setNewRequirementDueDays("");
       triggerToast("Submission requirement created.");
     } catch (error: any) {
@@ -2322,6 +2329,7 @@ function ProfessorDashboardContent() {
                       <p className="text-base font-bold text-[#102f49]">
                         {requirement.title}
                       </p>
+                      {(!editingMilestone.milestoneType || editingMilestone.milestoneType === "STANDARD") && <RequirementGradingSettings task={requirement} onSaved={(maxPoints) => { setEditingMilestone((current: any) => ({ ...current, tasks: current.tasks.map((task: any) => task.id === requirement.id ? { ...task, maxPoints } : task) })); void refetchWorkflows(); }} />}
                       <p className="mt-0.5 text-base text-slate-500">
                         {requirement.allowedFileTypes || "PDF,DOCX"} ·{" "}
                         {formatTaskDeadline({
@@ -2388,6 +2396,7 @@ function ProfessorDashboardContent() {
                       className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                     />
                     <SubmissionFileTypes value={newRequirementFileTypes} onChange={setNewRequirementFileTypes} />
+                    {(!editingMilestone?.milestoneType || editingMilestone.milestoneType === "STANDARD") && <GradingPointsInput value={newRequirementMaxPoints} onChange={setNewRequirementMaxPoints} disabled={saving} />}
                   </div>
                   <button
                     type="button"
@@ -2636,6 +2645,7 @@ function ProfessorDashboardContent() {
                           className="rounded-xl border border-slate-300 bg-white p-2.5 text-base"
                         />
                         <SubmissionFileTypes value={newRequirementFileTypes} onChange={setNewRequirementFileTypes} />
+                    {(!editingMilestone?.milestoneType || editingMilestone.milestoneType === "STANDARD") && <GradingPointsInput value={newRequirementMaxPoints} onChange={setNewRequirementMaxPoints} disabled={saving} />}
                       </div>
                       <button
                         disabled={saving}
@@ -3051,6 +3061,8 @@ function ProfessorDashboardContent() {
           requiresDocument={newMilestoneRequiresDocument}
           allowedFileTypes={newMilestoneFileTypes}
           onAllowedFileTypesChange={setNewMilestoneFileTypes}
+          maxPoints={newMilestoneMaxPoints}
+          onMaxPointsChange={setNewMilestoneMaxPoints}
           requiresApproval={newMilestoneRequiresApproval}
           category={newMilestoneScope}
           titleProposalCount={newTitleProposalCount}
@@ -3597,7 +3609,7 @@ function ProfessorDashboardContent() {
 
       {/* MAIN CONTAINER */}
       <div
-        className={`flex w-full flex-1 flex-col space-y-6 ${activeTab === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}
+        className={`flex w-full flex-1 flex-col space-y-6 ${(activeTab === "messages" || (activeTab === "submissions" && selectedSubmission)) ? "max-w-none p-3 sm:p-4" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}
       >
         {(() => {
           const tabContent: Record<string, React.ReactNode> = {
@@ -5193,143 +5205,17 @@ function ProfessorDashboardContent() {
               </div>
             ),
             submissions: selectedSubmission ? (
-              <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedSubmission(null);
-                    setReviewFeedback("");
-                  }}
-                  className="flex w-fit items-center gap-2 text-sm font-bold text-[#173f63]"
-                >
-                  <i className="ti ti-arrow-left" />
-                  Back to submissions
-                </button>
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
-                  <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
-                          {selectedSubmission.projectTitle}
-                        </p>
-                        <h2 className="mt-1 text-xl font-extrabold text-[#102f49]">
-                          {selectedSubmission.task?.title}
-                        </h2>
-                        <p className="mt-1 text-base text-slate-500">
-                          Submitted by{" "}
-                          {selectedSubmission.submittedByUser?.firstName}{" "}
-                          {selectedSubmission.submittedByUser?.lastName} ·{" "}
-                          {new Date(
-                            selectedSubmission.submittedAt,
-                          ).toLocaleString()}
-                        </p>
-                      </div>
-                      <span
-                        className={`w-fit rounded-full px-3 py-1.5 text-xs font-extrabold ${selectedSubmission.status === "APPROVED" ? "bg-emerald-100 text-emerald-800" : selectedSubmission.status === "REVISION_REQUIRED" ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"}`}
-                      >
-                        {selectedSubmission.status.replace(/_/g, " ")}
-                      </span>
-                    </div>
-                    <div className="p-6">
-                      <div className="mb-5">
-                        <AdviserTaskReview required={selectedSubmission.adviserReviewRequired} submission={selectedSubmission} />
-                      </div>
-                      <SubmissionDocumentPreview
-                        versions={selectedSubmission.document?.versions || []}
-                        title={
-                          selectedSubmission.document?.title ||
-                          selectedSubmission.task?.title ||
-                          "Submitted document"
-                        }
-                      />
-                      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                        <div className="rounded-xl border border-slate-200 p-4">
-                          <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
-                            Student note
-                          </p>
-                          <p className="mt-2 text-base leading-6 text-slate-700">
-                            {selectedSubmission.note ||
-                              "No note was included with this submission."}
-                          </p>
-                        </div>
-                        <div className="rounded-xl border border-slate-200 p-4">
-                          <p className="text-sm font-bold uppercase tracking-wide text-slate-400">
-                            Requirement
-                          </p>
-                          <p className="mt-2 text-base leading-6 text-slate-700">
-                            {selectedSubmission.task?.instructions ||
-                              "No additional instructions were provided."}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                  <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
-                      Your decision
-                    </p>
-                    <h3 className="mt-1 text-lg font-extrabold text-[#102f49]">
-                      Review submission
-                    </h3>
-                    <p className="mt-1 text-base leading-5 text-slate-500">
-                      Approve work that meets the requirement, or explain
-                      exactly what the group should revise.
-                    </p>
-                    <label className="mt-5 block text-sm font-bold text-slate-700">
-                      Feedback
-                      <textarea
-                        value={reviewFeedback}
-                        onChange={(event) =>
-                          setReviewFeedback(event.target.value)
-                        }
-                        rows={7}
-                        placeholder="Add helpful, specific feedback for the group…"
-                        className="mt-2 w-full resize-none rounded-xl border border-slate-300 p-3 text-base font-normal leading-6 outline-none focus:border-[#173f63]"
-                      />
-                    </label>
-                    {selectedSubmission.reviewNote && (
-                      <p className="mt-2 text-base text-slate-500">
-                        Last saved feedback: {selectedSubmission.reviewNote}
-                      </p>
-                    )}
-                    <div className="mt-5 space-y-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleReviewTaskSubmission(
-                            selectedSubmission.id,
-                            "APPROVED",
-                          )
-                        }
-                        disabled={reviewSaving}
-                        className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-extrabold text-white disabled:opacity-50"
-                      >
-                        <i className="ti ti-check mr-2" />
-                        Approve submission
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleReviewTaskSubmission(
-                            selectedSubmission.id,
-                            "REVISION_REQUIRED",
-                          )
-                        }
-                        disabled={reviewSaving || !reviewFeedback.trim()}
-                        className="w-full rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-extrabold text-amber-800 disabled:opacity-50"
-                      >
-                        <i className="ti ti-message-exclamation mr-2" />
-                        Request revision
-                      </button>
-                    </div>
-                    <p className="mt-4 rounded-xl bg-blue-50 p-3 text-base leading-5 text-blue-800">
-                      <i className="ti ti-info-circle mr-1" />
-                      Approving every required submission in the group’s current
-                      milestone automatically advances its workflow.
-                    </p>
-                  </aside>
-                </div>
-              </div>
+              <SubmissionReviewWorkspace
+                key={selectedSubmission.id}
+                submission={selectedSubmission}
+                queue={filteredSubmissions.filter((item: any) => item.submissionKind !== "TITLE_PROPOSAL")}
+                feedback={reviewFeedback}
+                saving={reviewSaving}
+                onFeedbackChange={setReviewFeedback}
+                onSelect={openSubmissionReview}
+                onClose={() => { setSelectedSubmission(null); setReviewFeedback(""); }}
+                onReview={(status) => handleReviewTaskSubmission(selectedSubmission.id, status)}
+              />
             ) : (
               <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">

@@ -3,6 +3,8 @@ import "./research-tasks.css";
 import "./task-details-workspace.css";
 import { WorkflowStartPanel } from "@/components/workflow/WorkflowStartPanel";
 import { TitleProposalPanel } from "@/components/workflow/TitleProposalPanel";
+import { SubmissionCommentHistory } from "@/components/documents/SubmissionComments";
+import { SubmissionGradePanel } from "@/components/documents/SubmissionGradePanel";
 import { AdviserTaskReview, needsAdviserApproval } from "@/components/workflow/AdviserTaskReview";
 
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
@@ -1881,6 +1883,8 @@ export function MilestoneDetailsWorkspace({
           )}
           <AdviserTaskReview required={needsAdviserApproval(task)} submission={task.submission} />
           <FacultyFeedback submission={task.submission} />
+          {task.submission?.documentVersionId && <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"><SubmissionGradePanel key={`${task.submission.id}:${task.submission.documentVersionId}`} submissionId={task.submission.id} versionId={task.submission.documentVersionId} /></section>}
+          {task.submission?.documentVersionId && <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"><SubmissionCommentHistory key={`${task.submission.id}:${task.submission.documentVersionId}`} submission={task.submission} /></section>}
         </article>
 
         <MilestoneInformationPanel

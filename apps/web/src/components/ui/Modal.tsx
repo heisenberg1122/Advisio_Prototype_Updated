@@ -52,6 +52,10 @@ export function Modal({
       (firstFocusable || dialogRef.current)?.focus();
     });
     const handleKeyDown = (e: KeyboardEvent) => {
+      // A history dialog can be opened inside a review dialog. Only the top
+      // dialog should handle Escape/Tab while it is open.
+      const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+      if (dialogs[dialogs.length - 1] !== dialogRef.current?.parentElement) return;
       if (e.key === "Escape") onClose();
       if (e.key !== "Tab" || !dialogRef.current) return;
       const focusable = Array.from(

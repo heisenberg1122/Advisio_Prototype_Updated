@@ -5,6 +5,7 @@ import {
   ReviewType,
 } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { jsonSafe } from "../lib/json-response.js";
 import {
   ReviewerAssignmentError,
   reviewerAssignmentService,
@@ -73,7 +74,7 @@ router.get(
         req.user!,
         req.params.documentId as string,
       );
-      res.json({ document });
+      res.json(jsonSafe({ document }));
     } catch (error) {
       workflowError(res, error);
     }

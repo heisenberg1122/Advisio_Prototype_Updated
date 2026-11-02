@@ -23,6 +23,9 @@ const router = Router();
 
 // Researcher-visible feedback only; keep reviewer identities and draft reviews private.
 const taskVersionFeedbackSelect = {
+  mimeType: true,
+  googleDriveFileId: true,
+  uploadedAt: true,
   reviews: {
     where: { reviewType: "ADVISER" as const, status: "SUBMITTED" as const },
     select: {

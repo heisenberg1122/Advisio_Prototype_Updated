@@ -139,6 +139,10 @@ The Professor Dashboard combines submission review and deadline monitoring under
 
 The Review Queue retains the complete document-review flow with status filters for work needing review, revision requests, approvals, and all submissions. Results can be sorted by oldest awaiting review, newest submission, research group, or milestone order.
 
+Opening a submission shows a Classroom-style review workspace with the exact submitted version beside feedback and review actions. Checkers can select PDF text and attach a comment to the highlighted passage, or post a comment with an optional page reference independently of a decision. Enrolled research group members can read and reply from task details. Comments and highlights remain associated with their submitted version. See [submission review and comments](docs/submission-review-comments.md) for access rules and the required database migrations.
+
+Standard submission requirements can optionally be graded using points set in the milestone composer. The owning professor saves a private draft and explicitly releases the grade to researchers; numerical grading remains separate from approval and defense scoring. **See history** shows submissions, revisions, reviews, shared comments, and grade activity with names and full Philippine dates/times. Private draft scores and draft-grade history remain visible only to the owning professor.
+
 The Deadline Tracker includes requirements even when a group has not submitted a document. Active deadlines are calculated from the workflow instance start or the transition into a milestone plus the requirement's relative due-day setting. Dates for milestones that have not activated yet are shown as **Projected** and are never classified as overdue. Professors can filter upcoming, overdue, no-deadline, or all requirements and send targeted reminders only for selected unsubmitted, overdue, or revision-required work.
 
 The former standalone **Deadlines** navigation item redirects to **Submissions → Deadline Tracker** so existing links remain useful while the professor interface presents one consolidated deliverable workspace.

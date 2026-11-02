@@ -166,18 +166,19 @@ describe("manuscript review context failures", () => {
     ).toBe(false);
   });
 
-  it("retains history when the coordinator's candidate request fails", async () => {
+  it("loads history without requesting or displaying reviewer-management controls", async () => {
     harness.roles = ["ADVISER", "RESEARCH_COORDINATOR"];
-    harness.get.mockImplementation((url: string) =>
-      url.endsWith("reviewer-candidates")
-        ? Promise.reject(new Error("Candidates unavailable"))
-        : Promise.resolve(workflow),
-    );
+    harness.get.mockResolvedValue(workflow);
     button(render(), "Review and decide").props.onClick();
     await settle();
     const tree = render();
+    expect(harness.get).toHaveBeenCalledExactlyOnceWith(
+      "/api/documents/d1/review-workflow",
+    );
+    expect(button(tree, "Assign reviewer")).toBeUndefined();
+    expect(button(tree, "Reassign")).toBeUndefined();
+    expect(button(tree, "Revoke")).toBeUndefined();
     expect(button(tree, "Retry review history")).toBeUndefined();
-    expect(button(tree, "Retry eligible reviewers")).toBeDefined();
     expect(
       nodes(tree).some(
         (node) =>
