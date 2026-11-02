@@ -37,12 +37,22 @@ export class EvaluationRuntime {
     connectionString: this.config.databaseUrl,
     max: 4,
   });
+  // Provisioning can occupy every registry connection with schema DDL. The
+  // provider's liveness probe must still check the DB within its five-second
+  // deadline instead of waiting behind workspace setup queries.
+  readonly healthPool = new Pool({
+    connectionString: this.config.databaseUrl,
+    max: 1,
+    connectionTimeoutMillis: 2500,
+    query_timeout: 3000,
+    idleTimeoutMillis: 10_000,
+  });
   private clients = new Map<string, OpenClient>();
   private revokers = new Map<string, Set<() => void>>();
   private ddl = "";
   private timer?: NodeJS.Timeout;
   async health() {
-    await this.pool.query("SELECT 1");
+    await this.healthPool.query("SELECT 1");
     await fs.access(this.config.root);
   }
 
@@ -319,6 +329,6 @@ export class EvaluationRuntime {
     await Promise.all(
       [...this.clients.values()].map((x) => x.prisma.$disconnect()),
     );
-    await this.pool.end();
+    await Promise.all([this.pool.end(), this.healthPool.end()]);
   }
 }
