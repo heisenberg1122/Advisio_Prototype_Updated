@@ -75,6 +75,12 @@ export function portalQuickLinks(
         href: "/student/tasks",
       },
       {
+        id: "grades",
+        label: "My Grades",
+        subtitle: "Released period grades and attendance",
+        href: "/student/grades",
+      },
+      {
         id: "documents",
         label: "Document Workspace",
         subtitle: "Live drafts, reviews, and official copies",
@@ -161,6 +167,12 @@ export function portalQuickLinks(
   }
   const links = sharedFacultyLinks(prefix);
   if (prefix === "/professor") {
+    links.push({
+      id: "class-record",
+      label: "Class Record",
+      subtitle: "Period grades and attendance",
+      href: "/professor/class-record",
+    });
     links.splice(3, 0, {
       id: "signatures",
       label: "Signature Center",

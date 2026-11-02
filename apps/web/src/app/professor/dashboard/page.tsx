@@ -474,6 +474,8 @@ function ProfessorDashboardContent() {
   const [selectedSubmission, setSelectedSubmission] = useState<any | null>(
     null,
   );
+  const requestedSubmissionId = searchParams.get("submissionId");
+  const openedSubmissionContext = useRef<string | null>(null);
   const [submissionFilter, setSubmissionFilter] = useState("NEEDS_REVIEW");
   const [submissionSearch, setSubmissionSearch] = useState("");
   const [submissionSort, setSubmissionSort] = useState("OLDEST_REVIEW");
@@ -1301,6 +1303,16 @@ function ProfessorDashboardContent() {
   const selectedWorkflow =
     workflows.find((workflow: any) => workflow.id === selectedWorkflowId) ||
     null;
+  useEffect(() => {
+    if (activeTab !== "submissions") return;
+    if (!requestedSubmissionId) { openedSubmissionContext.current = null; return; }
+    if (openedSubmissionContext.current === requestedSubmissionId) return;
+    const submission = submissions.find((item: any) => item.id === requestedSubmissionId && item.submissionKind !== "TITLE_PROPOSAL");
+    if (!submission) return;
+    openedSubmissionContext.current = requestedSubmissionId;
+    setSelectedSubmission(submission);
+    setReviewFeedback(submission.reviewNote || "");
+  }, [activeTab, requestedSubmissionId, submissions]);
   const selectedWorkflowTopics = selectedWorkflow?.topics || [];
   const selectedWorkflowInvitation = selectedWorkflow?.inviteCode
     ? {

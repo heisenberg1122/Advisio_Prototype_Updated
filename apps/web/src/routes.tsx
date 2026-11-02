@@ -17,7 +17,9 @@ const StudentAdviserPoolPage = lazy(
   () => import("./app/student/adviser-pool/page"),
 );
 const StudentTasksPage = lazy(() => import("./app/student/tasks/page"));
-const FacultyTaskDetailsPage = lazy(() => import("./components/workflow/FacultyTaskDetailsPage"));
+const FacultyTaskDetailsPage = lazy(
+  () => import("./components/workflow/FacultyTaskDetailsPage"),
+);
 const StudentDocumentsPage = lazy(() => import("./app/student/documents/page"));
 const StudentGroupFilesPage = lazy(
   () => import("./app/student/group-files/page"),
@@ -81,6 +83,9 @@ const ProfessorProfileEditPage = lazy(
   () => import("./app/professor/profile/edit/page"),
 );
 const ProfessorReviewsPage = lazy(() => import("./app/professor/reviews/page"));
+const ClassRecordPage = lazy(
+  () => import("./components/grading/ClassRecordWorkspace"),
+);
 const ProfessorNotificationsPage = lazy(
   () => import("./app/professor/notifications/page"),
 );
@@ -125,7 +130,9 @@ import ForgotPasswordPage from "./app/(public)/forgot-password/page";
 import FirstTimeSetupPage from "./app/(public)/first-login-setup/page";
 import GoogleOnboardingPage from "./app/(public)/google-onboarding/page";
 import ChooseDashboardPage from "./app/(public)/choose-dashboard/page";
-const AcceptInvitationPage = lazy(() => import("./app/(public)/accept-invitation/page"));
+const AcceptInvitationPage = lazy(
+  () => import("./app/(public)/accept-invitation/page"),
+);
 
 function RouteLoader() {
   const { pathname, search } = useLocation();
@@ -186,7 +193,11 @@ export function AppRoutes() {
         <Route path="/terms-of-service" element={<TermsOfServicePage />} />
         <Route
           path="/login"
-          element={<LoginRoute><LoginPage /></LoginRoute>}
+          element={
+            <LoginRoute>
+              <LoginPage />
+            </LoginRoute>
+          }
         />
         <Route path="/register" element={<RegisterPage />} />
         <Route
@@ -198,17 +209,56 @@ export function AppRoutes() {
         <Route path="/first-login-setup" element={<FirstTimeSetupPage />} />
         <Route path="/google-onboarding" element={<GoogleOnboardingPage />} />
         <Route path="/choose-dashboard" element={<ChooseDashboardPage />} />
-        <Route path="/accept-invitation" element={<Suspense fallback={<main role="status" className="grid min-h-screen place-items-center bg-[var(--color-background)] text-[var(--color-text-secondary)]">Opening invitation…</main>}><AcceptInvitationPage /></Suspense>} />
-        <Route path="/admin/faculty-access" element={<ProtectedRoute allowedRoles={["DEAN", "SYSTEM_ADMIN"]}><AdminLayout><FacultyAccessPage /></AdminLayout></ProtectedRoute>} />
+        <Route
+          path="/accept-invitation"
+          element={
+            <Suspense
+              fallback={
+                <main
+                  role="status"
+                  className="grid min-h-screen place-items-center bg-[var(--color-background)] text-[var(--color-text-secondary)]"
+                >
+                  Opening invitation…
+                </main>
+              }
+            >
+              <AcceptInvitationPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/admin/faculty-access"
+          element={
+            <ProtectedRoute allowedRoles={["DEAN", "SYSTEM_ADMIN"]}>
+              <AdminLayout>
+                <FacultyAccessPage />
+              </AdminLayout>
+            </ProtectedRoute>
+          }
+        />
 
         {/* Student / Researcher Portal */}
         {[
           { portal: "adviser", roles: ["ADVISER"], Layout: AdviserLayout },
-          { portal: "professor", roles: ["PROFESSOR", "RESEARCH_COORDINATOR"], Layout: ProfessorLayout },
+          {
+            portal: "professor",
+            roles: ["PROFESSOR", "RESEARCH_COORDINATOR"],
+            Layout: ProfessorLayout,
+          },
           { portal: "panelist", roles: ["PANELIST"], Layout: PanelistLayout },
           { portal: "admin", roles: ["DEAN"], Layout: AdminLayout },
         ].map(({ portal, roles, Layout }) => (
-          <Route key={`${portal}-task-details`} path={`/${portal}/tasks/:taskId`} element={<ProtectedRoute allowedRoles={roles}><Layout><FacultyTaskDetailsPage /></Layout></ProtectedRoute>} />
+          <Route
+            key={`${portal}-task-details`}
+            path={`/${portal}/tasks/:taskId`}
+            element={
+              <ProtectedRoute allowedRoles={roles}>
+                <Layout>
+                  <FacultyTaskDetailsPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
         ))}
         <Route
           path="/dashboard"
@@ -804,6 +854,18 @@ export function AppRoutes() {
           }
         />
         <Route
+          path="/professor/class-record"
+          element={
+            <ProtectedRoute
+              allowedRoles={["PROFESSOR", "RESEARCH_COORDINATOR"]}
+            >
+              <ProfessorLayout>
+                <ClassRecordPage />
+              </ProfessorLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/professor/documents"
           element={
             <ProtectedRoute
@@ -894,9 +956,7 @@ export function AppRoutes() {
         <Route
           path="/admin/profile"
           element={
-            <ProtectedRoute
-              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}
-            >
+            <ProtectedRoute allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}>
               <AdminLayout>
                 <AdminProfilePage />
               </AdminLayout>
@@ -906,9 +966,7 @@ export function AppRoutes() {
         <Route
           path="/admin/profile/edit"
           element={
-            <ProtectedRoute
-              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}
-            >
+            <ProtectedRoute allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}>
               <AdminLayout>
                 <AdminProfileEditPage />
               </AdminLayout>
@@ -928,9 +986,7 @@ export function AppRoutes() {
         <Route
           path="/admin/*"
           element={
-            <ProtectedRoute
-              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}
-            >
+            <ProtectedRoute allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}>
               <AdminLayout>
                 <AdminDashboardPage />
               </AdminLayout>
@@ -940,9 +996,7 @@ export function AppRoutes() {
         <Route
           path="/admin/calendar"
           element={
-            <ProtectedRoute
-              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}
-            >
+            <ProtectedRoute allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}>
               <AdminLayout>
                 <CalendarPage />
               </AdminLayout>
@@ -958,9 +1012,7 @@ export function AppRoutes() {
         <Route
           path="/admin/inbox"
           element={
-            <ProtectedRoute
-              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}
-            >
+            <ProtectedRoute allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}>
               <AdminLayout>
                 <MailInboxPage />
               </AdminLayout>
@@ -970,9 +1022,7 @@ export function AppRoutes() {
         <Route
           path="/admin/notifications"
           element={
-            <ProtectedRoute
-              allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}
-            >
+            <ProtectedRoute allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}>
               <AdminLayout>
                 <AdminNotificationsPage />
               </AdminLayout>

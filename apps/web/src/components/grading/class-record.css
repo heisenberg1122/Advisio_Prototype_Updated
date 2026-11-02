@@ -1,0 +1,394 @@
+.class-record {
+  color: var(--color-text-primary);
+}
+.class-record .cr-panel {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.class-record input,
+.class-record select {
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  padding: 9px 11px;
+  font: inherit;
+}
+.class-record input:focus,
+.class-record select:focus {
+  outline: 2px solid var(--college-focus-ring, var(--color-primary));
+  outline-offset: 2px;
+}
+.class-record button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.class-record .cr-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.class-record .cr-toolbar.cr-panel {
+  padding: 18px 20px;
+}
+.class-record .cr-class-selector {
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  width: min(100%, 540px);
+}
+.class-record .cr-class-selector select {
+  font-size: 15px;
+  font-weight: 500;
+  width: 100%;
+}
+.class-record .cr-muted {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.class-record .cr-period-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: 13px;
+  width: max-content;
+  max-width: 100%;
+}
+.class-record .cr-period-tabs button {
+  padding: 10px 30px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.class-record .cr-period-tabs button[aria-selected="true"] {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground, #fff);
+  box-shadow: 0 2px 4px #0001;
+}
+.class-record .cr-dot {
+  background: currentColor;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+.class-record .cr-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.class-record .cr-summary .cr-panel {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.class-record .cr-summary span {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+.class-record .cr-summary strong {
+  font-size: 30px;
+  line-height: 1.3;
+  letter-spacing: -0.6px;
+}
+.class-record .cr-summary .cr-method {
+  font-size: 22px;
+}
+.class-record small {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+.class-record .cr-subtabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.class-record .cr-subtabs button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 9px;
+  padding: 9px 13px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 14px;
+  border: 1px solid transparent;
+}
+.class-record .cr-subtabs button[aria-pressed="true"] {
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+.class-record .cr-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.class-record .cr-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--color-border);
+}
+.class-record h2 {
+  font-size: 17px;
+  font-weight: 750;
+  margin: 0;
+}
+.class-record .cr-section-heading p {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-top: 5px;
+  max-width: 760px;
+  line-height: 1.6;
+}
+.class-record .cr-grid-tools {
+  padding: 14px 22px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.class-record .cr-grid-tools input {
+  width: min(100%, 360px);
+  font-size: 14px;
+}
+.class-record .cr-table-scroll {
+  contain: inline-size layout paint;
+  overflow: auto;
+  max-width: 100%;
+  max-height: 65vh;
+}
+.class-record table {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 100%;
+  font-size: 14px;
+  text-align: left;
+}
+.class-record th,
+.class-record td {
+  border-bottom: 1px solid var(--color-border);
+  padding: 15px 18px;
+  vertical-align: middle;
+  background: var(--color-surface);
+}
+.class-record thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-surface-subtle);
+  font-size: 12px;
+  font-weight: 700;
+}
+.class-record .cr-sheet td,
+.class-record .cr-sheet th {
+  min-width: 165px;
+  max-width: 240px;
+}
+.class-record .cr-sheet th span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.class-record .cr-sheet .cr-student-col {
+  min-width: 205px;
+  max-width: 230px;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  border-right: 1px solid var(--color-border);
+}
+.class-record .cr-sheet thead .cr-student-col {
+  z-index: 3;
+}
+.class-record .cr-sheet td input {
+  width: 105px;
+  display: block;
+  margin-bottom: 6px;
+}
+.class-record .cr-sheet td select {
+  width: 130px;
+  font-size: 12px;
+  padding: 6px;
+}
+.class-record .cr-sheet td strong {
+  white-space: nowrap;
+  font-weight: 700;
+}
+.class-record .cr-result {
+  font-size: 18px;
+}
+.class-record .cr-review-link {
+  display: block;
+  color: var(--color-primary);
+  font-size: 12px;
+  margin-top: 5px;
+  text-decoration: underline;
+}
+.class-record .cr-save-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 18px 22px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+}
+.class-record .cr-save-bar label {
+  flex: 1 1 280px;
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.class-record .cr-save-bar input {
+  width: 100%;
+  font-size: 14px;
+}
+.class-record .cr-alert {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-primary);
+  padding: 14px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.class-record .cr-alert-error {
+  border-left-color: #e11d48;
+}
+.class-record .cr-alert button {
+  text-decoration: underline;
+  margin-left: 10px;
+  font-weight: 700;
+}
+.class-record .cr-empty {
+  padding: 44px 22px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 13px;
+  color: var(--color-text-secondary);
+}
+.class-record .cr-empty h2 {
+  color: var(--color-text-primary);
+}
+.class-record .cr-form {
+  display: grid;
+  gap: 18px;
+}
+.class-record .cr-form label {
+  display: grid;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 650;
+}
+.class-record .cr-form input,
+.class-record .cr-form select {
+  width: 100%;
+}
+.class-record .cr-form p,
+.class-record .cr-policy {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.class-record .cr-policy {
+  padding: 16px 22px;
+}
+.class-record .cr-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.class-record .cr-release-preview {
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+.class-record .cr-release-preview div {
+  padding: 11px 13px;
+  display: flex;
+  gap: 15px;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border);
+}
+.class-record .cr-history {
+  padding: 4px 22px;
+}
+.class-record .cr-history > div {
+  padding: 17px 0;
+  border-bottom: 1px solid var(--color-border);
+  display: grid;
+  gap: 5px;
+}
+.class-record .cr-history span,
+.class-record .cr-history p {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.class-record .cr-attendance-status {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: var(--color-surface-subtle);
+}
+@media (max-width: 700px) {
+  .class-record .cr-summary {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .class-record .cr-summary .cr-panel {
+    padding: 15px 18px;
+  }
+  .class-record .cr-summary strong {
+    font-size: 25px;
+  }
+  .class-record .cr-period-tabs {
+    width: 100%;
+  }
+  .class-record .cr-period-tabs button {
+    flex: 1;
+    justify-content: center;
+    padding: 10px;
+  }
+  .class-record .cr-sheet .cr-student-col {
+    min-width: 140px;
+    max-width: 160px;
+  }
+  .class-record .cr-section-heading,
+  .class-record .cr-save-bar,
+  .class-record .cr-grid-tools {
+    padding: 15px;
+  }
+  .class-record .cr-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

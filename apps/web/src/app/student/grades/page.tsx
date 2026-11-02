@@ -5,8 +5,39 @@ import { FinalGradeCard } from "@/components/grading/FinalGradeCard";
 import { PanelistScoresCard } from "@/components/grading/PanelistScoresCard";
 import { GradesSkeleton } from "@/components/grading/GradesSkeleton";
 import { ConsolidatedEvaluations } from "@/components/professor/ConsolidatedEvaluations";
+import { useState } from "react";
+import ClassRecordWorkspace from "@/components/grading/ClassRecordWorkspace";
 
 export default function GradesPage() {
+  const [tab, setTab] = useState("class");
+  return (
+    <div className="min-w-0">
+      <div
+        className="flex flex-wrap gap-2 px-4 pt-5 sm:px-6 lg:px-8"
+        role="group"
+        aria-label="Grade records"
+      >
+        <button
+          aria-pressed={tab === "class"}
+          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-semibold text-[var(--color-text-primary)] aria-pressed:bg-[var(--color-primary)] aria-pressed:text-white"
+          onClick={() => setTab("class")}
+        >
+          Class Grades
+        </button>
+        <button
+          aria-pressed={tab === "defense"}
+          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-semibold text-[var(--color-text-primary)] aria-pressed:bg-[var(--color-primary)] aria-pressed:text-white"
+          onClick={() => setTab("defense")}
+        >
+          Defense Grades
+        </button>
+      </div>
+      {tab === "class" ? <ClassRecordWorkspace student /> : <DefenseGrades />}
+    </div>
+  );
+}
+
+function DefenseGrades() {
   const { data: grades, isPending, error, projectId } = useGrades();
 
   if (isPending) return <GradesSkeleton />;

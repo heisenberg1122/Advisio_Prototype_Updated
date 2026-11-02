@@ -16,37 +16,64 @@ import {
   MessageSquare,
   Mail,
   Presentation,
+  GraduationCap,
 } from "lucide-react";
 
 const STUDENT_NAV_SECTIONS: NavSection[] = [
   {
     title: "HOME",
     items: [
-      { label: "Overview", href: "/student/dashboard", tabName: "overview", icon: LayoutDashboard },
+      {
+        label: "Overview",
+        href: "/student/dashboard",
+        tabName: "overview",
+        icon: LayoutDashboard,
+      },
     ],
   },
   {
     title: "RESEARCH WORKSPACE",
     items: [
-      { label: "My Project", href: "/student/dashboard?tab=group", tabName: "group", icon: FolderKanban },
+      {
+        label: "My Project",
+        href: "/student/dashboard?tab=group",
+        tabName: "group",
+        icon: FolderKanban,
+      },
       { label: "Tasks", href: "/student/tasks", icon: CheckSquare },
       { label: "Documents", href: "/student/documents", icon: FileText },
       { label: "Group Files", href: "/student/group-files", icon: FolderOpen },
-      { label: "Timeline", href: "/student/dashboard?tab=milestones", tabName: "milestones", icon: Clock },
+      {
+        label: "Timeline",
+        href: "/student/dashboard?tab=milestones",
+        tabName: "milestones",
+        icon: Clock,
+      },
     ],
   },
   {
     title: "ACADEMIC ACTIVITIES",
     items: [
       { label: "Defense", href: "/student/defense", icon: Presentation },
-      { label: "Consultations", href: "/student/dashboard?tab=consultations", tabName: "consultations", icon: CalendarClock },
+      { label: "My Grades", href: "/student/grades", icon: GraduationCap },
+      {
+        label: "Consultations",
+        href: "/student/dashboard?tab=consultations",
+        tabName: "consultations",
+        icon: CalendarClock,
+      },
       { label: "Calendar", href: "/student/calendar", icon: CalendarDays },
     ],
   },
   {
     title: "COMMUNICATION",
     items: [
-      { label: "Messages", href: "/student/dashboard?tab=group-chats", tabName: "group-chats", icon: MessageSquare },
+      {
+        label: "Messages",
+        href: "/student/dashboard?tab=group-chats",
+        tabName: "group-chats",
+        icon: MessageSquare,
+      },
       { label: "Inbox", href: "/student/inbox", icon: Mail },
     ],
   },
