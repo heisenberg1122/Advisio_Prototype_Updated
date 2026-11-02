@@ -119,10 +119,10 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
         <div className="evaluation-brand">
           <img
             className="evaluation-logo"
-            src="/advisio-brand-logo-v2.png"
+            src="/advisio-logo.png"
             alt="ADVISIO"
-            width="2172"
-            height="724"
+            width="480"
+            height="384"
           />
           <span>Evaluation environment</span>
         </div>
