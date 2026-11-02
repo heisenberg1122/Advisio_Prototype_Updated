@@ -28,7 +28,7 @@ services:
       - key: EVALUATION_EPHEMERAL_STORAGE
         value: "1"
       - key: EVALUATION_MAX_ACTIVE
-        value: "5"
+        value: "10"
       - key: STORAGE_PROVIDER
         value: LOCAL
       - key: EMAIL_PROVIDER
