@@ -4,7 +4,10 @@ import "./task-details-workspace.css";
 import { WorkflowStartPanel } from "@/components/workflow/WorkflowStartPanel";
 import { TitleProposalPanel } from "@/components/workflow/TitleProposalPanel";
 import { SubmissionCommentHistory } from "@/components/documents/SubmissionComments";
-import { SubmissionGradePanel } from "@/components/documents/SubmissionGradePanel";
+import {
+  SubmissionGradePanel,
+  useSubmissionGrade,
+} from "@/components/documents/SubmissionGradePanel";
 import { AdviserTaskReview, needsAdviserApproval } from "@/components/workflow/AdviserTaskReview";
 
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
@@ -1302,6 +1305,12 @@ export function MilestoneDetailsWorkspace({
   const currentSequence =
     project?.workflowInstance?.currentStage?.sequence || 0;
   const status = taskDisplayStatus(task, currentSequence);
+  const { data: gradeInfo } = useSubmissionGrade(
+    task.submission?.id,
+    task.submission?.documentVersionId,
+  );
+  const awaitingGrade = gradeInfo?.maxPoints != null &&
+    (gradeInfo.grade?.releasedScore == null || !gradeInfo.grade.releasedAt);
   const canLoadSubmissionOptions =
     Boolean(project) &&
     !task.previewOnly &&
@@ -1442,17 +1451,20 @@ export function MilestoneDetailsWorkspace({
                 "Research workflow"}
             </p>
           </div>
-          <Tag
-            variant={
-              status === "APPROVED" || status === "COMPLETED"
-                ? "success"
-                : status === "REVISION_REQUIRED" || status === "REJECTED"
-                  ? "warn"
-                  : "info"
-            }
-          >
-            {status.replace(/_/g, " ")}
-          </Tag>
+          <div className="flex flex-wrap items-center gap-2">
+            <Tag
+              variant={
+                status === "APPROVED" || status === "COMPLETED"
+                  ? "success"
+                  : status === "REVISION_REQUIRED" || status === "REJECTED"
+                    ? "warn"
+                    : "info"
+              }
+            >
+              {status.replace(/_/g, " ")}
+            </Tag>
+            {awaitingGrade && <Tag variant="info">Awaiting grade</Tag>}
+          </div>
         </div>
       </header>
 
@@ -1883,7 +1895,14 @@ export function MilestoneDetailsWorkspace({
           )}
           <AdviserTaskReview required={needsAdviserApproval(task)} submission={task.submission} />
           <FacultyFeedback submission={task.submission} />
-          {task.submission?.documentVersionId && <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"><SubmissionGradePanel key={`${task.submission.id}:${task.submission.documentVersionId}`} submissionId={task.submission.id} versionId={task.submission.documentVersionId} /></section>}
+          {task.submission?.documentVersionId && (
+            <SubmissionGradePanel
+              key={`${task.submission.id}:${task.submission.documentVersionId}`}
+              submissionId={task.submission.id}
+              versionId={task.submission.documentVersionId}
+              researcherTask
+            />
+          )}
           {task.submission?.documentVersionId && <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"><SubmissionCommentHistory key={`${task.submission.id}:${task.submission.documentVersionId}`} submission={task.submission} /></section>}
         </article>
 
@@ -1974,6 +1993,7 @@ function StudentMilestoneAttachments({ stageId }: { stageId: string }) {
       ),
   });
   const attachments = attachmentsQuery.data?.attachments || [];
+  if (attachmentsQuery.isSuccess && !attachments.length) return null;
 
   const openAttachment = async (attachment: StudentMilestoneAttachment) => {
     setNotice(null);
@@ -2035,7 +2055,7 @@ function StudentMilestoneAttachments({ stageId }: { stageId: string }) {
             Retry
           </button>
         </div>
-      ) : attachments.length ? (
+      ) : (
         <div className="mt-4 divide-y divide-[var(--color-border)] rounded-xl border border-[var(--color-border)]">
           {attachments.map((attachment) => {
             const fileName =
@@ -2074,10 +2094,6 @@ function StudentMilestoneAttachments({ stageId }: { stageId: string }) {
             );
           })}
         </div>
-      ) : (
-        <p className="mt-4 text-base text-[var(--color-text-secondary)]">
-          No guides or attachments were added to this milestone.
-        </p>
       )}
       {notice && (
         <p
@@ -2093,13 +2109,15 @@ function StudentMilestoneAttachments({ stageId }: { stageId: string }) {
 
 function FacultyFeedback({ submission }: { submission: any }) {
   const attemptFeedback = (submission?.attempts || []).filter(
-    (attempt: any) => attempt.reviewNote,
+    (attempt: any) => attempt.reviewNote?.trim(),
   );
   const hasCurrentFeedback =
-    submission?.reviewNote &&
+    submission?.reviewNote?.trim() &&
     !attemptFeedback.some(
       (attempt: any) => attempt.reviewNote === submission.reviewNote,
     );
+
+  if (!hasCurrentFeedback && !attemptFeedback.length) return null;
 
   return (
     <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
@@ -2147,11 +2165,6 @@ function FacultyFeedback({ submission }: { submission: any }) {
             </li>
           ))}
         </ol>
-      )}
-      {!hasCurrentFeedback && !attemptFeedback.length && (
-        <p className="mt-3 text-base text-[var(--color-text-secondary)]">
-          Faculty feedback will appear here when available.
-        </p>
       )}
     </section>
   );

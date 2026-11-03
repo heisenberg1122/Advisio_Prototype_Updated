@@ -35,12 +35,30 @@ type Entry = {
 const name = (person?: Person | null) =>
   person ? `${person.firstName} ${person.lastName}` : "Faculty reviewer";
 
+export function useSubmissionGrade(
+  submissionId?: string,
+  versionId?: string,
+  refetchInterval: number | false = false,
+) {
+  return useQuery({
+    queryKey: ["submission-grade", submissionId, versionId],
+    queryFn: () =>
+      apiClient.get<GradeInfo>(`/api/workflows/tasks/submissions/${submissionId}/grade`, {
+        params: { documentVersionId: versionId },
+      }),
+    enabled: Boolean(submissionId && versionId),
+    refetchInterval,
+  });
+}
+
 export function SubmissionGradePanel({
   submissionId,
   versionId,
+  researcherTask = false,
 }: {
   submissionId: string;
   versionId: string;
+  researcherTask?: boolean;
 }) {
   const client = useQueryClient();
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -48,16 +66,8 @@ export function SubmissionGradePanel({
   const [dirty, setDirty] = useState(false);
   const [revision, setRevision] = useState(0);
   const [notice, setNotice] = useState("");
-  const key = ["submission-grade", submissionId, versionId];
   const endpoint = `/api/workflows/tasks/submissions/${submissionId}`;
-  const query = useQuery({
-    queryKey: key,
-    queryFn: () =>
-      apiClient.get<GradeInfo>(`${endpoint}/grade`, {
-        params: { documentVersionId: versionId },
-      }),
-    refetchInterval: 15000,
-  });
+  const query = useSubmissionGrade(submissionId, versionId, 15000);
   const info = query.data;
   const history = useQuery({
     queryKey: ["submission-history", submissionId, versionId],
@@ -99,6 +109,8 @@ export function SubmissionGradePanel({
     },
   });
   const points = info?.maxPoints;
+  const showGrade = !researcherTask ||
+    (points != null && info?.grade?.releasedScore != null && Boolean(info.grade.releasedAt));
   const validScore =
     score.trim() !== "" &&
     Number.isFinite(Number(score)) &&
@@ -106,7 +118,12 @@ export function SubmissionGradePanel({
     Number(score) <= (points || 0) &&
     Math.abs(Number(score) * 100 - Math.round(Number(score) * 100)) < 0.000001;
   return (
-    <section aria-label="Grade and submission history" className="space-y-3">
+    <section
+      aria-label={showGrade ? "Grade and submission history" : "Submission history"}
+      className={researcherTask && showGrade
+        ? "space-y-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5"
+        : "space-y-3"}
+    >
       {query.isLoading && (
         <p role="status" className="text-sm">
           Loading grade…
@@ -126,13 +143,13 @@ export function SubmissionGradePanel({
       )}
       {info && (
         <>
-          <div className="text-xs leading-5 text-[var(--color-text-secondary)]">
+          {showGrade && <div className="text-xs leading-5 text-[var(--color-text-secondary)]">
             <p>Turned in by {name(info.submittedBy)}</p>
             <time dateTime={info.submittedAt}>
               {formatReviewDateTime(info.submittedAt)}
             </time>
             <span className="block">Philippine time</span>
-          </div>
+          </div>}
           <button
             type="button"
             onClick={() => setHistoryOpen(true)}
@@ -141,7 +158,7 @@ export function SubmissionGradePanel({
             <History size={15} />
             See history
           </button>
-          <div className="border-t border-[var(--color-border)] pt-3">
+          {showGrade && <div className="border-t border-[var(--color-border)] pt-3">
             <h3 className="text-base font-bold text-[var(--color-text-primary)]">
               Grade
             </h3>
@@ -236,7 +253,7 @@ export function SubmissionGradePanel({
                 </p>
               </div>
             )}
-          </div>
+          </div>}
         </>
       )}
       {mutation.isError && (
