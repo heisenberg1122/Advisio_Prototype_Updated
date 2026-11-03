@@ -1,0 +1,865 @@
+1
+00:00:00,000 --> 00:00:01,393
+Welcome to ADVISIO.
+
+2
+00:00:01,823 --> 00:00:05,039
+Explore the Researcher workspace and
+its core features throughout
+
+3
+00:00:05,074 --> 00:00:06,084
+this walkthrough.
+
+4
+00:00:06,667 --> 00:00:09,767
+The Overview displays information
+about your research project.
+
+5
+00:00:10,266 --> 00:00:13,645
+This demonstration follows CampusWay
+and Research Group A.
+
+6
+00:00:14,144 --> 00:00:17,011
+The project panel identifies the
+current research stage.
+
+7
+00:00:17,441 --> 00:00:21,087
+Other sections display milestone
+progress, requirements, upcoming
+
+8
+00:00:21,122 --> 00:00:24,465
+consultation information, and recent
+updates when those records are
+
+9
+00:00:24,500 --> 00:00:25,568
+available.
+
+10
+00:00:26,167 --> 00:00:29,731
+The sidebar connects the research
+workspace, academic activities,
+
+11
+00:00:29,824 --> 00:00:31,183
+and communication areas.
+
+12
+00:00:31,775 --> 00:00:35,943
+My Project, Tasks, Documents, Group
+Files, and Timeline
+
+13
+00:00:36,117 --> 00:00:37,765
+refer to the research workflow.
+
+14
+00:00:38,450 --> 00:00:42,491
+Defense, My Grades, Consultations, and
+Calendar show related
+
+15
+00:00:42,560 --> 00:00:43,582
+academic records.
+
+16
+00:00:44,012 --> 00:00:45,718
+The example has one project.
+
+17
+00:00:46,090 --> 00:00:49,004
+A project selector appears where
+multiple authorized projects
+
+18
+00:00:49,062 --> 00:00:50,409
+require a selection.
+
+19
+00:00:51,000 --> 00:00:54,982
+Open My Project to inspect the title,
+project details, assigned
+
+20
+00:00:55,005 --> 00:00:57,130
+adviser, and current workflow.
+
+21
+00:00:57,815 --> 00:01:00,694
+A project contains the research work
+and participants.
+
+22
+00:01:01,286 --> 00:01:04,746
+Its configured workflow defines the
+stages and requirements used to
+
+23
+00:01:04,804 --> 00:01:05,756
+track that work.
+
+24
+00:01:06,348 --> 00:01:09,367
+This demonstration project is already
+enrolled in its assigned
+
+25
+00:01:09,401 --> 00:01:10,226
+workflow.
+
+26
+00:01:10,833 --> 00:01:13,886
+Select My Group to inspect membership
+and the group leader.
+
+27
+00:01:14,316 --> 00:01:17,578
+This example uses a fictional research
+team and adviser.
+
+28
+00:01:18,078 --> 00:01:21,526
+Team and adviser-request actions
+depend on leadership and assignment
+
+29
+00:01:21,561 --> 00:01:22,118
+status.
+
+30
+00:01:22,547 --> 00:01:25,137
+This project already has an accepted
+adviser.
+
+31
+00:01:25,566 --> 00:01:28,538
+The group area connects these
+participants to the same research
+
+32
+00:01:28,585 --> 00:01:29,363
+project.
+
+33
+00:01:29,967 --> 00:01:33,589
+Tasks lists the requirements
+associated with the enrolled workflow.
+
+34
+00:01:34,019 --> 00:01:37,421
+Inspect each item's status, deadline,
+and milestone.
+
+35
+00:01:38,013 --> 00:01:41,380
+In this prepared workspace, the
+initial scope requirement has been
+
+36
+00:01:41,403 --> 00:01:44,445
+approved and the research proposal
+requires revision.
+
+37
+00:01:45,037 --> 00:01:48,172
+Later requirements may be locked until
+the configured prerequisites
+
+38
+00:01:48,207 --> 00:01:49,089
+are satisfied.
+
+39
+00:01:49,681 --> 00:01:52,897
+A completed item and a future item
+therefore represent different
+
+40
+00:01:52,943 --> 00:01:54,627
+points in the same workflow.
+
+41
+00:01:55,233 --> 00:01:57,125
+Open Revised research proposal.
+
+42
+00:01:57,555 --> 00:02:00,504
+Read its instructions before selecting
+a file or document.
+
+43
+00:02:01,189 --> 00:02:04,324
+The detail workspace connects the
+requirement to its submission,
+
+44
+00:02:04,440 --> 00:02:07,168
+faculty feedback, and milestone
+information.
+
+45
+00:02:07,853 --> 00:02:10,790
+Review the recorded guidance about
+route-selection rules and the
+
+46
+00:02:10,837 --> 00:02:12,532
+requirements-to-test matrix.
+
+47
+00:02:13,031 --> 00:02:15,202
+Faculty resources appear when
+attached;
+
+48
+00:02:15,515 --> 00:02:16,804
+none are prepared here.
+
+49
+00:02:17,303 --> 00:02:20,554
+The next chapter follows this task
+into the document and revision
+
+50
+00:02:20,612 --> 00:02:21,471
+submission.
+
+51
+00:02:22,067 --> 00:02:25,213
+Documents contains working files and
+records associated with
+
+52
+00:02:25,283 --> 00:02:26,398
+research requirements.
+
+53
+00:02:26,990 --> 00:02:30,972
+Open Research proposal to inspect its
+lifecycle status, milestone,
+
+54
+00:02:31,030 --> 00:02:32,330
+and available versions.
+
+55
+00:02:32,922 --> 00:02:36,138
+A working document and a submitted
+version have different purposes:
+
+56
+00:02:36,567 --> 00:02:39,516
+the working file can be prepared for a
+requirement, while the
+
+57
+00:02:39,563 --> 00:02:43,197
+submitted record identifies the
+version sent for faculty review.
+
+58
+00:02:43,800 --> 00:02:47,585
+Select version one to inspect the
+earlier submitted snapshot, then
+
+59
+00:02:47,701 --> 00:02:49,129
+open its Feedback tab.
+
+60
+00:02:49,814 --> 00:02:52,751
+This prepared version shows no
+feedback in the current document
+
+61
+00:02:52,786 --> 00:02:53,274
+viewer.
+
+62
+00:02:53,773 --> 00:02:57,151
+Return to version two to inspect its
+active review assignment.
+
+63
+00:02:57,744 --> 00:03:00,553
+The task page contains the prepared
+revision guidance.
+
+64
+00:03:01,145 --> 00:03:03,816
+Feedback belongs to the version on
+which it is recorded;
+
+65
+00:03:04,315 --> 00:03:07,264
+selecting a later version does not
+move earlier comments to that
+
+66
+00:03:07,322 --> 00:03:07,856
+version.
+
+67
+00:03:08,448 --> 00:03:11,501
+Where linked review comments are
+available, the feedback area
+
+68
+00:03:11,559 --> 00:03:13,661
+displays them with their recorded
+state.
+
+69
+00:03:14,267 --> 00:03:17,657
+The Add menu includes working-file
+upload and Google document
+
+70
+00:03:17,704 --> 00:03:18,307
+options.
+
+71
+00:03:18,899 --> 00:03:22,487
+A working-file upload can be
+associated with a milestone, but
+
+72
+00:03:22,533 --> 00:03:25,006
+uploading alone does not submit it for
+review.
+
+73
+00:03:25,691 --> 00:03:28,989
+Google document creation and connected
+operations require an
+
+74
+00:03:29,024 --> 00:03:30,231
+available integration.
+
+75
+00:03:30,661 --> 00:03:33,041
+This demonstration uses a local PDF;
+
+76
+00:03:33,412 --> 00:03:35,444
+no Google connection is established.
+
+77
+00:03:36,033 --> 00:03:39,841
+Return to the proposal task and select
+the prepared revision PDF.
+
+78
+00:03:40,433 --> 00:03:43,556
+Review the file, requirement, and
+project in the submission
+
+79
+00:03:43,614 --> 00:03:45,356
+confirmation before confirming.
+
+80
+00:03:45,948 --> 00:03:49,048
+The application records the revision
+for the group and displays the
+
+81
+00:03:49,106 --> 00:03:50,488
+resulting submission state.
+
+82
+00:03:51,080 --> 00:03:52,787
+Submission does not mean approval.
+
+83
+00:03:53,216 --> 00:03:56,432
+Faculty review determines the later
+decision, and the workflow
+
+84
+00:03:56,479 --> 00:03:58,243
+applies its configured requirements.
+
+85
+00:03:58,743 --> 00:04:02,493
+This connects the task, document
+version, submission, and review
+
+86
+00:04:02,562 --> 00:04:03,479
+process.
+
+87
+00:04:04,067 --> 00:04:06,586
+Official documents are a separate
+published record.
+
+88
+00:04:07,178 --> 00:04:10,325
+This prepared Researcher workspace has
+no official copies.
+
+89
+00:04:10,917 --> 00:04:13,645
+Researchers can inspect copies made
+available to them;
+
+90
+00:04:14,144 --> 00:04:18,022
+approval, signing, and finalization
+are not demonstrated through
+
+91
+00:04:18,057 --> 00:04:18,731
+this role.
+
+92
+00:04:19,416 --> 00:04:22,655
+Use the task's submission history and
+document versions to inspect
+
+93
+00:04:22,701 --> 00:04:25,708
+what was sent and any feedback that
+becomes available.
+
+94
+00:04:26,300 --> 00:04:29,156
+Group Files stores shared working
+material in folders.
+
+95
+00:04:29,586 --> 00:04:33,440
+Create a folder, open it, and add the
+demonstration PDF.
+
+96
+00:04:34,032 --> 00:04:37,678
+The upload dialog shows the selected
+file before it enters the list.
+
+97
+00:04:38,270 --> 00:04:41,742
+Files can be opened or downloaded,
+searched, and sorted.
+
+98
+00:04:42,334 --> 00:04:45,561
+Available actions include moving files
+and adding a file to
+
+99
+00:04:45,619 --> 00:04:46,293
+Documents.
+
+100
+00:04:46,885 --> 00:04:50,240
+Shared storage does not itself submit
+a requirement or create a
+
+101
+00:04:50,310 --> 00:04:51,355
+faculty review.
+
+102
+00:04:52,040 --> 00:04:55,325
+Use Documents and the associated task
+for that record.
+
+103
+00:04:55,933 --> 00:04:58,812
+Timeline presents the milestone
+sequence configured for this
+
+104
+00:04:58,882 --> 00:04:59,915
+research workflow.
+
+105
+00:05:00,414 --> 00:05:04,025
+Compare completed scope preparation,
+the current proposal work, and
+
+106
+00:05:04,095 --> 00:05:05,047
+later stages.
+
+107
+00:05:05,546 --> 00:05:08,994
+Inspect available requirements, target
+dates, and progress
+
+108
+00:05:09,041 --> 00:05:09,772
+information.
+
+109
+00:05:10,364 --> 00:05:13,743
+The sequence comes from the assigned
+workflow rather than a separate
+
+110
+00:05:13,789 --> 00:05:14,857
+personal checklist.
+
+111
+00:05:15,450 --> 00:05:19,269
+A later stage may remain unavailable
+while prerequisites or approval
+
+112
+00:05:19,351 --> 00:05:20,430
+remain outstanding.
+
+113
+00:05:21,022 --> 00:05:24,238
+Returning to a task shows the work
+associated with that point in the
+
+114
+00:05:24,273 --> 00:05:25,005
+sequence.
+
+115
+00:05:25,600 --> 00:05:28,711
+Defense displays the project's
+readiness and defense-related
+
+116
+00:05:28,770 --> 00:05:29,350
+records.
+
+117
+00:05:29,942 --> 00:05:32,845
+No defense session has been created
+for this prepared Researcher
+
+118
+00:05:32,903 --> 00:05:33,611
+workspace.
+
+119
+00:05:34,040 --> 00:05:37,581
+When an authorized session is
+available, its schedule, panel,
+
+120
+00:05:37,709 --> 00:05:41,378
+published manuscript, and released
+result can appear in the defense
+
+121
+00:05:41,436 --> 00:05:41,889
+record.
+
+122
+00:05:42,481 --> 00:05:44,884
+This example shows the current
+readiness state.
+
+123
+00:05:45,314 --> 00:05:48,635
+It does not create a session or show
+panelist controls.
+
+124
+00:05:49,233 --> 00:05:52,135
+My Grades separates Class Grades from
+Defense Grades.
+
+125
+00:05:52,565 --> 00:05:55,944
+Open each view and inspect its
+publication or release state.
+
+126
+00:05:56,443 --> 00:05:59,717
+This example has no published class
+grade or released defense
+
+127
+00:05:59,752 --> 00:06:00,274
+result.
+
+128
+00:06:00,866 --> 00:06:03,943
+When results are released, the
+permitted components and reviewer
+
+129
+00:06:04,001 --> 00:06:06,230
+information appear in the
+corresponding view.
+
+130
+00:06:06,822 --> 00:06:10,781
+An unreleased result is unavailable,
+rather than a score of zero.
+
+131
+00:06:11,367 --> 00:06:15,198
+Consultations contains the prepared
+proposal revision consultation
+
+132
+00:06:15,372 --> 00:06:17,764
+and controls for requesting a
+consultation.
+
+133
+00:06:18,356 --> 00:06:21,886
+Inspect its topic, date, time, and
+status.
+
+134
+00:06:22,478 --> 00:06:25,996
+The request form collects a discussion
+topic, preferred schedule,
+
+135
+00:06:26,054 --> 00:06:26,970
+and meeting mode.
+
+136
+00:06:27,655 --> 00:06:31,208
+A request and a scheduled consultation
+represent different states.
+
+137
+00:06:31,638 --> 00:06:35,051
+The walkthrough opens the form without
+creating another booking.
+
+138
+00:06:35,667 --> 00:06:38,999
+Open the consultation notes or chat
+control to inspect its record
+
+139
+00:06:39,022 --> 00:06:39,522
+area.
+
+140
+00:06:40,021 --> 00:06:43,051
+This consultation has no transcript or
+imported chat.
+
+141
+00:06:43,550 --> 00:06:45,872
+The import controls accept supplied
+text;
+
+142
+00:06:46,244 --> 00:06:48,577
+they do not demonstrate automatic
+transcription.
+
+143
+00:06:49,077 --> 00:06:52,177
+When a connected meeting is available,
+its meeting information is
+
+144
+00:06:52,223 --> 00:06:53,164
+displayed here.
+
+145
+00:06:53,849 --> 00:06:57,088
+Previous consultation records depend
+on completed or imported
+
+146
+00:06:57,123 --> 00:06:57,958
+activity.
+
+147
+00:06:58,567 --> 00:07:01,574
+Calendar displays events available to
+your account for the selected
+
+148
+00:07:01,620 --> 00:07:02,201
+period.
+
+149
+00:07:02,700 --> 00:07:06,102
+Inspect the scheduled consultation and
+any deadline or academic
+
+150
+00:07:06,160 --> 00:07:07,878
+event returned for this project.
+
+151
+00:07:08,563 --> 00:07:11,698
+Open an event to read its details and
+related information.
+
+152
+00:07:12,290 --> 00:07:14,601
+Calendar views provide different date
+ranges;
+
+153
+00:07:14,972 --> 00:07:17,747
+the presence of an event depends on
+the underlying record.
+
+154
+00:07:18,246 --> 00:07:21,056
+Defense events will not appear here
+before a defense has been
+
+155
+00:07:21,079 --> 00:07:21,880
+scheduled.
+
+156
+00:07:22,500 --> 00:07:25,565
+Messages provides conversations and
+invitations from permitted
+
+157
+00:07:25,611 --> 00:07:26,413
+participants.
+
+158
+00:07:26,912 --> 00:07:30,151
+The prepared workspace starts without
+a conversation history or
+
+159
+00:07:30,232 --> 00:07:31,405
+pending invitations.
+
+160
+00:07:31,997 --> 00:07:35,248
+Researchers can enter conversations
+through received invitations;
+
+161
+00:07:35,678 --> 00:07:38,627
+creating a group conversation is a
+faculty control.
+
+162
+00:07:39,056 --> 00:07:42,446
+An empty conversation list does not
+demonstrate a live exchange with
+
+163
+00:07:42,481 --> 00:07:43,398
+an adviser.
+
+164
+00:07:44,000 --> 00:07:47,553
+Inbox uses correspondence threads,
+folders, and drafts.
+
+165
+00:07:48,145 --> 00:07:51,883
+Open its compose area to inspect
+recipients, subject, and message
+
+166
+00:07:51,918 --> 00:07:54,147
+fields, then close it without sending.
+
+167
+00:07:54,577 --> 00:07:56,957
+This example does not send
+correspondence.
+
+168
+00:07:57,456 --> 00:08:00,997
+Inbox threads and group conversations
+are separate communication
+
+169
+00:08:01,055 --> 00:08:01,786
+areas.
+
+170
+00:08:02,367 --> 00:08:06,071
+Notifications contains dashboard
+updates, account notices, and
+
+171
+00:08:06,152 --> 00:08:07,197
+earlier notices.
+
+172
+00:08:07,696 --> 00:08:09,995
+Filters distinguish read and unread
+items.
+
+173
+00:08:10,424 --> 00:08:13,129
+Opening a notice follows its
+configured destination;
+
+174
+00:08:13,559 --> 00:08:16,020
+the prepared notices link to the
+dashboard.
+
+175
+00:08:16,633 --> 00:08:19,594
+Profile shows the account information
+associated with the
+
+176
+00:08:19,640 --> 00:08:20,325
+Researcher.
+
+177
+00:08:20,917 --> 00:08:24,563
+Settings includes account information,
+appearance, and notification
+
+178
+00:08:24,621 --> 00:08:25,364
+preferences.
+
+179
+00:08:25,956 --> 00:08:28,742
+Notification preferences here are
+stored in the browser.
+
+180
+00:08:29,334 --> 00:08:32,493
+Open Appearance to inspect the
+available color themes and display
+
+181
+00:08:32,551 --> 00:08:33,003
+modes.
+
+182
+00:08:33,503 --> 00:08:36,637
+Available account changes depend on
+the current account and access
+
+183
+00:08:36,695 --> 00:08:37,531
+rules.
+
+184
+00:08:38,133 --> 00:08:40,768
+That concludes the ADVISIO Researcher
+walkthrough.
+
+185
+00:08:41,453 --> 00:08:44,495
+Return to any section whenever you
+need a refresher while using the
+
+186
+00:08:44,518 --> 00:08:45,378
+platform.

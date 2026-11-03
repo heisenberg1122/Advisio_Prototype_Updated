@@ -4,6 +4,8 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { motion, useReducedMotion } from "motion/react";
+import { uiMotion } from "@/lib/ui-motion";
 
 export interface NavItemProps {
   label: string;
@@ -30,6 +32,8 @@ export function NavItem({
   onClick,
 }: NavItemProps) {
   const pathname = usePathname() || "";
+  const reduceMotion = useReducedMotion();
+  const animateActive = pathname.startsWith("/student/");
   const searchParams = useSearchParams();
   const currentTab = searchParams.get("tab") || "overview";
 
@@ -76,16 +80,29 @@ export function NavItem({
       onClick={onClick}
       title={collapsed ? label : undefined}
       className={cn(
-        "group relative flex items-center select-none outline-none transition-colors duration-150 cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--college-focus-ring)]",
+        "group relative isolate flex items-center select-none outline-none transition-colors duration-150 cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--college-focus-ring)]",
         collapsed
           ? "h-11 w-11 mx-auto justify-center rounded-xl p-0"
           : "h-11 mx-2.5 px-3.5 rounded-xl gap-3.5 text-sm",
         isItemActive
-          ? "bg-[var(--nav-active-bg)] text-[var(--color-primary)] font-semibold shadow-none"
+          ? `${animateActive ? "" : "bg-[var(--nav-active-bg)]"} text-[var(--color-primary)] font-semibold shadow-none`
           : "text-[var(--color-text-primary)]/80 hover:bg-[var(--nav-hover-bg)] hover:text-[var(--color-primary)] dark:text-slate-300 font-medium",
       )}
       aria-current={isItemActive ? "page" : undefined}
     >
+      {animateActive && isItemActive && (
+        <motion.span
+          aria-hidden="true"
+          layoutId="researcher-sidebar-active"
+          initial={false}
+          transition={{
+            duration: reduceMotion ? 0 : uiMotion.state,
+            ease: uiMotion.ease,
+          }}
+          className="pointer-events-none absolute inset-0 rounded-xl bg-[var(--nav-active-bg)]"
+          style={{ zIndex: -1 }}
+        />
+      )}
       <span
         className={cn(
           "flex items-center justify-center shrink-0 w-5 h-5",

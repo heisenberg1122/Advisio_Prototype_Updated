@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { LayoutGroup } from "motion/react";
 import { AppSidebar, NavSection } from "@/components/layout/AppSidebar";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { useActiveProjectContext } from "@/providers/active-project-provider";
@@ -95,15 +96,17 @@ export function StudentSidebar() {
   );
 
   return (
-    <AppSidebar
-      roleTitle="Student Researcher"
-      roleBadge="RESEARCHER PANEL"
-      navSections={navSections}
-      collapsed={collapsed}
-      onToggleCollapse={toggle}
-      settingsHref="/student/settings"
-      profileHref="/student/profile"
-      variant="workspace"
-    />
+    <LayoutGroup id="researcher-navigation">
+      <AppSidebar
+        roleTitle="Student Researcher"
+        roleBadge="RESEARCHER PANEL"
+        navSections={navSections}
+        collapsed={collapsed}
+        onToggleCollapse={toggle}
+        settingsHref="/student/settings"
+        profileHref="/student/profile"
+        variant="workspace"
+      />
+    </LayoutGroup>
   );
 }

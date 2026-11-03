@@ -6,6 +6,7 @@ import { StudentTopbar } from "@/components/dashboards/student/StudentTopbar";
 import { AppWorkspaceFrame } from "@/components/layout/AppWorkspaceFrame";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import "./researcher-workspace-surfaces.css";
+import { WorkspaceMotion } from '@/components/dashboards/student/WorkspaceMotion';
 
 function StudentLayoutInner({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebarCollapsed();
@@ -25,7 +26,7 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
           </Suspense>
         }
       >
-        {children}
+        <WorkspaceMotion>{children}</WorkspaceMotion>
       </AppWorkspaceFrame>
     </div>
   );

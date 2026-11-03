@@ -52,5 +52,6 @@ apps/api/uploads/*
 /tmp/pdfs/
 
 # Misc
+.walkthrough/
 coverage/
 .nyc_output/

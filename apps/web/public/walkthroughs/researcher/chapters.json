@@ -1,0 +1,86 @@
+[
+  {
+    "id": "introduction",
+    "title": "Introduction",
+    "start": 0,
+    "end": 6.666666666666667
+  },
+  {
+    "id": "overview",
+    "title": "Researcher overview",
+    "start": 6.666666666666667,
+    "end": 51
+  },
+  {
+    "id": "project",
+    "title": "My Project",
+    "start": 51,
+    "end": 89.96666666666667
+  },
+  {
+    "id": "tasks",
+    "title": "Tasks and requirements",
+    "start": 89.96666666666667,
+    "end": 142.06666666666666
+  },
+  {
+    "id": "documents",
+    "title": "Documents and revision submission",
+    "start": 142.06666666666666,
+    "end": 266.3
+  },
+  {
+    "id": "files",
+    "title": "Group Files",
+    "start": 266.3,
+    "end": 295.93333333333334
+  },
+  {
+    "id": "timeline",
+    "title": "Timeline and milestones",
+    "start": 295.93333333333334,
+    "end": 325.6
+  },
+  {
+    "id": "defense",
+    "title": "Defense",
+    "start": 325.6,
+    "end": 349.23333333333335
+  },
+  {
+    "id": "grades",
+    "title": "My Grades",
+    "start": 349.23333333333335,
+    "end": 371.3666666666667
+  },
+  {
+    "id": "consultations",
+    "title": "Consultations",
+    "start": 371.3666666666667,
+    "end": 418.56666666666666
+  },
+  {
+    "id": "calendar",
+    "title": "Calendar",
+    "start": 418.56666666666666,
+    "end": 442.5
+  },
+  {
+    "id": "communication",
+    "title": "Messages and Inbox",
+    "start": 442.5,
+    "end": 482.3666666666667
+  },
+  {
+    "id": "preferences",
+    "title": "Notifications, profile and settings",
+    "start": 482.3666666666667,
+    "end": 518.1333333333333
+  },
+  {
+    "id": "handoff",
+    "title": "Researcher Walkthrough Complete",
+    "start": 518.1333333333333,
+    "end": 526
+  }
+]

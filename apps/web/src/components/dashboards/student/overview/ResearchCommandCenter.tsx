@@ -1,4 +1,6 @@
 import React, { type ReactNode } from "react";
+import { motion, useReducedMotion } from 'motion/react';
+import { uiMotion } from '@/lib/ui-motion';
 import "./research-command-center.css";
 
 export interface OverviewAction {
@@ -55,6 +57,7 @@ export function OverviewProjectPanel({
   onProject: () => void;
   onMilestones: () => void;
 }) {
+  const reduceMotion = useReducedMotion();
   return (
     <section
       className="rcc-panel rcc-project"
@@ -124,8 +127,10 @@ export function OverviewProjectPanel({
             aria-valuemax={100}
             aria-valuenow={progress}
           >
-            <div
-              style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            <motion.div
+              initial={false}
+              animate={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+              transition={{ duration: reduceMotion ? 0 : uiMotion.panel, ease: uiMotion.ease }}
             />
           </div>
         </div>
@@ -270,8 +275,8 @@ export function OverviewGettingStarted({
         <button
           type="button"
           className="rcc-icon-action"
-          title="Watch product tour"
-          aria-label="Start interactive guide"
+          title="Researcher walkthrough"
+          aria-label="Open Researcher walkthrough"
           onClick={onTour}
         >
           <i aria-hidden="true" className="ti ti-player-play-filled" />

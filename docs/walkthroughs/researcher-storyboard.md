@@ -1,0 +1,203 @@
+# Researcher storyboard and draft narration
+
+Editorial target: 9:10; actual timing comes from narration alignment.
+
+## 0. Introduction
+
+Route: Title / handoff scene. Proposed budget: 20 seconds.
+
+### welcome — Researcher walkthrough
+
+Capture action: intro.
+
+Welcome to ADVISIO. Explore the Researcher workspace and its core features throughout this walkthrough.
+
+## 1. Researcher overview
+
+Route: /student/dashboard. Proposed budget: 45 seconds.
+
+### dashboard — Project and recent activity
+
+Capture action: overview.
+
+The Overview displays information about your research project. This demonstration follows CampusWay and Research Group A. The project panel identifies the current research stage. Other sections display milestone progress, requirements, upcoming consultation information, and recent updates when those records are available.
+
+### navigation — Researcher navigation
+
+Capture action: sidebar.
+
+The sidebar connects the research workspace, academic activities, and communication areas. My Project, Tasks, Documents, Group Files, and Timeline refer to the research workflow. Defense, My Grades, Consultations, and Calendar show related academic records. The example has one project. A project selector appears where multiple authorized projects require a selection.
+
+## 2. My Project
+
+Route: /student/dashboard?tab=group. Proposed budget: 45 seconds.
+
+### details — Project and workflow
+
+Capture action: project.
+
+Open My Project to inspect the title, project details, assigned adviser, and current workflow. A project contains the research work and participants. Its configured workflow defines the stages and requirements used to track that work. This demonstration project is already enrolled in its assigned workflow.
+
+### team — Research group
+
+Capture action: group.
+
+Select My Group to inspect membership and the group leader. This example uses a fictional research team and adviser. Team and adviser-request actions depend on leadership and assignment status. This project already has an accepted adviser. The group area connects these participants to the same research project.
+
+## 3. Tasks and requirements
+
+Route: /student/tasks. Proposed budget: 55 seconds.
+
+### list — Tasks and requirements
+
+Capture action: tasks.
+
+Tasks lists the requirements associated with the enrolled workflow. Inspect each item's status, deadline, and milestone. In this prepared workspace, the initial scope requirement has been approved and the research proposal requires revision. Later requirements may be locked until the configured prerequisites are satisfied. A completed item and a future item therefore represent different points in the same workflow.
+
+### instructions — Task instructions
+
+Capture action: task.
+
+Open Revised research proposal. Read its instructions before selecting a file or document. The detail workspace connects the requirement to its submission, faculty feedback, and milestone information. Review the recorded guidance about route-selection rules and the requirements-to-test matrix. Faculty resources appear when attached; none are prepared here. The next chapter follows this task into the document and revision submission.
+
+## 4. Documents and revision submission
+
+Route: /student/documents. Proposed budget: 105 seconds.
+
+### library — Research proposal
+
+Capture action: documents.
+
+Documents contains working files and records associated with research requirements. Open Research proposal to inspect its lifecycle status, milestone, and available versions. A working document and a submitted version have different purposes: the working file can be prepared for a requirement, while the submitted record identifies the version sent for faculty review.
+
+### versions — Submitted version and feedback
+
+Capture action: versions.
+
+Select version one to inspect the earlier submitted snapshot, then open its Feedback tab. This prepared version shows no feedback in the current document viewer. Return to version two to inspect its active review assignment. The task page contains the prepared revision guidance. Feedback belongs to the version on which it is recorded; selecting a later version does not move earlier comments to that version. Where linked review comments are available, the feedback area displays them with their recorded state.
+
+### working — Working document
+
+Capture action: upload-dialog.
+
+The Add menu includes working-file upload and Google document options. A working-file upload can be associated with a milestone, but uploading alone does not submit it for review. Google document creation and connected operations require an available integration. This demonstration uses a local PDF; no Google connection is established.
+
+### submit — Review the submission
+
+Capture action: revision.
+
+Return to the proposal task and select the prepared revision PDF. Review the file, requirement, and project in the submission confirmation before confirming. The application records the revision for the group and displays the resulting submission state. Submission does not mean approval. Faculty review determines the later decision, and the workflow applies its configured requirements. This connects the task, document version, submission, and review process.
+
+### official — Official document availability
+
+Capture action: official.
+
+Official documents are a separate published record. This prepared Researcher workspace has no official copies. Researchers can inspect copies made available to them; approval, signing, and finalization are not demonstrated through this role. Use the task's submission history and document versions to inspect what was sent and any feedback that becomes available.
+
+## 5. Group Files
+
+Route: /student/group-files. Proposed budget: 35 seconds.
+
+### shared — Shared working files
+
+Capture action: files.
+
+Group Files stores shared working material in folders. Create a folder, open it, and add the demonstration PDF. The upload dialog shows the selected file before it enters the list. Files can be opened or downloaded, searched, and sorted. Available actions include moving files and adding a file to Documents. Shared storage does not itself submit a requirement or create a faculty review. Use Documents and the associated task for that record.
+
+## 6. Timeline and milestones
+
+Route: /student/dashboard?tab=milestones. Proposed budget: 35 seconds.
+
+### stages — Configured milestone sequence
+
+Capture action: timeline.
+
+Timeline presents the milestone sequence configured for this research workflow. Compare completed scope preparation, the current proposal work, and later stages. Inspect available requirements, target dates, and progress information. The sequence comes from the assigned workflow rather than a separate personal checklist. A later stage may remain unavailable while prerequisites or approval remain outstanding. Returning to a task shows the work associated with that point in the sequence.
+
+## 7. Defense
+
+Route: /student/defense. Proposed budget: 25 seconds.
+
+### readiness — Defense readiness
+
+Capture action: defense.
+
+Defense displays the project's readiness and defense-related records. No defense session has been created for this prepared Researcher workspace. When an authorized session is available, its schedule, panel, published manuscript, and released result can appear in the defense record. This example shows the current readiness state. It does not create a session or show panelist controls.
+
+## 8. My Grades
+
+Route: /student/grades. Proposed budget: 25 seconds.
+
+### release — Grade release state
+
+Capture action: grades.
+
+My Grades separates Class Grades from Defense Grades. Open each view and inspect its publication or release state. This example has no published class grade or released defense result. When results are released, the permitted components and reviewer information appear in the corresponding view. An unreleased result is unavailable, rather than a score of zero.
+
+## 9. Consultations
+
+Route: /student/dashboard?tab=consultations. Proposed budget: 50 seconds.
+
+### schedule — Upcoming consultation
+
+Capture action: consultations.
+
+Consultations contains the prepared proposal revision consultation and controls for requesting a consultation. Inspect its topic, date, time, and status. The request form collects a discussion topic, preferred schedule, and meeting mode. A request and a scheduled consultation represent different states. The walkthrough opens the form without creating another booking.
+
+### records — Notes and chat archive
+
+Capture action: notes.
+
+Open the consultation notes or chat control to inspect its record area. This consultation has no transcript or imported chat. The import controls accept supplied text; they do not demonstrate automatic transcription. When a connected meeting is available, its meeting information is displayed here. Previous consultation records depend on completed or imported activity.
+
+## 10. Calendar
+
+Route: /student/calendar. Proposed budget: 25 seconds.
+
+### events — Research events
+
+Capture action: calendar.
+
+Calendar displays events available to your account for the selected period. Inspect the scheduled consultation and any deadline or academic event returned for this project. Open an event to read its details and related information. Calendar views provide different date ranges; the presence of an event depends on the underlying record. Defense events will not appear here before a defense has been scheduled.
+
+## 11. Messages and Inbox
+
+Route: /student/dashboard?tab=group-chats. Proposed budget: 30 seconds.
+
+### chat — Conversations
+
+Capture action: messages.
+
+Messages provides conversations and invitations from permitted participants. The prepared workspace starts without a conversation history or pending invitations. Researchers can enter conversations through received invitations; creating a group conversation is a faculty control. An empty conversation list does not demonstrate a live exchange with an adviser.
+
+### mail — Correspondence
+
+Capture action: inbox.
+
+Inbox uses correspondence threads, folders, and drafts. Open its compose area to inspect recipients, subject, and message fields, then close it without sending. This example does not send correspondence. Inbox threads and group conversations are separate communication areas.
+
+## 12. Notifications, profile and settings
+
+Route: /student/notifications. Proposed budget: 30 seconds.
+
+### notices — Notifications and read state
+
+Capture action: notifications.
+
+Notifications contains dashboard updates, account notices, and earlier notices. Filters distinguish read and unread items. Opening a notice follows its configured destination; the prepared notices link to the dashboard.
+
+### account — Profile and appearance
+
+Capture action: preferences.
+
+Profile shows the account information associated with the Researcher. Settings includes account information, appearance, and notification preferences. Notification preferences here are stored in the browser. Open Appearance to inspect the available color themes and display modes. Available account changes depend on the current account and access rules.
+
+## 13. Researcher Walkthrough Complete
+
+Route: Title / handoff scene. Proposed budget: 25 seconds.
+
+### continue — Explore independently
+
+Capture action: outro.
+
+That concludes the ADVISIO Researcher walkthrough. Return to any section whenever you need a refresher while using the platform.

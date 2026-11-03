@@ -36,48 +36,10 @@ import {
   recordConsultationImportReceipts,
   type ConsultationItem,
 } from "@/lib/consultation-store";
-import { ProductTour, TourStep } from "@/components/shared/ProductTour";
 import { StudentGanttChart } from "@/components/dashboards/student/StudentGanttChart";
 import { getOrderedWorkflowStages } from "@/lib/workflow-progress";
 import { useNotifications as useStudentNotifications } from "@/hooks/use-student";
 import { useActiveProject } from "@/providers/active-project-provider";
-
-const STUDENT_TOUR_STEPS: TourStep[] = [
-  {
-    title: "Welcome to Advisio Research Portal",
-    content: "This is your comprehensive workspace for capstone and thesis research. Let's take a quick tour of your essential tools.",
-  },
-  {
-    selector: '[data-tour="tab-overview"]',
-    title: "Project Overview",
-    content: "Monitor your active research topic, assigned group members, and overall milestone progress at a glance.",
-  },
-  {
-    selector: '[data-tour="tab-workspace"]',
-    title: "Document Workspace",
-    content: "Draft chapters, annotate PDF manuscripts, collaborate with teammates, and review inline faculty comments.",
-  },
-  {
-    selector: '[data-tour="tab-submissions"]',
-    title: "Formal Submissions",
-    content: "Submit versioned manuscript drafts for adviser endorsement, ethics review, and defense panel evaluations.",
-  },
-  {
-    selector: '[data-tour="tab-consultations"]',
-    title: "Adviser Consultations & Meet",
-    content: "Book consultation slots with your faculty adviser, launch synchronized Google Meet rooms, and review AI transcripts.",
-  },
-  {
-    selector: '[data-tour="tab-milestones"]',
-    title: "Institutional Milestones",
-    content: "Keep track of institutional deadlines, defense schedules, and college research workflow stages.",
-  },
-  {
-    selector: '[data-tour="tab-chat"]',
-    title: "Real-Time Group Chat",
-    content: "Direct, instant group chat with your research partners and faculty adviser powered by real-time event streaming.",
-  },
-];
 
 function StudentDashboardContent() {
   const router = useRouter();
@@ -96,7 +58,6 @@ function StudentDashboardContent() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: apiNotifications = [] } = useStudentNotifications();
-  const [isTourOpen, setIsTourOpen] = useState(false);
 
   // Auto-redirect if tab is workspace or documents to the modern /student/documents workspace
   useEffect(() => {
@@ -1486,14 +1447,6 @@ function StudentDashboardContent() {
 
       {groupAction && <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-labelledby="group-action-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !groupActionPending) setGroupAction(null); }}><div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-start gap-3"><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${groupAction.type === "transfer" ? "bg-blue-50 text-blue-700" : "bg-rose-50 text-rose-600"}`}><i className={`ti ${groupAction.type === "transfer" ? "ti-user-star" : "ti-alert-triangle"} text-xl`} /></span><div><h2 id="group-action-title" className="text-lg font-extrabold text-[#102f49]">{groupAction.type === "transfer" ? "Transfer group leadership?" : groupAction.type === "leave" ? "Leave this research group?" : groupAction.type === "disband" ? "Disband and archive this group?" : groupAction.type === "delete" ? "Permanently delete rejected project?" : "Remove this member?"}</h2><p className="mt-2 text-base leading-6 text-slate-600">{groupAction.type === "transfer" ? `${groupAction.member?.user?.firstName} ${groupAction.member?.user?.lastName} will become the group leader. You will remain as a member.` : groupAction.type === "leave" ? "You will lose access to the group, but your previous submissions and activity attribution will remain." : groupAction.type === "disband" ? "All active memberships will end and the project will be archived. Academic records and submissions will be preserved." : groupAction.type === "delete" ? `The rejected project “${activeProject?.title}” will be permanently deleted. You can register a replacement afterward.` : `${groupAction.member?.user?.firstName} ${groupAction.member?.user?.lastName} will lose group access. Their previous contributions will remain attributed to them.`}</p></div></div><div className="mt-6 flex justify-end gap-2"><button onClick={() => setGroupAction(null)} disabled={groupActionPending} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button><button onClick={executeGroupAction} disabled={groupActionPending} className={`rounded-xl px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-50 ${groupAction.type === "transfer" ? "submission-action bg-[#173f63]" : "bg-rose-600"}`}>{groupActionPending ? "Processing…" : groupAction.type === "transfer" ? "Confirm transfer" : groupAction.type === "leave" ? "Confirm leave" : groupAction.type === "disband" ? "Confirm disband" : groupAction.type === "delete" ? "Delete project" : "Confirm removal"}</button></div></div></div>}
 
-      <ProductTour
-        tourKey="student_onboarding_v1"
-        steps={STUDENT_TOUR_STEPS}
-        isOpen={isTourOpen ? true : undefined}
-        onClose={() => setIsTourOpen(false)}
-        autoStart={false}
-      />
-
       {/* MAIN CONTAINER */}
       <div className={`workspace-page w-full flex-1 space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
         {((researchData?.projects?.length || 0) > 1 || projectSelection.invalidRequestedProjectId) && (
@@ -1595,7 +1548,7 @@ function StudentDashboardContent() {
                 <div className="rcc-activity-grid">
                   <OverviewConsultation consultation={consultations.length > 0 ? consultations[0] : null} onConsultations={() => handleTabChange("consultations")} />
                   <OverviewGettingStarted
-                    onTour={() => setIsTourOpen(true)}
+                    onTour={() => router.push(localStorage.getItem("advisio_token") === "__evaluation__" ? "/evaluate/guide" : "/walkthrough/research-dashboard")}
                     steps={[
                       {
                         label: canCreateResearch || activeProject ? "Register project" : "View group",

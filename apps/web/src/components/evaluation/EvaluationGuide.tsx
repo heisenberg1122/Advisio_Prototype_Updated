@@ -14,6 +14,7 @@ import {
   EvaluationSupport,
 } from "./EvaluationShared";
 import "./evaluation.css";
+import { ResearcherWalkthrough } from "./ResearcherWalkthrough";
 
 export default function EvaluationGuide() {
   const [config, setConfig] = useState<EvaluationConfig | null>(null);
@@ -90,6 +91,12 @@ export default function EvaluationGuide() {
             )}
           </div>
         )}
+        {selectedRole?.id === "student" && (
+          <ResearcherWalkthrough
+            context="evaluation"
+            onContinue={session ? startActivities : undefined}
+          />
+        )}
         <section
           className="evaluation-written-guide"
           aria-labelledby="guide-start"
@@ -151,10 +158,6 @@ export default function EvaluationGuide() {
             then open the TAM questionnaire. Base your answers on using ADVISIO,
             rather than on this introduction. Submit the form in Google Forms,
             then return to end your practice session.
-          </p>
-          <p className="evaluation-help">
-            The video walkthrough is coming soon. Reading this guide is enough
-            to proceed.
           </p>
         </section>
         <div className="evaluation-actions">

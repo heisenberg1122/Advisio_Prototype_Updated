@@ -1,0 +1,334 @@
+{
+  "id": "researcher",
+  "title": "ADVISIO Researcher Walkthrough",
+  "role": "student",
+  "course": "BSIT",
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "proposedSeconds": 550,
+  "maximumSeconds": 600,
+  "voiceDirection": "A tutor: gentle but firm, natural rather than robotic. Neutral academic instruction, clear English, no exaggerated enthusiasm. Aim for 145–160 words per minute.",
+  "pronunciation": {
+    "word": "ADVISIO",
+    "alias": "ad vi sho",
+    "confirmed": true
+  },
+  "chapters": [
+    {
+      "id": "introduction",
+      "title": "Introduction",
+      "route": null,
+      "budgetSeconds": 20,
+      "guide": "A guided tour of the Researcher workspace and its core features. The demonstration uses fictional research records.",
+      "activity": "Open the Researcher workspace.",
+      "beats": [
+        {
+          "id": "welcome",
+          "action": "intro",
+          "callout": "Researcher walkthrough",
+          "narration": "Welcome to ADVISIO. Explore the Researcher workspace and its core features throughout this walkthrough.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "overview",
+      "title": "Researcher overview",
+      "route": "/student/dashboard",
+      "budgetSeconds": 45,
+      "guide": "Inspect the active project, current stage, milestone progress, pending requirements, consultation summary and recent activity.",
+      "activity": "Locate the current milestone.",
+      "beats": [
+        {
+          "id": "dashboard",
+          "action": "overview",
+          "callout": "Project and recent activity",
+          "narration": "The Overview displays information about your research project. This demonstration follows CampusWay and Research Group A. The project panel identifies the current research stage. Other sections display milestone progress, requirements, upcoming consultation information, and recent updates when those records are available.",
+          "framing": "overview"
+        },
+        {
+          "id": "navigation",
+          "action": "sidebar",
+          "callout": "Researcher navigation",
+          "narration": "The sidebar connects the research workspace, academic activities, and communication areas. My Project, Tasks, Documents, Group Files, and Timeline refer to the research workflow. Defense, My Grades, Consultations, and Calendar show related academic records. The example has one project. A project selector appears where multiple authorized projects require a selection.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "project",
+      "title": "My Project",
+      "route": "/student/dashboard?tab=group",
+      "budgetSeconds": 45,
+      "guide": "Review project details, adviser and workflow. My Group shows membership and leader information. Access and adviser actions depend on project status and your role.",
+      "activity": "Open My Group and inspect the roster.",
+      "beats": [
+        {
+          "id": "details",
+          "action": "project",
+          "callout": "Project and workflow",
+          "narration": "Open My Project to inspect the title, project details, assigned adviser, and current workflow. A project contains the research work and participants. Its configured workflow defines the stages and requirements used to track that work. This demonstration project is already enrolled in its assigned workflow.",
+          "framing": "overview"
+        },
+        {
+          "id": "team",
+          "action": "group",
+          "callout": "Research group",
+          "narration": "Select My Group to inspect membership and the group leader. This example uses a fictional research team and adviser. Team and adviser-request actions depend on leadership and assignment status. This project already has an accepted adviser. The group area connects these participants to the same research project.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "tasks",
+      "title": "Tasks and requirements",
+      "route": "/student/tasks",
+      "budgetSeconds": 55,
+      "guide": "Read task statuses, deadlines and instructions. Open a task to inspect its submission, faculty guidance and milestone context.",
+      "activity": "Open Revised research proposal.",
+      "beats": [
+        {
+          "id": "list",
+          "action": "tasks",
+          "callout": "Tasks and requirements",
+          "narration": "Tasks lists the requirements associated with the enrolled workflow. Inspect each item's status, deadline, and milestone. In this prepared workspace, the initial scope requirement has been approved and the research proposal requires revision. Later requirements may be locked until the configured prerequisites are satisfied. A completed item and a future item therefore represent different points in the same workflow.",
+          "framing": "overview"
+        },
+        {
+          "id": "instructions",
+          "action": "task",
+          "callout": "Task instructions",
+          "narration": "Open Revised research proposal. Read its instructions before selecting a file or document. The detail workspace connects the requirement to its submission, faculty feedback, and milestone information. Review the recorded guidance about route-selection rules and the requirements-to-test matrix. Faculty resources appear when attached; none are prepared here. The next chapter follows this task into the document and revision submission.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "documents",
+      "title": "Documents and revision submission",
+      "route": "/student/documents",
+      "budgetSeconds": 105,
+      "guide": "Compare preserved document versions and their review context. Working-file uploads and formal task submissions are separate actions. A submission records the version sent for faculty review.",
+      "activity": "Inspect a version, then review the related task submission.",
+      "beats": [
+        {
+          "id": "library",
+          "action": "documents",
+          "callout": "Research proposal",
+          "narration": "Documents contains working files and records associated with research requirements. Open Research proposal to inspect its lifecycle status, milestone, and available versions. A working document and a submitted version have different purposes: the working file can be prepared for a requirement, while the submitted record identifies the version sent for faculty review.",
+          "framing": "overview"
+        },
+        {
+          "id": "versions",
+          "action": "versions",
+          "callout": "Submitted version and feedback",
+          "narration": "Select version one to inspect the earlier submitted snapshot, then open its Feedback tab. This prepared version shows no feedback in the current document viewer. Return to version two to inspect its active review assignment. The task page contains the prepared revision guidance. Feedback belongs to the version on which it is recorded; selecting a later version does not move earlier comments to that version. Where linked review comments are available, the feedback area displays them with their recorded state.",
+          "framing": "detail"
+        },
+        {
+          "id": "working",
+          "action": "upload-dialog",
+          "callout": "Working document",
+          "narration": "The Add menu includes working-file upload and Google document options. A working-file upload can be associated with a milestone, but uploading alone does not submit it for review. Google document creation and connected operations require an available integration. This demonstration uses a local PDF; no Google connection is established.",
+          "framing": "overview"
+        },
+        {
+          "id": "submit",
+          "action": "revision",
+          "callout": "Review the submission",
+          "narration": "Return to the proposal task and select the prepared revision PDF. Review the file, requirement, and project in the submission confirmation before confirming. The application records the revision for the group and displays the resulting submission state. Submission does not mean approval. Faculty review determines the later decision, and the workflow applies its configured requirements. This connects the task, document version, submission, and review process.",
+          "framing": "overview",
+          "visual": "submission"
+        },
+        {
+          "id": "official",
+          "action": "official",
+          "callout": "Official document availability",
+          "narration": "Official documents are a separate published record. This prepared Researcher workspace has no official copies. Researchers can inspect copies made available to them; approval, signing, and finalization are not demonstrated through this role. Use the task's submission history and document versions to inspect what was sent and any feedback that becomes available.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "files",
+      "title": "Group Files",
+      "route": "/student/group-files",
+      "budgetSeconds": 35,
+      "guide": "Use folders to store shared project material. Adding a shared file does not submit a requirement.",
+      "activity": "Open a folder and inspect its files.",
+      "beats": [
+        {
+          "id": "shared",
+          "action": "files",
+          "callout": "Shared working files",
+          "narration": "Group Files stores shared working material in folders. Create a folder, open it, and add the demonstration PDF. The upload dialog shows the selected file before it enters the list. Files can be opened or downloaded, searched, and sorted. Available actions include moving files and adding a file to Documents. Shared storage does not itself submit a requirement or create a faculty review. Use Documents and the associated task for that record.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "timeline",
+      "title": "Timeline and milestones",
+      "route": "/student/dashboard?tab=milestones",
+      "budgetSeconds": 35,
+      "guide": "The timeline reflects the configured workflow, with completed, current and future stages. Review gates and prerequisites determine progression.",
+      "activity": "Compare the current milestone with the next stage.",
+      "beats": [
+        {
+          "id": "stages",
+          "action": "timeline",
+          "callout": "Configured milestone sequence",
+          "narration": "Timeline presents the milestone sequence configured for this research workflow. Compare completed scope preparation, the current proposal work, and later stages. Inspect available requirements, target dates, and progress information. The sequence comes from the assigned workflow rather than a separate personal checklist. A later stage may remain unavailable while prerequisites or approval remain outstanding. Returning to a task shows the work associated with that point in the sequence.",
+          "framing": "overview",
+          "visual": "workflow"
+        }
+      ]
+    },
+    {
+      "id": "defense",
+      "title": "Defense",
+      "route": "/student/defense",
+      "budgetSeconds": 25,
+      "guide": "Inspect defense readiness and requirements. A session, panel, published manuscript and results appear when available to the project.",
+      "activity": "Inspect the current defense state.",
+      "beats": [
+        {
+          "id": "readiness",
+          "action": "defense",
+          "callout": "Defense readiness",
+          "narration": "Defense displays the project's readiness and defense-related records. No defense session has been created for this prepared Researcher workspace. When an authorized session is available, its schedule, panel, published manuscript, and released result can appear in the defense record. This example shows the current readiness state. It does not create a session or show panelist controls.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "grades",
+      "title": "My Grades",
+      "route": "/student/grades",
+      "budgetSeconds": 25,
+      "guide": "Class Grades and Defense Grades display records according to publication and release rules.",
+      "activity": "Inspect the release state in each view.",
+      "beats": [
+        {
+          "id": "release",
+          "action": "grades",
+          "callout": "Grade release state",
+          "narration": "My Grades separates Class Grades from Defense Grades. Open each view and inspect its publication or release state. This example has no published class grade or released defense result. When results are released, the permitted components and reviewer information appear in the corresponding view. An unreleased result is unavailable, rather than a score of zero.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "consultations",
+      "title": "Consultations",
+      "route": "/student/dashboard?tab=consultations",
+      "budgetSeconds": 50,
+      "guide": "Inspect scheduled consultations and the request form. Notes and chat import are separate from joining a connected meeting.",
+      "activity": "Open the available consultation record.",
+      "beats": [
+        {
+          "id": "schedule",
+          "action": "consultations",
+          "callout": "Upcoming consultation",
+          "narration": "Consultations contains the prepared proposal revision consultation and controls for requesting a consultation. Inspect its topic, date, time, and status. The request form collects a discussion topic, preferred schedule, and meeting mode. A request and a scheduled consultation represent different states. The walkthrough opens the form without creating another booking.",
+          "framing": "overview"
+        },
+        {
+          "id": "records",
+          "action": "notes",
+          "callout": "Notes and chat archive",
+          "narration": "Open the consultation notes or chat control to inspect its record area. This consultation has no transcript or imported chat. The import controls accept supplied text; they do not demonstrate automatic transcription. When a connected meeting is available, its meeting information is displayed here. Previous consultation records depend on completed or imported activity.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "calendar",
+      "title": "Calendar",
+      "route": "/student/calendar",
+      "budgetSeconds": 25,
+      "guide": "Inspect authorized events for the selected period and open an event to read its details.",
+      "activity": "Find a consultation or task deadline.",
+      "beats": [
+        {
+          "id": "events",
+          "action": "calendar",
+          "callout": "Research events",
+          "narration": "Calendar displays events available to your account for the selected period. Inspect the scheduled consultation and any deadline or academic event returned for this project. Open an event to read its details and related information. Calendar views provide different date ranges; the presence of an event depends on the underlying record. Defense events will not appear here before a defense has been scheduled.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "communication",
+      "title": "Messages and Inbox",
+      "route": "/student/dashboard?tab=group-chats",
+      "budgetSeconds": 30,
+      "guide": "Messages contains conversations and invitations. Inbox contains correspondence threads, drafts and folders. Group conversation creation is a faculty control.",
+      "activity": "Compare Messages with Inbox.",
+      "beats": [
+        {
+          "id": "chat",
+          "action": "messages",
+          "callout": "Conversations",
+          "narration": "Messages provides conversations and invitations from permitted participants. The prepared workspace starts without a conversation history or pending invitations. Researchers can enter conversations through received invitations; creating a group conversation is a faculty control. An empty conversation list does not demonstrate a live exchange with an adviser.",
+          "framing": "overview"
+        },
+        {
+          "id": "mail",
+          "action": "inbox",
+          "callout": "Correspondence",
+          "narration": "Inbox uses correspondence threads, folders, and drafts. Open its compose area to inspect recipients, subject, and message fields, then close it without sending. This example does not send correspondence. Inbox threads and group conversations are separate communication areas.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "preferences",
+      "title": "Notifications, profile and settings",
+      "route": "/student/notifications",
+      "budgetSeconds": 30,
+      "guide": "Review notification read states and destinations. Profile contains account information; Settings includes appearance and browser-local notification preferences.",
+      "activity": "Open a notice, then locate Appearance.",
+      "beats": [
+        {
+          "id": "notices",
+          "action": "notifications",
+          "callout": "Notifications and read state",
+          "narration": "Notifications contains dashboard updates, account notices, and earlier notices. Filters distinguish read and unread items. Opening a notice follows its configured destination; the prepared notices link to the dashboard.",
+          "framing": "overview"
+        },
+        {
+          "id": "account",
+          "action": "preferences",
+          "callout": "Profile and appearance",
+          "narration": "Profile shows the account information associated with the Researcher. Settings includes account information, appearance, and notification preferences. Notification preferences here are stored in the browser. Open Appearance to inspect the available color themes and display modes. Available account changes depend on the current account and access rules.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "handoff",
+      "title": "Researcher Walkthrough Complete",
+      "route": null,
+      "budgetSeconds": 25,
+      "guide": "The Researcher walkthrough is complete. Return to any chapter for a refresher while using ADVISIO.",
+      "activity": "Explore the Researcher workspace.",
+      "beats": [
+        {
+          "id": "continue",
+          "action": "outro",
+          "callout": "Explore independently",
+          "narration": "That concludes the ADVISIO Researcher walkthrough. Return to any section whenever you need a refresher while using the platform.",
+          "framing": "overview"
+        }
+      ]
+    }
+  ],
+  "audience": "general",
+  "presentationVersion": 2,
+  "introSubtitle": "A guided tour of the Researcher workspace and its core features.",
+  "outroTitle": "Researcher Walkthrough Complete",
+  "outroSubtitle": "You’re ready to explore the Researcher workspace. Return to any section for a refresher."
+}
