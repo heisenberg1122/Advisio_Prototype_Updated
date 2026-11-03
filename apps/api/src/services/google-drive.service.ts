@@ -6,6 +6,7 @@ import fs from "node:fs";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 import { emptyQuota, quotaSnapshot } from "./drive-storage.js";
+import { milestoneFolderName } from "../lib/storage-names.js";
 
 const PROVIDER = "GOOGLE_DRIVE";
 const ROOT_FOLDER_NAME = "ADVISIO_RESEARCH_DOCUMENTS";
@@ -622,6 +623,43 @@ class GoogleDriveService {
     return this.getStatus();
   }
 
+  /** Update only the label of a folder already mapped to this milestone. */
+  public async synchronizeMilestoneFolderName(folderId: string, stageId: string) {
+    return prisma.$transaction(async (tx) => {
+      // Serialize requests across API instances. Read the current milestone name
+      // after taking the lock so an older request cannot restore an old label.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`drive-folder-name:${folderId}`}, 0))`;
+      const [folder, stage] = await Promise.all([
+        tx.storageFolder.findFirst({
+          where: {
+            provider: PROVIDER,
+            externalFolderId: folderId,
+            entityType: "WORKFLOW_STAGE",
+            entityId: stageId,
+          },
+        }),
+        tx.workflowStage.findUnique({ where: { id: stageId }, select: { name: true } }),
+      ]);
+      if (!folder || !stage) return false;
+      const name = milestoneFolderName(stage.name);
+      if (folder.name === name) return true;
+      if (folderId.startsWith("local-folder-")) {
+        if (process.env.ALLOW_LOCAL_STORAGE_FALLBACK !== "true") return false;
+      } else {
+        const connection = await this.connectedClient();
+        if (!connection?.drive) throw new Error("Google Drive is not connected");
+        await connection.drive.files.update(
+          { fileId: folderId, requestBody: { name }, supportsAllDrives: true, fields: "id" },
+          { timeout: DRIVE_REQUEST_TIMEOUT_MS },
+        );
+      }
+      // Do not mark a failed remote rename as synchronized. The unchanged stored
+      // name makes a later folder resolution retry the same folder ID.
+      await tx.storageFolder.update({ where: { id: folder.id }, data: { name } });
+      return true;
+    }, { timeout: 30_000 });
+  }
+
   /**
    * Resolves an Advisio folder path below the connected storage root. Missing
    * folders are created once and their Drive IDs are persisted for later use.
@@ -632,6 +670,7 @@ class GoogleDriveService {
       key: string;
       entityType?: string;
       entityId?: string;
+      syncMilestoneName?: boolean;
     }>,
   ): Promise<string> {
     const connection = await this.connectedClient();
@@ -651,8 +690,8 @@ class GoogleDriveService {
       accumulatedKeys.push(segment.key);
       const pathKey = accumulatedKeys.join("/");
       const mappedRows = await prisma.$queryRaw<
-        Array<{ externalFolderId: string }>
-      >`SELECT "external_folder_id" AS "externalFolderId"
+        Array<{ externalFolderId: string; name: string }>
+      >`SELECT "external_folder_id" AS "externalFolderId", "name"
         FROM "storage_folders"
         WHERE "provider" = ${PROVIDER} AND "path_key" = ${pathKey}
         LIMIT 1`;
@@ -662,6 +701,11 @@ class GoogleDriveService {
         // health is checked separately by administration/recovery workflows,
         // avoiding a Google API round-trip for every parent on every upload.
         parentFolderId = mapped.externalFolderId;
+        if (segment.syncMilestoneName && mapped.name !== segment.name && segment.entityId) {
+          await this.synchronizeMilestoneFolderName(parentFolderId, segment.entityId).catch(() => {
+            console.warn(`Milestone ${segment.entityId} folder name update deferred; it will retry on next use.`);
+          });
+        }
         continue;
       }
 
@@ -762,6 +806,11 @@ class GoogleDriveService {
           "The storage folder changed during upload. Please retry.",
         );
       parentFolderId = resolvedFolderId;
+      if (segment.syncMilestoneName && segment.entityId) {
+        await this.synchronizeMilestoneFolderName(parentFolderId, segment.entityId).catch(() => {
+          console.warn(`Milestone ${segment.entityId} folder name update deferred; it will retry on next use.`);
+        });
+      }
     }
     return parentFolderId;
   }

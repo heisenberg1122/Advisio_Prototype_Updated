@@ -1,5 +1,9 @@
 import { prisma } from "../lib/prisma.js";
 import { googleDriveService } from "./google-drive.service.js";
+import {
+  milestoneFolderName,
+  safeStorageName as safeName,
+} from "../lib/storage-names.js";
 
 export type WorkspaceBucket =
   | "WORKING"
@@ -13,18 +17,6 @@ const BUCKETS: Array<{ bucket: WorkspaceBucket; name: string }> = [
   { bucket: "FEEDBACK", name: "03-Feedback" },
   { bucket: "OFFICIAL", name: "04-Official-Copies" },
 ];
-
-function safeName(value: string, fallback: string) {
-  const normalized = value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[\\/:*?"<>|#%{}~]/g, "-")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 120);
-  return normalized || fallback;
-}
 
 function prefixed(prefix: string, code: string, name?: string | null) {
   const codePart = safeName(code, "UNSPECIFIED").toUpperCase();
@@ -107,13 +99,38 @@ class StorageHierarchyService {
     }));
   }
 
-  private stageSegment(stage: { id: string; name: string; sequence: number }) {
+  private stageSegment(stage: { id: string; name: string }) {
     return {
-      name: `${String(stage.sequence).padStart(2, "0")}-${safeName(stage.name, "Milestone")}`,
+      name: milestoneFolderName(stage.name),
       key: `stage:${stage.id}`,
       entityType: "WORKFLOW_STAGE",
       entityId: stage.id,
+      syncMilestoneName: !stage.id.startsWith("general-"),
     };
+  }
+
+  /** Rename only folders already mapped to this milestone, never their contents. */
+  public async synchronizeStageFolderNames(stageId: string) {
+    const folders = await prisma.storageFolder.findMany({
+      where: {
+        provider: "GOOGLE_DRIVE",
+        entityType: "WORKFLOW_STAGE",
+        entityId: stageId,
+      },
+      select: { externalFolderId: true },
+    });
+    let failedFolders = 0;
+    for (let index = 0; index < folders.length; index += 3) {
+      const results = await Promise.allSettled(
+        folders.slice(index, index + 3).map(({ externalFolderId }) =>
+          googleDriveService.synchronizeMilestoneFolderName(externalFolderId, stageId),
+        ),
+      );
+      failedFolders += results.filter(
+        result => result.status === "rejected" || !result.value,
+      ).length;
+    }
+    return { folders: folders.length, failedFolders };
   }
 
   /** Creates the complete group hierarchy, including every configured milestone. */

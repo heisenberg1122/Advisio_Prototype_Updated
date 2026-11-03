@@ -2895,6 +2895,15 @@ router.patch(
         stage.id,
       );
       res.json({ stage });
+      if (stage.name !== existing.name) {
+        // The database edit is committed before contacting Drive. Folder IDs and
+        // files stay in place; failed name updates retry during folder access.
+        void storageHierarchyService.synchronizeStageFolderNames(stage.id)
+          .then(({ failedFolders }) => {
+            if (failedFolders) console.warn(`Milestone ${stage.id} folder name updates deferred for ${failedFolders} folder(s).`);
+          })
+          .catch(() => console.warn(`Milestone ${stage.id} folder name updates deferred.`));
+      }
     } catch (error: any) {
       res
         .status(error.statusCode || (["P2003", "P2034"].includes(error.code) ? 409 : 500))

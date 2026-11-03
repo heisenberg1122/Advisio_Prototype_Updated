@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
-  mappings: new Map<string, { externalFolderId: string; parent: string }>(),
+  mappings: new Map<
+    string,
+    { externalFolderId: string; parent: string; name?: string }
+  >(),
   query: vi.fn(),
   execute: vi.fn(),
   list: vi.fn(),
@@ -23,7 +26,9 @@ beforeEach(() => {
   state.mappings.clear();
   state.query.mockImplementation(async (_sql, _provider, key) => {
     const row = state.mappings.get(key);
-    return row ? [{ externalFolderId: row.externalFolderId }] : [];
+    return row
+      ? [{ externalFolderId: row.externalFolderId, name: row.name }]
+      : [];
   });
   state.execute.mockImplementation(async (sql, _provider, key, id, parent) => {
     const conflict =
@@ -52,6 +57,46 @@ afterEach(() => {
 });
 
 describe("Google Drive folder identity reservation", () => {
+  it("normalizes an old numbered label while retaining the mapped parent and file destination", async () => {
+    state.mappings.set(segment.key, {
+      externalFolderId: "existing",
+      parent: "root",
+      name: "03-Chapter-1",
+    });
+    const synchronize = vi
+      .spyOn(googleDriveService, "synchronizeMilestoneFolderName")
+      .mockResolvedValue(true);
+    expect(
+      await googleDriveService.ensureFolderPath([
+        { ...segment, name: "Chapter-1", syncMilestoneName: true },
+      ]),
+    ).toBe("existing");
+    expect(synchronize).toHaveBeenCalledWith("existing", "new");
+    expect(state.list).not.toHaveBeenCalled();
+    expect(state.create).not.toHaveBeenCalled();
+    expect(state.mappings.get(segment.key)?.parent).toBe("root");
+  });
+
+  it("continues using the original folder if a label update fails", async () => {
+    state.mappings.set(segment.key, {
+      externalFolderId: "existing",
+      parent: "root",
+      name: "03-Chapter-1",
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(
+      googleDriveService,
+      "synchronizeMilestoneFolderName",
+    ).mockRejectedValue(new Error("Drive offline"));
+    expect(
+      await googleDriveService.ensureFolderPath([
+        { ...segment, name: "Chapter-1", syncMilestoneName: true },
+      ]),
+    ).toBe("existing");
+    expect(state.create).not.toHaveBeenCalled();
+    expect(state.mappings.get(segment.key)?.name).toBe("03-Chapter-1");
+  });
+
   it("uses the authoritative mapping without another Drive request", async () => {
     state.mappings.set(segment.key, {
       externalFolderId: "existing",
