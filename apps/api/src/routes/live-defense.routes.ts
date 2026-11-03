@@ -479,6 +479,8 @@ function scopeSessionForPanelist(session: any, userId: string) {
   const accepted = invitation?.status === "ACCEPTED";
   return {
     ...session,
+    decision: session.releasedAt ? session.decision : null,
+    revisionClearance: session.releasedAt ? session.revisionClearance : null,
     structuredEvaluations: (session.structuredEvaluations || []).filter(
       (item: any) => item.panelistId === userId,
     ),
@@ -2634,6 +2636,12 @@ router.get(
         session.invitations,
         req.user!.id,
       );
+      if (req.query.view === "panelist") {
+        if (!req.user!.roles.includes("PANELIST") || !crossCollegePanelInvitation) {
+          return void res.status(404).json({ error: "Defense session was not found in your assigned panel scope." });
+        }
+        return void res.json({ session: scopeSessionForPanelist(session, req.user!.id) });
+      }
       const inCollegeScope = canAccessCollege(
         req.user!,
         session.research.collegeId,

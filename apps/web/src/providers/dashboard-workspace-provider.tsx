@@ -44,7 +44,7 @@ export interface DashboardWorkspaceContextType {
   isSwitching: boolean;
   switchDashboard: (
     workspaceId: string,
-    options?: { force?: boolean }
+    options?: { force?: boolean; destination?: string }
   ) => Promise<boolean>;
   rememberedWorkspaceId: string | null;
   setRememberedWorkspace: (workspaceId: string) => void;
@@ -83,6 +83,7 @@ export function DashboardWorkspaceProvider({
     useState<DashboardWorkspace | null>(null);
 
   const dirtyFormsRef = useRef<Map<string, DirtyFormEntry>>(new Map());
+  const pendingDestination = useRef<string | undefined>(undefined);
 
   const availableWorkspaces = useMemo(() => {
     return getEligibleWorkspaces(user?.roles || []);
@@ -222,14 +223,14 @@ export function DashboardWorkspaceProvider({
   }, []);
 
   const executeSwitch = useCallback(
-    async (targetWorkspace: DashboardWorkspace) => {
+    async (targetWorkspace: DashboardWorkspace, destination?: string) => {
       setIsSwitching(true);
       setSwitchError(null);
 
       try {
         // Revalidate user role eligibility
         const refreshed = await refreshUser();
-        const freshRoles = refreshed?.roles || user?.roles || [];
+        const freshRoles = refreshed?.roles || [];
         const freshEligible = getEligibleWorkspaces(freshRoles);
 
         const stillEligible = freshEligible.some(
@@ -251,8 +252,8 @@ export function DashboardWorkspaceProvider({
         // Cancel in-flight queries to prevent stale data population
         await queryClient.cancelQueries();
 
-        // Navigate to the target dashboard home URL
-        navigate(targetWorkspace.homeUrl);
+        const safeDestination = destination && getSafeReturnWorkspace(destination, [targetWorkspace])?.id === targetWorkspace.id ? destination : targetWorkspace.homeUrl;
+        navigate(safeDestination);
         setIsSwitching(false);
         return true;
       } catch {
@@ -269,37 +270,41 @@ export function DashboardWorkspaceProvider({
   const switchDashboard = useCallback(
     async (
       workspaceId: string,
-      options: { force?: boolean } = {}
+      options: { force?: boolean; destination?: string } = {}
     ): Promise<boolean> => {
       const target = getWorkspaceById(workspaceId);
       if (!target) return false;
 
       // If already active workspace, no-op
-      if (activeWorkspace?.id === target.id) {
+      if (activeWorkspace?.id === target.id && !options.destination) {
         return true;
       }
 
       // Check unsaved changes
       if (!options.force && hasDirtyForms()) {
+        pendingDestination.current = options.destination;
         setPendingSwitchWorkspace(target);
         return false;
       }
 
-      return executeSwitch(target);
+      return executeSwitch(target, options.destination);
     },
     [activeWorkspace?.id, hasDirtyForms, executeSwitch]
   );
 
   const cancelSwitch = useCallback(() => {
+    pendingDestination.current = undefined;
     setPendingSwitchWorkspace(null);
   }, []);
 
   const confirmSwitch = useCallback(async () => {
     if (!pendingSwitchWorkspace) return;
     const target = pendingSwitchWorkspace;
+    const destination = pendingDestination.current;
+    pendingDestination.current = undefined;
     setPendingSwitchWorkspace(null);
     discardDirtyForms();
-    await executeSwitch(target);
+    await executeSwitch(target, destination);
   }, [pendingSwitchWorkspace, discardDirtyForms, executeSwitch]);
 
   const completeOnboarding = useCallback(

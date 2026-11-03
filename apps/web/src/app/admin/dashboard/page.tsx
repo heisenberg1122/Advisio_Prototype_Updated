@@ -32,6 +32,8 @@ import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Button } from "@/components/ui/Button";
 import { useAsyncAction } from "@/hooks/use-async-action";
 import { DeanAnnouncements } from "@/components/workflow/DeanAnnouncements";
+import { DeanDefensesView } from "@/components/dean/DeanDefensesView";
+import { DeanReportsView } from "@/components/dean/DeanReportsView";
 
 type Program = { id: string; code: string; name: string };
 type AcademicYear = { id: string; name: string; isCurrent: boolean };
@@ -157,6 +159,14 @@ function EmptyState({ title, detail }: { title: string; detail: string }) {
 }
 
 function DeanDashboardContent() {
+  const searchParams = useSearchParams();
+  const tab = searchParams.get("tab");
+  if (tab === "defenses") return <DeanDefensesView />;
+  if (tab === "reports") return <DeanReportsView />;
+  return <ExistingDeanDashboardContent />;
+}
+
+function ExistingDeanDashboardContent() {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();

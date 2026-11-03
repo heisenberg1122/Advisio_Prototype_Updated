@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/providers/auth-provider";
+import { deanDefenseReturn } from "@/lib/dean-defense-navigation";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -124,14 +125,16 @@ export default function PanelistDefenseWorkspacePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const deanReturn = deanDefenseReturn(useSearchParams().get("returnTo"), user?.roles);
+  const backHref = deanReturn || "/panelist/dashboard?tab=schedule";
   const [responding, setResponding] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const [notice, setNotice] = useState("");
   const { data, isLoading, error } = useQuery({
-    queryKey: ["panelist-defense-session", sessionId],
+    queryKey: ["panelist-defense-session", sessionId, user?.id, user?.college?.id],
     queryFn: () =>
-      apiClient.get<{ session: any }>(`/api/defense-sessions/${sessionId}`),
+      apiClient.get<{ session: any }>(`/api/defense-sessions/${sessionId}?view=panelist`),
     enabled: Boolean(sessionId),
     refetchInterval: 15000,
   });
@@ -238,9 +241,9 @@ export default function PanelistDefenseWorkspacePage() {
         action={
           <Button
             variant="outline"
-            onClick={() => router.push("/panelist/dashboard?tab=schedule")}
+            onClick={() => router.push(backHref)}
           >
-            Back to schedule
+            {deanReturn ? "Back to Dean Defenses" : "Back to schedule"}
           </Button>
         }
       />
@@ -254,11 +257,11 @@ export default function PanelistDefenseWorkspacePage() {
   return (
     <div className="mx-auto flex w-full max-w-[1540px] flex-col gap-5 p-1 sm:p-2 lg:p-3">
       <Link
-        href="/panelist/dashboard?tab=schedule"
+        href={backHref}
         className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to defense schedule
+        {deanReturn ? "Back to Dean Defenses" : "Back to defense schedule"}
       </Link>
 
       <section className="college-hero-surface overflow-hidden rounded-2xl border border-[var(--color-border)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
