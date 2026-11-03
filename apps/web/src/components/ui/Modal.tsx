@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useEffect, useId, useRef } from "react";
+import React, { ReactNode, useEffect, useEffectEvent, useId, useRef } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -39,13 +39,15 @@ export function Modal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const subtitleId = useId();
+  // Read the latest callback without restarting opening focus on form edits.
+  const closeOnEscape = useEffectEvent(onClose);
 
   useEffect(() => {
     if (!isOpen) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    window.requestAnimationFrame(() => {
+    const focusFrame = window.requestAnimationFrame(() => {
       const firstFocusable = dialogRef.current?.querySelector<HTMLElement>(
         'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
       );
@@ -56,7 +58,7 @@ export function Modal({
       // dialog should handle Escape/Tab while it is open.
       const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
       if (dialogs[dialogs.length - 1] !== dialogRef.current?.parentElement) return;
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closeOnEscape();
       if (e.key !== "Tab" || !dialogRef.current) return;
       const focusable = Array.from(
         dialogRef.current.querySelectorAll<HTMLElement>(
@@ -80,11 +82,12 @@ export function Modal({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
+      window.cancelAnimationFrame(focusFrame);
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = originalOverflow;
       previouslyFocused?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

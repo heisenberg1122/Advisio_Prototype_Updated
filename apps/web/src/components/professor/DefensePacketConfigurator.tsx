@@ -76,6 +76,192 @@ const newMapping = (key = ""): Mapping => ({
   required: ["panelistName", "researchTitle", "recommendation"].includes(key),
 });
 
+const updateMapping = (
+  setItems: React.Dispatch<React.SetStateAction<Mapping[]>>,
+  index: number,
+  patch: Partial<Mapping>,
+) =>
+  setItems((items) =>
+    items.map((item, itemIndex) =>
+      itemIndex === index ? { ...item, ...patch } : item,
+    ),
+  );
+
+const MappingEditor = ({
+  title,
+  keys,
+  items,
+  setItems,
+}: {
+  title: string;
+  keys: string[];
+  items: Mapping[];
+  setItems: React.Dispatch<React.SetStateAction<Mapping[]>>;
+}) => (
+  <section className="rounded-xl border p-4">
+    <div className="flex items-center justify-between">
+      <div>
+        <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
+          {title}
+        </h3>
+        <p className="mt-1 text-base text-slate-500">
+          Coordinates use 0–1 values from the top-left of the PDF page.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() =>
+          setItems((current) => [...current, newMapping(keys[0])])
+        }
+        className="rounded-lg border px-3 py-2 text-sm font-bold"
+      >
+        Add field
+      </button>
+    </div>
+    <div className="mt-3 space-y-2">
+      {items.map((item, index) => (
+        <div
+          key={`${item.key}-${index}`}
+          className="grid gap-2 rounded-lg bg-slate-50 p-3 md:grid-cols-[2fr_repeat(7,70px)_32px]"
+        >
+          <select
+            value={item.key}
+            onChange={(event) =>
+              updateMapping(setItems, index, {
+                key: event.target.value,
+                label: event.target.value,
+                multiline: [
+                  "strengths",
+                  "weaknesses",
+                  "requiredRevisions",
+                  "technicalRecommendations",
+                  "additionalRemarks",
+                  "remarks",
+                ].includes(event.target.value),
+                overflowPolicy: [
+                  "strengths",
+                  "weaknesses",
+                  "requiredRevisions",
+                  "technicalRecommendations",
+                  "additionalRemarks",
+                  "remarks",
+                ].includes(event.target.value)
+                  ? "APPENDIX"
+                  : "SHRINK",
+              })
+            }
+            className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-base text-[var(--color-text-primary)]"
+          >
+            {keys.map((key) => (
+              <option key={key} value={key}>
+                {key}
+              </option>
+            ))}
+          </select>
+          {[
+            ["pageNumber", "Page"],
+            ["x", "X"],
+            ["y", "Y"],
+            ["width", "Width"],
+            ["height", "Height"],
+            ["preferredFontSize", "Font"],
+            ["minimumFontSize", "Min"],
+          ].map(([key, label]) => (
+            <label key={key} className="text-sm font-bold text-slate-400">
+              {label}
+              <input
+                type="number"
+                step={
+                  key === "pageNumber" || key.includes("FontSize") ? 1 : 0.01
+                }
+                value={(item as any)[key]}
+                onChange={(event) =>
+                  updateMapping(setItems, index, {
+                    [key]: Number(event.target.value),
+                  })
+                }
+                className="mt-1 w-full rounded border p-1 text-base text-slate-700"
+              />
+            </label>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              setItems((current) =>
+                current.filter((_, itemIndex) => itemIndex !== index),
+              )
+            }
+            className="text-rose-500"
+          >
+            <i className="ti ti-trash" />
+          </button>
+          <div className="md:col-span-full grid gap-3 md:grid-cols-4">
+            <label className="flex items-center gap-2 text-sm text-slate-500">
+              <input
+                type="checkbox"
+                checked={item.multiline}
+                onChange={(event) =>
+                  updateMapping(setItems, index, {
+                    multiline: event.target.checked,
+                  })
+                }
+              />
+              Wrap long text into multiple lines
+            </label>
+            <label className="text-sm font-bold text-slate-500">
+              Overflow
+              <select
+                value={item.overflowPolicy}
+                onChange={(event) =>
+                  updateMapping(setItems, index, {
+                    overflowPolicy: event.target
+                      .value as Mapping["overflowPolicy"],
+                  })
+                }
+                className="ml-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-1"
+              >
+                <option value="APPENDIX">Appendix</option>
+                <option value="CONTINUATION_PAGE">Continuation page</option>
+                <option value="SHRINK">Shrink to fit</option>
+                <option value="WRAP">Wrap or reject</option>
+                <option value="REJECT">Reject overflow</option>
+              </select>
+            </label>
+            <label className="text-sm font-bold text-slate-500">
+              Alignment
+              <select
+                value={item.alignment}
+                onChange={(event) =>
+                  updateMapping(setItems, index, {
+                    alignment: event.target.value as Mapping["alignment"],
+                  })
+                }
+                className="ml-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-1"
+              >
+                <option value="LEFT">Left</option>
+                <option value="CENTER">Center</option>
+                <option value="RIGHT">Right</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm text-slate-500">
+              <input
+                type="checkbox"
+                checked={item.required}
+                onChange={(event) =>
+                  updateMapping(setItems, index, {
+                    required: event.target.checked,
+                  })
+                }
+              />
+              Required value
+            </label>
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+);
+
 export function DefensePacketConfigurator({
   session,
   onClose,
@@ -264,16 +450,6 @@ function LegacyDefensePacketConfigurator({
     );
   }, [data]);
 
-  const updateMapping = (
-    setItems: React.Dispatch<React.SetStateAction<Mapping[]>>,
-    index: number,
-    patch: Partial<Mapping>,
-  ) =>
-    setItems((items) =>
-      items.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, ...patch } : item,
-      ),
-    );
   const save = async (publish: boolean) => {
     setSaving(true);
     setError("");
@@ -356,181 +532,6 @@ function LegacyDefensePacketConfigurator({
       setSaving(false);
     }
   };
-
-  const MappingEditor = ({
-    title,
-    keys,
-    items,
-    setItems,
-  }: {
-    title: string;
-    keys: string[];
-    items: Mapping[];
-    setItems: React.Dispatch<React.SetStateAction<Mapping[]>>;
-  }) => (
-    <section className="rounded-xl border p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
-            {title}
-          </h3>
-          <p className="mt-1 text-base text-slate-500">
-            Coordinates use 0–1 values from the top-left of the PDF page.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() =>
-            setItems((current) => [...current, newMapping(keys[0])])
-          }
-          className="rounded-lg border px-3 py-2 text-sm font-bold"
-        >
-          Add field
-        </button>
-      </div>
-      <div className="mt-3 space-y-2">
-        {items.map((item, index) => (
-          <div
-            key={`${item.key}-${index}`}
-            className="grid gap-2 rounded-lg bg-slate-50 p-3 md:grid-cols-[2fr_repeat(7,70px)_32px]"
-          >
-            <select
-              value={item.key}
-              onChange={(event) =>
-                updateMapping(setItems, index, {
-                  key: event.target.value,
-                  label: event.target.value,
-                  multiline: [
-                    "strengths",
-                    "weaknesses",
-                    "requiredRevisions",
-                    "technicalRecommendations",
-                    "additionalRemarks",
-                    "remarks",
-                  ].includes(event.target.value),
-                  overflowPolicy: [
-                    "strengths",
-                    "weaknesses",
-                    "requiredRevisions",
-                    "technicalRecommendations",
-                    "additionalRemarks",
-                    "remarks",
-                  ].includes(event.target.value)
-                    ? "APPENDIX"
-                    : "SHRINK",
-                })
-              }
-              className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-base text-[var(--color-text-primary)]"
-            >
-              {keys.map((key) => (
-                <option key={key} value={key}>
-                  {key}
-                </option>
-              ))}
-            </select>
-            {[
-              ["pageNumber", "Page"],
-              ["x", "X"],
-              ["y", "Y"],
-              ["width", "Width"],
-              ["height", "Height"],
-              ["preferredFontSize", "Font"],
-              ["minimumFontSize", "Min"],
-            ].map(([key, label]) => (
-              <label key={key} className="text-sm font-bold text-slate-400">
-                {label}
-                <input
-                  type="number"
-                  step={
-                    key === "pageNumber" || key.includes("FontSize") ? 1 : 0.01
-                  }
-                  value={(item as any)[key]}
-                  onChange={(event) =>
-                    updateMapping(setItems, index, {
-                      [key]: Number(event.target.value),
-                    })
-                  }
-                  className="mt-1 w-full rounded border p-1 text-base text-slate-700"
-                />
-              </label>
-            ))}
-            <button
-              type="button"
-              onClick={() =>
-                setItems((current) =>
-                  current.filter((_, itemIndex) => itemIndex !== index),
-                )
-              }
-              className="text-rose-500"
-            >
-              <i className="ti ti-trash" />
-            </button>
-            <div className="md:col-span-full grid gap-3 md:grid-cols-4">
-              <label className="flex items-center gap-2 text-sm text-slate-500">
-                <input
-                  type="checkbox"
-                  checked={item.multiline}
-                  onChange={(event) =>
-                    updateMapping(setItems, index, {
-                      multiline: event.target.checked,
-                    })
-                  }
-                />
-                Wrap long text into multiple lines
-              </label>
-              <label className="text-sm font-bold text-slate-500">
-                Overflow
-                <select
-                  value={item.overflowPolicy}
-                  onChange={(event) =>
-                    updateMapping(setItems, index, {
-                      overflowPolicy: event.target
-                        .value as Mapping["overflowPolicy"],
-                    })
-                  }
-                  className="ml-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-1"
-                >
-                  <option value="APPENDIX">Appendix</option>
-                  <option value="CONTINUATION_PAGE">Continuation page</option>
-                  <option value="SHRINK">Shrink to fit</option>
-                  <option value="WRAP">Wrap or reject</option>
-                  <option value="REJECT">Reject overflow</option>
-                </select>
-              </label>
-              <label className="text-sm font-bold text-slate-500">
-                Alignment
-                <select
-                  value={item.alignment}
-                  onChange={(event) =>
-                    updateMapping(setItems, index, {
-                      alignment: event.target.value as Mapping["alignment"],
-                    })
-                  }
-                  className="ml-2 rounded border border-[var(--color-border)] bg-[var(--color-surface)] p-1"
-                >
-                  <option value="LEFT">Left</option>
-                  <option value="CENTER">Center</option>
-                  <option value="RIGHT">Right</option>
-                </select>
-              </label>
-              <label className="flex items-center gap-2 text-sm text-slate-500">
-                <input
-                  type="checkbox"
-                  checked={item.required}
-                  onChange={(event) =>
-                    updateMapping(setItems, index, {
-                      required: event.target.checked,
-                    })
-                  }
-                />
-                Required value
-              </label>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
 
   if (packetLoading || templatesLoading || readinessLoading) {
     return (
