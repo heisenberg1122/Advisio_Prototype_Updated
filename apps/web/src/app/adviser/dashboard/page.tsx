@@ -1336,10 +1336,10 @@ function AdviserDashboardContent() {
                         )}
                         <button
                           onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic, c.researchId)}
-                          className="flex h-10 items-center gap-1.5 rounded-xl bg-[#0B3A53] px-3.5 text-sm font-bold text-white transition hover:bg-[#072A3D]"
+                          className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[#0B3A53] px-3.5 text-sm font-bold text-white transition hover:bg-[#072A3D]"
                         >
                           <i className="ti ti-video" />
-                          <span>Join Google Meet</span>
+                          <span><span className="sm:hidden">Join meeting</span><span className="hidden sm:inline">Join Google Meet</span></span>
                         </button>
                         <button
                           onClick={() => {
@@ -1348,8 +1348,9 @@ function AdviserDashboardContent() {
                               triggerToast("Copied Google Meet link to clipboard!");
                             }
                           }}
+                          aria-label="Copy meeting link"
                           title="Copy Link"
-                          className="grid h-10 w-10 place-items-center rounded-xl bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-slate-100 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"
+                          className="grid h-11 w-11 place-items-center rounded-xl bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-slate-100 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"
                         >
                           <i className="ti ti-copy" />
                         </button>
@@ -1561,7 +1562,7 @@ function AdviserDashboardContent() {
 
                     {/* LIVE ATTENDEES LIST */}
                     <div className="bg-white/80 border border-emerald-200/80 rounded-xl p-3.5 max-w-lg mx-auto w-full text-left shadow-sm">
-                      <div className="flex items-center justify-between border-b border-emerald-100 pb-2 mb-2.5">
+                      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100 pb-2">
                         <span className="text-xs font-extrabold text-[#1b4264] flex items-center gap-1.5">
                           <i className="ti ti-users text-emerald-600" />
                           <span>Connected Attendees ({activeParticipants.length})</span>
@@ -1574,14 +1575,14 @@ function AdviserDashboardContent() {
 
                       <div className="flex flex-col gap-1.5">
                         {activeParticipants.map((p) => (
-                          <div key={p.id} className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-emerald-50/50 transition">
+                          <div key={p.id} className="flex flex-col gap-1.5 rounded-lg p-1.5 text-xs transition hover:bg-emerald-50/50 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-2">
                               <div className="w-6 h-6 rounded-full bg-[#1b4264] text-[#ffa400] text-xs font-black flex items-center justify-center">
                                 {p.name.split(" ").map(n => n[0]).slice(0, 2).join("")}
                               </div>
                               <div>
                                 <span className="font-bold text-slate-800 block leading-tight">{p.name}</span>
-                                <span className="text-xs text-slate-500">{p.role} · {p.email}</span>
+                                <span className="break-all text-xs text-slate-500 sm:break-normal">{p.role} · {p.email}</span>
                               </div>
                             </div>
                             <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
@@ -1592,18 +1593,19 @@ function AdviserDashboardContent() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-center gap-3 mt-2">
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
                       <button
                         onClick={handleReopenMeetingWindow}
-                        className="px-4 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-sm"
+                        aria-label="Reopen meeting window"
+                        className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-bold text-[var(--color-text-primary)] shadow-sm transition hover:bg-[var(--color-surface-muted)]"
                       >
                         <i className="ti ti-external-link" />
-                        <span>Reopen Meeting Window</span>
+                        <span className="hidden sm:inline">Reopen Meeting Window</span>
                       </button>
 
                       <button
                         onClick={() => handleEndConference()}
-                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-sm"
+                        className="flex min-h-11 items-center gap-2 rounded-lg bg-rose-600 px-4 text-sm font-bold text-white shadow transition hover:bg-rose-700"
                       >
                         <i className="ti ti-phone-off" />
                         <span>End Session</span>

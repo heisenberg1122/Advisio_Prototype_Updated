@@ -37,7 +37,6 @@ export function NextConsultationCard({ consultation }: NextConsultationCardProps
             <i className="ti ti-video-off text-xl" aria-hidden="true" />
           </span>
           <p className="mt-3 text-base font-semibold text-[var(--color-text-primary)]">No upcoming consultations</p>
-          <p className="mt-1 text-base text-[var(--color-text-secondary)] max-w-xs">Use the booking form to schedule a session with your faculty adviser.</p>
         </div>
       )}
     </Card>

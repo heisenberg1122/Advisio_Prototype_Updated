@@ -29,6 +29,7 @@ import { projectSectionHref, type ProjectAction } from "@/lib/student-project-ov
 import { studentTaskDetailsHref } from "@/lib/student-task-navigation";
 import { StudentGroupChats } from "@/components/dashboards/student/StudentGroupChats";
 import { getStoredMeetingSession, saveMeetingSession, DEFAULT_SHARED_MEET_URL } from "@/lib/meeting-store";
+import { ConsultationBooking } from "@/components/consultations/ConsultationBooking";
 import { GoogleMeetConnectModal } from "@/components/consultations/GoogleMeetConnectModal";
 import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consultations/GoogleMeetTranscriptModal";
 import {
@@ -547,10 +548,6 @@ function StudentDashboardContent() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [consultTopic, setConsultTopic] = useState("");
-  const [consultDate, setConsultDate] = useState("");
-  const [consultTime, setConsultTime] = useState("");
-  const [consultMode, setConsultMode] = useState("Video Call");
 
   // Modals state
   const [modalCert, setModalCert] = useState(false);
@@ -615,38 +612,6 @@ function StudentDashboardContent() {
       triggerToast(`Submission failed: ${err.message || "Network error"}`);
     } finally {
       setIsUploading(false);
-    }
-  };
-
-  const handleRequestConsult = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!consultTopic) return;
-    try {
-      const startDateTime = new Date(`${consultDate}T${consultTime}:00+08:00`);
-      if (!Number.isFinite(startDateTime.getTime())) throw new Error("Choose a valid consultation date and time.");
-      const endDateTime = new Date(startDateTime.getTime() + 3600000);
-
-      if (!activeProject?.id) throw new Error("Select a research project first.");
-      const result = await apiClient.post<{ consultation: ConsultationItem; warning?: string }>("/api/consultations", {
-        researchId: activeProject.id,
-        title: consultTopic,
-        description: `Student consultation requested by ${user?.firstName || "Student"}`,
-        scheduledStart: startDateTime.toISOString(),
-        scheduledEnd: endDateTime.toISOString(),
-      });
-      setConsultations((previous) => [
-        result.consultation,
-        ...previous.filter((item) => item.id !== result.consultation.id),
-      ]);
-      await refetchConsultations();
-      triggerToast(
-        result.warning || "Consultation request submitted! Awaiting adviser approval.",
-      );
-      setConsultTopic("");
-      setConsultDate("");
-      setConsultTime("");
-    } catch (error: any) {
-      triggerToast(error?.message || "Unable to save the consultation request.");
     }
   };
 
@@ -933,306 +898,155 @@ function StudentDashboardContent() {
       if (consultFilter === "pending") return c.status === "pending" || c.status === "requested";
       return true;
     });
-    const today = new Date();
-    const visibleDays = Array.from({ length: 7 }, (_, index) => {
-      const date = new Date(today);
-      date.setDate(today.getDate() + index - 3);
-      return date;
-    });
-
     return (
       <div className="flex flex-col gap-6">
-        {/* Course-Themed Page Header Banner */}
-        <div className="researcher-consultation-hero flex flex-col justify-between gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-6 shadow-xs md:flex-row md:items-center sm:p-8">
-          <div className="max-w-3xl">
-            <span className="block text-xs font-extrabold uppercase tracking-widest text-[var(--color-primary)]">
-              Adviser Consultations & Scheduled Meetings
-            </span>
-            <h2 className="mt-1 text-2xl font-black tracking-tight text-[var(--color-text-primary)] dark:text-white">
-              Faculty Consultation Repository & Video Rooms
-            </h2>
-            <p className="mt-2 text-base leading-6 text-[var(--color-text-secondary)]">
-              Book advising slots, launch synchronized Google Meet rooms, and review auto-indexed meeting transcripts.
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            <button
+        <div className="researcher-consultation-hero flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-5 sm:p-6">
+          <h2 className="text-2xl font-bold text-[var(--color-text-primary)]">Consultations</h2>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+            <ConsultationBooking key={activeProject?.id} projectId={activeProject?.id} firstName={user?.firstName} />
+            <Button
+              type="button"
+              variant="secondary"
               onClick={() => handleStartConference(DEFAULT_SHARED_MEET_URL, "Advising Video Conference")}
-              className="flex h-11 cursor-pointer items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 text-sm font-extrabold text-white shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98]"
             >
-              <i className="ti ti-video text-base font-bold" />
-              <span>Instant Google Meet</span>
-            </button>
+              Instant Google Meet
+            </Button>
           </div>
         </div>
 
-        {/* Course-Tinted Consultation Calendar */}
-        <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-5 py-4" aria-label="Consultation calendar">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="shrink-0">
-              <p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">Consultation calendar</p>
-              <p className="mt-1 text-lg font-bold text-[var(--color-text-primary)] dark:text-white">
-                {today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
-              </p>
-            </div>
-            <div className="grid grid-cols-7 gap-2 sm:gap-3">
-              {visibleDays.map((date) => {
-                const isToday = date.toDateString() === today.toDateString();
-                return (
-                  <div
-                    key={date.toISOString()}
-                    className={`flex min-w-11 flex-col items-center rounded-xl px-2.5 py-2.5 text-center transition sm:min-w-16 ${
-                      isToday
-                        ? "bg-[var(--color-primary)] text-white shadow-xs font-black"
-                        : "bg-[var(--color-surface)] border border-[var(--color-border)]/70 text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/40 hover:text-[var(--color-text-primary)]"
-                    }`}
-                  >
-                    <span className="text-xs font-bold uppercase">{date.toLocaleDateString(undefined, { weekday: "short" })}</span>
-                    <span className="mt-1 text-sm font-black">{date.getDate()}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-
-        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
-          {/* Scheduled Sessions Container */}
-          <div className="flex min-w-0 flex-col gap-5">
-            <div className="flex min-h-[460px] flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6 shadow-xs">
-              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)]">
-                    <i className="ti ti-calendar-time text-lg" />
-                  </span>
-                  <h3 className="flex items-center gap-2 text-lg font-extrabold text-[var(--color-text-primary)] dark:text-white">
-                    Scheduled Sessions
-                  </h3>
-                  <span className="rounded-full bg-[var(--color-surface-muted)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)]">
-                    {consultations.length}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-1 rounded-xl bg-[var(--color-surface-muted)] p-1 text-xs font-bold border border-[var(--color-border)]">
-                  <button
-                    onClick={() => setConsultFilter("all")}
-                    className={`h-8 cursor-pointer rounded-lg px-3 transition ${
-                      consultFilter === "all" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-                    }`}
-                  >
-                    All ({consultations.length})
-                  </button>
-                  <button
-                    onClick={() => setConsultFilter("approved")}
-                    className={`h-8 cursor-pointer rounded-lg px-3 transition ${
-                      consultFilter === "approved" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-                    }`}
-                  >
-                    Confirmed
-                  </button>
-                  <button
-                    onClick={() => setConsultFilter("pending")}
-                    className={`h-8 cursor-pointer rounded-lg px-3 transition ${
-                      consultFilter === "pending" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-                    }`}
-                  >
-                    Pending
-                  </button>
-                </div>
-              </div>
-
-              {filteredConsultations.length > 0 ? (
-                <div className="flex flex-col gap-3">
-                  {filteredConsultations.map((c: any) => (
-                    <div
-                      key={c.id}
-                      className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xs transition hover:shadow-sm sm:p-5"
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-[var(--color-text-primary)] dark:text-white">{c.topic}</span>
-                            <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
-                              {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
-                            </Tag>
-                          </div>
-                          <span className="mt-1 block text-xs text-[var(--color-text-secondary)]">
-                            {c.groupName || "Research Group"} · {c.date} at {c.time} ({c.mode})
-                          </span>
-                          {c.meetingUrl && (
-                            <span className="mt-2 inline-block rounded-lg bg-[var(--color-primary-light)] px-2 py-1 font-mono text-xs text-[var(--color-primary)]">
-                              {c.meetingUrl}
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2 self-start sm:self-auto">
-                          <button
-                            onClick={() => handleOpenTranscriptModal(c)}
-                            className="px-3 py-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-surface-muted)] text-[var(--color-text-primary)] font-bold rounded-lg border border-[var(--color-border)] text-sm shadow-xs cursor-pointer transition flex items-center gap-1"
-                          >
-                            <i className="ti ti-file-text text-[var(--color-primary)]" />
-                            <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "Notes & Chat" : "Import Chat"}</span>
-                          </button>
-                          {c.status === "pending" || c.status === "requested" ? (
-                            <span className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-bold rounded-lg text-xs flex items-center gap-1">
-                              <i className="ti ti-clock" />
-                              <span>Pending</span>
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
-                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm shadow-xs transition cursor-pointer flex items-center gap-1"
-                            >
-                              <i className="ti ti-video" />
-                              <span>Join Meet</span>
-                            </button>
-                          )}
-                          {c.meetingUrl && (
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(c.meetingUrl);
-                                triggerToast("Copied Google Meet link!");
-                              }}
-                              title="Copy Meet Link"
-                              className="p-1.5 bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-muted)] rounded-lg text-[var(--color-text-secondary)] cursor-pointer text-sm"
-                            >
-                              <i className="ti ti-copy" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {c.notes && (
-                        <div className="rounded-xl bg-[var(--color-surface-muted)] p-4 text-xs text-[var(--color-text-secondary)]">
-                          <span className="mb-1 block font-bold text-[var(--color-text-primary)] dark:text-white">Adviser Feedback & Summary:</span>
-                          <p className="whitespace-pre-wrap">{c.notes}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex min-h-[360px] flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-primary-light)] text-2xl text-[var(--color-primary)]">
-                    <i className="ti ti-calendar-off" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-extrabold tracking-tight text-[var(--color-text-primary)] dark:text-white">No Consultations Found</h4>
-                    <p className="mt-1.5 max-w-sm text-base leading-6 text-[var(--color-text-secondary)]">
-                      {consultFilter === "all"
-                        ? "You have not booked any advising consultations yet. Use the booking form on the right to schedule a session."
-                        : `No ${consultFilter} consultations found.`}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Right Panel: Booking Form & Live Conferencing */}
-          <div className="flex flex-col gap-5 xl:sticky xl:top-6">
-            <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xs sm:p-6">
+      {/* Your sessions Container */}
+      <div className="flex min-w-0 flex-col gap-5">
+        <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6 shadow-xs">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)]">
+                <i className="ti ti-calendar-time text-lg" />
+              </span>
               <h3 className="flex items-center gap-2 text-lg font-extrabold text-[var(--color-text-primary)] dark:text-white">
-                <i className="ti ti-calendar-plus text-[var(--color-primary)]" />
-                Book a Consultation Session
+                Your sessions
               </h3>
-              <p className="text-base leading-6 text-[var(--color-text-secondary)]">
-                Submit your preferred date and topic to your research adviser.
-              </p>
-              <form onSubmit={handleRequestConsult} className="flex flex-col gap-4 text-sm">
-                <div className="flex flex-col gap-2">
-                  <label className="font-bold text-[var(--color-text-primary)]">Discussion Topic *</label>
-                  <input
-                    required
-                    type="text"
-                    value={consultTopic}
-                    onChange={(e) => setConsultTopic(e.target.value)}
-                    placeholder="e.g. Chapter 3 Methodology Validation"
-                    className="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] text-[var(--color-text-primary)]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-[var(--color-text-primary)]">Preferred Date *</label>
-                    <input
-                      required
-                      type="date"
-                      value={consultDate}
-                      onChange={(e) => setConsultDate(e.target.value)}
-                      className="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] text-[var(--color-text-primary)]"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-[var(--color-text-primary)]">Preferred Time *</label>
-                    <input
-                      required
-                      type="time"
-                      value={consultTime}
-                      onChange={(e) => setConsultTime(e.target.value)}
-                      className="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] text-[var(--color-text-primary)]"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="font-bold text-[var(--color-text-primary)]">Meeting Mode</label>
-                  <select
-                    value={consultMode}
-                    onChange={(e) => setConsultMode(e.target.value)}
-                    className="h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] text-[var(--color-text-primary)]"
-                  >
-                    <option value="Video Call">Google Meet (Online Video Conference)</option>
-                    <option value="In-Person">In-Person (Faculty Consultation Room)</option>
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  className="submission-action mt-1 h-11 w-full cursor-pointer rounded-xl bg-[var(--color-primary)] px-4 font-extrabold text-white shadow-xs transition hover:bg-[var(--color-primary-dark)] active:scale-[0.98]"
-                >
-                  Submit Consultation Request
-                </button>
-              </form>
+              <span className="rounded-full bg-[var(--color-surface-muted)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)]">
+                {consultations.length}
+              </span>
             </div>
 
-            <div className="flex flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xs sm:p-6">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-extrabold text-[var(--color-text-primary)] uppercase tracking-wider flex items-center gap-1.5">
-                  <i className="ti ti-video text-emerald-600" />
-                  Live Conferencing Room
-                </span>
-                <span className="text-xs font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Ready
-                </span>
-              </div>
-              <p className="text-[var(--color-text-secondary)] text-base leading-relaxed">
-                Need an immediate sync with your team members or adviser? Launch a synchronized Google Meet room with floating transcript window.
-              </p>
+            <div className="flex items-center gap-1 rounded-xl bg-[var(--color-surface-muted)] p-1 text-xs font-bold border border-[var(--color-border)]">
               <button
-                onClick={() => handleStartConference(DEFAULT_SHARED_MEET_URL, `${group?.name || "Student"} Instant Room`)}
-                className="w-full py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-extrabold rounded-xl text-sm transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs active:scale-[0.98]"
+                onClick={() => setConsultFilter("all")}
+                className={`h-8 cursor-pointer rounded-lg px-3 transition ${
+                  consultFilter === "all" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                }`}
               >
-                <i className="ti ti-external-link" />
-                <span>Launch Instant Meet Room</span>
+                All ({consultations.length})
+              </button>
+              <button
+                onClick={() => setConsultFilter("approved")}
+                className={`h-8 cursor-pointer rounded-lg px-3 transition ${
+                  consultFilter === "approved" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                }`}
+              >
+                Confirmed
+              </button>
+              <button
+                onClick={() => setConsultFilter("pending")}
+                className={`h-8 cursor-pointer rounded-lg px-3 transition ${
+                  consultFilter === "pending" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+                }`}
+              >
+                Pending
               </button>
             </div>
-
-            <div className="flex flex-col gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-5 text-xs">
-              <span className="font-bold text-[var(--color-text-primary)] flex items-center gap-1.5">
-                <i className="ti ti-info-circle text-[var(--color-primary)]" />
-                Advising Guidelines & Policies
-              </span>
-              <ul className="list-disc list-inside text-[var(--color-text-secondary)] space-y-1 text-xs">
-                <li>Book consultations at least 48 hours in advance.</li>
-                <li>Upload your updated draft to Document Workspace prior to the call.</li>
-                <li>In-call chats and action items are automatically preserved for compliance.</li>
-              </ul>
-            </div>
           </div>
+
+          {filteredConsultations.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              {filteredConsultations.map((c: any) => (
+                <div
+                  key={c.id}
+                  className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xs transition hover:shadow-sm sm:p-5"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-[var(--color-text-primary)] dark:text-white">{c.topic}</span>
+                        <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
+                          {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
+                        </Tag>
+                      </div>
+                      <span className="mt-1 block text-xs text-[var(--color-text-secondary)]">
+                        {c.groupName || "Research Group"} · {c.date} at {c.time} ({c.mode})
+                      </span>
+                      {c.meetingUrl && (
+                        <span className="mt-2 inline-block rounded-lg bg-[var(--color-primary-light)] px-2 py-1 font-mono text-xs text-[var(--color-primary)]">
+                          {c.meetingUrl}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                      <button
+                        onClick={() => handleOpenTranscriptModal(c)}
+                        className="px-3 py-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-surface-muted)] text-[var(--color-text-primary)] font-bold rounded-lg border border-[var(--color-border)] text-sm shadow-xs cursor-pointer transition flex items-center gap-1"
+                      >
+                        <i className="ti ti-file-text text-[var(--color-primary)]" />
+                        <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "Notes & Chat" : "Import Chat"}</span>
+                      </button>
+                      {c.status === "pending" || c.status === "requested" ? (
+                        <span className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-bold rounded-lg text-xs flex items-center gap-1">
+                          <i className="ti ti-clock" />
+                          <span>Pending</span>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
+                          className="min-h-11 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm shadow-xs transition cursor-pointer flex items-center gap-1"
+                        >
+                          <i className="ti ti-video" />
+                          <span>Join Meet</span>
+                        </button>
+                      )}
+                      {c.meetingUrl && (
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(c.meetingUrl);
+                            triggerToast("Copied Google Meet link!");
+                          }}
+                          aria-label="Copy meeting link"
+                          title="Copy Meet Link"
+                          className="grid h-11 w-11 place-items-center bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-muted)] rounded-lg text-[var(--color-text-secondary)] cursor-pointer text-sm"
+                        >
+                          <i className="ti ti-copy" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {c.notes && (
+                    <div className="rounded-xl bg-[var(--color-surface-muted)] p-4 text-xs text-[var(--color-text-secondary)]">
+                      <span className="mb-1 block font-bold text-[var(--color-text-primary)] dark:text-white">Adviser Feedback & Summary:</span>
+                      <p className="whitespace-pre-wrap">{c.notes}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-primary-light)] text-2xl text-[var(--color-primary)]">
+                <i className="ti ti-calendar-off" />
+              </div>
+              <div>
+                <h4 className="text-lg font-extrabold tracking-tight text-[var(--color-text-primary)] dark:text-white">No Consultations Found</h4>
+                <p className="mt-1.5 max-w-sm text-base leading-6 text-[var(--color-text-secondary)]">
+                  {consultFilter === "all"
+                    ? "Use Book a Consultation Session to send your first request."
+                    : `No ${consultFilter} consultations found.`}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
+      </div>
       </div>
     );
   };
@@ -2146,7 +1960,7 @@ function StudentDashboardContent() {
 
                     {/* LIVE ATTENDEES LIST */}
                     <div className="bg-white/80 border border-emerald-200/80 rounded-xl p-3.5 max-w-lg mx-auto w-full text-left shadow-sm">
-                      <div className="flex items-center justify-between border-b border-emerald-100 pb-2 mb-2.5">
+                      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100 pb-2">
                         <span className="text-xs font-extrabold text-[#1b4264] flex items-center gap-1.5">
                           <i className="ti ti-users text-emerald-600" />
                           <span>Connected Attendees ({activeParticipants.length})</span>
@@ -2159,14 +1973,14 @@ function StudentDashboardContent() {
 
                       <div className="flex flex-col gap-1.5">
                         {activeParticipants.map((p) => (
-                          <div key={p.id} className="flex items-center justify-between text-xs p-1.5 rounded-lg hover:bg-emerald-50/50 transition">
+                          <div key={p.id} className="flex flex-col gap-1.5 rounded-lg p-1.5 text-xs transition hover:bg-emerald-50/50 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-2">
                               <div className="w-6 h-6 rounded-full bg-[#1b4264] text-[#ffa400] text-xs font-black flex items-center justify-center">
                                 {p.name.split(" ").map(n => n[0]).slice(0, 2).join("")}
                               </div>
                               <div>
                                 <span className="font-bold text-slate-800 block leading-tight">{p.name}</span>
-                                <span className="text-xs text-slate-500">{p.role} · {p.email}</span>
+                                <span className="break-all text-xs text-slate-500 sm:break-normal">{p.role} · {p.email}</span>
                               </div>
                             </div>
                             <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
@@ -2177,18 +1991,19 @@ function StudentDashboardContent() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-center gap-3 mt-2">
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
                       <button
                         onClick={handleReopenMeetingWindow}
-                        className="px-4 py-2 bg-[#1b4264] hover:bg-[#15344f] text-[#ffa400] font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-sm"
+                        aria-label="Reopen meeting window"
+                        className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-bold text-[var(--color-text-primary)] shadow-sm transition hover:bg-[var(--color-surface-muted)]"
                       >
                         <i className="ti ti-external-link" />
-                        <span>Reopen Meeting Window</span>
+                        <span className="hidden sm:inline">Reopen Meeting Window</span>
                       </button>
 
                       <button
                         onClick={() => handleEndConference()}
-                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg shadow cursor-pointer transition flex items-center gap-2 text-sm"
+                        className="flex min-h-11 items-center gap-2 rounded-lg bg-rose-600 px-4 text-sm font-bold text-white shadow transition hover:bg-rose-700"
                       >
                         <i className="ti ti-phone-off" />
                         <span>End Session</span>
