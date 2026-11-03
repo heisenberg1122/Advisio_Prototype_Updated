@@ -16,6 +16,8 @@ import { PanelistReviewPackets } from "@/components/panelist/PanelistReviewPacke
 import { PdfEvaluationWorkspace } from "@/components/panelist/PdfEvaluationWorkspace";
 import { StructuredEvaluationWorkspace } from "@/components/panelist/StructuredEvaluationWorkspace";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
+import { deanDefenseReturn } from "@/lib/dean-defense-navigation";
+import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
 
 const TZ = "Asia/Manila";
 const formatDate = (value?: string | null) =>
@@ -59,6 +61,7 @@ const attendanceMode = (session: any) => {
 
 function PanelistDashboardContent() {
   const searchParams = useSearchParams();
+  const { switchDashboard } = useDashboardWorkspace();
   const activeTab = searchParams.get("tab") || "overview";
   const requestedSessionId = searchParams.get("sessionId") || "";
   const { user } = useAuth();
@@ -453,6 +456,13 @@ function PanelistDashboardContent() {
         <div
           className={`workspace-page flex w-full flex-1 flex-col space-y-6 ${activeTab === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1540px] p-4 sm:p-6 lg:p-8"}`}
         >
+          {activeTab === "evaluation" && deanDefenseReturn(searchParams.get("returnTo"), user?.roles) && (
+            <button className="w-fit text-sm font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]" onClick={() => {
+              if (evaluationDirty && !window.confirm("You have unsaved evaluation changes. Leave without saving them?")) return;
+              const destination = deanDefenseReturn(searchParams.get("returnTo"), user?.roles);
+              if (destination) void switchDashboard("dean", { destination });
+            }}>← Back to Dean Defenses</button>
+          )}
           {dashboardError && activeTab !== "messages" && (
             <div
               role="alert"

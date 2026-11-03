@@ -68,7 +68,7 @@ const PAGE_TITLES: Record<string, string> = {
   research: "Research Monitoring",
   progress: "Progress & Risk",
   advisers: "Adviser Workload",
-  defenses: "Defense Management",
+  defenses: "Defense Oversight",
   calendar: "Academic Calendar",
   reports: "Research Reports",
   messages: "Messages",

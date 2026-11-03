@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useEffect, useId, useRef } from "react";
+import React, { ReactNode, useEffect, useEffectEvent, useId, useRef } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
@@ -42,13 +42,15 @@ export function Modal({
   const reduceMotion = useReducedMotion();
   const titleId = useId();
   const subtitleId = useId();
+  // Read the latest callback without restarting opening focus on form edits.
+  const closeOnEscape = useEffectEvent(onClose);
 
   useEffect(() => {
     if (!isOpen) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    window.requestAnimationFrame(() => {
+    const focusFrame = window.requestAnimationFrame(() => {
       const firstFocusable = dialogRef.current?.querySelector<HTMLElement>(
         'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
       );
@@ -62,7 +64,7 @@ export function Modal({
       );
       if (dialogs[dialogs.length - 1] !== dialogRef.current?.parentElement)
         return;
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closeOnEscape();
       if (e.key !== "Tab" || !dialogRef.current) return;
       const focusable = Array.from(
         dialogRef.current.querySelectorAll<HTMLElement>(
@@ -86,11 +88,12 @@ export function Modal({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
+      window.cancelAnimationFrame(focusFrame);
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = originalOverflow;
       previouslyFocused?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   return (
     <AnimatePresence>
@@ -147,7 +150,7 @@ export function Modal({
               <button
                 onClick={onClose}
                 aria-label="Close dialog"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-slate-400 sm:h-8 sm:w-8 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
               >
                 <X className="h-5 w-5" />
               </button>

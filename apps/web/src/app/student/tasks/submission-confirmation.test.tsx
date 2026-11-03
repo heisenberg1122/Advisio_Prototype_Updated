@@ -3,7 +3,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Exercise the presentation callbacks without a server or persistent records.
-const harness = vi.hoisted(() => ({ states: [] as any[], stateIndex: 0, canSubmit: true, hasDocuments: true }));
+const harness = vi.hoisted(() => ({
+  states: [] as any[],
+  stateIndex: 0,
+  canSubmit: true,
+  hasDocuments: true,
+  attachmentsQuery: {} as Record<string, unknown>,
+  gradeInfo: undefined as { maxPoints: number | null; grade: { releasedScore: number; releasedAt: string } | null } | undefined,
+}));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
   useState: (initial: any) => {
@@ -18,6 +25,8 @@ vi.mock("react", async (original) => ({
 vi.mock("@tanstack/react-query", () => ({
   useQuery: ({ queryKey }: any) => queryKey[0] === "task-submission-options"
     ? { data: { availability: { canSubmit: harness.canSubmit, reasons: [{ message: "The current review state does not accept another submission." }] }, task: { allowedFileTypes: ["PDF"] }, options: harness.hasDocuments ? [storedOption] : [], unavailableOptionReasons: [] } }
+    : queryKey[0] === "milestone-attachments" ? harness.attachmentsQuery
+    : queryKey[0] === "submission-grade" ? { data: harness.gradeInfo }
     : { data: { milestones: [] } },
 }));
 import { MilestoneDetailsWorkspace } from "./page";
@@ -59,6 +68,8 @@ beforeEach(() => {
   harness.states = ["upload", null, null, "upload", null];
   harness.canSubmit = true;
   harness.hasDocuments = true;
+  harness.attachmentsQuery = {};
+  harness.gradeInfo = undefined;
 });
 
 describe("academic task workspace presentation", () => {
@@ -66,6 +77,32 @@ describe("academic task workspace presentation", () => {
     harness.stateIndex = 0;
     return MilestoneDetailsWorkspace(props);
   }
+  it("hides empty materials and feedback while retaining the materials retry action", () => {
+    const tree = nodes(workspace());
+    const attachments = tree.find(n => n.type?.name === "StudentMilestoneAttachments");
+    const feedback = tree.find(n => n.type?.name === "FacultyFeedback");
+    harness.attachmentsQuery = { isSuccess: true, data: { attachments: [] } };
+    expect(attachments.type(attachments.props)).toBeNull();
+    expect(feedback.type({ submission: { reviewNote: "  " } })).toBeNull();
+    expect(feedback.type({ submission: { reviewNote: "Clarify the scope." } })).not.toBeNull();
+
+    const refetch = vi.fn();
+    harness.attachmentsQuery = { isError: true, refetch };
+    const retry = nodes(attachments.type(attachments.props)).find(n => n.type === "button");
+    expect(retry).toBeDefined();
+    retry.props.onClick();
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
+  it("shows Awaiting grade only until a configured grade is released, including a score of zero", () => {
+    const hasAwaitingGrade = () => nodes(workspace()).some(n => n.props?.children === "Awaiting grade");
+    harness.gradeInfo = { maxPoints: null, grade: null };
+    expect(hasAwaitingGrade()).toBe(false);
+    harness.gradeInfo = { maxPoints: 100, grade: null };
+    expect(hasAwaitingGrade()).toBe(true);
+    harness.gradeInfo = { maxPoints: 100, grade: { releasedScore: 0, releasedAt: "2026-11-03T00:00:00Z" } };
+    expect(hasAwaitingGrade()).toBe(false);
+  });
   it("places available submission choices after instructions and before history/materials in DOM order", () => {
     harness.states = ["choose", null, null, null, null];
     const tree = workspace();
