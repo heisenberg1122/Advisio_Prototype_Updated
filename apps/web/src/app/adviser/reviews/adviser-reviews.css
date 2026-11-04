@@ -652,6 +652,12 @@
   background: var(--color-surface);
 }
 
+/* A manuscript preview and its feedback column need the intended desktop
+   workspace width; compact history dialogs keep their existing sizing. */
+.adviser-reviews--workspace [role="dialog"]:has(#review-recommendation) > div {
+  max-width: 1400px;
+}
+
 .adviser-reviews--workspace [role="dialog"] > div > div {
   padding: 20px 24px;
 }
