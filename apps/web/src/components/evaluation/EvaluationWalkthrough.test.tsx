@@ -14,13 +14,14 @@ test.each([
 ])(
   "%s guide exposes its published video without requiring playback",
   (role, folder) => {
-    const html = renderToStaticMarkup(
-      <EvaluationWalkthrough role={role} onContinue={() => {}} />,
-    );
+    const html = renderToStaticMarkup(<EvaluationWalkthrough role={role} />);
     expect(html).toContain(`/walkthroughs/${folder}/`);
     expect(html).toContain('type="video/mp4"');
     expect(html).toContain('kind="captions"');
-    expect(html).toContain("Start guided activities</button>");
+    expect(html).toContain(
+      `href="/walkthroughs/${folder}/index.html" target="_blank" rel="noopener noreferrer"`,
+    );
+    expect(html).not.toContain("Start guided activities</button>");
     expect(html).not.toContain("disabled");
     expect(html).not.toContain("autoPlay");
     for (const match of html.matchAll(
@@ -40,6 +41,14 @@ test("Researcher player is expanded on the evaluation guide", () => {
   expect(html).toContain('aria-expanded="true"');
   expect(html).toContain('<div id="researcher-video">');
   expect(html).toContain("Read Written Guide");
+  expect(html.match(/Read Written Guide/g)).toHaveLength(1);
+  expect(html).toContain(
+    'href="/walkthrough/research-dashboard" target="_blank" rel="noopener noreferrer"',
+  );
+  expect(html).not.toContain('href="#researcher-written-guide"');
+  expect(html).not.toContain("Continue to ADVISIO");
+  expect(html).not.toContain("Explore ADVISIO");
+  expect(html).toContain("Hide video</button>");
 });
 
 test("Panelists get one player and an explicit choice of guides", () => {

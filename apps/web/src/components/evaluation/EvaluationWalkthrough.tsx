@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { ExternalLink } from "lucide-react";
 import dean from "../../../public/walkthroughs/dean/media.json";
 import coordinator from "../../../public/walkthroughs/coordinator/media.json";
 import adviser from "../../../public/walkthroughs/adviser/media.json";
@@ -16,21 +17,12 @@ const recordings = {
   preparation: { folder: "panelist-preparation", media: preparation },
 };
 
-export function EvaluationWalkthrough({
-  role,
-  onContinue,
-}: {
-  role?: string;
-  onContinue?: () => void;
-}) {
+export function EvaluationWalkthrough({ role }: { role?: string }) {
   const [panelistMode, setPanelistMode] = useState<
     "structured" | "pdf" | "preparation"
   >("structured");
   const [failed, setFailed] = useState(false);
-  if (role === "student")
-    return (
-      <ResearcherWalkthrough context="evaluation" onContinue={onContinue} />
-    );
+  if (role === "student") return <ResearcherWalkthrough context="evaluation" />;
   const recording =
     role === "panelist"
       ? recordings[panelistMode]
@@ -94,6 +86,9 @@ export function EvaluationWalkthrough({
         </p>
       )}
       <div className="rw-actions">
+        <a href={`${root}index.html`} target="_blank" rel="noopener noreferrer">
+          Open video in new tab <ExternalLink size={16} aria-hidden="true" />
+        </a>
         <a href={`${root}${media.video}`} download>
           Download video
         </a>
@@ -104,11 +99,6 @@ export function EvaluationWalkthrough({
         >
           Read narration transcript
         </a>
-        {onContinue && (
-          <button type="button" onClick={onContinue}>
-            Start guided activities
-          </button>
-        )}
       </div>
     </section>
   );

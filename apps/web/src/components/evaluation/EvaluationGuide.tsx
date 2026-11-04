@@ -14,6 +14,7 @@ import {
   EvaluationSupport,
 } from "./EvaluationShared";
 import "./evaluation.css";
+import "./evaluation-guide-layout.css";
 import { EvaluationWalkthrough } from "./EvaluationWalkthrough";
 
 export default function EvaluationGuide() {
@@ -65,7 +66,7 @@ export default function EvaluationGuide() {
     window.location.assign(session.home);
   }
   return (
-    <main className="evaluation-page">
+    <main className="evaluation-page evaluation-guide-page">
       <section className="evaluation-card evaluation-guide-card">
         <EvaluationBrand />
         <p className="evaluation-eyebrow">Step 1 of 3</p>
@@ -91,85 +92,95 @@ export default function EvaluationGuide() {
             )}
           </div>
         )}
-        <EvaluationWalkthrough
-          key={selectedRole?.id}
-          role={selectedRole?.id}
-          onContinue={session ? startActivities : undefined}
-        />
-        <section
-          className="evaluation-written-guide"
-          aria-labelledby="guide-start"
-        >
-          <h2 id="guide-start">Before you explore</h2>
-          <ul>
-            <li>
-              Read the study information and consent details provided with your
-              invitation. Participation is voluntary; you may stop at any time.
-            </li>
-            <li>
-              The names, projects, files, schedules, and records are fictional.
-              Use the prepared materials rather than uploading personal or
-              confidential information.
-            </li>
-            <li>
-              Your workspace is separate from other respondents. You can try the
-              features available to your assigned role.
-            </li>
-          </ul>
-          <h2>Find your way around</h2>
-          <p>
-            Start with the dashboard, then open the assigned project or defense.
-            Look for its manuscript, progress, feedback, and available actions.
-            Use the <strong>Evaluation guide</strong> button at the bottom of
-            the screen to reopen your task checklist at any time.
-          </p>
-          <h2>Your guided activities</h2>
-          {tasks.length ? (
-            <ol>
-              {tasks.map((task) => (
-                <li key={task}>{task}</li>
-              ))}
-            </ol>
-          ) : (
-            <p>
-              Select your assigned role on the entry page to see the activities
-              prepared for you.
-            </p>
-          )}
-          {session?.role === "student" && (
-            <p>
-              <a
-                href="/api/evaluation/revision"
-                download={session.revisionName}
-              >
-                Download the prepared revision PDF
-              </a>
-            </p>
-          )}
-          <p>
-            If a feature is unclear or does not work, note what happened. You
-            can describe the difficulty in the questionnaire; you do not have to
-            give a positive rating.
-          </p>
-          <h2>After exploring</h2>
-          <p>
-            In the evaluation guide, select <strong>Finish exploration</strong>,
-            then open the TAM questionnaire. Base your answers on using ADVISIO,
-            rather than on this introduction. Submit the form in Google Forms,
-            then return to end your practice session.
-          </p>
-        </section>
-        <div className="evaluation-actions">
-          {session ? (
-            <button onClick={startActivities}>Start guided activities</button>
-          ) : (
-            !loading && (
-              <Link className="evaluation-link-button" to={entry}>
-                Return to begin evaluation
-              </Link>
-            )
-          )}
-          {session && <Link to={entry}>Back to entry page</Link>}
+        <div className={selectedRole ? "evaluation-guide-content" : undefined}>
+          <div className="evaluation-guide-media">
+            <EvaluationWalkthrough
+              key={selectedRole?.id}
+              role={selectedRole?.id}
+            />
+          </div>
+          <div className="evaluation-guide-notes">
+            <section
+              className="evaluation-written-guide"
+              aria-labelledby="guide-start"
+            >
+              <h2 id="guide-start">Before you explore</h2>
+              <ul>
+                <li>
+                  Read the study information and consent details provided with
+                  your invitation. Participation is voluntary; you may stop at
+                  any time.
+                </li>
+                <li>
+                  The names, projects, files, schedules, and records are
+                  fictional. Use the prepared materials rather than uploading
+                  personal or confidential information.
+                </li>
+                <li>
+                  Your workspace is separate from other respondents. You can try
+                  the features available to your assigned role.
+                </li>
+              </ul>
+              <h2>Find your way around</h2>
+              <p>
+                Start with the dashboard, then open the assigned project or
+                defense. Look for its manuscript, progress, feedback, and
+                available actions. Use the <strong>Evaluation guide</strong>{" "}
+                button at the bottom of the screen to reopen your task checklist
+                at any time.
+              </p>
+              <h2>Your guided activities</h2>
+              {tasks.length ? (
+                <ol>
+                  {tasks.map((task) => (
+                    <li key={task}>{task}</li>
+                  ))}
+                </ol>
+              ) : (
+                <p>
+                  Select your assigned role on the entry page to see the
+                  activities prepared for you.
+                </p>
+              )}
+              {session?.role === "student" && (
+                <p>
+                  <a
+                    href="/api/evaluation/revision"
+                    download={session.revisionName}
+                  >
+                    Download the prepared revision PDF
+                  </a>
+                </p>
+              )}
+              <p>
+                If a feature is unclear or does not work, note what happened.
+                You can describe the difficulty in the questionnaire; you do not
+                have to give a positive rating.
+              </p>
+              <h2>After exploring</h2>
+              <p>
+                In the evaluation guide, select{" "}
+                <strong>Finish exploration</strong>, then open the TAM
+                questionnaire. Base your answers on using ADVISIO, rather than
+                on this introduction. Submit the form in Google Forms, then
+                return to end your practice session.
+              </p>
+            </section>
+            <div className="evaluation-actions">
+              {session ? (
+                <button onClick={startActivities}>
+                  Start guided activities
+                </button>
+              ) : (
+                !loading && (
+                  <Link className="evaluation-link-button" to={entry}>
+                    Return to begin evaluation
+                  </Link>
+                )
+              )}
+              {session && <Link to={entry}>Back to entry page</Link>}
+            </div>
+          </div>
         </div>
         <EvaluationAbout temporary={config?.temporaryStorage} />
         <EvaluationSupport />

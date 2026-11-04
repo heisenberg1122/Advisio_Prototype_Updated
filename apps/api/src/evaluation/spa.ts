@@ -3,12 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-// One HTTPS origin serves the portals and API, so mobile browsers keep the
-// private, first-party evaluation cookie without cross-site cookie exceptions.
-export function evaluationSpa(directory: string) {
-  const root = path.resolve(directory);
-  const index = path.join(root, "index.html");
-  const html = readFileSync(index, "utf8");
+function htmlPolicy(html: string) {
   const hashes = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
     .filter((match) => !/\bsrc\s*=/i.test(match[1]) && match[2].trim())
     .map(
@@ -16,7 +11,7 @@ export function evaluationSpa(directory: string) {
         // HTML parsing normalizes CRLF/CR to LF before CSP hashes are checked.
         `'sha256-${createHash("sha256").update(match[2].replace(/\r\n?/g, "\n")).digest("base64")}'`,
     );
-  const policy = [
+  return [
     "default-src 'self'",
     `script-src 'self' ${hashes.join(" ")}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
@@ -31,6 +26,15 @@ export function evaluationSpa(directory: string) {
     "form-action 'self'",
     "frame-ancestors 'none'",
   ].join("; ");
+}
+
+// One HTTPS origin serves the portals and API, so mobile browsers keep the
+// private, first-party evaluation cookie without cross-site cookie exceptions.
+export function evaluationSpa(directory: string) {
+  const root = path.resolve(directory);
+  const index = path.join(root, "index.html");
+  const policy = htmlPolicy(readFileSync(index, "utf8"));
+  const staticPolicies = new Map<string, string>();
   const router = Router();
   router.use((req, res, next) => {
     let decoded: string;
@@ -56,6 +60,17 @@ export function evaluationSpa(directory: string) {
       dotfiles: "deny",
       maxAge: 0,
       fallthrough: true,
+      setHeaders(res, file) {
+        if (path.extname(file) !== ".html") return;
+        // serveStatic supplies only an actual file inside the public root.
+        // Standalone players need hashes for their own chapter controls.
+        let pagePolicy = staticPolicies.get(file);
+        if (!pagePolicy) {
+          pagePolicy = htmlPolicy(readFileSync(file, "utf8"));
+          staticPolicies.set(file, pagePolicy);
+        }
+        res.setHeader("Content-Security-Policy", pagePolicy);
+      },
     }),
   );
   router.get("*", (req, res, next) => {

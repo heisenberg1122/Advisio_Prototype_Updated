@@ -15,6 +15,12 @@ test("hosted portals use a first-party SPA, bounded CSP, and real API 404 respon
   const html = `<!doctype html><script>${bootstrap}</script><div id="root"></div><script src="/assets/main.js"></script>`;
   await fs.mkdir(path.join(directory, "assets"));
   await fs.writeFile(path.join(directory, "index.html"), html);
+  const playerScript = 'document.querySelector("video").dataset.ready="true";';
+  await fs.mkdir(path.join(directory, "walkthroughs"));
+  await fs.writeFile(
+    path.join(directory, "walkthroughs", "index.html"),
+    `<video controls></video><script>${playerScript}</script>`,
+  );
   await fs.writeFile(
     path.join(directory, "assets/main.js"),
     'console.log("loaded")',
@@ -51,6 +57,23 @@ test("hosted portals use a first-party SPA, bounded CSP, and real API 404 respon
     expect(await (await fetch(`${base}/assets/main.js`)).text()).toContain(
       "loaded",
     );
+    const player = await fetch(`${base}/walkthroughs/index.html`);
+    expect(player.status).toBe(200);
+    const playerPolicy = player.headers.get("content-security-policy")!;
+    const scriptPolicy = playerPolicy
+      .split(";")
+      .find((rule) => rule.trim().startsWith("script-src"))!;
+    expect(scriptPolicy).toContain(
+      `'sha256-${createHash("sha256").update(playerScript).digest("base64")}'`,
+    );
+    expect(scriptPolicy).not.toContain("unsafe-inline");
+    expect(scriptPolicy).not.toContain(
+      createHash("sha256")
+        .update(bootstrap.replace(/\r\n/g, "\n"))
+        .digest("base64"),
+    );
+    expect(playerPolicy).toContain("frame-ancestors 'none'");
+    expect(playerPolicy).toContain("media-src 'self' blob:");
     const api = await fetch(`${base}/api/not-a-real-route`);
     expect(api.status).toBe(404);
     expect(await api.json()).toEqual({ error: "API route not found." });

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { ExternalLink } from "lucide-react";
 import guide from "./researcher-guide.json";
 import "./researcher-walkthrough.css";
 
@@ -46,11 +47,9 @@ const clock = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 
 export function ResearcherWalkthrough({
-  onContinue,
   standalone = false,
   context = "general",
 }: {
-  onContinue?: () => void;
   standalone?: boolean;
   context?: "general" | "evaluation";
 }) {
@@ -59,7 +58,9 @@ export function ResearcherWalkthrough({
   const [media, setMedia] = useState<Media | null>(null);
   const [failed, setFailed] = useState(false);
   const [captionError, setCaptionError] = useState(false);
-  const [showVideo, setShowVideo] = useState(context === "evaluation");
+  const [showVideo, setShowVideo] = useState(
+    standalone || context === "evaluation",
+  );
   const [current, setCurrent] = useState(0);
   const [ended, setEnded] = useState(false);
   useEffect(() => {
@@ -95,7 +96,7 @@ export function ResearcherWalkthrough({
       </Title>
       <p>
         {context === "evaluation"
-          ? "Watch the walkthrough, read the guide, or continue to your prepared workspace at any time."
+          ? "Watch the video or read the written guide below. You can start your activities at any time."
           : "A guided tour of the Researcher workspace and its core features. Return to any chapter for a refresher while using ADVISIO."}
       </p>
       <div className="rw-actions">
@@ -105,33 +106,19 @@ export function ResearcherWalkthrough({
           aria-controls="researcher-video"
           onClick={() => setShowVideo((show) => !show)}
         >
-          Watch Quick Walkthrough
+          {showVideo ? "Hide video" : "Show video"}
         </button>
-        <a
-          href="#researcher-written-guide"
-          onClick={() => {
-            const details = document.getElementById(
-              "researcher-written-guide",
-            ) as HTMLDetailsElement | null;
-            if (details) details.open = true;
-          }}
-        >
-          Read Written Guide
-        </a>
-        {onContinue ? (
-          <button type="button" onClick={onContinue}>
-            Continue to ADVISIO
-          </button>
-        ) : (
-          <Link
-            to={
-              context === "evaluation"
-                ? "/evaluate?role=student"
-                : "/student/dashboard"
-            }
+        {!standalone && (
+          <a
+            href="/walkthrough/research-dashboard"
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            Explore ADVISIO
-          </Link>
+            Open video in new tab <ExternalLink size={16} aria-hidden="true" />
+          </a>
+        )}
+        {context === "general" && (
+          <Link to="/student/dashboard">Explore ADVISIO</Link>
         )}
       </div>
       <div id="researcher-video" hidden={!showVideo}>
@@ -180,66 +167,45 @@ export function ResearcherWalkthrough({
                   Return to any section whenever you need a refresher while
                   using the Researcher workspace.
                 </p>
-                <div className="rw-actions">
-                  {onContinue ? (
-                    <button type="button" onClick={onContinue}>
-                      Explore ADVISIO
-                    </button>
-                  ) : (
-                    <Link
-                      to={
-                        context === "evaluation"
-                          ? "/evaluate?role=student"
-                          : "/student/dashboard"
-                      }
-                    >
-                      Explore ADVISIO
-                    </Link>
-                  )}
-                  <a
-                    href="#researcher-written-guide"
-                    onClick={() => {
-                      const details = document.getElementById(
-                        "researcher-written-guide",
-                      ) as HTMLDetailsElement | null;
-                      if (details) details.open = true;
-                    }}
-                  >
-                    View Written Guide
-                  </a>
-                </div>
               </section>
             )}
             <p id="researcher-player-help" className="rw-help">
               Use the player controls for play, pause, seek, volume, captions
-              and fullscreen. Chapter buttons seek without starting playback.
+              and fullscreen. Open Video chapters to jump to a section without
+              starting playback.
             </p>
-            <button
-              type="button"
-              className="rw-restart"
-              onClick={() => jump(0)}
+            <details
+              className="rw-video-chapters"
+              open={context !== "evaluation"}
             >
-              Restart from beginning
-            </button>
-            <nav className="rw-chapters" aria-label="Walkthrough chapters">
-              {media.chapters.map((chapter, index) => (
-                <button
-                  type="button"
-                  key={chapter.id}
-                  aria-current={
-                    current >= chapter.start && current < chapter.end
-                      ? "true"
-                      : undefined
-                  }
-                  onClick={() => jump(chapter.start)}
-                >
-                  <span>
-                    {String(index).padStart(2, "0")} · {chapter.title}
-                  </span>
-                  <small>{clock(chapter.start)}</small>
-                </button>
-              ))}
-            </nav>
+              <summary>Video chapters</summary>
+              <button
+                type="button"
+                className="rw-restart"
+                onClick={() => jump(0)}
+              >
+                Restart from beginning
+              </button>
+              <nav className="rw-chapters" aria-label="Walkthrough chapters">
+                {media.chapters.map((chapter, index) => (
+                  <button
+                    type="button"
+                    key={chapter.id}
+                    aria-current={
+                      current >= chapter.start && current < chapter.end
+                        ? "true"
+                        : undefined
+                    }
+                    onClick={() => jump(chapter.start)}
+                  >
+                    <span>
+                      {String(index).padStart(2, "0")} · {chapter.title}
+                    </span>
+                    <small>{clock(chapter.start)}</small>
+                  </button>
+                ))}
+              </nav>
+            </details>
           </>
         ) : (
           <p className="rw-availability" role="status">

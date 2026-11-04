@@ -1,0 +1,58 @@
+.evaluation-guide-page {
+  padding: clamp(20px, 3vw, 40px) clamp(12px, 3vw, 40px);
+}
+.evaluation-guide-page > .evaluation-guide-card {
+  max-width: 1280px;
+  padding: clamp(20px, 3vw, 36px);
+}
+.evaluation-guide-card > p {
+  max-width: 78ch;
+}
+.evaluation-guide-card > .evaluation-steps {
+  max-width: 800px;
+}
+.evaluation-guide-card .evaluation-steps li > span {
+  width: 24px;
+  min-width: 24px;
+}
+.evaluation-guide-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(300px, 1fr);
+  gap: 28px;
+  align-items: start;
+  margin-top: 24px;
+}
+.evaluation-guide-media,
+.evaluation-guide-notes {
+  min-width: 0;
+}
+.evaluation-guide-content > .evaluation-guide-notes {
+  border-left: 1px solid #d9e3ee;
+  padding-left: 28px;
+}
+.evaluation-guide-notes .evaluation-written-guide > h2:first-child {
+  margin-top: 0;
+}
+.evaluation-guide-card .researcher-walkthrough {
+  margin: 0;
+  padding: clamp(16px, 2vw, 24px);
+}
+.evaluation-guide-card .researcher-walkthrough h2 {
+  font-size: clamp(22px, 2vw, 28px);
+}
+.evaluation-guide-card .rw-actions {
+  margin: 20px 0;
+}
+.evaluation-guide-card .rw-actions a {
+  align-items: center;
+  gap: 8px;
+}
+@media (max-width: 1000px) {
+  .evaluation-guide-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .evaluation-guide-content > .evaluation-guide-notes {
+    border-left: 0;
+    padding-left: 0;
+  }
+}
