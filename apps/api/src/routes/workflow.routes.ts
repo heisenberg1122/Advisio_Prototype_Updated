@@ -33,6 +33,7 @@ import workflowAccessRoutes, {
 import multer from "multer";
 import fs from "node:fs";
 import { googleDriveService } from "../services/google-drive.service.js";
+import { storeWorkflowResourceFile } from "../services/workflow-resource-storage.service.js";
 import { canReviewTaskSubmission } from "../services/task-submission-access.service.js";
 import {
   advanceMilestoneIfSatisfied,
@@ -175,15 +176,11 @@ async function workflowAccess(
   return enrollment || membership ? { workflow, manages: false } : null;
 }
 
+
 async function workflowResourceFolder(workflow: { id: string; name: string }) {
   return googleDriveService.ensureFolderPath([
     { name: "02_WORKFLOW_RESOURCES", key: "workflow-resources" },
-    {
-      name: workflow.name,
-      key: `workflow:${workflow.id}`,
-      entityType: "WORKFLOW",
-      entityId: workflow.id,
-    },
+    { name: workflow.name, key: `workflow:${workflow.id}`, entityType: "WORKFLOW", entityId: workflow.id },
   ]);
 }
 
@@ -782,18 +779,7 @@ router.post(
         String(req.body.description || "")
           .trim()
           .slice(0, 2000) || null;
-      const folderId = await workflowResourceFolder(access.workflow);
-      const stored = await googleDriveService.uploadFile({
-        folderId,
-        fileName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        buffer: req.file.buffer,
-        description: `${title} — ${access.workflow.name}`,
-        appProperties: {
-          entityType: "WORKFLOW_RESOURCE",
-          workflowId: access.workflow.id,
-        },
-      });
+      const stored = await storeWorkflowResourceFile(access.workflow, req.file, title);
       const resource = await prisma.$transaction(async (tx) => {
         const created = await tx.workflowResource.create({
           data: {
@@ -804,7 +790,7 @@ router.post(
             mimeType: stored.mimeType,
             fileSize: BigInt(stored.sizeBytes),
             storagePath: stored.storagePath,
-            googleDriveFileId: stored.fileId,
+            googleDriveFileId: stored.googleDriveFileId,
             uploadedBy: req.user!.id,
           },
           select: resourceSelect,
@@ -936,18 +922,7 @@ router.post(
         return void res
           .status(400)
           .json({ error: "Select a replacement PDF, DOC, or DOCX file." });
-      const folderId = await workflowResourceFolder(existing.workflow);
-      const stored = await googleDriveService.uploadFile({
-        folderId,
-        fileName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        buffer: req.file.buffer,
-        description: `${existing.title} — ${existing.workflow.name}`,
-        appProperties: {
-          entityType: "WORKFLOW_RESOURCE",
-          workflowId: existing.workflowId,
-        },
-      });
+      const stored = await storeWorkflowResourceFile(existing.workflow, req.file, existing.title);
       const nextVersion = existing.version + 1;
       const resource = await prisma.$transaction(async (tx) => {
         const updated = await tx.workflowResource.update({
@@ -957,7 +932,7 @@ router.post(
             mimeType: stored.mimeType,
             fileSize: BigInt(stored.sizeBytes),
             storagePath: stored.storagePath,
-            googleDriveFileId: stored.fileId,
+            googleDriveFileId: stored.googleDriveFileId,
             uploadedBy: req.user!.id,
             version: nextVersion,
           },

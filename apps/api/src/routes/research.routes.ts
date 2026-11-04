@@ -18,6 +18,7 @@ import { randomBytes } from "node:crypto";
 import { getCollegeScope } from "../lib/college-scope.js";
 
 import { filterResearchWorkflowDetails } from "../services/workflow-enrollment-access.service.js";
+import { researchScopeWhere } from "../lib/research-list-scope.js";
 
 const router = Router();
 
@@ -56,33 +57,6 @@ router.post("/:id/team-invitations", requireAuth, async (req, res) => {
     res.status(201).json({ queued: result.count });
   } catch (error: any) { res.status(error.statusCode || 500).json({ error: error.statusCode ? error.message : "Unable to send team invitation." }); }
 });
-
-function researchScopeWhere(user: AuthenticatedUser) {
-  const scope = getCollegeScope(user);
-  const collegeWhere = scope.kind === "college" ? { collegeId: scope.collegeId } : {};
-  if (user.researcherPanel) return {
-    ...collegeWhere,
-    members: { some: { userId: user.id, leftAt: null, projectRole: { in: ["LEADER" as const, "MEMBER" as const] } } },
-  };
-  if (scope.kind === "institution" || user.roles.includes("RESEARCH_COORDINATOR")) return collegeWhere;
-
-  const access: any[] = [];
-  if (user.roles.includes("RESEARCHER")) {
-    access.push({ members: { some: { userId: user.id, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } } } });
-  }
-  if (user.roles.includes("ADVISER")) {
-    access.push({ members: { some: { userId: user.id, leftAt: null, projectRole: "ADVISER" } } });
-  }
-  if (user.roles.includes("PANELIST")) {
-    access.push({
-      OR: [
-        { members: { some: { userId: user.id, leftAt: null, projectRole: "PANELIST" } } },
-        { defenseSessions: { some: { invitations: { some: { inviteeId: user.id, status: { not: "REMOVED" } } } } } },
-      ],
-    });
-  }
-  return { ...collegeWhere, ...(access.length ? { OR: access } : { createdBy: user.id }) };
-}
 
 const PARTICIPATION_MODES = new Set(["SOLO", "GROUP"]);
 const ACCESS_MODES = new Set([

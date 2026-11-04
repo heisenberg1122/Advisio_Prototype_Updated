@@ -11,6 +11,17 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 describe("provider-neutral confidential storage", () => {
+  it("uses the document's local provider for a signing source without contacting cloud storage", async () => {
+    vi.stubEnv("STORAGE_PROVIDER", "LOCAL");
+    const bytes = Buffer.from("%PDF-local-signature");
+    const local = vi.spyOn(localStorageService, "readStoredFile").mockResolvedValue(bytes);
+    const drive = vi.spyOn(googleDriveService, "getFileStream");
+    const cloud = vi.spyOn(supabaseStorageService, "downloadStoredFile");
+    expect(await loadVersionFile({ googleDriveFileId: null, storagePath: "local-signing-fixture.pdf", fileSize: BigInt(bytes.length), document: { storageProvider: "LOCAL" } })).toEqual(bytes);
+    expect(local).toHaveBeenCalledWith("local-signing-fixture.pdf");
+    expect(drive).not.toHaveBeenCalled();
+    expect(cloud).not.toHaveBeenCalled();
+  });
   it("refuses to put new confidential uploads in a public bucket", async () => {
     const previous = (supabaseStorageService as any).client;
     const upload = vi.fn();

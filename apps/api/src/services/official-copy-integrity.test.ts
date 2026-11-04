@@ -3,10 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthenticatedUser } from "../middleware/auth.js";
 
 const mocks = vi.hoisted(() => ({
-  findCopy: vi.fn(), findResearch: vi.fn(), audit: vi.fn(), loadFile: vi.fn(),
+  findCopy: vi.fn(), findArtifact: vi.fn(), findResearch: vi.fn(), audit: vi.fn(), loadFile: vi.fn(),
 }));
 vi.mock("../lib/prisma.js", () => ({ prisma: {
-  officialCopy: { findUnique: mocks.findCopy },
+  officialCopy: { findUnique: mocks.findCopy, findFirst: mocks.findArtifact },
   researchProject: { findUnique: mocks.findResearch },
   auditLog: { create: mocks.audit },
 } }));
@@ -25,6 +25,11 @@ const original = Buffer.from("%PDF-1.7\noriginal fixture bytes");
 const checksum = crypto.createHash("sha256").update(original).digest("hex");
 
 describe("official-copy integrity evidence", () => {
+  it("resolves an authorized local original with no Drive identifier", async () => {
+    mocks.findArtifact.mockResolvedValue({ id: "copy", researchId: "project", fileName: "archive.pdf", mimeType: "application/pdf", googleDriveFileId: null, storagePath: "/local/archive.pdf", storageProvider: "LOCAL" });
+    const artifact = await officialCopyService.resolveArtifact(user, "00000000-0000-4000-8000-000000000001");
+    expect(artifact).toMatchObject({ entityId: "copy", googleDriveFileId: null, storageProvider: "LOCAL", storagePath: "/local/archive.pdf" });
+  });
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.findCopy.mockResolvedValue({

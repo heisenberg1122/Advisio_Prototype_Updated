@@ -724,7 +724,8 @@ class OfficialCopyService {
       entityType: copy ? "OfficialCopy" : "OfficialCopySignature",
       fileName: copy?.fileName || signature!.fileName,
       mimeType: copy?.mimeType || signature!.mimeType,
-      googleDriveFileId: copy?.googleDriveFileId || signature!.googleDriveFileId,
+      googleDriveFileId: copy ? copy.googleDriveFileId : signature!.googleDriveFileId,
+      storageProvider: copy?.storageProvider,
       storagePath: copy?.storagePath || signature!.storagePath,
     };
   }

@@ -95,10 +95,10 @@ async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
 }
 
 export async function loadVersionFile(version: {
-  googleDriveFileId: string | null; storagePath: string; fileSize?: bigint | number;
+  googleDriveFileId: string | null; storagePath: string; fileSize?: bigint | number; storageProvider?: string; document?: { storageProvider: string };
 }): Promise<Buffer> {
   const { buffer } = await documentService.readStoredVersionFile({
-    storageProvider: version.googleDriveFileId ? "GOOGLE_DRIVE" : "SUPABASE",
+    storageProvider: version.storageProvider || version.document?.storageProvider || (process.env.STORAGE_PROVIDER === "LOCAL" && path.isAbsolute(version.storagePath) ? "LOCAL" : version.googleDriveFileId ? "GOOGLE_DRIVE" : "SUPABASE"),
     storagePath: version.storagePath, googleDriveFileId: version.googleDriveFileId, expectedSize: version.fileSize,
   });
   return buffer;
