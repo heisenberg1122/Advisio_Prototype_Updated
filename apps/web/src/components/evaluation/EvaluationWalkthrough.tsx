@@ -77,27 +77,18 @@ export function EvaluationWalkthrough({ role }: { role?: string }) {
           label="English"
           default
         />
-        Your browser does not support this video. Use the download link below.
+        Your browser does not support this video. You can read the written guide
+        or continue to your activities.
       </video>
       {failed && (
         <p className="rw-availability" role="status">
-          The video could not load. Try the download link, read the guide below,
-          or continue to your activities.
+          The video could not load. Try opening it in a new tab, read the written
+          guide, or continue to your activities.
         </p>
       )}
       <div className="rw-actions">
         <a href={`${root}index.html`} target="_blank" rel="noopener noreferrer">
           Open video in new tab <ExternalLink size={16} aria-hidden="true" />
-        </a>
-        <a href={`${root}${media.video}`} download>
-          Download video
-        </a>
-        <a
-          href={`${root}transcript.txt`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Read narration transcript
         </a>
       </div>
     </section>
