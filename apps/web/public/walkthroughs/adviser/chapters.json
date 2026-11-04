@@ -1,0 +1,38 @@
+[
+  {
+    "id": "workspace",
+    "title": "Adviser workspace",
+    "start": 0,
+    "end": 123.43333333333334
+  },
+  {
+    "id": "groups",
+    "title": "Research group management",
+    "start": 123.43333333333334,
+    "end": 198.9
+  },
+  {
+    "id": "reviews",
+    "title": "Manuscript review and endorsement",
+    "start": 198.9,
+    "end": 310.03333333333336
+  },
+  {
+    "id": "consultations",
+    "title": "Consultations and research guidance",
+    "start": 310.03333333333336,
+    "end": 388.6333333333333
+  },
+  {
+    "id": "defense",
+    "title": "Defense preparation and academic records",
+    "start": 388.6333333333333,
+    "end": 416.73333333333335
+  },
+  {
+    "id": "communication",
+    "title": "Communication and closing",
+    "start": 416.73333333333335,
+    "end": 484.56666666666666
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "role": "dean",
+    "title": "ADVISIO Dean Workspace Walkthrough",
+    "duration": 466.604,
+    "chapters": 15,
+    "page": "dean/index.html",
+    "bytes": 57865375
+  },
+  {
+    "role": "coordinator",
+    "title": "ADVISIO Research Coordinator Walkthrough",
+    "duration": 586.399,
+    "chapters": 5,
+    "page": "coordinator/index.html",
+    "bytes": 125566616
+  },
+  {
+    "role": "adviser",
+    "title": "ADVISIO Faculty Adviser Walkthrough",
+    "duration": 484.601,
+    "chapters": 6,
+    "page": "adviser/index.html",
+    "bytes": 97786431
+  }
+]

@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "title": "ADVISIO Faculty Adviser Walkthrough",
+  "scriptHash": "d4f32ab0d14e0b9a932c9c1541f3f1c9c19ae40088542bd2a234b2d950a2c006",
+  "duration": 484.601,
+  "video": "adviser-web.mp4",
+  "captionedVideo": "adviser-captioned.mp4",
+  "poster": "poster.jpg",
+  "captions": "subtitles.vtt",
+  "subtitles": "subtitles.srt",
+  "chapters": [
+    {
+      "id": "workspace",
+      "title": "Adviser workspace",
+      "start": 0,
+      "end": 123.43333333333334
+    },
+    {
+      "id": "groups",
+      "title": "Research group management",
+      "start": 123.43333333333334,
+      "end": 198.9
+    },
+    {
+      "id": "reviews",
+      "title": "Manuscript review and endorsement",
+      "start": 198.9,
+      "end": 310.03333333333336
+    },
+    {
+      "id": "consultations",
+      "title": "Consultations and research guidance",
+      "start": 310.03333333333336,
+      "end": 388.6333333333333
+    },
+    {
+      "id": "defense",
+      "title": "Defense preparation and academic records",
+      "start": 388.6333333333333,
+      "end": 416.73333333333335
+    },
+    {
+      "id": "communication",
+      "title": "Communication and closing",
+      "start": 416.73333333333335,
+      "end": 484.56666666666666
+    }
+  ]
+}

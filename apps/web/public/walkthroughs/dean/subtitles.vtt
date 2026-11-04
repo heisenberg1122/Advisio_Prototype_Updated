@@ -1,0 +1,719 @@
+WEBVTT
+
+1
+00:00:00.000 --> 00:00:01.463
+Welcome to ADVISIO.
+
+2
+00:00:02.148 --> 00:00:04.598
+This walkthrough introduces the Dean
+workspace:
+
+3
+00:00:04.969 --> 00:00:08.916
+college research monitoring, faculty
+coordination, document review,
+
+4
+00:00:09.091 --> 00:00:10.577
+and administrative oversight.
+
+5
+00:00:11.169 --> 00:00:13.862
+We will follow fictional college
+records through the screens and
+
+6
+00:00:13.920 --> 00:00:16.114
+actions available to an authorized
+dean.
+
+7
+00:00:16.614 --> 00:00:19.261
+Your assigned college and account
+permissions determine which
+
+8
+00:00:19.330 --> 00:00:20.805
+records you can access.
+
+9
+00:00:21.400 --> 00:00:24.163
+Sign in using your authorized
+institutional account.
+
+10
+00:00:24.593 --> 00:00:27.658
+Enter your email and password, then
+select Sign In.
+
+11
+00:00:28.250 --> 00:00:31.501
+If your account has more than one
+workspace, choose Dean.
+
+12
+00:00:32.186 --> 00:00:35.077
+The workspace identifies your role and
+college scope.
+
+13
+00:00:35.669 --> 00:00:39.187
+This demonstration uses a fictional
+dean account, with no access to
+
+14
+00:00:39.280 --> 00:00:40.534
+real student records.
+
+15
+00:00:41.133 --> 00:00:44.094
+The Overview brings together the
+college research totals.
+
+16
+00:00:44.686 --> 00:00:48.087
+The four cards show student
+researchers, research groups, groups
+
+17
+00:00:48.134 --> 00:00:50.816
+on track, and groups marked as high
+risk.
+
+18
+00:00:51.408 --> 00:00:54.496
+The sidebar connects the monitoring
+and administration areas.
+
+19
+00:00:55.088 --> 00:00:59.001
+Below the cards, Research Program
+Overview compares participation
+
+20
+00:00:59.070 --> 00:01:01.404
+and workflow progress across programs.
+
+21
+00:01:01.903 --> 00:01:05.049
+Research Pipeline groups projects by
+their current milestone.
+
+22
+00:01:05.642 --> 00:01:09.263
+Needs Dean Attention lists records
+with a recorded risk reason,
+
+23
+00:01:09.507 --> 00:01:12.584
+while Pending Actions summarizes
+accounts and assignments awaiting
+
+24
+00:01:12.630 --> 00:01:13.455
+attention.
+
+25
+00:01:14.067 --> 00:01:17.631
+Use the academic year and program
+filters to focus the dashboard.
+
+26
+00:01:18.223 --> 00:01:21.579
+Select an academic year, then inspect
+the updated research
+
+27
+00:01:21.613 --> 00:01:22.310
+information.
+
+28
+00:01:22.902 --> 00:01:25.236
+Choose a program to narrow the scope
+further.
+
+29
+00:01:25.828 --> 00:01:29.160
+A filter with no matching projects can
+produce an empty result;
+
+30
+00:01:29.531 --> 00:01:31.401
+it does not mean the records were
+deleted.
+
+31
+00:01:31.993 --> 00:01:35.197
+Return to all academic years and all
+programs when you need the
+
+32
+00:01:35.232 --> 00:01:36.590
+broader college view.
+
+33
+00:01:37.200 --> 00:01:39.789
+Open Students to inspect the
+researcher registry.
+
+34
+00:01:40.219 --> 00:01:43.655
+Search by name, institutional
+identifier, or email.
+
+35
+00:01:44.247 --> 00:01:47.521
+Each row brings together the student's
+program, research group,
+
+36
+00:01:47.556 --> 00:01:51.329
+adviser, current stage, progress, and
+account status.
+
+37
+00:01:51.759 --> 00:01:54.685
+Here, a prepared fictional account is
+pending.
+
+38
+00:01:55.370 --> 00:01:57.947
+Review its details before selecting
+Approve.
+
+39
+00:01:58.632 --> 00:02:01.105
+After the update, the account shows
+Active.
+
+40
+00:02:01.697 --> 00:02:03.555
+Approval changes account access;
+
+41
+00:02:03.927 --> 00:02:07.758
+it does not automatically create a
+project, assign an adviser, or
+
+42
+00:02:07.828 --> 00:02:09.615
+complete research requirements.
+
+43
+00:02:10.200 --> 00:02:14.275
+Research Groups lists project titles,
+programs, assigned advisers,
+
+44
+00:02:14.391 --> 00:02:16.446
+current stages, and progress.
+
+45
+00:02:17.131 --> 00:02:21.090
+Open Progress and Risk for a closer
+look, then select High risk.
+
+46
+00:02:21.775 --> 00:02:25.084
+The example identifies a project with
+no recent activity and
+
+47
+00:02:25.130 --> 00:02:26.756
+displays the recorded reason.
+
+48
+00:02:27.348 --> 00:02:30.215
+Use that context when deciding what
+needs follow-up with the
+
+49
+00:02:30.250 --> 00:02:31.655
+coordinator or adviser.
+
+50
+00:02:32.247 --> 00:02:35.115
+These indicators describe the recorded
+research activity.
+
+51
+00:02:35.614 --> 00:02:39.120
+They are monitoring signals, rather
+than academic grades or a final
+
+52
+00:02:39.190 --> 00:02:40.757
+judgment about the research.
+
+53
+00:02:41.367 --> 00:02:44.560
+Faculty Access shows invitations and
+access requests.
+
+54
+00:02:45.152 --> 00:02:48.832
+Select Invite or request access, then
+enter the faculty member's
+
+55
+00:02:48.879 --> 00:02:52.524
+identity, institutional identifier,
+and requested roles.
+
+56
+00:02:53.116 --> 00:02:56.565
+The dean must verify eligibility and
+record the basis for that
+
+57
+00:02:56.623 --> 00:02:57.505
+verification.
+
+58
+00:02:58.097 --> 00:03:01.383
+Adviser invitations and requests for
+Professor Coordinator or
+
+59
+00:03:01.464 --> 00:03:04.506
+Panelist access follow different
+approval paths.
+
+60
+00:03:05.005 --> 00:03:07.919
+This example submits a Professor
+Coordinator request.
+
+61
+00:03:08.349 --> 00:03:11.367
+Its recorded status is awaiting
+administrator approval;
+
+62
+00:03:11.796 --> 00:03:14.803
+the request itself has not granted the
+faculty role.
+
+63
+00:03:15.400 --> 00:03:18.848
+The Advisers screen shows each
+adviser's program, active group
+
+64
+00:03:18.918 --> 00:03:22.958
+count, capacity, available slots, and
+groups needing attention.
+
+65
+00:03:23.457 --> 00:03:27.045
+Invite adviser opens Faculty Access
+for the invitation process.
+
+66
+00:03:27.474 --> 00:03:31.282
+For an existing adviser, select Edit
+to review the assigned program,
+
+67
+00:03:31.491 --> 00:03:34.870
+maximum active groups, and
+availability for new requests.
+
+68
+00:03:35.671 --> 00:03:38.457
+Record a reason before saving a
+capacity change.
+
+69
+00:03:39.049 --> 00:03:41.963
+Changing capacity does not reassign
+existing groups.
+
+70
+00:03:42.393 --> 00:03:46.189
+The updated card shows the new limit
+alongside the current workload.
+
+71
+00:03:46.800 --> 00:03:49.308
+In Inbox, select Signature requests.
+
+72
+00:03:49.807 --> 00:03:53.116
+Read the requester's message and
+review the attached document before
+
+73
+00:03:53.162 --> 00:03:54.509
+choosing Add signature.
+
+74
+00:03:55.008 --> 00:03:58.503
+The signing screen supports a saved
+signature, drawing, an uploaded
+
+75
+00:03:58.549 --> 00:04:00.360
+image, or a typed signature.
+
+76
+00:04:01.045 --> 00:04:03.727
+This example uses a typed
+demonstration signature.
+
+77
+00:04:04.156 --> 00:04:07.349
+Review its placement on the document
+and the name and date options.
+
+78
+00:04:07.779 --> 00:04:11.401
+Confirm your password and the
+declaration, then select Confirm and
+
+79
+00:04:11.482 --> 00:04:12.040
+Sign.
+
+80
+00:04:12.725 --> 00:04:15.662
+The system saves a separate signed
+copy with a verification
+
+81
+00:04:15.720 --> 00:04:16.243
+reference.
+
+82
+00:04:16.742 --> 00:04:20.144
+Return to the thread to inspect the
+Signed status and send a reply
+
+83
+00:04:20.213 --> 00:04:21.026
+when needed.
+
+84
+00:04:21.633 --> 00:04:25.220
+Defenses provides college-level
+oversight of scheduled sessions.
+
+85
+00:04:25.720 --> 00:04:29.179
+The summary cards identify upcoming
+defenses, pending panel
+
+86
+00:04:29.238 --> 00:04:33.406
+confirmations, rescheduling needs, and
+results awaiting release.
+
+87
+00:04:34.090 --> 00:04:38.258
+Upcoming, Needs Attention, and
+Completed provide different views of
+
+88
+00:04:38.305 --> 00:04:39.094
+those records.
+
+89
+00:04:39.593 --> 00:04:43.703
+Open View details to inspect a
+schedule, venue, required panel,
+
+90
+00:04:43.820 --> 00:04:45.073
+and preparation checks.
+
+91
+00:04:45.665 --> 00:04:49.218
+A completed record shows an outcome
+only when it has been released.
+
+92
+00:04:49.810 --> 00:04:53.328
+Unreleased results remain private, and
+the oversight screen does not
+
+93
+00:04:53.386 --> 00:04:55.999
+grant permission to submit a
+panelist's scores.
+
+94
+00:04:56.600 --> 00:05:00.222
+Reports offers Research Progress,
+Defense Outcomes, and Adviser
+
+95
+00:05:00.280 --> 00:05:00.884
+Workload.
+
+96
+00:05:01.314 --> 00:05:05.273
+Select the report, academic year, and
+program, then review the
+
+97
+00:05:05.319 --> 00:05:06.817
+matching preview and summary.
+
+98
+00:05:07.246 --> 00:05:09.336
+Additional filters depend on the
+report.
+
+99
+00:05:09.835 --> 00:05:13.539
+Export PDF downloads the report for
+presentation or reference;
+
+100
+00:05:14.224 --> 00:05:17.045
+Export CSV provides the tabular data.
+
+101
+00:05:17.637 --> 00:05:21.538
+Exports include all matching rows, not
+only the visible page.
+
+102
+00:05:22.037 --> 00:05:25.427
+Because records may change after the
+preview was generated, check
+
+103
+00:05:25.485 --> 00:05:28.968
+the selected filters and export time
+when sharing a report.
+
+104
+00:05:29.600 --> 00:05:32.317
+Announcements lets the dean publish a
+message to the assigned
+
+105
+00:05:32.363 --> 00:05:34.209
+college or a selected program.
+
+106
+00:05:34.708 --> 00:05:37.982
+Choose the audience first, then enter
+the title and message.
+
+107
+00:05:38.412 --> 00:05:41.164
+Review the recipients and wording
+before selecting Publish
+
+108
+00:05:41.210 --> 00:05:41.837
+announcement.
+
+109
+00:05:42.429 --> 00:05:46.028
+Here, the action affects only
+fictional accounts in the isolated
+
+110
+00:05:46.063 --> 00:05:47.410
+demonstration workspace.
+
+111
+00:05:48.002 --> 00:05:51.218
+The confirmation reports the audience
+count, and the new message
+
+112
+00:05:51.241 --> 00:05:52.959
+appears under Current announcements.
+
+113
+00:05:53.644 --> 00:05:56.872
+That feed also provides a dated record
+of previously published
+
+114
+00:05:56.918 --> 00:05:57.743
+updates.
+
+115
+00:05:58.367 --> 00:06:01.200
+The Calendar brings together the
+research activities available
+
+116
+00:06:01.223 --> 00:06:02.105
+within your scope.
+
+117
+00:06:02.605 --> 00:06:05.890
+The month view and Upcoming events
+list show dates for defenses,
+
+118
+00:06:05.983 --> 00:06:09.536
+consultations, deadlines, and other
+recorded activities.
+
+119
+00:06:10.221 --> 00:06:13.413
+Select the prepared college research
+review to inspect its time,
+
+120
+00:06:13.529 --> 00:06:15.143
+location, and description.
+
+121
+00:06:15.735 --> 00:06:17.860
+The calendar displays Philippine time.
+
+122
+00:06:18.359 --> 00:06:22.318
+It reflects the schedules recorded in
+ADVISIO, so confirm event
+
+123
+00:06:22.364 --> 00:06:25.174
+details and changes with the
+responsible organizer when
+
+124
+00:06:25.232 --> 00:06:26.648
+coordinating attendance.
+
+125
+00:06:27.267 --> 00:06:30.367
+Manuscript Reviews lists versions
+explicitly assigned to your
+
+126
+00:06:30.402 --> 00:06:30.889
+account.
+
+127
+00:06:31.481 --> 00:06:34.639
+Review and decide opens the frozen
+document beside the review
+
+128
+00:06:34.697 --> 00:06:35.382
+controls.
+
+129
+00:06:35.882 --> 00:06:39.248
+For a manuscript linked to a
+requirement submission, the workspace
+
+130
+00:06:39.295 --> 00:06:41.094
+also includes shared comments.
+
+131
+00:06:41.593 --> 00:06:45.831
+Select a passage in a text-based PDF
+to attach a comment, or refer
+
+132
+00:06:45.912 --> 00:06:48.257
+to a page when text selection is
+unavailable.
+
+133
+00:06:48.850 --> 00:06:51.543
+Comments and permanent decisions are
+separate actions.
+
+134
+00:06:51.973 --> 00:06:54.701
+This demonstration inspects the record
+without submitting a
+
+135
+00:06:54.759 --> 00:06:55.920
+permanent decision.
+
+136
+00:06:56.500 --> 00:06:59.890
+Official Copies provides the archived
+documents available under your
+
+137
+00:06:59.925 --> 00:07:00.993
+account's permissions.
+
+138
+00:07:01.492 --> 00:07:05.115
+Select the authorized project, then
+inspect the document title,
+
+139
+00:07:05.266 --> 00:07:09.410
+archival status, source version,
+finalization details, and
+
+140
+00:07:09.468 --> 00:07:10.815
+verification reference.
+
+141
+00:07:11.500 --> 00:07:13.857
+Open or download a copy for reference.
+
+142
+00:07:14.542 --> 00:07:17.596
+Verify integrity checks the stored
+file against its recorded
+
+143
+00:07:17.630 --> 00:07:18.292
+checksum.
+
+144
+00:07:18.977 --> 00:07:22.228
+The archived original is preserved
+separately from any visually
+
+145
+00:07:22.286 --> 00:07:23.157
+signed copy.
+
+146
+00:07:23.749 --> 00:07:26.918
+Available signing or revocation
+controls depend on the role and
+
+147
+00:07:26.977 --> 00:07:28.126
+document state.
+
+148
+00:07:28.733 --> 00:07:31.844
+That concludes the ADVISIO Dean
+workspace walkthrough.
+
+149
+00:07:32.529 --> 00:07:35.896
+Return to Overview to review the
+college summary, or revisit a
+
+150
+00:07:35.954 --> 00:07:37.661
+section for its detailed records.
+
+151
+00:07:38.253 --> 00:07:41.481
+These tools bring research monitoring,
+faculty coordination,
+
+152
+00:07:41.655 --> 00:07:44.975
+document review, and administrative
+oversight together in one
+
+153
+00:07:45.010 --> 00:07:45.916
+workspace.

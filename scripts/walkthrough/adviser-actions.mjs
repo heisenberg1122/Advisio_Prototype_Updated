@@ -113,4 +113,3 @@ export async function runAdviserAction(c) {
     await click(page.getByRole("link", { name: "Calendar", exact: true })); await ready(text("Your Advisio schedule")); await go("/adviser/profile"); await ready(page.getByText("Andrea Reyes", { exact: false }).first()); await go("/adviser/settings"); await ready(page.getByText(/Settings/).first()); await cue("Return to Overview"); await go("/adviser/dashboard"); await point(text("Advisee Groups"));
   }
 }
-

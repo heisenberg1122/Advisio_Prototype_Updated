@@ -1,1 +1,7 @@
 scripts/evaluation-container-entrypoint.sh text eol=lf
+# Keep release checksums stable across platforms, including subtitle files.
+apps/web/public/walkthroughs/dean/** -text
+apps/web/public/walkthroughs/coordinator/** -text
+apps/web/public/walkthroughs/adviser/** -text
+apps/web/public/walkthroughs/catalog.json -text
+apps/web/public/walkthroughs/index.html -text

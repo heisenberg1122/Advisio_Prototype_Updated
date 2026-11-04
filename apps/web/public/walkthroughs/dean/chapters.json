@@ -1,0 +1,92 @@
+[
+  {
+    "id": "introduction",
+    "title": "Welcome",
+    "start": 0,
+    "end": 41.13333333333333
+  },
+  {
+    "id": "overview",
+    "title": "College overview",
+    "start": 41.13333333333333,
+    "end": 74.06666666666666
+  },
+  {
+    "id": "filters",
+    "title": "Academic year and program filters",
+    "start": 74.06666666666666,
+    "end": 97.2
+  },
+  {
+    "id": "students",
+    "title": "Student researchers",
+    "start": 97.2,
+    "end": 130.2
+  },
+  {
+    "id": "progress",
+    "title": "Research groups and progress risks",
+    "start": 130.2,
+    "end": 161.36666666666667
+  },
+  {
+    "id": "faculty",
+    "title": "Faculty access",
+    "start": 161.36666666666667,
+    "end": 195.4
+  },
+  {
+    "id": "advisers",
+    "title": "Adviser workload and capacity",
+    "start": 195.4,
+    "end": 226.8
+  },
+  {
+    "id": "signatures",
+    "title": "Review and sign a request",
+    "start": 226.8,
+    "end": 261.6333333333333
+  },
+  {
+    "id": "defenses",
+    "title": "Defense oversight",
+    "start": 261.6333333333333,
+    "end": 296.6
+  },
+  {
+    "id": "reports",
+    "title": "Research reports and exports",
+    "start": 296.6,
+    "end": 329.6
+  },
+  {
+    "id": "announcements",
+    "title": "College announcements",
+    "start": 329.6,
+    "end": 358.3666666666667
+  },
+  {
+    "id": "calendar",
+    "title": "Academic calendar",
+    "start": 358.3666666666667,
+    "end": 387.26666666666665
+  },
+  {
+    "id": "manuscripts",
+    "title": "Assigned manuscript reviews",
+    "start": 387.26666666666665,
+    "end": 416.5
+  },
+  {
+    "id": "official",
+    "title": "Official copies",
+    "start": 416.5,
+    "end": 448.73333333333335
+  },
+  {
+    "id": "closing",
+    "title": "Walkthrough complete",
+    "start": 448.73333333333335,
+    "end": 466.5
+  }
+]

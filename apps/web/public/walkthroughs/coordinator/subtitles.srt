@@ -1,0 +1,927 @@
+1
+00:00:00,000 --> 00:00:01,416
+Welcome to ADVISIO.
+
+2
+00:00:01,846 --> 00:00:05,004
+This walkthrough follows the Research
+Coordinator's tools, from
+
+3
+00:00:05,062 --> 00:00:08,754
+workflow planning and researcher
+participation to academic records
+
+4
+00:00:08,800 --> 00:00:10,170
+and defense results.
+
+5
+00:00:10,767 --> 00:00:13,112
+Sign in with your authorized
+coordinator account.
+
+6
+00:00:13,704 --> 00:00:16,793
+The Research Coordinator uses the
+Course Professor workspace,
+
+7
+00:00:17,106 --> 00:00:19,370
+identified by the Coordinator Portal
+badge.
+
+8
+00:00:19,962 --> 00:00:23,108
+This demonstration uses fictional
+accounts and research records
+
+9
+00:00:23,155 --> 00:00:25,442
+within an isolated local workspace.
+
+10
+00:00:26,033 --> 00:00:29,760
+Overview summarizes the research
+groups, submissions, and activities
+
+11
+00:00:29,806 --> 00:00:30,468
+you monitor.
+
+12
+00:00:31,060 --> 00:00:35,356
+The sidebar connects Workflow,
+Research Projects, Submissions, Class
+
+13
+00:00:35,425 --> 00:00:37,736
+Record, Progress, and Defense.
+
+14
+00:00:38,421 --> 00:00:40,673
+These areas have distinct
+responsibilities.
+
+15
+00:00:41,172 --> 00:00:43,041
+Enrollment controls participation;
+
+16
+00:00:43,320 --> 00:00:45,317
+a registered project tracks the study;
+
+17
+00:00:45,630 --> 00:00:48,359
+and academic decisions are recorded
+against the applicable
+
+18
+00:00:48,393 --> 00:00:50,367
+submission or defense cycle.
+
+19
+00:00:50,967 --> 00:00:53,742
+Open Workflow and choose Create
+another workflow.
+
+20
+00:00:54,241 --> 00:00:57,538
+Enter a descriptive name and select
+the research type available
+
+21
+00:00:57,573 --> 00:00:59,036
+within your assigned program.
+
+22
+00:00:59,628 --> 00:01:01,323
+Save the workflow as a draft.
+
+23
+00:01:01,753 --> 00:01:03,819
+A draft is a private configuration:
+
+24
+00:01:04,249 --> 00:01:07,848
+saving it does not publish milestones
+or enroll researchers.
+
+25
+00:01:08,440 --> 00:01:11,772
+We will continue with a prepared draft
+to examine its structure.
+
+26
+00:01:12,367 --> 00:01:14,677
+Topics organize related milestones.
+
+27
+00:01:15,177 --> 00:01:18,776
+Milestones define the research steps,
+and document milestones
+
+28
+00:01:18,822 --> 00:01:20,448
+contain submission requirements.
+
+29
+00:01:21,040 --> 00:01:24,499
+Our prepared example begins with
+Adviser Selection, then Title
+
+30
+00:01:24,523 --> 00:01:28,377
+Proposal, a proposal manuscript, and
+Defense Eligibility.
+
+31
+00:01:28,969 --> 00:01:31,907
+This sequence is an example configured
+for the tutorial;
+
+32
+00:01:32,406 --> 00:01:34,310
+departments can choose a different
+order.
+
+33
+00:01:34,740 --> 00:01:38,757
+Inspect a milestone's instructions,
+submission mode, required files,
+
+34
+00:01:38,791 --> 00:01:39,964
+and approval settings.
+
+35
+00:01:40,463 --> 00:01:44,294
+A relative target, such as fourteen
+days, differs from a calendar
+
+36
+00:01:44,353 --> 00:01:45,119
+target date.
+
+37
+00:01:45,711 --> 00:01:49,333
+Required Milestone Condition
+identifies an earlier prerequisite.
+
+38
+00:01:50,018 --> 00:01:53,431
+Defense Eligibility is an academic
+event type that provides an
+
+39
+00:01:53,466 --> 00:01:56,903
+explicit coordinator approval gate for
+a later defense cycle.
+
+40
+00:01:57,500 --> 00:02:00,704
+Guides and Templates stores supporting
+resources for the workflow.
+
+41
+00:02:01,134 --> 00:02:04,791
+Choose Upload resource, enter its
+title and description, and attach
+
+42
+00:02:04,838 --> 00:02:06,033
+the demonstration guide.
+
+43
+00:02:06,463 --> 00:02:09,331
+Save the resource and confirm that it
+appears in the list.
+
+44
+00:02:09,923 --> 00:02:12,709
+These reference materials support the
+configured requirements;
+
+45
+00:02:13,301 --> 00:02:16,354
+uploading a guide does not count as a
+researcher's submission.
+
+46
+00:02:16,967 --> 00:02:19,742
+Return to the workflow structure and
+review its summary.
+
+47
+00:02:20,171 --> 00:02:24,142
+Topics, milestone assignments, and
+required submissions must be
+
+48
+00:02:24,188 --> 00:02:25,907
+configured before publication.
+
+49
+00:02:26,406 --> 00:02:30,353
+Select Publish, inspect the readiness
+information, and confirm when
+
+50
+00:02:30,388 --> 00:02:31,526
+the workflow is ready.
+
+51
+00:02:32,211 --> 00:02:35,300
+The published state makes the
+configured process available through
+
+52
+00:02:35,323 --> 00:02:36,391
+its enrollment rules.
+
+53
+00:02:37,076 --> 00:02:40,721
+Publication does not automatically
+approve participation requests or
+
+54
+00:02:40,791 --> 00:02:42,927
+rewrite existing student submissions.
+
+55
+00:02:43,533 --> 00:02:47,538
+Participants separates Members, Join
+requests, and Invitations.
+
+56
+00:02:48,038 --> 00:02:50,220
+Generate a workflow code or shared
+link.
+
+57
+00:02:50,720 --> 00:02:54,040
+We now switch to a fictional
+researcher's account to request access
+
+58
+00:02:54,121 --> 00:02:55,189
+using that code.
+
+59
+00:02:55,782 --> 00:02:58,533
+The request is pending until the
+coordinator reviews it.
+
+60
+00:02:59,126 --> 00:03:02,760
+Return to the coordinator account,
+open Join requests, and approve
+
+61
+00:03:02,794 --> 00:03:03,955
+the prepared request.
+
+62
+00:03:04,547 --> 00:03:06,521
+The researcher then appears in
+Members.
+
+63
+00:03:06,893 --> 00:03:10,202
+Direct invitations are a separate
+option for registered researchers,
+
+64
+00:03:10,410 --> 00:03:13,603
+and the recipient must accept before
+enrollment becomes active.
+
+65
+00:03:14,195 --> 00:03:17,667
+Joining a workflow and registering a
+research title remain separate
+
+66
+00:03:17,690 --> 00:03:18,410
+steps.
+
+67
+00:03:19,033 --> 00:03:22,319
+This prepared, enrolled group is at
+Adviser Selection.
+
+68
+00:03:22,818 --> 00:03:26,591
+In the group leader's account, open
+the milestone and send a request
+
+69
+00:03:26,626 --> 00:03:28,019
+to an eligible adviser.
+
+70
+00:03:28,518 --> 00:03:30,121
+The request remains pending.
+
+71
+00:03:30,550 --> 00:03:34,219
+We switch to the adviser's own account
+to review and accept it, then
+
+72
+00:03:34,300 --> 00:03:36,077
+return to coordinator monitoring.
+
+73
+00:03:36,762 --> 00:03:40,152
+The accepted assignment updates the
+recorded milestone progress.
+
+74
+00:03:40,651 --> 00:03:42,729
+The coordinator monitors this process;
+
+75
+00:03:43,159 --> 00:03:46,758
+the coordinator account is not used to
+make the adviser's decision.
+
+76
+00:03:47,367 --> 00:03:50,954
+At Title Proposal, the group leader
+submits the required proposed
+
+77
+00:03:50,989 --> 00:03:51,593
+titles.
+
+78
+00:03:51,965 --> 00:03:55,111
+Switch back to the coordinator account
+and open the title review.
+
+79
+00:03:55,703 --> 00:03:58,861
+Read the alternatives and use feedback
+when a revision is needed.
+
+80
+00:03:59,290 --> 00:04:03,157
+For the prepared acceptable proposal,
+select a title and approve it.
+
+81
+00:04:03,749 --> 00:04:06,930
+The approved title registers the
+research project while preserving
+
+82
+00:04:06,988 --> 00:04:10,715
+the existing group's workflow,
+members, adviser assignment, and
+
+83
+00:04:10,785 --> 00:04:11,911
+recorded progress.
+
+84
+00:04:12,596 --> 00:04:16,009
+Approval is an academic review
+decision, rather than a routine
+
+85
+00:04:16,044 --> 00:04:17,507
+registration shortcut.
+
+86
+00:04:18,100 --> 00:04:21,281
+Research Projects lists registered
+studies within the workflows you
+
+87
+00:04:21,339 --> 00:04:21,989
+oversee.
+
+88
+00:04:22,581 --> 00:04:26,146
+Locate the approved demonstration
+title and inspect its project and
+
+89
+00:04:26,227 --> 00:04:27,342
+workflow information.
+
+90
+00:04:28,027 --> 00:04:31,103
+Open Progress to compare the current
+milestones and recorded
+
+91
+00:04:31,149 --> 00:04:32,148
+completion states.
+
+92
+00:04:32,833 --> 00:04:35,782
+Pending requirements indicate where
+further work or guidance is
+
+93
+00:04:35,840 --> 00:04:36,269
+needed.
+
+94
+00:04:36,862 --> 00:04:39,950
+The configured conditions still
+determine which milestone the group
+
+95
+00:04:40,008 --> 00:04:41,227
+can start next.
+
+96
+00:04:41,833 --> 00:04:43,934
+Open Submissions and its Review Queue.
+
+97
+00:04:44,527 --> 00:04:47,975
+The workspace shows the exact
+submitted document beside comments and
+
+98
+00:04:48,044 --> 00:04:48,973
+review controls.
+
+99
+00:04:49,403 --> 00:04:53,466
+Select a passage in this text-based
+PDF, attach a comment, and post
+
+100
+00:04:53,513 --> 00:04:53,768
+it.
+
+101
+00:04:54,360 --> 00:04:57,878
+A posted comment is saved
+independently of an academic decision.
+
+102
+00:04:58,563 --> 00:05:01,558
+Enter decision feedback and request
+revision when the submission
+
+103
+00:05:01,604 --> 00:05:02,823
+needs further work.
+
+104
+00:05:03,433 --> 00:05:05,859
+Here is a separate prepared revised
+submission.
+
+105
+00:05:06,289 --> 00:05:09,331
+Inspect its submitted version and
+earlier attempt history.
+
+106
+00:05:09,923 --> 00:05:13,580
+Adviser and other mandatory reviewer
+approvals apply to the exact
+
+107
+00:05:13,650 --> 00:05:14,892
+version being reviewed.
+
+108
+00:05:15,391 --> 00:05:18,689
+Once those checks are satisfied and
+the work meets the requirement,
+
+109
+00:05:18,898 --> 00:05:20,929
+the coordinator can approve the
+submission.
+
+110
+00:05:21,522 --> 00:05:23,983
+Any grade is recorded and released
+separately;
+
+111
+00:05:24,354 --> 00:05:27,954
+an approval decision does not itself
+publish a score.
+
+112
+00:05:28,567 --> 00:05:31,609
+Class Record uses the active
+researcher roster of an owned
+
+113
+00:05:31,655 --> 00:05:32,340
+workflow.
+
+114
+00:05:32,712 --> 00:05:35,463
+The periods are Prelim, Midterm, and
+Finals.
+
+115
+00:05:36,055 --> 00:05:39,701
+Individual activities, eligible linked
+milestone scores, and
+
+116
+00:05:39,759 --> 00:05:42,058
+attendance support the recorded
+calculations.
+
+117
+00:05:42,650 --> 00:05:46,051
+Review the prepared activity scores
+and attendance marks, make the
+
+118
+00:05:46,086 --> 00:05:49,186
+demonstration correction, and save the
+private drafts.
+
+119
+00:05:49,778 --> 00:05:51,566
+Saving does not release grades.
+
+120
+00:05:51,996 --> 00:05:55,583
+When required entries and calculations
+are complete, Release period
+
+121
+00:05:55,653 --> 00:05:57,987
+publishes a snapshot for the active
+roster.
+
+122
+00:05:58,579 --> 00:06:01,389
+The researcher's My Grades view then
+shows that researcher's
+
+123
+00:06:01,447 --> 00:06:02,306
+released result.
+
+124
+00:06:02,898 --> 00:06:06,242
+Later draft edits remain private, and
+corrections create a new
+
+125
+00:06:06,311 --> 00:06:09,713
+recorded release rather than rewriting
+the earlier snapshot.
+
+126
+00:06:10,333 --> 00:06:13,712
+Defense preparation begins with the
+configured Defense Eligibility
+
+127
+00:06:13,781 --> 00:06:14,489
+milestone.
+
+128
+00:06:14,989 --> 00:06:17,891
+Review the group's prerequisites and
+required submissions.
+
+129
+00:06:18,390 --> 00:06:21,165
+This prepared group is ready for
+coordinator approval.
+
+130
+00:06:21,595 --> 00:06:24,811
+Approve its eligibility and inspect
+the updated status.
+
+131
+00:06:25,240 --> 00:06:28,375
+The approval belongs to this group and
+milestone for one defense
+
+132
+00:06:28,398 --> 00:06:28,979
+cycle.
+
+133
+00:06:29,408 --> 00:06:32,798
+Adviser acceptance or completion of
+unrelated workflow activities
+
+134
+00:06:33,007 --> 00:06:35,364
+does not replace this explicit
+approval.
+
+135
+00:06:35,967 --> 00:06:39,032
+Request the Dean signature for a group
+with approved, unused
+
+136
+00:06:39,090 --> 00:06:39,949
+eligibility.
+
+137
+00:06:40,448 --> 00:06:43,920
+Select the authorized dean, review the
+subject and message, and
+
+138
+00:06:43,978 --> 00:06:45,835
+attach the prepared PDF letter.
+
+139
+00:06:46,428 --> 00:06:50,143
+Send the request and keep its pending
+status distinct from approval.
+
+140
+00:06:50,735 --> 00:06:53,707
+We then switch to the dean's own
+account, where the request is
+
+141
+00:06:53,777 --> 00:06:54,833
+reviewed and signed.
+
+142
+00:06:55,426 --> 00:06:58,328
+Scheduling requires that valid signed
+letter to be linked to this
+
+143
+00:06:58,374 --> 00:06:59,837
+same eligibility cycle;
+
+144
+00:07:00,209 --> 00:07:03,367
+an earlier defense letter cannot
+unlock a later cycle.
+
+145
+00:07:03,967 --> 00:07:07,299
+This separate prepared group already
+has approved eligibility and
+
+146
+00:07:07,357 --> 00:07:09,029
+its corresponding signed letter.
+
+147
+00:07:09,528 --> 00:07:13,023
+Create a defense event, select the
+eligible group, and enter the
+
+148
+00:07:13,069 --> 00:07:15,519
+schedule, venue, and session details.
+
+149
+00:07:16,204 --> 00:07:19,872
+Assign a panel chair and the required
+panelist, then choose Create
+
+150
+00:07:19,907 --> 00:07:21,149
+Event and Invite.
+
+151
+00:07:21,834 --> 00:07:23,471
+Invitations begin pending.
+
+152
+00:07:23,971 --> 00:07:26,920
+We inspect the responses through the
+participants' own accounts
+
+153
+00:07:26,978 --> 00:07:28,893
+before continuing with preparation.
+
+154
+00:07:29,578 --> 00:07:33,177
+Creating an event does not mean every
+participant has accepted.
+
+155
+00:07:33,800 --> 00:07:35,681
+Open the session's defense documents.
+
+156
+00:07:36,052 --> 00:07:39,419
+Select the approved, immutable
+manuscript submitted for its Defense
+
+157
+00:07:39,477 --> 00:07:40,870
+Eligibility milestone.
+
+158
+00:07:41,463 --> 00:07:44,771
+Configure the structured form and
+inspect the researcher roster,
+
+159
+00:07:44,980 --> 00:07:48,684
+rating levels, individual presentation
+criteria, and group
+
+160
+00:07:48,754 --> 00:07:50,066
+manuscript criteria.
+
+161
+00:07:50,751 --> 00:07:53,491
+Review the scoring weights and
+publication requirements.
+
+162
+00:07:54,176 --> 00:07:57,659
+Once the required participants and
+materials are ready, publish the
+
+163
+00:07:57,705 --> 00:07:58,204
+packet.
+
+164
+00:07:58,889 --> 00:08:02,047
+Publication preserves the selected
+manuscript and evaluation
+
+165
+00:08:02,105 --> 00:08:04,230
+configuration for authorized
+panelists;
+
+166
+00:08:04,822 --> 00:08:08,537
+it does not submit their evaluations
+or release an official result.
+
+167
+00:08:09,133 --> 00:08:12,395
+When the session conditions are
+satisfied, the coordinator can start
+
+168
+00:08:12,430 --> 00:08:13,429
+the live defense.
+
+169
+00:08:14,021 --> 00:08:16,761
+We then open an accepted panelist's
+own workspace.
+
+170
+00:08:17,260 --> 00:08:20,987
+The panelist reviews the prepared
+ratings, previews the evaluation,
+
+171
+00:08:21,161 --> 00:08:23,761
+confirms it, and submits the final
+record.
+
+172
+00:08:24,446 --> 00:08:27,000
+Panelists make these decisions through
+their own accounts.
+
+173
+00:08:27,593 --> 00:08:31,087
+The coordinator cannot complete a
+missing panelist evaluation by
+
+174
+00:08:31,145 --> 00:08:32,864
+selecting an official outcome.
+
+175
+00:08:33,467 --> 00:08:37,252
+We now use a separate prepared session
+with all required evaluations
+
+176
+00:08:37,310 --> 00:08:38,065
+finalized.
+
+177
+00:08:38,657 --> 00:08:42,000
+Inspect the consolidated individual
+and manuscript results and
+
+178
+00:08:42,070 --> 00:08:44,276
+verify the recorded evaluation
+history.
+
+179
+00:08:44,961 --> 00:08:48,328
+Select the official decision
+separately from the calculated scores.
+
+180
+00:08:48,920 --> 00:08:52,391
+Enter revision instructions when
+required, then confirm and release
+
+181
+00:08:52,426 --> 00:08:53,065
+the result.
+
+182
+00:08:53,750 --> 00:08:56,304
+The released outcome controls the
+group's next steps.
+
+183
+00:08:56,896 --> 00:08:59,775
+A passed defense consumes that cycle's
+eligibility;
+
+184
+00:09:00,274 --> 00:09:03,653
+revisions or another defense follow
+their recorded requirements.
+
+185
+00:09:04,267 --> 00:09:07,425
+Announcements sends an update to
+active participants in the selected
+
+186
+00:09:07,471 --> 00:09:08,133
+workflow.
+
+187
+00:09:08,632 --> 00:09:12,220
+Choose the workflow, review the
+demonstration message and audience,
+
+188
+00:09:12,336 --> 00:09:13,183
+and publish it.
+
+189
+00:09:13,868 --> 00:09:17,607
+Messages supports group collaboration,
+while Inbox handles formal
+
+190
+00:09:17,653 --> 00:09:18,547
+correspondence.
+
+191
+00:09:19,046 --> 00:09:23,261
+Calendar, Manuscript Reviews, and
+Official Copies provide related
+
+192
+00:09:23,331 --> 00:09:25,211
+records under your account's
+permissions.
+
+193
+00:09:25,803 --> 00:09:29,182
+Return to Progress to monitor the
+researchers' next steps after each
+
+194
+00:09:29,228 --> 00:09:30,041
+decision.
+
+195
+00:09:30,633 --> 00:09:33,756
+That concludes the ADVISIO Research
+Coordinator walkthrough.
+
+196
+00:09:34,348 --> 00:09:38,017
+The example connects workflow
+planning, participation, research
+
+197
+00:09:38,063 --> 00:09:41,361
+review, academic records, and defense
+coordination.
+
+198
+00:09:41,953 --> 00:09:44,577
+Return to any chapter when you need to
+review a specific
+
+199
+00:09:44,635 --> 00:09:45,772
+responsibility.

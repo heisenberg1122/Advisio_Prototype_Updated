@@ -1,0 +1,61 @@
+0. Welcome
+
+Welcome to ADVISIO. This walkthrough introduces the Dean workspace: college research monitoring, faculty coordination, document review, and administrative oversight. We will follow fictional college records through the screens and actions available to an authorized dean. Your assigned college and account permissions determine which records you can access.
+
+Sign in using your authorized institutional account. Enter your email and password, then select Sign In. If your account has more than one workspace, choose Dean. The workspace identifies your role and college scope. This demonstration uses a fictional dean account, with no access to real student records.
+
+1. College overview
+
+The Overview brings together the college research totals. The four cards show student researchers, research groups, groups on track, and groups marked as high risk. The sidebar connects the monitoring and administration areas. Below the cards, Research Program Overview compares participation and workflow progress across programs. Research Pipeline groups projects by their current milestone. Needs Dean Attention lists records with a recorded risk reason, while Pending Actions summarizes accounts and assignments awaiting attention.
+
+2. Academic year and program filters
+
+Use the academic year and program filters to focus the dashboard. Select an academic year, then inspect the updated research information. Choose a program to narrow the scope further. A filter with no matching projects can produce an empty result; it does not mean the records were deleted. Return to all academic years and all programs when you need the broader college view.
+
+3. Student researchers
+
+Open Students to inspect the researcher registry. Search by name, institutional identifier, or email. Each row brings together the student's program, research group, adviser, current stage, progress, and account status. Here, a prepared fictional account is pending. Review its details before selecting Approve. After the update, the account shows Active. Approval changes account access; it does not automatically create a project, assign an adviser, or complete research requirements.
+
+4. Research groups and progress risks
+
+Research Groups lists project titles, programs, assigned advisers, current stages, and progress. Open Progress and Risk for a closer look, then select High risk. The example identifies a project with no recent activity and displays the recorded reason. Use that context when deciding what needs follow-up with the coordinator or adviser. These indicators describe the recorded research activity. They are monitoring signals, rather than academic grades or a final judgment about the research.
+
+5. Faculty access
+
+Faculty Access shows invitations and access requests. Select Invite or request access, then enter the faculty member's identity, institutional identifier, and requested roles. The dean must verify eligibility and record the basis for that verification. Adviser invitations and requests for Professor Coordinator or Panelist access follow different approval paths. This example submits a Professor Coordinator request. Its recorded status is awaiting administrator approval; the request itself has not granted the faculty role.
+
+6. Adviser workload and capacity
+
+The Advisers screen shows each adviser's program, active group count, capacity, available slots, and groups needing attention. Invite adviser opens Faculty Access for the invitation process. For an existing adviser, select Edit to review the assigned program, maximum active groups, and availability for new requests. Record a reason before saving a capacity change. Changing capacity does not reassign existing groups. The updated card shows the new limit alongside the current workload.
+
+7. Review and sign a request
+
+In Inbox, select Signature requests. Read the requester's message and review the attached document before choosing Add signature. The signing screen supports a saved signature, drawing, an uploaded image, or a typed signature. This example uses a typed demonstration signature. Review its placement on the document and the name and date options. Confirm your password and the declaration, then select Confirm and Sign. The system saves a separate signed copy with a verification reference. Return to the thread to inspect the Signed status and send a reply when needed.
+
+8. Defense oversight
+
+Defenses provides college-level oversight of scheduled sessions. The summary cards identify upcoming defenses, pending panel confirmations, rescheduling needs, and results awaiting release. Upcoming, Needs Attention, and Completed provide different views of those records. Open View details to inspect a schedule, venue, required panel, and preparation checks. A completed record shows an outcome only when it has been released. Unreleased results remain private, and the oversight screen does not grant permission to submit a panelist's scores.
+
+9. Research reports and exports
+
+Reports offers Research Progress, Defense Outcomes, and Adviser Workload. Select the report, academic year, and program, then review the matching preview and summary. Additional filters depend on the report. Export PDF downloads the report for presentation or reference; Export CSV provides the tabular data. Exports include all matching rows, not only the visible page. Because records may change after the preview was generated, check the selected filters and export time when sharing a report.
+
+10. College announcements
+
+Announcements lets the dean publish a message to the assigned college or a selected program. Choose the audience first, then enter the title and message. Review the recipients and wording before selecting Publish announcement. Here, the action affects only fictional accounts in the isolated demonstration workspace. The confirmation reports the audience count, and the new message appears under Current announcements. That feed also provides a dated record of previously published updates.
+
+11. Academic calendar
+
+The Calendar brings together the research activities available within your scope. The month view and Upcoming events list show dates for defenses, consultations, deadlines, and other recorded activities. Select the prepared college research review to inspect its time, location, and description. The calendar displays Philippine time. It reflects the schedules recorded in ADVISIO, so confirm event details and changes with the responsible organizer when coordinating attendance.
+
+12. Assigned manuscript reviews
+
+Manuscript Reviews lists versions explicitly assigned to your account. Review and decide opens the frozen document beside the review controls. For a manuscript linked to a requirement submission, the workspace also includes shared comments. Select a passage in a text-based PDF to attach a comment, or refer to a page when text selection is unavailable. Comments and permanent decisions are separate actions. This demonstration inspects the record without submitting a permanent decision.
+
+13. Official copies
+
+Official Copies provides the archived documents available under your account's permissions. Select the authorized project, then inspect the document title, archival status, source version, finalization details, and verification reference. Open or download a copy for reference. Verify integrity checks the stored file against its recorded checksum. The archived original is preserved separately from any visually signed copy. Available signing or revocation controls depend on the role and document state.
+
+14. Walkthrough complete
+
+That concludes the ADVISIO Dean workspace walkthrough. Return to Overview to review the college summary, or revisit a section for its detailed records. These tools bring research monitoring, faculty coordination, document review, and administrative oversight together in one workspace.

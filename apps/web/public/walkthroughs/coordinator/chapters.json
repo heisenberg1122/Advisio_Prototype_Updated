@@ -1,0 +1,32 @@
+[
+  {
+    "id": "setup",
+    "title": "Workspace and workflow setup",
+    "start": 0,
+    "end": 163.53333333333333
+  },
+  {
+    "id": "monitoring",
+    "title": "Researcher participation and monitoring",
+    "start": 163.53333333333333,
+    "end": 328.56666666666666
+  },
+  {
+    "id": "academic-records",
+    "title": "Class record and attendance",
+    "start": 328.56666666666666,
+    "end": 370.3333333333333
+  },
+  {
+    "id": "defense",
+    "title": "Defense management and role handoffs",
+    "start": 370.3333333333333,
+    "end": 544.2666666666667
+  },
+  {
+    "id": "communication",
+    "title": "Communication and ongoing monitoring",
+    "start": 544.2666666666667,
+    "end": 586.3666666666667
+  }
+]
