@@ -42,4 +42,4 @@ export type Timeline = {
   durationInFrames: number;
   chapters: ChapterData[];
 };
-export type CompositionProps = { timeline: Timeline; burnCaptions: boolean };
+export type CompositionProps = { timeline: Timeline; burnCaptions: boolean; templateOnly?: boolean };

@@ -6,7 +6,9 @@ import { createRequire } from "node:module";
 import ffmpeg from "ffmpeg-static";
 import ffprobe from "ffprobe-static";
 export const root = fileURLToPath(new URL("../../", import.meta.url));
-export const output = path.join(root, ".walkthrough", "researcher");
+export const role = process.argv.find((arg) => arg.startsWith("--role="))?.slice(7) || "researcher";
+if (!["researcher", "dean", "coordinator", "adviser"].includes(role)) throw new Error("Unsupported walkthrough role.");
+export const output = path.join(root, ".walkthrough", role);
 export const assets = path.join(output, "assets");
 export const readJson = async (file) =>
   JSON.parse((await fs.readFile(file, "utf8")).replace(/^\uFEFF/, ""));
@@ -15,7 +17,7 @@ export const writeJson = async (file, value) => {
   await fs.writeFile(file, JSON.stringify(value, null, 2) + "\n");
 };
 export const readScript = () =>
-  readJson(path.join(root, "walkthrough/researcher/researcher-script.json"));
+  readJson(path.join(root, `walkthrough/${role}/${role}-script.json`));
 export async function prepareBrandAssets() {
   await fs.mkdir(path.join(assets, "branding"), { recursive: true });
   await fs.copyFile(

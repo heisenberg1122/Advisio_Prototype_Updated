@@ -1,0 +1,223 @@
+{
+  "id": "adviser",
+  "title": "ADVISIO Faculty Adviser Walkthrough",
+  "role": "adviser",
+  "course": "BSIT",
+  "audience": "general",
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "maximumSeconds": 600,
+  "proposedSeconds": 530,
+  "presentationVersion": 1,
+  "voiceDirection": "A tutor: gentle but firm, natural rather than robotic. Neutral academic instruction, clear English, no exaggerated enthusiasm. Aim for 145\u2013160 words per minute.",
+  "pronunciation": {
+    "word": "ADVISIO",
+    "alias": "ad vi sho",
+    "confirmed": true
+  },
+  "chapters": [
+    {
+      "id": "workspace",
+      "title": "Adviser workspace",
+      "route": "/adviser/dashboard",
+      "beats": [
+        {
+          "id": "intro",
+          "clip": 1,
+          "action": "intro",
+          "callout": "Introduction and Sign-in",
+          "narration": "Welcome to ADVISIO. This walkthrough follows the Faculty Adviser workspace: accepting research groups, monitoring their progress, reviewing manuscripts, providing guidance, and preserving the records that support academic work.",
+          "framing": "overview"
+        },
+        {
+          "id": "sign-in",
+          "clip": 1,
+          "action": "login",
+          "callout": "Faculty Adviser workspace \u00b7 Adviser Portal",
+          "narration": "Sign in with your authorized adviser account. Check the Faculty Adviser label and Adviser Portal badge to confirm your workspace. This recording uses fictional demonstration accounts and research records in an isolated local environment.",
+          "framing": "overview"
+        },
+        {
+          "id": "overview",
+          "clip": 2,
+          "action": "overview",
+          "callout": "Explore the Adviser Dashboard",
+          "narration": "The Overview dashboard brings together important information about your advising responsibilities. From here, you can check research groups, pending requests, review activities, and upcoming consultations. The sidebar provides access to My Advisees, manuscript reviews, official documents, consultations, and communication tools.",
+          "framing": "overview"
+        },
+        {
+          "id": "requests",
+          "clip": 3,
+          "action": "requests",
+          "callout": "Review Advising Requests",
+          "narration": "When a research group requests your assistance as an adviser, the request appears in your workspace. Before responding, review the available group information, research details, and the message submitted by the researchers. If a supporting request form is attached, you can also examine it before making your decision.",
+          "framing": "overview"
+        },
+        {
+          "id": "respond",
+          "clip": 4,
+          "action": "respond",
+          "callout": "Accept or Reject an Advising Request",
+          "narration": "If you agree to advise the group, select Accept and complete the confirmation. Once accepted, the adviser assignment is recorded, and the group becomes available in My Advisees. If you cannot accommodate a request, you may decline it and provide an appropriate response. The system records the decision so the researchers can follow the status of their request. The acceptance and decline in this recording use separate fictional requests. Confirm each decision only after reading the request and entering an appropriate response.",
+          "framing": "overview"
+        },
+        {
+          "id": "capacity",
+          "clip": 5,
+          "action": "capacity",
+          "callout": "Check Advising Capacity",
+          "narration": "Overview shows your current Advisee Groups count against the configured maximum. Compare these figures when considering another request. They describe the workload recorded in ADVISIO; they do not replace a discussion about your actual availability or research expertise. This walkthrough keeps the configured limit unchanged and demonstrates only the capacity information displayed to the adviser.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "groups",
+      "title": "Research group management",
+      "route": "/adviser/dashboard",
+      "beats": [
+        {
+          "id": "advisees",
+          "clip": 6,
+          "action": "advisees",
+          "callout": "Explore My Advisees",
+          "narration": "My Advisees provides access to the research groups assigned to you. Each group has its own workspace, where you can review its research information, documents, milestone progress, consultations, and related activities. Open a group to examine its current research status and identify areas that may need guidance.",
+          "framing": "overview"
+        },
+        {
+          "id": "milestones",
+          "clip": 7,
+          "action": "milestones",
+          "callout": "Monitor Research Milestones",
+          "narration": "The Milestones section helps advisers follow the progress of a research group. Here, you can review completed activities, ongoing requirements, and upcoming research tasks. Some milestones may require an adviser review or approval before the group can proceed. By checking these records, you can identify which requirements have been completed and which still need attention. Your review applies to the exact authorized requirement. It does not replace another required faculty review or the coordinator's separate decision.",
+          "framing": "overview"
+        },
+        {
+          "id": "documents",
+          "clip": 8,
+          "action": "documents",
+          "callout": "Review Documents and Version History",
+          "narration": "The Documents section provides access to research files associated with this group. Expand the manuscript version history and distinguish the current version from earlier copies. Check version numbers, dates, status, and the available Preview and Download controls. We will inspect the submitted PDF in the review workspace next. This keeps the submitted content and its recorded feedback in the same review context.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "reviews",
+      "title": "Manuscript review and endorsement",
+      "route": "/adviser/dashboard",
+      "beats": [
+        {
+          "id": "assigned-review",
+          "clip": 9,
+          "action": "assigned-review",
+          "callout": "Open an Assigned Manuscript Review",
+          "narration": "The Reviews section brings together manuscripts assigned to you for academic review. Select an active assignment to open the submitted manuscript and its review workspace. Before providing a decision, confirm that you're examining the correct document version and review the research content carefully. An older approved copy or an earlier revision request does not describe a newly submitted manuscript.",
+          "framing": "overview"
+        },
+        {
+          "id": "feedback",
+          "clip": 10,
+          "action": "feedback",
+          "callout": "Provide Feedback and Request Revisions",
+          "narration": "Select a passage in this text-based PDF and attach a constructive comment. Post the comment, then review the recommendation choices: approve the version, request minor revision, request major revision, or reject the version. For this example, choose minor revision. Enter overall feedback explaining the required changes and submit the permanent decision. Posting a comment and submitting the review are separate actions.",
+          "framing": "overview"
+        },
+        {
+          "id": "revised",
+          "clip": 11,
+          "action": "revised",
+          "callout": "Review a Revised Manuscript and Approve",
+          "narration": "After the researcher submits a revised manuscript, return to the same group's review record. This prepared later version belongs to the same study; it is not an adviser editing the researcher's submission. Compare the version information and previous feedback, then open the current assignment. Add a short comment and approve the version when the work meets the requirement. Other required faculty reviews and workflow conditions may still remain.",
+          "framing": "overview"
+        },
+        {
+          "id": "sign",
+          "clip": 12,
+          "action": "sign",
+          "callout": "Endorse and Sign an Eligible Document",
+          "narration": "Some research documents may also require the adviser's formal endorsement. After completing the necessary review, open the eligible document and follow the signing process. Review the document, position your signature, and complete the required confirmation. ADVISIO preserves the signed document as a separate record, maintaining the original document and its history. Confirm your password and authorize signing of this exact PDF. The saved signed copy has its own verification record. This signature does not replace other required institutional approvals.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "consultations",
+      "title": "Consultations and research guidance",
+      "route": "/adviser/dashboard",
+      "beats": [
+        {
+          "id": "consultation-request",
+          "clip": 13,
+          "action": "consultation-request",
+          "callout": "Manage Consultation Requests",
+          "narration": "The Consultations section helps advisers organize discussions with their research groups. Here, you can review consultation requests, scheduled meetings, and their available details. When a consultation requires a response, use the appropriate action to manage the request. Confirmed schedules help both the adviser and researchers keep track of upcoming discussions. Approving the schedule records a planned consultation; it does not certify that the meeting has already taken place. Calendar provides another view of upcoming activities.",
+          "framing": "overview"
+        },
+        {
+          "id": "consultation-notes",
+          "clip": 14,
+          "action": "consultation-notes",
+          "callout": "Conduct a Consultation and Record Feedback",
+          "narration": "For an online consultation, use the available meeting link when it is time to join. This recording does not open a live meeting or record participant conversations. Switch to a separate completed demonstration session. Open its notes, record the meeting summary and adviser feedback, and list the agreed action items. Save the consultation history so the group has a reference for its next tasks.",
+          "framing": "overview"
+        },
+        {
+          "id": "history",
+          "clip": 15,
+          "action": "history",
+          "callout": "Review Consultation History and Group Activity",
+          "narration": "Previous consultations and recorded group activities provide context when monitoring research progress. By reviewing earlier feedback, milestones, and submission events, advisers can follow the group's development and determine which concerns have already been addressed. Consultation notes provide guidance; they remain distinct from a formal manuscript or workflow decision.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "defense",
+      "title": "Defense preparation and academic records",
+      "route": "/adviser/dashboard",
+      "beats": [
+        {
+          "id": "readiness",
+          "clip": 16,
+          "action": "readiness",
+          "callout": "Review Defense Readiness and Supporting Documents",
+          "narration": "Open the group's Defense section to inspect readiness indicators and any accessible session details. The displayed conditions distinguish completed requirements from pending approvals and missing documents. Adviser guidance supports preparation; it does not release the official defense result. Official Copies provides a separate register of authorized academic copies. A saved visual signature does not automatically publish an official copy into that register.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "communication",
+      "title": "Communication and closing",
+      "route": "/adviser/dashboard",
+      "beats": [
+        {
+          "id": "messages",
+          "clip": 17,
+          "action": "messages",
+          "callout": "Communicate with Researchers",
+          "narration": "ADVISIO also provides communication tools for coordinating with researchers. Messages supports conversations with research groups, allowing you to share reminders and follow up on academic work. Inbox is available for formal correspondence, including messages and documents that require a more structured record. Check the saved message in the conversation and inspect the formal thread's participants and reply controls. These demonstration messages remain inside the isolated local workspace.",
+          "framing": "overview"
+        },
+        {
+          "id": "tools",
+          "clip": 18,
+          "action": "tools",
+          "callout": "Explore Additional Tools and Close",
+          "narration": "Calendar helps you review upcoming academic activities. Profile and Settings provide the available account and workspace preferences. Return to Overview to check your assigned groups and pending responsibilities. Regular follow-up connects advising requests, research progress, manuscript decisions, and consultation records without replacing the separate permissions and academic responsibilities of other roles.",
+          "framing": "overview"
+        },
+        {
+          "id": "complete",
+          "clip": 18,
+          "action": "outro",
+          "callout": "Guiding research through every stage",
+          "narration": "That concludes the ADVISIO Faculty Adviser walkthrough. From accepting groups to reviewing revisions and recording consultation feedback, the workspace helps you guide researchers and preserve a clear history of their academic work.",
+          "framing": "overview"
+        }
+      ]
+    }
+  ]
+}

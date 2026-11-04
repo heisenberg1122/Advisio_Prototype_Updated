@@ -10,6 +10,7 @@ import {
   probe,
   encode,
   writeJson,
+  role,
 } from "./common.mjs";
 import {
   scriptHash,
@@ -22,12 +23,12 @@ const directory = path.join(output, "export");
 const timeline = await readJson(path.join(output, "timeline.json"));
 const media = await readJson(path.join(directory, "media.json"));
 assert.equal(media.scriptHash, scriptHash(script));
-assert.equal(media.chapters.length, 14);
+assert.equal(media.chapters.length, script.chapters.length);
 const files = [];
 for (const [name, width, height] of [
   ["master-1080p.mp4", 1920, 1080],
-  ["researcher-web.mp4", 1280, 720],
-  ["researcher-captioned.mp4", 1280, 720],
+  [`${role}-web.mp4`, 1280, 720],
+  [`${role}-captioned.mp4`, 1280, 720],
 ]) {
   const metadata = await probe(path.join(directory, name));
   const video = metadata.streams.find(
@@ -54,6 +55,22 @@ for (const [name, width, height] of [
     seconds: Number(metadata.format.duration),
     bytes: Number(metadata.format.size),
   });
+}
+if (["coordinator", "adviser"].includes(role) || await fs.access(path.join(directory, "chapters")).then(() => true, () => false)) {
+  for (const chapter of media.chapters) {
+    const name = `chapters/${chapter.id}.mp4`;
+    const metadata = await probe(path.join(directory, name));
+    const video = metadata.streams.find((stream) => stream.codec_type === "video");
+    const audio = metadata.streams.find((stream) => stream.codec_type === "audio");
+    assert.equal(video?.codec_name, "h264");
+    assert.equal(video.width, 1920);
+    assert.equal(video.height, 1080);
+    assert.equal(video.r_frame_rate, "30/1");
+    assert.equal(audio?.codec_name, "aac");
+    const seconds = Number(metadata.format.duration);
+    assert.ok(Math.abs(seconds - (chapter.end - chapter.start)) < .3, `Chapter runtime differs: ${chapter.id}`);
+    files.push({ name, width: video.width, height: video.height, seconds, bytes: Number(metadata.format.size) });
+  }
 }
 const vtt = await fs.readFile(path.join(directory, "subtitles.vtt"), "utf8");
 assert.ok(vtt.startsWith("WEBVTT\n\n"));
@@ -93,7 +110,7 @@ await encode([
 const results = {
   scriptHash: media.scriptHash,
   duration: media.duration,
-  chapters: 14,
+  chapters: script.chapters.length,
   captionCount,
   files,
   browserViewports: [],
@@ -229,5 +246,5 @@ if (process.argv.includes("--browser")) {
 }
 await writeJson(path.join(qa, "verification.json"), results);
 console.log(
-  `Verified exported media: ${media.duration.toFixed(2)} seconds, ${captionCount} caption phrases, 14 chapters.`,
+  `Verified exported media: ${media.duration.toFixed(2)} seconds, ${captionCount} caption phrases, ${script.chapters.length} chapters.`,
 );

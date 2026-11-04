@@ -20,7 +20,7 @@ export function validateScript(script) {
         throw new Error(`TAM language review failed: ${key}`);
       if (
         script.audience === "general" &&
-        /\b(evaluation|evaluator|respondent|TAM|questionnaire|survey|rating|testing participant)\b/i.test(
+        /\b(TAM|respondents?|questionnaires?|surveys?|evaluators?|testing participants?|(?:system|platform|product)\s+(?:evaluation|ratings?)|evaluation\s+(?:activity|study|session))\b/i.test(
           `${chapter.title} ${beat.narration} ${beat.callout}`,
         )
       )

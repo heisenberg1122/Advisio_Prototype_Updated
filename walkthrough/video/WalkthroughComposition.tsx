@@ -32,13 +32,16 @@ function BeatVisual({
   chapter,
   beat,
   title,
+  templateOnly,
 }: {
   chapter: ChapterData;
   beat: Beat;
   title: string;
+  templateOnly?: boolean;
 }) {
   const frame = useCurrentFrame(),
     { fps } = useVideoConfig();
+  const workspaceRole = title.includes("Coordinator") ? "Research Coordinator" : title.includes("Dean") ? "Dean" : title.includes("Adviser") ? "Faculty Adviser" : "Researcher";
   const event = beat.capture?.events.find(
     (item) => frame / fps >= item.at && frame / fps <= item.clickAt + 0.2,
   );
@@ -46,26 +49,26 @@ function BeatVisual({
     return (
       <IntroScene
         title={title.replace(/^ADVISIO\s+/, "")}
-        subtitle="A guided tour of the Researcher workspace and its core features."
+        subtitle={`A guided tour of the ${workspaceRole} workspace and its core features.`}
       />
     );
-  if (beat.action === "outro") return <OutroScene />;
+  if (beat.action === "outro") return <OutroScene role={workspaceRole} />;
   return (
     <AbsoluteFill>
       <ChapterLabel index={chapter.index} title={chapter.title} />
       <FeatureCallout text={beat.callout} />
-      <BrowserFrame>
+      <BrowserFrame role={workspaceRole}>
         <CameraFrame
           mode={beat.framing || "overview"}
           focus={beat.capture?.focus}
         >
-          <OffthreadVideo
+          {!templateOnly && <OffthreadVideo
             muted
             src={staticFile(beat.capture!.clip)}
             style={{ width: 1920, height: 1080 }}
-          />
-          <Spotlight event={event} />
-          <DemoCursor events={beat.capture!.events} />
+          />}
+          {!templateOnly && <Spotlight event={event} />}
+          {!templateOnly && <DemoCursor events={beat.capture!.events} />}
         </CameraFrame>
       </BrowserFrame>
       {beat.visual === "workflow" && (
@@ -80,21 +83,24 @@ function HeldVisual({
   chapter,
   beat,
   title,
+  templateOnly,
 }: {
   chapter: ChapterData;
   beat: Beat;
   title: string;
+  templateOnly?: boolean;
 }) {
   const frame = useCurrentFrame();
   return (
     <Freeze frame={Math.min(frame, beat.durationInFrames - 1)}>
-      <BeatVisual chapter={chapter} beat={beat} title={title} />
+      <BeatVisual chapter={chapter} beat={beat} title={title} templateOnly={templateOnly} />
     </Freeze>
   );
 }
 export function WalkthroughComposition({
   timeline,
   burnCaptions,
+  templateOnly,
 }: CompositionProps) {
   const frame = useCurrentFrame();
   const transition = videoMotion.chapterFrames;
@@ -134,6 +140,7 @@ export function WalkthroughComposition({
                     chapter={chapter}
                     beat={beat}
                     title={timeline.title}
+                    templateOnly={templateOnly}
                   />
                 </Sequence>
               ))}
@@ -153,9 +160,9 @@ export function WalkthroughComposition({
           </Sequence>
         )),
       )}
-      <ProgressBar
+      {!templateOnly && <ProgressBar
         progress={frame / Math.max(1, timeline.durationInFrames - 1)}
-      />
+      />}
     </AbsoluteFill>
   );
 }

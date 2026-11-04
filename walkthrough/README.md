@@ -1,6 +1,6 @@
 # ADVISIO role walkthrough production
 
-Only the Researcher role is authored. The engine reads a role script and generated timeline; it does not render anything for a visitor. The website serves a pre-rendered MP4 with native controls and a VTT track. The old public mock animation is replaced by this same optional player and written guide.
+Researcher, Dean, Research Coordinator, and Faculty Adviser walkthroughs are authored. The engine reads a role script and generated timeline; it does not render anything for a visitor. The website serves a pre-rendered MP4 with native controls and a VTT track. The old public mock animation is replaced by this same optional player and written guide. The [Dean production plan](../docs/walkthroughs/dean-production-plan.md) describes its isolated recording server and commands. Shared commands default to Researcher; use `--role=dean` for Dean assets.
 
 ## Source and audit
 
@@ -57,7 +57,7 @@ Generated files are in `.walkthrough/researcher/` (ignored):
 - `export/researcher-captioned.mp4`: web-size burned-in alternative.
 - Poster, SRT, VTT, full transcript, chapter metadata and `media.json`.
 
-The render command composes the product footage once with Remotion. FFmpeg creates the burned-in alternatives from the same measured caption data, measures narration loudness, applies two-pass normalization to -16 LUFS / -1.5 dBTP, encodes H.264/AAC with fast-start metadata and checks encoded runtime. It publishes web assets to `apps/web/public/walkthroughs/researcher/`. The two completed web MP4s are tracked with their captions and metadata so repository builds include playable media. Raw recordings, narration caches and the 1080p master remain under the ignored `.walkthrough/` directory, which is also excluded from Docker build context. Generate/copy the completed bundle **before building the deployment artifact**. Avoid copying over a bundle on a live server; publish it through an atomic site build/deployment.
+The render command composes the product footage once with Remotion. FFmpeg creates the burned-in alternatives from the same measured caption data, measures narration loudness, applies two-pass normalization to -16 LUFS / -1.5 dBTP, encodes H.264/AAC with fast-start metadata and checks encoded runtime. It publishes web assets to `apps/web/public/walkthroughs/researcher/`. The two completed web MP4s are tracked with their captions and metadata so repository builds include playable media. Raw recordings, narration caches, private fixture manifests, and the original Researcher 1080p master remain under the ignored `.walkthrough/` directory, which is also excluded from Docker build context. The separately verified Dean, Coordinator, and Adviser releases include their finalized 1080p masters and available chapter videos. Generate/copy the completed bundle **before building the deployment artifact**. Avoid copying over a bundle on a live server; publish it through an atomic site build/deployment.
 
 The evaluation guide embeds the component only for Researchers. `/walkthrough/research-dashboard` is the public companion. Both offer a written guide and transcript. Continue never depends on elapsed video time or guide completion. Until matching `media.json` and media files exist, the component truthfully reports that narration is unavailable; it does not play a mock video. The metadata script hash must match the generated web text.
 
@@ -66,3 +66,13 @@ The evaluation guide embeds the component only for Researchers. `/walkthrough/re
 Review the inventory against current UI before every regeneration. Confirm real product captures, fictional identities, version-specific feedback, actual returned submission status, truthful defense/grade empty states, no third-party connection success, all spoken text captioned, caption safe margins, readable desktop detail, and mobile native captions. Listen to every narration beat for pronunciation, natural tutor delivery, pacing and audio clipping. Compare transcript against audio; view the full export for cursor drift, cropped panels, stale/failed states and transition artifacts. Validate actual exported playback/fullscreen/volume/captions on devices in addition to automated test fixtures. No background music is used.
 
 Sources used for implementation: [Playwright recording](https://playwright.dev/docs/videos), [ElevenLabs timing endpoint](https://elevenlabs.io/docs/api-reference/text-to-speech/convert-with-timestamps/), [Remotion metadata](https://www.remotion.dev/docs/dynamic-metadata), [Remotion recorded video](https://www.remotion.dev/docs/offthreadvideo). Motion follows restrained spotlight, annotation and progress patterns; no BrewedOps source/assets are copied.
+
+The [Coordinator production plan](../docs/walkthroughs/coordinator-production-plan.md) covers its five chapter exports and isolated role handoffs. Use `--role=coordinator` for its cached assets.
+
+The [Faculty Adviser production plan](../docs/walkthroughs/adviser-production-plan.md) describes the six-chapter recording, isolated fixture, review lifecycle, and cached-narration workflow. Use `--role=adviser` with shared commands.
+
+## Shared role-video release
+
+Run `npm run walkthrough:publish` to copy the verified Dean, Coordinator, and Adviser deliverables into `apps/web/public/walkthroughs/` without regenerating narration or rendering video. It checks each script hash and verified MP4 byte count, copies an explicit release-file allowlist, and records SHA-256 checksums. Private credentials, demo manifests, capture evidence, and voice-provider caches stay local.
+
+After building the web app, `/walkthroughs/index.html` lists the releases. The role players are `/walkthroughs/dean/index.html`, `/walkthroughs/coordinator/index.html`, and `/walkthroughs/adviser/index.html`. Each includes native video controls, selectable captions, chapter seeking, transcript, subtitles, 1080p master, and a captioned copy. Coordinator and Adviser also include their separate chapter downloads. The existing Researcher companion remains at `/walkthrough/research-dashboard`.

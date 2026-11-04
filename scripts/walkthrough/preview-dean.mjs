@@ -1,0 +1,25 @@
+import http from "node:http";
+import fs from "node:fs";
+import fsp from "node:fs/promises";
+import path from "node:path";
+import { root } from "./common.mjs";
+
+const directory = path.join(root, ".walkthrough/dean/export");
+const media = JSON.parse(await fsp.readFile(path.join(directory, "media.json"), "utf8"));
+const allowed = new Set(["dean-web.mp4", "dean-captioned.mp4", "master-1080p.mp4", "subtitles.vtt", "subtitles.srt", "poster.jpg", "transcript.txt", "chapters.json", "media.json"]);
+const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ADVISIO · Dean walkthrough</title><style>*{box-sizing:border-box}body{margin:0;background:#f1f5f8;color:#123752;font:16px/1.5 system-ui,sans-serif}header,main{max-width:1440px;margin:auto;padding:24px}header{display:flex;align-items:center;justify-content:space-between;gap:16px}h1{font-size:24px;margin:0}p{margin:4px 0;color:#486073}.layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:24px}video{display:block;width:100%;background:#102d45;border-radius:12px;aspect-ratio:16/9}section,nav{min-width:0}nav{background:white;border:1px solid #d3dfe7;border-radius:12px;padding:16px}h2{font-size:18px;margin:0 0 12px}button{display:block;width:100%;padding:10px;text-align:left;border:0;border-radius:6px;background:transparent;color:#123752;font:inherit;cursor:pointer}button:hover,button:focus-visible{background:#e8f0f5;outline:2px solid #b99b50}.time{font-size:12px;color:#587082;margin-right:8px}.downloads{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}a{color:#123752;font-weight:600}a:focus-visible{outline:2px solid #b99b50}.note{font-size:14px;margin:16px 0}@media(max-width:850px){header,main{padding:16px}.layout{grid-template-columns:1fr}nav{max-height:340px;overflow:auto}h1{font-size:21px}}@media(prefers-reduced-motion:no-preference){button{transition:background .15s}}</style><header><div><h1>ADVISIO · Dean Workspace Walkthrough</h1><p>Research oversight and coordination · ${Math.floor(media.duration / 60)}:${String(Math.round(media.duration % 60)).padStart(2, "0")} · 15 chapters</p></div><span>Local preview</span></header><main><div class="layout"><section><video controls preload="metadata" poster="poster.jpg" aria-label="Dean workspace walkthrough"><source src="dean-web.mp4" type="video/mp4"><track default kind="captions" src="subtitles.vtt" srclang="en" label="English"></video><p class="note">Use the chapter list to jump to a feature. Captions, volume, playback speed, and full screen are available in the video controls.</p><div class="downloads"><a href="master-1080p.mp4" download>Download 1080p master</a><a href="dean-captioned.mp4" download>Captioned copy</a><a href="transcript.txt">Transcript</a><a href="subtitles.srt" download>Subtitles</a></div></section><nav aria-label="Walkthrough chapters"><h2>Chapters</h2>${media.chapters.map((c, i) => `<button data-time="${c.start}"><span class="time">${String(Math.floor(c.start / 60)).padStart(2, "0")}:${String(Math.floor(c.start % 60)).padStart(2, "0")}</span>${i + 1}. ${c.title}</button>`).join("")}</nav></div></main><script>const video=document.querySelector('video');for(const button of document.querySelectorAll('[data-time]'))button.addEventListener('click',()=>{video.currentTime=Number(button.dataset.time);video.play().catch(()=>{});});</script></html>`;
+const server = http.createServer(async (request, response) => {
+  const name = new URL(request.url, "http://localhost").pathname.slice(1);
+  if (!name) { response.writeHead(200, { "Content-Type": "text/html;charset=utf-8", "Cache-Control": "no-store" }); return response.end(html); }
+  if (!allowed.has(name)) { response.writeHead(404); return response.end(); }
+  const file = path.join(directory, name), size = (await fsp.stat(file)).size;
+  const mime = name.endsWith(".mp4") ? "video/mp4" : name.endsWith(".vtt") ? "text/vtt;charset=utf-8" : name.endsWith(".jpg") ? "image/jpeg" : name.endsWith(".json") ? "application/json" : "text/plain;charset=utf-8";
+  const range = /^bytes=(\d+)-(\d*)$/.exec(request.headers.range || "");
+  let start = range ? Number(range[1]) : 0, end = range?.[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+  if (start >= size || end < start) { response.writeHead(416, { "Content-Range": `bytes */${size}` }); return response.end(); }
+  response.writeHead(range ? 206 : 200, { "Content-Type": mime, "Content-Length": end - start + 1, "Accept-Ranges": "bytes", ...(range ? { "Content-Range": `bytes ${start}-${end}/${size}` } : {}) });
+  if (request.method === "HEAD") return response.end();
+  fs.createReadStream(file, { start, end }).pipe(response);
+});
+server.listen(3210, "127.0.0.1", () => console.log("Dean walkthrough preview: http://localhost:3210"));
+process.on("SIGINT", () => server.close(() => process.exit()));

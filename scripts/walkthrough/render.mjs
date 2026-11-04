@@ -18,6 +18,7 @@ import {
   renderBinaries,
   probe,
   prepareBrandAssets,
+  role,
 } from "./common.mjs";
 import {
   buildTimeline,
@@ -93,11 +94,16 @@ const common = {
 };
 const clean = path.join(output, "clean.mp4");
 let reported = -1;
+if (process.argv.includes("--native")) {
+  const { composeNative } = await import("./compose-native.mjs");
+  await composeNative({ timeline, serveUrl, composition, clean });
+} else {
 await renderMedia({
   ...common,
   inputProps: cleanProps,
   outputLocation: clean,
   crf: 16,
+  x264Preset: "veryfast",
   onProgress: ({ progress }) => {
     const step = Math.floor(progress * 20);
     if (step > reported) {
@@ -106,6 +112,7 @@ await renderMedia({
     }
   },
 });
+}
 // Two-pass EBU R128 normalization preserves measured narrator dynamics and caps peaks.
 // Loudnorm's measurement JSON is captured privately; it never contains credentials.
 const { default: ffmpeg } = await import("ffmpeg-static");
@@ -143,11 +150,14 @@ const assPath = path
   .relative(root, path.join(exported, "captions.ass"))
   .split(path.sep)
   .join("/");
-for (const [name, width, crf, burned] of [
+const releaseFirst = process.argv.includes("--release-first");
+const variants = [
   ["master-1080p.mp4", 1920, 17, true],
-  ["researcher-web.mp4", 1280, 22, false],
-  ["researcher-captioned.mp4", 1280, 22, true],
-]) {
+  [`${role}-web.mp4`, 1280, 22, false],
+  [`${role}-captioned.mp4`, 1280, 22, true],
+];
+if (releaseFirst) variants.sort((a, b) => Number(b[0] === `${role}-web.mp4`) - Number(a[0] === `${role}-web.mp4`));
+for (const [name, width, crf, burned] of variants) {
   console.log(`Encoding ${name}`);
   await encode([
     "-i",
@@ -161,9 +171,9 @@ for (const [name, width, crf, burned] of [
     "-c:v",
     "libx264",
     "-preset",
-    "fast",
+    releaseFirst && name === `${role}-web.mp4` ? "veryfast" : "fast",
     "-crf",
-    String(crf),
+    String(releaseFirst && name === `${role}-web.mp4` ? 20 : crf),
     "-c:a",
     "aac",
     "-b:a",
@@ -174,6 +184,15 @@ for (const [name, width, crf, burned] of [
     `title=${script.title}`,
     path.join(exported, name),
   ]);
+  if (releaseFirst && name === `${role}-web.mp4`) {
+    const measured = await duration(path.join(exported, name));
+    if (Math.abs(measured - timeline.durationInFrames / timeline.fps) > .3) throw Error("Early video runtime differs from the timeline.");
+    const chapters = timeline.chapters.map((c) => ({ id: c.id, title: c.title, start: c.from / timeline.fps, end: (c.from + c.durationInFrames) / timeline.fps }));
+    await renderStill({ serveUrl, composition, inputProps: cleanProps, output: path.join(exported, "poster.jpg"), frame: 15, imageFormat: "jpeg" });
+    await fs.writeFile(path.join(exported, "transcript.txt"), timeline.chapters.map((c) => `${c.index + 1}. ${c.title}\n\n${c.beats.map((b) => b.narration).join("\n\n")}`).join("\n\n"));
+    await writeJson(path.join(exported, "early-media.json"), { title: script.title, scriptHash: timeline.scriptHash, duration: measured, video: name, chapters });
+    console.log("Full video ready; additional exports continue.");
+  }
 }
 await renderStill({
   serveUrl,
@@ -183,7 +202,7 @@ await renderStill({
   frame: 15,
   imageFormat: "jpeg",
 });
-const measured = await duration(path.join(exported, "researcher-web.mp4"));
+const measured = await duration(path.join(exported, `${role}-web.mp4`));
 if (Math.abs(measured - timeline.durationInFrames / timeline.fps) > 0.3)
   throw new Error("Encoded runtime differs from timeline.");
 const chapters = timeline.chapters.map((chapter) => ({
@@ -192,14 +211,22 @@ const chapters = timeline.chapters.map((chapter) => ({
   start: chapter.from / timeline.fps,
   end: (chapter.from + chapter.durationInFrames) / timeline.fps,
 }));
+if (process.argv.includes("--chapters")) {
+  const chapterDirectory = path.join(exported, "chapters");
+  await fs.mkdir(chapterDirectory, { recursive: true });
+  for (const chapter of chapters) {
+    console.log(`Exporting chapter: ${chapter.title}`);
+    await encode(["-i", path.join(exported, "master-1080p.mp4"), "-ss", String(chapter.start), "-t", String(chapter.end - chapter.start), "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", path.join(chapterDirectory, `${chapter.id}.mp4`)]);
+  }
+}
 await writeJson(path.join(exported, "chapters.json"), chapters);
 await writeJson(path.join(exported, "media.json"), {
   version: 1,
   title: script.title,
   scriptHash: timeline.scriptHash,
   duration: measured,
-  video: "researcher-web.mp4",
-  captionedVideo: "researcher-captioned.mp4",
+  video: `${role}-web.mp4`,
+  captionedVideo: `${role}-captioned.mp4`,
   poster: "poster.jpg",
   captions: "subtitles.vtt",
   subtitles: "subtitles.srt",
@@ -210,7 +237,7 @@ await fs.writeFile(
   timeline.chapters
     .map(
       (chapter) =>
-        `${chapter.index}. ${chapter.title}\n\n${chapter.beats.map((beat) => beat.narration).join("\n\n")}`,
+        `${chapter.index + 1}. ${chapter.title}\n\n${chapter.beats.map((beat) => beat.narration).join("\n\n")}`,
     )
     .join("\n\n"),
 );
@@ -218,12 +245,12 @@ console.log(
   `Rendered ${(measured / 60).toFixed(2)} minutes. Master, web, captioned video, subtitles, poster and chapter data: ${exported}`,
 );
 if (process.argv.includes("--publish")) {
-  const target = path.join(root, "apps/web/public/walkthroughs/researcher");
+  const target = path.join(root, `apps/web/public/walkthroughs/${role}`);
   await fs.mkdir(target, { recursive: true });
   // Metadata is copied last: visitors never see a partially published bundle.
   for (const name of [
-    "researcher-web.mp4",
-    "researcher-captioned.mp4",
+    `${role}-web.mp4`,
+    `${role}-captioned.mp4`,
     "poster.jpg",
     "subtitles.vtt",
     "subtitles.srt",
@@ -241,11 +268,11 @@ if (process.argv.includes("--publish")) {
       () => false,
     )
   ) {
-    const builtMedia = path.join(built, "walkthroughs/researcher");
+    const builtMedia = path.join(built, `walkthroughs/${role}`);
     await fs.mkdir(builtMedia, { recursive: true });
     for (const name of [
-      "researcher-web.mp4",
-      "researcher-captioned.mp4",
+      `${role}-web.mp4`,
+      `${role}-captioned.mp4`,
       "poster.jpg",
       "subtitles.vtt",
       "subtitles.srt",
@@ -256,6 +283,6 @@ if (process.argv.includes("--publish")) {
       await fs.copyFile(path.join(exported, name), path.join(builtMedia, name));
   }
   console.log(
-    "Static Researcher media bundle published to the web public folder.",
+    `Static ${role} media bundle published to the web public folder.`,
   );
 }

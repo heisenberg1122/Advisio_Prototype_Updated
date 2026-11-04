@@ -1,0 +1,238 @@
+{
+  "id": "dean",
+  "title": "ADVISIO Dean Workspace Walkthrough",
+  "role": "dean",
+  "course": "BSIT",
+  "audience": "general",
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "proposedSeconds": 420,
+  "maximumSeconds": 480,
+  "presentationVersion": 1,
+  "voiceDirection": "A tutor: gentle but firm, natural rather than robotic. Neutral academic instruction, clear English, no exaggerated enthusiasm. Aim for 145–160 words per minute.",
+  "pronunciation": {
+    "word": "ADVISIO",
+    "alias": "ad vi sho",
+    "confirmed": true
+  },
+  "chapters": [
+    {
+      "id": "introduction",
+      "title": "Welcome",
+      "route": null,
+      "beats": [
+        {
+          "id": "welcome",
+          "action": "intro",
+          "callout": "Dean workspace",
+          "narration": "Welcome to ADVISIO. This walkthrough introduces the Dean workspace: college research monitoring, faculty coordination, document review, and administrative oversight. We will follow fictional college records through the screens and actions available to an authorized dean. Your assigned college and account permissions determine which records you can access.",
+          "framing": "overview"
+        },
+        {
+          "id": "login",
+          "action": "login",
+          "callout": "Use your authorized college account",
+          "narration": "Sign in using your authorized institutional account. Enter your email and password, then select Sign In. If your account has more than one workspace, choose Dean. The workspace identifies your role and college scope. This demonstration uses a fictional dean account, with no access to real student records.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "overview",
+      "title": "College overview",
+      "route": "/admin/dashboard",
+      "beats": [
+        {
+          "id": "dashboard",
+          "action": "overview",
+          "callout": "College totals, research pipeline, and attention items",
+          "narration": "The Overview brings together the college research totals. The four cards show student researchers, research groups, groups on track, and groups marked as high risk. The sidebar connects the monitoring and administration areas. Below the cards, Research Program Overview compares participation and workflow progress across programs. Research Pipeline groups projects by their current milestone. Needs Dean Attention lists records with a recorded risk reason, while Pending Actions summarizes accounts and assignments awaiting attention.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "filters",
+      "title": "Academic year and program filters",
+      "route": "/admin/dashboard",
+      "beats": [
+        {
+          "id": "scope",
+          "action": "filters",
+          "callout": "Check the selected scope before interpreting totals",
+          "narration": "Use the academic year and program filters to focus the dashboard. Select an academic year, then inspect the updated research information. Choose a program to narrow the scope further. A filter with no matching projects can produce an empty result; it does not mean the records were deleted. Return to all academic years and all programs when you need the broader college view.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "students",
+      "title": "Student researchers",
+      "route": "/admin/dashboard?tab=students",
+      "beats": [
+        {
+          "id": "approve",
+          "action": "students",
+          "callout": "Review the researcher record before approving access",
+          "narration": "Open Students to inspect the researcher registry. Search by name, institutional identifier, or email. Each row brings together the student's program, research group, adviser, current stage, progress, and account status. Here, a prepared fictional account is pending. Review its details before selecting Approve. After the update, the account shows Active. Approval changes account access; it does not automatically create a project, assign an adviser, or complete research requirements.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "progress",
+      "title": "Research groups and progress risks",
+      "route": "/admin/dashboard?tab=research",
+      "beats": [
+        {
+          "id": "risk",
+          "action": "progress",
+          "callout": "Risk indicators guide follow-up; they are not grades",
+          "narration": "Research Groups lists project titles, programs, assigned advisers, current stages, and progress. Open Progress and Risk for a closer look, then select High risk. The example identifies a project with no recent activity and displays the recorded reason. Use that context when deciding what needs follow-up with the coordinator or adviser. These indicators describe the recorded research activity. They are monitoring signals, rather than academic grades or a final judgment about the research.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "faculty",
+      "title": "Faculty access",
+      "route": "/admin/faculty-access",
+      "beats": [
+        {
+          "id": "request",
+          "action": "faculty",
+          "callout": "Invitations and access requests follow different approval paths",
+          "narration": "Faculty Access shows invitations and access requests. Select Invite or request access, then enter the faculty member's identity, institutional identifier, and requested roles. The dean must verify eligibility and record the basis for that verification. Adviser invitations and requests for Professor Coordinator or Panelist access follow different approval paths. This example submits a Professor Coordinator request. Its recorded status is awaiting administrator approval; the request itself has not granted the faculty role.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "advisers",
+      "title": "Adviser workload and capacity",
+      "route": "/admin/dashboard?tab=advisers",
+      "beats": [
+        {
+          "id": "capacity",
+          "action": "advisers",
+          "callout": "Manage capacity without changing existing group assignments",
+          "narration": "The Advisers screen shows each adviser's program, active group count, capacity, available slots, and groups needing attention. Invite adviser opens Faculty Access for the invitation process. For an existing adviser, select Edit to review the assigned program, maximum active groups, and availability for new requests. Record a reason before saving a capacity change. Changing capacity does not reassign existing groups. The updated card shows the new limit alongside the current workload.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "signatures",
+      "title": "Review and sign a request",
+      "route": "/admin/inbox?view=signature-requests",
+      "beats": [
+        {
+          "id": "sign",
+          "action": "signatures",
+          "callout": "Review the exact document, placement, and confirmation",
+          "narration": "In Inbox, select Signature requests. Read the requester's message and review the attached document before choosing Add signature. The signing screen supports a saved signature, drawing, an uploaded image, or a typed signature. This example uses a typed demonstration signature. Review its placement on the document and the name and date options. Confirm your password and the declaration, then select Confirm and Sign. The system saves a separate signed copy with a verification reference. Return to the thread to inspect the Signed status and send a reply when needed.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "defenses",
+      "title": "Defense oversight",
+      "route": "/admin/dashboard?tab=defenses",
+      "beats": [
+        {
+          "id": "inspect",
+          "action": "defenses",
+          "callout": "Schedules, readiness checks, and released outcomes",
+          "narration": "Defenses provides college-level oversight of scheduled sessions. The summary cards identify upcoming defenses, pending panel confirmations, rescheduling needs, and results awaiting release. Upcoming, Needs Attention, and Completed provide different views of those records. Open View details to inspect a schedule, venue, required panel, and preparation checks. A completed record shows an outcome only when it has been released. Unreleased results remain private, and the oversight screen does not grant permission to submit a panelist's scores.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "reports",
+      "title": "Research reports and exports",
+      "route": "/admin/dashboard?tab=reports",
+      "beats": [
+        {
+          "id": "export",
+          "action": "reports",
+          "callout": "Review the filtered preview before exporting",
+          "narration": "Reports offers Research Progress, Defense Outcomes, and Adviser Workload. Select the report, academic year, and program, then review the matching preview and summary. Additional filters depend on the report. Export PDF downloads the report for presentation or reference; Export CSV provides the tabular data. Exports include all matching rows, not only the visible page. Because records may change after the preview was generated, check the selected filters and export time when sharing a report.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "announcements",
+      "title": "College announcements",
+      "route": "/admin/dashboard?tab=announcements",
+      "beats": [
+        {
+          "id": "publish",
+          "action": "announcements",
+          "callout": "Choose the audience and review the message",
+          "narration": "Announcements lets the dean publish a message to the assigned college or a selected program. Choose the audience first, then enter the title and message. Review the recipients and wording before selecting Publish announcement. Here, the action affects only fictional accounts in the isolated demonstration workspace. The confirmation reports the audience count, and the new message appears under Current announcements. That feed also provides a dated record of previously published updates.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "calendar",
+      "title": "Academic calendar",
+      "route": "/admin/calendar",
+      "beats": [
+        {
+          "id": "event",
+          "action": "calendar",
+          "callout": "Research activities and dates in Philippine time",
+          "narration": "The Calendar brings together the research activities available within your scope. The month view and Upcoming events list show dates for defenses, consultations, deadlines, and other recorded activities. Select the prepared college research review to inspect its time, location, and description. The calendar displays Philippine time. It reflects the schedules recorded in ADVISIO, so confirm event details and changes with the responsible organizer when coordinating attendance.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "manuscripts",
+      "title": "Assigned manuscript reviews",
+      "route": "/admin/reviews",
+      "beats": [
+        {
+          "id": "review",
+          "action": "manuscripts",
+          "callout": "Review assignments are tied to an exact submitted version",
+          "narration": "Manuscript Reviews lists versions explicitly assigned to your account. Review and decide opens the frozen document beside the review controls. For a manuscript linked to a requirement submission, the workspace also includes shared comments. Select a passage in a text-based PDF to attach a comment, or refer to a page when text selection is unavailable. Comments and permanent decisions are separate actions. This demonstration inspects the record without submitting a permanent decision.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "official",
+      "title": "Official copies",
+      "route": "/admin/documents?tab=official",
+      "beats": [
+        {
+          "id": "archive",
+          "action": "official",
+          "callout": "Archived copies retain their source and verification information",
+          "narration": "Official Copies provides the archived documents available under your account's permissions. Select the authorized project, then inspect the document title, archival status, source version, finalization details, and verification reference. Open or download a copy for reference. Verify integrity checks the stored file against its recorded checksum. The archived original is preserved separately from any visually signed copy. Available signing or revocation controls depend on the role and document state.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "closing",
+      "title": "Walkthrough complete",
+      "route": null,
+      "beats": [
+        {
+          "id": "complete",
+          "action": "outro",
+          "callout": "Supporting research oversight and coordination",
+          "narration": "That concludes the ADVISIO Dean workspace walkthrough. Return to Overview to review the college summary, or revisit a section for its detailed records. These tools bring research monitoring, faculty coordination, document review, and administrative oversight together in one workspace.",
+          "framing": "overview"
+        }
+      ]
+    }
+  ]
+}

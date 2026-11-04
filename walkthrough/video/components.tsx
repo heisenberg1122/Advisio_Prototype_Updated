@@ -52,7 +52,7 @@ export function CameraFrame({
     </div>
   );
 }
-export function BrowserFrame({ children }: { children: React.ReactNode }) {
+export function BrowserFrame({ children, role = "Researcher" }: { children: React.ReactNode; role?: string }) {
   return (
     <div
       style={{
@@ -80,7 +80,7 @@ export function BrowserFrame({ children }: { children: React.ReactNode }) {
         }}
       >
         <span aria-hidden>● ● ●</span>
-        <span style={{ margin: "auto" }}>ADVISIO · Researcher workspace</span>
+        <span style={{ margin: "auto" }}>ADVISIO · {role} workspace</span>
       </div>
       {/* Product capture is scaled uniformly, never rebuilt as a mock application. */}
       <div
@@ -119,7 +119,7 @@ export function ChapterLabel({
     >
       <strong style={{ fontSize: 28, letterSpacing: 1 }}>ADVISIO</strong>
       <span style={{ fontSize: 25 }}>
-        {String(index).padStart(2, "0")} · {title}
+        {String(index + 1).padStart(2, "0")} · {title}
       </span>
     </div>
   );
@@ -355,9 +355,9 @@ export function IntroScene({
     </AbsoluteFill>
   );
 }
-export const OutroScene = () => (
+export const OutroScene = ({ role = "Researcher" }: { role?: string }) => (
   <IntroScene
-    title="Researcher Walkthrough Complete"
-    subtitle="You’re ready to explore the Researcher workspace. Return to any section for a refresher."
+    title={`${role} Walkthrough Complete`}
+    subtitle={role === "Research Coordinator" ? "From research planning to academic completion." : role === "Dean" ? "Supporting research oversight and coordination." : role === "Faculty Adviser" ? "Guiding research through every stage." : "You’re ready to explore the Researcher workspace. Return to any section for a refresher."}
   />
 );
