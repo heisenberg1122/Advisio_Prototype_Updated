@@ -7,7 +7,7 @@ import ffmpeg from "ffmpeg-static";
 import ffprobe from "ffprobe-static";
 export const root = fileURLToPath(new URL("../../", import.meta.url));
 export const role = process.argv.find((arg) => arg.startsWith("--role="))?.slice(7) || "researcher";
-if (!["researcher", "dean", "coordinator", "adviser"].includes(role)) throw new Error("Unsupported walkthrough role.");
+if (!["researcher", "dean", "coordinator", "adviser", "panelist", "panelist-structured", "panelist-pdf", "panelist-preparation"].includes(role)) throw new Error("Unsupported walkthrough role.");
 export const output = path.join(root, ".walkthrough", role);
 export const assets = path.join(output, "assets");
 export const readJson = async (file) =>

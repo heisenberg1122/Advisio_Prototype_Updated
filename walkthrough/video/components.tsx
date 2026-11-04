@@ -358,6 +358,6 @@ export function IntroScene({
 export const OutroScene = ({ role = "Researcher" }: { role?: string }) => (
   <IntroScene
     title={`${role} Walkthrough Complete`}
-    subtitle={role === "Research Coordinator" ? "From research planning to academic completion." : role === "Dean" ? "Supporting research oversight and coordination." : role === "Faculty Adviser" ? "Guiding research through every stage." : "You’re ready to explore the Researcher workspace. Return to any section for a refresher."}
+    subtitle={role === "Research Coordinator" ? "From research planning to academic completion." : role === "Dean" ? "Supporting research oversight and coordination." : role === "Faculty Adviser" ? "Guiding research through every stage." : role === "Defense Panelist" ? "Review. Evaluate. Contribute." : "You’re ready to explore the Researcher workspace. Return to any section for a refresher."}
   />
 );

@@ -1,0 +1,114 @@
+{
+  "id": "panelist-preparation",
+  "title": "ADVISIO Panelist Defense Preparation Walkthrough",
+  "role": "panelist",
+  "course": "BSIT",
+  "audience": "general",
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "maximumSeconds": 480,
+  "proposedSeconds": 600,
+  "presentationVersion": 1,
+  "voiceDirection": "A tutor: gentle but firm, natural rather than robotic. Neutral academic instruction, clear English, no exaggerated enthusiasm. Aim for 145–160 words per minute.",
+  "pronunciation": {
+    "word": "ADVISIO",
+    "alias": "ad vi sho",
+    "confirmed": true
+  },
+  "chapters": [
+    {
+      "id": "workspace",
+      "title": "Panelist workspace",
+      "route": "/panelist/dashboard",
+      "beats": [
+        {
+          "id": "intro",
+          "clip": 1,
+          "action": "intro",
+          "callout": "Introduction and Sign-in",
+          "narration": "Welcome to ADVISIO. This walkthrough follows the Defense Panelist workspace: responding to invitations, preparing manuscripts, recording assessments, and reviewing the academic records available to you.",
+          "framing": "overview"
+        },
+        {
+          "id": "sign-in",
+          "clip": 1,
+          "action": "login",
+          "callout": "Defense Panelist · Panelist Center",
+          "narration": "Sign in with your authorized panelist account. Check the Defense Panelist workspace and Panelist Center badge. This recording uses fictional groups in an isolated local workspace, with normal authentication and assignment permissions.",
+          "framing": "overview"
+        },
+        {
+          "id": "overview",
+          "clip": 2,
+          "action": "overview",
+          "callout": "Explore the Panelist Dashboard",
+          "narration": "The Overview dashboard provides a summary of your defense assignments and evaluation activities. From here, you can check upcoming sessions, access manuscripts for review, complete evaluations, and revisit previously submitted records. The sidebar organizes these tools so you can move between preparation, evaluation, and results. Check the displayed assignment and evaluation counts before choosing the next task. The demonstration records and accounts are fictional.",
+          "framing": "overview"
+        },
+        {
+          "id": "invitation",
+          "clip": 3,
+          "action": "invitation",
+          "callout": "Review a Defense Invitation",
+          "narration": "Defense Schedule displays your assigned sessions and invitations. Before responding, review the research project, proposed date and time, session arrangements, and your assigned role. Opening the defense details provides additional information to help you prepare for the assignment. The invitation remains pending until you submit your response. Opening the details does not accept the assignment.",
+          "framing": "overview"
+        },
+        {
+          "id": "respond",
+          "clip": 4,
+          "action": "respond",
+          "callout": "Accept or Decline an Invitation",
+          "narration": "If you're available to serve as a panelist, select Accept Invitation. Your response is recorded in the system. If you cannot attend, choose Decline and provide any requested information so the coordinator can make the necessary arrangements. For this walkthrough, we'll continue with an accepted assignment. Acceptance and decline use separate demonstration sessions, so the accepted assignment remains available for the preparation scenes.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "preparation",
+      "title": "Defense preparation",
+      "route": "/panelist/dashboard",
+      "beats": [
+        {
+          "id": "workspace",
+          "clip": 5,
+          "action": "workspace",
+          "callout": "Explore the Defense Workspace",
+          "narration": "After accepting the invitation, you can access the defense workspace and its available session information. This includes the scheduled defense, participant details, and preparation materials. For online or hybrid defenses, the workspace may also provide the meeting link needed to join the session. A published packet and an accepted invitation are separate conditions. Scoring still requires the coordinator to start the defense.",
+          "framing": "overview"
+        },
+        {
+          "id": "manuscript",
+          "clip": 6,
+          "action": "manuscript",
+          "callout": "Review the Published Manuscript",
+          "narration": "Once the defense packet is published, accepted panelists can review the assigned manuscript. Open the manuscript to read the document and examine the research before the scheduled defense. The workspace also keeps track of document versions, helping you identify which manuscript is currently assigned for review. Confirm the version labelled Published for defense. Earlier review versions retain their own history; do not assume an earlier annotation belongs to a newly published manuscript.",
+          "framing": "overview"
+        },
+        {
+          "id": "annotations",
+          "clip": 7,
+          "action": "annotations",
+          "callout": "Annotate the Manuscript and Share Feedback",
+          "narration": "ADVISIO also provides annotation tools for reviewing manuscripts. You can highlight important passages, add comments, and mark areas that may require clarification or revision. Your annotations are saved privately while you work. When you're ready to share your feedback, preview the annotated manuscript and review the changes. Selecting Share Feedback publishes a copy for the authorized coordinator and research group members. Your original manuscript remains unchanged, and the shared feedback is preserved as a separate record. Sharing feedback does not submit a defense evaluation or select the official outcome.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "support",
+      "title": "Closing",
+      "route": "/panelist/dashboard",
+      "beats": [
+        {
+          "id": "outro",
+          "clip": 14,
+          "action": "outro",
+          "callout": "Closing",
+          "narration": "That concludes the ADVISIO Panelist walkthrough. You can return to your workspace anytime to prepare for upcoming defenses and review your assigned academic activities.",
+          "framing": "overview"
+        }
+      ]
+    }
+  ]
+}

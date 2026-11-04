@@ -41,7 +41,7 @@ function BeatVisual({
 }) {
   const frame = useCurrentFrame(),
     { fps } = useVideoConfig();
-  const workspaceRole = title.includes("Coordinator") ? "Research Coordinator" : title.includes("Dean") ? "Dean" : title.includes("Adviser") ? "Faculty Adviser" : "Researcher";
+  const workspaceRole = title.includes("Coordinator") ? "Research Coordinator" : title.includes("Dean") ? "Dean" : title.includes("Adviser") ? "Faculty Adviser" : title.includes("Panelist") ? "Defense Panelist" : "Researcher";
   const event = beat.capture?.events.find(
     (item) => frame / fps >= item.at && frame / fps <= item.clickAt + 0.2,
   );

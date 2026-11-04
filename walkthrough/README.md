@@ -1,6 +1,6 @@
 # ADVISIO role walkthrough production
 
-Researcher, Dean, Research Coordinator, and Faculty Adviser walkthroughs are authored. The engine reads a role script and generated timeline; it does not render anything for a visitor. The website serves a pre-rendered MP4 with native controls and a VTT track. The old public mock animation is replaced by this same optional player and written guide. The [Dean production plan](../docs/walkthroughs/dean-production-plan.md) describes its isolated recording server and commands. Shared commands default to Researcher; use `--role=dean` for Dean assets.
+Researcher, Dean, Research Coordinator, Faculty Adviser, and Panelist walkthroughs are authored. The engine reads a role script and generated timeline; it does not render anything for a visitor. The website serves a pre-rendered MP4 with native controls and a VTT track. The old public mock animation is replaced by this same optional player and written guide. The [Dean production plan](../docs/walkthroughs/dean-production-plan.md) describes its isolated recording server and commands. Shared commands default to Researcher; use `--role=dean` for Dean assets.
 
 ## Source and audit
 
@@ -73,6 +73,10 @@ The [Faculty Adviser production plan](../docs/walkthroughs/adviser-production-pl
 
 ## Shared role-video release
 
-Run `npm run walkthrough:publish` to copy the verified Dean, Coordinator, and Adviser deliverables into `apps/web/public/walkthroughs/` without regenerating narration or rendering video. It checks each script hash and verified MP4 byte count, copies an explicit release-file allowlist, and records SHA-256 checksums. Private credentials, demo manifests, capture evidence, and voice-provider caches stay local.
+Run `npm run walkthrough:publish` to copy the verified Dean, Coordinator, Adviser, and three Panelist-variant deliverables into `apps/web/public/walkthroughs/` without regenerating narration or rendering video. It checks each script hash and verified MP4 byte count, copies an explicit release-file allowlist, and records SHA-256 checksums. Private credentials, demo manifests, capture evidence, and voice-provider caches stay local.
 
 After building the web app, `/walkthroughs/index.html` lists the releases. The role players are `/walkthroughs/dean/index.html`, `/walkthroughs/coordinator/index.html`, and `/walkthroughs/adviser/index.html`. Each includes native video controls, selectable captions, chapter seeking, transcript, subtitles, 1080p master, and a captioned copy. Coordinator and Adviser also include their separate chapter downloads. The existing Researcher companion remains at `/walkthrough/research-dashboard`.
+
+The [Panelist production plan](../docs/walkthroughs/panelist-production-plan.md) covers shared preparation scenes and separate structured/PDF evaluation variants. Generate narration once with `--role=panelist`, then derive the three release variants with `npm run walkthrough:panelist:variants`.
+
+Panelist release pages are `/walkthroughs/panelist-structured/index.html`, `/walkthroughs/panelist-pdf/index.html`, and `/walkthroughs/panelist-preparation/index.html`. Choose the full evaluation video matching the defense's configured method; the preparation-only video is an optional quick reference. Each release includes its verified 1080p master, web/captioned copies, chapters, transcript, and subtitles.

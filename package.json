@@ -43,7 +43,7 @@
     "walkthrough:researcher:render": "node scripts/walkthrough/render.mjs --publish",
     "walkthrough:researcher:guides": "node scripts/walkthrough/guides.mjs",
     "walkthrough:researcher:all": "node scripts/walkthrough/all.mjs",
-    "test:walkthrough": "node --test scripts/walkthrough/timing.test.mjs scripts/walkthrough/coordinator-script.test.mjs scripts/walkthrough/adviser-script.test.mjs",
+    "test:walkthrough": "node --test scripts/walkthrough/timing.test.mjs scripts/walkthrough/coordinator-script.test.mjs scripts/walkthrough/adviser-script.test.mjs scripts/walkthrough/panelist-script.test.mjs",
     "type-check:walkthrough": "tsc -p walkthrough/tsconfig.json",
     "walkthrough:researcher:verify": "node scripts/walkthrough/verify-export.mjs --browser",
     "walkthrough:researcher:preview": "node scripts/walkthrough/preview.mjs",
@@ -66,7 +66,13 @@
     "walkthrough:adviser:render": "node scripts/walkthrough/render.mjs --role=adviser --native --chapters",
     "walkthrough:adviser:verify": "node scripts/walkthrough/verify-export.mjs --role=adviser",
     "walkthrough:adviser:preview": "node scripts/walkthrough/preview-adviser.mjs",
-    "walkthrough:publish": "node scripts/walkthrough/publish-role-videos.mjs"
+    "walkthrough:publish": "node scripts/walkthrough/publish-role-videos.mjs",
+    "walkthrough:panelist:dev": "node --import tsx scripts/walkthrough/panelist-server.mjs",
+    "walkthrough:panelist:prepare": "node --import tsx scripts/walkthrough/prepare-panelist.mjs",
+    "walkthrough:panelist:capture": "node scripts/walkthrough/capture-panelist.mjs --role=panelist",
+    "walkthrough:panelist:voice": "node scripts/walkthrough/voice.mjs --role=panelist",
+    "walkthrough:panelist:variants": "node scripts/walkthrough/panelist-variants.mjs",
+    "walkthrough:panelist:preview": "node scripts/walkthrough/preview-panelist.mjs"
   },
   "devDependencies": {
     "@remotion/bundler": "4.0.540",

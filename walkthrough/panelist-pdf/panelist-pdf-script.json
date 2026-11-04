@@ -1,0 +1,183 @@
+{
+  "id": "panelist-pdf",
+  "title": "ADVISIO Panelist PDF Evaluation Walkthrough",
+  "role": "panelist",
+  "course": "BSIT",
+  "audience": "general",
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "maximumSeconds": 480,
+  "proposedSeconds": 600,
+  "presentationVersion": 1,
+  "voiceDirection": "A tutor: gentle but firm, natural rather than robotic. Neutral academic instruction, clear English, no exaggerated enthusiasm. Aim for 145–160 words per minute.",
+  "pronunciation": {
+    "word": "ADVISIO",
+    "alias": "ad vi sho",
+    "confirmed": true
+  },
+  "chapters": [
+    {
+      "id": "workspace",
+      "title": "Panelist workspace",
+      "route": "/panelist/dashboard",
+      "beats": [
+        {
+          "id": "intro",
+          "clip": 1,
+          "action": "intro",
+          "callout": "Introduction and Sign-in",
+          "narration": "Welcome to ADVISIO. This walkthrough follows the Defense Panelist workspace: responding to invitations, preparing manuscripts, recording assessments, and reviewing the academic records available to you.",
+          "framing": "overview"
+        },
+        {
+          "id": "sign-in",
+          "clip": 1,
+          "action": "login",
+          "callout": "Defense Panelist · Panelist Center",
+          "narration": "Sign in with your authorized panelist account. Check the Defense Panelist workspace and Panelist Center badge. This recording uses fictional groups in an isolated local workspace, with normal authentication and assignment permissions.",
+          "framing": "overview"
+        },
+        {
+          "id": "overview",
+          "clip": 2,
+          "action": "overview",
+          "callout": "Explore the Panelist Dashboard",
+          "narration": "The Overview dashboard provides a summary of your defense assignments and evaluation activities. From here, you can check upcoming sessions, access manuscripts for review, complete evaluations, and revisit previously submitted records. The sidebar organizes these tools so you can move between preparation, evaluation, and results. Check the displayed assignment and evaluation counts before choosing the next task. The demonstration records and accounts are fictional.",
+          "framing": "overview"
+        },
+        {
+          "id": "invitation",
+          "clip": 3,
+          "action": "invitation",
+          "callout": "Review a Defense Invitation",
+          "narration": "Defense Schedule displays your assigned sessions and invitations. Before responding, review the research project, proposed date and time, session arrangements, and your assigned role. Opening the defense details provides additional information to help you prepare for the assignment. The invitation remains pending until you submit your response. Opening the details does not accept the assignment.",
+          "framing": "overview"
+        },
+        {
+          "id": "respond",
+          "clip": 4,
+          "action": "respond",
+          "callout": "Accept or Decline an Invitation",
+          "narration": "If you're available to serve as a panelist, select Accept Invitation. Your response is recorded in the system. If you cannot attend, choose Decline and provide any requested information so the coordinator can make the necessary arrangements. For this walkthrough, we'll continue with an accepted assignment. Acceptance and decline use separate demonstration sessions, so the accepted assignment remains available for the preparation scenes.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "preparation",
+      "title": "Defense preparation",
+      "route": "/panelist/dashboard",
+      "beats": [
+        {
+          "id": "workspace",
+          "clip": 5,
+          "action": "workspace",
+          "callout": "Explore the Defense Workspace",
+          "narration": "After accepting the invitation, you can access the defense workspace and its available session information. This includes the scheduled defense, participant details, and preparation materials. For online or hybrid defenses, the workspace may also provide the meeting link needed to join the session. A published packet and an accepted invitation are separate conditions. Scoring still requires the coordinator to start the defense.",
+          "framing": "overview"
+        },
+        {
+          "id": "manuscript",
+          "clip": 6,
+          "action": "manuscript",
+          "callout": "Review the Published Manuscript",
+          "narration": "Once the defense packet is published, accepted panelists can review the assigned manuscript. Open the manuscript to read the document and examine the research before the scheduled defense. The workspace also keeps track of document versions, helping you identify which manuscript is currently assigned for review. Confirm the version labelled Published for defense. Earlier review versions retain their own history; do not assume an earlier annotation belongs to a newly published manuscript.",
+          "framing": "overview"
+        },
+        {
+          "id": "annotations",
+          "clip": 7,
+          "action": "annotations",
+          "callout": "Annotate the Manuscript and Share Feedback",
+          "narration": "ADVISIO also provides annotation tools for reviewing manuscripts. You can highlight important passages, add comments, and mark areas that may require clarification or revision. Your annotations are saved privately while you work. When you're ready to share your feedback, preview the annotated manuscript and review the changes. Selecting Share Feedback publishes a copy for the authorized coordinator and research group members. Your original manuscript remains unchanged, and the shared feedback is preserved as a separate record. Sharing feedback does not submit a defense evaluation or select the official outcome.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "live",
+      "title": "Live defense evaluation",
+      "route": "/panelist/dashboard",
+      "beats": [
+        {
+          "id": "live",
+          "clip": 8,
+          "action": "live",
+          "callout": "Open the Live Evaluation",
+          "narration": "Once the coordinator starts the live defense, the evaluation workspace becomes available for scoring. Open the evaluation for the assigned research group and confirm that you're using the correct form before beginning your assessment. This is a separate prepared live session. The panelist cannot start the coordinator-managed defense or change its configured evaluation method.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "pdf",
+      "title": "PDF evaluation",
+      "route": "/panelist/dashboard",
+      "beats": [
+        {
+          "id": "pdf-draft",
+          "clip": 9,
+          "action": "pdf-draft",
+          "callout": "Complete the PDF Evaluation",
+          "narration": "Some defenses use an existing PDF evaluation form instead of a structured digital form. In this workspace, you can complete the document using checkmarks, circles, text, highlights, and comments. You can also adjust your entries before submitting. Your progress can be saved as a private draft while you complete the form. If the evaluation requires a signature, use the available signing options and follow the confirmation process. This is a separate PDF-mode session. It does not switch the structured session to another evaluation method.",
+          "framing": "overview"
+        },
+        {
+          "id": "pdf-final",
+          "clip": 10,
+          "action": "pdf-final",
+          "callout": "Preview, Confirm, and Lock the PDF",
+          "narration": "Before submitting, preview the completed PDF to verify that your entries and signature are correctly positioned. If you make changes after signing, the signature must be confirmed again. Once the document is accurate and complete, confirm your review and submit the final evaluation. The completed PDF is then locked and can be downloaded for your records. Confirm the current preview after the final edit. Submission locks your assessment, while the coordinator retains responsibility for the official result.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "results",
+      "title": "Results and follow-up",
+      "route": "/panelist/dashboard",
+      "beats": [
+        {
+          "id": "records",
+          "clip": 11,
+          "action": "records",
+          "callout": "Review the Submitted Evaluation",
+          "narration": "After submission, you can revisit your completed evaluation through Results or the available defense evaluation record. The final document remains available for review, allowing you to confirm what was submitted without changing the locked assessment. Your account shows its own assessment. Another panelist's private draft is outside this demonstration.",
+          "framing": "overview"
+        },
+        {
+          "id": "official-result",
+          "clip": 12,
+          "action": "official-result",
+          "callout": "Check the Official Defense Result",
+          "narration": "Your evaluation contributes to the defense review process, but your recommendation does not automatically determine the official outcome. After the required panelist evaluations are submitted, the authorized coordinator reviews the consolidated information and releases the official decision. You can then check the outcome information made available to you in the system. This separate prepared completed session has already passed those release checks. A panelist recommendation alone does not publish this decision.",
+          "framing": "overview"
+        }
+      ]
+    },
+    {
+      "id": "support",
+      "title": "Supporting tools and closing",
+      "route": "/panelist/dashboard",
+      "beats": [
+        {
+          "id": "tools",
+          "clip": 13,
+          "action": "tools",
+          "callout": "Explore Supporting Tools",
+          "narration": "The Panelist workspace also includes supporting tools for managing academic activities. Calendar helps you keep track of scheduled sessions. Manuscript Reviews and Official Copies provide access to the research documents available under your permissions. Messages and Inbox support communication and correspondence related to your assignments. An empty Official Copies list means no permitted published copy is available; a private draft does not become an official copy automatically.",
+          "framing": "overview"
+        },
+        {
+          "id": "outro",
+          "clip": 14,
+          "action": "outro",
+          "callout": "Closing",
+          "narration": "That concludes the ADVISIO Panelist walkthrough. You can return to your workspace anytime to prepare for upcoming defenses and review your assigned academic activities.",
+          "framing": "overview"
+        }
+      ]
+    }
+  ]
+}
