@@ -3,5 +3,6 @@ scripts/evaluation-container-entrypoint.sh text eol=lf
 apps/web/public/walkthroughs/dean/** -text
 apps/web/public/walkthroughs/coordinator/** -text
 apps/web/public/walkthroughs/adviser/** -text
+apps/web/public/walkthroughs/panelist-*/** -text
 apps/web/public/walkthroughs/catalog.json -text
 apps/web/public/walkthroughs/index.html -text

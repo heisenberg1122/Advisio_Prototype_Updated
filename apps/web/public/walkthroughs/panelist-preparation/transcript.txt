@@ -1,0 +1,23 @@
+1. Panelist workspace
+
+Welcome to ADVISIO. This walkthrough follows the Defense Panelist workspace: responding to invitations, preparing manuscripts, recording assessments, and reviewing the academic records available to you.
+
+Sign in with your authorized panelist account. Check the Defense Panelist workspace and Panelist Center badge. This recording uses fictional groups in an isolated local workspace, with normal authentication and assignment permissions.
+
+The Overview dashboard provides a summary of your defense assignments and evaluation activities. From here, you can check upcoming sessions, access manuscripts for review, complete evaluations, and revisit previously submitted records. The sidebar organizes these tools so you can move between preparation, evaluation, and results. Check the displayed assignment and evaluation counts before choosing the next task. The demonstration records and accounts are fictional.
+
+Defense Schedule displays your assigned sessions and invitations. Before responding, review the research project, proposed date and time, session arrangements, and your assigned role. Opening the defense details provides additional information to help you prepare for the assignment. The invitation remains pending until you submit your response. Opening the details does not accept the assignment.
+
+If you're available to serve as a panelist, select Accept Invitation. Your response is recorded in the system. If you cannot attend, choose Decline and provide any requested information so the coordinator can make the necessary arrangements. For this walkthrough, we'll continue with an accepted assignment. Acceptance and decline use separate demonstration sessions, so the accepted assignment remains available for the preparation scenes.
+
+2. Defense preparation
+
+After accepting the invitation, you can access the defense workspace and its available session information. This includes the scheduled defense, participant details, and preparation materials. For online or hybrid defenses, the workspace may also provide the meeting link needed to join the session. A published packet and an accepted invitation are separate conditions. Scoring still requires the coordinator to start the defense.
+
+Once the defense packet is published, accepted panelists can review the assigned manuscript. Open the manuscript to read the document and examine the research before the scheduled defense. The workspace also keeps track of document versions, helping you identify which manuscript is currently assigned for review. Confirm the version labelled Published for defense. Earlier review versions retain their own history; do not assume an earlier annotation belongs to a newly published manuscript.
+
+ADVISIO also provides annotation tools for reviewing manuscripts. You can highlight important passages, add comments, and mark areas that may require clarification or revision. Your annotations are saved privately while you work. When you're ready to share your feedback, preview the annotated manuscript and review the changes. Selecting Share Feedback publishes a copy for the authorized coordinator and research group members. Your original manuscript remains unchanged, and the shared feedback is preserved as a separate record. Sharing feedback does not submit a defense evaluation or select the official outcome.
+
+3. Closing
+
+That concludes the ADVISIO Panelist walkthrough. You can return to your workspace anytime to prepare for upcoming defenses and review your assigned academic activities.

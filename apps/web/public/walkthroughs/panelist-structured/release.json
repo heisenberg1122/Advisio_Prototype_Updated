@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "role": "panelist-structured",
+  "scriptHash": "eaf9e681124780769a3bf3c1dde972c872f184c5d6668800c792ac5ad412246b",
+  "duration": 380.1,
+  "captionCount": 127,
+  "files": [
+    {
+      "name": "master-1080p.mp4",
+      "bytes": 23358184,
+      "sha256": "68594898fb56aef3f98b4f285469b98a609d2621bee3549667c3befd5f000678"
+    },
+    {
+      "name": "panelist-structured-web.mp4",
+      "bytes": 12250768,
+      "sha256": "5260583dfac70019e1b2db4916f538c9d37828a55ff775d2c0a4cc727bf69271"
+    },
+    {
+      "name": "panelist-structured-captioned.mp4",
+      "bytes": 13262462,
+      "sha256": "a47fa112d8cc0bf5b8e26bce327dec7db73b62cfbab8fc1c984f6f4352a4a2d4"
+    },
+    {
+      "name": "subtitles.vtt",
+      "bytes": 10756,
+      "sha256": "9a9e57f40a382088a9aab6841ffa97506039efcba2b19a1c51f8ff6a56d6564e"
+    },
+    {
+      "name": "subtitles.srt",
+      "bytes": 10748,
+      "sha256": "5949532d220dc9b868bba1211f31a8915f8747acfa27bc577608600851ff4384"
+    },
+    {
+      "name": "poster.jpg",
+      "bytes": 60184,
+      "sha256": "bde8c34a383065350dbf6b810d8bd8c5a0312048b88017f0929da4a2ace09dc5"
+    },
+    {
+      "name": "transcript.txt",
+      "bytes": 6593,
+      "sha256": "d24f9e71724786f0b2727953a671ae912e9a17fcd15d719cfb4461f33be787c2"
+    },
+    {
+      "name": "chapters.json",
+      "bytes": 747,
+      "sha256": "cf2782ce3c683ccf4b878716bc6e80ce2220e57be8301a9759c916ddc604c834"
+    },
+    {
+      "name": "media.json",
+      "bytes": 1213,
+      "sha256": "38a45408f0d86d948fdafdbbdd839c61adb3d602c0bcc4f880ddf63f7e4e17d0"
+    },
+    {
+      "name": "chapters/workspace.mp4",
+      "bytes": 5765463,
+      "sha256": "2635470ac9dd7b1c8c0c77386a1c29add66c87331bbfde76e70ed74482fbc7cd"
+    },
+    {
+      "name": "chapters/preparation.mp4",
+      "bytes": 4898622,
+      "sha256": "8590a5a5f7b2a76c2f5c581ef60878efe149557037bc74cd05486f861b5c739a"
+    },
+    {
+      "name": "chapters/live.mp4",
+      "bytes": 1196801,
+      "sha256": "424a64957e00fc1ed257ea6280d58a411660c7d980ddcd2ed24fa60bfd7556f2"
+    },
+    {
+      "name": "chapters/structured.mp4",
+      "bytes": 4036927,
+      "sha256": "33504b7667b5018fb128dc4c3a0c8680805d6abe0950699d4f6d738d54cb23f4"
+    },
+    {
+      "name": "chapters/results.mp4",
+      "bytes": 2336825,
+      "sha256": "cf873b7aaa0547969cc38366b48c197ceedf04d979d1f69e1fb38dd5a79c97ff"
+    },
+    {
+      "name": "chapters/support.mp4",
+      "bytes": 2103262,
+      "sha256": "6758e18e4f45856a6de2b4e39c0188d3e5ceb77d566ba42d758bfb857b703617"
+    }
+  ]
+}

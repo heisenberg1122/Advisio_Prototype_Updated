@@ -22,5 +22,29 @@
     "chapters": 6,
     "page": "adviser/index.html",
     "bytes": 97786431
+  },
+  {
+    "role": "panelist-structured",
+    "title": "ADVISIO Panelist Structured Evaluation Walkthrough",
+    "duration": 380.1,
+    "chapters": 6,
+    "page": "panelist-structured/index.html",
+    "bytes": 69299555
+  },
+  {
+    "role": "panelist-pdf",
+    "title": "ADVISIO Panelist PDF Evaluation Walkthrough",
+    "duration": 371.9,
+    "chapters": 6,
+    "page": "panelist-pdf/index.html",
+    "bytes": 67892926
+  },
+  {
+    "role": "panelist-preparation",
+    "title": "ADVISIO Panelist Defense Preparation Walkthrough",
+    "duration": 206.801,
+    "chapters": 3,
+    "page": "panelist-preparation/index.html",
+    "bytes": 37708523
   }
 ]

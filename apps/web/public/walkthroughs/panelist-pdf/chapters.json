@@ -1,0 +1,38 @@
+[
+  {
+    "id": "workspace",
+    "title": "Panelist workspace",
+    "start": 0,
+    "end": 105.53333333333333
+  },
+  {
+    "id": "preparation",
+    "title": "Defense preparation",
+    "start": 105.53333333333333,
+    "end": 196.36666666666667
+  },
+  {
+    "id": "live",
+    "title": "Live defense evaluation",
+    "start": 196.36666666666667,
+    "end": 217.86666666666667
+  },
+  {
+    "id": "pdf",
+    "title": "PDF evaluation",
+    "start": 217.86666666666667,
+    "end": 281.6666666666667
+  },
+  {
+    "id": "results",
+    "title": "Results and follow-up",
+    "start": 281.6666666666667,
+    "end": 332.4
+  },
+  {
+    "id": "support",
+    "title": "Supporting tools and closing",
+    "start": 332.4,
+    "end": 371.8
+  }
+]

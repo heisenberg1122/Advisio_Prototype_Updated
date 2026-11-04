@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "title": "ADVISIO Panelist Structured Evaluation Walkthrough",
+  "scriptHash": "eaf9e681124780769a3bf3c1dde972c872f184c5d6668800c792ac5ad412246b",
+  "duration": 380.1,
+  "video": "panelist-structured-web.mp4",
+  "captionedVideo": "panelist-structured-captioned.mp4",
+  "poster": "poster.jpg",
+  "captions": "subtitles.vtt",
+  "subtitles": "subtitles.srt",
+  "chapters": [
+    {
+      "id": "workspace",
+      "title": "Panelist workspace",
+      "start": 0,
+      "end": 105.53333333333333
+    },
+    {
+      "id": "preparation",
+      "title": "Defense preparation",
+      "start": 105.53333333333333,
+      "end": 196.36666666666667
+    },
+    {
+      "id": "live",
+      "title": "Live defense evaluation",
+      "start": 196.36666666666667,
+      "end": 217.86666666666667
+    },
+    {
+      "id": "structured",
+      "title": "Structured digital evaluation",
+      "start": 217.86666666666667,
+      "end": 289.8666666666667
+    },
+    {
+      "id": "results",
+      "title": "Results and follow-up",
+      "start": 289.8666666666667,
+      "end": 340.6
+    },
+    {
+      "id": "support",
+      "title": "Supporting tools and closing",
+      "start": 340.6,
+      "end": 380
+    }
+  ]
+}

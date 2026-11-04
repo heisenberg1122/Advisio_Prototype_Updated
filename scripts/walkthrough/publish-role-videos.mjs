@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { root, readJson, writeJson } from "./common.mjs";
 import { scriptHash, validateScript } from "../../walkthrough/shared/timing.mjs";
 
-const roles = ["dean", "coordinator", "adviser"];
+const roles = ["dean", "coordinator", "adviser", "panelist-structured", "panelist-pdf", "panelist-preparation"];
 const destination = path.join(root, "apps/web/public/walkthroughs");
 const escape = (value) => String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const stamp = (seconds) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;

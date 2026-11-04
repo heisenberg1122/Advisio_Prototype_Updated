@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "title": "ADVISIO Panelist Defense Preparation Walkthrough",
+  "scriptHash": "2f06c4c76c07b23d25735b9c1a8b0a89492a2b4c5b086d985ae8fba5217ce73c",
+  "duration": 206.801,
+  "video": "panelist-preparation-web.mp4",
+  "captionedVideo": "panelist-preparation-captioned.mp4",
+  "poster": "poster.jpg",
+  "captions": "subtitles.vtt",
+  "subtitles": "subtitles.srt",
+  "chapters": [
+    {
+      "id": "workspace",
+      "title": "Panelist workspace",
+      "start": 0,
+      "end": 105.53333333333333
+    },
+    {
+      "id": "preparation",
+      "title": "Defense preparation",
+      "start": 105.53333333333333,
+      "end": 196.36666666666667
+    },
+    {
+      "id": "support",
+      "title": "Closing",
+      "start": 196.36666666666667,
+      "end": 206.76666666666668
+    }
+  ]
+}

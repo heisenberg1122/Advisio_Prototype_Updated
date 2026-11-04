@@ -1,0 +1,20 @@
+[
+  {
+    "id": "workspace",
+    "title": "Panelist workspace",
+    "start": 0,
+    "end": 105.53333333333333
+  },
+  {
+    "id": "preparation",
+    "title": "Defense preparation",
+    "start": 105.53333333333333,
+    "end": 196.36666666666667
+  },
+  {
+    "id": "support",
+    "title": "Closing",
+    "start": 196.36666666666667,
+    "end": 206.76666666666668
+  }
+]
