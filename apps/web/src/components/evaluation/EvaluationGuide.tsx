@@ -14,7 +14,7 @@ import {
   EvaluationSupport,
 } from "./EvaluationShared";
 import "./evaluation.css";
-import { ResearcherWalkthrough } from "./ResearcherWalkthrough";
+import { EvaluationWalkthrough } from "./EvaluationWalkthrough";
 
 export default function EvaluationGuide() {
   const [config, setConfig] = useState<EvaluationConfig | null>(null);
@@ -91,12 +91,11 @@ export default function EvaluationGuide() {
             )}
           </div>
         )}
-        {selectedRole?.id === "student" && (
-          <ResearcherWalkthrough
-            context="evaluation"
-            onContinue={session ? startActivities : undefined}
-          />
-        )}
+        <EvaluationWalkthrough
+          key={selectedRole?.id}
+          role={selectedRole?.id}
+          onContinue={session ? startActivities : undefined}
+        />
         <section
           className="evaluation-written-guide"
           aria-labelledby="guide-start"

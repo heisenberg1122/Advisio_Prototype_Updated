@@ -10,7 +10,8 @@ test("hosted portals use a first-party SPA, bounded CSP, and real API 404 respon
   const directory = await fs.mkdtemp(
     path.join(os.tmpdir(), "advisio-evaluation-spa-"),
   );
-  const bootstrap = 'document.documentElement.dataset.appearance="light";';
+  const bootstrap =
+    '\r\ndocument.documentElement.dataset.appearance="light";\r\n';
   const html = `<!doctype html><script>${bootstrap}</script><div id="root"></div><script src="/assets/main.js"></script>`;
   await fs.mkdir(path.join(directory, "assets"));
   await fs.writeFile(path.join(directory, "index.html"), html);
@@ -41,7 +42,7 @@ test("hosted portals use a first-party SPA, bounded CSP, and real API 404 respon
       expect(await response.text()).toBe(html);
       const policy = response.headers.get("content-security-policy")!;
       expect(policy).toContain(
-        `'sha256-${createHash("sha256").update(bootstrap).digest("base64")}'`,
+        `'sha256-${createHash("sha256").update(bootstrap.replace(/\r\n/g, "\n")).digest("base64")}'`,
       );
       expect(policy).toContain("worker-src 'self' blob:");
       expect(policy).toContain("frame-ancestors 'none'");

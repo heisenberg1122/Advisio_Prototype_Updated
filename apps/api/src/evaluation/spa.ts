@@ -13,7 +13,8 @@ export function evaluationSpa(directory: string) {
     .filter((match) => !/\bsrc\s*=/i.test(match[1]) && match[2].trim())
     .map(
       (match) =>
-        `'sha256-${createHash("sha256").update(match[2]).digest("base64")}'`,
+        // HTML parsing normalizes CRLF/CR to LF before CSP hashes are checked.
+        `'sha256-${createHash("sha256").update(match[2].replace(/\r\n?/g, "\n")).digest("base64")}'`,
     );
   const policy = [
     "default-src 'self'",

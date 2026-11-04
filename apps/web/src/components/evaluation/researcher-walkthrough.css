@@ -40,6 +40,7 @@
   margin: 24px 0;
 }
 .researcher-walkthrough button,
+.researcher-walkthrough select,
 .rw-actions a {
   cursor: pointer;
   min-height: 44px;
@@ -51,6 +52,7 @@
   font: inherit;
   font-weight: 600;
   text-align: left;
+  max-width: 100%;
 }
 .rw-actions button:first-child {
   background: #173f63;
@@ -63,7 +65,7 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.researcher-walkthrough :is(button, a, summary, video):focus-visible {
+.researcher-walkthrough :is(button, select, a, summary, video):focus-visible {
   outline: 3px solid #93680b;
   outline-offset: 3px;
 }

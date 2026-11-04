@@ -59,18 +59,21 @@ export function ResearcherWalkthrough({
   const [media, setMedia] = useState<Media | null>(null);
   const [failed, setFailed] = useState(false);
   const [captionError, setCaptionError] = useState(false);
-  const [showVideo, setShowVideo] = useState(false);
+  const [showVideo, setShowVideo] = useState(context === "evaluation");
   const [current, setCurrent] = useState(0);
   const [ended, setEnded] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     fetch(`${mediaRoot}media.json`, { signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) return;
+        if (!response.ok) throw new Error("Video metadata unavailable");
         const data = await response.json();
-        if (validMedia(data)) setMedia(data);
+        if (!validMedia(data)) throw new Error("Invalid video metadata");
+        setMedia(data);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!controller.signal.aborted) setFailed(true);
+      });
     return () => controller.abort();
   }, []);
   const jump = (seconds: number) => {
@@ -242,7 +245,7 @@ export function ResearcherWalkthrough({
           <p className="rw-availability" role="status">
             {failed
               ? "The video could not be loaded."
-              : "The narrated video is not available yet."}{" "}
+              : "Loading the walkthrough video…"}{" "}
             You can read the written guide or continue to ADVISIO.
           </p>
         )}

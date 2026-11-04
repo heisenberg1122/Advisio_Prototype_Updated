@@ -68,7 +68,8 @@ export function EvaluationAbout({
         Official ADVISIO website <ExternalLink size={13} aria-hidden="true" />
       </a>
       <p className="evaluation-help">
-        Short video walkthrough: coming soon. You can use the written guide now.
+        Optional role videos are available on your evaluation guide. You can
+        also use the written guide at any time.
       </p>
     </details>
   );
