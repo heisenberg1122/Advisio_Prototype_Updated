@@ -19,7 +19,6 @@ export type EvaluationSession = {
   tasks: string[];
   revisionName: string;
   expiresAt: string;
-  surveyUrl: string | null;
 };
 
 export type EvaluationConfig = {
@@ -63,9 +62,8 @@ export function clearEvaluation(
   localStorage.removeItem("advisio_token");
   if (projectId)
     localStorage.removeItem(`advisio_evaluation_guide:${projectId}`);
-  for (let index = localStorage.length - 1; index >= 0; index--) {
-    const key = localStorage.key(index);
-    if (key?.startsWith("advisio_evaluation_guide:"))
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith("advisio_evaluation_guide:"))
       localStorage.removeItem(key);
   }
   for (const key of [

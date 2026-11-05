@@ -9,16 +9,27 @@ function store() {
     },
   };
 }
-test("activity notes and questionnaire phase persist for one private project without leaking into another", () => {
+test("activity notes and completion persist for one private project without leaking into another", () => {
   const storage = store();
-  saveProgress("one", { phase: "questionnaire", checked: [0, 2] }, storage);
+  saveProgress("one", { phase: "complete", checked: [0, 2] }, storage);
   expect(readProgress("one", 6, storage)).toEqual({
-    phase: "questionnaire",
+    phase: "complete",
     checked: [0, 2],
   });
   expect(readProgress("two", 6, storage)).toEqual({
     phase: "intro",
     checked: [],
+  });
+});
+test("previously saved questionnaire phases resume at walkthrough completion", () => {
+  const storage = store();
+  storage.setItem(
+    "advisio_evaluation_guide:one",
+    JSON.stringify({ phase: "questionnaire", checked: [1] }),
+  );
+  expect(readProgress("one", 6, storage)).toEqual({
+    phase: "complete",
+    checked: [1],
   });
 });
 test("corrupt progress, unknown phases and invalid checklist indexes are handled safely", () => {

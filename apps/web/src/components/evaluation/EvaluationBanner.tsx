@@ -2,6 +2,7 @@ import {
   beginEvaluationIdentityChange,
   cancelEvaluationIdentityChange,
 } from "@/lib/evaluation-identity";
+import { CircleCheck, Info } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
@@ -30,6 +31,8 @@ export function EvaluationBanner() {
   const banner = useRef<HTMLElement>(null);
   const dialog = useRef<HTMLElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const endTrigger = useRef<HTMLButtonElement>(null);
+  const endConfirmation = useRef<HTMLDivElement>(null);
   const active = localStorage.getItem("advisio_token") === "__evaluation__";
   useEffect(() => {
     if (!banner.current) return;
@@ -89,6 +92,7 @@ export function EvaluationBanner() {
     const listener = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpen(false);
+        setConfirmEnd(false);
         trigger.current?.focus();
       }
       if (event.key !== "Tab") return;
@@ -116,9 +120,12 @@ export function EvaluationBanner() {
       window.removeEventListener("keydown", listener);
     };
   }, [open, progress.phase]);
+  useEffect(() => {
+    if (open && confirmEnd) endConfirmation.current?.focus();
+  }, [open, confirmEnd]);
   if (!active || !session || location.pathname.startsWith("/evaluate"))
     return null;
-  const questionnaire = progress.phase === "questionnaire";
+  const completed = progress.phase === "complete";
   function update(next: EvaluationProgress) {
     setProgress(next);
     saveProgress(session!.progressKey || session!.projectId, next);
@@ -133,10 +140,12 @@ export function EvaluationBanner() {
   }
   function close() {
     setOpen(false);
+    setConfirmEnd(false);
     trigger.current?.focus();
   }
   async function end() {
     setBusy(true);
+    setError("");
     try {
       await evaluationRequest("end", { method: "POST" });
       clearEvaluation(session?.progressKey || session?.projectId);
@@ -191,7 +200,7 @@ export function EvaluationBanner() {
         aria-label="Evaluation controls"
       >
         <span>
-          <strong>Step {questionnaire ? 3 : 2} of 3</strong>
+          <strong>Step {completed ? 3 : 2} of 3</strong>
           <small>
             {session.roleLabel} · {session.collegeCode || session.college}
           </small>
@@ -253,17 +262,30 @@ export function EvaluationBanner() {
       {open && (
         <div className="evaluation-overlay">
           <section
-            className="evaluation-dialog"
+            className={`evaluation-dialog${completed ? " evaluation-completion" : ""}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="evaluation-guide-title"
             tabIndex={-1}
             ref={dialog}
           >
-            <div className="evaluation-actions">
+            <div
+              className={
+                completed
+                  ? "evaluation-completion-header"
+                  : "evaluation-actions"
+              }
+            >
+              {completed && (
+                <CircleCheck
+                  className="evaluation-completion-icon"
+                  size={26}
+                  aria-hidden="true"
+                />
+              )}
               <h2 id="evaluation-guide-title">
-                {questionnaire
-                  ? "Ready for the questionnaire"
+                {completed
+                  ? "You've completed the ADVISIO walkthrough!"
                   : "Explore ADVISIO"}
               </h2>
               <button
@@ -274,25 +296,25 @@ export function EvaluationBanner() {
                 Close
               </button>
             </div>
-            <EvaluationSteps current={questionnaire ? 3 : 2} />
-            <p>
-              <strong>
-                {session.roleLabel} · {session.college}
-              </strong>
-              <br />
-              {session.title}
-              {session.scenarioLabel && (
-                <>
-                  <br />
-                  <small>Scenario: {session.scenarioLabel}</small>
-                </>
-              )}
-            </p>
-            {!questionnaire ? (
+            <EvaluationSteps current={completed ? 3 : 2} />
+            {!completed ? (
               <>
                 <p>
+                  <strong>
+                    {session.roleLabel} · {session.college}
+                  </strong>
+                  <br />
+                  {session.title}
+                  {session.scenarioLabel && (
+                    <>
+                      <br />
+                      <small>Scenario: {session.scenarioLabel}</small>
+                    </>
+                  )}
+                </p>
+                <p>
                   Tick each activity as you try it. If you cannot complete one,
-                  you can still describe what happened in the questionnaire.
+                  you can still describe what happened in Google Forms.
                 </p>
                 <p className="evaluation-help">
                   {progress.checked.length} of {session.tasks.length} activities
@@ -343,47 +365,43 @@ export function EvaluationBanner() {
                   beyond these activities and report any difficulties honestly.
                 </p>
                 <button
-                  onClick={() =>
-                    update({ ...progress, phase: "questionnaire" })
-                  }
+                  disabled={busy || confirmEnd}
+                  onClick={() => update({ ...progress, phase: "complete" })}
                 >
-                  Answer questionnaire
+                  Finish walkthrough
                 </button>
               </>
             ) : (
               <>
-                <p>
-                  Answer the TAM questionnaire based on{" "}
-                  <strong>your own experience using ADVISIO</strong> during this
-                  evaluation. Check the respondent group and, where applicable,
-                  program before answering.
-                </p>
-                {session.surveyUrl ? (
-                  <a
-                    className="evaluation-link-button"
-                    href={session.surveyUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Answer TAM questionnaire
-                  </a>
-                ) : (
-                  <p className="evaluation-error">
-                    The questionnaire is temporarily unavailable. Email us for
-                    the correct link.
-                  </p>
-                )}
-                <p className="evaluation-help">
-                  Submit your response in Google Forms, then return here and end
-                  your practice session. Opening the form does not submit a
-                  response.
-                </p>
-                <button
-                  className="secondary"
-                  onClick={() => update({ ...progress, phase: "activities" })}
+                <dl
+                  className="evaluation-completion-summary"
+                  aria-label="Demo summary"
                 >
-                  Return to activity checklist
-                </button>
+                  <div>
+                    <dt>Role</dt>
+                    <dd>{session.roleLabel}</dd>
+                  </div>
+                  <div>
+                    <dt>College</dt>
+                    <dd>{session.college}</dd>
+                  </div>
+                  <div>
+                    <dt>Scenario</dt>
+                    <dd>{session.scenarioLabel || session.title}</dd>
+                  </div>
+                </dl>
+                <h3>Return to your original Google Forms tab</h3>
+                <p>
+                  Answer the remaining TAM statements based on your experience
+                  using ADVISIO, then submit your response in Google Forms.
+                </p>
+                <p className="evaluation-help evaluation-completion-note">
+                  <Info size={16} aria-hidden="true" />
+                  <span>
+                    Completing the demo does not automatically submit your
+                    Google Form.
+                  </span>
+                </p>
               </>
             )}
             <EvaluationSupport />
@@ -392,18 +410,42 @@ export function EvaluationBanner() {
                 {error}
               </p>
             )}
-            <button
-              className="secondary evaluation-end"
-              disabled={busy}
-              onClick={() => setConfirmEnd(true)}
-            >
-              {busy ? "Closing…" : "End evaluation session"}
-            </button>
+            <div className="evaluation-actions evaluation-end">
+              {completed && (
+                <button
+                  className="secondary"
+                  disabled={busy || confirmEnd}
+                  onClick={() => update({ ...progress, phase: "activities" })}
+                >
+                  Return to activity checklist
+                </button>
+              )}
+              <button
+                ref={endTrigger}
+                className={completed ? undefined : "secondary"}
+                disabled={busy}
+                aria-expanded={confirmEnd}
+                aria-controls={
+                  confirmEnd ? "evaluation-end-confirmation" : undefined
+                }
+                onClick={() => {
+                  setError("");
+                  setConfirmEnd(!confirmEnd);
+                }}
+              >
+                {busy ? "Closing…" : "End demo session"}
+              </button>
+            </div>
             {confirmEnd && (
-              <div role="alert">
-                <p>
-                  End this session and clear its practice records? Submitted
-                  questionnaire responses are saved separately.
+              <div
+                id="evaluation-end-confirmation"
+                ref={endConfirmation}
+                tabIndex={-1}
+                role="group"
+                aria-labelledby="evaluation-end-prompt"
+              >
+                <p id="evaluation-end-prompt">
+                  End this demo session and clear its practice records?
                 </p>
                 <div className="evaluation-actions">
                   <button disabled={busy} onClick={end}>
@@ -412,7 +454,11 @@ export function EvaluationBanner() {
                   <button
                     className="secondary"
                     disabled={busy}
-                    onClick={() => setConfirmEnd(false)}
+                    onClick={() => {
+                      setError("");
+                      setConfirmEnd(false);
+                      endTrigger.current?.focus();
+                    }}
                   >
                     Keep working
                   </button>

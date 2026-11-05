@@ -4,7 +4,7 @@ Implemented on `codex/qr-evaluation-local`. The production database, ordinary ac
 
 ## Flow and scope
 
-Respondents choose one of eight colleges and five roles, acknowledge the fictional-material notice, and select **Begin Evaluation**. The native role dashboard opens directly. **Evaluation activities** holds the six role activities, student revision download, and TAM handoff; questionnaire access does not depend on checked activities. Existing `/evaluate/guide` links redirect to the current dashboard or preserve invitation parameters on the entry page.
+Respondents begin in Google Forms and keep that tab open. In ADVISIO, they choose one of eight colleges and five roles, acknowledge the fictional-material notice, and select **Begin Evaluation**. The native role dashboard opens directly. **Evaluation activities** holds the guided checklist and the files available for the selected role. Existing `/evaluate/guide` links redirect to the current dashboard or preserve invitation parameters on the entry page.
 
 COA/BSA, CEA/BSCE, CHTM/BSTM, CIT/BSIT, CNP/BSN, SAS/BSPSYCH, SBPA/BSBA-MM, and SOE/BEED are the eight default choices. BSARCH remains accepted for existing CEA program invitations. Additional project titles are explicitly fictional, discipline-specific examples in the evaluation seeder.
 
@@ -30,7 +30,7 @@ The ten milestones use sequential dependencies. Title Proposal and Adviser use t
 - **Coordinator:** Pending reviews, live/completed defenses, pending Dean signature, and signed-request Inbox. A prepared fictional approval-letter download is available for exercising the native request flow.
 - **Adviser:** Pending review, review history, and live/completed project records.
 - **Forms:** Program-specific title/final names cover Accountancy Research, Civil Engineering Design, Architecture Thesis, Tourism Research, Information Technology Capstone, Nursing Research, Psychology Research, Business Research, and Education Research. These are fictional demo templates, not claims about officially approved department rubrics. The supplied eight college logos appear in the form and exported PDF. Original logo files remain untouched; bounded PNG copies are packaged with the API build.
-- **Guide and TAM:** Stay in the dashboard evaluation controls with no completion gate on the questionnaire.
+- **Walkthrough completion:** Select **Finish walkthrough** to review the demo summary, even if some activities are unticked. End the demo session and return to the original Google Forms tab to finish and submit the TAM response.
 
 ## Session protections
 
@@ -44,7 +44,7 @@ The Prisma query extension adds the role's project restrictions to project/docum
 
 Run the standard evaluation API suite, frontend tests, API type check, web build, and hosting configuration checks. `npm run test:evaluation:local` exercises all 40 college-role experiences against disposable schemas, including real uploads, sequential reviews, consultation approval, released grades, Dean approval, PDF annotation/save/preview/share, Coordinator start, live structured evaluation, role/project isolation, cookie rotation, unchanged expiry, cleanup, and expired-session rejection. It does not submit questionnaire responses.
 
-PDF generation checks proposal revisions for five readable pages and final manuscripts for seven pages. Logos and generated evaluation forms are inspected for readable layout. UI verification covers direct onboarding, role/scenario selectors, native evaluation preview and final submission, Dean signature history, student badges and completion, activities and questionnaire access with zero completed activities, legacy guide redirects, and mobile controls.
+PDF generation checks proposal revisions for five readable pages and final manuscripts for seven pages. Logos and generated evaluation forms are inspected for readable layout. UI verification covers direct onboarding, role/scenario selectors, native evaluation preview and final submission, Dean signature history, student badges and completion, walkthrough completion with zero checked activities, legacy guide redirects, and mobile controls.
 
 Deployment remains separate. The Render blueprint has automatic deployment disabled; a branch push does not establish successful CI or a deployed update.
 

@@ -27,9 +27,9 @@ export function EvaluationSteps({
   return (
     <ol className="evaluation-steps" aria-label="How the evaluation works">
       {[
-        "Choose college and role",
-        "Explore ADVISIO",
-        "Answer questionnaire",
+        "Select demo experience",
+        "Complete guided activities",
+        "Return to Google Form",
       ].map((title, index) => (
         <li
           key={title}
@@ -60,7 +60,7 @@ export function EvaluationAbout({
         {temporary
           ? "If the session restarts, return to this page to begin again. "
           : ""}
-        Submitted questionnaire responses are saved separately in Google Forms.
+        Answer and submit the TAM statements in your original Google Forms tab.
       </p>
       <a
         href="https://advisio-prototype-updated.vercel.app"
@@ -70,9 +70,9 @@ export function EvaluationAbout({
         Official ADVISIO website <ExternalLink size={13} aria-hidden="true" />
       </a>
       <p className="evaluation-help">
-        Open Evaluation activities on your dashboard for the six role
-        activities, prepared revision, role switcher, and questionnaire. You may
-        answer the questionnaire even if an activity cannot be completed.
+        Open Evaluation activities on your dashboard for the guided checklist.
+        You can return to Google Forms even if an activity could not be
+        completed.
       </p>
     </details>
   );

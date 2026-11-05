@@ -64,8 +64,7 @@
   font-size: 15px;
 }
 .evaluation-page button,
-.evaluation-dialog button,
-.evaluation-link-button {
+.evaluation-dialog button {
   border: 0;
   border-radius: 9px;
   background: #1959a5;
@@ -256,14 +255,82 @@
 .evaluation-dialog .evaluation-actions {
   justify-content: space-between;
 }
-.evaluation-dialog .evaluation-link-button {
-  color: white;
-  text-decoration: none;
-}
 .evaluation-dialog h3 {
   font-weight: 700;
   font-size: 18px;
   margin-top: 24px;
+}
+.evaluation-completion {
+  max-width: 640px;
+  max-height: min(90vh, calc(100dvh - 40px));
+}
+.evaluation-completion-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px 12px;
+}
+.evaluation-completion-header button {
+  grid-column: 2;
+  grid-row: 1;
+}
+.evaluation-completion-icon {
+  color: #147857;
+}
+.evaluation-completion h2 {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  font-size: clamp(20px, 3.5vw, 26px);
+  line-height: 1.2;
+}
+.evaluation-completion-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 0;
+  border-block: 1px solid #d9e3ee;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.evaluation-completion-summary dt {
+  color: #53677d;
+  font-size: 12px;
+  font-weight: 700;
+}
+.evaluation-completion-summary dd {
+  margin: 3px 0 0;
+  font-weight: 700;
+}
+.evaluation-completion h3 + p {
+  margin-top: 6px;
+}
+.evaluation-completion-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.evaluation-completion-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #1959a5;
+}
+@media (max-width: 480px) {
+  .evaluation-completion-summary {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .evaluation-completion-summary > div {
+    display: grid;
+    grid-template-columns: 4rem minmax(0, 1fr);
+    align-items: baseline;
+    gap: 8px;
+  }
+  .evaluation-completion-summary dd {
+    margin: 0;
+  }
+  .evaluation-completion .evaluation-actions > button {
+    width: 100%;
+  }
 }
 .evaluation-card :focus-visible,
 .evaluation-banner :focus-visible,
@@ -433,6 +500,7 @@
   display: grid;
   place-items: center;
   flex: 0 0 24px;
+  width: 24px;
   height: 24px;
   border-radius: 50%;
   background: #e9f2ff;
@@ -481,10 +549,6 @@
 .evaluation-about a svg {
   display: inline;
   vertical-align: middle;
-}
-.evaluation-page .evaluation-link-button {
-  color: white;
-  text-decoration: none;
 }
 .evaluation-eyebrow {
   color: #1959a5;

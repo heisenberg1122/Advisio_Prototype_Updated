@@ -11,7 +11,7 @@ Requirements: installed project dependencies, a generated Prisma client matching
 1. Run `npm run evaluation:init-local` once. It creates a separate loopback-only PostgreSQL cluster on port **5436**, a database named **advisio_evaluation**, and a private ignored `.env.evaluation.local`. It does not use the existing database on port 5432 or the local-demo target on port 5435.
 2. Run `npm run evaluation:dev`.
 3. Open **http://localhost:3100/evaluate**. Choose a role and college, acknowledge the fictional-material notice, and select **Begin Evaluation**. Open **http://localhost:3100/evaluate/print** to prepare a role/college QR.
-4. Use **Evaluation activities** on the dashboard to find the six activities, prepared revision, and TAM questionnaire. The **Demo role** and **Demo scenario** selectors preserve the workspace and college. Student choices include in progress, live defense, completed Title Defense, and completed Final Defense. Other roles include pending reviews/signatures and completed history as applicable. The questionnaire remains available with incomplete activities. End the session when finished; its fictional records and files are removed.
+4. Use **Evaluation activities** on the dashboard to find the checklist and any files for your role. The **Demo role** and **Demo scenario** selectors preserve the workspace and college. Student choices include in progress, live defense, completed Title Defense, and completed Final Defense. Other roles include pending reviews/signatures and completed history as applicable. Select **Finish walkthrough** even if some activities are unticked. End the session to remove its fictional records and files.
 
 The initializer reuses its own cluster on later runs and never resets an unrelated database. If that cluster has been stopped, run `evaluation:init-local` again before starting. It does not erase existing evaluation sessions. Initializing a new cluster requires that port 5436 be available.
 
@@ -47,11 +47,11 @@ Program-specific research types, rubric criteria, faculty tasks, and the college
 
 This is application-level schema isolation within a **dedicated evaluation database**. The local provisioner owns that evaluation database and is not a hardened public multi-tenant hosting service. Public release needs deployment review, database/user permissions, capacity testing on the intended host, monitoring, and an approved retention policy. Keep the production database and credentials entirely separate.
 
-## Questionnaire handoff
+## Return to Google Forms
 
-The questionnaire button stays disabled/unavailable until `EVALUATION_SURVEY_URL` is set to a **published Google Forms `/viewform` respondent URL** in `.env.evaluation.local` (then restart the API). A Form editor or preview URL is rejected. The application does not publish or alter Google Forms.
+Respondents begin in Google Forms and keep the original tab open while exploring ADVISIO. The completion screen asks them to return to that tab, answer the remaining TAM statements, and submit there. The demo can be tested locally without opening the questionnaire.
 
-Respondents select/confirm their role and students' program in the existing five-branch form. No ratings or comments are prefilled; no session identifier is sent to Google Forms. Opening the link is not proof of submission. Keep platform-session counts and survey-response counts separate, allow honest ratings after failed/assisted tasks, and use supervised attendance to discourage duplicates. No registration/code workflow means the shared QR cannot itself prove one response per unique respondent.
+Keep platform-session counts and survey-response counts separate. Respondents can give feedback on activities they found difficult, including activities they could not complete.
 
 ## Checks and maintenance
 

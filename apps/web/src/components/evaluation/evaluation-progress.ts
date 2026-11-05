@@ -1,6 +1,6 @@
 type Store = Pick<Storage, "getItem" | "setItem">;
 export type EvaluationProgress = {
-  phase: "intro" | "activities" | "questionnaire";
+  phase: "intro" | "activities" | "complete";
   checked: number[];
 };
 export function readProgress(
@@ -12,13 +12,11 @@ export function readProgress(
     const value = JSON.parse(
       storage.getItem(`advisio_evaluation_guide:${projectId}`) || "null",
     );
-    if (
-      !value ||
-      !["intro", "activities", "questionnaire"].includes(value.phase)
-    )
+    const phase = value?.phase === "questionnaire" ? "complete" : value?.phase;
+    if (phase !== "intro" && phase !== "activities" && phase !== "complete")
       throw new Error();
     return {
-      phase: value.phase,
+      phase,
       checked: [
         ...new Set<number>(
           (Array.isArray(value.checked) ? value.checked : []).filter(

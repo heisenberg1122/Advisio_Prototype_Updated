@@ -121,6 +121,11 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
           >
             <h2 id="evaluation-how-title">How the evaluation works</h2>
             <EvaluationSteps current={1} />
+            <p>
+              Keep your original Google Forms tab open. After the walkthrough,
+              return there to answer the remaining TAM statements and submit
+              your response.
+            </p>
           </section>
         )}
         {config && print && (
@@ -339,8 +344,8 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
             <p className="evaluation-help">
               No registration or personal account is required. Begin Evaluation
               opens your dashboard directly. Use Evaluation activities on your
-              dashboard to find the checklist, prepared revision, role switcher,
-              and TAM questionnaire.
+              dashboard to find the guided checklist and any files you need for
+              your role.
             </p>
           </form>
         )}

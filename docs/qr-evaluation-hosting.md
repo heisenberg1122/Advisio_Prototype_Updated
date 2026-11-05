@@ -1,6 +1,6 @@
 # Hosted QR evaluation — current handoff
 
-**Pending branch update:** [Demo accounts implementation](demo-accounts-implementation.md) replaces the guide step with direct dashboard onboarding, eight colleges, and an isolated role switcher. The flow described below records the previous hosted release. Push/build status and hosted deployment status must be checked separately; do not assume this branch implementation is deployed.
+**Branch implementation:** [Demo accounts implementation](demo-accounts-implementation.md) describes direct dashboard onboarding, eight colleges, and an isolated role switcher. The respondent flow below describes the branch implementation. Check the hosted deployment separately.
 
 Updated 5 November 2026. The evaluation is hosted at [the shared entry page](https://advisio-tam-evaluation-2026.onrender.com/evaluate). The researcher confirmed it opens on a phone. This evaluation uses its own branch, database and fictional records; the official backend remains separate.
 
@@ -8,12 +8,11 @@ The main website is [ADVISIO on Vercel](https://advisio-prototype-updated.vercel
 
 ## Respondent flow
 
-1. Open the shared QR or an assigned invitation link. The general entry asks for a role and program; valid invitations preselect those details and display them for confirmation.
-2. Acknowledge that the materials are fictional, then begin a private temporary workspace. No personal account, registration or participant code is required.
-3. At `/evaluate/guide`, **Start guided activities** appears near the top so respondents can open their workspace without scrolling through the full introduction. Expand **Read the activity guide** for navigation help and six activities for the assigned role, or **Watch the walkthrough** for the optional video. Both sections start collapsed and the guide can be reopened from the portal.
-4. Explore the prepared records. Reopen **Evaluation guide** in the portal to tick activities as they are tried. Checklist notes persist only in this browser for this project. They are not proof of task completion or survey answers. Incomplete/failed activities do not prevent honest feedback.
-5. Select **Finish exploration**, then **Answer TAM questionnaire**. Confirm the group/program, enter personal ratings and comments, and submit in Google Forms. Opening the form does not submit it.
-6. Return and end the practice session before another person uses the device.
+1. Begin in Google Forms for the study instructions, consent, and respondent group selection. Keep that tab open while you open the ADVISIO invitation.
+2. Select your assigned role and college if the invitation has not already selected them. Acknowledge that the demo materials are fictional, then select **Begin Evaluation** to open the temporary workspace.
+3. Open **Evaluation activities** on your dashboard and tick activities as you try them. The checklist is saved in your browser for the selected demo role and scenario.
+4. Select **Finish walkthrough** to review the role, college, and scenario. You can finish with activities unticked. Select **End demo session** and confirm to clear your practice workspace.
+5. Return to your original Google Forms tab. Answer the remaining TAM statements based on your experience and submit your response there. Completing the demo does not automatically submit the form.
 
 The written guide supplements the study team's separate eligibility, study information and informed-consent process. It does not replace them. Respondents may stop at any time.
 
@@ -66,7 +65,7 @@ The free site sleeps after 15 idle minutes. Open it before a group begins. A res
 1. Run `npm run test:evaluation`, API type checking, the evaluation frontend tests and the website build. Keep ignored `.env`/`.evaluation` files out of Git.
 2. Publish the reviewed branch with a lease on its existing head. Check both GitHub workflows (**Advisio CI Pipeline** and **Evaluation image**) and their exact commit separately from local results.
 3. Automatic deployments are off. In the existing evaluation Render service, choose **Manual Deploy → Deploy latest commit**. Do not create or overwrite unrelated resources.
-4. Confirm Render is live on the intended commit. Verify `/api/health` reports evaluation mode and database connected, then check entry, invitation, guide, portal checklist, correct blank questionnaire handoff, session end and a phone-width layout.
+4. Confirm Render is live on the intended commit. Verify `/api/health` reports evaluation mode and database connected. Check the entry, invitation, portal checklist, completion instructions, session end, and phone-width layout.
 5. Use the hosted QR. A localhost QR remains only a preview for this computer.
 
 The dedicated image workflow builds and starts the Linux container, checks its PDF/Form URLs, origin rejection and restart recovery. Keep the evaluation database separate from production and preserve the schema/session/file isolation guards. No survey answers are submitted by the automated checks.
