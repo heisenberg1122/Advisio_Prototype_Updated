@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { LandingNavbar } from "@/components/landing/LandingNavbar";
 import { HeroSection } from "@/components/landing/HeroSection";
+import { ProductFilm } from "@/components/landing/ProductFilm";
 import { ProblemSolution } from "@/components/landing/ProblemSolution";
 import { WorkflowSection } from "@/components/landing/WorkflowSection";
 import { RoleExperience } from "@/components/landing/RoleExperience";
@@ -45,6 +46,7 @@ export default function HomePage() {
       <LandingNavbar theme={theme} onToggleTheme={toggleTheme} />
       <main id="main-content" tabIndex={-1}>
         <HeroSection />
+        <ProductFilm />
         <ProblemSolution />
         <WorkflowSection />
         <RoleExperience />
