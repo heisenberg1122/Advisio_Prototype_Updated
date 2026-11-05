@@ -69,6 +69,63 @@ async function nativeAction(cookie, session, revision) {
   );
   assert.match(record.id, /^[a-f0-9]{32}$/);
   const schema = `"eval_${record.id}"`;
+  if (session.role === "student" || session.role === "adviser") {
+    const history = await request("/api/consultations", { cookie });
+    assert.equal(history.status, 200);
+    const completed = history.data.consultations.find(
+      (c) => c.status === "completed",
+    );
+    assert.ok(
+      completed?.notes,
+      "Consultation history should include adviser notes.",
+    );
+    assert.equal(completed.actionItems.length, 3);
+  }
+  if (session.role === "student" || session.role === "professor") {
+    const student = session.role === "student";
+    const classes = await request(
+      `/api/class-records${student ? "/mine" : ""}`,
+      { cookie },
+    );
+    assert.equal(classes.status, 200, JSON.stringify(classes.data));
+    assert.equal(classes.data.classes.length, 1);
+    assert.equal(classes.data.classes[0].ready, true);
+    const workflowId = classes.data.classes[0].id;
+    const grades = await request(
+      `/api/class-records/${workflowId}${student ? "/mine" : ""}`,
+      { cookie },
+    );
+    assert.equal(grades.status, 200, JSON.stringify(grades.data));
+    const prelim = grades.data.periods.find((p) => p.code === "PRELIM");
+    if (student) {
+      const snapshot = prelim.release.snapshot;
+      assert.equal(snapshot.entries.length, 3);
+      assert.equal(snapshot.attendance.length, 3);
+      assert.equal(snapshot.calculation.complete, true);
+      assert.ok(
+        snapshot.calculation.score > 0 && snapshot.calculation.score <= 100,
+      );
+      assert.match(snapshot.reason, /Fictional/);
+      assert.equal(
+        grades.data.periods.find((p) => p.code === "MIDTERM").release,
+        null,
+      );
+      assert.equal(
+        grades.data.overall,
+        null,
+        "An unreleased final average must not be invented.",
+      );
+      assert.equal(
+        (await request(`/api/class-records/${workflowId}`, { cookie })).status,
+        403,
+      );
+    } else {
+      assert.ok(prelim.rows.length >= 3);
+      assert.ok(
+        prelim.rows.every((row) => row.calculation.complete && row.lastRelease),
+      );
+    }
+  }
   if (session.role === "professor" || session.role === "dean") {
     const {
       rows: [groups],

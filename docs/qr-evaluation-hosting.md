@@ -15,6 +15,8 @@ The main website is [ADVISIO on Vercel](https://advisio-prototype-updated.vercel
 
 The written guide supplements the study team's separate eligibility, study information and informed-consent process. It does not replace them. Respondents may stop at any time.
 
+New workspaces also include a fictional released prelim class record: three graded activities, three attendance dates, and a score breakdown. Students can open **Grades → Class Grades**; professors can inspect the same records in **Class Record**. Midterm/finals remain unreleased, so no final class average is shown. Each project includes a completed consultation with adviser notes and action items, plus its upcoming consultation. Existing sessions keep their current records; end the session and begin a new one after updating to see the additional content.
+
 ## Invitations and organizer QR sheet
 
 The entry accepts only known role/program assignments:

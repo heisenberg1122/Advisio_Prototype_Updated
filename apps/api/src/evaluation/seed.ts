@@ -4,6 +4,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { randomBytes, createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { seedEvaluationClassRecord } from "./seed-class-record.js";
 import {
   EVALUATION_ROLES,
   type EvaluationCourse,
@@ -256,8 +257,8 @@ export async function seedWorkspace(
     where: { id: researchType.id },
     data: { workflowId: workflow.id },
   });
-  await db.workflowEnrollment.create({
-    data: { workflowId: workflow.id, userId: users.student },
+  await db.workflowEnrollment.createMany({
+    data: roster.map((userId) => ({ workflowId: workflow.id, userId })),
   });
   const stages: { id: string }[] = [];
   const tasks: { id: string }[] = [];
@@ -339,8 +340,11 @@ export async function seedWorkspace(
         });
         projectRoster.push(person.id);
       }
-      await db.workflowEnrollment.create({
-        data: { workflowId: workflow.id, userId: projectRoster[0] },
+      await db.workflowEnrollment.createMany({
+        data: projectRoster.map((userId) => ({
+          workflowId: workflow.id,
+          userId,
+        })),
       });
     }
     const projectOwner = projectRoster[0];
@@ -649,10 +653,43 @@ export async function seedWorkspace(
       },
     });
     await db.consultationParticipant.createMany({
-      data: [projectOwner, users.adviser].map((userId) => ({
+      data: [...projectRoster, users.adviser].map((userId) => ({
         consultationId: consultation.id,
         userId,
         attendanceStatus: "ACCEPTED",
+      })),
+    });
+    const previousConsultation = await db.consultation.create({
+      data: {
+        researchId: project.id,
+        createdBy: projectOwner,
+        title: "Research scope and method discussion",
+        description:
+          "Review of objectives, sources, and preparation for the next proposal revision.",
+        scheduledStart: day(-5),
+        scheduledEnd: day(-5 + 1 / 24),
+        status: "COMPLETED",
+        notes: {
+          create: {
+            authorId: users.adviser,
+            notes: `${course.feedback} The group agreed to organize the supporting literature and check the revised objectives before the next consultation.`,
+            actionItems: [
+              course.revision,
+              "Update the literature review matrix.",
+              "Bring the revised proposal to the next consultation.",
+            ],
+            createdAt: day(-5),
+          },
+        },
+      },
+    });
+    await db.consultationParticipant.createMany({
+      data: [...projectRoster, users.adviser].map((userId) => ({
+        consultationId: previousConsultation.id,
+        userId,
+        attendanceStatus: "LEFT",
+        joinedAt: day(-5),
+        leftAt: day(-5 + 1 / 24),
       })),
     });
     if (panel) {
@@ -759,6 +796,13 @@ export async function seedWorkspace(
       });
     }
   }
+  await seedEvaluationClassRecord(
+    db,
+    workflow.id,
+    users.professor,
+    [day(-12), day(-10), day(-8)],
+    day(-4),
+  );
   const userId = users[selectedRole];
   const home = EVALUATION_ROLES.find((r) => r.id === selectedRole)!.home;
   await db.notification.createMany({
@@ -769,7 +813,25 @@ export async function seedWorkspace(
         "Consultation scheduled",
         "Your next consultation is scheduled in two days.",
       ],
-    ].map(([title, message]) => ({
+      ...(selectedRole === "student"
+        ? [
+            [
+              "Prelim grades released",
+              "Your fictional prelim scores and attendance record are ready in Class Grades.",
+              "/student/grades",
+            ],
+          ]
+        : []),
+      ...(selectedRole === "professor"
+        ? [
+            [
+              "Class record ready",
+              "Prelim activities, attendance, and released grades are available for your enrolled researchers.",
+              "/professor/class-record",
+            ],
+          ]
+        : []),
+    ].map(([title, message, actionUrl]) => ({
       recipientId: userId,
       type: "REVIEW_ASSIGNED" as const,
       title,
@@ -780,7 +842,7 @@ export async function seedWorkspace(
           : selectedRole === "dean"
             ? "dean"
             : selectedRole,
-      actionUrl: home,
+      actionUrl: actionUrl || home,
       entityType: "ResearchProject",
       entityId: primaryProject,
     })),
