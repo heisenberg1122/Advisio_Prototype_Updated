@@ -28,6 +28,35 @@ const env = {
   EVALUATION_WEB_URL: "http://localhost:3100",
 };
 describe("evaluation deployment boundaries", () => {
+  it("bounds prepared workspace counts to known courses and the session cap", () => {
+    const prepared = {
+      ...env,
+      EVALUATION_EPHEMERAL_STORAGE: "1",
+      EVALUATION_MAX_ACTIVE: "3",
+    };
+    expect([
+      ...evaluationConfig({
+        ...prepared,
+        EVALUATION_PREWARM: "BSIT:2,BSARCH:1",
+      }).prewarm,
+    ]).toEqual([
+      ["BSIT", 2],
+      ["BSARCH", 1],
+    ]);
+    for (const EVALUATION_PREWARM of [
+      "BSIT:4",
+      "BSIT:1,BSIT:1",
+      "UNKNOWN:1",
+      "BSIT:0",
+    ])
+      expect(() =>
+        evaluationConfig({ ...prepared, EVALUATION_PREWARM }),
+      ).toThrow();
+    expect(() =>
+      evaluationConfig({ ...env, EVALUATION_PREWARM: "BSIT:1" }),
+    ).toThrow();
+  });
+
   it("accepts only a dedicated target and safe local or HTTPS entry origin", () => {
     expect(evaluationConfig(env).secure).toBe(false);
     expect(

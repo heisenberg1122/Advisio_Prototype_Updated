@@ -53,6 +53,8 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
         database: "connected",
       });
     }
+    if (endpoint === "/api/evaluation/capacity" && req.method === "GET")
+      return void res.json(await service.capacity());
     if (endpoint === "/api/evaluation/config" && req.method === "GET") {
       if (!/^[a-f0-9]{64}$/.test(req.cookies?.[COOKIE] || ""))
         res.cookie(COOKIE, randomBytes(32).toString("hex"), {

@@ -1,10 +1,14 @@
 import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { Pool } from "pg";
+import { Pool, type PoolClient } from "pg";
 import type { PrismaClient } from "@prisma/client";
 import { createClient } from "../lib/prisma.js";
 import { evaluationConfig, isLive, schemaName } from "./config.js";
+import {
+  evaluationDatabaseErrorCode,
+  retryEvaluationDatabase,
+} from "./database-retry.js";
 import {
   EVALUATION_COURSES,
   EVALUATION_ROLES,
@@ -37,12 +41,14 @@ export type Session = {
   scenario?: string | null;
 };
 type OpenClient = { prisma: PrismaClient; users: number; ended: boolean };
+type CapacityRow = { course: string; state: string; count: number };
 
 export class EvaluationRuntime {
   readonly config = evaluationConfig();
   readonly pool = new Pool({
     connectionString: this.config.databaseUrl,
     max: 4,
+    connectionTimeoutMillis: 5000,
   });
   // Provisioning can occupy every registry connection with schema DDL. The
   // provider's liveness probe must still check the DB within its five-second
@@ -59,6 +65,20 @@ export class EvaluationRuntime {
   private revokers = new Map<string, Set<() => void>>();
   private ddl = "";
   private timer?: NodeJS.Timeout;
+  private maintenance?: Promise<void>;
+  private closing = false;
+  private readonly warmOwner = randomBytes(16).toString("hex");
+
+  constructor() {
+    for (const pool of [this.pool, this.healthPool]) {
+      pool.on("error", (error) => {
+        console.warn(
+          "Evaluation database dropped an idle connection:",
+          evaluationDatabaseErrorCode(error),
+        );
+      });
+    }
+  }
   async health() {
     await this.healthPool.query("SELECT 1");
     await fs.access(this.config.root);
@@ -77,6 +97,13 @@ export class EvaluationRuntime {
     this.ddl = sql
       .replace(/CREATE SCHEMA IF NOT EXISTS "public";/g, "")
       .replace(/CREATE EXTENSION IF NOT EXISTS "[a-z]+";/g, "");
+    await retryEvaluationDatabase(() => this.initializeRegistry());
+    this.timer = setInterval(() => this.scheduleMaintenance(), 60_000);
+    this.timer.unref();
+    if (this.config.prewarm.size) this.scheduleMaintenance();
+  }
+
+  private async initializeRegistry() {
     const {
       rows: [identity],
     } = await this.pool.query("SELECT current_database() AS name");
@@ -96,21 +123,90 @@ export class EvaluationRuntime {
     await this.pool.query(
       "ALTER TABLE public.advisio_evaluation_sessions ADD COLUMN IF NOT EXISTS scenario varchar(40)",
     );
-    // Free hosting loses local files on sleep/restart. Revoke those temporary
-    // sessions before serving traffic so nobody resumes missing manuscripts.
+    await this.pool.query(
+      "ALTER TABLE public.advisio_evaluation_sessions ADD COLUMN IF NOT EXISTS warm_owner varchar(32)",
+    );
+    // Ephemeral hosting loses files on restart. Revoke claimed and unclaimed workspaces.
     if (this.config.ephemeralStorage)
       await this.pool.query(
-        "UPDATE public.advisio_evaluation_sessions SET state='EXPIRED',token_hash=NULL WHERE state IN ('ACTIVE','PROVISIONING')",
+        "UPDATE public.advisio_evaluation_sessions SET state='EXPIRED',token_hash=NULL WHERE state IN ('ACTIVE','PROVISIONING','READY','WARMING')",
       );
     await this.cleanup();
-    this.timer = setInterval(
-      () =>
-        void this.cleanup().catch(() =>
-          console.error("Evaluation cleanup will retry."),
-        ),
-      60_000,
+  }
+
+  private scheduleMaintenance() {
+    if (this.closing || this.maintenance) return;
+    this.maintenance = this.maintainWorkspaces()
+      .catch((error: unknown) => {
+        console.warn(
+          "Evaluation workspace maintenance will retry:",
+          evaluationDatabaseErrorCode(error),
+        );
+      })
+      .finally(() => {
+        this.maintenance = undefined;
+      });
+  }
+
+  private async readCapacity() {
+    const { rows } = await this.pool.query<CapacityRow>(
+      `SELECT course, CASE WHEN state IN ('READY','WARMING') AND warm_owner IS DISTINCT FROM $1
+        THEN 'UNAVAILABLE' ELSE state END AS state, count(*)::int AS count
+       FROM public.advisio_evaluation_sessions WHERE cleaned_at IS NULL GROUP BY 1, 2`,
+      [this.warmOwner],
     );
-    this.timer.unref();
+    return rows;
+  }
+
+  async capacity() {
+    if (!this.config.prewarm.size) return { enabled: false };
+    const rows = await this.readCapacity();
+    return {
+      enabled: true,
+      maxActive: this.config.maxActive,
+      active: rows
+        .filter(({ state }) => state === "ACTIVE")
+        .reduce((total, { count }) => total + count, 0),
+      courses: [...this.config.prewarm].map(([course, target]) => ({
+        course,
+        target,
+        ready:
+          rows.find((row) => row.course === course && row.state === "READY")
+            ?.count || 0,
+      })),
+    };
+  }
+
+  private async maintainWorkspaces() {
+    await this.cleanup();
+    if (!this.config.prewarm.size) return;
+    while (!this.closing) {
+      const rows = await this.readCapacity();
+      if (
+        rows.reduce((total, { count }) => total + count, 0) >=
+        this.config.maxActive
+      )
+        return;
+      const next = [...this.config.prewarm].find(
+        ([course, target]) =>
+          rows
+            .filter(
+              (row) =>
+                row.course === course &&
+                ["READY", "WARMING", "ACTIVE", "PROVISIONING"].includes(
+                  row.state,
+                ),
+            )
+            .reduce((total, { count }) => total + count, 0) < target,
+      );
+      if (!next || this.closing) return;
+      const id = randomBytes(16).toString("hex");
+      await this.pool.query(
+        "INSERT INTO public.advisio_evaluation_sessions (id,role,course,state,warm_owner) VALUES ($1,'student',$2,'WARMING',$3)",
+        [id, next[0], this.warmOwner],
+      );
+      await this.buildWorkspace(id, "student", next[0], true);
+    }
   }
   storageRoot(id: string) {
     schemaName(id);
@@ -135,8 +231,8 @@ export class EvaluationRuntime {
     return rowCount ? session : null;
   }
   async begin(token: string, role: EvaluationRole, courseId: string) {
-    await this.cleanup();
-    const course = EVALUATION_COURSES.find((c) => c.id === courseId)!;
+    if (!this.config.prewarm.size) await this.cleanup();
+    const hash = tokenHash(token);
     const connection = await this.pool.connect();
     const id = randomBytes(16).toString("hex");
     try {
@@ -146,7 +242,7 @@ export class EvaluationRuntime {
         rows: [existing],
       } = await connection.query<Session>(
         "SELECT * FROM public.advisio_evaluation_sessions WHERE token_hash=$1",
-        [tokenHash(token)],
+        [hash],
       );
       if (
         existing &&
@@ -186,9 +282,19 @@ export class EvaluationRuntime {
           "UPDATE public.advisio_evaluation_sessions SET token_hash=NULL WHERE id=$1",
           [existing.id],
         );
+      if (this.config.prewarm.size) {
+        const session = await this.claimPrepared(
+          connection,
+          hash,
+          role,
+          courseId,
+        );
+        await connection.query("COMMIT");
+        return session;
+      }
       await connection.query(
         "INSERT INTO public.advisio_evaluation_sessions (id,token_hash,role,course) VALUES ($1,$2,$3,$4)",
-        [id, tokenHash(token), role, courseId],
+        [id, hash, role, courseId],
       );
       await connection.query("COMMIT");
     } catch (e) {
@@ -197,6 +303,61 @@ export class EvaluationRuntime {
     } finally {
       connection.release();
     }
+    return this.buildWorkspace(id, role, courseId, false);
+  }
+
+  private async claimPrepared(
+    connection: PoolClient,
+    hash: string,
+    role: EvaluationRole,
+    courseId: string,
+  ) {
+    const {
+      rows: [prepared],
+    } = await connection.query<Session>(
+      `SELECT * FROM public.advisio_evaluation_sessions
+       WHERE course=$1 AND state='READY' AND token_hash IS NULL AND warm_owner=$2
+       ORDER BY created_at LIMIT 1 FOR UPDATE`,
+      [courseId, this.warmOwner],
+    );
+    if (!prepared)
+      throw Object.assign(
+        new Error(
+          "No prepared workspace is available for this selection yet. Please wait and try again.",
+        ),
+        { statusCode: 503 },
+      );
+    const account = prepared.accounts?.[role];
+    if (!account)
+      throw new Error("Prepared workspace is missing its role accounts.");
+    const {
+      rows: [session],
+    } = await connection.query<Session>(
+      `UPDATE public.advisio_evaluation_sessions SET state='ACTIVE',token_hash=$2,role=$3,
+       user_id=$4,project_id=$5,defense_id=$6,scenario=$7,touched_at=now(),created_at=now()
+       WHERE id=$1 RETURNING *`,
+      [
+        prepared.id,
+        hash,
+        role,
+        account.userId,
+        account.projectId,
+        account.defenseId,
+        account.scenarios?.[0]?.id || null,
+      ],
+    );
+    return session;
+  }
+
+  private async buildWorkspace(
+    id: string,
+    role: EvaluationRole,
+    courseId: string,
+    warm: boolean,
+  ) {
+    const course = EVALUATION_COURSES.find(
+      (candidate) => candidate.id === courseId,
+    )!;
     let db: PrismaClient | undefined;
     try {
       const provisioner = await this.pool.connect();
@@ -220,10 +381,14 @@ export class EvaluationRuntime {
         role,
         this.storageRoot(id),
       );
+      if (warm) {
+        await db.$disconnect();
+        db = undefined;
+      }
       const {
         rows: [session],
       } = await this.pool.query<Session>(
-        "UPDATE public.advisio_evaluation_sessions SET user_id=$2,project_id=$3,defense_id=$4,accounts=$5,scenario=$6,state='ACTIVE',touched_at=now(),created_at=now() WHERE id=$1 RETURNING *",
+        "UPDATE public.advisio_evaluation_sessions SET user_id=$2,project_id=$3,defense_id=$4,accounts=$5,scenario=$6,state=$7,touched_at=now(),created_at=now() WHERE id=$1 AND state=$8 RETURNING *",
         [
           id,
           seeded.userId,
@@ -231,9 +396,15 @@ export class EvaluationRuntime {
           seeded.defenseId || null,
           JSON.stringify(seeded.accounts),
           seeded.accounts[role].scenarios?.[0]?.id || null,
+          warm ? "READY" : "ACTIVE",
+          warm ? "WARMING" : "PROVISIONING",
         ],
       );
-      this.clients.set(id, { prisma: db, users: 0, ended: false });
+      if (!session)
+        throw new Error(
+          "Evaluation workspace reservation expired during setup.",
+        );
+      if (db) this.clients.set(id, { prisma: db, users: 0, ended: false });
       return session;
     } catch (e) {
       await db?.$disconnect();
@@ -241,7 +412,7 @@ export class EvaluationRuntime {
         "UPDATE public.advisio_evaluation_sessions SET state='FAILED',token_hash=NULL WHERE id=$1",
         [id],
       );
-      await this.removeData(id);
+      if (!warm) await this.removeData(id);
       throw e;
     }
   }
@@ -351,7 +522,7 @@ export class EvaluationRuntime {
         revokers.delete(revoke);
         if (!revokers.size) this.revokers.delete(session.id);
         item!.users--;
-        if (item!.ended && item!.users === 0)
+        if (!this.config.prewarm.size && item!.ended && item!.users === 0)
           void this.removeData(session.id).catch(() => {});
       },
     };
@@ -416,7 +587,7 @@ export class EvaluationRuntime {
       item.ended = true;
       if (item.users) return;
     }
-    await this.removeData(session.id);
+    if (!this.config.prewarm.size) await this.removeData(session.id);
   }
   private removeData(id: string) {
     const running = this.removals.get(id);
@@ -442,7 +613,7 @@ export class EvaluationRuntime {
   }
   async cleanup() {
     const { rows } = await this.pool.query<Session>(
-      "UPDATE public.advisio_evaluation_sessions SET state='EXPIRED',token_hash=NULL WHERE (state='ACTIVE' AND (touched_at<now()-interval '20 minutes' OR created_at<now()-interval '60 minutes')) OR (state='PROVISIONING' AND created_at<now()-interval '10 minutes') RETURNING *",
+      "UPDATE public.advisio_evaluation_sessions SET state='EXPIRED',token_hash=NULL WHERE (state='ACTIVE' AND (touched_at<now()-interval '20 minutes' OR created_at<now()-interval '60 minutes')) OR (state IN ('PROVISIONING','WARMING') AND created_at<now()-interval '10 minutes') RETURNING *",
     );
     for (const session of rows) {
       const item = this.clients.get(session.id);
@@ -456,7 +627,9 @@ export class EvaluationRuntime {
     for (const session of stale) await this.removeData(session.id);
   }
   async close() {
+    this.closing = true;
     clearInterval(this.timer);
+    await this.maintenance;
     await Promise.all(
       [...this.clients.values()].map((x) => x.prisma.$disconnect()),
     );

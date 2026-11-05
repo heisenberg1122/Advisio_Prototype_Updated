@@ -1,4 +1,5 @@
 import path from "node:path";
+import { EVALUATION_COURSES } from "./catalog.js";
 import { evaluationEntryUrl } from "./invitation.js";
 
 export function evaluationConfig(env: NodeJS.ProcessEnv = process.env) {
@@ -73,6 +74,29 @@ export function evaluationConfig(env: NodeJS.ProcessEnv = process.env) {
   const maxActive = Number(env.EVALUATION_MAX_ACTIVE || 20);
   if (!Number.isInteger(maxActive) || maxActive < 1 || maxActive > 50)
     throw new Error("EVALUATION_MAX_ACTIVE must be between 1 and 50.");
+  const ephemeralStorage = env.EVALUATION_EPHEMERAL_STORAGE === "1";
+  const prewarm = new Map<string, number>();
+  const requestedPrewarm = env.EVALUATION_PREWARM?.trim();
+  for (const entry of requestedPrewarm ? requestedPrewarm.split(",") : []) {
+    const match = /^([A-Z0-9-]+):([1-9]\d?)$/.exec(entry.trim());
+    if (
+      !match ||
+      prewarm.has(match[1]) ||
+      !EVALUATION_COURSES.some((course) => course.id === match[1])
+    )
+      throw new Error(
+        "EVALUATION_PREWARM requires distinct COURSE:count entries.",
+      );
+    prewarm.set(match[1], Number(match[2]));
+  }
+  if (prewarm.size && !ephemeralStorage)
+    throw new Error(
+      "Prewarming requires a single evaluation instance with ephemeral storage.",
+    );
+  if (
+    [...prewarm.values()].reduce((total, count) => total + count, 0) > maxActive
+  )
+    throw new Error("EVALUATION_PREWARM cannot exceed EVALUATION_MAX_ACTIVE.");
   const root = path.resolve(env.EVALUATION_DATA_DIR || ".evaluation");
   return {
     databaseUrl: value,
@@ -84,7 +108,8 @@ export function evaluationConfig(env: NodeJS.ProcessEnv = process.env) {
       env.EVALUATION_SCHEMA_FILE || path.join(root, "schema.sql"),
     ),
     maxActive,
-    ephemeralStorage: env.EVALUATION_EPHEMERAL_STORAGE === "1",
+    prewarm,
+    ephemeralStorage,
     idleMs: 20 * 60_000,
     lifetimeMs: 60 * 60_000,
   };
