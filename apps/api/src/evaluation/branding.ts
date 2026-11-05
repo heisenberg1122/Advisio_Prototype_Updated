@@ -8,7 +8,7 @@ import type { EvaluationCourse } from "./catalog.js";
 const dataUrls = new Map<string, string>();
 export async function evaluationAsset(name: string) {
   if (
-    !/^(COA|CEA|CHTM|CIT|CNP|SAS|SBPA|SOE|demo-dean-signature)\.png$/.test(name)
+    !/^(COA|CEA|CHTM|CIT|CNP|SAS|SBPA|SOE|demo-school|demo-dean-signature)\.png$/.test(name)
   )
     throw new Error("Unknown evaluation asset.");
   let value = dataUrls.get(name);
@@ -39,6 +39,7 @@ export async function demoEvaluationForm(
     branding: {
       ...defaultEvaluationBranding,
       collegeName: course.college,
+      schoolLogo: await evaluationAsset("demo-school.png"),
       collegeLogo: await evaluationAsset(`${course.collegeCode}.png`),
       templateName: `${finalDefense ? "Final" : "Title"} Defense | Fictional Evaluation Sample`,
     },
