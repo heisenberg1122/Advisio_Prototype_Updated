@@ -56,7 +56,7 @@ Deploy `apps/web/public/evaluation-launcher.{html,css,js}` and `apps/web/vercel.
 
 Render service `srv-dbkes34ipgvc73apmh6g`: Free web + Free Postgres, Singapore, no persistent disk. `render.evaluation.yaml` targets branch `codex/qr-evaluation-local`; draft [PR #7](https://github.com/heisenberg1122/Advisio_Prototype_Updated/pull/7) remains separate from main. No card or paid resource was added.
 
-The deployment admits up to **10 active/provisioning sessions**, not 202 simultaneous workspaces. A hosted automated rehearsal admitted ten, handled 90 activity/PDF reads across three concurrent rounds, and correctly refused an eleventh. Ten actual devices performing the full activities still need a pilot. For 202 respondents, plan twenty groups of ten and a final group of two. Stagger starts in groups of five; simultaneous provisioning took about 109 seconds in that rehearsal.
+The Render configuration targets **50 active sessions** with prepared workspaces across nine programs. Before an organized session, check `/api/evaluation/capacity` and wait for enough ready workspaces in each participating program. The configured cap sets the admission limit. Use measured rehearsal results to decide how many respondents to start together.
 
 The free site sleeps after 15 idle minutes. Open it before a group begins. A restart clears practice files and expires old sessions; respondents then begin again. Google Form submissions remain separate. Sessions expire after 20 idle minutes or 60 total minutes. The free database expires 30 days after creation; check availability before the evaluation date. Shared account allowances also apply. See [Render free-tier documentation](https://render.com/docs/free).
 

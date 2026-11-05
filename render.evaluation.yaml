@@ -28,7 +28,9 @@ services:
       - key: EVALUATION_EPHEMERAL_STORAGE
         value: "1"
       - key: EVALUATION_MAX_ACTIVE
-        value: "10"
+        value: "50"
+      - key: EVALUATION_PREWARM
+        value: "BSIT:6,BEED:6,BSN:6,BSA:6,BSTM:6,BSCE:3,BSARCH:3,BSPSYCH:7,BSBA-MM:7"
       - key: STORAGE_PROVIDER
         value: LOCAL
       - key: EMAIL_PROVIDER

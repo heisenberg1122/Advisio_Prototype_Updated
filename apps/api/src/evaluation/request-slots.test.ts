@@ -35,4 +35,16 @@ describe("evaluation database concurrency", () => {
     const next = await slots.acquire();
     next();
   });
+
+  it("queues fifty admission requests before they acquire registry connections", async () => {
+    const slots = new EvaluationRequestSlots(1, 30_000);
+    const order: number[] = [];
+    await Promise.all(Array.from({ length: 50 }, async (_, index) => {
+      const release = await slots.acquire();
+      await Promise.resolve();
+      order.push(index);
+      release();
+    }));
+    expect(order).toEqual(Array.from({ length: 50 }, (_, index) => index));
+  });
 });

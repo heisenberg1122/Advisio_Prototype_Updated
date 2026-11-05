@@ -39,4 +39,20 @@ describe("evaluation database startup", () => {
     ).rejects.toBe(outage);
     expect(pause.mock.calls.flat()).toEqual([1000, 2000, 4000, 8000, 8000]);
   });
+
+  it("bounds admission retries and does not retry an unavailable workspace", async () => {
+    const pause = vi.fn(async (_ms: number) => undefined);
+    const unavailable = Object.assign(new Error("No prepared workspace"), {
+      statusCode: 503,
+    });
+    const operation = vi.fn()
+      .mockRejectedValueOnce(new Error("timeout exceeded when trying to connect"))
+      .mockRejectedValueOnce(unavailable);
+
+    await expect(
+      retryEvaluationDatabase(operation, pause, [150, 350, 750]),
+    ).rejects.toBe(unavailable);
+    expect(operation).toHaveBeenCalledTimes(2);
+    expect(pause.mock.calls.flat()).toEqual([150]);
+  });
 });

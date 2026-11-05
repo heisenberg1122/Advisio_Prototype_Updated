@@ -125,8 +125,22 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
         return void res
           .status(400)
           .json({ error: "Reload the entry page before beginning." });
-      const session = await service.begin(token, role, selectedCourse.id);
-      return void res.status(201).json(service.describe(session));
+      const abandoned = new AbortController();
+      const abandon = () => abandoned.abort();
+      res.once("close", abandon);
+      try {
+        const session = await service.begin(
+          token,
+          role,
+          selectedCourse.id,
+          abandoned.signal,
+        );
+        if (!res.destroyed)
+          res.status(201).json(service.describe(session));
+        return;
+      } finally {
+        res.off("close", abandon);
+      }
     }
     const session = await service.find(req.cookies?.[COOKIE]);
     if (!session)

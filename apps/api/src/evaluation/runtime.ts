@@ -70,6 +70,9 @@ export class EvaluationRuntime {
   private closing = false;
   private readonly warmOwner = randomBytes(16).toString("hex");
   private readonly requestSlots = new EvaluationRequestSlots();
+  // Admissions already serialize on a PostgreSQL lock. Queue prepared joins
+  // before checkout so waiting joins leave registry connections available.
+  private readonly preparedAdmissions = new EvaluationRequestSlots(1, 30_000);
 
   constructor() {
     for (const pool of [this.pool, this.healthPool]) {
@@ -232,11 +235,42 @@ export class EvaluationRuntime {
     );
     return rowCount ? session : null;
   }
-  async begin(token: string, role: EvaluationRole, courseId: string) {
-    if (!this.config.prewarm.size) await this.cleanup();
+  async begin(
+    token: string,
+    role: EvaluationRole,
+    courseId: string,
+    signal?: AbortSignal,
+  ) {
+    if (!this.config.prewarm.size) {
+      await this.cleanup();
+      return this.startWorkspace(token, role, courseId);
+    }
+    const release = await this.preparedAdmissions.acquire(signal);
+    try {
+      // A committed claim can be recovered by the same token if the commit
+      // acknowledgement is lost. On-demand provisioning isn't replayed here.
+      return await retryEvaluationDatabase(
+        () => {
+          signal?.throwIfAborted();
+          return this.startWorkspace(token, role, courseId);
+        },
+        undefined,
+        [150, 350, 750],
+      );
+    } finally {
+      release();
+    }
+  }
+
+  private async startWorkspace(
+    token: string,
+    role: EvaluationRole,
+    courseId: string,
+  ) {
     const hash = tokenHash(token);
     const connection = await this.pool.connect();
     const id = randomBytes(16).toString("hex");
+    let discardConnection = false;
     try {
       await connection.query("BEGIN");
       await connection.query("SELECT pg_advisory_xact_lock(481202)");
@@ -300,10 +334,14 @@ export class EvaluationRuntime {
       );
       await connection.query("COMMIT");
     } catch (e) {
-      await connection.query("ROLLBACK");
+      try {
+        await connection.query("ROLLBACK");
+      } catch {
+        discardConnection = true;
+      }
       throw e;
     } finally {
-      connection.release();
+      connection.release(discardConnection);
     }
     return this.buildWorkspace(id, role, courseId, false);
   }

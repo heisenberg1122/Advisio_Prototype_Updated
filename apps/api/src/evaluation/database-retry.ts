@@ -27,8 +27,8 @@ export function evaluationDatabaseErrorCode(error: unknown) {
 export async function retryEvaluationDatabase<T>(
   operation: () => Promise<T>,
   pause: (ms: number) => Promise<unknown> = wait,
+  delays: readonly number[] = [1_000, 2_000, 4_000, 8_000, 8_000],
 ): Promise<T> {
-  const delays = [1_000, 2_000, 4_000, 8_000, 8_000];
   for (let attempt = 0; ; attempt++) {
     try {
       return await operation();
@@ -45,7 +45,7 @@ export async function retryEvaluationDatabase<T>(
       )
         throw error;
       console.warn(
-        "Evaluation database unavailable during startup. Retrying:",
+        "Evaluation database unavailable. Retrying:",
         code,
       );
       await pause(delays[attempt]);
