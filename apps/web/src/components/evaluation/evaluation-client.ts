@@ -23,6 +23,7 @@ export type EvaluationConfig = {
     collegeCode?: string;
   }[];
   entryUrl: string;
+  invitationUrl?: string;
   localOnly: boolean;
   temporaryStorage: boolean;
 };
@@ -38,7 +39,7 @@ export async function evaluationRequest<T>(
   });
   const data = await response.json().catch(() => {
     throw new Error(
-      "The evaluation is temporarily unavailable. Try again or email nagbolus.student@ua.edu.ph for help.",
+      "The evaluation is temporarily unavailable. Try again or email advisio.main@gmail.com for help.",
     );
   });
   if (!response.ok)

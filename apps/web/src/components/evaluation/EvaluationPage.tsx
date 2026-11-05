@@ -53,8 +53,9 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
     };
   }, [print]);
   const invitation = config ? resolveInvitation(location.search, config) : null;
-  const entryUrl = config
-    ? evaluationLink(config.entryUrl, { role, course })
+  const invitationBase = config?.invitationUrl || config?.entryUrl;
+  const entryUrl = invitationBase
+    ? evaluationLink(invitationBase, { role, course }, new URL(invitationBase).pathname)
     : "";
   const guideUrl = config
     ? evaluationLink(config.entryUrl, { role, course }, "/evaluate/guide")

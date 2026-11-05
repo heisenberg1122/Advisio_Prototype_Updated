@@ -72,13 +72,18 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
           }),
         ),
         entryUrl: `${service.config.origin}/evaluate`,
+        invitationUrl: service.config.invitationUrl,
         localOnly: !service.config.secure,
         temporaryStorage: service.config.ephemeralStorage,
       });
     }
     if (endpoint === "/api/evaluation/qr" && req.method === "GET") {
       const png = await QRCode.toBuffer(
-        evaluationInvitationUrl(service.config.origin, req.query),
+        evaluationInvitationUrl(
+          service.config.origin,
+          req.query,
+          process.env.EVALUATION_LAUNCH_URL,
+        ),
         {
           width: 700,
           margin: 4,
@@ -182,7 +187,7 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
     res.status(error.statusCode || 503).json({
       error: error.statusCode
         ? error.message
-        : "The evaluation workspace is temporarily unavailable. Try again or email nagbolus.student@ua.edu.ph for help.",
+        : "The evaluation workspace is temporarily unavailable. Try again or email advisio.main@gmail.com for help.",
     });
   }
 };

@@ -1,4 +1,5 @@
 import path from "node:path";
+import { evaluationEntryUrl } from "./invitation.js";
 
 export function evaluationConfig(env: NodeJS.ProcessEnv = process.env) {
   const value = env.EVALUATION_DATABASE_URL;
@@ -76,6 +77,7 @@ export function evaluationConfig(env: NodeJS.ProcessEnv = process.env) {
   return {
     databaseUrl: value,
     origin: origin.origin,
+    invitationUrl: evaluationEntryUrl(origin.origin, env.EVALUATION_LAUNCH_URL),
     secure: origin.protocol === "https:",
     root,
     schemaFile: path.resolve(

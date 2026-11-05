@@ -6,6 +6,14 @@
   "outputDirectory": "dist",
   "headers": [
     {
+      "source": "/evaluate/status",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" },
+        { "key": "CDN-Cache-Control", "value": "no-store" },
+        { "key": "Vercel-CDN-Cache-Control", "value": "no-store" }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
@@ -22,6 +30,14 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/evaluate/start",
+      "destination": "/evaluation-launcher.html"
+    },
+    {
+      "source": "/evaluate/status",
+      "destination": "https://advisio-tam-evaluation-2026.onrender.com/api/health"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

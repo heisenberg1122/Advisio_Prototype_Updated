@@ -2,11 +2,30 @@
   padding: clamp(20px, 3vw, 40px) clamp(12px, 3vw, 40px);
 }
 .evaluation-guide-page > .evaluation-guide-card {
-  max-width: 1280px;
+  max-width: 900px;
   padding: clamp(20px, 3vw, 36px);
 }
 .evaluation-guide-card > p {
   max-width: 78ch;
+}
+.evaluation-guide-card > .evaluation-brand {
+  margin-bottom: 16px;
+}
+.evaluation-guide-card > .evaluation-eyebrow {
+  margin: 0 0 8px;
+}
+.evaluation-guide-card > h1 {
+  margin-bottom: 12px;
+}
+.evaluation-guide-start {
+  margin-top: 18px;
+}
+.evaluation-guide-start > button,
+.evaluation-guide-start > a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .evaluation-guide-card > .evaluation-steps {
   max-width: 800px;
@@ -17,20 +36,38 @@
 }
 .evaluation-guide-content {
   display: grid;
-  grid-template-columns: minmax(0, 1.8fr) minmax(300px, 1fr);
-  gap: 28px;
-  align-items: start;
-  margin-top: 24px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 20px;
 }
-.evaluation-guide-media,
-.evaluation-guide-notes {
+.evaluation-guide-resource {
   min-width: 0;
+  border: 1px solid #d9e3ee;
+  border-radius: 12px;
+  padding: 0 18px;
 }
-.evaluation-guide-content > .evaluation-guide-notes {
-  border-left: 1px solid #d9e3ee;
-  padding-left: 28px;
+.evaluation-guide-resource > summary {
+  padding: 16px 0;
+  min-height: 52px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1959a5;
 }
-.evaluation-guide-notes .evaluation-written-guide > h2:first-child {
+.evaluation-guide-resource > summary > span {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #53677d;
+}
+.evaluation-guide-resource[open] {
+  padding-bottom: 18px;
+}
+.evaluation-guide-resource[open] > summary {
+  margin-bottom: 16px;
+  border-bottom: 1px solid #d9e3ee;
+}
+.evaluation-guide-resource .evaluation-written-guide > h2:first-child {
   margin-top: 0;
 }
 .evaluation-guide-card .researcher-walkthrough {
@@ -47,12 +84,16 @@
   align-items: center;
   gap: 8px;
 }
-@media (max-width: 1000px) {
-  .evaluation-guide-content {
-    grid-template-columns: minmax(0, 1fr);
+@media (max-width: 600px) {
+  .evaluation-guide-card .evaluation-logo {
+    width: 72px;
   }
-  .evaluation-guide-content > .evaluation-guide-notes {
-    border-left: 0;
-    padding-left: 0;
+  .evaluation-guide-start {
+    gap: 4px;
+  }
+  .evaluation-guide-start > button,
+  .evaluation-guide-start > a {
+    width: 100%;
+    text-align: center;
   }
 }

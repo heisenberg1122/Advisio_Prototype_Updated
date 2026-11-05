@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { evaluationInvitationUrl } from "./invitation.js";
+import { evaluationEntryUrl, evaluationInvitationUrl } from "./invitation.js";
 import { EVALUATION_COURSES, EVALUATION_ROLES } from "./catalog.js";
 
 test("invitation QR targets are pinned to the evaluation and support every role/program pair", () => {
@@ -31,4 +31,13 @@ test("invitation QR rejects unknown roles, duplicate values, extra identifiers a
     expect(() =>
       evaluationInvitationUrl("https://evaluation.example.org", query),
     ).toThrow("valid evaluation role");
+});
+
+test("the optional official starter preserves assignments without moving the session origin", () => {
+  const origin = "https://evaluation.example.org";
+  const launcher = "https://advisio-prototype-updated.vercel.app/evaluate/start";
+  expect(evaluationInvitationUrl(origin, { role: "student", course: "BSIT" }, launcher))
+    .toBe(`${launcher}?role=student&course=BSIT`);
+  for (const value of ["https://other.example/start", `${launcher}?redirect=https://other.example`, "javascript:alert(1)"])
+    expect(() => evaluationEntryUrl(origin, value)).toThrow("official ADVISIO");
 });

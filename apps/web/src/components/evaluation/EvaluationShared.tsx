@@ -82,8 +82,8 @@ export function EvaluationSupport() {
       <p>
         <strong>Need help?</strong>
         <br />
-        <a href="mailto:nagbolus.student@ua.edu.ph?subject=ADVISIO%20Evaluation%20Support">
-          nagbolus.student@ua.edu.ph
+        <a href="mailto:advisio.main@gmail.com?subject=ADVISIO%20Evaluation%20Support">
+          advisio.main@gmail.com
         </a>
       </p>
     </div>

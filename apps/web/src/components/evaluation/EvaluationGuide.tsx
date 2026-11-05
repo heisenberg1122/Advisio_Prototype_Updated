@@ -22,6 +22,7 @@ export default function EvaluationGuide() {
   const [session, setSession] = useState<EvaluationSession | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [videoOpen, setVideoOpen] = useState(false);
   useEffect(() => {
     let current = true;
     void (async () => {
@@ -72,10 +73,9 @@ export default function EvaluationGuide() {
         <p className="evaluation-eyebrow">Step 1 of 3</p>
         <h1>Get familiar with ADVISIO</h1>
         <p>
-          Read this short guide, try the activities in your own workspace, then
-          answer the questionnaire based on your experience.
+          Explore your workspace, then answer the questionnaire. You can reopen
+          this guide at any time.
         </p>
-        <EvaluationSteps current={1} />
         {loading && <p role="status">Loading your guide…</p>}
         {error && (
           <p className="evaluation-error" role="alert">
@@ -92,14 +92,26 @@ export default function EvaluationGuide() {
             )}
           </div>
         )}
-        <div className={selectedRole ? "evaluation-guide-content" : undefined}>
-          <div className="evaluation-guide-media">
-            <EvaluationWalkthrough
-              key={selectedRole?.id}
-              role={selectedRole?.id}
-            />
-          </div>
-          <div className="evaluation-guide-notes">
+        <div className="evaluation-actions evaluation-guide-start">
+          {session ? (
+            <button onClick={startActivities}>Start guided activities</button>
+          ) : (
+            !loading && (
+              <Link className="evaluation-link-button" to={entry}>
+                Return to begin evaluation
+              </Link>
+            )
+          )}
+          {session && <Link to={entry}>Back to entry page</Link>}
+        </div>
+        <p className="evaluation-help">
+          Use the prepared fictional records. Avoid personal or confidential
+          uploads. Participation is voluntary.
+        </p>
+        <EvaluationSteps current={1} />
+        <div className="evaluation-guide-content">
+          <details className="evaluation-guide-resource">
+            <summary>Read the activity guide</summary>
             <section
               className="evaluation-written-guide"
               aria-labelledby="guide-start"
@@ -166,21 +178,23 @@ export default function EvaluationGuide() {
                 return to end your practice session.
               </p>
             </section>
-            <div className="evaluation-actions">
-              {session ? (
-                <button onClick={startActivities}>
-                  Start guided activities
-                </button>
-              ) : (
-                !loading && (
-                  <Link className="evaluation-link-button" to={entry}>
-                    Return to begin evaluation
-                  </Link>
-                )
+          </details>
+          {selectedRole && (
+            <details
+              className="evaluation-guide-resource"
+              onToggle={(event) => setVideoOpen(event.currentTarget.open)}
+            >
+              <summary>
+                Watch the walkthrough <span>Optional</span>
+              </summary>
+              {videoOpen && (
+                <EvaluationWalkthrough
+                  key={selectedRole.id}
+                  role={selectedRole.id}
+                />
               )}
-              {session && <Link to={entry}>Back to entry page</Link>}
-            </div>
-          </div>
+            </details>
+          )}
         </div>
         <EvaluationAbout temporary={config?.temporaryStorage} />
         <EvaluationSupport />

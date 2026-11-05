@@ -54,6 +54,14 @@ export function evaluationSpa(directory: string) {
     );
     next();
   });
+  // This server is mounted only in evaluation mode; the official site keeps
+  // its own homepage. Preserve assignments from links to the bare origin.
+  router.get(["/", "/index.html"], (req, res) => {
+    const queryIndex = req.url.indexOf("?");
+    const search = queryIndex === -1 ? "" : req.url.slice(queryIndex);
+    res.setHeader("Cache-Control", "no-store");
+    res.redirect(302, `/evaluate${search}`);
+  });
   router.use(
     serveStatic(root, {
       index: false,

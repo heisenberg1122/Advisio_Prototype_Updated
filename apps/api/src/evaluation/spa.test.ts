@@ -34,6 +34,20 @@ test("hosted portals use a first-party SPA, bounded CSP, and real API 404 respon
     throw new Error("Missing local test address.");
   const base = `http://127.0.0.1:${address.port}`;
   try {
+    for (const entry of ["/", "/index.html"]) {
+      for (const search of ["", "?role=student&course=BSIT"]) {
+        const response = await fetch(base + entry + search, {
+          redirect: "manual",
+        });
+        expect(response.status).toBe(302);
+        expect(response.headers.get("location")).toBe(`/evaluate${search}`);
+        expect(response.headers.get("cache-control")).toBe("no-store");
+        const redirected = await fetch(base + entry + search);
+        expect(new URL(redirected.url).pathname).toBe("/evaluate");
+        expect(new URL(redirected.url).search).toBe(search);
+        expect(await redirected.text()).toBe(html);
+      }
+    }
     for (const route of [
       "/evaluate",
       "/evaluate/print",
