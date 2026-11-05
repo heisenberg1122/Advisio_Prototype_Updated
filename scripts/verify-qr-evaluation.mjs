@@ -237,6 +237,84 @@ async function registry(workspace) {
   assert.match(row.id, /^[a-f0-9]{32}$/);
   return { row, schema: `"eval_${row.id}"` };
 }
+async function verifyReviewQueue(cookie, role, projects) {
+  const types = {
+    adviser: "ADVISER",
+    professor: "COORDINATOR",
+    panelist: "PANEL",
+    dean: "DEAN",
+  };
+  const { assignments } = ok(
+    await request("/api/reviewer-assignments/me", { cookie }),
+  );
+  if (role === "student") {
+    assert.deepEqual(assignments, []);
+    return;
+  }
+
+  const pending = assignments.filter((a) => a.status === "ACTIVE");
+  const history = assignments.filter((a) => a.status === "COMPLETED");
+  assert.ok(
+    pending.length > 0,
+    `${role} sidebar should have pending manuscript reviews`,
+  );
+  assert.ok(
+    history.length > 0,
+    `${role} sidebar should have completed manuscript reviews`,
+  );
+  assert.ok(
+    assignments.every(
+      (a) =>
+        a.reviewType === types[role] &&
+        projects.some((p) => p.id === a.research.id),
+    ),
+  );
+  assert.ok(
+    history.every(
+      (a) =>
+        a.review?.status === "SUBMITTED" &&
+        a.review.overallComment &&
+        a.review.documentVersionId === a.documentVersion.id,
+    ),
+  );
+  if (role === "panelist") {
+    assert.deepEqual(pending.map((a) => a.research.groupName).sort(), [
+      "Research Group C",
+      "Research Group E",
+    ]);
+  }
+
+  const sample = pending[0];
+  const pdf = ok(
+    await request(
+      `/api/documents/versions/${sample.documentVersion.id}/content`,
+      { cookie },
+    ),
+  );
+  assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
+  if (role === "panelist" || role === "dean") {
+    const decision = ok(
+      await request(`/api/reviewer-assignments/${sample.id}/decision`, {
+        cookie,
+        method: "POST",
+        body: {
+          recommendation: "APPROVE",
+          overallComment:
+            "Fictional practice decision on the assigned manuscript.",
+        },
+      }),
+      201,
+    );
+    assert.equal(decision.lifecycleStatus, "APPROVED");
+    const refreshed = ok(
+      await request("/api/reviewer-assignments/me", { cookie }),
+    ).assignments;
+    const completed = refreshed.find((a) => a.id === sample.id);
+    assert.equal(completed.status, "COMPLETED");
+    assert.equal(completed.review.id, decision.review.id);
+  }
+}
+
 async function verifyRole(workspace, collegeCode) {
   const { cookie, session } = workspace;
   const role = session.role;
@@ -281,6 +359,7 @@ async function verifyRole(workspace, collegeCode) {
       );
     }
   }
+  await verifyReviewQueue(cookie, role, projects);
   assert.equal(session.tasks.length, 6);
   assert.equal(session.roles.length, 5);
   assert.equal((await request("/api/users", { cookie })).status, 403);

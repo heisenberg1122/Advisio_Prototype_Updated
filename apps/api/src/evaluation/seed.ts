@@ -575,17 +575,78 @@ export async function seedWorkspace(
       definition.lifecycle,
       [1, 2],
     );
-    const review = await db.review.create({
-      data: {
-        documentVersionId: current.saved[0].id,
-        documentId: current.doc.id,
-        reviewerId: adviserId,
-        reviewType: "ADVISER",
-        overallComment: course.feedback,
-        recommendation: "MINOR_REVISION",
-        status: "SUBMITTED",
-        submittedAt: day(-6),
-      },
+    async function assign(
+      reviewerId: string,
+      reviewType: ReviewType,
+      options: {
+        version?: (typeof current)["latest"];
+        required?: boolean;
+        decision?: {
+          recommendation: "APPROVE" | "MINOR_REVISION";
+          feedback: string;
+        };
+      } = {},
+    ) {
+      const { version = current.latest, required = true, decision } = options;
+      const assignedAt = version.submittedAt!;
+      const completedAt = decision
+        ? new Date(assignedAt.getTime() + 60 * 60 * 1000)
+        : null;
+
+      return db.reviewerAssignment.create({
+        data: {
+          researchId: project.id,
+          documentId: version.documentId,
+          documentVersionId: version.id,
+          reviewerId,
+          reviewType,
+          isRequired: required,
+          assignedById: users.professor,
+          assignedAt,
+          status: decision ? "COMPLETED" : "ACTIVE",
+          completedAt,
+          events: {
+            create: [
+              {
+                action: "ASSIGNED",
+                actorId: users.professor,
+                createdAt: assignedAt,
+              },
+              ...(decision && completedAt
+                ? [
+                    {
+                      action: "COMPLETED" as const,
+                      actorId: reviewerId,
+                      createdAt: completedAt,
+                      details: { recommendation: decision.recommendation },
+                    },
+                  ]
+                : []),
+            ],
+          },
+          review:
+            decision && completedAt
+              ? {
+                  create: {
+                    documentId: version.documentId,
+                    documentVersionId: version.id,
+                    reviewerId,
+                    reviewType,
+                    overallComment: decision.feedback,
+                    recommendation: decision.recommendation,
+                    status: "SUBMITTED",
+                    submittedAt: completedAt,
+                  },
+                }
+              : undefined,
+        },
+        include: { review: { select: { id: true } } },
+      });
+    }
+
+    const prior = await assign(adviserId, "ADVISER", {
+      version: current.saved[0],
+      decision: { recommendation: "MINOR_REVISION", feedback: course.feedback },
     });
     await db.reviewComment.createMany({
       data: [
@@ -593,7 +654,7 @@ export async function seedWorkspace(
         "Align the objectives with the planned outputs.",
         "Keep headings and version labels consistent.",
       ].map((comment, i) => ({
-        reviewId: review.id,
+        reviewId: prior.review!.id,
         documentVersionId: current.saved[0].id,
         authorId: adviserId,
         comment,
@@ -602,63 +663,57 @@ export async function seedWorkspace(
         locationData: { page: i + 2 },
       })),
     });
-    async function assign(
-      reviewerId: string,
-      reviewType: ReviewType,
-      version = current.latest,
-      completed = false,
-    ) {
-      const assignment = await db.reviewerAssignment.create({
-        data: {
-          researchId: project.id,
-          documentId: version.documentId,
-          documentVersionId: version.id,
-          reviewerId,
-          reviewType,
-          assignedById: users.professor,
-          status: completed ? "COMPLETED" : "ACTIVE",
-          completedAt: completed ? day(-1) : null,
-        },
-      });
-      await db.reviewerAssignmentEvent.create({
-        data: {
-          assignmentId: assignment.id,
-          action: "ASSIGNED",
-          actorId: users.professor,
-        },
-      });
-    }
+
     if (scenario === "A") {
       await assign(users.adviser, "ADVISER");
       await assign(users.professor, "COORDINATOR");
-    } else if (scenario === "B") {
-      await assign(users.adviser, "ADVISER", current.latest, true);
-      await db.review.create({
-        data: {
-          documentId: current.doc.id,
-          documentVersionId: current.latest.id,
-          reviewerId: adviserId,
-          reviewType: "ADVISER",
-          overallComment: course.feedback,
+    }
+    if (scenario === "B") {
+      await assign(users.adviser, "ADVISER", {
+        decision: {
           recommendation: "MINOR_REVISION",
-          status: "SUBMITTED",
-          submittedAt: day(-1),
+          feedback: course.feedback,
         },
       });
     }
-    if (["D", "E", "F"].includes(scenario)) {
-      await assign(users.adviser, "ADVISER", current.latest, true);
-      await db.review.create({
-        data: {
-          documentId: current.doc.id,
-          documentVersionId: current.latest.id,
-          reviewerId: users.adviser,
-          reviewType: "ADVISER",
-          overallComment:
-            "Fictional review completed; manuscript approved for defense.",
+    if (scenario === "C" || scenario === "E") {
+      // These manuscripts already cleared eligibility. Panel feedback remains
+      // actionable without reopening the clearance or altering the defense.
+      await assign(users.panelist, "PANEL", { required: false });
+    }
+    if (scenario === "G") {
+      await assign(users.dean, "DEAN", { required: false });
+    }
+    if (scenario === "D" || scenario === "E" || scenario === "F") {
+      await assign(users.adviser, "ADVISER", {
+        decision: {
           recommendation: "APPROVE",
-          status: "SUBMITTED",
-          submittedAt: day(scenario === "F" ? -6 : -6),
+          feedback:
+            "Fictional adviser review: the revised objectives and methods are ready for defense.",
+        },
+      });
+    }
+    if (scenario === "D" || scenario === "F") {
+      await assign(users.professor, "COORDINATOR", {
+        decision: {
+          recommendation: "APPROVE",
+          feedback:
+            "Fictional Coordinator review: the submitted manuscript meets the milestone requirements.",
+        },
+      });
+      await assign(users.panelist, "PANEL", {
+        required: false,
+        decision: {
+          recommendation: "APPROVE",
+          feedback: `Fictional panel review: ${course.revision}`,
+        },
+      });
+      await assign(users.dean, "DEAN", {
+        required: false,
+        decision: {
+          recommendation: "APPROVE",
+          feedback:
+            "Fictional Dean review: the manuscript clearance and supporting evidence were reviewed.",
         },
       });
     }
