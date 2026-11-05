@@ -4,6 +4,7 @@ import React, { Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   BookOpenCheck,
+  CalendarClock,
   CalendarDays,
   ChartNoAxesCombined,
   ClipboardList,
@@ -49,6 +50,7 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: "ACADEMIC ACTIVITIES",
     items: [
+      { label: "Consultations", href: "/admin/consultations", icon: CalendarClock },
       { label: "Calendar", href: "/admin/calendar", icon: CalendarDays },
     ],
   },
@@ -83,13 +85,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const { activeWorkspace } = useDashboardWorkspace();
 
   const roles = user?.roles || [];
-  const canViewOfficialCopies =
+  const hasDeanAccess =
     roles.some((role) => ["DEAN", "SYSTEM_ADMIN"].includes(role));
 
   const rawSections: NavSection[] = ADMIN_NAV_SECTIONS.map((section) => ({
         ...section,
         items: section.items.filter(
-          (item) => item.href !== "/admin/documents?tab=official" || canViewOfficialCopies,
+          (item) => !["/admin/documents?tab=official", "/admin/consultations"].includes(item.href) || hasDeanAccess,
         ),
       }));
 
@@ -116,6 +118,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           ? "Inbox"
         : pathname === "/admin/calendar"
           ? "Universal Calendar"
+        : pathname === "/admin/consultations"
+          ? "Consultations"
         : pathname === "/admin/reviews"
           ? "Manuscript Reviews"
         : pathname === "/admin/documents"

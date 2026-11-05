@@ -119,6 +119,9 @@ const AdminNotificationsPage = lazy(
   () => import("./app/admin/notifications/page"),
 );
 const CalendarPage = lazy(() => import("./app/calendar/page"));
+const FacultyConsultationsPage = lazy(
+  () => import("./components/consultations/FacultyConsultationsPage"),
+);
 const SignatureCenterPage = lazy(() => import("./app/signatures/page"));
 const MailInboxPage = lazy(() => import("./app/mail/page"));
 
@@ -246,6 +249,24 @@ export function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        {([
+          { portal: "professor", workspace: "coordinator", roles: ["PROFESSOR", "RESEARCH_COORDINATOR"], Layout: ProfessorLayout },
+          { portal: "panelist", workspace: "panelist", roles: ["PANELIST"], Layout: PanelistLayout },
+          { portal: "admin", workspace: "dean", roles: ["DEAN", "SYSTEM_ADMIN"], Layout: AdminLayout },
+        ] as const).map(({ portal, workspace, roles, Layout }) => (
+          <Route
+            key={portal}
+            path={`/${portal}/consultations`}
+            element={
+              <ProtectedRoute allowedRoles={[...roles]}>
+                <Layout>
+                  <FacultyConsultationsPage workspace={workspace} />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+        ))}
 
         {/* Student / Researcher Portal */}
         {[
