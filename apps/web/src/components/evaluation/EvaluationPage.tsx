@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import {
   clearEvaluation,
   evaluationRequest,
@@ -55,11 +54,13 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
   const invitation = config ? resolveInvitation(location.search, config) : null;
   const invitationBase = config?.invitationUrl || config?.entryUrl;
   const entryUrl = invitationBase
-    ? evaluationLink(invitationBase, { role, course }, new URL(invitationBase).pathname)
+    ? evaluationLink(
+        invitationBase,
+        { role, course },
+        new URL(invitationBase).pathname,
+      )
     : "";
-  const guideUrl = config
-    ? evaluationLink(config.entryUrl, { role, course }, "/evaluate/guide")
-    : "/evaluate/guide";
+  const colleges = config?.colleges || config?.courses || [];
   const conflictingInvitation =
     session &&
     ((invitation?.role && invitation.role.id !== session.role) ||
@@ -69,12 +70,12 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
     setBusy(true);
     setError("");
     try {
-      await evaluationRequest<EvaluationSession>("session", {
+      const started = await evaluationRequest<EvaluationSession>("session", {
         method: "POST",
         body: JSON.stringify({ role, course, acknowledged }),
       });
       localStorage.setItem("advisio_token", "__evaluation__");
-      window.location.assign("/evaluate/guide");
+      window.location.assign(started.home);
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
@@ -84,7 +85,7 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
     setBusy(true);
     try {
       await evaluationRequest("end", { method: "POST" });
-      clearEvaluation(session?.projectId, {
+      clearEvaluation(session?.progressKey || session?.projectId, {
         role: invitation?.role?.id,
         course: invitation?.course?.id,
       });
@@ -104,7 +105,7 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
         </h1>
         <p>
           Explore ADVISIO using fictional research records prepared for your
-          assigned role and program. Your activities stay in your own temporary
+          selected role and college. Your activities stay in your own temporary
           evaluation workspace.
         </p>
         {error && (
@@ -119,7 +120,7 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
             aria-labelledby="evaluation-how-title"
           >
             <h2 id="evaluation-how-title">How the evaluation works</h2>
-            <EvaluationSteps guideUrl={guideUrl} />
+            <EvaluationSteps current={1} />
           </section>
         )}
         {config && print && (
@@ -127,7 +128,7 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
             <div className="evaluation-print-controls no-print">
               <h2>Organizer QR sheet</h2>
               <p>
-                Select a role and program to prepare an invitation QR, or leave
+                Select a role and college to prepare an invitation QR, or leave
                 both blank for the general entry page.
               </p>
               <label htmlFor="qr-role">Role for this invitation</label>
@@ -143,16 +144,16 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
                   </option>
                 ))}
               </select>
-              <label htmlFor="qr-course">Program / College</label>
+              <label htmlFor="qr-course">College / School</label>
               <select
                 id="qr-course"
                 value={course}
                 onChange={(e) => setCourse(e.target.value)}
               >
                 <option value="">Select on entry page</option>
-                {config.courses.map((c) => (
+                {colleges.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.label} — {c.college}
+                    {c.college}
                   </option>
                 ))}
               </select>
@@ -215,7 +216,7 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
                 disabled={busy || Boolean(conflictingInvitation)}
                 onClick={() => {
                   localStorage.setItem("advisio_token", "__evaluation__");
-                  window.location.assign("/evaluate/guide");
+                  window.location.assign(session.home);
                 }}
               >
                 Continue evaluation
@@ -283,14 +284,14 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
             )}
             {invitation?.course ? (
               <div className="evaluation-assigned-field">
-                <span>Program / College for this evaluation</span>
-                <strong>{invitation.course.label}</strong>
-                <small>{invitation.course.college}</small>
+                <span>College / School for this evaluation</span>
+                <strong>{invitation.course.college}</strong>
+                <small>Representative program: {invitation.course.label}</small>
               </div>
             ) : (
               <>
                 <label htmlFor="evaluation-course">
-                  Program / College for this evaluation
+                  College / School for this evaluation
                 </label>
                 <select
                   id="evaluation-course"
@@ -299,12 +300,10 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
                   onChange={(e) => setCourse(e.target.value)}
                   disabled={busy}
                 >
-                  <option value="">
-                    Select your assigned program or college
-                  </option>
-                  {config.courses.map((c) => (
+                  <option value="">Select your college or school</option>
+                  {colleges.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.label} — {c.college}
+                      {c.college}
                     </option>
                   ))}
                 </select>
@@ -313,7 +312,7 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
             <p className="evaluation-help">
               {invitation?.role && invitation?.course
                 ? "These details came from your invitation. If they look incorrect, email us before beginning."
-                : "Select the role and program or college indicated in your evaluation invitation."}
+                : "Select your role and college. You can switch roles within this college during your session."}
             </p>
             <label className="evaluation-check">
               <input
@@ -329,7 +328,7 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
               </span>
             </label>
             <button type="submit" disabled={busy || !acknowledged}>
-              {busy ? "Preparing your private workspace…" : "Begin evaluation"}
+              {busy ? "Preparing your private workspace…" : "Begin Evaluation"}
             </button>
             {busy && (
               <p role="status" className="evaluation-help">
@@ -338,9 +337,10 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
               </p>
             )}
             <p className="evaluation-help">
-              No registration or personal account is required. Follow the guided
-              activities, then answer the questionnaire based on your experience
-              using ADVISIO.
+              No registration or personal account is required. Begin Evaluation
+              opens your dashboard directly. Use Evaluation activities on your
+              dashboard to find the checklist, prepared revision, role switcher,
+              and TAM questionnaire.
             </p>
           </form>
         )}

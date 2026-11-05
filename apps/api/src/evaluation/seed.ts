@@ -1,136 +1,97 @@
-import { PrismaClient, type InstitutionalRole } from "@prisma/client";
+import {
+  PrismaClient,
+  type InstitutionalRole,
+  type ManuscriptLifecycleStatus,
+  type ReviewType,
+} from "@prisma/client";
 import { seedReferenceData } from "@research-management/database";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { randomBytes, createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { seedEvaluationClassRecord } from "./seed-class-record.js";
+import { manuscript, type ManuscriptCourse } from "./manuscript.js";
 import {
   EVALUATION_ROLES,
+  DEFAULT_MILESTONES,
+  PROJECT_SCENARIOS,
+  ROLE_PROJECTS,
   type EvaluationCourse,
   type EvaluationRole,
+  type Scenario,
 } from "./catalog.js";
+import {
+  scoreStructuredEvaluation,
+  type FormSnapshot,
+} from "../services/structured-evaluation.service.js";
+export { manuscript } from "./manuscript.js";
 
 const day = (n: number) => {
   const anchor = new Date();
   anchor.setUTCHours(2, 0, 0, 0);
   return new Date(+anchor + n * 86_400_000);
 };
-type ManuscriptCourse = Omit<EvaluationCourse, "researchers" | "title"> & {
-  researchers: readonly string[];
-  title: string;
-};
+const hash = (buffer: Buffer) =>
+  createHash("sha256").update(buffer).digest("hex");
 const companionTitles: Record<
   EvaluationCourse["id"],
-  readonly [string, string]
+  readonly [string, string, string]
 > = {
   BSIT: [
     "Campus Facility Directory and Accessibility Requirements Assessment",
     "Campus Navigation Interface Usability Evaluation Plan",
+    "Accessible Campus Wayfinding and Information Design",
   ],
   BEED: [
-    "Timeliness of Classroom Feedback and Student Participation in General Education Classes",
+    "Timeliness of Classroom Feedback and Student Participation",
     "Feedback Clarity and Self Regulated Learning among First Year Students",
+    "Peer Feedback Practices and Learning Engagement",
   ],
   BSN: [
     "Clinical Instructor Support and Learning Confidence among Nursing Students",
     "Clinical Learning Opportunities and Student Coping Practices",
+    "Learning Support and Perceived Stress during Clinical Preparation",
   ],
   BSA: [
     "Spreadsheet Bookkeeping Practices among Neighborhood Retailers",
     "Record Organization and Reconciliation Practices among Small Retail Enterprises",
+    "Digital Record Keeping Readiness among Community Microenterprises",
   ],
   BSTM: [
     "Visitor Wayfinding and Information Services at Community Heritage Sites",
     "Service Responsiveness and Visitor Experience at Local Heritage Attractions",
+    "Accessible Visitor Information and Heritage Tourism Participation",
   ],
   BSCE: [
-    "Roadside Inlet Condition Assessment for a Residential Drainage Improvement Concept",
+    "Roadside Inlet Condition Assessment for a Residential Drainage Concept",
     "Preliminary Outfall and Surface Runoff Assessment for a Neighborhood Street",
+    "Community Drainage Maintenance and Ponding Observation Plan",
   ],
   BSARCH: [
     "A Shaded Neighborhood Reading Pavilion for Community Learning",
     "An Adaptable Community Study Center with Passive Cooling Strategies",
+    "Accessible Circulation for a Community Learning Hub",
+  ],
+  BSPSYCH: [
+    "Study Scheduling and Learning Persistence among College Students",
+    "Peer Study Support and Academic Engagement",
+    "Learning Environment Preferences and Undergraduate Study Practices",
+  ],
+  "BSBA-MM": [
+    "Social Media Channel Use among Neighborhood Microenterprises",
+    "Customer Response Practices and Digital Marketing Readiness",
+    "Content Planning Practices among Community Retail Enterprises",
   ],
 };
-export async function manuscript(course: ManuscriptCourse, version: number) {
-  const pdf = await PDFDocument.create();
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const sections = [
-    [
-      "Research proposal",
-      course.title,
-      `Research type: ${course.type}`,
-      `Researchers: ${course.researchers.join(", ")}`,
-      `Adviser: ${course.adviser}`,
-      "Purpose",
-      course.objective,
-      "Scope",
-      ...course.details,
-    ],
-    [
-      "Proposed method and review record",
-      course.method,
-      "Review note",
-      course.feedback,
-      "Revision response",
-      version === 3
-        ? course.revision
-        : "The review points remain open for the next manuscript revision.",
-      "Planned outputs",
-      ...course.details.map((text, i) => `${i + 1}. ${text}`),
-    ],
-    [
-      "Research preparation checklist",
-      "Confirm the research questions, eligibility criteria or design inputs, and adviser recommendations.",
-      course.revision,
-      "Document review history",
-      "Version 1: Initial scope and method submitted.",
-      "Version 2: Scope clarified; adviser requests further detail.",
-      ...(version === 3
-        ? ["Version 3: Prepared revision addresses the recorded review points."]
-        : []),
-      "Evaluation disclosure",
-      "These fictional research records were prepared for the ADVISIO evaluation. No actual participants, empirical findings, patient records, financial accounts, or verified engineering design values are represented.",
-    ],
-  ];
-  for (const lines of sections) {
-    const page = pdf.addPage([595, 842]);
-    let y = 790;
-    page.drawText(`${course.label} | Manuscript v${version}`, {
-      x: 48,
-      y,
-      size: 10,
-      font,
-      color: rgb(0.3, 0.35, 0.4),
-    });
-    y -= 34;
-    for (let i = 0; i < lines.length; i++) {
-      const text = lines[i];
-      const size = i === 0 ? 17 : 11;
-      const face = i === 0 ? bold : font;
-      const words = text.split(/\s+/);
-      let row = "";
-      for (const word of words) {
-        if (face.widthOfTextAtSize(`${row} ${word}`, size) > 495 && row) {
-          page.drawText(row, { x: 48, y, size, font: face });
-          y -= 17;
-          row = word;
-        } else row += `${row ? " " : ""}${word}`;
-      }
-      if (row) page.drawText(row, { x: 48, y, size, font: face });
-      y -= 30;
-    }
-    page.drawText("ADVISIO | Evaluation environment", {
-      x: 48,
-      y: 30,
-      size: 9,
-      font,
-    });
+export type WorkspaceAccounts = Record<
+  EvaluationRole,
+  {
+    userId: string;
+    projectId: string;
+    title: string;
+    defenseId: string | null;
+    projectIds: string[];
   }
-  return Buffer.from(await pdf.save());
-}
+>;
 
 export async function seedWorkspace(
   db: PrismaClient,
@@ -154,51 +115,32 @@ export async function seedWorkspace(
       isCurrent: true,
     },
   });
-  const users: Record<string, string> = {};
-  const names = {
-    student: course.researchers[0],
-    adviser: course.adviser,
-    professor: "Paolo Villanueva",
-    panelist: "Marisol Cruz",
-    dean: "Aurelia Mendoza",
-  };
-  for (const definition of EVALUATION_ROLES) {
-    const [firstName, ...rest] = names[definition.id].split(" ");
-    const role = await db.role.findUniqueOrThrow({
-      where: { name: definition.institutionalRole },
-    });
+  const roles = await db.role.findMany();
+  async function person(
+    key: string,
+    name: string,
+    roleName: InstitutionalRole,
+  ) {
+    const [firstName, ...rest] = name.split(" ");
     const user = await db.user.create({
       data: {
-        universityId: `AY26-${definition.id.toUpperCase()}`,
-        email: `${definition.id}@evaluation.invalid`,
+        universityId: `AY26-${key.toUpperCase()}`,
+        email: `${key}@evaluation.invalid`,
         firstName,
         lastName: rest.join(" "),
         passwordHash: randomBytes(48).toString("hex"),
         status: "ACTIVE",
         collegeId: college.id,
         programId: program.id,
-        roles: { create: { roleId: role.id } },
+        roles: {
+          create: { roleId: roles.find((r) => r.name === roleName)!.id },
+        },
         collegeMemberships: {
-          create: {
-            collegeId: college.id,
-            roleNames: [definition.institutionalRole],
-          },
+          create: { collegeId: college.id, roleNames: [roleName] },
         },
       },
     });
-    users[definition.id] = user.id;
-    if (definition.id !== "student")
-      await db.facultyProfile.create({
-        data: {
-          userId: user.id,
-          academicTitle: "Faculty Member",
-          facultyDesignation: definition.label,
-          department: college.name,
-          expertiseKeywords: [course.type],
-          researchInterests: [course.label],
-        },
-      });
-    else
+    if (roleName === "RESEARCHER")
       await db.researcherProfile.create({
         data: {
           userId: user.id,
@@ -214,38 +156,50 @@ export async function seedWorkspace(
           submittedAt: day(-30),
         },
       });
-  }
-  const roster = [users.student];
-  for (const [i, name] of course.researchers.slice(1).entries()) {
-    const [firstName, ...last] = name.split(" ");
-    const role = await db.role.findUniqueOrThrow({
-      where: { name: "RESEARCHER" },
-    });
-    const u = await db.user.create({
-      data: {
-        universityId: `AY26-R0${i + 2}`,
-        email: `researcher${i + 2}@evaluation.invalid`,
-        firstName,
-        lastName: last.join(" "),
-        passwordHash: randomBytes(48).toString("hex"),
-        status: "ACTIVE",
-        collegeId: college.id,
-        programId: program.id,
-        roles: { create: { roleId: role.id } },
-        collegeMemberships: {
-          create: { collegeId: college.id, roleNames: ["RESEARCHER"] },
+    else
+      await db.facultyProfile.create({
+        data: {
+          userId: user.id,
+          academicTitle: "Faculty Member",
+          facultyDesignation: roleName,
+          department: college.name,
+          expertiseKeywords: [course.type],
+          researchInterests: [course.label],
         },
-      },
-    });
-    roster.push(u.id);
+      });
+    return user.id;
   }
+  const names = {
+    student: course.researchers[0],
+    adviser: course.adviser,
+    professor: "Paolo Villanueva",
+    panelist: "Marisol Cruz",
+    dean: "Aurelia Mendoza",
+  };
+  const users = {} as Record<EvaluationRole, string>;
+  for (const role of EVALUATION_ROLES)
+    users[role.id] = await person(
+      role.id,
+      names[role.id],
+      role.institutionalRole,
+    );
+  const otherAdviser = await person(
+    "other-adviser",
+    "Celina Navarro",
+    "ADVISER",
+  );
+  const otherPanelist = await person(
+    "historical-panelist",
+    "Victor Santos",
+    "PANELIST",
+  );
   const researchType = await db.researchType.create({
     data: { programId: program.id, code: "AY26-PROPOSAL", name: course.type },
   });
   const workflow = await db.workflow.create({
     data: {
       researchTypeId: researchType.id,
-      name: `${course.label} Research Preparation`,
+      name: `${course.label} Research Workflow`,
       description: course.method,
       status: "PUBLISHED",
       version: 1,
@@ -257,114 +211,104 @@ export async function seedWorkspace(
     where: { id: researchType.id },
     data: { workflowId: workflow.id },
   });
-  await db.workflowEnrollment.createMany({
-    data: roster.map((userId) => ({ workflowId: workflow.id, userId })),
-  });
   const stages: { id: string }[] = [];
-  const tasks: { id: string }[] = [];
-  const stageTitles = [
-    "Topic and scope preparation",
-    course.stage,
-    "Proposal defense",
-    "Research preparation clearance",
-  ];
-  for (const [i, title] of stageTitles.entries()) {
+  const tasks: Array<{ id: string } | null> = [];
+  for (const [i, name] of DEFAULT_MILESTONES.entries()) {
+    const special = i === 0 || i === 1;
     const responsible: InstitutionalRole =
-      i === 2 ? "PANELIST" : i === 3 ? "DEAN" : "RESEARCHER";
-    const role = await db.role.findUniqueOrThrow({
-      where: { name: responsible },
-    });
+      i === 4 || i === 9 ? "PANELIST" : "RESEARCHER";
     const stage = await db.workflowStage.create({
       data: {
         workflowId: workflow.id,
-        name: title,
+        name,
         sequence: i + 1,
-        responsibleRoleId: role.id,
-        requiresDocument: true,
+        responsibleRoleId: roles.find((r) => r.name === responsible)!.id,
+        milestoneType:
+          i === 0
+            ? "TITLE_PROPOSAL"
+            : i === 1
+              ? "ADVISER_SELECTION"
+              : i === 3 || i === 8
+                ? "DEFENSE_ELIGIBILITY"
+                : "STANDARD",
+        requiredMilestoneId: stages[i - 1]?.id,
+        requiresDocument: !special,
         requiresApproval: true,
         submissionMode: "TASK",
-        isFinal: i === 3,
+        isFinal: i === 9,
         deadlineDays: 3,
-        targetCompletionDate: day(i === 0 ? -7 : 3 + i),
+        targetCompletionDate: day(i < 2 ? -14 + i * 3 : 3 + (i - 2) * 7),
       },
     });
     stages.push(stage);
     tasks.push(
-      await db.workflowTask.create({
-        data: {
-          stageId: stage.id,
-          title: i === 1 ? "Revised research proposal" : title,
-          instructions: i === 1 ? course.revision : course.objective,
-          sequence: 1,
-          dueDays: 3,
-          allowedFileTypes: "PDF",
-          isRequired: true,
-        },
-      }),
+      special
+        ? null
+        : await db.workflowTask.create({
+            data: {
+              stageId: stage.id,
+              title: i === 2 ? "Revised research proposal" : name,
+              instructions:
+                i === 2
+                  ? course.revision
+                  : `Submit the ${name.toLowerCase()} record for review. Fictional evaluation sample.`,
+              sequence: 1,
+              dueDays: 3,
+              allowedFileTypes: "PDF",
+              isRequired: true,
+            },
+          }),
     );
   }
-  const projectCount =
-    selectedRole === "professor" || selectedRole === "dean" ? 3 : 1;
-  let primaryProject = "";
-  let primaryDefense = "";
-  for (let n = 0; n < projectCount; n++) {
-    const researcherNames =
-      n === 0
+  const projects = {} as Record<Scenario, string>;
+  const projectTitles = {} as Record<Scenario, string>;
+  const defenses: Partial<Record<Scenario, string>> = {};
+  for (const [scenario, definition] of Object.entries(
+    PROJECT_SCENARIOS,
+  ) as Array<[Scenario, (typeof PROJECT_SCENARIOS)[Scenario]]>) {
+    const n = scenario.charCodeAt(0) - 65;
+    const researcherNames: readonly string[] =
+      scenario === "B"
         ? course.researchers
-        : (n === 1
-            ? ["Elise Pangan", "Noel Santiago", "Trisha Mendoza"]
-            : ["Rafael Bautista", "Angela Dizon", "Luis Ramos"]
-          ).slice(0, course.researchers.length);
-    const projectRoster = n === 0 ? [...roster] : ([] as string[]);
-    if (n > 0) {
-      const role = await db.role.findUniqueOrThrow({
-        where: { name: "RESEARCHER" },
-      });
-      for (const [index, name] of researcherNames.entries()) {
-        const [firstName, ...last] = name.split(" ");
-        const person = await db.user.create({
-          data: {
-            universityId: `AY26-G${n + 1}-R${index + 1}`,
-            email: `group${n + 1}.researcher${index + 1}@evaluation.invalid`,
-            firstName,
-            lastName: last.join(" "),
-            passwordHash: randomBytes(48).toString("hex"),
-            status: "ACTIVE",
-            collegeId: college.id,
-            programId: program.id,
-            roles: { create: { roleId: role.id } },
-            collegeMemberships: {
-              create: { collegeId: college.id, roleNames: ["RESEARCHER"] },
-            },
-          },
-        });
-        projectRoster.push(person.id);
-      }
+        : [
+            ["Elise Pangan", "Noel Santiago", "Trisha Mendoza"],
+            [],
+            ["Rafael Bautista", "Angela Dizon", "Luis Ramos"],
+            ["Sofia Aquino", "Adrian Lopez", "Bea Mercado"],
+          ][n].slice(0, course.researchers.length);
+    const roster: string[] = [];
+    for (const [i, name] of researcherNames.entries())
+      roster.push(
+        scenario === "B" && i === 0
+          ? users.student
+          : await person(
+              `group-${scenario.toLowerCase()}-${i + 1}`,
+              name,
+              "RESEARCHER",
+            ),
+      );
+    // Historical panel material is outside the active coordinator class.
+    if (scenario !== "D")
       await db.workflowEnrollment.createMany({
-        data: projectRoster.map((userId) => ({
-          workflowId: workflow.id,
-          userId,
-        })),
+        data: roster.map((userId) => ({ workflowId: workflow.id, userId })),
       });
-    }
-    const projectOwner = projectRoster[0];
     const projectCourse: ManuscriptCourse = {
       ...course,
       researchers: researcherNames,
-      title: n === 0 ? course.title : companionTitles[course.id][n - 1],
+      title:
+        scenario === "B"
+          ? course.title
+          : companionTitles[course.id][
+              scenario === "A" ? 0 : scenario === "C" ? 1 : 2
+            ],
+      adviser:
+        scenario === "A" || scenario === "B"
+          ? course.adviser
+          : "Celina Navarro",
     };
-    const panel = selectedRole === "panelist";
-    const reviewReady =
-      selectedRole === "adviser" ||
-      selectedRole === "dean" ||
-      selectedRole === "professor";
-    const currentStage = panel ? 2 : n === 2 ? 0 : 1;
-    const manuscriptStage = n === 2 ? 0 : 1;
-    const lifecycle = panel
-      ? "APPROVED"
-      : reviewReady
-        ? "IN_REVIEW"
-        : "REVISION_REQUIRED";
+    const owner = roster[0];
+    const adviserId =
+      scenario === "A" || scenario === "B" ? users.adviser : otherAdviser;
     const project = await db.researchProject.create({
       data: {
         researchTypeId: researchType.id,
@@ -372,31 +316,31 @@ export async function seedWorkspace(
         collegeId: college.id,
         academicYearId: year.id,
         title: projectCourse.title,
-        groupName:
-          n === 0
-            ? "Research Group A"
-            : `Research Group ${String.fromCharCode(65 + n)}`,
+        groupName: `Research Group ${scenario}`,
         participationMode: course.researchers.length > 1 ? "GROUP" : "SOLO",
         accessMode: "INVITE_ONLY",
         abstract: course.objective,
-        status: panel
-          ? "DEFENSE"
-          : n === 2
-            ? "DRAFT"
-            : reviewReady
+        status:
+          scenario === "B"
+            ? "REVISION"
+            : scenario === "A"
               ? "UNDER_REVIEW"
-              : "REVISION",
-        createdBy: projectOwner,
+              : scenario === "C"
+                ? "DEFENSE"
+                : "APPROVED",
+        createdBy: owner,
+        registeredAt: day(-28),
       },
     });
-    if (!n) primaryProject = project.id;
+    projects[scenario] = project.id;
+    projectTitles[scenario] = projectCourse.title;
     const instance = await db.workflowInstance.create({
       data: {
         researchId: project.id,
         workflowId: workflow.id,
         workflowVersion: 1,
-        currentStageId: stages[currentStage].id,
-        startedAt: day(-14),
+        currentStageId: stages[definition.current - 1].id,
+        startedAt: day(-28),
       },
     });
     await db.researchProject.update({
@@ -405,395 +349,515 @@ export async function seedWorkspace(
     });
     await db.researchMember.createMany({
       data: [
-        ...projectRoster.map((userId, i) => ({
+        ...roster.map((userId, i) => ({
           researchId: project.id,
           userId,
-          projectRole: (i === 0 ? "LEADER" : "MEMBER") as "LEADER" | "MEMBER",
+          projectRole: i === 0 ? ("LEADER" as const) : ("MEMBER" as const),
         })),
-        {
-          researchId: project.id,
-          userId: users.adviser,
-          projectRole: "ADVISER",
-        },
-        {
-          researchId: project.id,
-          userId: users.professor,
-          projectRole: "COORDINATOR",
-        },
-        {
-          researchId: project.id,
-          userId: users.panelist,
-          projectRole: "PANELIST",
-        },
+        { researchId: project.id, userId: adviserId, projectRole: "ADVISER" },
+        ...(scenario !== "D"
+          ? [
+              {
+                researchId: project.id,
+                userId: users.professor,
+                projectRole: "COORDINATOR" as const,
+              },
+            ]
+          : []),
+        ...(scenario === "C" || scenario === "D"
+          ? [
+              {
+                researchId: project.id,
+                userId: users.panelist,
+                projectRole: "PANELIST" as const,
+              },
+            ]
+          : []),
       ],
     });
-    await db.workflowTransition.create({
+    await db.titleProposalSubmission.create({
       data: {
-        workflowInstanceId: instance.id,
-        fromStageId: stages[0].id,
-        toStageId: stages[currentStage].id,
-        performedBy: users.professor,
-        remarks: "Scope reviewed; project ready for the next milestone.",
-        createdAt: day(-7),
+        researchId: project.id,
+        stageId: stages[0].id,
+        titles: [projectCourse.title],
+        status: "APPROVED",
+        selectedIndex: 0,
+        submittedBy: owner,
+        reviewedBy: users.professor,
+        reviewNote: "Fictional title approved for proposal preparation.",
+        submittedAt: day(-27),
+        reviewedAt: day(-26),
       },
     });
     await db.adviserRequest.create({
       data: {
         researchId: project.id,
-        adviserId: users.adviser,
-        requestedById: projectOwner,
+        workflowStageId: stages[1].id,
+        adviserId,
+        requestedById: owner,
         status: "ACCEPTED",
         note: "Please review the proposed scope and method.",
-        respondedAt: day(-14),
+        respondedAt: day(-24),
       },
     });
-    const document = await db.document.create({
-      data: {
-        researchId: project.id,
-        milestoneId: stages[manuscriptStage].id,
-        documentType: `TASK_${tasks[manuscriptStage].id}`,
-        title: "Research proposal",
-        currentVersion: 2,
-        storageProvider: "LOCAL",
-        lifecycleStatus: lifecycle,
-        createdBy: projectOwner,
-      },
-    });
-    const versions = [];
-    for (const version of [1, 2]) {
-      const buffer = await manuscript(projectCourse, version);
-      const fileName = `${course.short}_Proposal_v${version}.pdf`;
-      const file = path.join(storageRoot, `${project.id}-${fileName}`);
-      await fs.writeFile(file, buffer, { flag: "wx" });
-      versions.push(
-        await db.documentVersion.create({
-          data: {
-            documentId: document.id,
-            versionNumber: version,
-            fileName,
-            mimeType: "application/pdf",
-            fileSize: BigInt(buffer.length),
-            storagePath: file,
-            uploadedBy: projectOwner,
-            status: version === 2 ? "ACTIVE" : "SUPERSEDED",
-            manuscriptStatus: version === 2 ? lifecycle : "REVISION_REQUIRED",
-            isImmutable: true,
-            contentChecksum: createHash("sha256").update(buffer).digest("hex"),
-            submittedBy: projectOwner,
-            submittedAt: day(version === 1 ? -7 : -1),
-            milestoneId: stages[manuscriptStage].id,
-          },
-        }),
-      );
-    }
-    const latest = versions[1];
-    const submissionStatus = panel
-      ? "APPROVED"
-      : reviewReady
-        ? "SUBMITTED"
-        : "REVISION_REQUIRED";
-    if (currentStage > 0) {
-      const scope = await db.document.create({
+    for (let i = 1; i < definition.current; i++)
+      await db.workflowTransition.create({
+        data: {
+          workflowInstanceId: instance.id,
+          fromStageId: stages[i - 1].id,
+          toStageId: stages[i].id,
+          performedBy: users.professor,
+          remarks: `${DEFAULT_MILESTONES[i - 1]} completed. Fictional evaluation history.`,
+          createdAt: day(-25 + i * 3),
+        },
+      });
+    async function document(
+      stageIndex: number,
+      lifecycle: ManuscriptLifecycleStatus,
+      versions: number[],
+      title = DEFAULT_MILESTONES[stageIndex] as string,
+    ) {
+      const task = tasks[stageIndex]!;
+      const doc = await db.document.create({
         data: {
           researchId: project.id,
-          milestoneId: stages[0].id,
-          documentType: `TASK_${tasks[0].id}`,
-          title: "Research scope and initial proposal",
-          currentVersion: 1,
+          milestoneId: stages[stageIndex].id,
+          documentType: `TASK_${task.id}`,
+          title,
+          currentVersion: versions.length,
           storageProvider: "LOCAL",
-          lifecycleStatus: "APPROVED",
-          createdBy: projectOwner,
+          lifecycleStatus: lifecycle,
+          createdBy: owner,
         },
       });
-      const scopeBuffer = await manuscript(projectCourse, 1);
-      const scopePath = path.join(
-        storageRoot,
-        `${project.id}-Scope_Proposal_v1.pdf`,
-      );
-      await fs.writeFile(scopePath, scopeBuffer, { flag: "wx" });
-      const scopeVersion = await db.documentVersion.create({
-        data: {
-          documentId: scope.id,
-          versionNumber: 1,
-          fileName: "Scope_Proposal_v1.pdf",
-          mimeType: "application/pdf",
-          fileSize: BigInt(scopeBuffer.length),
-          storagePath: scopePath,
-          uploadedBy: projectOwner,
-          status: "ACTIVE",
-          manuscriptStatus: "APPROVED",
-          isImmutable: true,
-          contentChecksum: createHash("sha256")
-            .update(scopeBuffer)
-            .digest("hex"),
-          submittedBy: projectOwner,
-          submittedAt: day(-7),
-          milestoneId: stages[0].id,
-        },
-      });
-      await db.taskSubmission.create({
+      const saved = [];
+      for (const [index, version] of versions.entries()) {
+        const buffer = await manuscript(projectCourse, version);
+        const fileName = `${course.short}_${scenario}_M${stageIndex + 1}_v${version}.pdf`;
+        const file = path.join(storageRoot, fileName);
+        await fs.writeFile(file, buffer, { flag: "wx" });
+        const last = index === versions.length - 1;
+        saved.push(
+          await db.documentVersion.create({
+            data: {
+              documentId: doc.id,
+              versionNumber: index + 1,
+              fileName,
+              mimeType: "application/pdf",
+              fileSize: BigInt(buffer.length),
+              storagePath: file,
+              uploadedBy: owner,
+              status: last ? "ACTIVE" : "SUPERSEDED",
+              manuscriptStatus: last ? lifecycle : "REVISION_REQUIRED",
+              isImmutable: true,
+              contentChecksum: hash(buffer),
+              submittedBy: owner,
+              submittedAt: day(last ? -1 : -7),
+              milestoneId: stages[stageIndex].id,
+            },
+          }),
+        );
+      }
+      const latest = saved[saved.length - 1];
+      const status =
+        lifecycle === "APPROVED"
+          ? "APPROVED"
+          : lifecycle === "REVISION_REQUIRED"
+            ? "REVISION_REQUIRED"
+            : "UNDER_REVIEW";
+      const summary = await db.taskSubmission.create({
         data: {
           researchId: project.id,
-          taskId: tasks[0].id,
-          documentId: scope.id,
-          documentVersionId: scopeVersion.id,
-          submittedBy: projectOwner,
-          status: "APPROVED",
-          submittedAt: day(-7),
-          reviewedAt: day(-6),
-          reviewNote: "The scope is appropriate for proposal preparation.",
+          taskId: task.id,
+          documentId: doc.id,
+          documentVersionId: latest.id,
+          submittedBy: owner,
+          status,
+          note: "Fictional evaluation submission.",
+          reviewNote:
+            lifecycle === "REVISION_REQUIRED"
+              ? course.feedback
+              : lifecycle === "APPROVED"
+                ? "Approved for the next milestone."
+                : null,
+          submittedAt: day(-1),
+          reviewedAt: lifecycle === "IN_REVIEW" ? null : day(-1),
         },
       });
+      await db.taskSubmissionAttempt.createMany({
+        data: saved.map((v, i) => ({
+          taskSubmissionId: summary.id,
+          researchId: project.id,
+          taskId: task.id,
+          milestoneId: stages[stageIndex].id,
+          documentId: doc.id,
+          documentVersionId: v.id,
+          attemptNumber: i + 1,
+          submittedBy: owner,
+          status: i === saved.length - 1 ? status : "REVISION_REQUIRED",
+          submittedAt: day(i === saved.length - 1 ? -1 : -7),
+          reviewNote:
+            i === saved.length - 1 && lifecycle === "IN_REVIEW"
+              ? null
+              : course.feedback,
+        })),
+      });
+      return { doc, saved, latest };
     }
-    const submission = await db.taskSubmission.create({
+    for (let i = 2; i < definition.current - 1; i++) {
+      if ((scenario === "C" || scenario === "D") && i === 3) continue;
+      await document(i, "APPROVED", [2]);
+    }
+    const manuscriptStage = scenario === "B" ? 2 : 3;
+    const current = await document(
+      manuscriptStage,
+      definition.lifecycle,
+      [1, 2],
+    );
+    const review = await db.review.create({
       data: {
-        researchId: project.id,
-        taskId: tasks[manuscriptStage].id,
-        documentId: document.id,
-        documentVersionId: latest.id,
-        submittedBy: projectOwner,
-        status: submissionStatus,
-        note: "The current proposal is ready for review.",
-        reviewNote: course.feedback,
-        submittedAt: day(-1),
-      },
-    });
-    await db.taskSubmissionAttempt.createMany({
-      data: versions.map((v, i) => ({
-        taskSubmissionId: submission.id,
-        researchId: project.id,
-        taskId: tasks[manuscriptStage].id,
-        milestoneId: stages[manuscriptStage].id,
-        documentId: document.id,
-        documentVersionId: v.id,
-        attemptNumber: i + 1,
-        submittedBy: projectOwner,
-        status: i === 0 ? "REVISION_REQUIRED" : submissionStatus,
-        reviewNote: course.feedback,
-        submittedAt: day(i === 0 ? -7 : -1),
-      })),
-    });
-    const previous = await db.review.create({
-      data: {
-        documentVersionId: versions[0].id,
-        documentId: document.id,
-        reviewerId: users.adviser,
+        documentVersionId: current.saved[0].id,
+        documentId: current.doc.id,
+        reviewerId: adviserId,
         reviewType: "ADVISER",
         overallComment: course.feedback,
         recommendation: "MINOR_REVISION",
         status: "SUBMITTED",
-        submittedAt: day(-2),
+        submittedAt: day(-6),
       },
     });
-    for (const [i, comment] of [
-      course.feedback,
-      "Align the stated objectives with the proposed outputs.",
-      "Keep the document headings and version labels consistent.",
-    ].entries())
-      await db.reviewComment.create({
+    await db.reviewComment.createMany({
+      data: [
+        course.feedback,
+        "Align the objectives with the planned outputs.",
+        "Keep headings and version labels consistent.",
+      ].map((comment, i) => ({
+        reviewId: review.id,
+        documentVersionId: current.saved[0].id,
+        authorId: adviserId,
+        comment,
+        status: i === 2 ? "RESOLVED" : "OPEN",
+        resolvedAt: i === 2 ? day(-1) : null,
+        locationData: { page: i + 2 },
+      })),
+    });
+    async function assign(
+      reviewerId: string,
+      reviewType: ReviewType,
+      version = current.latest,
+      completed = false,
+    ) {
+      const assignment = await db.reviewerAssignment.create({
         data: {
-          reviewId: previous.id,
-          documentVersionId: versions[0].id,
-          authorId: users.adviser,
-          comment,
-          status: i === 2 ? "RESOLVED" : "OPEN",
-          resolvedAt: i === 2 ? day(-1) : null,
-          locationData: { page: i + 1 },
+          researchId: project.id,
+          documentId: version.documentId,
+          documentVersionId: version.id,
+          reviewerId,
+          reviewType,
+          assignedById: users.professor,
+          status: completed ? "COMPLETED" : "ACTIVE",
+          completedAt: completed ? day(-1) : null,
         },
       });
-    const reviewerId =
-      selectedRole === "dean"
-        ? users.dean
-        : selectedRole === "professor"
-          ? users.professor
-          : users.adviser;
-    const assignment = await db.reviewerAssignment.create({
-      data: {
-        researchId: project.id,
-        documentId: document.id,
-        documentVersionId: latest.id,
-        reviewerId,
-        reviewType:
-          selectedRole === "dean"
-            ? "DEAN"
-            : selectedRole === "professor"
-              ? "COORDINATOR"
-              : "ADVISER",
-        assignedById: users.professor,
-        status: panel ? "COMPLETED" : "ACTIVE",
-        completedAt: panel ? day(-1) : null,
-      },
-    });
-    await db.reviewerAssignmentEvent.create({
-      data: {
-        assignmentId: assignment.id,
-        action: "ASSIGNED",
-        actorId: users.professor,
-      },
-    });
+      await db.reviewerAssignmentEvent.create({
+        data: {
+          assignmentId: assignment.id,
+          action: "ASSIGNED",
+          actorId: users.professor,
+        },
+      });
+    }
+    if (scenario === "A") {
+      await assign(users.adviser, "ADVISER");
+      await assign(users.professor, "COORDINATOR");
+    } else if (scenario === "B") {
+      await assign(users.adviser, "ADVISER", current.latest, true);
+      await db.review.create({
+        data: {
+          documentId: current.doc.id,
+          documentVersionId: current.latest.id,
+          reviewerId: adviserId,
+          reviewType: "ADVISER",
+          overallComment: course.feedback,
+          recommendation: "MINOR_REVISION",
+          status: "SUBMITTED",
+          submittedAt: day(-1),
+        },
+      });
+    }
     await db.manuscriptStatusEvent.create({
       data: {
-        documentId: document.id,
-        versionId: latest.id,
+        documentId: current.doc.id,
+        versionId: current.latest.id,
         fromStatus: "SUBMITTED",
-        toStatus: lifecycle,
-        actorId: users.adviser,
-        reason: panel ? "Approved for proposal defense." : course.feedback,
+        toStatus: definition.lifecycle,
+        actorId: adviserId,
+        reason:
+          definition.lifecycle === "APPROVED"
+            ? "Approved for title defense."
+            : course.feedback,
       },
     });
-    const consultation = await db.consultation.create({
-      data: {
-        researchId: project.id,
-        createdBy: projectOwner,
-        title: "Proposal revision consultation",
-        description: course.feedback,
-        scheduledStart: day(2),
-        scheduledEnd: day(2 + 1 / 24),
-        status: selectedRole === "adviser" ? "REQUESTED" : "SCHEDULED",
-      },
-    });
-    await db.consultationParticipant.createMany({
-      data: [...projectRoster, users.adviser].map((userId) => ({
-        consultationId: consultation.id,
-        userId,
-        attendanceStatus: "ACCEPTED",
-      })),
-    });
-    const previousConsultation = await db.consultation.create({
-      data: {
-        researchId: project.id,
-        createdBy: projectOwner,
-        title: "Research scope and method discussion",
-        description:
-          "Review of objectives, sources, and preparation for the next proposal revision.",
-        scheduledStart: day(-5),
-        scheduledEnd: day(-5 + 1 / 24),
-        status: "COMPLETED",
-        notes: {
-          create: {
-            authorId: users.adviser,
-            notes: `${course.feedback} The group agreed to organize the supporting literature and check the revised objectives before the next consultation.`,
-            actionItems: [
-              course.revision,
-              "Update the literature review matrix.",
-              "Bring the revised proposal to the next consultation.",
-            ],
-            createdAt: day(-5),
+    if (scenario === "A" || scenario === "B") {
+      for (const state of [
+        "COMPLETED",
+        scenario === "A" ? "REQUESTED" : "SCHEDULED",
+      ] as const) {
+        const completed = state === "COMPLETED";
+        const start = completed ? -5 : 2;
+        const consultation = await db.consultation.create({
+          data: {
+            researchId: project.id,
+            createdBy: owner,
+            title: completed
+              ? "Research scope and method discussion"
+              : "Proposal revision consultation",
+            description: course.feedback,
+            scheduledStart: day(start),
+            scheduledEnd: day(start + 1 / 24),
+            status: state,
+            ...(completed
+              ? {
+                  notes: {
+                    create: {
+                      authorId: adviserId,
+                      notes: `${course.feedback} Fictional consultation record.`,
+                      actionItems: [
+                        course.revision,
+                        "Update the literature review matrix.",
+                        "Bring the revised proposal to the next consultation.",
+                      ],
+                      createdAt: day(-5),
+                    },
+                  },
+                }
+              : {}),
           },
+        });
+        await db.consultationParticipant.createMany({
+          data: [...roster, adviserId].map((userId) => ({
+            consultationId: consultation.id,
+            userId,
+            attendanceStatus: completed ? "LEFT" : "ACCEPTED",
+            joinedAt: completed ? day(-5) : null,
+            leftAt: completed ? day(-5 + 1 / 24) : null,
+          })),
+        });
+      }
+    }
+    if (scenario === "C" || scenario === "D") {
+      const completed = scenario === "D";
+      const eligibility = await db.defenseEligibility.create({
+        data: {
+          researchId: project.id,
+          milestoneId: stages[3].id,
+          approvedBy: users.professor,
+          approvedAt: day(-8),
+          consumedAt: completed ? day(-3) : null,
         },
-      },
-    });
-    await db.consultationParticipant.createMany({
-      data: [...projectRoster, users.adviser].map((userId) => ({
-        consultationId: previousConsultation.id,
-        userId,
-        attendanceStatus: "LEFT",
-        joinedAt: day(-5),
-        leftAt: day(-5 + 1 / 24),
-      })),
-    });
-    if (panel) {
+      });
       const defense = await db.defenseSession.create({
         data: {
           researchId: project.id,
-          status: "LIVE",
-          queueStatus: "IN_PROGRESS",
-          venue: "Research Presentation Room",
-          scheduledStart: day(0),
-          scheduledEnd: day(1 / 24),
+          eligibilityId: eligibility.id,
+          status: completed ? "COMPLETED" : "SCHEDULED",
+          queueStatus: completed ? "COMPLETED" : "WAITING",
+          venue: `${course.collegeCode} Research Presentation Room`,
+          scheduledStart: day(completed ? -3 : 1),
+          scheduledEnd: day((completed ? -3 : 1) + 1 / 24),
           createdBy: users.professor,
-          startedAt: day(-1 / 24),
-          startedBy: users.professor,
+          preparedAt: day(-1),
+          ...(completed
+            ? {
+                startedAt: day(-3),
+                startedBy: users.professor,
+                endedAt: day(-3 + 1 / 24),
+                releasedAt: day(-2),
+                releasedBy: users.professor,
+                decision: "APPROVED",
+                notes:
+                  "Fictional completed title defense. Panel recommendations are available in the published evaluation history.",
+              }
+            : {}),
         },
       });
-      primaryDefense = defense.id;
-      await db.defenseInvitation.create({
-        data: {
-          defenseSessionId: defense.id,
-          inviteeId: users.panelist,
-          role: "PANEL_CHAIR",
-          status: "ACCEPTED",
-          respondedAt: day(-1),
-        },
+      defenses[scenario] = defense.id;
+      await db.defenseInvitation.createMany({
+        data: [
+          {
+            defenseSessionId: defense.id,
+            inviteeId: users.panelist,
+            role: "PANEL_CHAIR",
+            status: "ACCEPTED",
+            respondedAt: day(-4),
+          },
+          ...(completed
+            ? [
+                {
+                  defenseSessionId: defense.id,
+                  inviteeId: otherPanelist,
+                  role: "PANELIST" as const,
+                  status: "ACCEPTED" as const,
+                  respondedAt: day(-4),
+                },
+              ]
+            : []),
+        ],
       });
-      const structuredForm = {
-        name: `${course.label} Proposal Evaluation`,
-        branding: {
-          schoolName: "University of the Assumption",
-          schoolAddress: "City of San Fernando, Pampanga",
-          collegeName: course.college,
-          templateName: "Proposal Evaluation (Evaluation environment)",
-          schoolLogo: "",
-          collegeLogo: "",
+      const snapshot: FormSnapshot = {
+        spec: {
+          name: `${course.label} Title Defense Evaluation`,
+          branding: {
+            schoolName: "University of the Assumption",
+            schoolAddress: "City of San Fernando, Pampanga",
+            collegeName: course.college,
+            templateName: "Fictional Evaluation Sample",
+            schoolLogo: "",
+            collegeLogo: "",
+          },
+          scale: [
+            { value: 1, label: "Needs improvement" },
+            { value: 2, label: "Developing" },
+            { value: 3, label: "Proficient" },
+            { value: 4, label: "Excellent" },
+          ],
+          presentation: [
+            {
+              id: "clarity",
+              title: "Clarity of presentation",
+              description: "Communicates the proposal clearly.",
+              weight: 50,
+            },
+            {
+              id: "response",
+              title: "Response to questions",
+              description: "Explains the proposed decisions.",
+              weight: 50,
+            },
+          ],
+          manuscript: [
+            {
+              id: "scope",
+              title: "Research scope and objectives",
+              description: course.objective,
+              weight: 40,
+            },
+            {
+              id: "method",
+              title: "Appropriateness of proposed method",
+              description: course.method,
+              weight: 40,
+            },
+            {
+              id: "organization",
+              title: "Organization and consistency",
+              description: "Organizes the manuscript clearly.",
+              weight: 20,
+            },
+          ],
+          feedbackLabel: "Recommendations",
+          feedbackPrompt:
+            "Record the revisions needed for this fictional proposal.",
+          signatureRequired: false,
         },
-        scale: [
-          { value: 1, label: "Needs improvement" },
-          { value: 2, label: "Developing" },
-          { value: 3, label: "Proficient" },
-          { value: 4, label: "Excellent" },
+        roster: roster.map((userId, i) => ({
+          userId,
+          name: researcherNames[i],
+        })),
+        panelists: [
+          { userId: users.panelist, name: names.panelist, required: true },
+          ...(completed
+            ? [
+                {
+                  userId: otherPanelist,
+                  name: "Victor Santos",
+                  required: false,
+                },
+              ]
+            : []),
         ],
-        presentation: [
-          {
-            id: "clarity",
-            title: "Clarity of presentation",
-            description: "Communicates the proposal clearly.",
-            weight: 50,
-          },
-          {
-            id: "response",
-            title: "Response to questions",
-            description: "Explains the proposed decisions.",
-            weight: 50,
-          },
-        ],
-        manuscript: [
-          {
-            id: "scope",
-            title: "Research scope and objectives",
-            description: course.objective,
-            weight: 40,
-          },
-          {
-            id: "method",
-            title: "Appropriateness of proposed method",
-            description: course.method,
-            weight: 40,
-          },
-          {
-            id: "organization",
-            title: "Organization and consistency",
-            description: "Organizes the manuscript clearly.",
-            weight: 20,
-          },
-        ],
-        feedbackLabel: "Recommendations",
-        feedbackPrompt: "Record the revisions needed for this proposal.",
-        signatureRequired: false,
+        researchTitle: projectCourse.title,
+        manuscriptVersionId: current.latest.id,
+        publishedAt: day(-4).toISOString(),
       };
       await db.defensePacket.create({
         data: {
           defenseSessionId: defense.id,
-          manuscriptVersionId: latest.id,
+          manuscriptVersionId: current.latest.id,
           publishedById: users.professor,
-          publishedAt: day(-1),
+          publishedAt: day(-4),
           status: "PUBLISHED",
           evaluationMode: "STRUCTURED",
-          structuredForm: {
-            spec: structuredForm,
-            roster: projectRoster.map((userId, i) => ({
-              userId,
-              name: projectCourse.researchers[i],
-            })),
-            panelists: [
-              { userId: users.panelist, name: names.panelist, required: true },
-            ],
-            researchTitle: projectCourse.title,
-            manuscriptVersionId: latest.id,
-            publishedAt: day(-1).toISOString(),
-          },
+          structuredForm: JSON.parse(JSON.stringify(snapshot)),
           evaluationSignatureRequired: false,
         },
       });
+      if (completed) {
+        const scored = scoreStructuredEvaluation(
+          snapshot,
+          {
+            researchers: Object.fromEntries(
+              roster.map((id) => [id, { clarity: 3, response: 3 }]),
+            ),
+            manuscript: { scope: 3, method: 3, organization: 4 },
+            feedback: `Fictional panel feedback by Victor Santos: ${course.revision}`,
+            recommendation: "APPROVED",
+          },
+          true,
+        );
+        await db.structuredEvaluation.create({
+          data: {
+            defenseSessionId: defense.id,
+            panelistId: otherPanelist,
+            answers: JSON.parse(JSON.stringify(scored.answers)),
+            totals: JSON.parse(JSON.stringify(scored.totals)),
+            lockedAt: day(-3),
+          },
+        });
+        await db.panelistManuscriptReview.create({
+          data: {
+            defenseSessionId: defense.id,
+            panelistId: users.panelist,
+            privateNotes:
+              "Fictional preparation history: checked scope, objectives, and methodology before the title defense. This is a past sample record, separate from your pending Project C review.",
+            reviewedAt: day(-4),
+          },
+        });
+      } else {
+        const buffer = await manuscript(projectCourse, 2);
+        const fileName = `${course.short}_C_Dean_Approval.pdf`;
+        const storagePath = path.join(storageRoot, fileName);
+        await fs.writeFile(storagePath, buffer, { flag: "wx" });
+        const approval = await db.document.create({
+          data: {
+            researchId: project.id,
+            milestoneId: stages[4].id,
+            title: "Title defense preparation - Dean approval",
+            documentType: "DEAN_REVIEW",
+            storageProvider: "LOCAL",
+            lifecycleStatus: "IN_REVIEW",
+            createdBy: users.professor,
+          },
+        });
+        const version = await db.documentVersion.create({
+          data: {
+            documentId: approval.id,
+            versionNumber: 1,
+            fileName,
+            mimeType: "application/pdf",
+            fileSize: BigInt(buffer.length),
+            storagePath,
+            uploadedBy: users.professor,
+            status: "ACTIVE",
+            manuscriptStatus: "IN_REVIEW",
+            isImmutable: true,
+            contentChecksum: hash(buffer),
+            submittedBy: users.professor,
+            submittedAt: day(-1),
+          },
+        });
+        await assign(users.dean, "DEAN", version);
+      }
     }
   }
   await seedEvaluationClassRecord(
@@ -803,59 +867,46 @@ export async function seedWorkspace(
     [day(-12), day(-10), day(-8)],
     day(-4),
   );
-  const userId = users[selectedRole];
-  const home = EVALUATION_ROLES.find((r) => r.id === selectedRole)!.home;
-  await db.notification.createMany({
-    data: [
-      ["Proposal ready for review", course.stage],
-      ["Revision guidance available", course.feedback],
-      [
-        "Consultation scheduled",
-        "Your next consultation is scheduled in two days.",
-      ],
-      ...(selectedRole === "student"
-        ? [
-            [
-              "Prelim grades released",
-              "Your fictional prelim scores and attendance record are ready in Class Grades.",
-              "/student/grades",
-            ],
-          ]
-        : []),
-      ...(selectedRole === "professor"
-        ? [
-            [
-              "Class record ready",
-              "Prelim activities, attendance, and released grades are available for your enrolled researchers.",
-              "/professor/class-record",
-            ],
-          ]
-        : []),
-    ].map(([title, message, actionUrl]) => ({
-      recipientId: userId,
-      type: "REVIEW_ASSIGNED" as const,
-      title,
-      message,
-      audience:
-        selectedRole === "student"
-          ? "researcher"
-          : selectedRole === "dean"
-            ? "dean"
-            : selectedRole,
-      actionUrl: actionUrl || home,
-      entityType: "ResearchProject",
-      entityId: primaryProject,
-    })),
-  });
+  const accounts = {} as WorkspaceAccounts;
+  for (const role of EVALUATION_ROLES) {
+    const primary: Scenario =
+      role.id === "student"
+        ? "B"
+        : role.id === "panelist" || role.id === "dean"
+          ? "C"
+          : "A";
+    accounts[role.id] = {
+      userId: users[role.id],
+      projectId: projects[primary],
+      title: projectTitles[primary],
+      defenseId: defenses[primary] || null,
+      projectIds: ROLE_PROJECTS[role.id].map((s) => projects[s]),
+    };
+    await db.notification.create({
+      data: {
+        recipientId: users[role.id],
+        type: "REVIEW_ASSIGNED",
+        title:
+          role.id === "dean"
+            ? "Project C awaits Dean approval"
+            : "Your evaluation workspace is ready",
+        message: `Fictional ${course.collegeCode} records: ${ROLE_PROJECTS[role.id].map((s) => `Project ${s}`).join(", ")}. Open evaluation controls for the six role activities.`,
+        audience:
+          role.id === "student"
+            ? "researcher"
+            : role.id === "dean"
+              ? "dean"
+              : role.id,
+        actionUrl: role.home,
+        entityType: "ResearchProject",
+        entityId: projects[primary],
+      },
+    });
+  }
   const revisionPath = path.join(
     storageRoot,
     `${course.short}_Proposal_v3.pdf`,
   );
   await fs.writeFile(revisionPath, await manuscript(course, 3), { flag: "wx" });
-  return {
-    userId,
-    projectId: primaryProject,
-    defenseId: primaryDefense,
-    revisionPath,
-  };
+  return { ...accounts[selectedRole], revisionPath, accounts };
 }

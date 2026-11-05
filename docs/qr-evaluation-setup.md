@@ -1,6 +1,6 @@
 # ADVISIO local QR evaluation
 
-**Current status:** the hosted evaluation is live. Respondents now read `/evaluate/guide` before entering the portal, use a per-project checklist, then open the questionnaire after Finish exploration. Assigned invitation links and organizer QRs preselect the role/program. See [the current hosting handoff](qr-evaluation-hosting.md) for public links, the free-tier ten-session cap and deployment instructions. The historical records below describe the original local preparation.
+**Branch implementation:** onboarding now opens the selected role dashboard directly. Eight colleges, five switchable roles, four connected scenarios, and ten milestones are described in [the demo accounts implementation](demo-accounts-implementation.md). `/evaluate/guide` is a compatibility redirect. Deployment is a separate action; these branch changes do not establish that the hosted site has been updated. See [the hosting handoff](qr-evaluation-hosting.md) for public links and deployment instructions.
 
 This implementation uses the existing ADVISIO portals and API workflows. It does not replace them with a separate demonstration interface. The entry page is `/evaluate`; the organizer QR sheet is `/evaluate/print`.
 
@@ -10,8 +10,8 @@ Requirements: installed project dependencies, a generated Prisma client matching
 
 1. Run `npm run evaluation:init-local` once. It creates a separate loopback-only PostgreSQL cluster on port **5436**, a database named **advisio_evaluation**, and a private ignored `.env.evaluation.local`. It does not use the existing database on port 5432 or the local-demo target on port 5435.
 2. Run `npm run evaluation:dev`.
-3. Open **http://localhost:3100/evaluate**. Choose a role and assigned program, acknowledge the evaluation notice, and begin. Open **http://localhost:3100/evaluate/print** to preview or download the QR.
-4. Read the written guide before opening the portal, then use the activity-guide button to track your activities. Select Finish exploration to reach the questionnaire handoff. Students can download a prepared revision PDF there. End the session when finished; its fictional records and files are removed.
+3. Open **http://localhost:3100/evaluate**. Choose a role and college, acknowledge the fictional-material notice, and select **Begin Evaluation**. Open **http://localhost:3100/evaluate/print** to prepare a role/college QR.
+4. Use **Evaluation activities** on the dashboard to find the six activities, prepared revision, and TAM questionnaire. The **Demo role** selector preserves the workspace and college. The questionnaire remains available with incomplete activities. End the session when finished; its fictional records and files are removed.
 
 The initializer reuses its own cluster on later runs and never resets an unrelated database. If that cluster has been stopped, run `evaluation:init-local` again before starting. It does not erase existing evaluation sessions. Initializing a new cluster requires that port 5436 be available.
 
@@ -29,9 +29,9 @@ Five allowed roles map to native permissions and portals:
 | Evaluation panelist  | PANELIST             | `/panelist/dashboard`  |
 | College Dean         | DEAN                 | `/admin/dashboard`     |
 
-Seven course templates cover IT (40 students), Education (20), Nursing (20), Accountancy (20), Tourism (20), Civil Engineering (20), and Architecture (10). Education currently maps to BEED in the verified local program catalog; confirm the intended education offering before collection. Civil Engineering and Architecture share CEA. Faculty use their invited program scenario; the plan's seven Deans should not be interpreted as seven distinct colleges represented by these seven programs.
+The entry offers COA, CEA, CHTM, CIT, CNP, SAS, SBPA, and SOE, using BSA, BSCE, BSTM, BSIT, BSN, BSPSYCH, BSBA-MM, and BEED as representative programs. The previous BSARCH invitation remains valid. The five roles across eight colleges provide 40 selections; program quota metadata is retained for historical invitations and does not impose a respondent quota on the new colleges.
 
-All names, topics, manuscript contents, comments, schedules, and starting records are fictional. Titles avoid “Sample” labels. Each scenario contains three-page readable manuscripts, version history, a prepared revision, specific feedback, milestone records, notifications, and a consultation. Professors and Deans receive three projects with distinct student groups, program-related titles, and manuscript titles matching the project records. Panelists receive an approved manuscript and a published structured evaluation packet, with **blank practice ratings**, in a live fictional defense. IT experts are not an entry choice.
+All names, topics, manuscripts, histories, and starting records are fictional. Each workspace contains Projects A-D with distinct research groups and discipline-specific titles. Five-page PDFs include background, objectives, framework, methodology, planned outputs, and supporting information, with explicit fictional-sample labels. Project C starts scheduled and Project D completed. The current panelist has no prefilled Project C scores or annotations. The Coordinator can start C through the existing live-defense controls before the Panelist completes a structured evaluation.
 
 Program-specific research types, rubric criteria, faculty tasks, and the college/program mapping require the study team's discipline review before the event. The app's actual permissions still govern which actions a role may perform.
 
@@ -39,7 +39,7 @@ Program-specific research types, rubric criteria, faculty tasks, and the college
 
 - Each session creates a fresh PostgreSQL schema `eval_<server-generated random ID>`, with its own native tables, constraints, accounts, projects, and records. Native API queries resolve their Prisma client from the request context. Missing evaluation context fails closed, so an evaluation request cannot fall back to the ordinary app database.
 - Accounts have one role. Respondents receive an opaque **HttpOnly**, **SameSite=Strict** cookie; the registry stores its SHA-256 hash. No password, JWT, schema ID, or participant code is placed in the shared QR. The browser uses a non-secret evaluation marker only to hydrate the existing portal.
-- Request authentication is supplied server-side from the selected session. Client-supplied bearer credentials cannot change its identity. Role switching, institutional invitations, external integrations, signatures, official copy issuance, and ordinary account management are blocked for evaluation requests.
+- Request authentication is supplied server-side from the selected session. The evaluation-only switch endpoint accepts just a role, selects its account from the server registry, rotates the cookie, and preserves the college, workspace, and absolute expiry. Native permissions and an additional project scope apply to each account. Institutional invitations, external integrations, signatures, official copy issuance, and ordinary account management remain blocked.
 - Files are stored under that session's directory. Local file reads and deletions verify that they stay inside it. The prepared revision endpoint resolves only the current session.
 - Sessions expire after **20 minutes idle** or **60 minutes total**. Refresh resumes the same session. Repeated Begin requests with the same browser cookie return the existing session. Ending a session revokes access and removes only its schema/files. Cleanup also runs once a minute and at startup; registry rows remain as operational metadata, not questionnaire responses.
 - Native requests are aborted when their session is ended/expired, including long-running streams. Each request also has a bounded session lifetime.
@@ -56,7 +56,7 @@ Respondents select/confirm their role and students' program in the existing five
 ## Checks and maintenance
 
 - `npm run test:evaluation` checks deployment guards, generated schema identifiers, expiry, concurrent request isolation, and all course/role coverage.
-- `npm run test:evaluation:local` requires the evaluation preview to be running. It creates **disposable fictional sessions**, verifies all 35 combinations against native API actions, and ends its own sessions. It exercises student revision uploads, professor review decisions, adviser review/consultation approval, Dean review/overview, panel save/preview/submit, repeated Begin, refresh, cross-session access, replay after end, and idle expiry. It never submits TAM answers.
+- `npm run test:evaluation:local` requires the evaluation preview to be running. It creates disposable fictional workspaces and verifies all 40 college-role experiences, native actions, milestone completion/locks, role switching, cookie replay rejection, cross-workspace access, idle/absolute expiry, and cleanup. Add `-- --capacity` for the local 20-session cap check. It never submits TAM answers. Custom test ports can use `EVALUATION_TEST_ORIGIN` and `EVALUATION_TEST_API`.
 - `node scripts/verify-qr-evaluation.mjs --course=BSIT` is the focused five-role variant.
 - Run the API/web type checks and relevant native tests after changes. `evaluation:prepare` regenerates the empty schema SQL and compiles database/email packages. It avoids regenerating the Windows Prisma engine while an existing app is using it. After a model change, regenerate Prisma with dependent servers stopped, then prepare and test again.
 - PostgreSQL can be stopped with the installed `pg_ctl` using the exact `.evaluation/postgres` data directory. Stop the evaluation app first. Do not stop the user's ordinary PostgreSQL service or other ADVISIO server.

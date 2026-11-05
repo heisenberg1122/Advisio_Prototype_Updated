@@ -33,7 +33,8 @@ const config = await configResponse.json();
 assert.equal(config.entryUrl, `${origin}/evaluate`);
 assert.equal(config.temporaryStorage, true);
 assert.equal(config.roles.length, 5);
-assert.equal(config.courses.length, 7);
+assert.equal(config.courses.length, 9); // Includes the existing BSARCH invitation.
+assert.equal(config.colleges.length, 8);
 const headers = { cookie, origin, "Content-Type": "application/json" };
 async function begin() {
   const response = await fetch(`${base}/api/evaluation/session`, {

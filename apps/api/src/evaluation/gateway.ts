@@ -3,7 +3,13 @@ import QRCode from "qrcode";
 import { randomBytes } from "node:crypto";
 import { evaluationContext } from "./context.js";
 import { COOKIE, EvaluationRuntime } from "./runtime.js";
-import { EVALUATION_COURSES, EVALUATION_ROLES, ROLE_TASKS } from "./catalog.js";
+import {
+  EVALUATION_COURSES,
+  EVALUATION_COLLEGES,
+  EVALUATION_ROLES,
+  ROLE_TASKS,
+  evaluationCourse,
+} from "./catalog.js";
 import { evaluationInvitationUrl } from "./invitation.js";
 import { generateToken } from "../middleware/auth.js";
 
@@ -71,6 +77,14 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
             quota,
           }),
         ),
+        colleges: EVALUATION_COLLEGES.map(
+          ({ id, label, college, collegeCode }) => ({
+            id,
+            label,
+            college,
+            collegeCode,
+          }),
+        ),
         entryUrl: `${service.config.origin}/evaluate`,
         invitationUrl: service.config.invitationUrl,
         localOnly: !service.config.secure,
@@ -94,10 +108,11 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
     }
     if (endpoint === "/api/evaluation/session" && req.method === "POST") {
       const { role, course, acknowledged } = req.body || {};
+      const selectedCourse = evaluationCourse(course);
       if (
         acknowledged !== true ||
         !EVALUATION_ROLES.some((r) => r.id === role) ||
-        !EVALUATION_COURSES.some((c) => c.id === course)
+        !selectedCourse
       )
         return void res.status(400).json({
           error:
@@ -108,7 +123,7 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
         return void res
           .status(400)
           .json({ error: "Reload the entry page before beginning." });
-      const session = await service.begin(token, role, course);
+      const session = await service.begin(token, role, selectedCourse.id);
       return void res.status(201).json(service.describe(session));
     }
     const session = await service.find(req.cookies?.[COOKIE]);
@@ -119,6 +134,33 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
       });
     if (endpoint === "/api/evaluation/session" && req.method === "GET")
       return void res.json(service.describe(session));
+    if (endpoint === "/api/evaluation/switch-role" && req.method === "POST") {
+      const body = req.body;
+      if (
+        !body ||
+        Object.keys(body).length !== 1 ||
+        !EVALUATION_ROLES.some((r) => r.id === body.role)
+      )
+        return void res
+          .status(400)
+          .json({
+            error:
+              "Choose one of the five evaluation roles. College and workspace cannot be changed.",
+          });
+      const nextToken = randomBytes(32).toString("hex");
+      const updated = await service.switchRole(session, body.role, nextToken);
+      res.cookie(COOKIE, nextToken, {
+        httpOnly: true,
+        secure: service.config.secure,
+        sameSite: "strict",
+        path: "/",
+        maxAge: Math.max(
+          1,
+          +session.created_at + service.config.lifetimeMs - Date.now(),
+        ),
+      });
+      return void res.json(service.describe(updated));
+    }
     if (
       (endpoint === "/api/evaluation/end" || endpoint === "/api/auth/logout") &&
       req.method === "POST"

@@ -4,7 +4,11 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { prepareAuditData } from "../services/audit-contract.js";
-import { evaluationContext, scopedClient } from "../evaluation/context.js";
+import {
+  evaluationContext,
+  evaluationModelWhere,
+  scopedClient,
+} from "../evaluation/context.js";
 
 // ESM safe directory name
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -38,6 +42,35 @@ export function createClient(databaseUrl?: string): PrismaClient {
   ).$extends({
     name: "audit-context",
     query: {
+      $allModels: {
+        $allOperations({ model, operation, args, query }) {
+          const filter = evaluationModelWhere(model);
+          if (
+            filter &&
+            [
+              "findMany",
+              "findFirst",
+              "findFirstOrThrow",
+              "findUnique",
+              "findUniqueOrThrow",
+              "count",
+              "aggregate",
+              "groupBy",
+              "update",
+              "updateMany",
+              "delete",
+              "deleteMany",
+            ].includes(operation)
+          ) {
+            const scoped = args as { where?: Record<string, unknown> };
+            scoped.where = {
+              ...scoped.where,
+              AND: [scoped.where?.AND || {}, filter],
+            };
+          }
+          return query(args);
+        },
+      },
       auditLog: {
         create({ args, query }) {
           args.data = prepareAuditData(args.data);

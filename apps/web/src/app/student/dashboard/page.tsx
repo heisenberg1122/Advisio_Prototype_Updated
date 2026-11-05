@@ -1362,7 +1362,7 @@ function StudentDashboardContent() {
                 <div className="rcc-activity-grid">
                   <OverviewConsultation consultation={consultations.length > 0 ? consultations[0] : null} onConsultations={() => handleTabChange("consultations")} />
                   <OverviewGettingStarted
-                    onTour={() => router.push(localStorage.getItem("advisio_token") === "__evaluation__" ? "/evaluate/guide" : "/walkthrough/research-dashboard")}
+                    onTour={() => localStorage.getItem("advisio_token") === "__evaluation__" ? window.dispatchEvent(new Event("advisio:evaluation-activities")) : router.push("/walkthrough/research-dashboard")}
                     steps={[
                       {
                         label: canCreateResearch || activeProject ? "Register project" : "View group",

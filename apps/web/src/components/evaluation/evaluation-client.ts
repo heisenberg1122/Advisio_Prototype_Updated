@@ -4,6 +4,9 @@ export type EvaluationSession = {
   course: string;
   courseLabel: string;
   college: string;
+  collegeCode?: string;
+  progressKey?: string;
+  roles?: { id: string; label: string }[];
   title: string;
   home: string;
   projectId: string;
@@ -22,6 +25,7 @@ export type EvaluationConfig = {
     college: string;
     collegeCode?: string;
   }[];
+  colleges?: EvaluationConfig["courses"];
   entryUrl: string;
   invitationUrl?: string;
   localOnly: boolean;
@@ -54,6 +58,11 @@ export function clearEvaluation(
   localStorage.removeItem("advisio_token");
   if (projectId)
     localStorage.removeItem(`advisio_evaluation_guide:${projectId}`);
+  for (let index = localStorage.length - 1; index >= 0; index--) {
+    const key = localStorage.key(index);
+    if (key?.startsWith("advisio_evaluation_guide:"))
+      localStorage.removeItem(key);
+  }
   for (const key of [
     "advisio_theme:active",
     "advisio_color-theme:active",

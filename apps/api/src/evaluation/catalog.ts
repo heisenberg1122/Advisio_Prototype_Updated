@@ -8,7 +8,7 @@ export const EVALUATION_ROLES = [
   },
   {
     id: "professor",
-    label: "Research professor",
+    label: "Research Professor / Coordinator",
     institutionalRole: "RESEARCH_COORDINATOR",
     home: "/professor/dashboard",
     surveyRole: "Research professors",
@@ -201,6 +201,58 @@ export const EVALUATION_COURSES = [
       "Add an assumptions register, observation-to-design matrix, and a preliminary drainage layout.",
   },
   {
+    id: "BSPSYCH",
+    label: "Psychology",
+    collegeCode: "SAS",
+    college: "School of Arts and Sciences",
+    quota: 0,
+    type: "Quantitative correlational research proposal",
+    title: "Study Habits and Academic Engagement among Undergraduate Students",
+    short: "Study_Habits",
+    researchers: ["Sam Rivera", "Alex Garcia", "Jamie Reyes"],
+    adviser: "Clara Santos",
+    stage: "Research method and instrument review",
+    feedback:
+      "Distinguish study habits from engagement and define the eligibility and voluntary recruitment procedures.",
+    objective:
+      "Examine the proposed association between study habits and academic engagement among fictional undergraduate students.",
+    method:
+      "Plan a voluntary cross-sectional survey with separate habit and engagement scales, reliability checks, and correlational analysis without causal claims.",
+    details: [
+      "Habit items address scheduling, study environments, and review strategies.",
+      "Engagement items address participation, effort, and persistence.",
+      "Use anonymous responses, stated eligibility criteria, and a defined recruitment period.",
+    ],
+    revision:
+      "Add an eligibility checklist, variable-to-item matrix, and anonymous response handling procedure.",
+  },
+  {
+    id: "BSBA-MM",
+    label: "Business Administration - Marketing Management",
+    collegeCode: "SBPA",
+    college: "School of Business and Public Administration",
+    quota: 0,
+    type: "Descriptive enterprise survey research proposal",
+    title: "Digital Marketing Adoption among Local Microenterprises",
+    short: "Digital_Marketing",
+    researchers: ["Mia Castro", "Leo Ramos", "Ella Tan"],
+    adviser: "Daniel Flores",
+    stage: "Research method and questionnaire review",
+    feedback:
+      "Separate channel adoption from marketing practices and define eligible microenterprises without collecting confidential revenue data.",
+    objective:
+      "Describe proposed digital marketing adoption and channel use among fictional local microenterprises.",
+    method:
+      "Plan a descriptive survey using enterprise eligibility screening, a channel inventory, and separate marketing-practice indicators.",
+    details: [
+      "Channel adoption distinguishes social media, online marketplaces, and business websites.",
+      "Practice items address content planning, customer responses, and promotion frequency.",
+      "Participation is voluntary and no account credentials or actual sales records are collected.",
+    ],
+    revision:
+      "Add enterprise screening criteria, separate channel and practice measures, and a confidential recruitment procedure.",
+  },
+  {
     id: "BSARCH",
     label: "Architecture",
     collegeCode: "CEA",
@@ -230,12 +282,49 @@ export const EVALUATION_COURSES = [
 ] as const;
 export type EvaluationCourse = (typeof EVALUATION_COURSES)[number];
 
+// Keep BSARCH invitation URLs valid while offering one representative per college.
+export const EVALUATION_COLLEGES = EVALUATION_COURSES.filter(
+  (c) => c.id !== "BSARCH",
+);
+export function evaluationCourse(value: unknown) {
+  return (
+    EVALUATION_COURSES.find((c) => c.id === value) ||
+    EVALUATION_COLLEGES.find((c) => c.collegeCode === value)
+  );
+}
+export const DEFAULT_MILESTONES = [
+  "Title Proposal",
+  "Adviser",
+  "Chapter 1 to Chapter 3",
+  "Full Manuscript Chapter 1-3",
+  "Title Defense",
+  "UAREB Submission",
+  "Chapter 4-5",
+  "Full Manuscript Chapter 4-5",
+  "Full Manuscript Chapter 1-5",
+  "Final Defense",
+] as const;
+export const PROJECT_SCENARIOS = {
+  A: { current: 4, lifecycle: "IN_REVIEW" },
+  B: { current: 3, lifecycle: "REVISION_REQUIRED" },
+  C: { current: 5, lifecycle: "APPROVED" },
+  D: { current: 6, lifecycle: "APPROVED" },
+} as const;
+export type Scenario = keyof typeof PROJECT_SCENARIOS;
+export const ROLE_PROJECTS: Record<EvaluationRole, readonly Scenario[]> = {
+  student: ["B"],
+  professor: ["A", "B", "C"],
+  adviser: ["A", "B"],
+  panelist: ["C", "D"],
+  dean: ["A", "B", "C"],
+};
+
 export const ROLE_TASKS: Record<EvaluationRole, string[]> = {
   student: [
     "Open your assigned research project.",
     "Find its current milestone and revision deadline.",
     "Open the latest manuscript and read the adviser feedback.",
-    "Download the prepared revision from this guide, then upload it through the manuscript task.",
+    "Download the prepared revision from these evaluation controls, then upload it through the manuscript task.",
     "Check the updated submission status.",
     "Find the upcoming consultation schedule.",
   ],
@@ -245,7 +334,7 @@ export const ROLE_TASKS: Record<EvaluationRole, string[]> = {
     "Check its milestone and deadline.",
     "Open the current submission.",
     "Perform a permitted review or coordination action.",
-    "Check the resulting progress or status.",
+    "Inspect the class record activities, attendance, and released grades.",
   ],
   adviser: [
     "Open an assigned project.",
@@ -258,10 +347,10 @@ export const ROLE_TASKS: Record<EvaluationRole, string[]> = {
   panelist: [
     "Open your assigned defense.",
     "Read the approved manuscript in its defense packet.",
-    "Check the defense schedule and rubric.",
-    "Enter your practice ratings.",
-    "Add feedback and preview the evaluation.",
-    "Submit your evaluation within this private workspace and inspect its status.",
+    "Highlight a section, add a comment, and place an annotation mark.",
+    "Save, preview, and share your manuscript feedback.",
+    "To try a live evaluation, switch to Coordinator, start Project C's scheduled defense, then return to Panelist.",
+    "Complete the structured evaluation during the live defense and inspect the result; view Project D's completed defense history.",
   ],
   dean: [
     "Open the college overview.",

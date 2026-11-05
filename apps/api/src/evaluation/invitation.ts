@@ -1,11 +1,19 @@
-import { EVALUATION_COURSES, EVALUATION_ROLES } from "./catalog.js";
+import {
+  EVALUATION_COURSES,
+  EVALUATION_ROLES,
+  evaluationCourse,
+} from "./catalog.js";
 
 export function evaluationEntryUrl(origin: string, launcher?: string) {
   if (!launcher) return new URL("/evaluate", origin).toString();
   // The launcher checks availability only; sessions remain on the evaluation
   // origin. Never accept a visitor-supplied redirect destination.
-  if (launcher !== "https://advisio-prototype-updated.vercel.app/evaluate/start")
-    throw new Error("EVALUATION_LAUNCH_URL must use the official ADVISIO starter page.");
+  if (
+    launcher !== "https://advisio-prototype-updated.vercel.app/evaluate/start"
+  )
+    throw new Error(
+      "EVALUATION_LAUNCH_URL must use the official ADVISIO starter page.",
+    );
   return launcher;
 }
 
@@ -27,7 +35,12 @@ export function evaluationInvitationUrl(
     if (value === undefined) continue;
     const allowed: readonly { id: string }[] =
       key === "role" ? EVALUATION_ROLES : EVALUATION_COURSES;
-    if (typeof value !== "string" || !allowed.some((item) => item.id === value))
+    if (
+      typeof value !== "string" ||
+      !(key === "course"
+        ? evaluationCourse(value)
+        : allowed.some((item) => item.id === value))
+    )
       throw invalid();
     url.searchParams.set(key, value);
   }

@@ -26,21 +26,23 @@ export function EvaluationSteps({
 }) {
   return (
     <ol className="evaluation-steps" aria-label="How the evaluation works">
-      {["Read the guide", "Explore ADVISIO", "Answer questionnaire"].map(
-        (title, index) => (
-          <li
-            key={title}
-            aria-current={current === index + 1 ? "step" : undefined}
-          >
-            <span>{index + 1}</span>
-            {index === 0 && guideUrl ? (
-              <Link to={guideUrl}>{title}</Link>
-            ) : (
-              <strong>{title}</strong>
-            )}
-          </li>
-        ),
-      )}
+      {[
+        "Choose college and role",
+        "Explore ADVISIO",
+        "Answer questionnaire",
+      ].map((title, index) => (
+        <li
+          key={title}
+          aria-current={current === index + 1 ? "step" : undefined}
+        >
+          <span>{index + 1}</span>
+          {index === 0 && guideUrl ? (
+            <Link to={guideUrl}>{title}</Link>
+          ) : (
+            <strong>{title}</strong>
+          )}
+        </li>
+      ))}
     </ol>
   );
 }
@@ -68,8 +70,9 @@ export function EvaluationAbout({
         Official ADVISIO website <ExternalLink size={13} aria-hidden="true" />
       </a>
       <p className="evaluation-help">
-        Optional role videos are available on your evaluation guide. You can
-        also use the written guide at any time.
+        Open Evaluation activities on your dashboard for the six role
+        activities, prepared revision, role switcher, and questionnaire. You may
+        answer the questionnaire even if an activity cannot be completed.
       </p>
     </details>
   );

@@ -5,8 +5,39 @@ export type EvaluationScope = {
   id: string;
   prisma: PrismaClient;
   storageRoot: string;
+  projectIds?: string[];
 };
 export const evaluationContext = new AsyncLocalStorage<EvaluationScope>();
+
+// Adds restrictions inside evaluation only; native role/college checks still apply.
+export function evaluationProjectWhere() {
+  const ids = evaluationContext.getStore()?.projectIds;
+  return ids ? { id: { in: ids } } : {};
+}
+export function evaluationModelWhere(model: string) {
+  const project = evaluationProjectWhere();
+  if (!("id" in project)) return null;
+  if (model === "ResearchProject") return project;
+  if (
+    [
+      "ResearchMember",
+      "Document",
+      "TaskSubmission",
+      "TaskSubmissionAttempt",
+      "ReviewerAssignment",
+      "AdviserRequest",
+      "Consultation",
+      "WorkflowInstance",
+      "DefenseSession",
+      "DefenseEligibility",
+      "TitleProposalSubmission",
+    ].includes(model)
+  )
+    return { researchId: project.id };
+  if (model === "DocumentVersion")
+    return { document: { researchId: project.id } };
+  return null;
+}
 
 // Resolve delegates at call time: concurrent requests must never share a tenant.
 export function scopedClient<T extends object>(

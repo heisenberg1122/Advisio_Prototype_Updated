@@ -2,6 +2,7 @@ import { collegeUserWhere } from "../lib/college-authorization.js";
 import { Router, Request, Response, NextFunction } from "express";
 import { AuditAction, prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { evaluationContext } from "../evaluation/context.js";
 import {
   ACTIVE_ADVISEE_STATUSES,
   capacitySummary,
@@ -81,6 +82,9 @@ router.get(
               ...(collegeId && { collegeId }),
               ...(programId && { programId }),
               roles: { some: { role: { name: "RESEARCHER" } } },
+              ...(evaluationContext.getStore()?.projectIds ? {
+                memberships: { some: { researchId: { in: evaluationContext.getStore()!.projectIds }, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } } },
+              } : {}),
             },
             include: {
               program: true,

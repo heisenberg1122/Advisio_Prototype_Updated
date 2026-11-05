@@ -1,8 +1,19 @@
 import { describe, it, expect } from "vitest";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { evaluationConfig, isLive, schemaName } from "./config.js";
-import { scopedClient } from "./context.js";
-import { EVALUATION_COURSES, EVALUATION_ROLES, ROLE_TASKS } from "./catalog.js";
+import {
+  scopedClient,
+  evaluationContext,
+  evaluationModelWhere,
+} from "./context.js";
+import {
+  EVALUATION_COURSES,
+  EVALUATION_COLLEGES,
+  EVALUATION_ROLES,
+  ROLE_TASKS,
+  DEFAULT_MILESTONES,
+  ROLE_PROJECTS,
+} from "./catalog.js";
 
 const url =
   "postgresql://test:test@127.0.0.1:5436/advisio_evaluation?schema=public&application_name=advisio-evaluation";
@@ -108,8 +119,10 @@ describe("native portal request isolation", () => {
   });
 });
 describe("respondent coverage", () => {
-  it("provides 35 course-role combinations, 150 students, and six tasks per role", () => {
-    expect(EVALUATION_COURSES).toHaveLength(7);
+  it("provides 40 college-role selections and keeps legacy program invitations valid", () => {
+    expect(EVALUATION_COLLEGES).toHaveLength(8);
+    expect(new Set(EVALUATION_COLLEGES.map((c) => c.collegeCode)).size).toBe(8);
+    expect(EVALUATION_COURSES.some((c) => c.id === "BSARCH")).toBe(true);
     expect(EVALUATION_ROLES).toHaveLength(5);
     expect(EVALUATION_COURSES.reduce((sum, c) => sum + c.quota, 0)).toBe(150);
     for (const role of EVALUATION_ROLES)
@@ -119,5 +132,49 @@ describe("respondent coverage", () => {
       expect(course.title).not.toMatch(/sample|demo/i);
       expect(course.feedback.length).toBeGreaterThan(40);
     }
+  });
+  it("uses all ten milestones and the requested role project matrix", () => {
+    expect(DEFAULT_MILESTONES).toEqual([
+      "Title Proposal",
+      "Adviser",
+      "Chapter 1 to Chapter 3",
+      "Full Manuscript Chapter 1-3",
+      "Title Defense",
+      "UAREB Submission",
+      "Chapter 4-5",
+      "Full Manuscript Chapter 4-5",
+      "Full Manuscript Chapter 1-5",
+      "Final Defense",
+    ]);
+    expect(ROLE_PROJECTS).toEqual({
+      student: ["B"],
+      professor: ["A", "B", "C"],
+      adviser: ["A", "B"],
+      panelist: ["C", "D"],
+      dean: ["A", "B", "C"],
+    });
+  });
+  it("adds evaluation project restrictions only inside a scoped request", () => {
+    expect(evaluationModelWhere("ResearchProject")).toBeNull();
+    evaluationContext.run(
+      {
+        id: "workspace",
+        prisma: {} as any,
+        storageRoot: "/tmp",
+        projectIds: ["A", "B"],
+      },
+      () => {
+        expect(evaluationModelWhere("ResearchProject")).toEqual({
+          id: { in: ["A", "B"] },
+        });
+        expect(evaluationModelWhere("DefenseSession")).toEqual({
+          researchId: { in: ["A", "B"] },
+        });
+        expect(evaluationModelWhere("DocumentVersion")).toEqual({
+          document: { researchId: { in: ["A", "B"] } },
+        });
+        expect(evaluationModelWhere("Role")).toBeNull();
+      },
+    );
   });
 });

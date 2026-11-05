@@ -175,6 +175,53 @@
   border-radius: 7px;
   cursor: pointer;
 }
+.evaluation-banner {
+  max-width: calc(100vw - 36px);
+  flex-wrap: wrap;
+}
+.evaluation-role-switcher {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.evaluation-role-switcher > span {
+  font-size: 11px;
+  font-weight: 700;
+}
+.evaluation-role-switcher select {
+  max-width: 240px;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #b8cfe6;
+  border-radius: 6px;
+  padding: 7px;
+  background: white;
+  color: #15283f;
+  font: inherit;
+}
+.evaluation-switch-error {
+  position: fixed;
+  bottom: 110px;
+  right: 18px;
+  z-index: 1002;
+  max-width: min(440px, 90vw);
+  background: white;
+  color: #a32727;
+  border: 1px solid #a32727;
+  padding: 12px;
+  border-radius: 8px;
+}
+@media (max-width: 600px) {
+  .evaluation-banner {
+    max-width: none;
+  }
+  .evaluation-role-switcher {
+    flex: 1 1 100%;
+  }
+  .evaluation-role-switcher select {
+    max-width: none;
+  }
+}
 .evaluation-overlay {
   position: fixed;
   inset: 0;

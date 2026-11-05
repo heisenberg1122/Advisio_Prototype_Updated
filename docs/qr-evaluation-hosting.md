@@ -1,5 +1,7 @@
 # Hosted QR evaluation — current handoff
 
+**Pending branch update:** [Demo accounts implementation](demo-accounts-implementation.md) replaces the guide step with direct dashboard onboarding, eight colleges, and an isolated role switcher. The flow described below records the previous hosted release. Push/build status and hosted deployment status must be checked separately; do not assume this branch implementation is deployed.
+
 Updated 5 November 2026. The evaluation is hosted at [the shared entry page](https://advisio-tam-evaluation-2026.onrender.com/evaluate). The researcher confirmed it opens on a phone. This evaluation uses its own branch, database and fictional records; the official backend remains separate.
 
 The main website is [ADVISIO on Vercel](https://advisio-prototype-updated.vercel.app/). The Render address is for evaluation only. Its `/` and `/index.html` entries redirect to `/evaluate`, preserving any role/program query parameters. The role portals are still needed for the guided activities and use only the temporary evaluation workspace. These redirects take effect when this update is deployed.

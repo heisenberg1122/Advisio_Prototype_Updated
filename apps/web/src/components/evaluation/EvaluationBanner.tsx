@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
   clearEvaluation,
   evaluationRequest,
@@ -27,13 +27,24 @@ export function EvaluationBanner() {
   const trigger = useRef<HTMLButtonElement>(null);
   const active = localStorage.getItem("advisio_token") === "__evaluation__";
   useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener("advisio:evaluation-activities", show);
+    return () =>
+      window.removeEventListener("advisio:evaluation-activities", show);
+  }, []);
+  useEffect(() => {
     if (!active) return;
     let current = true;
     evaluationRequest<EvaluationSession>("session")
       .then((value) => {
         if (current) {
           setSession(value);
-          setProgress(readProgress(value.projectId, value.tasks.length));
+          setProgress(
+            readProgress(
+              value.progressKey || value.projectId,
+              value.tasks.length,
+            ),
+          );
         }
       })
       .catch(() => {});
@@ -85,7 +96,7 @@ export function EvaluationBanner() {
   const questionnaire = progress.phase === "questionnaire";
   function update(next: EvaluationProgress) {
     setProgress(next);
-    saveProgress(session!.projectId, next);
+    saveProgress(session!.progressKey || session!.projectId, next);
   }
   function toggle(index: number) {
     update({
@@ -103,7 +114,26 @@ export function EvaluationBanner() {
     setBusy(true);
     try {
       await evaluationRequest("end", { method: "POST" });
-      clearEvaluation(session?.projectId);
+      clearEvaluation(session?.progressKey || session?.projectId);
+    } catch (e) {
+      setError((e as Error).message);
+      setBusy(false);
+    }
+  }
+  async function switchRole(role: string) {
+    if (!session || role === session.role || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      const switched = await evaluationRequest<EvaluationSession>(
+        "switch-role",
+        {
+          method: "POST",
+          body: JSON.stringify({ role }),
+        },
+      );
+      // Reload clears cached queries and renders the actual portal for the new identity.
+      window.location.assign(switched.home);
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
@@ -115,19 +145,46 @@ export function EvaluationBanner() {
         <span>
           <strong>Step {questionnaire ? 3 : 2} of 3</strong>
           <small>
-            {session.roleLabel} · {session.courseLabel}
+            {session.roleLabel} · {session.collegeCode || session.college}
           </small>
         </span>
+        {!!session.roles?.length && (
+          <label className="evaluation-role-switcher">
+            <span>Demo role</span>
+            <select
+              aria-label="Switch demo role"
+              value={session.role}
+              disabled={busy}
+              onChange={(e) => void switchRole(e.target.value)}
+            >
+              {session.roles.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <button
           ref={trigger}
           onClick={() => {
-            setProgress(readProgress(session.projectId, session.tasks.length));
+            setProgress(
+              readProgress(
+                session.progressKey || session.projectId,
+                session.tasks.length,
+              ),
+            );
             setOpen(true);
           }}
         >
-          Evaluation guide
+          Evaluation activities
         </button>
       </aside>
+      {error && !open && (
+        <p className="evaluation-switch-error" role="alert">
+          {error}
+        </p>
+      )}
       {open && (
         <div className="evaluation-overlay">
           <section
@@ -155,7 +212,7 @@ export function EvaluationBanner() {
             <EvaluationSteps current={questionnaire ? 3 : 2} />
             <p>
               <strong>
-                {session.roleLabel} · {session.courseLabel}
+                {session.roleLabel} · {session.college}
               </strong>
               <br />
               {session.title}
@@ -168,8 +225,7 @@ export function EvaluationBanner() {
                 </p>
                 <p className="evaluation-help">
                   {progress.checked.length} of {session.tasks.length} activities
-                  ticked ·{" "}
-                  <Link to="/evaluate/guide">Read the short guide</Link>
+                  ticked
                 </p>
                 <ol className="evaluation-task-list">
                   {session.tasks.map((task, index) => (
@@ -204,7 +260,7 @@ export function EvaluationBanner() {
                     update({ ...progress, phase: "questionnaire" })
                   }
                 >
-                  Finish exploration
+                  Answer questionnaire
                 </button>
               </>
             ) : (

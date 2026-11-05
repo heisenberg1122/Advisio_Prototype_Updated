@@ -34,7 +34,11 @@ export function resolveInvitation(search: string, config: EvaluationConfig) {
       )
     : [];
   const course =
-    exactCourse || (colleges.length === 1 ? colleges[0] : undefined);
+    exactCourse ||
+    config.colleges?.find(
+      (item) => item.collegeCode?.toUpperCase() === courseHint,
+    ) ||
+    (colleges.length === 1 ? colleges[0] : undefined);
   return {
     role,
     course,

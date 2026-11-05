@@ -11,7 +11,7 @@ import {
   ROLE_TASKS,
   type EvaluationRole,
 } from "./catalog.js";
-import { seedWorkspace } from "./seed.js";
+import { seedWorkspace, type WorkspaceAccounts } from "./seed.js";
 import { evaluationSurveyUrl } from "./survey.js";
 
 export const COOKIE = "advisio_evaluation";
@@ -28,6 +28,7 @@ export type Session = {
   created_at: Date;
   touched_at: Date;
   state: string;
+  accounts?: WorkspaceAccounts | null;
 };
 type OpenClient = { prisma: PrismaClient; users: number; ended: boolean };
 
@@ -82,6 +83,9 @@ export class EvaluationRuntime {
       created_at timestamptz NOT NULL DEFAULT now(), touched_at timestamptz NOT NULL DEFAULT now(),
       state varchar(20) NOT NULL DEFAULT 'PROVISIONING', cleaned_at timestamptz);
       ALTER TABLE public.advisio_evaluation_sessions ADD COLUMN IF NOT EXISTS cleaned_at timestamptz;`);
+    await this.pool.query(
+      "ALTER TABLE public.advisio_evaluation_sessions ADD COLUMN IF NOT EXISTS accounts jsonb",
+    );
     // Free hosting loses local files on sleep/restart. Revoke those temporary
     // sessions before serving traffic so nobody resumes missing manuscripts.
     if (this.config.ephemeralStorage)
@@ -209,8 +213,14 @@ export class EvaluationRuntime {
       const {
         rows: [session],
       } = await this.pool.query<Session>(
-        "UPDATE public.advisio_evaluation_sessions SET user_id=$2,project_id=$3,defense_id=$4,state='ACTIVE',touched_at=now(),created_at=now() WHERE id=$1 RETURNING *",
-        [id, seeded.userId, seeded.projectId, seeded.defenseId || null],
+        "UPDATE public.advisio_evaluation_sessions SET user_id=$2,project_id=$3,defense_id=$4,accounts=$5,state='ACTIVE',touched_at=now(),created_at=now() WHERE id=$1 RETURNING *",
+        [
+          id,
+          seeded.userId,
+          seeded.projectId,
+          seeded.defenseId || null,
+          JSON.stringify(seeded.accounts),
+        ],
       );
       this.clients.set(id, { prisma: db, users: 0, ended: false });
       return session;
@@ -230,6 +240,41 @@ export class EvaluationRuntime {
     url.searchParams.set("connection_limit", "1");
     return createClient(url.toString());
   }
+  async switchRole(session: Session, role: EvaluationRole, nextToken: string) {
+    if (!EVALUATION_ROLES.some((r) => r.id === role))
+      throw Object.assign(new Error("Choose an evaluation role."), {
+        statusCode: 400,
+      });
+    const account = session.accounts?.[role];
+    if (!account)
+      throw Object.assign(
+        new Error(
+          "End this older workspace and begin again to use role switching.",
+        ),
+        { statusCode: 409 },
+      );
+    const {
+      rows: [updated],
+    } = await this.pool.query<Session>(
+      "UPDATE public.advisio_evaluation_sessions SET role=$2,user_id=$3,project_id=$4,defense_id=$5,token_hash=$6,touched_at=now() WHERE id=$1 AND state='ACTIVE' AND token_hash=$7 AND touched_at > now()-interval '20 minutes' AND created_at > now()-interval '60 minutes' RETURNING *",
+      [
+        session.id,
+        role,
+        account.userId,
+        account.projectId,
+        account.defenseId,
+        tokenHash(nextToken),
+        session.token_hash,
+      ],
+    );
+    if (!updated)
+      throw Object.assign(
+        new Error("Your session changed or expired. Reload the evaluation."),
+        { statusCode: 401 },
+      );
+    for (const revoke of this.revokers.get(session.id) || []) revoke();
+    return updated;
+  }
   acquire(session: Session, revoke: () => void = () => {}) {
     let item = this.clients.get(session.id);
     if (!item) {
@@ -246,6 +291,7 @@ export class EvaluationRuntime {
         id: session.id,
         prisma: item.prisma,
         storageRoot: this.storageRoot(session.id),
+        projectIds: session.accounts?.[session.role]?.projectIds,
       },
       release: () => {
         if (released) return;
@@ -267,9 +313,14 @@ export class EvaluationRuntime {
       course: course.id,
       courseLabel: course.label,
       college: course.college,
-      title: course.title,
+      collegeCode: course.collegeCode,
+      title: session.accounts?.[session.role]?.title || course.title,
       home: role.home,
       projectId: session.project_id,
+      progressKey: `${session.id}:${role.id}`,
+      roles: session.accounts
+        ? EVALUATION_ROLES.map(({ id, label }) => ({ id, label }))
+        : [],
       defenseId: session.defense_id,
       tasks: ROLE_TASKS[session.role],
       revisionName: `${course.short}_Proposal_v3.pdf`,
