@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { AttendanceStatus, ConsultationStatus, Prisma, prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { deanCollege } from "../services/dean-monitoring-scope.js";
 import { googleCalendarService } from "../services/google-calendar.service.js";
 import {
   consultationInclude,
@@ -33,6 +34,82 @@ async function accessibleConsultation(id: string, user: NonNullable<Request["use
   const { access } = await consultationProjectAccess(user, consultation.researchId);
   return { consultation, access };
 }
+
+function coordinatorProjects(userId: string, collegeId: string): Prisma.ResearchProjectWhereInput {
+  return {
+    collegeId,
+    OR: [
+      { members: { some: { userId, leftAt: null, projectRole: "COORDINATOR" } } },
+      { workflowInstance: { is: { workflow: { createdBy: userId } } } },
+    ],
+  };
+}
+
+const coordinatorRoles = ["PROFESSOR", "RESEARCH_COORDINATOR"];
+
+router.get("/workspace/coordinator/projects", requireAuth, async (req, res) => {
+  const user = req.user!;
+  if (!user.collegeId || !user.roles.some((role) => coordinatorRoles.includes(role))) {
+    return void res.status(403).json({ error: "An authorized Coordinator college is required." });
+  }
+  try {
+    const projects = await prisma.researchProject.findMany({
+      where: { ...coordinatorProjects(user.id, user.collegeId), status: { not: "ARCHIVED" } },
+      select: { id: true, title: true, groupName: true },
+      orderBy: [{ title: "asc" }, { id: "asc" }],
+    });
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json({ projects });
+  } catch {
+    res.status(500).json({ error: "Unable to load consultation projects." });
+  }
+});
+
+router.get("/workspace/:workspace", requireAuth, async (req, res, next) => {
+  const user = req.user!;
+  const workspace = req.params.workspace;
+  const page = req.query.page === undefined ? 1 : Number(req.query.page);
+  if (!Number.isSafeInteger(page) || page < 1 || page > 10000) {
+    return void res.status(400).json({ error: "Choose a valid page." });
+  }
+
+  try {
+    let research: Prisma.ResearchProjectWhereInput;
+    if (workspace === "dean") {
+      research = { collegeId: deanCollege(user) };
+    } else if (workspace === "coordinator" && user.collegeId && user.roles.some((role) => coordinatorRoles.includes(role))) {
+      research = coordinatorProjects(user.id, user.collegeId);
+    } else if (workspace === "panelist" && user.collegeId && user.roles.includes("PANELIST")) {
+      research = {
+        collegeId: user.collegeId,
+        members: { some: { userId: user.id, leftAt: null, projectRole: "PANELIST" } },
+      };
+    } else {
+      return void res.status(403).json({ error: "You cannot open this consultation workspace." });
+    }
+
+    const pageSize = 25;
+    const rows = await prisma.consultation.findMany({
+      where: { research },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        scheduledStart: true,
+        scheduledEnd: true,
+        meetingUrl: workspace !== "dean",
+        research: { select: { title: true, groupName: true } },
+      },
+      orderBy: [{ scheduledStart: "desc" }, { id: "desc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize + 1,
+    });
+    res.setHeader("Cache-Control", "private, no-store");
+    res.json({ consultations: rows.slice(0, pageSize), hasNextPage: rows.length > pageSize });
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.get("/", requireAuth, async (req, res) => {
   try {
@@ -212,12 +289,18 @@ router.patch("/:id/approve", requireAuth, async (req, res) => {
     if (!context.consultation) return void res.status(404).json({ error: "Consultation not found." });
     if (!context.access?.canApprove) return void res.status(403).json({ error: "Only assigned faculty can approve this consultation." });
     const consultation = await prisma.consultation.update({
-      where: { id: context.consultation.id },
+      where: {
+        id: context.consultation.id,
+        status: { in: [ConsultationStatus.REQUESTED, ConsultationStatus.SCHEDULED] },
+      },
       data: { status: ConsultationStatus.SCHEDULED },
       include: consultationInclude,
     });
     res.json({ success: true, consultation: serializeConsultation(consultation) });
   } catch (error: any) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+      return void res.status(409).json({ error: "This consultation is no longer awaiting approval." });
+    }
     res.status(500).json({ error: error.message || "Failed to approve consultation." });
   }
 });

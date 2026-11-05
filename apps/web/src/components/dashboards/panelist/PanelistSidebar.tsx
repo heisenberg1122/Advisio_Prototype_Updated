@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   CalendarCheck,
   CalendarDays,
+  CalendarClock,
   FileText,
   ClipboardCheck,
   Award,
@@ -35,6 +36,7 @@ const PANELIST_NAV_SECTIONS: NavSection[] = [
     title: "ACADEMIC ACTIVITIES",
     items: [
       { label: "Defense Schedule", href: "/panelist/dashboard?tab=schedule", tabName: "schedule", icon: CalendarCheck },
+      { label: "Consultations", href: "/panelist/consultations", icon: CalendarClock },
       { label: "Calendar", href: "/panelist/calendar", icon: CalendarDays },
     ],
   },

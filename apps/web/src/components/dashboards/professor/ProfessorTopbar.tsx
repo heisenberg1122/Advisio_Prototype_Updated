@@ -27,6 +27,7 @@ const PAGES: Record<string, string> = {
   "/professor/inbox": "Inbox",
   "/professor/signatures": "Signature Requests",
   "/professor/reviews": "Manuscript Reviews",
+  "/professor/consultations": "Consultations",
 };
 
 export function ProfessorTopbar() {

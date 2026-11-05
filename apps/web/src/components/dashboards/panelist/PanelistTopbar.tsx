@@ -22,6 +22,7 @@ const PAGES: Record<string, string> = {
   "/panelist/settings": "Account Settings",
   "/panelist/inbox": "Inbox",
   "/panelist/reviews": "Manuscript Reviews",
+  "/panelist/consultations": "Consultations",
 };
 
 export function PanelistTopbar() {
