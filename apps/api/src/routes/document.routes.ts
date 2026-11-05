@@ -354,7 +354,7 @@ router.get("/dean-inbox/threads", requireAuth, async (req, res) => {
           uploadedAt: true,
           sourceSignature: { select: { signedVersionId: true } },
           signedSignature: {
-            select: { verificationCode: true, signedAt: true, revokedAt: true },
+            select: { verificationCode: true, signedAt: true, revokedAt: true, signedBy: { select: { firstName: true, lastName: true } } },
           },
         },
       },

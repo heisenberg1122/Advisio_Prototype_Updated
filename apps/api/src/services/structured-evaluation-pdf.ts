@@ -420,7 +420,16 @@ export async function renderEvaluationPdf(
     thickness: 0.6,
     color: ink,
   });
-  centered("CAPSTONE PANEL - Panelist", 323, y - 10, 235, font, 9);
+  centered(
+    /capstone/i.test(snapshot.spec.name)
+      ? "CAPSTONE PANEL - Panelist"
+      : "DEFENSE PANEL - Panelist",
+    323,
+    y - 10,
+    235,
+    font,
+    9,
+  );
   if (answers.signature)
     centered("Typed electronic signature", 323, y - 24, 235, sans, 7, gray);
   for (const [i, p] of pdf.getPages().entries()) {

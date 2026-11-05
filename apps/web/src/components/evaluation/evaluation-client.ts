@@ -7,6 +7,11 @@ export type EvaluationSession = {
   collegeCode?: string;
   progressKey?: string;
   roles?: { id: string; label: string }[];
+  scenario?: string | null;
+  scenarioLabel?: string | null;
+  scenarios?: { id: string; label: string }[];
+  signingPassword?: string;
+  revisionAvailable?: boolean;
   title: string;
   home: string;
   projectId: string;

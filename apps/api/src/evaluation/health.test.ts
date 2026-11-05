@@ -64,3 +64,39 @@ describe("evaluation liveness during workspace provisioning", () => {
     await expect(service.health()).rejects.toThrow("database unavailable");
   });
 });
+
+describe("concurrent expired workspace cleanup", () => {
+  it("removes the same expired files and schema once while new sessions arrive together", async () => {
+    const service = await prepare();
+    const id = "a".repeat(32);
+    await fs.mkdir(service.storageRoot(id), { recursive: true });
+    await fs.writeFile(
+      path.join(service.storageRoot(id), "manuscript.pdf"),
+      "fictional test document",
+    );
+    const expired = { id, state: "EXPIRED" };
+    const query = vi.spyOn(service.pool, "query").mockImplementation((async (
+      sql: string,
+    ) => {
+      if (
+        sql.startsWith("UPDATE public.advisio_evaluation_sessions SET state=")
+      )
+        return { rows: [expired] };
+      if (sql.startsWith("SELECT *")) return { rows: [] };
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return { rows: [] };
+    }) as any);
+    await Promise.all(Array.from({ length: 20 }, () => service.cleanup()));
+    expect(
+      query.mock.calls.filter(([sql]) => String(sql).startsWith("DROP SCHEMA")),
+    ).toHaveLength(1);
+    expect(
+      query.mock.calls.filter(([sql]) =>
+        String(sql).startsWith(
+          "UPDATE public.advisio_evaluation_sessions SET cleaned_at",
+        ),
+      ),
+    ).toHaveLength(1);
+    await expect(fs.access(service.storageRoot(id))).rejects.toThrow();
+  });
+});

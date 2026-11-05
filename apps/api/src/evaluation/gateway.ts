@@ -134,21 +134,31 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
       });
     if (endpoint === "/api/evaluation/session" && req.method === "GET")
       return void res.json(service.describe(session));
-    if (endpoint === "/api/evaluation/switch-role" && req.method === "POST") {
+    if (
+      [
+        "/api/evaluation/switch-role",
+        "/api/evaluation/switch-scenario",
+      ].includes(endpoint) &&
+      req.method === "POST"
+    ) {
       const body = req.body;
+      const switchingRole = endpoint.endsWith("switch-role");
+      const key = switchingRole ? "role" : "scenario";
       if (
         !body ||
         Object.keys(body).length !== 1 ||
-        !EVALUATION_ROLES.some((r) => r.id === body.role)
+        typeof body[key] !== "string"
       )
         return void res
           .status(400)
           .json({
             error:
-              "Choose one of the five evaluation roles. College and workspace cannot be changed.",
+              "Choose only an available role or scenario. College and workspace cannot be changed.",
           });
       const nextToken = randomBytes(32).toString("hex");
-      const updated = await service.switchRole(session, body.role, nextToken);
+      const updated = switchingRole
+        ? await service.switchRole(session, body.role, nextToken)
+        : await service.switchScenario(session, body.scenario, nextToken);
       res.cookie(COOKIE, nextToken, {
         httpOnly: true,
         secure: service.config.secure,
@@ -174,7 +184,27 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
       });
       return void res.json({ message: "Evaluation session closed." });
     }
+    if (endpoint === "/api/evaluation/request-letter" && req.method === "GET") {
+      if (session.role !== "professor")
+        return void res
+          .status(403)
+          .json({
+            error:
+              "The prepared request letter is for the Coordinator scenario.",
+          });
+      return void res.download(
+        `${service.storageRoot(session.id)}/Prepared_Defense_Approval_Request.pdf`,
+        "Prepared_Defense_Approval_Request.pdf",
+      );
+    }
     if (endpoint === "/api/evaluation/revision" && req.method === "GET") {
+      if (!service.describe(session).revisionAvailable)
+        return void res
+          .status(404)
+          .json({
+            error:
+              "The prepared revision belongs to the In progress student scenario.",
+          });
       const filename = service.describe(session).revisionName;
       return void res.download(
         `${service.storageRoot(session.id)}/${filename}`,
@@ -185,17 +215,29 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
       return void res
         .status(404)
         .json({ error: "Evaluation action not found." });
+    const demoSignatureRead =
+      session.role === "dean" &&
+      !!session.accounts?.dean.scenarios &&
+      req.method === "GET" &&
+      /^\/api\/users\/me\/signature(?:\/image)?$/.test(endpoint);
+    const demoDeanSign =
+      session.role === "dean" &&
+      !!session.accounts?.dean.scenarios &&
+      req.method === "POST" &&
+      /^\/api\/documents\/versions\/[a-f0-9-]{36}\/sign$/.test(endpoint);
     if (
-      (endpoint.startsWith("/api/auth/") &&
+      !demoSignatureRead &&
+      !demoDeanSign &&
+      ((endpoint.startsWith("/api/auth/") &&
         ![
           "/api/auth/me",
           "/api/auth/me/appearance",
           "/api/auth/me/color-theme",
         ].includes(endpoint)) ||
-      /^\/api\/(integrations|account-invitations|official-copies|signatures|users)(\/|$)/.test(
-        endpoint,
-      ) ||
-      /\/(sign|issue|issue-badges)(\/|$)/.test(endpoint)
+        /^\/api\/(integrations|account-invitations|official-copies|signatures|users)(\/|$)/.test(
+          endpoint,
+        ) ||
+        /\/(sign|issue|issue-badges)(\/|$)/.test(endpoint))
     )
       return void res
         .status(403)
@@ -219,8 +261,30 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
     res.once("finish", release);
     res.once("close", release);
     // Native authorization still checks the one selected role and project scope.
-    req.headers.authorization = `Bearer ${generateToken(session.user_id, 0)}`;
-    evaluationContext.run(acquired.scope, next);
+    await evaluationContext.run(acquired.scope, async () => {
+      if (demoDeanSign) {
+        const versionId = endpoint.split("/")[4];
+        const version = await acquired.scope.prisma.documentVersion.findFirst({
+          where: {
+            id: versionId,
+            document: {
+              documentType: "DEAN_DEFENSE_APPROVAL",
+              deanInboxMessages: { some: { recipientId: session.user_id } },
+            },
+          },
+          select: { id: true },
+        });
+        if (!version)
+          return void res
+            .status(403)
+            .json({
+              error:
+                "Only a Dean approval request addressed to this demo Dean may be signed.",
+            });
+      }
+      req.headers.authorization = `Bearer ${generateToken(session.user_id, 0)}`;
+      next();
+    });
   } catch (error: any) {
     console.error(
       "Evaluation request failed:",

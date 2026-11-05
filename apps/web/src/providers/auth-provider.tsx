@@ -1,3 +1,4 @@
+import { evaluationIdentityGeneration, evaluationIdentityIsCurrent } from "@/lib/evaluation-identity";
 import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { clearGoogleOnboardingSession, storeGoogleOnboardingSession, type GoogleOnboardingSession } from "@/lib/google-onboarding";
@@ -64,13 +65,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = async (): Promise<UserProfile | null> => {
     if (!token) return null;
+    const identityGeneration = evaluationIdentityGeneration();
     try {
       const data = await apiClient.get<{ user: UserProfile }>("/api/auth/me");
-      if (localStorage.getItem("advisio_token") !== token) return null;
+      if (localStorage.getItem("advisio_token") !== token || !evaluationIdentityIsCurrent(identityGeneration, token)) return null;
       setUser(data.user);
       return data.user;
     } catch (error) {
-      if (localStorage.getItem("advisio_token") !== token) return null;
+      if (localStorage.getItem("advisio_token") !== token || !evaluationIdentityIsCurrent(identityGeneration, token)) return null;
       if (error instanceof ApiError && error.statusCode === 401) {
         localStorage.removeItem("advisio_token");
         for (const key of ["advisio_theme:active", "advisio_color-theme:active", "advisio_college-theme:active"]) {
@@ -105,12 +107,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!token) { setIsLoading(false); return; }
       if (hydratedToken.current === token) { setIsLoading(false); return; }
       setIsLoading(true); setSessionError(null);
+      const identityGeneration = evaluationIdentityGeneration();
       try {
         const data = await apiClient.get<{ user: UserProfile }>("/api/auth/me");
-        if (cancelled) return;
+        if (cancelled || !evaluationIdentityIsCurrent(identityGeneration, token)) return;
         hydratedToken.current = token; setUser(data.user);
       } catch (error) {
-        if (cancelled) return;
+        if (cancelled || !evaluationIdentityIsCurrent(identityGeneration, token)) return;
         if (error instanceof ApiError && error.statusCode === 401) {
           localStorage.removeItem("advisio_token");
           for (const key of ["advisio_theme:active", "advisio_color-theme:active", "advisio_college-theme:active"]) localStorage.removeItem(key);

@@ -9,6 +9,7 @@ import {
   evaluationCard,
 } from "@/components/defense/StructuredEvaluationFields";
 import { PdfDocumentPreview } from "@/components/documents/PdfDocumentPreview";
+import { EvaluationFormBranding } from "@/components/defense/EvaluationFormBranding";
 import { openEvaluationPdf } from "@/components/professor/ConsolidatedEvaluations";
 export function StructuredEvaluationWorkspace({
   sessionId,
@@ -160,6 +161,7 @@ export function StructuredEvaluationWorkspace({
   return (
     <div className="space-y-4">
       <section className={evaluationCard}>
+        <EvaluationFormBranding form={snapshot.spec} />
         <p className="text-xs text-[var(--color-text-secondary)]">
           {snapshot.researchTitle}
         </p>

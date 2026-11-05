@@ -196,6 +196,7 @@ export async function createVisuallySignedPdf(options: {
 }
 
 export class DocumentSigningService {
+  constructor(private readonly now: () => Date = () => new Date()) {}
   async sign(options: SignatureImageInput & {
     sourceVersionId: string;
     signerId: string;
@@ -313,7 +314,7 @@ export class DocumentSigningService {
     const signerName = [adviser.firstName, adviser.middleName, adviser.lastName]
       .filter(Boolean)
       .join(" ");
-    const signedAt = new Date();
+    const signedAt = this.now();
     const signedBuffer = await createVisuallySignedPdf({
       original,
       signatureImage: signature.imageData,

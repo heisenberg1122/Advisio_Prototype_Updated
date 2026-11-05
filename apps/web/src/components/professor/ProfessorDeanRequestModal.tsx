@@ -144,6 +144,7 @@ export function ProfessorDeanRequestModal({
           </button>
         </header>
         <div className="max-h-[70vh] space-y-4 overflow-y-auto p-5">
+          {localStorage.getItem("advisio_token") === "__evaluation__" && <p className="rounded-xl bg-sky-50 p-3 text-sm text-sky-900"><a href="/api/evaluation/request-letter" download className="font-bold underline">Download the fictional request letter</a>, then attach it below for the pending-signature demo group.</p>}
           {error && (
             <p className="rounded-xl bg-rose-50 p-3 text-base font-bold text-rose-700">
               {error}

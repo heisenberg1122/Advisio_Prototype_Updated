@@ -216,6 +216,7 @@ export function useDefense() {
     sessions: any[];
     documents: any[];
     projects: any[];
+    progress?: { completed: number; total: number; current: string | null };
   }>({
     queryKey: [...studentKeys.defense(), activeProjectId],
     queryFn: async () => {
@@ -246,6 +247,7 @@ export function useDefense() {
           `/api/research/${project.id}/documents`,
         ),
         apiClient.get<{
+          milestones: { completed: boolean; isCurrent: boolean; name: string }[];
           defenseReadiness: { workflowApproved: boolean; deanApprovalSigned: boolean };
         }>(`/api/research/${project.id}/manuscript-workflow`),
       ]);
@@ -297,6 +299,11 @@ export function useDefense() {
         (requirement) => requirement.status === "done",
       );
       return {
+        progress: {
+          completed: (workflowData.milestones || []).filter(m => m.completed).length,
+          total: (workflowData.milestones || []).length,
+          current: (workflowData.milestones || []).find(m => m.isCurrent)?.name || null,
+        },
         requirements,
         eligibility: ready ? "eligible" : "not_eligible",
         project,

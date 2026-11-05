@@ -1,3 +1,7 @@
+import {
+  beginEvaluationIdentityChange,
+  cancelEvaluationIdentityChange,
+} from "@/lib/evaluation-identity";
 import React, { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import {
@@ -23,9 +27,30 @@ export function EvaluationBanner() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const banner = useRef<HTMLElement>(null);
   const dialog = useRef<HTMLElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const active = localStorage.getItem("advisio_token") === "__evaluation__";
+  useEffect(() => {
+    if (!banner.current) return;
+    const measure = () =>
+      document.documentElement.style.setProperty(
+        "--evaluation-controls-height",
+        `${banner.current?.offsetHeight || 0}px`,
+      );
+    measure();
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(measure);
+    observer?.observe(banner.current);
+    return () => {
+      observer?.disconnect();
+      document.documentElement.style.removeProperty(
+        "--evaluation-controls-height",
+      );
+    };
+  }, [active, session, location.pathname]);
   useEffect(() => {
     const show = () => setOpen(true);
     window.addEventListener("advisio:evaluation-activities", show);
@@ -124,6 +149,7 @@ export function EvaluationBanner() {
     if (!session || role === session.role || busy) return;
     setBusy(true);
     setError("");
+    beginEvaluationIdentityChange();
     try {
       const switched = await evaluationRequest<EvaluationSession>(
         "switch-role",
@@ -135,13 +161,35 @@ export function EvaluationBanner() {
       // Reload clears cached queries and renders the actual portal for the new identity.
       window.location.assign(switched.home);
     } catch (e) {
+      cancelEvaluationIdentityChange();
+      setError((e as Error).message);
+      setBusy(false);
+    }
+  }
+  async function switchScenario(scenario: string) {
+    if (!session || scenario === session.scenario || busy) return;
+    setBusy(true);
+    setError("");
+    beginEvaluationIdentityChange();
+    try {
+      const switched = await evaluationRequest<EvaluationSession>(
+        "switch-scenario",
+        { method: "POST", body: JSON.stringify({ scenario }) },
+      );
+      window.location.assign(switched.home);
+    } catch (e) {
+      cancelEvaluationIdentityChange();
       setError((e as Error).message);
       setBusy(false);
     }
   }
   return (
     <>
-      <aside className="evaluation-banner" aria-label="Evaluation controls">
+      <aside
+        ref={banner}
+        className="evaluation-banner"
+        aria-label="Evaluation controls"
+      >
         <span>
           <strong>Step {questionnaire ? 3 : 2} of 3</strong>
           <small>
@@ -160,6 +208,23 @@ export function EvaluationBanner() {
               {session.roles.map((role) => (
                 <option key={role.id} value={role.id}>
                   {role.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {!!session.scenarios?.length && (
+          <label className="evaluation-role-switcher">
+            <span>Demo scenario</span>
+            <select
+              aria-label="Switch demo scenario"
+              value={session.scenario || ""}
+              disabled={busy}
+              onChange={(e) => void switchScenario(e.target.value)}
+            >
+              {session.scenarios.map((scenario) => (
+                <option key={scenario.id} value={scenario.id}>
+                  {scenario.label}
                 </option>
               ))}
             </select>
@@ -216,6 +281,12 @@ export function EvaluationBanner() {
               </strong>
               <br />
               {session.title}
+              {session.scenarioLabel && (
+                <>
+                  <br />
+                  <small>Scenario: {session.scenarioLabel}</small>
+                </>
+              )}
             </p>
             {!questionnaire ? (
               <>
@@ -241,14 +312,30 @@ export function EvaluationBanner() {
                     </li>
                   ))}
                 </ol>
-                {session.role === "student" && (
+                {session.role === "student" &&
+                  session.revisionAvailable !== false && (
+                    <p>
+                      <a
+                        href="/api/evaluation/revision"
+                        download={session.revisionName}
+                      >
+                        Download the prepared revision PDF
+                      </a>
+                    </p>
+                  )}
+                {session.role === "professor" && (
                   <p>
-                    <a
-                      href="/api/evaluation/revision"
-                      download={session.revisionName}
-                    >
-                      Download the prepared revision PDF
+                    <a href="/api/evaluation/request-letter" download>
+                      Download the fictional Dean approval request letter
                     </a>
+                  </p>
+                )}
+                {session.signingPassword && (
+                  <p className="evaluation-help">
+                    For the fictional Dean signing activity, use the saved demo
+                    signature and password:{" "}
+                    <code>{session.signingPassword}</code>. This applies only to
+                    this temporary demo account.
                   </p>
                 )}
                 <p>

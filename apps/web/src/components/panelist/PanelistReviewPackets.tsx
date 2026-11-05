@@ -53,9 +53,21 @@ export function PanelistReviewPackets() {
       apiClient.get<{ sessions: any[] }>("/api/defense-review-packets"),
   });
   const sessions = useMemo(() => data?.sessions || [], [data?.sessions]);
+  const [reviewFilter, setReviewFilter] = useState(
+    searchParams.get("review") || "all",
+  );
+  const visibleSessions = sessions.filter((session: any) =>
+    reviewFilter === "history"
+      ? Boolean(session.manuscriptReviews?.[0]?.reviewedAt)
+      : reviewFilter === "pending"
+        ? !session.manuscriptReviews?.[0]?.reviewedAt
+        : true,
+  );
   const [selectedId, setSelectedId] = useState(requestedSessionId);
   const selected =
-    sessions.find((item: any) => item.id === selectedId) || sessions[0] || null;
+    visibleSessions.find((item: any) => item.id === selectedId) ||
+    visibleSessions[0] ||
+    null;
   const { data: detail, isLoading: detailLoading } = useQuery({
     queryKey: ["defense-review-packet", selected?.id],
     queryFn: () =>
@@ -149,18 +161,21 @@ export function PanelistReviewPackets() {
     () => [
       { label: "Manuscript available", done: Boolean(publishedManuscript) },
       {
-        label: "Review saved",
-        done: Boolean(
-          detail?.review || selected?.packetDocumentReviews?.length,
-        ),
+        label: "Latest manuscript review complete",
+        done: Boolean(detail?.review?.reviewedAt),
       },
       {
-        label: "Recommendation generated",
-        done: detail?.recommendation?.status === "LOCKED",
+        label: "Saved manuscript annotation history",
+        done: Boolean(selected?.packetDocumentReviews?.length),
       },
       {
         label: "Evaluation locked",
-        done: selected?.evaluations?.[0]?.status === "LOCKED",
+        done:
+          selected?.packet?.evaluationMode === "STRUCTURED"
+            ? Boolean(selected?.structuredEvaluations?.[0]?.lockedAt)
+            : selected?.packet?.evaluationMode === "PDF"
+              ? selected?.pdfEvaluations?.[0]?.status === "LOCKED"
+              : selected?.evaluations?.[0]?.status === "LOCKED",
       },
     ],
     [previewUrl, detail, selected],
@@ -177,6 +192,9 @@ export function PanelistReviewPackets() {
       );
       await queryClient.invalidateQueries({
         queryKey: ["defense-review-packet", selected.id],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["defense-review-packets"],
       });
       setNotice(
         reviewed
@@ -324,6 +342,22 @@ export function PanelistReviewPackets() {
       </div>
     );
 
+  if (!selected)
+    return (
+      <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-8 text-center">
+        <h3 className="font-extrabold">
+          No manuscripts match this review status
+        </h3>
+        <button
+          type="button"
+          onClick={() => setReviewFilter("all")}
+          className="mt-3 font-bold underline"
+        >
+          Show all assigned manuscripts
+        </button>
+      </div>
+    );
+
   return (
     <>
       {signing && (
@@ -343,14 +377,30 @@ export function PanelistReviewPackets() {
         <aside className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 shadow-[var(--shadow-card-soft)]">
           <div className="px-2 py-3">
             <p className="text-sm font-extrabold uppercase tracking-[.16em] text-[#d98d00]">
-              Ready for review
+              Pending reviews and history
             </p>
             <h2 className="mt-1 text-lg font-black text-[var(--color-text-primary)]">
               Defense documents
             </h2>
           </div>
+          <label className="mb-3 block px-2 text-sm font-semibold">
+            Review status
+            <select
+              aria-label="Filter manuscript reviews"
+              value={reviewFilter}
+              onChange={(e) => {
+                setReviewFilter(e.target.value);
+                setSelectedId("");
+              }}
+              className="mt-2 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-2"
+            >
+              <option value="all">All assigned manuscripts</option>
+              <option value="pending">Pending reviews</option>
+              <option value="history">Review history</option>
+            </select>
+          </label>
           <div className="space-y-2">
-            {sessions.map((session: any) => (
+            {visibleSessions.map((session: any) => (
               <button
                 key={session.id}
                 onClick={() => {
@@ -364,6 +414,17 @@ export function PanelistReviewPackets() {
                 </p>
                 <p className="mt-1 text-base text-slate-500">
                   {session.research.researchType?.name || "Defense"}
+                </p>
+                <p className="mt-2 text-xs font-bold">
+                  {session.manuscriptReviews?.[0]?.reviewedAt
+                    ? "Reviewed - history available"
+                    : "Pending manuscript review"}{" "}
+                  ·{" "}
+                  {session.status === "LIVE"
+                    ? "Live defense"
+                    : session.status === "COMPLETED"
+                      ? "Completed defense"
+                      : "Pre-defense"}
                 </p>
                 <p className="mt-2 text-base font-bold text-slate-400">
                   {session.scheduledStart

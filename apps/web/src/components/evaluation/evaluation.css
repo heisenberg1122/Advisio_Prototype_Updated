@@ -577,3 +577,14 @@
     flex-shrink: 0;
   }
 }
+
+/* Keep native page actions scrollable above the fixed demo controls. */
+html:has(.evaluation-banner) {
+  scroll-padding-bottom: calc(var(--evaluation-controls-height, 90px) + 32px);
+}
+body:has(.evaluation-banner) .app-workspace::after {
+  content: "";
+  display: block;
+  flex: 0 0 calc(var(--evaluation-controls-height, 90px) + 32px);
+  min-height: calc(var(--evaluation-controls-height, 90px) + 32px);
+}

@@ -82,6 +82,8 @@ describe("structured defense evaluations", () => {
     const all = streams.join("\n");
     expect(all).toContain(encoded("College of Architecture"));
     expect(all).toContain(encoded("ARCHITECTURE FORM 4"));
+    expect(all).toContain(encoded("DEFENSE PANEL - Panelist"));
+    expect(all).not.toContain(encoded("CAPSTONE PANEL"));
     expect(all).toContain(encoded(s.spec.name.toUpperCase()));
     expect(all.split(encoded("Panelist Unique Name"))).toHaveLength(2);
     expect(all).not.toContain(encoded("Panelist: "));

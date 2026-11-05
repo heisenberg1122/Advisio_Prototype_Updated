@@ -148,10 +148,10 @@ describe("respondent coverage", () => {
     ]);
     expect(ROLE_PROJECTS).toEqual({
       student: ["B"],
-      professor: ["A", "B", "C"],
-      adviser: ["A", "B"],
-      panelist: ["C", "D"],
-      dean: ["A", "B", "C"],
+      professor: ["A", "B", "C", "D", "E", "F", "G"],
+      adviser: ["A", "B", "D", "E", "F"],
+      panelist: ["C", "D", "E", "F"],
+      dean: ["A", "B", "C", "D", "E", "F", "G"],
     });
   });
   it("adds evaluation project restrictions only inside a scoped request", () => {

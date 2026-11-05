@@ -1,6 +1,6 @@
 # ADVISIO local QR evaluation
 
-**Branch implementation:** onboarding now opens the selected role dashboard directly. Eight colleges, five switchable roles, four connected scenarios, and ten milestones are described in [the demo accounts implementation](demo-accounts-implementation.md). `/evaluate/guide` is a compatibility redirect. Deployment is a separate action; these branch changes do not establish that the hosted site has been updated. See [the hosting handoff](qr-evaluation-hosting.md) for public links and deployment instructions.
+**Branch implementation:** onboarding now opens the selected role dashboard directly. Eight colleges, five switchable roles, seven connected project scenarios, and ten milestones are described in [the demo accounts implementation](demo-accounts-implementation.md). `/evaluate/guide` is a compatibility redirect. Deployment is a separate action; these branch changes do not establish that the hosted site has been updated. See [the hosting handoff](qr-evaluation-hosting.md) for public links and deployment instructions.
 
 This implementation uses the existing ADVISIO portals and API workflows. It does not replace them with a separate demonstration interface. The entry page is `/evaluate`; the organizer QR sheet is `/evaluate/print`.
 
@@ -11,7 +11,7 @@ Requirements: installed project dependencies, a generated Prisma client matching
 1. Run `npm run evaluation:init-local` once. It creates a separate loopback-only PostgreSQL cluster on port **5436**, a database named **advisio_evaluation**, and a private ignored `.env.evaluation.local`. It does not use the existing database on port 5432 or the local-demo target on port 5435.
 2. Run `npm run evaluation:dev`.
 3. Open **http://localhost:3100/evaluate**. Choose a role and college, acknowledge the fictional-material notice, and select **Begin Evaluation**. Open **http://localhost:3100/evaluate/print** to prepare a role/college QR.
-4. Use **Evaluation activities** on the dashboard to find the six activities, prepared revision, and TAM questionnaire. The **Demo role** selector preserves the workspace and college. The questionnaire remains available with incomplete activities. End the session when finished; its fictional records and files are removed.
+4. Use **Evaluation activities** on the dashboard to find the six activities, prepared revision, and TAM questionnaire. The **Demo role** and **Demo scenario** selectors preserve the workspace and college. Student choices include in progress, live defense, completed Title Defense, and completed Final Defense. Other roles include pending reviews/signatures and completed history as applicable. The questionnaire remains available with incomplete activities. End the session when finished; its fictional records and files are removed.
 
 The initializer reuses its own cluster on later runs and never resets an unrelated database. If that cluster has been stopped, run `evaluation:init-local` again before starting. It does not erase existing evaluation sessions. Initializing a new cluster requires that port 5436 be available.
 

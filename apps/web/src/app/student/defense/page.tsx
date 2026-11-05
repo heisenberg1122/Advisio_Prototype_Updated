@@ -217,6 +217,13 @@ export default function DefensePage() {
           </Link>
         </div>
       </header>
+      {data.progress && data.progress.total > 0 && (
+        <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5" aria-label="Research completion">
+          <h2 className="font-extrabold">Research completion: {data.progress.completed} of {data.progress.total} milestones</h2>
+          <progress className="mt-3 w-full" value={data.progress.completed} max={data.progress.total} />
+          <p className="mt-2 text-sm">{data.progress.completed === data.progress.total ? "All research milestones completed." : `Current milestone: ${data.progress.current || "Awaiting the next milestone"}`}</p>
+        </section>
+      )}
       {!selectedSession && (
         <div className="rdf-readiness">
           <h2 className="sr-only">Defense requirements</h2>

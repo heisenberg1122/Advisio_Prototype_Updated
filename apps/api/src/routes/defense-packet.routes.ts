@@ -152,6 +152,8 @@ router.get("/defense-review-packets", requireAuth, async (req, res) => {
           },
         },
         manuscriptReviews: { where: { panelistId: req.user!.id } },
+        structuredEvaluations: { where: { panelistId: req.user!.id }, select: { lockedAt: true, revision: true } },
+        pdfEvaluations: { where: { panelistId: req.user!.id }, select: { status: true, lockedAt: true } },
         packetDocumentReviews: {
           where: { panelistId: req.user!.id },
           select: { id: true, sourceVersionId: true, revision: true },

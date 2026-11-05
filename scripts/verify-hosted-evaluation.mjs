@@ -103,6 +103,57 @@ assert.equal(
     .toString(),
   "%PDF-",
 );
+assert.equal(initial.scenarios.length, 4);
+async function switchDemo(endpoint, body) {
+  const response = await fetch(`${base}/api/evaluation/${endpoint}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  assert.equal(response.status, 200);
+  headers.cookie = response.headers.get("set-cookie").split(";")[0];
+  const result = await response.json();
+  assert.equal(result.expiresAt, initial.expiresAt);
+  return result;
+}
+const completedScenario = await switchDemo("switch-scenario", {
+  scenario: "completed-final",
+});
+const milestones = await (
+  await fetch(
+    `${base}/api/research/${completedScenario.projectId}/manuscript-workflow`,
+    { headers },
+  )
+).json();
+assert.equal(milestones.milestones.filter((m) => m.completed).length, 10);
+await switchDemo("switch-role", { role: "panelist" });
+const live = await switchDemo("switch-scenario", { scenario: "live-defense" });
+const form = await (
+  await fetch(
+    `${base}/api/defense-sessions/${live.defenseId}/structured-evaluation`,
+    { headers },
+  )
+).json();
+assert.equal(form.evaluation, null);
+assert.match(form.snapshot.spec.name, /Information Technology Capstone/);
+assert.match(
+  form.snapshot.spec.branding.collegeLogo,
+  /^data:image\/png;base64,/,
+);
+await switchDemo("switch-role", { role: "dean" });
+const threads = await (
+  await fetch(`${base}/api/dean-inbox/threads`, { headers })
+).json();
+assert.ok(
+  threads.threads.some((t) =>
+    t.versions.some(
+      (v) => v.signedSignature?.signedBy?.firstName === "Aurelia",
+    ),
+  ),
+);
+assert.ok(
+  threads.threads.some((t) => !t.versions.some((v) => v.signedSignature)),
+);
 const crossOrigin = await fetch(`${base}/api/evaluation/session`, {
   method: "POST",
   headers: { ...headers, origin: "https://other.example.org" },

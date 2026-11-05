@@ -11,7 +11,11 @@ export type ManuscriptCourse = Omit<
 };
 
 // Deterministic, readable fixture documents use the same storage and viewer as uploads.
-export async function manuscript(course: ManuscriptCourse, version: number) {
+export async function manuscript(
+  course: ManuscriptCourse,
+  version: number,
+  final = false,
+) {
   const pdf = await PDFDocument.create();
   pdf.setTitle(`${course.title} - Fictional evaluation sample v${version}`);
   pdf.setAuthor("ADVISIO Evaluation Workspace");
@@ -19,7 +23,9 @@ export async function manuscript(course: ManuscriptCourse, version: number) {
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const sections: Array<[string, string[]]> = [
     [
-      "Research proposal",
+      final
+        ? "Research manuscript - fictional final sample"
+        : "Research proposal",
       [
         course.title,
         `Research type: ${course.type}`,
@@ -110,6 +116,39 @@ export async function manuscript(course: ManuscriptCourse, version: number) {
       ],
     ],
   ];
+  if (final)
+    sections.splice(
+      4,
+      0,
+      [
+        "Chapter 4 - Illustrative results",
+        [
+          "Fictional results disclosure",
+          "This completed-defense sample uses invented demonstration records. Its numbers and observations are not empirical research findings and must not be cited as evidence.",
+          "Objective-to-evidence review",
+          course.objective,
+          "The fictional group reviewed 24 example checklist entries against its stated objectives. Twenty entries initially met the defined documentation criteria; four required clarification. The revised sample matrix addresses all 24 entries and records the review decisions.",
+          "Discipline-specific interpretation",
+          ...course.details,
+          "The demonstration shows how to organize evidence, identify gaps, and explain revisions. It does not validate an instrument, establish a causal relationship, certify a design, or describe real patients, businesses, or participants.",
+        ],
+      ],
+      [
+        "Chapter 5 - Discussion and conclusions",
+        [
+          "Discussion",
+          "The illustrative review connects each objective to an explicit source of evidence. The fictional completed manuscript resolves the recorded documentation gaps and explains the limits of its scope.",
+          "Response to adviser and panel review",
+          course.revision,
+          "Conclusions",
+          "For this evaluation exercise, the group has completed the research documentation and defense requirements. The issued badge and released evaluations are retained in the project's actual workflow records.",
+          "Limitations",
+          "All results are invented demonstration material. Any real study would require approved procedures, verified sources, suitable data, and discipline-specific validation before conclusions could be drawn.",
+          "Recommendations",
+          "Preserve source provenance, verify every input, report exclusions, and obtain the required academic and ethics approvals for real research.",
+        ],
+      ],
+    );
   for (const [index, [heading, paragraphs]] of sections.entries()) {
     const page = pdf.addPage([595, 842]);
     const write = (value: string, size: number, heavy = false) => {

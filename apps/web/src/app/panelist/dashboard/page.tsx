@@ -1328,6 +1328,14 @@ function PanelistDashboardContent() {
                         <Tag variant="success">{g.status}</Tag>
                       </div>
                     ))}
+                    {completedStructuredEvaluations.map((session: any) => (
+                      <button key={session.id} className="rounded-xl border border-[var(--color-border)] p-4 text-left"
+                        onClick={() => router.push(`/panelist/dashboard?tab=evaluation&sessionId=${session.id}`)}>
+                        <strong className="block">{session.research.title}</strong>
+                        <span className="mt-1 block text-sm text-[var(--color-text-secondary)]">Structured evaluation submitted and locked · View my completed evaluation and PDF</span>
+                        <span className="mt-1 block text-sm text-[var(--color-text-secondary)]">{session.defenseEvent?.defenseType === "FINAL_DEFENSE" ? "Final Defense" : "Title Defense"} · {session.releasedAt ? `Released decision: ${readable(session.decision)}` : "Result awaiting release"}</span>
+                      </button>
+                    ))}
                     {completedPdfEvaluations.map((session: any) => (
                       <button
                         key={session.id}
@@ -1418,6 +1426,7 @@ function PanelistDashboardContent() {
                               {session.releasedAt ? "Released" : "Completed"}
                             </Tag>
                           </div>
+                          {(session.structuredEvaluations?.[0]?.lockedAt || session.pdfEvaluations?.[0]?.status === "LOCKED") && <button type="button" onClick={() => router.push(`/panelist/dashboard?tab=evaluation&sessionId=${session.id}`)} className="mt-3 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm font-bold">View my completed evaluation</button>}
                         </div>
                       );
                     })}

@@ -8,6 +8,7 @@ import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { apiClient } from "@/lib/api-client";
 import { SignaturePad } from "./SignaturePad";
 import { useAuth } from "@/providers/auth-provider";
+import { evaluationRequest, type EvaluationSession } from "@/components/evaluation/evaluation-client";
 import { DocumentPreviewSkeleton } from "@/components/ui/Skeleton";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Button } from "@/components/ui/Button";
@@ -87,6 +88,13 @@ export function DocumentSigningModal({
   const [includeName, setIncludeName] = useState(true);
   const [includeDate, setIncludeDate] = useState(true);
   const [password, setPassword] = useState("");
+  const [demoPassword, setDemoPassword] = useState("");
+  useEffect(() => {
+    if (localStorage.getItem("advisio_token") !== "__evaluation__") return;
+    let current = true;
+    evaluationRequest<EvaluationSession>("session").then(session => { if (current) setDemoPassword(session.signingPassword || ""); }).catch(() => {});
+    return () => { current = false; };
+  }, []);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(true);
   const signAction = useAsyncAction();
@@ -844,13 +852,14 @@ export function DocumentSigningModal({
                   <h3 className="text-lg font-extrabold text-[#102f49]">
                     3. Confirm and sign
                   </h3>
+                  {demoPassword && <p className="mt-3 rounded-lg bg-sky-50 p-3 text-sm text-sky-900">Fictional evaluation account: use the saved demo signature and password <code>{demoPassword}</code>. No personal password or signature is needed.</p>}
                   <label className="mt-3 block text-sm font-bold text-slate-600">
                     Confirm your password
                     <input
                       type="password"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
-                      autoComplete="current-password"
+                      autoComplete={demoPassword ? "off" : "current-password"}
                       className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-[#173f63]"
                     />
                   </label>

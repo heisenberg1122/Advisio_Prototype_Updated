@@ -18,10 +18,10 @@ const pool = new pg.Pool({ connectionString: url.toString() });
 const cookies = new Set();
 const expected = {
   student: ["B"],
-  professor: ["A", "B", "C"],
-  adviser: ["A", "B"],
-  panelist: ["C", "D"],
-  dean: ["A", "B", "C"],
+  professor: ["A", "B", "C", "D", "E", "F", "G"],
+  adviser: ["A", "B", "D", "E", "F"],
+  panelist: ["C", "D", "E", "F"],
+  dean: ["A", "B", "C", "D", "E", "F", "G"],
 };
 async function request(
   endpoint,
@@ -88,6 +88,129 @@ async function switchRole(workspace, role) {
   assert.equal(session.course, workspace.session.course);
   workspace.session = session;
 }
+async function switchScenario(workspace, scenario) {
+  const previous = workspace.cookie;
+  const result = await request("/api/evaluation/switch-scenario", {
+    cookie: previous,
+    method: "POST",
+    body: { scenario },
+  });
+  const session = ok(result);
+  workspace.cookie = result.response.headers.get("set-cookie").split(";")[0];
+  cookies.delete(previous);
+  cookies.add(workspace.cookie);
+  assert.notEqual(previous, workspace.cookie);
+  assert.equal(
+    (await request("/api/auth/me", { cookie: previous })).status,
+    401,
+  );
+  assert.equal(session.expiresAt, workspace.session.expiresAt);
+  assert.equal(session.course, workspace.session.course);
+  assert.equal(session.scenario, scenario);
+  workspace.session = session;
+}
+async function verifyScenarios(workspace) {
+  const identity = (await registry(workspace)).row.id;
+  for (const role of ["student", "panelist", "dean", "adviser", "professor"]) {
+    await switchRole(workspace, role);
+    assert.equal(
+      (
+        await request("/api/evaluation/switch-scenario", {
+          cookie: workspace.cookie,
+          method: "POST",
+          body: { scenario: "unknown" },
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await request("/api/evaluation/switch-scenario", {
+          cookie: workspace.cookie,
+          method: "POST",
+          body: { scenario: "live-defense", userId: "injected" },
+        })
+      ).status,
+      400,
+    );
+    const choices = workspace.session.scenarios;
+    assert.ok(choices.length >= 4);
+    for (const choice of choices) {
+      await switchScenario(workspace, choice.id);
+      assert.equal((await registry(workspace)).row.id, identity);
+      const { cookie, session } = workspace;
+      const projects = ok(await request("/api/research", { cookie })).projects;
+      assert.ok(projects.some((p) => p.id === session.projectId));
+      if (role === "student") {
+        assert.equal(
+          projects.length,
+          1,
+          "Student variants keep one owned project.",
+        );
+        assert.equal(
+          (await request("/api/evaluation/revision", { cookie })).status,
+          choice.id === "in-progress" ? 200 : 404,
+        );
+        const milestones = ok(
+          await request(
+            `/api/research/${session.projectId}/manuscript-workflow`,
+            { cookie },
+          ),
+        ).milestones;
+        if (choice.id === "completed-final")
+          assert.equal(milestones.filter((m) => m.completed).length, 10);
+        if (choice.id === "completed-title")
+          assert.equal(milestones.filter((m) => m.completed).length, 5);
+        if (choice.id.startsWith("completed-")) {
+          const management = ok(
+            await request("/api/defense-management", { cookie }),
+          );
+          const defense = management.sessions.find(
+            (d) => d.id === session.defenseId,
+          );
+          assert.ok(defense.badge);
+          assert.ok(defense.releasedAt);
+        }
+      }
+      if (role === "panelist") {
+        const sessions = ok(
+          await request("/api/defense-review-packets", { cookie }),
+        ).sessions;
+        assert.ok(sessions.some((d) => !d.manuscriptReviews?.[0]?.reviewedAt));
+        assert.ok(sessions.some((d) => d.manuscriptReviews?.[0]?.reviewedAt));
+        if (
+          choice.id === "live-defense" ||
+          choice.id.startsWith("completed-")
+        ) {
+          const result = ok(
+            await request(
+              `/api/defense-sessions/${session.defenseId}/structured-evaluation`,
+              { cookie },
+            ),
+          );
+          assert.equal(
+            Boolean(result.evaluation?.lockedAt),
+            choice.id.startsWith("completed-"),
+          );
+          assert.match(result.snapshot.spec.name, /Defense Evaluation/);
+          if (session.course !== "BSIT")
+            assert.doesNotMatch(result.snapshot.spec.name, /capstone/i);
+          assert.match(
+            result.snapshot.spec.branding.collegeLogo,
+            /^data:image\/png;base64,/,
+          );
+          if (result.evaluation?.lockedAt)
+            ok(
+              await request(
+                `/api/defense-sessions/${session.defenseId}/structured-evaluations/${result.snapshot.panelists.find((p) => p.name === "Marisol Cruz").userId}/pdf`,
+                { cookie },
+              ),
+            );
+        }
+      }
+    }
+  }
+}
 async function end(workspace) {
   ok(
     await request("/api/evaluation/end", {
@@ -137,7 +260,9 @@ async function verifyRole(workspace, collegeCode) {
     assert.equal(project.college.code, collegeCode);
     const stages = project.workflowInstance.workflow.stages;
     assert.equal(stages.length, 10);
-    const target = { A: 4, B: 3, C: 5, D: 6 }[project.groupName.slice(-1)];
+    const target = { A: 4, B: 3, C: 5, D: 6, E: 5, F: 10, G: 5 }[
+      project.groupName.slice(-1)
+    ];
     assert.equal(project.workflowInstance.currentStage.sequence, target);
     if (["student", "adviser", "professor"].includes(role)) {
       const progress = ok(
@@ -145,7 +270,10 @@ async function verifyRole(workspace, collegeCode) {
           cookie,
         }),
       ).milestones;
-      assert.equal(progress.filter((m) => m.completed).length, target - 1);
+      assert.equal(
+        progress.filter((m) => m.completed).length,
+        project.groupName.endsWith("F") ? 10 : target - 1,
+      );
       assert.equal(progress.find((m) => m.isCurrent).sequence, target);
       assert.ok(
         progress.filter((m) => m.sequence > target).every((m) => m.isBlocked),
@@ -302,42 +430,92 @@ async function verifyRole(workspace, collegeCode) {
     );
   } else if (role === "dean") {
     const overview = ok(await request("/api/dean/dashboard", { cookie }));
-    assert.equal(overview.projects.length, 3);
-    const {
-      rows: [assignment],
-    } = await pool.query(
-      `SELECT * FROM ${schema}.reviewer_assignments WHERE research_id=$1 AND review_type='DEAN' AND status='ACTIVE'`,
-      [session.projectId],
-    );
-    ok(
-      await request(
-        `/api/documents/versions/${assignment.document_version_id}/content`,
-        { cookie },
+    assert.equal(overview.projects.length, 7);
+    const threads = ok(
+      await request("/api/dean-inbox/threads", { cookie }),
+    ).threads;
+    const pending = threads.find((t) => t.research.id === session.projectId);
+    assert.ok(pending);
+    assert.ok(
+      threads.some((t) =>
+        t.versions.some(
+          (v) => v.signedSignature?.signedBy?.firstName === "Aurelia",
+        ),
       ),
     );
-    ok(
-      await request(
-        `/api/documents/versions/${assignment.document_version_id}/reviews`,
-        {
+    const version = pending.versions[0].id;
+    const endpoint = `/api/documents/versions/${version}/sign`;
+    const placements = [
+      {
+        pageNumber: 1,
+        x: 0.57,
+        y: 0.74,
+        width: 0.34,
+        height: 0.08,
+        includeName: true,
+        includeDate: true,
+      },
+    ];
+    ok(await request(`/api/documents/versions/${version}/content`, { cookie }));
+    assert.equal(
+      (
+        await request(endpoint, {
+          cookie,
+          method: "POST",
+          body: { password: session.signingPassword, placements },
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await request(endpoint, {
+          cookie,
+          method: "POST",
+          body: { password: "incorrect", confirmation: true, placements },
+        })
+      ).status,
+      401,
+    );
+    const signed = ok(
+      await request(endpoint, {
+        cookie,
+        method: "POST",
+        body: {
+          password: session.signingPassword,
+          confirmation: true,
+          placements,
+        },
+      }),
+      201,
+    );
+    assert.ok(signed.signature.verificationCode);
+    const updated = ok(
+      await request("/api/dean-inbox/threads", { cookie }),
+    ).threads.find((t) => t.id === pending.id);
+    assert.equal(
+      updated.versions[0].signedSignature.signedBy.firstName,
+      "Aurelia",
+    );
+    const {
+      rows: [ordinary],
+    } = await pool.query(
+      `SELECT v.id FROM ${schema}.document_versions v JOIN ${schema}.documents d ON d.id=v.document_id WHERE d."documentType" <> 'DEAN_DEFENSE_APPROVAL' LIMIT 1`,
+    );
+    assert.equal(
+      (
+        await request(`/api/documents/versions/${ordinary.id}/sign`, {
           cookie,
           method: "POST",
           body: {
-            reviewType: "DEAN",
-            recommendation: "APPROVE",
-            overallComment:
-              "Fictional defense preparation approval recorded after document review.",
+            password: session.signingPassword,
+            confirmation: true,
+            placements,
           },
-        },
-      ),
-      201,
+        })
+      ).status,
+      403,
     );
-    const {
-      rows: [saved],
-    } = await pool.query(
-      `SELECT status FROM ${schema}.reviewer_assignments WHERE id=$1`,
-      [assignment.id],
-    );
-    assert.equal(saved.status, "COMPLETED");
   } else {
     const endpoint = `/api/defense-sessions/${session.defenseId}/structured-evaluation`;
     const form = ok(await request(endpoint, { cookie }));
@@ -456,7 +634,7 @@ async function verifyRole(workspace, collegeCode) {
     const { rows: history } = await pool.query(
       `SELECT status FROM ${schema}.defense_sessions WHERE status='COMPLETED'`,
     );
-    assert.equal(history.length, 1);
+    assert.equal(history.length, 3);
   }
 }
 try {
@@ -529,18 +707,17 @@ try {
     const overview = ok(
       await request("/api/research", { cookie: workspace.cookie }),
     ).projects;
-    const c = overview.find((p) => p.groupName.endsWith("C"));
-    const {
-      rows: [deanReview],
-    } = await pool.query(
-      `SELECT r.status FROM ${original.schema}.reviewer_assignments r WHERE research_id=$1 AND review_type='DEAN'`,
-      [c.id],
+    const g = overview.find((p) => p.groupName.endsWith("G"));
+    const { rows: signatures } = await pool.query(
+      `SELECT s.id FROM ${original.schema}.document_signatures s JOIN ${original.schema}.document_versions v ON v.id=s.source_version_id JOIN ${original.schema}.documents d ON d.id=v.document_id WHERE d.research_id=$1`,
+      [g.id],
     );
     assert.equal(
-      deanReview.status,
-      "COMPLETED",
-      "Dean approval persists when returning to the coordinator.",
+      signatures.length,
+      1,
+      "Dean signature persists when returning to Coordinator.",
     );
+    await verifyScenarios(workspace);
     await end(workspace);
     const {
       rows: [cleaned],
@@ -560,6 +737,65 @@ try {
       })
     ).status,
     404,
+  );
+  const aRegistry = await registry(a);
+  const {
+    rows: [aApproval],
+  } = await pool.query(
+    `SELECT v.id FROM ${aRegistry.schema}.document_versions v JOIN ${aRegistry.schema}.documents d ON d.id=v.document_id WHERE d.research_id=$1 ORDER BY v.version_number DESC LIMIT 1`,
+    [aRegistry.row.accounts.dean.projectId],
+  );
+  const signingBody = {
+    password: "Demo-Dean-Review-2026!",
+    confirmation: true,
+    placements: [
+      { pageNumber: 1, x: 0.57, y: 0.74, width: 0.34, height: 0.08 },
+    ],
+  };
+  assert.equal(
+    (
+      await request(`/api/documents/versions/${aApproval.id}/sign`, {
+        cookie: a.cookie,
+        method: "POST",
+        body: signingBody,
+      })
+    ).status,
+    403,
+    "Student cannot use Dean signing.",
+  );
+  await switchRole(b, "dean");
+  assert.equal(
+    (
+      await request(`/api/documents/versions/${aApproval.id}/sign`, {
+        cookie: b.cookie,
+        method: "POST",
+        body: signingBody,
+      })
+    ).status,
+    403,
+    "Dean cannot sign a different workspace's request.",
+  );
+  const ownRegistry = await registry(b);
+  const {
+    rows: [ownApproval],
+  } = await pool.query(
+    `SELECT v.id, d.id AS document_id FROM ${ownRegistry.schema}.document_versions v JOIN ${ownRegistry.schema}.documents d ON d.id=v.document_id WHERE d.research_id=$1 ORDER BY v.version_number DESC LIMIT 1`,
+    [b.session.projectId],
+  );
+  await pool.query(
+    `UPDATE ${ownRegistry.schema}.dean_inbox_messages SET recipient_id=$1 WHERE document_id=$2`,
+    [ownRegistry.row.accounts.professor.userId, ownApproval.document_id],
+  );
+  assert.equal(
+    (
+      await request(`/api/documents/versions/${ownApproval.id}/sign`, {
+        cookie: b.cookie,
+        method: "POST",
+        body: signingBody,
+      })
+    ).status,
+    403,
+    "An approval request must be addressed to the actual Dean.",
   );
   await end(a);
   assert.equal(
@@ -600,11 +836,18 @@ try {
   );
   cookies.delete(absolute.cookie);
   if (process.argv.includes("--capacity")) {
-    const wave = await Promise.all(
+    const attempts = await Promise.allSettled(
       Array.from({ length: 20 }, (_, i) =>
         begin(config.roles[i % 5].id, config.colleges[i % 8].id),
       ),
     );
+    const wave = attempts
+      .filter((result) => result.status === "fulfilled")
+      .map((result) => result.value);
+    if (wave.length !== 20) {
+      await Promise.all(wave.map(end));
+      throw attempts.find((result) => result.status === "rejected").reason;
+    }
     assert.equal(new Set(wave.map((w) => w.session.projectId)).size, 20);
     const extra = await request("/api/evaluation/config");
     assert.equal(

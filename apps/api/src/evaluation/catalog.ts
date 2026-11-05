@@ -309,14 +309,17 @@ export const PROJECT_SCENARIOS = {
   B: { current: 3, lifecycle: "REVISION_REQUIRED" },
   C: { current: 5, lifecycle: "APPROVED" },
   D: { current: 6, lifecycle: "APPROVED" },
+  E: { current: 5, lifecycle: "APPROVED" },
+  F: { current: 10, lifecycle: "APPROVED" },
+  G: { current: 5, lifecycle: "APPROVED" },
 } as const;
 export type Scenario = keyof typeof PROJECT_SCENARIOS;
 export const ROLE_PROJECTS: Record<EvaluationRole, readonly Scenario[]> = {
   student: ["B"],
-  professor: ["A", "B", "C"],
-  adviser: ["A", "B"],
-  panelist: ["C", "D"],
-  dean: ["A", "B", "C"],
+  professor: ["A", "B", "C", "D", "E", "F", "G"],
+  adviser: ["A", "B", "D", "E", "F"],
+  panelist: ["C", "D", "E", "F"],
+  dean: ["A", "B", "C", "D", "E", "F", "G"],
 };
 
 export const ROLE_TASKS: Record<EvaluationRole, string[]> = {
@@ -349,8 +352,8 @@ export const ROLE_TASKS: Record<EvaluationRole, string[]> = {
     "Read the approved manuscript in its defense packet.",
     "Highlight a section, add a comment, and place an annotation mark.",
     "Save, preview, and share your manuscript feedback.",
-    "To try a live evaluation, switch to Coordinator, start Project C's scheduled defense, then return to Panelist.",
-    "Complete the structured evaluation during the live defense and inspect the result; view Project D's completed defense history.",
+    "Choose Live defense in Demo scenario, then enter your own ratings and recommendations.",
+    "Preview and submit your evaluation; choose Completed defense / results to inspect a previous submitted evaluation.",
   ],
   dean: [
     "Open the college overview.",

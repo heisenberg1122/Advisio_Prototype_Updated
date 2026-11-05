@@ -1,0 +1,74 @@
+[
+  {
+    "college": "COA",
+    "source": "College-of-Accountancy.png",
+    "sourceSha256": "7c73cb0b6f8553329576a3adc2f9c1fddf4cc7f58f073e176daf0ffbe5efd940",
+    "size": [
+      384,
+      378
+    ]
+  },
+  {
+    "college": "CEA",
+    "source": "College-of-Engineering-and-Architecture.png",
+    "sourceSha256": "179ab86c5ed1147ea81aa29125c21545bdfdeae36269c90a92c453a25668e7b9",
+    "size": [
+      384,
+      378
+    ]
+  },
+  {
+    "college": "CHTM",
+    "source": "College-of-Hospitality-and-Tourism-Management.png",
+    "sourceSha256": "7cdad64b57dab7736347a4a4b89e3a2ce0d58bc6a58955df8e95d1f365bd168d",
+    "size": [
+      384,
+      378
+    ]
+  },
+  {
+    "college": "CIT",
+    "source": "College-of-Information-Technology.png",
+    "sourceSha256": "e55c7ba0bc566830775b38798767c1ec46b1fcffac0560a25b00de1d4cbcd659",
+    "size": [
+      384,
+      378
+    ]
+  },
+  {
+    "college": "CNP",
+    "source": "College-of-Nursing-and-Pharmacy.png",
+    "sourceSha256": "8cdd6e47711272396727c2b4ce491fee3d4195f6c6919aa40c6f82a8c552a46d",
+    "size": [
+      384,
+      378
+    ]
+  },
+  {
+    "college": "SAS",
+    "source": "School-of-Arts-and-Sciences.png",
+    "sourceSha256": "2a463f53b27a80b299fff2e94a95f1e750a046aa76c584f3209bffccac4dd692",
+    "size": [
+      384,
+      378
+    ]
+  },
+  {
+    "college": "SBPA",
+    "source": "School-of-Business-and-Public-Administration.png",
+    "sourceSha256": "937d91d16b6220b60ef5d3e41b69bb03101e038fdd3951a06ae0762f1c900c38",
+    "size": [
+      384,
+      378
+    ]
+  },
+  {
+    "college": "SOE",
+    "source": "School-of-Education.png",
+    "sourceSha256": "343a78a95e2dce3d86414be75a13088ed138375ed4649185056414cfd0563aca",
+    "size": [
+      384,
+      378
+    ]
+  }
+]
