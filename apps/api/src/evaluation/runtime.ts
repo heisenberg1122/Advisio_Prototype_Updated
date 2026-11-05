@@ -22,6 +22,7 @@ import {
 } from "./seed.js";
 import { DEMO_SIGNING_PASSWORD, scenarioTasks } from "./scenarios.js";
 import { evaluationSurveyUrl } from "./survey.js";
+import { EvaluationRequestSlots } from "./request-slots.js";
 
 export const COOKIE = "advisio_evaluation";
 export const tokenHash = (value: string) =>
@@ -68,6 +69,7 @@ export class EvaluationRuntime {
   private maintenance?: Promise<void>;
   private closing = false;
   private readonly warmOwner = randomBytes(16).toString("hex");
+  private readonly requestSlots = new EvaluationRequestSlots();
 
   constructor() {
     for (const pool of [this.pool, this.healthPool]) {
@@ -359,7 +361,9 @@ export class EvaluationRuntime {
       (candidate) => candidate.id === courseId,
     )!;
     let db: PrismaClient | undefined;
+    let releaseSlot: (() => void) | undefined;
     try {
+      releaseSlot = await this.requestSlots.acquire();
       const provisioner = await this.pool.connect();
       try {
         await provisioner.query("BEGIN");
@@ -381,10 +385,8 @@ export class EvaluationRuntime {
         role,
         this.storageRoot(id),
       );
-      if (warm) {
-        await db.$disconnect();
-        db = undefined;
-      }
+      await db.$disconnect();
+      db = undefined;
       const {
         rows: [session],
       } = await this.pool.query<Session>(
@@ -404,7 +406,6 @@ export class EvaluationRuntime {
         throw new Error(
           "Evaluation workspace reservation expired during setup.",
         );
-      if (db) this.clients.set(id, { prisma: db, users: 0, ended: false });
       return session;
     } catch (e) {
       await db?.$disconnect();
@@ -414,6 +415,8 @@ export class EvaluationRuntime {
       );
       if (!warm) await this.removeData(id);
       throw e;
+    } finally {
+      releaseSlot?.();
     }
   }
   private makeClient(id: string) {
@@ -496,17 +499,90 @@ export class EvaluationRuntime {
     for (const revoke of this.revokers.get(session.id) || []) revoke();
     return updated;
   }
-  acquire(session: Session, revoke: () => void = () => {}) {
+  async acquire(
+    session: Session,
+    revoke: () => void = () => {},
+    signal?: AbortSignal,
+  ) {
+    const cancelled = new AbortController();
+    const cancel = () => {
+      cancelled.abort();
+      revoke();
+    };
+    const revokers = this.revokers.get(session.id) || new Set<() => void>();
+    revokers.add(cancel);
+    this.revokers.set(session.id, revokers);
+    let watching = true;
+    const unwatch = () => {
+      if (!watching) return;
+      watching = false;
+      revokers.delete(cancel);
+      if (!revokers.size) this.revokers.delete(session.id);
+    };
+    let releaseSlot: (() => void) | undefined;
+    try {
+      releaseSlot = await this.requestSlots.acquire(
+        signal ? AbortSignal.any([signal, cancelled.signal]) : cancelled.signal,
+      );
+      const {
+        rows: [current],
+      } = await this.pool.query<Session>(
+        "SELECT * FROM public.advisio_evaluation_sessions WHERE id=$1 AND token_hash=$2",
+        [session.id, session.token_hash],
+      );
+      if (
+        cancelled.signal.aborted ||
+        signal?.aborted ||
+        !current ||
+        !isLive(
+          current,
+          Date.now(),
+          this.config.idleMs,
+          this.config.lifetimeMs,
+        ) ||
+        current.user_id !== session.user_id ||
+        current.scenario !== session.scenario
+      )
+        throw Object.assign(
+          new Error("Your session changed or expired. Reload the evaluation."),
+          { statusCode: 401 },
+        );
+    } catch (error) {
+      unwatch();
+      releaseSlot?.();
+      throw error;
+    }
     let item = this.clients.get(session.id);
     if (!item) {
-      item = { prisma: this.makeClient(session.id), users: 0, ended: false };
-      this.clients.set(session.id, item);
+      try {
+        item = { prisma: this.makeClient(session.id), users: 0, ended: false };
+        this.clients.set(session.id, item);
+      } catch (error) {
+        unwatch();
+        releaseSlot();
+        throw error;
+      }
     }
     item.users++;
-    const revokers = this.revokers.get(session.id) || new Set<() => void>();
-    revokers.add(revoke);
-    this.revokers.set(session.id, revokers);
-    let released = false;
+    let disconnecting: Promise<void> | undefined;
+    const releaseDatabase = () => {
+      if (disconnecting) return disconnecting;
+      item!.users--;
+      if (item!.users === 0) this.clients.delete(session.id);
+      disconnecting = (async () => {
+        try {
+          if (item!.users === 0) await item!.prisma.$disconnect();
+        } catch (error) {
+          console.warn(
+            "Evaluation connection close failed:",
+            evaluationDatabaseErrorCode(error),
+          );
+        } finally {
+          releaseSlot!();
+        }
+      })();
+      return disconnecting;
+    };
     return {
       scope: {
         id: session.id,
@@ -516,14 +592,10 @@ export class EvaluationRuntime {
           this.selectedScenario(session)?.projectIds ||
           session.accounts?.[session.role]?.projectIds,
       },
+      releaseDatabase,
       release: () => {
-        if (released) return;
-        released = true;
-        revokers.delete(revoke);
-        if (!revokers.size) this.revokers.delete(session.id);
-        item!.users--;
-        if (!this.config.prewarm.size && item!.ended && item!.users === 0)
-          void this.removeData(session.id).catch(() => {});
+        unwatch();
+        return releaseDatabase();
       },
     };
   }

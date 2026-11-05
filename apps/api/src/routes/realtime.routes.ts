@@ -6,7 +6,12 @@ import { sseManager } from "../realtime/sse";
 const router = Router();
 
 // GET /api/realtime/events - SSE endpoint
-router.get("/events", optionalAuth, (req: Request, res: Response) => {
+router.get("/events", optionalAuth, async (req: Request, res: Response) => {
+  // Authentication is complete. Keep the event stream and session revocation
+  // active while returning the evaluation's database slot to waiting requests.
+  if (res.locals.releaseEvaluationDatabase)
+    await res.locals.releaseEvaluationDatabase();
+  if (res.destroyed) return;
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache, no-transform",

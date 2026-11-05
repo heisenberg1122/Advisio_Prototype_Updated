@@ -244,7 +244,24 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
       return void res
         .status(403)
         .json({ error: "This action is unavailable during the evaluation." });
-    const acquired = service.acquire(session, () => res.destroy());
+    const abandoned = new AbortController();
+    const abandon = () => abandoned.abort();
+    res.once("close", abandon);
+    let acquired: Awaited<ReturnType<EvaluationRuntime["acquire"]>>;
+    try {
+      acquired = await service.acquire(
+        session, () => res.destroy(), abandoned.signal,
+      );
+    } catch (error) {
+      res.off("close", abandon);
+      throw error;
+    }
+    if (res.destroyed) {
+      await acquired.release();
+      return;
+    }
+    if (endpoint === "/api/realtime/events")
+      res.locals.releaseEvaluationDatabase = acquired.releaseDatabase;
     const timeout = setTimeout(
       () => res.destroy(),
       Math.max(
@@ -258,7 +275,8 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
     timeout.unref();
     const release = () => {
       clearTimeout(timeout);
-      acquired.release();
+      res.off("close", abandon);
+      void acquired.release();
     };
     res.once("finish", release);
     res.once("close", release);
@@ -288,6 +306,7 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
       next();
     });
   } catch (error: any) {
+    if (res.destroyed) return;
     console.error(
       "Evaluation request failed:",
       error?.code || error?.name || "unknown",

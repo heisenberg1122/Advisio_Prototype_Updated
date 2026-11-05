@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { setTimeout as wait } from "node:timers/promises";
+import fs from "node:fs/promises";
 
 const origin = new URL(process.argv[2]);
 const expected = Number(process.argv[3] || 50);
@@ -123,6 +124,11 @@ function timings(values) {
 await healthy();
 const courses = await preparedCourses();
 const visitors = [];
+const streams = [];
+const recoveryFile = new URL(
+  "../.evaluation/capacity-rehearsal-sessions.json",
+  import.meta.url,
+);
 try {
   for (let start = 0; start < courses.length; start += 10) {
     const batch = await all(
@@ -130,6 +136,14 @@ try {
       courses.slice(start, start + 10).map(visitor),
     );
     visitors.push(...batch);
+    await fs.mkdir(new URL("../.evaluation/", import.meta.url), {
+      recursive: true,
+    });
+    await fs.writeFile(
+      recoveryFile,
+      JSON.stringify(visitors.map(({ cookie }) => cookie)),
+      { mode: 0o600 },
+    );
   }
   assert.equal(new Set(visitors.map(({ cookie }) => cookie)).size, expected);
   const started = performance.now();
@@ -165,12 +179,49 @@ try {
   });
   console.log(`Session ${expected + 1} rejected at the configured cap`);
 
+  await all(
+    "Live event streams",
+    joins.map(async (_session, i) => {
+      const controller = new AbortController();
+      const response = await fetch(new URL("/api/realtime/events", origin), {
+        headers: { Cookie: visitors[i].cookie },
+        signal: controller.signal,
+      });
+      assert.equal(response.status, 200);
+      assert.match(
+        response.headers.get("content-type") || "",
+        /text\/event-stream/,
+      );
+      streams.push(controller);
+    }),
+  );
+  console.log(`Opened ${streams.length} simultaneous live event streams`);
+
+  const writes = await all(
+    "Simultaneous preference saves",
+    joins.map(async (_session, i) => {
+      const preference = i % 2 ? "DARK" : "LIGHT";
+      const result = await request("/api/auth/me/appearance", {
+        cookie: visitors[i].cookie,
+        method: "PATCH",
+        body: { appearancePreference: preference },
+      });
+      assert.equal(result.json.appearancePreference, preference);
+      return result.elapsed;
+    }),
+  );
+  console.log(JSON.stringify({ saved: writes.length, ...timings(writes) }));
+
   for (let round = 1; round <= 3; round++) {
     const checks = await all(
       `Activity round ${round}`,
       joins.map(async ({ json }, i) => {
         const { cookie } = visitors[i];
         const profile = await request("/api/auth/me", { cookie });
+        assert.equal(
+          profile.json.user.appearancePreference,
+          i % 2 ? "DARK" : "LIGHT",
+        );
         const projects = await request("/api/research", { cookie });
         assert.ok(
           projects.json.projects.some(({ id }) => id === json.projectId),
@@ -203,7 +254,11 @@ try {
       }),
     );
   }
+} catch (error) {
+  console.error(error.message);
+  process.exitCode = 1;
 } finally {
+  for (const stream of streams) stream.abort();
   let closed = 0;
   const failures = [];
   for (let offset = 0; offset < visitors.length; offset += 5) {
@@ -231,5 +286,11 @@ try {
   }
   console.log(JSON.stringify({ closed, cleanupFailures: failures.length }));
   if (failures.length) process.exitCode = 1;
-  await healthy();
+  try {
+    await healthy();
+    if (!failures.length) await fs.rm(recoveryFile, { force: true });
+  } catch (error) {
+    console.error(`Post-test health failed: ${error.message}`);
+    process.exitCode = 1;
+  }
 }
