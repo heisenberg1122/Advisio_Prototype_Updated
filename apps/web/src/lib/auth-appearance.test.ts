@@ -33,6 +33,7 @@ function initialAppearance(pathname: string, appearance: string, authenticated =
 
 describe("authentication screen appearance", () => {
   const authRoutes = [
+    "/evaluate", "/evaluate/guide", "/evaluate/print",
     "/register", "/forgot-password", "/reset-password",
     "/first-login-setup", "/google-onboarding", "/researcher-onboarding", "/choose-dashboard",
   ];
@@ -48,7 +49,7 @@ describe("authentication screen appearance", () => {
     }
   });
 
-  it.each(["/student/dashboard", "/admin/settings", "/calendar", "/login-history", "/adviser/tasks/task-1", "/professor/tasks/task-1", "/panelist/tasks/task-1", "/admin/tasks/task-1"])(
+  it.each(["/student/dashboard", "/admin/settings", "/calendar", "/login-history", "/evaluate-history", "/adviser/tasks/task-1", "/professor/tasks/task-1", "/panelist/tasks/task-1", "/admin/tasks/task-1"])(
     "preserves the saved account theme on %s", (pathname) => {
       expect(usesDefaultAuthAppearance(pathname)).toBe(false);
       expect(initialAppearance(pathname, "dark")).toEqual({
@@ -76,6 +77,8 @@ describe("authentication screen appearance", () => {
   });
 
   it("keeps other authentication forms in their standard appearance", () => {
+    expect(usesDefaultAuthAppearance("/evaluate", true)).toBe(true);
+    expect(usesDefaultAuthAppearance("/evaluate/guide", true)).toBe(true);
     expect(usesDefaultAuthAppearance("/register", true)).toBe(true);
     expect(usesDefaultAuthAppearance("/choose-dashboard", true)).toBe(true);
   });

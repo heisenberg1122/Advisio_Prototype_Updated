@@ -10,7 +10,7 @@
     (() => {
       try {
         // Keep in sync with src/lib/auth-appearance.ts to avoid a themed flash.
-        const defaultAuthAppearance = /^\/(login|register|forgot-password|reset-password|first-login-setup|google-onboarding|researcher-onboarding|choose-dashboard)\/*$/.test(window.location.pathname);
+        const defaultAuthAppearance = /^\/evaluate(?:\/|$)/.test(window.location.pathname) || /^\/(login|register|forgot-password|reset-password|first-login-setup|google-onboarding|researcher-onboarding|choose-dashboard)\/*$/.test(window.location.pathname);
         const hasSession = Boolean(localStorage.getItem("advisio_token"));
         // A saved session shows the login guard until it redirects or expires.
         const restoringLoginSession = hasSession && /^\/login\/*$/.test(window.location.pathname);
