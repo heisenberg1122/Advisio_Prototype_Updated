@@ -23,6 +23,7 @@ import {
   formatTaskDeadline,
   resolveWorkflowDeadline,
 } from "@/lib/workflow-deadlines";
+import { DashboardQuickActions } from "@/components/dashboards/DashboardQuickActions";
 import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
 import {
   DashboardSkeleton,
@@ -3713,61 +3714,6 @@ function ProfessorDashboardContent() {
                     </>
                   }
                 />
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
-                        Recent activity
-                      </p>
-                      <h2 className="mt-1 text-lg font-extrabold text-[#102f49]">
-                        College and system updates
-                      </h2>
-                      <p className="mt-1 text-base text-slate-500">
-                        Official notices are labeled by source so you can
-                        quickly distinguish department and system messages.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleTabChange("announcements")}
-                      className="shrink-0 text-sm font-bold text-[#173f63]"
-                    >
-                      View all <i className="ti ti-chevron-right" />
-                    </button>
-                  </div>
-                  <div className="mt-4 grid gap-3 lg:grid-cols-3">
-                    {announcements.slice(0, 3).map((announcement) => (
-                      <article
-                        key={announcement.id}
-                        className="rounded-xl border border-slate-200 bg-slate-50 p-3"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`h-2.5 w-2.5 rounded-full ${announcement.source === "SYSTEM_ADMIN" ? "bg-violet-500" : announcement.source === "DEAN" ? "bg-blue-500" : "bg-emerald-500"}`}
-                          />
-                          <span className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
-                            {announcement.source === "SYSTEM_ADMIN"
-                              ? "System Admin"
-                              : announcement.source === "DEAN"
-                                ? "Dean / Admin"
-                                : "Professor"}
-                          </span>
-                        </div>
-                        <h3 className="mt-2 truncate text-lg font-extrabold text-[#102f49]">
-                          {announcement.title}
-                        </h3>
-                        <p className="mt-1 line-clamp-2 text-base leading-5 text-slate-600">
-                          {announcement.message}
-                        </p>
-                      </article>
-                    ))}
-                    {!announcements.length && (
-                      <div className="col-span-full rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">
-                        No current announcements.
-                      </div>
-                    )}
-                  </div>
-                </section>
                 {/* Key Metrics Grid - Standardized UA Institutional Pattern */}
                 <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   {[
@@ -3827,6 +3773,72 @@ function ProfessorDashboardContent() {
                       </span>
                     </button>
                   ))}
+                </section>
+
+                <DashboardQuickActions
+                  actions={[
+                    { label: "Review submissions", icon: "ti-inbox", tab: "submissions" },
+                    { label: "View research projects", icon: "ti-users", tab: "monitoring" },
+                    { label: "Track progress", icon: "ti-chart-line", tab: "tracking" },
+                    { label: "Build workflow", icon: "ti-adjustments", tab: "builder" },
+                  ]}
+                  onAction={handleTabChange}
+                />
+
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
+                        Recent activity
+                      </p>
+                      <h2 className="mt-1 text-lg font-extrabold text-[#102f49]">
+                        College and system updates
+                      </h2>
+                      <p className="mt-1 text-base text-slate-500">
+                        Official notices are labeled by source so you can
+                        quickly distinguish department and system messages.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange("announcements")}
+                      className="shrink-0 text-sm font-bold text-[#173f63]"
+                    >
+                      View all <i className="ti ti-chevron-right" />
+                    </button>
+                  </div>
+                  <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                    {announcements.slice(0, 3).map((announcement) => (
+                      <article
+                        key={announcement.id}
+                        className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full ${announcement.source === "SYSTEM_ADMIN" ? "bg-violet-500" : announcement.source === "DEAN" ? "bg-blue-500" : "bg-emerald-500"}`}
+                          />
+                          <span className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
+                            {announcement.source === "SYSTEM_ADMIN"
+                              ? "System Admin"
+                              : announcement.source === "DEAN"
+                                ? "Dean / Admin"
+                                : "Professor"}
+                          </span>
+                        </div>
+                        <h3 className="mt-2 truncate text-lg font-extrabold text-[#102f49]">
+                          {announcement.title}
+                        </h3>
+                        <p className="mt-1 line-clamp-2 text-base leading-5 text-slate-600">
+                          {announcement.message}
+                        </p>
+                      </article>
+                    ))}
+                    {!announcements.length && (
+                      <div className="col-span-full rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">
+                        No current announcements.
+                      </div>
+                    )}
+                  </div>
                 </section>
 
                 {/* Progress & Attention Grid */}
@@ -3949,50 +3961,6 @@ function ProfessorDashboardContent() {
                       )}
                     </div>
                   </article>
-                </section>
-
-                {/* Quick Actions */}
-                <section className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
-                  <h3 className="mb-4 text-lg font-bold text-[#17212B] dark:text-white">
-                    Quick Actions
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    {[
-                      {
-                        label: "View groups",
-                        icon: "ti-users",
-                        tab: "monitoring",
-                      },
-                      {
-                        label: "Review submissions",
-                        icon: "ti-inbox",
-                        tab: "submissions",
-                      },
-                      {
-                        label: "Build workflow",
-                        icon: "ti-adjustments",
-                        tab: "builder",
-                      },
-                      {
-                        label: "Track progress",
-                        icon: "ti-chart-line",
-                        tab: "tracking",
-                      },
-                    ].map((action) => (
-                      <button
-                        key={action.label}
-                        onClick={() => handleTabChange(action.tab)}
-                        className="flex items-center gap-3 rounded-xl border border-[#E2E8F0] dark:border-white/10 bg-slate-50/50 dark:bg-white/5 p-3 text-left transition hover:border-[#0B3A53] dark:hover:border-[#C9A227] hover:bg-white hover:shadow-xs"
-                      >
-                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0B3A53]/10 dark:bg-white/10 text-lg text-[#0B3A53] dark:text-[#C9A227]">
-                          <i className={`ti ${action.icon}`} />
-                        </span>
-                        <span className="text-sm font-bold text-[#17212B] dark:text-white">
-                          {action.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
                 </section>
               </div>
             ),
@@ -4528,7 +4496,17 @@ function ProfessorDashboardContent() {
                           <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-extrabold text-blue-700">
                             {defenseEvent.defenseType.replace(/_/g, " ")}
                           </span>
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-700">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${
+                              defenseEvent.status === "READY"
+                                ? "bg-amber-100 text-amber-800"
+                                : defenseEvent.status === "ONGOING"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : defenseEvent.status === "COMPLETED"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
                             {defenseEvent.status.replace(/_/g, " ")}
                           </span>
                         </div>

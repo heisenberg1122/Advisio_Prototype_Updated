@@ -343,8 +343,7 @@
   gap: 8px;
 }
 
-.adviser-overview__consultation,
-.adviser-overview__shortcuts {
+.adviser-overview__consultation {
   display: flex;
   flex-direction: column;
   align-self: start;
@@ -535,47 +534,9 @@
   overflow-wrap: anywhere;
 }
 
-.adviser-overview__actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: auto;
-  align-items: start;
-  gap: 8px;
-}
-
-.adviser-overview__quick-action {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 104px;
-  width: 100%;
-  padding: 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface);
-  text-align: center;
-  cursor: pointer;
-}
-
-.adviser-overview .adviser-overview__quick-action > span:last-child {
-  color: var(--overview-ink);
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-
-.adviser-overview__quick-action:hover {
-  background: var(--color-surface-subtle);
-  border-color: var(--color-primary);
-}
-
 /* Dark-mode control boundaries remain distinguishable from both the tile
    fill and the surrounding card, independently of the college accent. */
-.dark .adviser-overview .adviser-overview__metric,
-.dark .adviser-overview .adviser-overview__quick-action {
+.dark .adviser-overview .adviser-overview__metric {
   border-color: var(--overview-control-edge);
 }
 
@@ -589,7 +550,6 @@
   .adviser-overview__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .adviser-overview__metric { padding: 12px; }
   .adviser-overview__split { grid-template-columns: minmax(0, 1fr); }
-  .adviser-overview__actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media (max-width: 767px) {
@@ -604,7 +564,6 @@
   .adviser-overview__metric-content { grid-column: 1 / -1; grid-row: 2; }
   .adviser-overview__metric-arrow { grid-column: 3; grid-row: 1; }
   .adviser-overview__metric-value small { display: block; line-height: 20px; }
-  .adviser-overview__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .adviser-overview__section-heading { flex-wrap: wrap; gap: 4px; }
   .adviser-overview__section-heading > button { padding: 0; }
   .adviser-overview__review-task { flex-wrap: wrap; }
@@ -615,7 +574,6 @@
 @media (max-width: 359px) {
   .adviser-dashboard-container:has(> .adviser-overview) { padding: 12px; }
   .adviser-overview__panel { padding: 12px; }
-  .adviser-overview__actions { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {
