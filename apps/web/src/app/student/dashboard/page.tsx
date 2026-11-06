@@ -909,19 +909,20 @@ function StudentDashboardContent() {
     });
     return (
       <div className="flex flex-col gap-6">
-        <div className="researcher-consultation-hero flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-5 sm:p-6">
-          <h2 className="text-2xl font-bold text-[var(--color-text-primary)]">Consultations</h2>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+        <header className="researcher-consultation-hero flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-5 sm:p-6">
+          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Consultations</h1>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <ConsultationBooking key={activeProject?.id} projectId={activeProject?.id} firstName={user?.firstName} />
             <Button
               type="button"
               variant="secondary"
+              size="lg"
               onClick={() => handleStartConference(DEFAULT_SHARED_MEET_URL, "Advising Video Conference")}
             >
               Instant Google Meet
             </Button>
           </div>
-        </div>
+        </header>
 
       {/* Your sessions Container */}
       <div className="flex min-w-0 flex-col gap-5">
@@ -934,13 +935,12 @@ function StudentDashboardContent() {
               <h3 className="flex items-center gap-2 text-lg font-extrabold text-[var(--color-text-primary)] dark:text-white">
                 Your sessions
               </h3>
-              <span className="rounded-full bg-[var(--color-surface-muted)] px-2.5 py-1 text-xs font-bold text-[var(--color-text-secondary)]">
-                {consultations.length}
-              </span>
             </div>
 
-            <div className="flex items-center gap-1 rounded-xl bg-[var(--color-surface-muted)] p-1 text-xs font-bold border border-[var(--color-border)]">
+            <div role="group" aria-label="Filter consultations" className="flex flex-wrap items-center gap-1 rounded-xl bg-[var(--color-surface-muted)] p-1 text-xs font-bold border border-[var(--color-border)]">
               <button
+                type="button"
+                aria-pressed={consultFilter === "all"}
                 onClick={() => setConsultFilter("all")}
                 className={`h-8 cursor-pointer rounded-lg px-3 transition ${
                   consultFilter === "all" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
@@ -949,6 +949,8 @@ function StudentDashboardContent() {
                 All ({consultations.length})
               </button>
               <button
+                type="button"
+                aria-pressed={consultFilter === "approved"}
                 onClick={() => setConsultFilter("approved")}
                 className={`h-8 cursor-pointer rounded-lg px-3 transition ${
                   consultFilter === "approved" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
@@ -957,6 +959,8 @@ function StudentDashboardContent() {
                 Confirmed
               </button>
               <button
+                type="button"
+                aria-pressed={consultFilter === "pending"}
                 onClick={() => setConsultFilter("pending")}
                 className={`h-8 cursor-pointer rounded-lg px-3 transition ${
                   consultFilter === "pending" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
@@ -977,8 +981,8 @@ function StudentDashboardContent() {
                   className="flex flex-col gap-4 focus-visible:outline-2 focus-visible:outline-[var(--color-primary)] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xs transition hover:shadow-sm sm:p-5"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-bold text-[var(--color-text-primary)] dark:text-white">{c.topic}</span>
                         <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
                           {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
@@ -988,13 +992,13 @@ function StudentDashboardContent() {
                         {c.groupName || "Research Group"} · {c.date} at {c.time} ({c.mode})
                       </span>
                       {c.meetingUrl && (
-                        <span className="mt-2 inline-block rounded-lg bg-[var(--color-primary-light)] px-2 py-1 font-mono text-xs text-[var(--color-primary)]">
+                        <span className="mt-2 inline-block break-all rounded-lg bg-[var(--color-primary-light)] px-2 py-1 font-mono text-xs text-[var(--color-primary)]">
                           {c.meetingUrl}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-auto">
                       <button
                         onClick={() => handleOpenTranscriptModal(c)}
                         className="px-3 py-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-surface-muted)] text-[var(--color-text-primary)] font-bold rounded-lg border border-[var(--color-border)] text-sm shadow-xs cursor-pointer transition flex items-center gap-1"
@@ -1002,12 +1006,7 @@ function StudentDashboardContent() {
                         <i className="ti ti-file-text text-[var(--color-primary)]" />
                         <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "Notes & Chat" : "Import Chat"}</span>
                       </button>
-                      {c.status === "pending" || c.status === "requested" ? (
-                        <span className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300 font-bold rounded-lg text-xs flex items-center gap-1">
-                          <i className="ti ti-clock" />
-                          <span>Pending</span>
-                        </span>
-                      ) : (
+                      {c.status !== "pending" && c.status !== "requested" && (
                         <button
                           onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
                           className="min-h-11 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm shadow-xs transition cursor-pointer flex items-center gap-1"

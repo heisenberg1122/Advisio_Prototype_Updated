@@ -50,6 +50,12 @@
   padding-top: 16px;
   border-top: 1px solid var(--color-border);
 }
+.researcher-shell .rd-categories > [role="tablist"] {
+  flex-wrap: wrap;
+}
+.researcher-shell .rd-categories [role="tab"] {
+  flex-shrink: 0;
+}
 .researcher-documents .rd-categories [role="tab"] {
   min-height: 44px;
 }

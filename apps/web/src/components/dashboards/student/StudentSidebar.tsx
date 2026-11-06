@@ -120,7 +120,6 @@ export function ResearchWorkspaceNavigation() {
 
   return (
     <div className="researcher-workspace-nav">
-      <p className="researcher-workspace-label">Research Workspace</p>
       <nav aria-label="Research Workspace sections">
         {WORKSPACE_SECTIONS.map(({ id, label, href }) => (
           <Link key={id} href={projectHref(href)} aria-current={id === destination ? "page" : undefined}>{label}</Link>

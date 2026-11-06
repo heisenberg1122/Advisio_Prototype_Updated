@@ -235,15 +235,6 @@
   .research-command-center .researcher-home-grid { grid-template-columns: minmax(0, 1fr); }
 }
 
-.researcher-workspace-label {
-  margin: 0 0 2px;
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-
 .researcher-shell .app-workspace .researcher-dashboard-page:has(.mp-project) {
   padding-top: 12px;
 }
@@ -251,7 +242,7 @@
   min-height: 0;
   padding: 16px 20px;
 }
-.researcher-shell .app-workspace .research-command-center > .rcc-header {
+.researcher-shell .app-workspace :is(.research-command-center > .rcc-header, .researcher-consultation-hero) {
   --workspace-header-height: 0px;
   min-height: 0;
   padding: var(--workspace-card-padding);
