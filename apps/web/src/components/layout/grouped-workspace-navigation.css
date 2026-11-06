@@ -1,0 +1,40 @@
+.portal-navigation { display: grid; gap: 4px; width: 100%; }
+.portal-navigation-trigger {
+  display: flex;
+  width: calc(100% - 20px);
+  min-height: 44px;
+  align-items: center;
+  gap: 12px;
+  margin-inline: auto;
+  padding: 8px 14px;
+  border-radius: 12px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: start;
+  cursor: pointer;
+}
+.portal-navigation-trigger > span { flex: 1; }
+.portal-navigation-trigger[data-collapsed="true"] { width: 44px; justify-content: center; padding: 0; }
+.portal-navigation-trigger:hover { background: var(--nav-hover-bg); }
+.portal-navigation-trigger[data-active="true"] { background: var(--nav-active-bg); color: var(--color-primary); }
+.portal-navigation-trigger[aria-expanded="true"] .portal-navigation-chevron { transform: rotate(180deg); }
+.portal-navigation-children[data-collapsed="false"] { margin: 2px 0 4px 17px; border-inline-start: 1px solid var(--color-border-strong); }
+.portal-navigation-children a { margin-block: 2px; min-height: 44px; height: auto; padding-block: 10px; }
+.portal-navigation-children a > span:last-child { white-space: normal; }
+.portal-workspace-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: calc(100% - 2 * var(--workspace-page-gutter));
+  max-width: var(--workspace-page-max);
+  margin: 12px auto 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.portal-workspace-tabs a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 12px; border-bottom: 2px solid transparent; font-size: 14px; font-weight: 600; color: var(--color-text-secondary); }
+.portal-workspace-tabs a:hover { background: var(--nav-hover-bg); }
+.portal-workspace-tabs a[aria-current="page"] { border-color: var(--color-primary); color: var(--color-primary); }
+.portal-navigation-trigger:focus-visible, .portal-workspace-tabs a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+@media (max-width: 1023px) {
+  aside[data-grouped-mobile-open="false"] { visibility: hidden; }
+}

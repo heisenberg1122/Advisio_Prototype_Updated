@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Suspense } from "react";
-import { AdviserSidebar } from "@/components/dashboards/adviser/AdviserSidebar";
+import { AdviserSidebar, ADVISER_NAV_SECTIONS } from "@/components/dashboards/adviser/AdviserSidebar";
 import { AdviserTopbar } from "@/components/dashboards/adviser/AdviserTopbar";
 import { AppWorkspaceFrame } from "@/components/layout/AppWorkspaceFrame";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
@@ -15,6 +15,7 @@ function AdviserLayoutInner({ children }: { children: React.ReactNode }) {
       <AppWorkspaceFrame
         collapsed={collapsed}
         dashboardPath="/adviser/dashboard"
+        workspaceSections={ADVISER_NAV_SECTIONS}
         padSecondaryPages
         sidebar={
           <Suspense

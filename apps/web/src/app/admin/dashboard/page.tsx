@@ -963,7 +963,7 @@ function RegistryView({
             Showing records within the selected college, program, and academic year.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <label className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
             <input

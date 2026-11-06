@@ -14,7 +14,7 @@ import {
   Archive,
 } from "lucide-react";
 
-const ADVISER_NAV_SECTIONS: NavSection[] = [
+export const ADVISER_NAV_SECTIONS: NavSection[] = [
   {
     title: "HOME",
     items: [
@@ -62,6 +62,7 @@ export function AdviserSidebar() {
       roleTitle="Faculty Adviser"
       roleBadge="ADVISER PORTAL"
       navSections={navSections}
+      groupedNavigation
       collapsed={collapsed}
       onToggleCollapse={toggle}
       settingsHref="/adviser/settings"

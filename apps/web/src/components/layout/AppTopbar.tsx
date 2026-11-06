@@ -33,6 +33,8 @@ import { cn } from "@/lib/utils";
 import { portalQuickLinks } from "@/lib/portal-navigation";
 import { DashboardSwitcher } from "@/components/layout/DashboardSwitcher";
 import { CollegeSwitcher } from "@/components/layout/CollegeSwitcher";
+import { AcademicIdentity } from "@/components/layout/AcademicIdentity";
+import { WorkspaceHelp } from "@/components/layout/WorkspaceHelp";
 import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
 import { getRoleBadgeLabel, getRolePortalBadge } from "@/lib/dashboard-navigation";
 
@@ -252,16 +254,16 @@ export function AppTopbar({
       </div>
 
       {/* Right: Notifications, Actions, User Menu */}
-      <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-2.5 sm:gap-4">
         {/* Centered Interactive Search Bar */}
         <div
           ref={searchRef}
-          className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 md:block"
+          className="relative hidden min-w-0 max-w-[340px] flex-1 md:block"
         >
           <label
             className={cn(
               "flex h-10 items-center gap-2.5 rounded-full px-4 text-slate-400 transition-all focus-within:border-[var(--color-primary)] focus-within:bg-[var(--color-surface)] focus-within:ring-2 focus-within:ring-[var(--college-focus-ring)] cursor-text",
-              "w-[260px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xs lg:w-[340px]",
+              "w-full border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xs",
             )}
           >
             <Search className="h-4 w-4 shrink-0 text-slate-400" />
@@ -276,7 +278,7 @@ export function AppTopbar({
                 setIsSearchOpen(true);
                 onSearch?.(e.target.value);
               }}
-              className="w-full bg-transparent text-base text-[var(--color-text-primary)] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none outline-none"
+              className="min-w-0 w-full bg-transparent text-base text-[var(--color-text-primary)] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none outline-none"
               aria-label="Search navigation and topics"
             />
             {searchQuery ? (
@@ -357,6 +359,7 @@ export function AppTopbar({
 
         {actions && <div className="flex items-center gap-2">{actions}</div>}
 
+        <WorkspaceHelp />
         <NotificationPopover viewAllHref={notificationsHref} compact />
 
         {/* User Profile Dropdown Menu */}
@@ -364,6 +367,7 @@ export function AppTopbar({
           <button
             type="button"
             onClick={() => setIsProfileOpen((prev) => !prev)}
+            aria-label="Open profile menu"
             aria-expanded={isProfileOpen}
             aria-haspopup="true"
             className="flex items-center gap-2 rounded-full p-1 sm:pr-2.5 hover:bg-[var(--nav-hover-bg)] dark:hover:bg-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] select-none cursor-pointer"
@@ -418,9 +422,7 @@ export function AppTopbar({
 
 
               </div>
-
-
-
+              <AcademicIdentity college={user?.college} program={user?.program} />
               {/* Multi-role Dashboard Switcher */}
               <div className="px-3 py-2"><CollegeSwitcher /></div>
               <DashboardSwitcher onCloseMenu={() => setIsProfileOpen(false)} />

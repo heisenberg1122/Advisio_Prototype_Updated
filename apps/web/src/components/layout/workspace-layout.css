@@ -1,26 +1,21 @@
 /* Shared portal geometry. Page content owns gutters once; overlays, tables,
    document readers and message panes keep their internal layouts. */
 .workspace-frame {
-  --workspace-chrome: #DEE2E1;
-  --workspace-page-background: #fff;
+  --workspace-chrome: var(--sidebar-background);
+  --workspace-page-background: var(--color-background);
   --workspace-frame-edge: rgb(15 23 42 / 6%);
   --workspace-page-radius: 32px;
   --workspace-transition-duration: 420ms;
   --workspace-transition-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --sidebar-background: var(--workspace-chrome);
-  --header-background: var(--workspace-chrome);
   background-color: var(--workspace-chrome);
 }
 
 .workspace-frame.dark,
 .dark .workspace-frame {
-  --workspace-chrome: #19232D;
-  --workspace-page-background: #111820;
   --workspace-frame-edge: rgb(255 255 255 / 7%);
 }
 
-/* The canvas joins the navigation on Overview. Other pages reveal a softly
-   outlined surface with matching navigation-colored corners. */
+/* Keep the content surface distinct from the navigation on every route. */
 .workspace-frame > .workspace-frame__body > .app-workspace[data-workspace-view] {
   background-color: var(--workspace-page-background);
   border-radius: var(--workspace-page-radius) 0 var(--workspace-page-radius) 0;
@@ -29,12 +24,6 @@
     background-color var(--workspace-transition-duration) var(--workspace-transition-ease),
     border-radius var(--workspace-transition-duration) var(--workspace-transition-ease),
     box-shadow var(--workspace-transition-duration) ease;
-}
-
-.workspace-frame > .workspace-frame__body > .app-workspace[data-workspace-view="overview"] {
-  background-color: var(--workspace-chrome);
-  border-radius: 0;
-  box-shadow: inset 0 0 0 1px transparent;
 }
 
 /* A newly loaded route also starts from the navigation color, so lazy pages

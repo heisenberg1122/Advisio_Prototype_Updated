@@ -36,23 +36,43 @@ describe("shared workspace canvas", () => {
     },
   );
 
-  it("uses the same color token for the full Overview canvas and navigation", () => {
+  it("keeps the workspace canvas distinct from navigation, including Home", () => {
     const css = readCss("../components/layout/workspace-layout.css");
     let navigation = "";
-    let overview = "";
+    let canvas = "";
+    const overviewOverrides: string[] = [];
     css.walkRules((rule) => {
       if (rule.selector === ".workspace-frame")
-        rule.walkDecls("--sidebar-background", (declaration) => {
+        rule.walkDecls("--workspace-chrome", (declaration) => {
           navigation = declaration.value;
         });
       if (
-        rule.selector.endsWith('.app-workspace[data-workspace-view="overview"]')
+        rule.selector.endsWith('.app-workspace[data-workspace-view]')
       )
         rule.walkDecls("background-color", (declaration) => {
-          overview = declaration.value;
+          canvas = declaration.value;
         });
+      if (rule.selector.includes('[data-workspace-view="overview"]')) {
+        rule.walkDecls("background-color", declaration => { overviewOverrides.push(declaration.value); });
+      }
     });
     expect(navigation).toBeTruthy();
-    expect(overview).toBe(navigation);
+    expect(navigation).toBe("var(--sidebar-background)");
+    expect(canvas).toBe("var(--workspace-page-background)");
+    expect(canvas).not.toBe(navigation);
+    expect(overviewOverrides).toEqual([]);
+  });
+
+  it("inherits college palette surfaces instead of replacing them with fixed colors", () => {
+    const css = readCss("../components/layout/workspace-layout.css");
+    const declarations: Record<string, string> = {};
+    css.walkRules(rule => {
+      if (rule.selector === ".workspace-frame") {
+        rule.walkDecls(declaration => { declarations[declaration.prop] = declaration.value; });
+      }
+    });
+    expect(declarations["--workspace-page-background"]).toBe("var(--color-background)");
+    expect(declarations["--sidebar-background"]).toBeUndefined();
+    expect(declarations["--header-background"]).toBeUndefined();
   });
 });

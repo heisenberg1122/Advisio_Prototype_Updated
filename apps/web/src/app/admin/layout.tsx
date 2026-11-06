@@ -136,12 +136,14 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     <AppWorkspaceFrame
       collapsed={collapsed}
       dashboardPath={dashboardPath}
+      workspaceSections={navSections}
       padSecondaryPages
       sidebar={
         <AppSidebar
           roleTitle="Dean's Office"
           roleBadge="DEAN PORTAL"
           navSections={navSections}
+          groupedNavigation
           collapsed={collapsed}
           onToggleCollapse={toggle}
           settingsHref={settingsHref}

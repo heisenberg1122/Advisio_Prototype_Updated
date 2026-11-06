@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Suspense } from "react";
-import { ProfessorSidebar } from "@/components/dashboards/professor/ProfessorSidebar";
+import { ProfessorSidebar, PROFESSOR_NAV_SECTIONS } from "@/components/dashboards/professor/ProfessorSidebar";
 import { ProfessorTopbar } from "@/components/dashboards/professor/ProfessorTopbar";
 import { AppWorkspaceFrame } from "@/components/layout/AppWorkspaceFrame";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
@@ -13,6 +13,7 @@ function ProfessorLayoutInner({ children }: { children: React.ReactNode }) {
     <AppWorkspaceFrame
       collapsed={collapsed}
       dashboardPath="/professor/dashboard"
+      workspaceSections={PROFESSOR_NAV_SECTIONS}
       padSecondaryPages
       sidebar={
         <Suspense fallback={<div className="fixed inset-y-0 left-0 hidden w-[260px] bg-[var(--sidebar-background)] lg:block" />}>
