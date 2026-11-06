@@ -1,3 +1,4 @@
+import { DashboardQuickActions } from "@/components/dashboards/DashboardQuickActions";
 import React, { useState, Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -738,6 +739,16 @@ function AdviserDashboardContent() {
                 </section>
                 </section>
 
+                <DashboardQuickActions
+                  actions={[
+                    { label: "Review documents", icon: "ti-file-search", tab: "reviews" },
+                    { label: "View advisees", icon: "ti-users", tab: "advisees" },
+                    { label: "Message groups", icon: "ti-messages", tab: "group-chats" },
+                    { label: "Track progress", icon: "ti-chart-line", tab: "progress" },
+                  ]}
+                  onAction={handleTabChange}
+                />
+
                 {/* Attention & Consultation Section */}
                 <section className="adviser-overview__split adviser-overview__priorities" aria-label="Your next steps">
                   <div className="adviser-overview__panel adviser-overview__attention">
@@ -973,8 +984,8 @@ function AdviserDashboardContent() {
                   )}
                 </section>
 
-                {/* Recent Activity & Quick Actions */}
-                <section className="adviser-overview__split adviser-overview__secondary" aria-label="Activity and shortcuts">
+                {/* Recent Activity */}
+                <section aria-label="Recent advisee activity">
                   <article className="adviser-overview__panel adviser-overview__activity">
                     <div className="adviser-overview__section-heading">
                       <div>
@@ -1014,29 +1025,6 @@ function AdviserDashboardContent() {
                         </div>
                       )}
                     </div>
-                  </article>
-
-                  <article className="adviser-overview__panel adviser-overview__shortcuts">
-                  <h2 className="mb-4 text-lg font-bold text-[#17212B] dark:text-white">Quick Actions</h2>
-                  <div className="adviser-overview__actions">
-                    {[
-                      { label: "View advisees", icon: "ti-users", tab: "advisees" },
-                      { label: "Review documents", icon: "ti-file-search", tab: "reviews" },
-                      { label: "Track progress", icon: "ti-chart-line", tab: "progress" },
-                      { label: "Message groups", icon: "ti-messages", tab: "group-chats" },
-                    ].map((action) => (
-                      <button
-                        key={action.label}
-                        onClick={() => handleTabChange(action.tab)}
-                        className="adviser-overview__quick-action"
-                      >
-                        <span className="adviser-overview__task-icon" aria-hidden="true">
-                          <i aria-hidden="true" className={`ti ${action.icon}`} />
-                        </span>
-                        <span className="text-sm font-bold text-[#17212B] dark:text-white">{action.label}</span>
-                      </button>
-                    ))}
-                  </div>
                   </article>
                 </section>
               </div>
