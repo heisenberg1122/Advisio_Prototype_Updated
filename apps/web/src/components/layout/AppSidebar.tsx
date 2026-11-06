@@ -19,6 +19,7 @@ export interface AppSidebarProps {
   roleBadge: string;
   navItems?: NavItemProps[];
   navSections?: NavSection[];
+  renderNavigation?: (options: { collapsed: boolean; onNavigate: () => void }) => React.ReactNode;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
   isMobileOpen?: boolean;
@@ -33,6 +34,7 @@ export function AppSidebar({
   roleBadge,
   navItems,
   navSections,
+  renderNavigation,
   collapsed = false,
   onToggleCollapse,
   isMobileOpen,
@@ -65,6 +67,7 @@ export function AppSidebar({
 
       {/* Google Classroom-Inspired Course Navigation Sidebar */}
       <aside
+        data-researcher-mobile-open={renderNavigation ? resolvedMobileOpen : undefined}
         className={cn(
           "fixed top-0 bottom-0 left-0 z-50 flex flex-col text-[var(--color-text-primary)] transition-all duration-300 ease-in-out dark:text-slate-200",
           "bg-[var(--sidebar-background)]",
@@ -125,7 +128,7 @@ export function AppSidebar({
           className="flex w-full flex-1 flex-col overflow-y-auto overflow-x-hidden py-3 space-y-1"
           aria-label="Sidebar Navigation"
         >
-          {sections.map((section, sIndex) => (
+          {renderNavigation ? renderNavigation({ collapsed: isVisuallyCollapsed, onNavigate: handleMobileClose }) : sections.map((section, sIndex) => (
             <div
               key={section.title || sIndex}
               className={cn(

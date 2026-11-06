@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Suspense } from "react";
-import { StudentSidebar } from "@/components/dashboards/student/StudentSidebar";
+import { ResearchWorkspaceNavigation, StudentSidebar } from "@/components/dashboards/student/StudentSidebar";
 import { StudentTopbar } from "@/components/dashboards/student/StudentTopbar";
 import { AppWorkspaceFrame } from "@/components/layout/AppWorkspaceFrame";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
@@ -25,6 +25,7 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
           </Suspense>
         }
       >
+        <ResearchWorkspaceNavigation />
         {children}
       </AppWorkspaceFrame>
     </div>

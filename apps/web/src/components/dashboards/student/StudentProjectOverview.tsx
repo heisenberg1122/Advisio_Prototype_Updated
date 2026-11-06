@@ -1,313 +1,217 @@
 import React from "react";
+import Link from "next/link";
 import { ProjectAuditHistory } from "@/components/workflow/ProjectAuditHistory";
+import { studentTaskDetailsHref } from "@/lib/student-task-navigation";
+import { withProjectContext } from "@/lib/active-project";
+import { calculateMilestoneProgress } from "@/lib/workflow-progress";
 import {
+  currentProjectMilestone,
+  milestoneSnapshot,
+  overviewDate,
+  overviewStatus,
+  pendingProjectRequirements,
   researchTitleLabel,
   resolveProjectNextStep,
   type OverviewProject,
+  type OverviewRecord,
   type ProjectAction,
   type ProjectMilestoneProgress,
 } from "@/lib/student-project-overview";
 
-const card = "mp-panel";
-const secondary = "mp-button mp-button--secondary";
+function SummaryRecords({ records, empty }: { records: OverviewRecord[]; empty: string }) {
+  if (!records.length) return <p className="mp-note">{empty}</p>;
+  return (
+    <ul className="mp-records">
+      {records.map(({ id, title, detail, href, date }) => (
+        <li key={id}>
+          {href ? <Link href={href}>{title}</Link> : <strong>{title}</strong>}
+          {(detail || date) && (
+            <p className="mp-note">
+              {detail}{detail && date ? " · " : ""}
+              {date && <time dateTime={date}>{overviewDate(date)}</time>}
+            </p>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export function StudentProjectOverview({
-  project,
-  isLeader,
-  workflowName,
-  coordinator,
-  academicYear,
-  progress,
-  milestones,
-  loading,
-  error,
-  adviser,
-  titleHistory,
-  teamName,
-  memberCount,
-  defenseSession,
-  onAction,
-  onGroup,
-  onArchive,
+  project, isLeader, workflowName, coordinator, academicYear, milestones, loading, error,
+  adviser, adviserName, titleHistory, teamName, groupCode, members, pendingMembers,
+  documents, documentsState, academic, activity, onAction, onGroup, onArchive,
 }: {
   project: OverviewProject;
   isLeader: boolean;
   workflowName?: string;
   coordinator?: string;
   academicYear?: string;
-  progress: number;
   milestones?: ProjectMilestoneProgress[];
   loading: boolean;
   error: boolean;
   adviser: React.ReactNode;
+  adviserName?: string;
   titleHistory?: React.ReactNode;
   teamName: string;
-  memberCount: number;
-  defenseSession?: { status: string; scheduledDate?: string } | null;
+  groupCode?: string;
+  members: Array<{ id: string; name: string; leader: boolean }>;
+  pendingMembers: number;
+  documents: OverviewRecord[];
+  documentsState: "loading" | "error" | "ready";
+  academic: OverviewRecord[];
+  activity: OverviewRecord[];
   onAction: (action: ProjectAction) => void;
   onGroup: () => void;
   onArchive: () => void;
 }) {
-  const nextStep = resolveProjectNextStep({
-    project,
-    milestones,
-    loading,
-    error,
-    isLeader,
-  });
+  const next = resolveProjectNextStep({ project, milestones, loading, error, isLeader });
   const titleLabel = researchTitleLabel(project);
-  const approvedTitle = titleLabel === "Approved research title" || titleLabel === "Registered Research Project";
-  const current = milestones?.find(
-    (stage) =>
-      stage.id === project.workflowInstance?.currentStage?.id ||
-      stage.isCurrent,
-  );
-  const statusText = (project.status || "DRAFT")
-    .toLowerCase()
-    .replace(/_/g, " ");
-  const pendingTitle = project.titleRevisions?.find(
-    (revision) => revision.status === "PENDING",
-  );
-  const tone =
-    nextStep.tone === "action"
-      ? "mp-next--action"
-      : nextStep.tone === "pending"
-        ? "mp-next--pending"
-        : nextStep.tone === "success"
-          ? "mp-next--success"
-          : "mp-next--neutral";
+  const workflowAvailable = Boolean(project.workflowInstance && !project.workflowAccessRemoved);
+  const current = currentProjectMilestone(project, milestones);
+  const stage = !workflowAvailable ? "Unavailable"
+    : project.workflowInstance?.completedAt ? "Workflow completed"
+    : current?.name || project.workflowInstance?.currentStage?.name || "No current milestone";
+  const pendingTitle = project.titleRevisions?.find((revision) => revision.status === "PENDING");
+  const snapshot = workflowAvailable && milestones && !loading && !error ? milestoneSnapshot(project, milestones) : null;
+  const showProgress = Boolean(project.workflowInstance?.completedAt || milestones?.some(({ totalRequirements }) => (totalRequirements || 0) > 0));
+  const progress = calculateMilestoneProgress(milestones, Boolean(project.workflowInstance?.completedAt));
+  const requirements = snapshot ? pendingProjectRequirements(project, milestones).slice(0, 3) : [];
+  const projectLink = (path: string) => withProjectContext(path, project.id);
+  const action = next.action;
 
   return (
     <div className="student-projects-readable mp-workspace mp-project">
-      <section className={`${card} mp-identity`} aria-label="Project details">
+      <section className="mp-panel mp-identity" aria-label="Project details">
         <div className="mp-identity-layout">
           <div className="mp-identity-copy">
             <div className="mp-identity-metadata">
-            <p className="mp-workflow-meta">
-              {project.workflowAccessRemoved
-                ? "Workflow access removed"
-                : workflowName || "No workflow linked"}
-              {academicYear && <span> · AY {academicYear}</span>}
-            </p>
-              <span
-                className={`mp-status capitalize ${["SUBMITTED", "UNDER_REVIEW"].includes(project.status || "") ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200" : "bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)]"}`}
-              >
-                {statusText}
-              </span>
+              <p className="mp-workflow-meta">{workflowAvailable ? workflowName || "Research workflow" : "Workflow unavailable"}{academicYear && ` · AY ${academicYear}`}</p>
+              {project.status && <span className="mp-status bg-[var(--color-surface-muted)]">{overviewStatus(project.status)}</span>}
             </div>
-            {coordinator && !project.workflowAccessRemoved && (
-              <p className="mp-coordinator">
-                Coordinator: {coordinator}
-              </p>
-            )}
-            <h2 className="mp-project-title">
-              {project.title || "Research workflow in progress"}
-            </h2>
-            <div className="mp-title-classification">
-              <span
-                className={
-                  approvedTitle
-                    ? "mp-title-approved text-emerald-700 dark:text-emerald-300"
-                    : "mp-caption"
-                }
-              >
-                {titleLabel}
-              </span>
-
-            </div>
-            <p className="mp-group-reference">
-              {teamName}
-            </p>
-            {pendingTitle && (
-              <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-                Title amendment awaiting review:{" "}
-                <strong>{pendingTitle.proposedTitle}</strong>
-              </p>
-            )}
+            <h1 className="mp-project-title">{project.title?.trim() || "Research title not added"}</h1>
+            <p className="mp-note">{titleLabel}</p>
+            {project.abstract?.trim() && <p className="mp-project-description">{project.abstract}</p>}
+            <dl className="mp-project-context">
+              <div><dt>Group</dt><dd>{teamName}{groupCode && ` · ${groupCode}`}</dd></div>
+              <div><dt>Assigned adviser</dt><dd>{adviserName || "Not assigned"}</dd></div>
+              {coordinator && workflowAvailable && <div><dt>Coordinator</dt><dd>{coordinator}</dd></div>}
+            </dl>
+            {pendingTitle && <p className="mp-note">Title amendment awaiting review <strong>{pendingTitle.proposedTitle}</strong></p>}
           </div>
-      <div className="mp-identity-actions">
-      <ProjectAuditHistory key={project.id} researchId={project.id} />
-      {isLeader && (
-            <button
-              type="button"
-              onClick={() => onAction({ kind: "edit" })}
-              className={`${secondary} shrink-0 self-start`}
-            >
-              Edit details
-            </button>
-          )}
-      </div>
+          <div className="mp-identity-actions">
+            <ProjectAuditHistory key={project.id} researchId={project.id} />
+            {isLeader && <button type="button" className="mp-button mp-button--secondary" onClick={() => onAction({ kind: "edit" })}>Edit details</button>}
+          </div>
         </div>
       </section>
 
-      <section
-        className={`${card} mp-next ${tone}`}
-        aria-labelledby="project-next-step"
-        aria-live="polite"
-      >
-        <p className="mp-eyebrow">
-          {nextStep.label}
-        </p>
-        <h3
-          id="project-next-step"
-          className="mp-next-title"
-        >
-          {nextStep.title}
-        </h3>
-        <p className="mp-next-description">
-          {nextStep.description}
-        </p>
-        {nextStep.action && (
-          <button
-            type="button"
-            onClick={() => onAction(nextStep.action!)}
-            className="mp-button mp-button--primary mp-next-action"
-          >
-            {nextStep.buttonLabel}
-            <span aria-hidden="true">→</span>
+      <section className="mp-panel mp-next" aria-labelledby="project-next-step" aria-live="polite">
+        <p className="mp-eyebrow">Current stage</p>
+        <p className="mp-stage-name">{stage}</p>
+        <p className="mp-eyebrow mp-next-label">{next.label}</p>
+        <h2 id="project-next-step" className="mp-next-title">{next.title}</h2>
+        <p className="mp-next-description">{next.description}</p>
+        {next.dueAt && <p className="mp-note">Due <time dateTime={next.dueAt.toISOString()}>{overviewDate(next.dueAt)}</time></p>}
+        {action && (
+          <button type="button" onClick={() => onAction(action)} className="mp-button mp-button--primary mp-next-action">
+            {next.buttonLabel} <span aria-hidden="true">→</span>
           </button>
         )}
       </section>
 
-      <section className={`${card} mp-progress`} aria-labelledby="project-workflow-progress">
+      <section className="mp-panel mp-progress" aria-labelledby="project-workflow-progress">
         <div className="mp-section-heading">
-          <h3
-            id="project-workflow-progress"
-            className="mp-section-title"
-          >
-            Workflow progress
-          </h3>
-          {!project.workflowAccessRemoved && (
-            <button
-              type="button"
-              onClick={() => onAction({ kind: "timeline" })}
-              className="mp-text-action"
-            >
-              View all milestones
-            </button>
-          )}
+          <h2 id="project-workflow-progress" className="mp-section-title">Milestones</h2>
+          {workflowAvailable && <Link href={projectLink("/student/dashboard?tab=milestones")} className="mp-text-action">View timeline</Link>}
         </div>
-        <p className="mp-current-stage">
-          {project.workflowAccessRemoved
-            ? "Workflow unavailable"
-            : loading
-              ? "Loading milestone…"
-              : error
-                ? "Progress could not be loaded"
-                : current?.name ||
-                  project.workflowInstance?.currentStage?.name ||
-                  "No current milestone"}
-        </p>
-        {!loading && !error && milestones && !project.workflowAccessRemoved && (
+        {snapshot ? (
           <>
-            <p className="mp-stage-status capitalize">
-              {project.workflowInstance?.completedAt
-                ? "Workflow completed"
-                : current?.status?.toLowerCase().replace(/_/g, " ") ||
-                  "Not started"}
-            </p>
-            <div
-              className="mp-progress-track"
-              role="progressbar"
-              aria-label="Workflow requirements completed"
-              aria-valuenow={progress}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            >
-              <div
-                className="mp-progress-fill"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="mp-progress-caption">
-              <span className="mp-progress-value">{progress}%</span>{" "}
-              <span>of workflow requirements completed</span>
-            </p>
+            <p className="mp-note">{snapshot.completed} completed · {snapshot.active} active · {snapshot.pending} pending</p>
+            {showProgress && (
+              <div className="mp-progress-summary">
+                <progress aria-label="Workflow requirements completed" value={progress} max={100} />
+                <span>{progress}% of requirements completed</span>
+              </div>
+            )}
+            <ol className="mp-milestones">
+              {snapshot.stages.map((item) => (
+                <li key={item.id} aria-current={item.id === snapshot.activeId ? "step" : undefined}>
+                  <strong>{item.name}</strong>
+                  <span>{item.completed ? "Completed" : item.id === snapshot.activeId ? "Current stage" : item.isBlocked ? "Blocked" : item.status && item.status !== "NOT_STARTED" ? overviewStatus(item.status) : "Upcoming"}</span>
+                </li>
+              ))}
+            </ol>
+            {!snapshot.stages.length && <p className="mp-note">No milestones configured.</p>}
           </>
-        )}
+        ) : <p className="mp-note">{loading ? "Loading milestone progress…" : error ? "Milestone progress could not be loaded." : "Milestone progress is unavailable."}</p>}
       </section>
 
-      <div className="mp-adviser">{adviser}</div>
-
-      <section
-        className={`${card} mp-team`}
-        aria-label="Team summary"
-      >
-        <div>
-          <h3 className="mp-section-title">
-            Team
-          </h3>
-          <p className="mp-team-description">
-            {teamName} · {memberCount} member{memberCount === 1 ? "" : "s"}
-          </p>
+      <section className="mp-panel mp-half">
+        <div className="mp-section-heading">
+          <h2 className="mp-section-title">Pending requirements</h2>
+          {workflowAvailable && <Link className="mp-text-action" href={projectLink("/student/tasks")}>All tasks</Link>}
         </div>
-        <button type="button" onClick={onGroup} className={secondary}>
-          {isLeader ? "Manage group" : "View group"}
-        </button>
+        <SummaryRecords
+          empty={snapshot ? "No pending requirements for the current stage." : "Current requirements are unavailable."}
+          records={requirements.map((task) => ({
+            id: task.id,
+            title: task.title,
+            detail: `${task.overdue ? "Overdue · " : task.dueAt ? "Due · " : ""}${overviewStatus(task.status || "NOT_STARTED")}`,
+            date: task.dueAt?.toISOString(),
+            href: studentTaskDetailsHref(task.id, project.id),
+          }))}
+        />
       </section>
 
-      <details
-        className={`${card} mp-disclosure`}
-        open={Boolean(
-          defenseSession &&
-          [
-            "SCHEDULED",
-            "LIVE",
-            "DELIBERATION",
-            "PENDING_ACKNOWLEDGEMENT",
-            "NEEDS_RESCHEDULING",
-          ].includes(defenseSession.status),
-        )}
-      >
-        <summary className="mp-disclosure-heading">
-          Defense readiness{" "}
-          <span className="mp-disclosure-status">
-            {defenseSession
-              ? defenseSession.status.toLowerCase().replace(/_/g, " ")
-              : project.workflowInstance?.completedAt
-                ? "Check remaining requirements"
-                : "Requirements incomplete"}
-          </span>
-        </summary>
-        <p className="mt-3 text-sm leading-relaxed text-[var(--color-text-secondary)]">
-          {defenseSession
-            ? "View your defense schedule, panel confirmations, and requirements in the Defense page."
-            : "Defense eligibility also depends on the final manuscript, adviser assignment, and required approvals. Check the Defense page for the full requirements."}
-        </p>
-        <button
-          type="button"
-          onClick={() => onAction({ kind: "defense" })}
-          className={`mt-3 ${secondary}`}
-        >
-          {defenseSession ? "View defense" : "View requirements"}
-        </button>
+      <section className="mp-panel mp-half">
+        <div className="mp-section-heading">
+          <h2 className="mp-section-title">Documents & submissions</h2>
+          <Link href={projectLink("/student/documents")} className="mp-text-action">All documents</Link>
+        </div>
+        <SummaryRecords records={documents} empty={documentsState === "loading" ? "Loading documents…" : documentsState === "error" ? "Documents could not be loaded." : "No project documents yet."} />
+      </section>
+
+      <section className="mp-panel mp-half">
+        <div className="mp-section-heading">
+          <h2 className="mp-section-title">Research group</h2>
+          <button type="button" onClick={onGroup} className="mp-text-action">View group</button>
+        </div>
+        <p className="mp-note">{teamName} · {members.length} {members.length === 1 ? "member" : "members"}</p>
+        <ul className="mp-records">
+          {members.slice(0, 4).map((member) => <li key={member.id}>{member.name}{member.leader && <span className="mp-note"> · Leader</span>}</li>)}
+        </ul>
+        {members.length > 4 && <p className="mp-note">+{members.length - 4} more in the group roster</p>}
+        {isLeader && pendingMembers > 0 && <p className="mp-note">{pendingMembers} pending join {pendingMembers === 1 ? "request" : "requests"}</p>}
+      </section>
+
+      <section className="mp-panel mp-half">
+        <div className="mp-section-heading">
+          <h2 className="mp-section-title">Academic activities</h2>
+          <Link href={projectLink("/student/defense")} className="mp-text-action">Defense readiness</Link>
+        </div>
+        <SummaryRecords records={academic} empty="No confirmed upcoming consultation, defense, or released outcome for this project." />
+      </section>
+
+      <section className="mp-panel">
+        <div className="mp-section-heading">
+          <h2 className="mp-section-title">Recent research activity</h2>
+          {workflowAvailable && <Link href={projectLink("/student/dashboard?tab=milestones")} className="mp-text-action">Full activity</Link>}
+        </div>
+        <SummaryRecords records={activity} empty={loading ? "Loading project activity…" : !workflowAvailable || error ? "Project activity is unavailable." : "No recent research activity recorded."} />
+      </section>
+
+      <details className="mp-panel mp-disclosure">
+        <summary className="mp-disclosure-heading">Adviser assignment</summary>
+        <div className="mp-adviser">{adviser}</div>
       </details>
 
-      <details className={`${card} mp-disclosure`}>
-        <summary className="mp-disclosure-heading">
-          Project management
-        </summary>
+      <details className="mp-panel mp-disclosure">
+        <summary className="mp-disclosure-heading">Project management</summary>
         {titleHistory}
         {isLeader ? (
-          <>
-            <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
-              Archive this project when it is no longer active. This requires
-              confirmation and preserves academic records.
-            </p>
-            <button
-              type="button"
-              onClick={onArchive}
-              className="mt-3 text-sm font-semibold text-rose-700 underline-offset-4 hover:underline dark:text-rose-300"
-            >
-              Archive project
-            </button>
-          </>
-        ) : (
-          <p className="mt-3 text-sm text-[var(--color-text-secondary)]">
-            Your group leader manages project details. Membership options are
-            available in the My Group tab.
-          </p>
-        )}
+          <button type="button" onClick={onArchive} className="mt-3 min-h-11 text-sm font-semibold text-rose-700 underline-offset-4 hover:underline dark:text-rose-300">Archive project</button>
+        ) : <p className="mp-note">Your group leader manages project details. See Group & Members for membership options.</p>}
       </details>
     </div>
   );

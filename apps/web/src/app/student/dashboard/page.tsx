@@ -1,18 +1,15 @@
 import {
   OverviewHeader,
-  OverviewProjectPanel,
   OverviewDefenseResult,
-  OverviewResearchSummary,
   OverviewConsultation,
   OverviewGettingStarted,
-  OverviewRecentActivity,
-  OverviewQuickActions,
 } from "@/components/dashboards/student/overview/ResearchCommandCenter";
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
 import { JoinedWorkflows } from "@/components/workflow/JoinedWorkflows";
 import { resolveStudentWorkflow } from "@/lib/student-workflow-context";
 import { TeamEmailInvitation } from "@/components/workflow/TeamEmailInvitation";
 import React, { useState, Suspense, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/providers/theme-provider";
@@ -25,7 +22,12 @@ import { Button } from "@/components/ui/Button";
 import { CardsPageSkeleton, DashboardSkeleton, FilesPageSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import "@/components/dashboards/student/my-project-workspace.css";
 import { StudentProjectOverview } from "@/components/dashboards/student/StudentProjectOverview";
-import { projectSectionHref, type ProjectAction } from "@/lib/student-project-overview";
+import {
+  currentProjectMilestone, overviewDate, overviewStatus, pendingProjectRequirements, projectActivityHref,
+  projectConsultationHref, projectSectionHref, resolveProjectNextStep, summarizeProjectDocuments,
+  type OverviewDocument, type OverviewRecord, type ProjectAction, type ProjectActivity, type ProjectMilestoneProgress,
+} from "@/lib/student-project-overview";
+import { notificationLink } from "@/lib/notification-navigation";
 import { studentTaskDetailsHref } from "@/lib/student-task-navigation";
 import { StudentGroupChats } from "@/components/dashboards/student/StudentGroupChats";
 import { getStoredMeetingSession, saveMeetingSession, DEFAULT_SHARED_MEET_URL } from "@/lib/meeting-store";
@@ -45,38 +47,27 @@ import { useActiveProject } from "@/providers/active-project-provider";
 
 const STUDENT_TOUR_STEPS: TourStep[] = [
   {
-    title: "Welcome to Advisio Research Portal",
-    content: "This is your comprehensive workspace for capstone and thesis research. Let's take a quick tour of your essential tools.",
+    title: "Welcome to ADVISIO",
+    content: "Home brings your research updates, deadlines, and notifications together.",
   },
   {
-    selector: '[data-tour="tab-overview"]',
-    title: "Project Overview",
-    content: "Monitor your active research topic, assigned group members, and overall milestone progress at a glance.",
+    selector: '[data-tour="researcher-project"]',
+    title: "Research Workspace",
+    content: "Open your project to check progress, manage your group, work on tasks and files, or see the full timeline.",
   },
   {
-    selector: '[data-tour="tab-workspace"]',
-    title: "Document Workspace",
-    content: "Draft chapters, annotate PDF manuscripts, collaborate with teammates, and review inline faculty comments.",
+    selector: '[data-tour="researcher-next"]',
+    title: "Your next step",
+    content: "Follow the action for your current milestone when work or feedback is available.",
   },
   {
-    selector: '[data-tour="tab-submissions"]',
-    title: "Formal Submissions",
-    content: "Submit versioned manuscript drafts for adviser endorsement, ethics review, and defense panel evaluations.",
+    selector: '[data-tour="researcher-deadlines"]',
+    title: "Upcoming deadlines",
+    content: "Open a requirement to see its instructions, deadline, and submission details.",
   },
   {
-    selector: '[data-tour="tab-consultations"]',
-    title: "Adviser Consultations & Meet",
-    content: "Book consultation slots with your faculty adviser, launch synchronized Google Meet rooms, and review AI transcripts.",
-  },
-  {
-    selector: '[data-tour="tab-milestones"]',
-    title: "Institutional Milestones",
-    content: "Keep track of institutional deadlines, defense schedules, and college research workflow stages.",
-  },
-  {
-    selector: '[data-tour="tab-chat"]',
-    title: "Real-Time Group Chat",
-    content: "Direct, instant group chat with your research partners and faculty adviser powered by real-time event streaming.",
+    title: "Researcher navigation",
+    content: "Use Academic Activities for defense and grades, Schedule for consultations and the calendar, and Communication for messages, inbox, and notifications.",
   },
 ];
 
@@ -85,6 +76,7 @@ function StudentDashboardContent() {
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab") || "overview";
   const activeTab = requestedTab === "my-group" ? "group" : requestedTab;
+  const requestedConsultationId = searchParams.get("consultationId");
   const projectSection = requestedTab === "my-group" || searchParams.get("section") === "my-group" ? "my-group" : "overview";
   useEffect(() => {
     if (requestedTab !== "my-group") return;
@@ -102,13 +94,8 @@ function StudentDashboardContent() {
   // Auto-redirect if tab is workspace or documents to the modern /student/documents workspace
   useEffect(() => {
     if (activeTab === "workspace" || activeTab === "documents") {
-      const milestoneId = searchParams.get("milestoneId");
-      const taskId = searchParams.get("taskId");
-      const params = new URLSearchParams();
-      const projectId = searchParams.get("projectId");
-      if (projectId) params.set("projectId", projectId);
-      if (milestoneId) params.set("milestoneId", milestoneId);
-      if (taskId) params.set("taskId", taskId);
+      const params = new URLSearchParams(searchParams);
+      params.delete("tab");
       const queryStr = params.toString();
       router.replace(`/student/documents${queryStr ? `?${queryStr}` : ""}`);
     }
@@ -265,7 +252,7 @@ function StudentDashboardContent() {
   const canDeleteWorkspace = activeWorkspace?._count?.projects === 0 && activeWorkspace.members?.some(
     (member: any) => member.userId === user?.id && member.role === "LEADER" && !member.leftAt,
   );
-  const { data: workflowEnrollmentData, isLoading: isWorkflowEnrollmentLoading, isError: isWorkflowEnrollmentError } = useQuery({
+  const { data: workflowEnrollmentData, isLoading: isWorkflowEnrollmentLoading, isError: isWorkflowEnrollmentError, refetch: refetchEnrollments } = useQuery({
     queryKey: ["student-workflow-enrollments"],
     queryFn: () =>
       apiClient.get<{ enrollments: any[] }>("/api/workflows/enrollments/me"),
@@ -333,10 +320,10 @@ function StudentDashboardContent() {
     const interval = window.setInterval(fetchActiveStream, 3000);
     return () => window.clearInterval(interval);
   }, [activeProject?.id, activeProject?.title]);
-  const { data: dashboardDocumentData } = useQuery({
+  const { data: dashboardDocumentData, isLoading: documentsLoading, isError: documentsError } = useQuery({
     queryKey: ["student-dashboard-documents", activeProject?.id],
     queryFn: () =>
-      apiClient.get<{ documents: any[] }>(
+      apiClient.get<{ documents: Array<OverviewDocument & { versions?: any[]; milestone?: { name: string }; documentType?: string }> }>(
         `/api/research/${activeProject.id}/documents`,
       ),
     enabled: Boolean(activeProject?.id),
@@ -346,12 +333,14 @@ function StudentDashboardContent() {
     resolveStudentWorkflow(workflowEnrollmentData?.enrollments || [], activeProject);
   const { data: manuscriptWorkflowResponse, isLoading: isMilestoneLoading, isError: isMilestoneError, refetch: refetchMilestones } = useQuery({
     queryKey: ["student-manuscript-workflow", activeProject?.id],
-    queryFn: () => apiClient.get<{ milestones: any[]; activity: any[] }>(`/api/research/${activeProject.id}/manuscript-workflow`),
+    queryFn: () => apiClient.get<{ milestones: Array<ProjectMilestoneProgress & { completed: boolean; status: string; totalRequirements: number; completedRequirements: number; completionPercent: number }>; activity: ProjectActivity[] }>(`/api/research/${activeProject.id}/manuscript-workflow`),
     enabled: Boolean(workflowProject?.id),
     refetchOnWindowFocus: true,
     refetchInterval: 5000,
   });
   const manuscriptWorkflowData = workflowProject ? manuscriptWorkflowResponse : undefined;
+  const progressLoading = Boolean(activeProject?.workflowInstance && (isWorkflowEnrollmentLoading || isMilestoneLoading));
+  const progressError = isWorkflowEnrollmentError || isMilestoneError;
   const { data: defenseResultData } = useQuery({
     queryKey: ["student-defense-result", activeProject?.id],
     queryFn: () => apiClient.get<{ result: any | null }>(`/api/research/${activeProject.id}/defense-result`),
@@ -371,13 +360,22 @@ function StudentDashboardContent() {
     projectDefenseSessions.find((session: any) =>
       ["LIVE", "DELIBERATION", "SCHEDULED", "PENDING_ACKNOWLEDGEMENT", "NEEDS_RESCHEDULING"].includes(session.status),
     ) || projectDefenseSessions[0] || null;
+  const projectConsultations = (consultationsApiData?.consultations || []).filter(
+    (item: ConsultationItem) => item.researchId === activeProject?.id,
+  );
+  const now = Date.now();
+  const upcomingConsultations = (activeProject ? projectConsultations : []).filter(
+    (item: ConsultationItem) =>
+      ["scheduled", "confirmed"].includes(item.status) && Date.parse(item.scheduledStart || "") >= now,
+  ).sort((a, b) => Date.parse(a.scheduledStart) - Date.parse(b.scheduledStart));
+  const upcomingConsultation = upcomingConsultations[0];
+  const upcomingDefense = projectDefenseSessions.filter((session: { status: string; scheduledStart?: string }) =>
+    session.status === "SCHEDULED" && Date.parse(session.scheduledStart || "") >= now,
+  ).sort((a, b) => Date.parse(a.scheduledStart) - Date.parse(b.scheduledStart))[0];
   const projectProgress = calculateMilestoneProgress(
     manuscriptWorkflowData?.milestones,
     Boolean(activeProject?.workflowInstance?.completedAt),
   );
-  const projectStatusLabel = activeProject?.status
-    ? activeProject.status.toLowerCase().replace(/_/g, " ").replace(/^\w/, (letter: string) => letter.toUpperCase())
-    : "Not registered";
   const activeStudentMembers = (activeProject?.members || []).filter((member: any) => !member.leftAt && ["LEADER", "MEMBER"].includes(member.projectRole));
   const currentMembership = activeStudentMembers.find((member: any) => member.userId === user?.id || member.user?.id === user?.id);
   const isGroupLeader = currentMembership?.projectRole === "LEADER";
@@ -886,14 +884,25 @@ function StudentDashboardContent() {
   const handleProjectAction = (action: ProjectAction) => {
     if (action.kind === "task") router.push(studentTaskDetailsHref(action.taskId, activeProject?.id));
     else if (action.kind === "edit") openEditProject();
-    else if (action.kind === "retry") void refetchMilestones();
+    else if (action.kind === "retry") {
+      if (workflowProject) void refetchMilestones();
+      else void refetchEnrollments();
+    }
     else handleTabChange(action.kind === "timeline" ? "milestones" : action.kind);
   };
 
   const [consultFilter, setConsultFilter] = useState<"all" | "approved" | "pending">("all");
+  const consultationRef = useRef<HTMLDivElement>(null);
+  const linkedConsultation = consultations.find(({ id }) => id === requestedConsultationId);
+  useEffect(() => {
+    if (!linkedConsultation || !["consultations", "consultation-repo", "consultation-requests"].includes(activeTab)) return;
+    consultationRef.current?.focus({ preventScroll: true });
+    consultationRef.current?.scrollIntoView({ block: "nearest" });
+  }, [activeTab, linkedConsultation?.id]);
 
   const renderConsultationsHub = () => {
-    const filteredConsultations = consultations.filter((c: any) => {
+    const filteredConsultations = consultations.filter((c: ConsultationItem) => {
+      if (c.id === linkedConsultation?.id) return true;
       if (consultFilter === "approved") return c.status !== "pending" && c.status !== "requested";
       if (consultFilter === "pending") return c.status === "pending" || c.status === "requested";
       return true;
@@ -963,7 +972,9 @@ function StudentDashboardContent() {
               {filteredConsultations.map((c: any) => (
                 <div
                   key={c.id}
-                  className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xs transition hover:shadow-sm sm:p-5"
+                  ref={c.id === linkedConsultation?.id ? consultationRef : undefined}
+                  tabIndex={c.id === linkedConsultation?.id ? -1 : undefined}
+                  className="flex flex-col gap-4 focus-visible:outline-2 focus-visible:outline-[var(--color-primary)] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xs transition hover:shadow-sm sm:p-5"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
@@ -1280,6 +1291,41 @@ function StudentDashboardContent() {
     { id: "group-chats", label: "Group Chat", icon: "ti-messages", matches: ["group-chats", "chat"] },
   ];
 
+  const canStartProject = canCreateResearch && !researchData?.projects?.length;
+  const homeNextStep = activeProject ? resolveProjectNextStep({
+    project: activeProject,
+    milestones: manuscriptWorkflowData?.milestones,
+    loading: progressLoading,
+    error: progressError,
+    isLeader: isGroupLeader,
+  }) : null;
+  const homeDeadlines = activeProject && !progressError
+    ? pendingProjectRequirements(activeProject, manuscriptWorkflowData?.milestones, now)
+      .filter(({ dueAt, priority }) => dueAt && dueAt.getTime() >= now && priority < 3).slice(0, 3)
+    : [];
+  const projectActivity = activeProject && !activeProject.workflowAccessRemoved && !progressError
+    ? (manuscriptWorkflowData?.activity || []).slice(0, 4).map((event) => ({
+      id: event.id, title: event.title, detail: event.description, date: event.timestamp,
+      href: projectActivityHref(event, activeProject.id),
+    }))
+    : [];
+  const academic: OverviewRecord[] = [];
+  if (activeProject && upcomingConsultation) academic.push({
+    id: upcomingConsultation.id, title: upcomingConsultation.topic,
+    detail: `Confirmed consultation · ${overviewDate(upcomingConsultation.scheduledStart, true)}`,
+    href: projectConsultationHref(activeProject.id, upcomingConsultation.id),
+  });
+  if (activeProject && upcomingDefense) academic.push({
+    id: upcomingDefense.id, title: "Scheduled defense",
+    detail: overviewDate(upcomingDefense.scheduledStart, true),
+    href: projectSelection.projectHref(`/student/defense/${upcomingDefense.id}`),
+  });
+  if (activeProject && officialDefenseResult?.releasedAt) academic.push({
+    id: "defense-result", title: "Released defense outcome",
+    detail: overviewStatus(officialDefenseResult.decision), date: officialDefenseResult.releasedAt,
+    href: projectSelection.projectHref(`/student/defense/${officialDefenseResult.id}`),
+  });
+
   if (isResearchLoading) {
     if (activeTab === "overview") return <DashboardSkeleton />;
     if (["workspace", "submissions"].includes(activeTab)) return <FilesPageSkeleton />;
@@ -1309,20 +1355,21 @@ function StudentDashboardContent() {
       />
 
       {/* MAIN CONTAINER */}
-      <div className={`workspace-page w-full flex-1 space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
+      <div className={`workspace-page researcher-dashboard-page w-full flex-1 space-y-6 ${["group-chats", "chat"].includes(activeTab) ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
         {((researchData?.projects?.length || 0) > 1 || projectSelection.invalidRequestedProjectId) && (
-          <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-5">
-            <label htmlFor="dashboard-project" className="mb-2 block text-sm font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">Active research project</label>
-            <select id="dashboard-project" value={activeProject?.id || ""} onChange={(event) => projectSelection.selectProject(event.target.value || null)} className="h-11 w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]">
+          <section className="researcher-project-picker">
+            <label htmlFor="dashboard-project">Active research project</label>
+            <select id="dashboard-project" value={activeProject?.id || ""} onChange={(event) => projectSelection.selectProject(event.target.value || null)}>
               <option value="">Choose a research project</option>
-              {(researchData?.projects || []).map((project: any) => <option key={project.id} value={project.id}>{project.groupName || project.title}</option>)}
+              {(researchData?.projects || []).map((project: any) => <option key={project.id} value={project.id}>{[project.groupName, project.title].filter(Boolean).join(" · ") || "Untitled research"}</option>)}
             </select>
-            {!activeProject && <p className="mt-2 text-base text-[var(--color-text-secondary)]">{projectSelection.invalidRequestedProjectId ? "That project is unavailable or you do not have access to it." : "Choose a project to view its authoritative workflow data."}</p>}
+            {!activeProject && <p className="mt-2 text-base text-[var(--color-text-secondary)]">{projectSelection.invalidRequestedProjectId ? "That project is unavailable or you do not have access to it." : "Choose a project to see its workflow and requirements."}</p>}
           </section>
         )}
         
-        {activeTab === "group" && <div className="mp-page-header space-y-4"><h1 className="text-2xl font-bold text-[var(--color-text-primary)]">My Project</h1><nav aria-label="Project sections" className="flex gap-1 border-b border-[var(--color-border)]">{([{ id: "overview", label: "Project Overview" }, { id: "my-group", label: "My Group" }] as const).map((section) => <button key={section.id} type="button" aria-current={projectSection === section.id ? "page" : undefined} onClick={() => handleTabChange(section.id === "my-group" ? "my-group" : "group")} className={`min-h-11 border-b-2 px-4 py-3 text-sm font-semibold transition ${projectSection === section.id ? "border-[var(--color-primary)] text-[var(--color-primary)]" : "border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"}`}>{section.label}</button>)}</nav></div>}
 
+
+        {activeTab === "group" && projectSection === "my-group" && <h1 className="sr-only">Group &amp; Members</h1>}
         {(() => {
           const tabTitles: Record<string, string> = {
             overview: "Researcher Dashboard",
@@ -1346,102 +1393,102 @@ function StudentDashboardContent() {
           const tabContent: Record<string, React.ReactNode> = {
             overview: (
               <div className="research-command-center">
-                <OverviewHeader
-                  firstName={user?.firstName}
-                  actions={
-                    !isResearchLoading && !isWorkspaceLoading && !isResearchError && activeProject && activeProject.status !== "REJECTED" ? (
-                      <button type="button" onClick={() => router.push("/student/documents")} className="rcc-button rcc-button--secondary">
-                        <i aria-hidden="true" className="ti ti-file-text" /> Document Workspace
-                      </button>
-                    ) : null
-                  }
-                />
-                {activeTab === "overview" && <div className="rcc-workflow-access"><WorkflowAccessInbox /></div>}
-                <OverviewProjectPanel
-                  project={activeProject ? {
-                    title: activeProject.title || "Capstone & Thesis Research Study",
-                    code: `GROUP ${String(activeProject.id).substring(0, 6).toUpperCase()} • RESEARCH STUDY`,
-                    stage: activeProject.workflowInstance?.currentStage?.name || "Proposal Stage",
-                    instructor: activeProject.members?.find((m: any) => m.projectRole === "ADVISER")?.user
-                      ? `Adviser: Prof. ${activeProject.members.find((m: any) => m.projectRole === "ADVISER").user.firstName} ${activeProject.members.find((m: any) => m.projectRole === "ADVISER").user.lastName}`
-                      : "Faculty Adviser: To Be Assigned",
-                    description: activeProject.abstract || "Active University of the Assumption capstone research project.",
-                    shortcuts: [
-                      { label: "Workspace", icon: "ti-file-text", onClick: () => router.push("/student/documents") },
-                      { label: "Submissions", icon: "ti-upload", onClick: () => handleTabChange("submissions") },
-                      { label: "Consultations", icon: "ti-calendar-event", onClick: () => handleTabChange("consultations") },
-                      { label: "Messages", icon: "ti-messages", onClick: () => handleTabChange("group-chats") },
-                    ],
-                  } : undefined}
-                  status={activeProject ? projectStatusLabel : "Not registered"}
-                  statusTone={activeProject?.status === "COMPLETED" ? "success" : activeProject?.status === "REJECTED" ? "danger" : "info"}
-                  progress={projectProgress}
-                  onProject={() => handleTabChange("group")}
-                  onMilestones={() => handleTabChange("milestones")}
-                  actions={
-                    isResearchLoading || isWorkspaceLoading ? (
-                      <div className="rcc-button rcc-button--loading"><i aria-hidden="true" className="ti ti-loader-2 animate-spin motion-reduce:animate-none" /> Checking your project…</div>
-                    ) : isResearchError ? (
-                      <button type="button" onClick={() => refetchResearch()} className="rcc-button rcc-button--danger"><i aria-hidden="true" className="ti ti-refresh" /> Retry Project Lookup</button>
-                    ) : !activeProject ? (
-                      <button
-                        type="button"
-                        onClick={() => researchData?.projects?.length ? window.scrollTo({ top: 0, behavior: "smooth" }) : canCreateResearch ? setShowCreateModal(true) : handleTabChange("my-group")}
-                        className="rcc-button rcc-button--secondary"
-                      ><i aria-hidden="true" className={`ti ${researchData?.projects?.length ? "ti-folders" : canCreateResearch ? "ti-plus" : "ti-users"}`} />{researchData?.projects?.length ? "Select Project" : canCreateResearch ? "Register Project" : "View My Group"}</button>
-                    ) : activeProject.status === "REJECTED" ? (
-                      <div>
-                        <p>Delete this rejected record before registering a replacement.</p>
-                        <button type="button" onClick={() => setGroupAction({ type: "delete" })} disabled={groupActionPending} className="rcc-button rcc-button--danger"><i aria-hidden="true" className="ti ti-trash" />{groupActionPending ? "Deleting…" : "Delete Rejected Project"}</button>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => handleTabChange("group")} className="rcc-button rcc-button--primary"><i aria-hidden="true" className="ti ti-folder-open" /> View My Project</button>
-                    )
-                  }
-                />
-                {officialDefenseResult && <OverviewDefenseResult decision={officialDefenseResult.decision} releasedOn={new Date(officialDefenseResult.releasedAt).toLocaleString()} />}
-                <OverviewResearchSummary
-                  documents={`${combinedSubmissions.length} submitted`}
-                  consultations={consultations.length > 0 ? `${consultations.length} scheduled` : "None scheduled"}
-                  onDocuments={() => router.push("/student/documents")}
-                  onConsultations={() => handleTabChange("consultations")}
-                />
-                <div className="rcc-activity-grid">
-                  <OverviewConsultation consultation={consultations.length > 0 ? consultations[0] : null} onConsultations={() => handleTabChange("consultations")} />
+                <OverviewHeader firstName={user?.firstName} actions={null} />
+                <div className="rcc-workflow-access"><WorkflowAccessInbox /></div>
+                <section className="rcc-panel researcher-home-project" data-tour="researcher-project">
+                  <div>
+                    <p className="rcc-eyebrow">Active research project</p>
+                    <h2>{activeProject?.title || (activeProject ? "Research title not added" : "Select or register a project")}</h2>
+                    {activeProject && (
+                      <p className="rcc-supporting">
+                        {activeProject.workflowAccessRemoved ? "Workflow access removed"
+                          : activeProject.workflowInstance?.completedAt ? "Workflow completed"
+                          : currentProjectMilestone(activeProject, manuscriptWorkflowData?.milestones)?.name
+                            || activeProject.workflowInstance?.currentStage?.name || "No current stage"}
+                      </p>
+                    )}
+                  </div>
+                  {isResearchError ? (
+                    <button type="button" onClick={() => void refetchResearch()} className="rcc-button rcc-button--secondary">Retry project lookup</button>
+                  ) : (
+                    <Link href={projectSelection.projectHref(projectSectionHref("overview"), activeProject?.id)} className="rcc-button rcc-button--secondary">Open Research Workspace</Link>
+                  )}
+                </section>
+                {homeNextStep && (
+                  <section className="rcc-panel researcher-home-next" data-tour="researcher-next">
+                    <div>
+                      <p className="rcc-eyebrow">{homeNextStep.label}</p>
+                      <h2>{homeNextStep.title}</h2>
+                      <p className="rcc-supporting">{homeNextStep.description}</p>
+                    </div>
+                    {homeNextStep.action && <button type="button" onClick={() => handleProjectAction(homeNextStep.action!)} className="rcc-button rcc-button--primary">{homeNextStep.buttonLabel}</button>}
+                  </section>
+                )}
+                {officialDefenseResult && <OverviewDefenseResult decision={officialDefenseResult.decision} releasedOn={overviewDate(officialDefenseResult.releasedAt)} />}
+                <div className="rcc-activity-grid researcher-home-grid">
+                  <section className="rcc-panel" data-tour="researcher-deadlines">
+                    <h2>Upcoming deadlines</h2>
+                    {homeDeadlines.length > 0 ? <ul className="researcher-home-list">
+                      {homeDeadlines.map((task) => (
+                        <li key={task.id}>
+                          <Link href={studentTaskDetailsHref(task.id, activeProject?.id)}>{task.title}</Link>
+                          <time dateTime={task.dueAt!.toISOString()}>{overviewDate(task.dueAt!)}</time>
+                        </li>
+                      ))}
+                    </ul> : <p className="rcc-supporting">{isMilestoneLoading ? "Checking deadlines…" : isMilestoneError ? "Deadlines could not be loaded." : "No upcoming deadlines for the selected project."}</p>}
+                  </section>
+                  <OverviewConsultation consultation={upcomingConsultation || null} onConsultations={() => handleTabChange("consultations")} />
+                  <section className="rcc-panel">
+                    <div className="rcc-panel-heading">
+                      <h2>Notifications</h2>
+                      <Link className="rcc-link" href={projectSelection.projectHref("/student/notifications")}>View all</Link>
+                    </div>
+                    {apiNotifications.length > 0 ? <ul className="researcher-home-list">
+                      {apiNotifications.slice(0, 3).map((notification: { id: string; title: string; message?: string; createdAt: string; actionUrl?: string; isRead?: boolean }) => {
+                        const href = notificationLink(notification.actionUrl, "student");
+                        const label = notification.title || notification.message;
+                        return <li key={notification.id}>
+                          <span>{!notification.isRead && <strong>Unread · </strong>}{href ? <Link href={href}>{label}</Link> : label}</span>
+                          <time dateTime={notification.createdAt}>{overviewDate(notification.createdAt)}</time>
+                        </li>;
+                      })}
+                    </ul> : <p className="rcc-supporting">No recent notifications.</p>}
+                  </section>
+                  <section className="rcc-panel">
+                    <h2>Recent research updates</h2>
+                    {projectActivity.length > 0 ? <ul className="researcher-home-list">
+                      {projectActivity.slice(0, 3).map(({ id, title, href, date }) => (
+                        <li key={id}><Link href={href!}>{title}</Link>{date && <time dateTime={date}>{overviewDate(date)}</time>}</li>
+                      ))}
+                    </ul> : <p className="rcc-supporting">{isMilestoneLoading ? "Checking project activity…" : isMilestoneError ? "Project activity could not be loaded." : "No recent research updates."}</p>}
+                  </section>
                   <OverviewGettingStarted
                     onTour={() => setIsTourOpen(true)}
                     steps={[
                       {
-                        label: canCreateResearch || activeProject ? "Register project" : "View group",
+                        label: activeProject || canStartProject ? "Register project" : "View group",
                         icon: "ti-file-description",
-                        description: canCreateResearch || activeProject ? "View or register your research topic." : "View your team while your leader registers the project.",
-                        complete: Boolean(activeProject),
-                        onClick: () => !activeProject && canCreateResearch ? setShowCreateModal(true) : handleTabChange(activeProject ? "group" : "my-group"),
+                        description: "View your project or register a research title.",
+                        complete: Boolean(activeProject?.registeredAt),
+                        onClick: () => !activeProject && canStartProject ? setShowCreateModal(true) : handleTabChange("group"),
                       },
                       {
-                        label: "Add group members",
+                        label: "Set up your group",
                         icon: "ti-users",
                         description: "Invite your team, if any.",
                         complete: activeStudentMembers.length > 1,
-                        onClick: () => handleTabChange("group"),
+                        onClick: () => handleTabChange("my-group"),
                       },
                       {
                         label: "Choose an adviser",
                         icon: "ti-user-check",
                         description: isGroupLeader ? "Browse verified faculty and send a formal request." : "View your project’s adviser status.",
-                        complete: Boolean(activeProject?.members?.some((m: any) => m.projectRole === "ADVISER")),
-                        onClick: () => isGroupLeader ? router.push("/student/adviser-pool") : handleTabChange("group"),
+                        complete: Boolean(activeAdviserMembership),
+                        onClick: () => isGroupLeader ? handleTabChange("adviser-pool") : handleTabChange("group"),
                       },
                     ]}
                   />
-                  {activeTab === "overview" && <div className="rcc-joined"><JoinedWorkflows enrollments={workflowEnrollmentData?.enrollments || []} /></div>}
-                  <OverviewRecentActivity items={combinedNotifications.slice(0, 3)} onActivity={() => handleTabChange("notifications")} />
-                  <OverviewQuickActions actions={[
-                    { label: "New document", icon: "ti-file-text", onClick: () => router.push("/student/documents") },
-                    { label: "Submit draft", icon: "ti-upload", onClick: () => handleTabChange("submissions") },
-                    { label: "Message group", icon: "ti-message", onClick: () => handleTabChange("group-chats") },
-                    { label: "View milestones", icon: "ti-chart-bar", onClick: () => handleTabChange("milestones") },
-                  ]} />
+                  <div className="rcc-joined"><JoinedWorkflows enrollments={workflowEnrollmentData?.enrollments || []} /></div>
                 </div>
               </div>
             ),
@@ -1777,7 +1824,12 @@ function StudentDashboardContent() {
             ),
             group: (
               <div className="mp-project-container space-y-5">
-                {activeProject ? (
+                {isResearchError ? (
+                  <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6">
+                    <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Projects could not be loaded</h2>
+                    <button type="button" onClick={() => void refetchResearch()} className="mp-text-action">Retry project lookup</button>
+                  </section>
+                ) : activeProject ? (
                   <StudentProjectOverview
                     project={activeProject}
                     isLeader={isGroupLeader}
@@ -1785,12 +1837,21 @@ function StudentDashboardContent() {
                     coordinator={workflowProject && activeWorkflowEnrollment?.workflow?.creator ? [activeWorkflowEnrollment.workflow.creator.firstName, activeWorkflowEnrollment.workflow.creator.lastName].filter(Boolean).join(" ") || activeWorkflowEnrollment.workflow.creator.email : undefined}
                     academicYear={activeProject.academicYear?.name}
                     teamName={activeProject.groupName || (activeStudentMembers.length === 1 ? "Solo research" : "Research team")}
-                    memberCount={activeStudentMembers.length}
-                    progress={projectProgress}
+                    groupCode={isGroupLeader && activeProject.inviteCodeEnabled ? activeProject.inviteCode : undefined}
+                    adviserName={[activeAdviserMembership?.user?.firstName, activeAdviserMembership?.user?.lastName].filter(Boolean).join(" ")}
+                    members={activeStudentMembers.map((member: { userId: string; projectRole: string; user?: { firstName: string; lastName: string } }) => ({
+                      id: member.userId,
+                      name: [member.user?.firstName, member.user?.lastName].filter(Boolean).join(" ") || "Group member",
+                      leader: member.projectRole === "LEADER",
+                    }))}
+                    pendingMembers={pendingJoinRequests.length}
+                    documents={documentsError ? [] : summarizeProjectDocuments(dashboardDocumentData?.documents || [], activeProject.id)}
+                    documentsState={documentsLoading ? "loading" : documentsError ? "error" : "ready"}
+                    academic={academic}
+                    activity={projectActivity}
                     milestones={manuscriptWorkflowData?.milestones}
-                    loading={isMilestoneLoading}
-                    error={isMilestoneError}
-                    defenseSession={currentDefenseSession}
+                    loading={progressLoading}
+                    error={progressError}
                     onAction={handleProjectAction}
                     onGroup={() => handleTabChange("my-group")}
                     onArchive={() => setGroupAction({ type: "disband" })}
@@ -1847,12 +1908,12 @@ function StudentDashboardContent() {
                           )}
                         </div>
                       </div>}
-                    titleHistory={<div className="mt-4">{Array.isArray(activeProject.titleRevisions) && activeProject.titleRevisions.length > 0 && (
+                    titleHistory={<div className="mt-4">{isGroupLeader && activeProject.status === "REJECTED" && <button type="button" onClick={() => setGroupAction({ type: "delete" })} className="mb-3 min-h-11 text-sm font-semibold text-rose-700 dark:text-rose-300 hover:underline">Delete rejected project</button>}{Array.isArray(activeProject.titleRevisions) && activeProject.titleRevisions.length > 0 && (
                         <details className="rounded-xl border border-slate-200 p-4"><summary className="cursor-pointer text-sm font-extrabold text-[#102f49]">Title revision history ({activeProject.titleRevisions.length})</summary><div className="mt-3 space-y-2">{activeProject.titleRevisions.map((revision: any) => <div key={revision.id} className="rounded-lg bg-slate-50 p-3 text-xs"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-[#102f49]">{revision.proposedTitle}</strong><span className="rounded-full bg-white px-2 py-1 text-xs font-bold text-slate-600">{revision.status}</span></div><p className="mt-1 text-slate-500">Previous: {revision.previousTitle}</p>{revision.reason && <p className="mt-1 text-slate-600">Reason: {revision.reason}</p>}<p className="mt-1 text-base text-slate-400">{new Date(revision.createdAt).toLocaleString()}</p></div>)}</div></details>
                       )}</div>}
                   />
-                ) : (researchData?.projects?.length || 0) > 0 ? (
-                  <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6"><h2 className="text-xl font-bold text-[var(--color-text-primary)]">Select a research project</h2><p className="mt-2 text-base text-[var(--color-text-secondary)]">Use the project selector above to view the correct title, workflow, and next step.</p></section>
+                ) : projectSelection.invalidRequestedProjectId || (researchData?.projects?.length || 0) > 0 ? (
+                  <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6"><h2 className="text-xl font-bold text-[var(--color-text-primary)]">{projectSelection.invalidRequestedProjectId ? "Project unavailable" : "Select a research project"}</h2><p className="mt-2 text-base text-[var(--color-text-secondary)]">Use the project selector above to view a project’s title, workflow, and next step.</p></section>
                 ) : (
                   <section className="student-projects-readable rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-xs">
                     <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Research title not added</h2>
@@ -2024,15 +2085,7 @@ function StudentDashboardContent() {
                   <p className="mt-1 text-base text-[var(--color-text-secondary)]">Actual events from manuscript, milestone, consultation, defense, and official-copy records. The Gantt chart above remains the planned schedule.</p>
                   <div className="mt-4 space-y-2">
                     {(manuscriptWorkflowData?.activity || []).slice(0, 12).map((event: any) => {
-                      const href = event.documentId
-                        ? projectSelection.projectHref(`/student/documents?documentId=${event.documentId}${event.versionId ? `&versionId=${event.versionId}` : ""}`)
-                        : event.defenseSessionId
-                          ? projectSelection.projectHref(`/student/defense/${event.defenseSessionId}`)
-                          : event.consultationId
-                            ? projectSelection.projectHref(`/student/dashboard?tab=consultations&consultationId=${event.consultationId}`)
-                            : event.milestoneId
-                              ? projectSelection.projectHref(`/student/documents?tab=milestones&milestoneId=${event.milestoneId}`)
-                              : null;
+                      const href = activeProject ? projectActivityHref(event, activeProject.id) : null;
                       const content = <><span className="min-w-0"><span className="block text-sm font-semibold text-[var(--color-text-primary)]">{event.title}</span><span className="block truncate text-xs text-[var(--color-text-secondary)]">{event.description}</span></span><time className="shrink-0 text-xs text-[var(--color-text-muted)]">{new Date(event.timestamp).toLocaleString()}</time></>;
                       return href ? <button key={event.id} type="button" onClick={() => router.push(href)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-muted)] p-3 text-left hover:border-[var(--color-primary)]">{content}</button> : <div key={event.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-muted)] p-3">{content}</div>;
                     })}

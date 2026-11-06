@@ -1,3 +1,7 @@
+import { resolveWorkflowDeadline, WORKFLOW_TIME_ZONE } from "./workflow-deadlines";
+import { taskDocumentsHref } from "./document-task-navigation";
+import { withProjectContext } from "./active-project";
+
 export interface ProjectTaskProgress {
   id: string;
   title: string;
@@ -14,6 +18,8 @@ export interface ProjectMilestoneProgress {
   completed?: boolean;
   status?: string | null;
   requiresDocument?: boolean;
+  milestoneType?: string;
+  totalRequirements?: number;
   requiresApproval?: boolean;
   isBlocked?: boolean;
   requiredMilestone?: { id: string; name: string; completed: boolean } | null;
@@ -25,6 +31,7 @@ export interface OverviewProject {
   registeredAt?: string | Date | null;
   id: string;
   title?: string | null;
+  abstract?: string | null;
   status?: string;
   workflowAccessRemoved?: boolean;
   titleRevisions?: Array<{
@@ -35,8 +42,10 @@ export interface OverviewProject {
   }>;
   workflowInstance?: {
     completedAt?: string | null;
+    startedAt?: string | null;
+    transitions?: Array<{ toStageId: string; createdAt: string }>;
     currentStage?: { id: string; name: string } | null;
-    workflow?: { name?: string } | null;
+    workflow?: { name?: string; stages?: OverviewWorkflowStage[] } | null;
   } | null;
 }
 
@@ -53,6 +62,7 @@ export interface ProjectNextStep {
   tone: "action" | "pending" | "success" | "neutral";
   action?: ProjectAction;
   buttonLabel?: string;
+  dueAt?: Date | null;
 }
 
 export function researchTitleLabel(
@@ -140,10 +150,7 @@ export function resolveProjectNextStep({
       action: { kind: "defense" },
       buttonLabel: "View defense requirements",
     };
-  const current =
-    milestones.find(
-      (stage) => stage.id === project.workflowInstance?.currentStage?.id,
-    ) || milestones.find((stage) => stage.isCurrent);
+  const current = currentProjectMilestone(project, milestones);
   if (!current)
     return {
       label: "Your next step",
@@ -163,13 +170,12 @@ export function resolveProjectNextStep({
       action: { kind: "tasks" },
       buttonLabel: "View requirements",
     };
-  const required = (current.tasks || []).filter(
-    (task) => task.isRequired !== false,
-  );
+  const required = pendingProjectRequirements(project, [current]).filter((task) => !task.milestoneOnly);
   const taskAction = (task?: ProjectTaskProgress): ProjectAction => ({
     kind: "task",
     taskId: task?.id || `milestone-${current.id}`,
   });
+  const milestoneDue = requirementDeadline(project, current.id);
   const revision = required.find((task) =>
     ["REVISION_REQUIRED", "REJECTED"].includes(task.status || ""),
   );
@@ -181,6 +187,7 @@ export function resolveProjectNextStep({
       tone: "action",
       action: taskAction(revision),
       buttonLabel: "Review feedback",
+      dueAt: revision.dueAt,
     };
   const pending = required.find(
     (task) =>
@@ -195,6 +202,7 @@ export function resolveProjectNextStep({
       tone: "action",
       action: taskAction(pending),
       buttonLabel: "Open task",
+      dueAt: pending.dueAt,
     };
   const awaiting = required.find((task) =>
     ["SUBMITTED", "UNDER_REVIEW", "AWAITING_REVIEW"].includes(
@@ -221,14 +229,14 @@ export function resolveProjectNextStep({
       action: { kind: "timeline" },
       buttonLabel: "View all milestones",
     };
-  if (required.length && required.every((task) => task.status === "APPROVED"))
+  if (current.tasks?.some((task) => task.isRequired !== false && task.status === "APPROVED") && !required.length)
     return {
       label: "Waiting for milestone confirmation",
       title: current.name,
       description:
         "Your task decisions are recorded. Check the milestone requirements and any remaining approval checks.",
       tone: "pending",
-      action: taskAction(required[0]),
+      action: taskAction(current.tasks?.find((task) => task.isRequired !== false && task.status === "APPROVED")),
       buttonLabel: "View submission",
     };
   if (required.length)
@@ -241,22 +249,204 @@ export function resolveProjectNextStep({
       action: { kind: "tasks" },
       buttonLabel: "View requirements",
     };
+  const milestoneOnly = current.requiresDocument === false || ["TITLE_PROPOSAL", "ADVISER_SELECTION"].includes(current.milestoneType || "");
+  if (milestoneOnly && ["AWAITING_REVIEW", "SUBMITTED", "UNDER_REVIEW", "PENDING"].includes(current.status || "")) {
+    return {
+      label: "Waiting for review",
+      title: current.name,
+      description: "Open the milestone to check the latest decision.",
+      tone: "pending",
+      action: taskAction(),
+      buttonLabel: "View milestone",
+    };
+  }
   return {
     label: "Your next step",
     title: current.name,
     description:
-      current.requiresDocument === false
+      milestoneOnly === false
         ? "Review the instructions for this milestone and coordinate with the responsible faculty member."
         : "Review the requirements and prepare your submission.",
     tone: "action",
-    action: taskAction(
-      current.requiresDocument === false ? undefined : current.tasks?.[0],
-    ),
-    buttonLabel:
-      current.requiresDocument === false ? "Open milestone" : "Open task",
+    action: taskAction(milestoneOnly ? undefined : current.tasks?.[0]),
+    buttonLabel: milestoneOnly || !current.tasks?.length ? "Open milestone" : "Open task",
+    dueAt: milestoneDue,
   };
 }
 
 export function projectSectionHref(section: "overview" | "my-group") {
   return `/student/dashboard?tab=group${section === "my-group" ? "&section=my-group" : ""}`;
+}
+
+interface OverviewWorkflowStage {
+  id: string;
+  sequence: number;
+  targetCompletionDate?: string | null;
+  deadlineDays?: number | null;
+  tasks?: Array<{ id: string; dueDays?: number | null }>;
+}
+
+export interface ProjectActivity {
+  id: string;
+  title: string;
+  description?: string;
+  timestamp: string;
+  documentId?: string | null;
+  versionId?: string | null;
+  defenseSessionId?: string | null;
+  consultationId?: string | null;
+  milestoneId?: string | null;
+}
+
+export interface OverviewDocumentVersion {
+  id: string;
+  uploadedAt: string;
+  submittedAt?: string | null;
+  manuscriptStatus?: string | null;
+}
+
+export interface OverviewDocument {
+  id: string;
+  title: string;
+  updatedAt?: string;
+  lifecycleStatus?: string | null;
+  versions?: OverviewDocumentVersion[];
+}
+
+export interface OverviewRecord {
+  id: string;
+  title: string;
+  detail?: string;
+  href?: string;
+  date?: string;
+}
+
+const revisionStatuses = ["REVISION_REQUIRED", "REJECTED", "NEEDS_REVISION"];
+
+function requirementDeadline(project: OverviewProject, stageId: string, taskId?: string) {
+  const workflow = project.workflowInstance;
+  const stages = [...(workflow?.workflow?.stages || [])].sort((a, b) => a.sequence - b.sequence);
+  const stageIndex = stages.findIndex(({ id }) => id === stageId);
+  if (stageIndex < 0) return null;
+  const { dueAt, projected } = resolveWorkflowDeadline({
+    stages,
+    stageIndex,
+    startedAt: workflow?.startedAt,
+    transitions: workflow?.transitions,
+    dueDays: stages[stageIndex].tasks?.find(({ id }) => id === taskId)?.dueDays,
+  });
+  return !projected && dueAt && Number.isFinite(dueAt.getTime()) ? dueAt : null;
+}
+
+export function currentProjectMilestone(project: OverviewProject, milestones?: ProjectMilestoneProgress[]) {
+  return milestones?.find(({ isCurrent }) => isCurrent)
+    || milestones?.find(({ id }) => id === project.workflowInstance?.currentStage?.id);
+}
+
+export function pendingProjectRequirements(
+  project: OverviewProject,
+  milestones: ProjectMilestoneProgress[] = [],
+  now = Date.now(),
+) {
+  const current = currentProjectMilestone(project, milestones);
+  if (!current || current.isBlocked || current.completed || project.workflowAccessRemoved || project.workflowInstance?.completedAt) return [];
+  const milestoneOnly = current.requiresDocument === false || ["TITLE_PROPOSAL", "ADVISER_SELECTION"].includes(current.milestoneType || "") || !current.tasks?.length;
+  const tasks: ProjectTaskProgress[] = milestoneOnly
+    ? [{ id: `milestone-${current.id}`, title: current.name, status: current.status }]
+    : (current.tasks || []).filter(({ isRequired, status }) => isRequired !== false && status !== "APPROVED");
+  return tasks.map((task) => {
+    const dueAt = requirementDeadline(project, current.id, task.id);
+    const awaitingReview = ["SUBMITTED", "UNDER_REVIEW", "AWAITING_REVIEW", "PENDING", "APPROVED"].includes(task.status || "");
+    const overdue = Boolean(dueAt && dueAt.getTime() < now && !awaitingReview);
+    const priority = overdue ? 0 : revisionStatuses.includes(task.status || "") ? 1 : awaitingReview ? 3 : 2;
+    return { ...task, dueAt, overdue, priority, milestoneOnly };
+  }).sort((a, b) =>
+    a.priority - b.priority || (a.dueAt?.getTime() ?? Infinity) - (b.dueAt?.getTime() ?? Infinity) || 0,
+  );
+}
+
+export function milestoneSnapshot(project: OverviewProject, milestones: ProjectMilestoneProgress[]) {
+  const current = currentProjectMilestone(project, milestones);
+  const ordered = [...milestones].sort((a, b) => a.sequence - b.sequence);
+  const completed = ordered.filter(({ completed }) => completed);
+  const active = project.workflowInstance?.completedAt || current?.completed ? undefined : current;
+  const remaining = ordered.filter((stage) => !stage.completed && stage.id !== active?.id);
+  const stages = [...completed.slice(-1), ...(active ? [active] : []), ...remaining.slice(0, 2)];
+  return { completed: completed.length, active: active ? 1 : 0, pending: remaining.length, stages, activeId: active?.id };
+}
+
+export function projectActivityHref(event: ProjectActivity, projectId: string): string {
+  if (event.documentId) return taskDocumentsHref("student", projectId, event.documentId, event.versionId);
+  if (event.defenseSessionId) return withProjectContext(`/student/defense/${encodeURIComponent(event.defenseSessionId)}`, projectId);
+  if (event.consultationId) return projectConsultationHref(projectId, event.consultationId);
+  if (event.milestoneId) return withProjectContext(`/student/documents?tab=milestones&milestoneId=${encodeURIComponent(event.milestoneId)}`, projectId);
+  return withProjectContext("/student/dashboard?tab=milestones", projectId);
+}
+
+export function projectConsultationHref(projectId: string, consultationId: string) {
+  return withProjectContext(`/student/dashboard?tab=consultations&consultationId=${encodeURIComponent(consultationId)}`, projectId);
+}
+
+export function overviewDate(value: string | Date, withTime = false) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-PH", {
+    timeZone: WORKFLOW_TIME_ZONE,
+    dateStyle: "medium",
+    ...(withTime ? { timeStyle: "short" } : {}),
+  }).format(date);
+}
+
+export function overviewStatus(value: string) {
+  return value.toLowerCase().replace(/_/g, " ").replace(/^./, (letter) => letter.toUpperCase());
+}
+
+export function summarizeProjectDocuments(documents: OverviewDocument[], projectId: string): OverviewRecord[] {
+  // The endpoint orders documents by updatedAt and versions by version number.
+  const latest = documents[0];
+  const submitted = documents.flatMap((document) => (document.versions || [])
+    .filter((version) => version.submittedAt)
+    .map((version) => ({ document, version })))
+    .sort((a, b) => Date.parse(b.version.submittedAt!) - Date.parse(a.version.submittedAt!))[0];
+
+  const reviewStatus = (document: OverviewDocument) =>
+    document.lifecycleStatus || document.versions?.[0]?.manuscriptStatus || "";
+  const needsRevision = (document: OverviewDocument) => revisionStatuses.includes(reviewStatus(document));
+  const awaitingFeedback = (document: OverviewDocument) => ["SUBMITTED", "IN_REVIEW"].includes(reviewStatus(document));
+  const reviewLabel = (document: OverviewDocument) => needsRevision(document) ? "Revision requested"
+    : awaitingFeedback(document) ? "Awaiting feedback" : undefined;
+  const sameAsSubmission = (document: OverviewDocument) =>
+    submitted?.document.id === document.id && submitted.version.id === document.versions?.[0]?.id;
+  const otherDocuments = documents.filter((document) => document.id !== latest?.id && !sameAsSubmission(document));
+  const reviews = [
+    ...otherDocuments.filter(needsRevision).slice(0, 2),
+    ...otherDocuments.filter(awaitingFeedback).slice(0, 1),
+  ];
+
+  return [
+    ...(latest && !sameAsSubmission(latest) ? [{
+      id: "updated",
+      title: latest.title,
+      detail: ["Recently updated", reviewLabel(latest)].filter(Boolean).join(" · "),
+      date: latest.updatedAt,
+      href: taskDocumentsHref("student", projectId, latest.id, reviewLabel(latest) ? latest.versions?.[0]?.id : undefined),
+    }] : []),
+    ...(submitted ? [{
+      id: "submitted",
+      title: submitted.document.title,
+      detail: [
+        ...(latest && sameAsSubmission(latest) ? ["Recently updated"] : []),
+        "Latest submission",
+        overviewStatus(submitted.version.manuscriptStatus || "SUBMITTED"),
+      ].join(" · "),
+      date: submitted.version.submittedAt!,
+      href: taskDocumentsHref("student", projectId, submitted.document.id, submitted.version.id),
+    }] : []),
+    ...reviews.map((document) => ({
+      id: `review-${document.id}`,
+      title: document.title,
+      detail: reviewLabel(document),
+      href: taskDocumentsHref("student", projectId, document.id, document.versions?.[0]?.id),
+    })),
+  ];
 }
