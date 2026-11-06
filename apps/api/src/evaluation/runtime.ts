@@ -220,20 +220,14 @@ export class EvaluationRuntime {
   async find(token: unknown): Promise<Session | null> {
     if (typeof token !== "string" || !/^[a-f0-9]{64}$/.test(token)) return null;
     const { rows } = await this.pool.query<Session>(
-      "SELECT * FROM public.advisio_evaluation_sessions WHERE token_hash=$1",
+      `UPDATE public.advisio_evaluation_sessions SET touched_at=now()
+       WHERE token_hash=$1 AND state='ACTIVE'
+       AND touched_at > now()-interval '20 minutes'
+       AND created_at > now()-interval '60 minutes'
+       RETURNING *`,
       [tokenHash(token)],
     );
-    const session = rows[0];
-    if (
-      !session ||
-      !isLive(session, Date.now(), this.config.idleMs, this.config.lifetimeMs)
-    )
-      return null;
-    const { rowCount } = await this.pool.query(
-      "UPDATE public.advisio_evaluation_sessions SET touched_at=now() WHERE id=$1 AND state='ACTIVE' AND touched_at > now()-interval '20 minutes' AND created_at > now()-interval '60 minutes'",
-      [session.id],
-    );
-    return rowCount ? session : null;
+    return rows[0] ?? null;
   }
   async begin(
     token: string,

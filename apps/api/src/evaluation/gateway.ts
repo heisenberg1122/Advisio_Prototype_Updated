@@ -14,7 +14,9 @@ import { evaluationInvitationUrl } from "./invitation.js";
 import { generateToken } from "../middleware/auth.js";
 
 let runtime: EvaluationRuntime | undefined;
+let bootId: string;
 export async function initializeEvaluation() {
+  bootId = randomBytes(16).toString("hex");
   runtime = new EvaluationRuntime();
   await runtime.init();
   runtime.surveyUrl();
@@ -37,6 +39,9 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
   res.setHeader("Referrer-Policy", "no-referrer");
   const endpoint = req.path;
   if (!endpoint.startsWith("/api/")) return next();
+  res.setHeader("X-Advisio-Evaluation-Boot", bootId);
+  if (process.env.RENDER_GIT_COMMIT)
+    res.setHeader("X-Advisio-Evaluation-Commit", process.env.RENDER_GIT_COMMIT);
   try {
     if (
       !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
@@ -142,7 +147,9 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
         res.off("close", abandon);
       }
     }
+    const lookupStarted = performance.now();
     const session = await service.find(req.cookies?.[COOKIE]);
+    const lookupMs = performance.now() - lookupStarted;
     if (!session)
       return void res.status(401).json({
         error:
@@ -262,6 +269,7 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
     const abandon = () => abandoned.abort();
     res.once("close", abandon);
     let acquired: Awaited<ReturnType<EvaluationRuntime["acquire"]>>;
+    const acquireStarted = performance.now();
     try {
       acquired = await service.acquire(
         session, () => res.destroy(), abandoned.signal,
@@ -274,6 +282,10 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
       await acquired.release();
       return;
     }
+    res.setHeader(
+      "Server-Timing",
+      `evaluation-session;dur=${lookupMs.toFixed(1)}, evaluation-acquire;dur=${(performance.now() - acquireStarted).toFixed(1)}`,
+    );
     if (endpoint === "/api/realtime/events")
       res.locals.releaseEvaluationDatabase = acquired.releaseDatabase;
     const timeout = setTimeout(

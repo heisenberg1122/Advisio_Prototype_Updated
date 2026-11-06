@@ -4,12 +4,27 @@ import fs from "node:fs/promises";
 
 const origin = new URL(process.argv[2]);
 const expected = Number(process.argv[3] || 50);
+const expectedCommit = process.argv[4];
+let bootId;
+let cap;
 assert.ok(Number.isInteger(expected) && expected >= 1 && expected <= 50);
 assert.ok(
   origin.origin === "https://advisio-tam-evaluation-2026.onrender.com" ||
     (origin.protocol === "http:" && origin.hostname === "127.0.0.1"),
   "Use the dedicated ADVISIO evaluation or a local disposable instance.",
 );
+
+function verifyInstance(response) {
+  const current = response.headers.get("X-Advisio-Evaluation-Boot");
+  const commit = response.headers.get("X-Advisio-Evaluation-Commit");
+  assert.ok(current, "No evaluation instance ID was returned.");
+  if (expectedCommit) assert.equal(commit, expectedCommit, "Unexpected deployed commit.");
+  if (bootId) assert.equal(current, bootId, "The evaluation instance changed during the rehearsal.");
+  else {
+    bootId = current;
+    console.log(JSON.stringify({ startedAt: new Date().toISOString(), bootId, commit }));
+  }
+}
 
 async function request(
   endpoint,
@@ -32,6 +47,8 @@ async function request(
       ...(body && { "Content-Type": "application/json" }),
     },
     ...(body && { body: JSON.stringify(body) }),
+  }).catch((error) => {
+    throw new Error(`${method} ${endpoint}: ${error.message}`, { cause: error });
   });
   const raw = Buffer.from(await response.arrayBuffer());
   const json = response.headers
@@ -44,11 +61,14 @@ async function request(
     status,
     `${method} ${endpoint}: HTTP ${response.status}`,
   );
+  verifyInstance(response);
   if (pdf) assert.equal(raw.subarray(0, 5).toString(), "%PDF-");
+  const serverTiming = response.headers.get("server-timing") || "";
   return {
     json,
     cookie: response.headers.getSetCookie()[0]?.split(";")[0],
     elapsed: performance.now() - started,
+    acquireMs: Number(serverTiming.match(/evaluation-acquire;dur=([\d.]+)/)?.[1]),
   };
 }
 
@@ -69,24 +89,28 @@ async function preparedCourses() {
       true,
       "Enable EVALUATION_PREWARM before the rehearsal.",
     );
-    assert.equal(json.maxActive, expected);
+    cap = json.maxActive;
+    assert.ok(cap >= expected, "The configured session cap is too low.");
     assert.equal(
       json.active,
       0,
       "Wait until respondents finish before the rehearsal.",
     );
-    assert.equal(
-      json.courses.reduce((sum, { target }) => sum + target, 0),
-      expected,
-    );
+    const target = json.courses.reduce((sum, course) => sum + course.target, 0);
+    assert.ok(target >= expected, "The configured workspace pool is too small.");
     const ready = json.courses.reduce((sum, course) => sum + course.ready, 0);
     if (ready !== previous)
-      console.log(`Prepared ${ready}/${expected} workspaces`);
+      console.log(`Prepared ${ready}/${target} workspaces`);
     previous = ready;
-    if (ready === expected)
-      return json.courses.flatMap(({ course, ready }) =>
-        Array(ready).fill(course),
-      );
+    if (json.courses.every((course) => course.ready === course.target)) {
+      const courses = [];
+      for (let slot = 0; courses.length < expected; slot++) {
+        for (const { course, ready } of json.courses) {
+          if (slot < ready) courses.push(course);
+        }
+      }
+      return courses.slice(0, expected);
+    }
     await wait(15_000);
   }
   throw new Error("Workspace preparation did not finish within 45 minutes.");
@@ -114,6 +138,7 @@ async function all(label, operations) {
 }
 
 function timings(values) {
+  if (!values.length) return null;
   const sorted = values.toSorted((a, b) => a - b);
   return {
     p95Ms: Math.round(sorted[Math.ceil(sorted.length * 0.95) - 1]),
@@ -170,29 +195,33 @@ try {
     }),
   );
 
-  const overflow = await visitor();
-  visitors.push(overflow);
-  await request("/api/evaluation/session", {
-    cookie: overflow.cookie,
-    status: 429,
-    body: { role: "student", course: courses[0], acknowledged: true },
-  });
-  console.log(`Session ${expected + 1} rejected at the configured cap`);
+  if (cap === expected) {
+    const overflow = await visitor();
+    visitors.push(overflow);
+    await request("/api/evaluation/session", {
+      cookie: overflow.cookie,
+      status: 429,
+      body: { role: "student", course: courses[0], acknowledged: true },
+    });
+    console.log(`Session ${expected + 1} rejected at the configured cap`);
+  }
 
   await all(
     "Live event streams",
     joins.map(async (_session, i) => {
       const controller = new AbortController();
+      streams.push(controller);
+      const deadline = setTimeout(() => controller.abort(), 35_000);
       const response = await fetch(new URL("/api/realtime/events", origin), {
         headers: { Cookie: visitors[i].cookie },
         signal: controller.signal,
-      });
+      }).finally(() => clearTimeout(deadline));
       assert.equal(response.status, 200);
+      verifyInstance(response);
       assert.match(
         response.headers.get("content-type") || "",
         /text\/event-stream/,
       );
-      streams.push(controller);
     }),
   );
   console.log(`Opened ${streams.length} simultaneous live event streams`);
@@ -226,6 +255,9 @@ try {
         assert.ok(
           projects.json.projects.some(({ id }) => id === json.projectId),
         );
+        assert.ok(!projects.json.projects.some(({ id }) =>
+          id !== json.projectId && joins.some((other) => other.json.projectId === id),
+        ), "Another participant's project was returned.");
         const endpoints = {
           student: "/api/evaluation/revision",
           professor: "/api/evaluation/request-letter",
@@ -239,6 +271,7 @@ try {
           userId: profile.json.user.id,
           pdf,
           times: [profile.elapsed, projects.elapsed, activity.elapsed],
+          acquireMs: [profile.acquireMs, projects.acquireMs, activity.acquireMs].filter(Number.isFinite),
         };
       }),
     );
@@ -251,6 +284,11 @@ try {
         requests: checks.length * 3,
         pdfs: checks.filter(({ pdf }) => pdf).length,
         ...timings(checks.flatMap(({ times }) => times)),
+        profile: timings(checks.map(({ times }) => times[0])),
+        projects: timings(checks.map(({ times }) => times[1])),
+        pdf: timings(checks.filter(({ pdf }) => pdf).map(({ times }) => times[2])),
+        roleActivity: timings(checks.filter(({ pdf }) => !pdf).map(({ times }) => times[2])),
+        databaseSlotAndValidation: timings(checks.flatMap(({ acquireMs }) => acquireMs)),
       }),
     );
   }

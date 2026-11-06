@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { resolveJwtSecret } from "../lib/security-config.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma, type Prisma } from "../lib/prisma.js";
 import { getPermissionsForRoles, InstitutionalRole } from "@research-management/auth";
 import { resolveCollegeAuthorization } from "../lib/college-authorization.js";
 import { enforceCollegeResourceBoundary } from "../lib/college-resource-boundary.js";
@@ -30,10 +30,23 @@ declare global {
   }
 }
 
-export async function requireAuth(
+export type AuthenticatedProfile = Prisma.UserGetPayload<{
+  include: { college: true; collegeMemberships: { include: { college: true } }; program: true };
+}>;
+
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  return authenticate(req, res, next, false);
+}
+
+export function requireProfileAuth(req: Request, res: Response, next: NextFunction) {
+  return authenticate(req, res, next, true);
+}
+
+async function authenticate(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
+  includeProfile: boolean,
 ): Promise<void> {
   try {
     const authHeader = req.headers.authorization;
@@ -59,6 +72,7 @@ export async function requireAuth(
       include: {
         college: true,
         collegeMemberships: { include: { college: true } },
+        program: includeProfile,
         roles: {
           include: {
             role: {
@@ -141,6 +155,10 @@ export async function requireAuth(
     }
 
     await enforceCollegeResourceBoundary(req);
+    if (includeProfile) {
+      res.locals.authenticatedProfile = user;
+      res.locals.availableColleges = context.availableColleges;
+    }
     next();
   } catch (error) {
     if ((error as any)?.statusCode === 403) { res.status(403).json({ error: (error as Error).message }); return; }

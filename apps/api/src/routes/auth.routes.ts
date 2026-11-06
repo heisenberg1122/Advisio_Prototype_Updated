@@ -31,7 +31,12 @@ import {
   researcherOnboardingSchema,
 } from "@research-management/validations";
 import { validateBody } from "../middleware/validate";
-import { requireAuth, generateToken } from "../middleware/auth";
+import {
+  generateToken,
+  requireAuth,
+  requireProfileAuth,
+  type AuthenticatedProfile,
+} from "../middleware/auth";
 import { resolveCollegeAuthorization } from "../lib/college-authorization.js";
 import { z } from "zod";
 import {
@@ -817,31 +822,14 @@ router.post("/active-college", requireAuth, validateBody(z.object({ collegeId: z
     res.json({ token: generateToken(account.id, account.sessionVersion, req.body.collegeId) });
   } catch (error: any) { res.status(error.statusCode || 503).json({ error: error.statusCode ? error.message : "Unable to switch colleges. Please try again." }); }
 });
-router.get("/me", requireAuth, async (req: Request, res: Response) => {
+router.get("/me", requireProfileAuth, (req: Request, res: Response) => {
   try {
     if (!req.user) {
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      include: {
-        college: true,
-        collegeMemberships: { include: { college: true } },
-        program: true,
-        roles: {
-          include: {
-            role: true,
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      res.status(404).json({ error: "User not found" });
-      return;
-    }
+    const user: AuthenticatedProfile = res.locals.authenticatedProfile;
 
     res.json({
       user: {
@@ -854,7 +842,7 @@ router.get("/me", requireAuth, async (req: Request, res: Response) => {
         college: req.user.collegeId === user.collegeId ? user.college : user.collegeMemberships.find((membership) => membership.collegeId === req.user!.collegeId)?.college || null,
         program: req.user.collegeId === user.collegeId ? user.program : null,
         primaryCollegeId: user.collegeId,
-        collegeMemberships: resolveCollegeAuthorization(user).availableColleges,
+        collegeMemberships: res.locals.availableColleges,
         appearancePreference: user.appearancePreference,
         colorThemePreference: effectiveColorThemePreference(
           user.colorThemePreference,
