@@ -57,6 +57,7 @@
    soft accent fades into the local panel surface, including in dark mode. */
 .researcher-shell .app-workspace :is(
   .research-command-center .rcc-project,
+  .research-command-center .researcher-home-project,
   .mp-project .mp-identity,
   .research-tasks .rt-workflow,
   .researcher-consultation-hero,
@@ -75,6 +76,7 @@
 
 .dark .researcher-shell .app-workspace :is(
   .research-command-center .rcc-project,
+  .research-command-center .researcher-home-project,
   .mp-project .mp-identity,
   .research-tasks .rt-workflow,
   .researcher-consultation-hero,
@@ -194,9 +196,18 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px 24px;
+  padding: 20px var(--rcc-gutter);
 }
-.researcher-home-project h2, .researcher-home-next h2 { overflow-wrap: anywhere; font-size: clamp(1.15rem, 1rem + .5vw, 1.5rem); }
-.researcher-home-next { border-color: var(--color-primary); }
+.researcher-home-project > div, .researcher-home-next > div {
+  flex: 1 1 30ch;
+  min-width: 0;
+}
+.researcher-home-project {
+  border: 2px solid var(--color-border);
+  box-shadow: var(--shadow-card-soft);
+}
+.researcher-home-project .rcc-project-title { max-width: 50ch; }
+.researcher-home-next { background: var(--rcc-inset); }
 .researcher-home-list { margin-top: 8px; }
 .researcher-home-list li {
   display: flex;
@@ -241,8 +252,9 @@
   padding: 16px 20px;
 }
 .researcher-shell .app-workspace .research-command-center > .rcc-header {
+  --workspace-header-height: 0px;
   min-height: 0;
-  padding: 18px 22px;
+  padding: var(--workspace-card-padding);
 }
 .researcher-project-picker {
   display: flex;

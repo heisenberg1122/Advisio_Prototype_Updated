@@ -1398,7 +1398,7 @@ function StudentDashboardContent() {
                 <section className="rcc-panel researcher-home-project" data-tour="researcher-project">
                   <div>
                     <p className="rcc-eyebrow">Active research project</p>
-                    <h2>{activeProject?.title || (activeProject ? "Research title not added" : "Select or register a project")}</h2>
+                    <h2 className="rcc-project-title">{activeProject?.title || (activeProject ? "Research title not added" : "Select or register a project")}</h2>
                     {activeProject && (
                       <p className="rcc-supporting">
                         {activeProject.workflowAccessRemoved ? "Workflow access removed"
