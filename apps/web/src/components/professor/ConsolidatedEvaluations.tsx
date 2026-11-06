@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   defenseResults,
@@ -16,6 +16,12 @@ import {
   evaluationInput,
   evaluationButton,
 } from "@/components/defense/StructuredEvaluationFields";
+
+const PdfDocumentPreview = lazy(() =>
+  import("@/components/documents/PdfDocumentPreview").then((module) => ({
+    default: module.PdfDocumentPreview,
+  })),
+);
 export function ConsolidatedEvaluations({
   sessionId,
   student = false,
@@ -350,6 +356,91 @@ export async function openEvaluationPdf(sessionId: string, panelistId: string) {
   if (!response.ok) throw new Error("Unable to load the evaluation PDF.");
   return URL.createObjectURL(await response.blob());
 }
+function EvaluationPdfPreview({
+  sessionId,
+  panelistId,
+  onClose,
+}: {
+  sessionId: string;
+  panelistId: string;
+  onClose: () => void;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const [attempt, setAttempt] = useState(0);
+  const [url, setUrl] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    let objectUrl = "";
+    void openEvaluationPdf(sessionId, panelistId).then(
+      (pdfUrl) => {
+        if (disposed) {
+          URL.revokeObjectURL(pdfUrl);
+          return;
+        }
+        objectUrl = pdfUrl;
+        setUrl(pdfUrl);
+      },
+      () => {
+        if (!disposed) setError("Unable to load the evaluation PDF.");
+      },
+    );
+    return () => {
+      disposed = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [sessionId, panelistId, attempt]);
+
+  const loading = <p role="status">Loading evaluation PDF…</p>;
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby={titleId}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      className="m-auto h-[90dvh] max-h-[90dvh] w-[calc(100%-2rem)] max-w-5xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-[var(--color-text-primary)] backdrop:bg-black/60"
+    >
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <h3 id={titleId} className="font-bold">Locked evaluation PDF</h3>
+          <button type="button" className={evaluationButton} onClick={onClose}>
+            Close preview
+          </button>
+        </div>
+        {error ? (
+          <div className="space-y-2">
+            <p role="alert">{error}</p>
+            <button
+              type="button"
+              className={evaluationButton}
+              onClick={() => {
+                setError("");
+                setAttempt((value) => value + 1);
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        ) : url ? (
+          <Suspense fallback={loading}>
+            <PdfDocumentPreview url={url} />
+          </Suspense>
+        ) : loading}
+      </div>
+    </dialog>
+  );
+}
+
 function EvaluationPdfButton({
   sessionId,
   panelistId,
@@ -358,25 +449,52 @@ function EvaluationPdfButton({
   panelistId: string;
 }) {
   const [error, setError] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   return (
     <>
-      <button
-        className={`${evaluationButton} mt-3`}
-        onClick={async () => {
-          try {
-            const url = await openEvaluationPdf(sessionId, panelistId);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "defense-evaluation.pdf";
-            a.click();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-          } catch (e: any) {
-            setError(e.message);
-          }
-        }}
-      >
-        Download locked evaluation PDF
-      </button>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className={evaluationButton}
+          onClick={() => setPreviewOpen(true)}
+        >
+          Preview Locked Evaluation PDF
+        </button>
+        <button
+          type="button"
+          className={evaluationButton}
+          aria-label="Download locked evaluation PDF"
+          title="Download locked evaluation PDF"
+          disabled={downloading}
+          onClick={async () => {
+            setError("");
+            setDownloading(true);
+            try {
+              const url = await openEvaluationPdf(sessionId, panelistId);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "defense-evaluation.pdf";
+              a.click();
+              setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch {
+              setError("Unable to download the evaluation PDF.");
+            } finally {
+              setDownloading(false);
+            }
+          }}
+        >
+          <i className="ti ti-download text-lg" aria-hidden="true" />
+        </button>
+      </div>
+      {previewOpen && (
+        <EvaluationPdfPreview
+          key={`${sessionId}:${panelistId}`}
+          sessionId={sessionId}
+          panelistId={panelistId}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
       {error && <p role="alert">{error}</p>}
     </>
   );
