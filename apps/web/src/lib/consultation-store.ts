@@ -14,6 +14,7 @@ export interface ConsultationItem {
   groupName?: string;
   topic: string;
   date: string;
+  scheduledStart?: string;
   time: string;
   mode: string;
   meetingUrl?: string;

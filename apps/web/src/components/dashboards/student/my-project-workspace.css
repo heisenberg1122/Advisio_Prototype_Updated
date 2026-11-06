@@ -17,35 +17,13 @@
   color: var(--color-text-primary);
   min-width: 0;
 }
-.mp-page-header h1 {
-  font-size: 24px;
-  line-height: 1.3;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-}
-.mp-page-header nav { gap: 8px; }
-.mp-page-header nav button {
-  min-height: 48px;
-  padding: 12px 16px;
-  font-size: 15px;
-  font-weight: 600;
-}
-.mp-page-header nav button:hover {
-  background: var(--nav-hover-bg);
-}
-.mp-page-header nav button[aria-current="page"] {
-  background: var(--nav-active-bg);
-  color: var(--color-text-primary) !important;
-}
 .mp-workspace :where(button, a, summary),
-.mp-project-container :where(button, a, summary),
-.mp-page-header button {
+.mp-project-container :where(button, a, summary) {
   cursor: pointer;
   transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
 }
 .mp-workspace :where(button, a, summary, input, select, textarea):focus-visible,
-.mp-project-container :where(button, a, summary):focus-visible,
-.mp-page-header button:focus-visible {
+.mp-project-container :where(button, a, summary):focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 3px;
 }
@@ -53,7 +31,7 @@
   cursor: wait;
   opacity: 0.6;
 }
-.mp-workspace :where(h2, h3, h4, p, button, a, label, span),
+.mp-workspace :where(h1, h2, h3, h4, p, button, a, label, span),
 .mp-project-container :where(h2, h3, h4, p) { overflow-wrap: anywhere; }
 .mp-workspace :where(p) { line-height: 1.6; }
 .mp-workspace .mp-panel,
@@ -292,7 +270,6 @@
   .mp-section-heading { align-items: flex-start; }
   .mp-workspace .mp-section-title { font-size: 17px; }
   .mp-member-row { align-items: flex-start; }
-  .mp-page-header nav { gap: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .mp-workspace *,
@@ -334,3 +311,76 @@
   --college-on-primary-dark: var(--color-background);
 }
 
+
+.mp-project { gap: 14px; }
+.mp-project .mp-panel { padding: 16px 20px; }
+.mp-project .mp-disclosure { padding: 0 20px; }
+.mp-project .mp-disclosure[open] { padding-bottom: 16px; }
+.mp-project-title {
+  max-width: 72ch;
+  margin-top: 6px;
+  font-size: clamp(1.3rem, 1rem + 1vw, 1.75rem);
+  text-wrap: pretty;
+}
+.mp-project-description {
+  margin-top: 8px;
+  max-width: 85ch;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+.mp-project-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+  margin-top: 12px;
+}
+.mp-project-context dt, .mp-note {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.mp-project-context dd { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.mp-stage-name { font-size: 17px; font-weight: 650; }
+.mp-next-label { margin-top: 12px; }
+.mp-next-title { margin-top: 2px; text-wrap: pretty; }
+.mp-next-description { margin: 4px 0; font-size: 14px; }
+.mp-next-action { margin-top: 10px; }
+.mp-progress-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 8px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.mp-progress-summary progress {
+  flex: 1 0 90px;
+  height: 8px;
+  min-width: 0;
+  accent-color: var(--color-primary);
+}
+.mp-records, .mp-milestones { margin-top: 6px; }
+.mp-records li, .mp-milestones li {
+  border-top: 1px solid var(--color-border);
+  padding: 7px 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.mp-records a { color: var(--color-primary); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.mp-milestones li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; }
+.mp-milestones li > span { color: var(--color-text-secondary); font-size: 13px; }
+.mp-milestones li[aria-current="step"] strong { color: var(--color-primary); }
+
+@media (min-width: 768px) {
+  .mp-project > .mp-half { grid-column: span 6; }
+}
+@media (min-width: 1024px) {
+  .mp-project > .mp-next { grid-column: span 7; }
+  .mp-project > .mp-progress { grid-column: span 5; }
+}
+@media (max-width: 767px) {
+  .mp-project .mp-panel { padding-inline: 16px; }
+  .mp-project .mp-disclosure { padding-inline: 16px; }
+  .mp-identity-layout { gap: 8px; }
+}

@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { workspaceViewForLocation } from "@/lib/workspace-appearance";
 import { useTheme } from "@/providers/theme-provider";
 import "./workspace-layout.css";
+import type { NavSection } from "./AppSidebar";
+import { WorkspaceSectionNavigation } from "./GroupedWorkspaceNavigation";
 
 interface AppWorkspaceFrameProps {
   children: React.ReactNode;
@@ -14,6 +16,7 @@ interface AppWorkspaceFrameProps {
   topbar: React.ReactNode;
   dashboardPath?: string;
   padSecondaryPages?: boolean;
+  workspaceSections?: NavSection[];
 }
 
 export function AppWorkspaceFrame({
@@ -21,6 +24,7 @@ export function AppWorkspaceFrame({
   collapsed,
   sidebar,
   topbar,
+  workspaceSections,
 }: AppWorkspaceFrameProps) {
   const { isDark } = useTheme();
   const { pathname, search } = useLocation();
@@ -48,6 +52,7 @@ export function AppWorkspaceFrame({
             "app-workspace flex min-h-[calc(100vh-4rem)] min-w-0 flex-1 flex-col border-0 outline-none shadow-none"
           )}
         >
+          {workspaceSections && <WorkspaceSectionNavigation sections={workspaceSections} />}
           {children}
         </main>
       </div>

@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
 import { AppSidebar, NavSection } from "@/components/layout/AppSidebar";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import {
@@ -16,7 +15,7 @@ import {
   Archive,
 } from "lucide-react";
 
-const PANELIST_NAV_SECTIONS: NavSection[] = [
+export const PANELIST_NAV_SECTIONS: NavSection[] = [
   {
     title: "HOME",
     items: [
@@ -57,6 +56,7 @@ export function PanelistSidebar() {
       roleTitle="Defense Panelist"
       roleBadge="PANELIST CENTER"
       navSections={PANELIST_NAV_SECTIONS}
+      groupedNavigation
       collapsed={collapsed}
       onToggleCollapse={toggle}
       settingsHref="/panelist/settings"

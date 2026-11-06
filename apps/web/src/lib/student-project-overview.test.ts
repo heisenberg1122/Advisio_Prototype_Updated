@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   projectSectionHref,
+  milestoneSnapshot,
+  pendingProjectRequirements,
+  projectActivityHref,
+  summarizeProjectDocuments,
   researchTitleLabel,
   resolveProjectNextStep,
   type OverviewProject,
@@ -227,5 +231,64 @@ describe("project navigation", () => {
     expect(studentTaskDetailsHref("task", "project")).toBe(
       "/student/tasks/task?projectId=project",
     );
+  });
+});
+
+describe("project overview summaries", () => {
+  it("keeps completed milestones separate from the current stage and upcoming milestones", () => {
+    const stages = [
+      { id: "draft", name: "Draft", sequence: 1, completed: true },
+      { id: "review", name: "Review", sequence: 2, isCurrent: true },
+      { id: "defense", name: "Defense", sequence: 3 },
+      { id: "archive", name: "Archive", sequence: 4 },
+      { id: "end", name: "Complete", sequence: 5 },
+    ];
+    expect(milestoneSnapshot(project, stages)).toMatchObject({
+      completed: 1, active: 1, pending: 3, activeId: "review", stages: stages.slice(0, 4),
+    });
+  });
+
+  it("orders overdue requirements first and omits completed or locked work", () => {
+    const configuredProject: OverviewProject = {
+      ...project,
+      workflowInstance: {
+        ...project.workflowInstance,
+        startedAt: "2026-10-01T00:00:00.000Z",
+        workflow: { stages: [{
+          id: stage.id, sequence: 1,
+          tasks: [{ id: "late", dueDays: 1 }, { id: "later", dueDays: 7 }],
+        }] },
+      },
+    };
+    const current = { ...stage, tasks: [
+      { id: "later", title: "Later" },
+      { id: "approved", title: "Approved", status: "APPROVED" },
+      { id: "late", title: "Late" },
+      { id: "waiting", title: "Waiting", status: "SUBMITTED" },
+      { id: "optional", title: "Optional", isRequired: false },
+    ] };
+    const now = Date.parse("2026-10-03T00:00:00.000Z");
+    expect(pendingProjectRequirements(configuredProject, [current], now).map(({ id, overdue }) => [id, overdue]))
+      .toEqual([["late", true], ["later", false], ["waiting", false]]);
+    expect(pendingProjectRequirements(configuredProject, [{ ...current, isBlocked: true }], now)).toEqual([]);
+    expect(pendingProjectRequirements({ ...configuredProject, workflowAccessRemoved: true }, [current], now)).toEqual([]);
+  });
+
+  it("never treats an uploaded draft as a submission and links the exact version", () => {
+    const records = summarizeProjectDocuments([
+      { id: "draft", title: "New draft", versions: [{ id: "upload", uploadedAt: "2026-10-22" }] },
+      { id: "paper", title: "Paper", lifecycleStatus: "REVISION_REQUIRED", versions: [
+        { id: "revise", uploadedAt: "2026-10-21", submittedAt: "2026-10-21", manuscriptStatus: "REVISION_REQUIRED" },
+      ] },
+    ], "p");
+    expect(records.map(({ id }) => id)).toEqual(["updated", "submitted"]);
+    expect(records[1].href).toBe("/student/documents?tab=workspace&projectId=p&documentId=paper&versionId=revise");
+  });
+
+  it("uses actual destinations for consultation and defense activity", () => {
+    const event = { id: "event", title: "Update", timestamp: "2026-10-21" };
+    expect(projectActivityHref({ ...event, defenseSessionId: "d" }, "p")).toBe("/student/defense/d?projectId=p");
+    expect(projectActivityHref({ ...event, consultationId: "c" }, "p"))
+      .toBe("/student/dashboard?tab=consultations&consultationId=c&projectId=p");
   });
 });

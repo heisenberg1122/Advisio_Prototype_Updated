@@ -22,7 +22,7 @@ export default function ConsultationsPage() {
 
   return (
     <PageContainer className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-5">
+      <header className="researcher-consultation-hero flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-5">
         <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Consultations</h1>
         <ConsultationBooking key={projectId} projectId={projectId} firstName={user?.firstName} />
       </header>

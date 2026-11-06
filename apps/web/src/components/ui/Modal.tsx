@@ -15,6 +15,7 @@ export interface ModalProps {
   footer?: ReactNode;
   maxWidth?: "sm" | "md" | "lg" | "xl";
   className?: string;
+  overlayClassName?: string;
 }
 
 const maxWidthMap = {
@@ -37,6 +38,7 @@ export function Modal({
   footer,
   maxWidth = "md",
   className,
+  overlayClassName,
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
@@ -104,7 +106,7 @@ export function Modal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: reduceMotion ? 0 : uiMotion.tap }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+          className={cn("fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs", overlayClassName)}
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) onClose();
           }}

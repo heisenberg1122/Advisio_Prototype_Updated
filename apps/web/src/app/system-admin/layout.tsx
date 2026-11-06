@@ -136,12 +136,14 @@ function SystemAdminLayoutInner({ children }: { children: React.ReactNode }) {
     <AppWorkspaceFrame
       collapsed={collapsed}
       dashboardPath="/system-admin/dashboard"
+      workspaceSections={SYSTEM_ADMIN_NAV_SECTIONS}
       padSecondaryPages
       sidebar={
         <AppSidebar
           roleTitle="System Administrator"
           roleBadge="ADMIN CONSOLE"
           navSections={SYSTEM_ADMIN_NAV_SECTIONS}
+          groupedNavigation
           collapsed={collapsed}
           onToggleCollapse={toggle}
           settingsHref="/system-admin/dashboard?tab=settings"

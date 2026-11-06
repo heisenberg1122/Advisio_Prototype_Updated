@@ -19,7 +19,7 @@ import {
   BookOpen,
 } from "lucide-react";
 
-const PROFESSOR_NAV_SECTIONS: NavSection[] = [
+export const PROFESSOR_NAV_SECTIONS: NavSection[] = [
   {
     title: "HOME",
     items: [
@@ -116,6 +116,7 @@ export function ProfessorSidebar() {
       roleTitle="Course Professor"
       roleBadge="COORDINATOR PORTAL"
       navSections={PROFESSOR_NAV_SECTIONS}
+      groupedNavigation
       collapsed={collapsed}
       onToggleCollapse={toggle}
       settingsHref="/professor/settings"
