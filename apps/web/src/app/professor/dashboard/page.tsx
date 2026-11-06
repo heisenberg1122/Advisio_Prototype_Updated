@@ -4528,7 +4528,17 @@ function ProfessorDashboardContent() {
                           <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-extrabold text-blue-700">
                             {defenseEvent.defenseType.replace(/_/g, " ")}
                           </span>
-                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-extrabold text-slate-700">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-extrabold ${
+                              defenseEvent.status === "READY"
+                                ? "bg-amber-100 text-amber-800"
+                                : defenseEvent.status === "ONGOING"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : defenseEvent.status === "COMPLETED"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
                             {defenseEvent.status.replace(/_/g, " ")}
                           </span>
                         </div>
