@@ -6,19 +6,9 @@
   "captionCount": 67,
   "files": [
     {
-      "name": "master-1080p.mp4",
-      "bytes": 12705378,
-      "sha256": "6dc949cc47cd0585fb16b567e9fc103f583af2e91b182d51af1181455ad2a624"
-    },
-    {
       "name": "panelist-preparation-web.mp4",
       "bytes": 6726721,
       "sha256": "06e78738eaddd39b57cf02c6661a30ad353adf3b11911063ab02f3309227ada5"
-    },
-    {
-      "name": "panelist-preparation-captioned.mp4",
-      "bytes": 7188891,
-      "sha256": "09b7b1a4dbc7f2a6208ad8bf77d8a7c7e8b80076b08330e64b67c2ce7a43fd11"
     },
     {
       "name": "subtitles.vtt",
@@ -49,21 +39,6 @@
       "name": "media.json",
       "bytes": 798,
       "sha256": "ad3649b7fdb1894f062222ec7d737f7451fc4ad4c4d8947d3ff23743a3c1c1a6"
-    },
-    {
-      "name": "chapters/workspace.mp4",
-      "bytes": 5784364,
-      "sha256": "36fbb65850bc5e6a8609ec178ad2d5e6e94c717522406e8bb82221b6dce7e90d"
-    },
-    {
-      "name": "chapters/preparation.mp4",
-      "bytes": 4880182,
-      "sha256": "a258b8d3744fe2aae1af640f07a32d1f05790a9dc1a8df754310658cfcda8908"
-    },
-    {
-      "name": "chapters/support.mp4",
-      "bytes": 347245,
-      "sha256": "2558fc9b65e545c44ba28dd7f8368856dab20cc8829ff5eab3de706a316a5fe8"
     }
   ]
 }

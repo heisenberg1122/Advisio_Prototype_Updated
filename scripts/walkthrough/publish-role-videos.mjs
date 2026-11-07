@@ -21,12 +21,17 @@ for (const role of roles) {
   assert.equal(media.scriptHash, scriptHash(script));
   assert.equal(verified.scriptHash, media.scriptHash);
   const target = path.join(destination, role);
-  const names = ["master-1080p.mp4", `${role}-web.mp4`, `${role}-captioned.mp4`, "subtitles.vtt", "subtitles.srt", "poster.jpg", "transcript.txt", "chapters.json", "media.json"];
-  names.push(...verified.files.filter((file) => file.name.startsWith("chapters/")).map((file) => file.name));
+  const names = [`${role}-web.mp4`, "subtitles.vtt", "subtitles.srt", "poster.jpg", "transcript.txt", "chapters.json", "media.json"];
+  // Do not publish large alternative downloads (1080p, captioned, individual chapters).
+  await fs.rm(path.join(target, "master-1080p.mp4"), { force: true });
+  await fs.rm(path.join(target, `${role}-captioned.mp4`), { force: true });
+  await fs.rm(path.join(target, "chapters"), { recursive: true, force: true });
   const files = [];
   for (const name of names) {
     assert.ok(/^[a-z0-9./-]+$/.test(name) && !name.includes(".."));
-    const bytes = await fs.readFile(path.join(source, name));
+    const bytes = name === "media.json"
+      ? Buffer.from(JSON.stringify({ ...media, captionedVideo: undefined }, null, 2) + "\n")
+      : await fs.readFile(path.join(source, name));
     assert.ok(bytes.length > 0 && bytes.length < 95 * 1024 * 1024, `Invalid release file size: ${role}/${name}`);
     if (name.endsWith(".mp4")) assert.equal(bytes.length, verified.files.find((file) => file.name === name)?.bytes, `Verification differs: ${role}/${name}`);
     const file = path.join(target, name);
@@ -36,8 +41,7 @@ for (const role of roles) {
     assert.equal(createHash("sha256").update(await fs.readFile(file)).digest("hex"), sha256);
     files.push({ name, bytes: bytes.length, sha256 });
   }
-  const chapterDownloads = media.chapters.filter((chapter) => names.includes(`chapters/${chapter.id}.mp4`)).map((chapter) => `<a href="chapters/${chapter.id}.mp4" download>${escape(chapter.title)}</a>`).join("");
-  await fs.writeFile(path.join(target, "index.html"), document(media.title, `<header><a href="../index.html">All walkthroughs</a><h1>${escape(media.title)}</h1><p>${stamp(media.duration)} · ${media.chapters.length} chapters</p></header><main><div class="layout"><section><video controls preload="metadata" poster="poster.jpg" aria-label="${escape(media.title)}"><source src="${role}-web.mp4" type="video/mp4"><track default kind="captions" src="subtitles.vtt" srclang="en" label="English"></video><p>Choose a chapter to jump to a feature. Captions, volume, playback speed, and full screen are available in the video controls.</p><div class="downloads"><a href="master-1080p.mp4" download>1080p master</a><a href="${role}-captioned.mp4" download>Captioned copy</a><a href="transcript.txt">Transcript</a><a href="subtitles.srt" download>Subtitles</a>${chapterDownloads}</div></section><nav aria-label="Walkthrough chapters"><h2>Chapters</h2>${media.chapters.map((chapter, index) => `<button data-time="${chapter.start}"><span class="time">${stamp(chapter.start)}</span>${index + 1}. ${escape(chapter.title)}</button>`).join("")}</nav></div></main><script>const video=document.querySelector('video');for(const button of document.querySelectorAll('[data-time]'))button.addEventListener('click',()=>{video.currentTime=Number(button.dataset.time);video.play().catch(()=>{});});</script>`));
+  await fs.writeFile(path.join(target, "index.html"), document(media.title, `<header><a href="../index.html">All walkthroughs</a><h1>${escape(media.title)}</h1><p>${stamp(media.duration)} · ${media.chapters.length} chapters</p></header><main><div class="layout"><section><video controls preload="metadata" poster="poster.jpg" aria-label="${escape(media.title)}"><source src="${role}-web.mp4" type="video/mp4"><track default kind="captions" src="subtitles.vtt" srclang="en" label="English"></video><p>Choose a chapter to jump to a feature. Captions, volume, playback speed, and full screen are available in the video controls.</p><div class="downloads"><a href="${role}-web.mp4" download>Download video (720p)</a><a href="transcript.txt">Transcript</a><a href="subtitles.srt" download>Subtitles</a></div></section><nav aria-label="Walkthrough chapters"><h2>Chapters</h2>${media.chapters.map((chapter, index) => `<button data-time="${chapter.start}"><span class="time">${stamp(chapter.start)}</span>${index + 1}. ${escape(chapter.title)}</button>`).join("")}</nav></div></main><script>const video=document.querySelector('video');for(const button of document.querySelectorAll('[data-time]'))button.addEventListener('click',()=>{video.currentTime=Number(button.dataset.time);video.play().catch(()=>{});});</script>`));
   await writeJson(path.join(target, "release.json"), { version: 1, role, scriptHash: media.scriptHash, duration: media.duration, captionCount: verified.captionCount, files });
   catalog.push({ role, title: media.title, duration: media.duration, chapters: media.chapters.length, page: `${role}/index.html`, bytes: files.reduce((sum, file) => sum + file.bytes, 0) });
 }

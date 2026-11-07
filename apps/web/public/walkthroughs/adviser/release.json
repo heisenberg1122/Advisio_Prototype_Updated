@@ -6,19 +6,9 @@
   "captionCount": 166,
   "files": [
     {
-      "name": "master-1080p.mp4",
-      "bytes": 33915198,
-      "sha256": "06ca93a40ac44b8d842f9af9b30998a317c82ecf0d9cdf444dc6fd480001776e"
-    },
-    {
       "name": "adviser-web.mp4",
       "bytes": 16563528,
       "sha256": "d74e582bf683e103214c8f8e8da96add238dab9472dae3c497c4525db16f0642"
-    },
-    {
-      "name": "adviser-captioned.mp4",
-      "bytes": 17916886,
-      "sha256": "d4d4d69c4e2905aa4d83e12f354ca5d52811351614220f2a2708f8eb2470dcc3"
     },
     {
       "name": "subtitles.vtt",
@@ -49,36 +39,6 @@
       "name": "media.json",
       "bytes": 1235,
       "sha256": "61b9889397f64a10dfe5839b2b21231f6e81c1d8377cbcc2aa1ae5e8b9f70316"
-    },
-    {
-      "name": "chapters/workspace.mp4",
-      "bytes": 7093443,
-      "sha256": "b51266891a87c192987677f706adf31c89bff43a1b69041508b166f78e586ea5"
-    },
-    {
-      "name": "chapters/groups.mp4",
-      "bytes": 4828676,
-      "sha256": "6a449f32b972647f8194054b2ebeb1621c16e25022b4df1624398ee59f681135"
-    },
-    {
-      "name": "chapters/reviews.mp4",
-      "bytes": 7018656,
-      "sha256": "6e716b412ca44940cc0c6fb700674d875b90b77b452f05b1a301821642f2fa1c"
-    },
-    {
-      "name": "chapters/consultations.mp4",
-      "bytes": 4622192,
-      "sha256": "a4519c94de7ba90d2fbe2f6952b9b5c367feda7d176c52b63b9c6b52134aa841"
-    },
-    {
-      "name": "chapters/defense.mp4",
-      "bytes": 1905316,
-      "sha256": "100683e2f61b6bc8b52852bcb17338b6988ef26aef5372dd3f2f17a2a68be933"
-    },
-    {
-      "name": "chapters/communication.mp4",
-      "bytes": 3835754,
-      "sha256": "a73ed9b9e6e19e9002c7c113ed358e9377864baddd2244dd30492055c460a481"
     }
   ]
 }
