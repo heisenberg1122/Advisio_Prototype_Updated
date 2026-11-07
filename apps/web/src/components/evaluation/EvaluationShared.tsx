@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 
 export function EvaluationBrand() {
   return (
@@ -62,13 +62,6 @@ export function EvaluationAbout({
           : ""}
         Answer and submit the TAM statements in your original Google Forms tab.
       </p>
-      <a
-        href="https://advisio-prototype-updated.vercel.app"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Official ADVISIO website <ExternalLink size={13} aria-hidden="true" />
-      </a>
       <p className="evaluation-help">
         Open Evaluation activities on your dashboard for the guided checklist.
         You can return to Google Forms even if an activity could not be

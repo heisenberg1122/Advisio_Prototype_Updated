@@ -546,9 +546,13 @@
   cursor: pointer;
   font-weight: 700;
 }
-.evaluation-about a svg {
-  display: inline;
-  vertical-align: middle;
+.evaluation-official-site {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  font-size: 14px;
+  font-weight: 600;
 }
 .evaluation-eyebrow {
   color: #1959a5;

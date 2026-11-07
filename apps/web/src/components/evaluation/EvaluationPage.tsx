@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { ExternalLink } from "lucide-react";
 import {
   clearEvaluation,
   evaluationRequest,
@@ -108,6 +109,18 @@ export default function EvaluationPage({ print = false }: { print?: boolean }) {
           selected role and college. Your activities stay in your own temporary
           evaluation workspace.
         </p>
+        {!print && (
+          <a
+            className="evaluation-official-site"
+            href="https://advisio-prototype-updated.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Visit official ADVISIO website
+            <ExternalLink size={15} aria-hidden="true" />
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        )}
         {error && (
           <p className="evaluation-error" role="alert">
             {error}
