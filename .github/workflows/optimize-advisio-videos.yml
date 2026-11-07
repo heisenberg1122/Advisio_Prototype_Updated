@@ -1,0 +1,35 @@
+name: Optimize Advisio downloadable videos
+
+on:
+  push:
+    branches:
+      - codex/optimize-advisio-video-assets
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  recompress:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify video tools
+        run: |
+          command -v ffmpeg
+          command -v ffprobe
+      - name: Recompress downloadable MP4s and refresh checksums
+        run: node scripts/optimize-deployment-media.mjs
+      - name: Commit optimized media on optimization branch only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/web/public/walkthroughs
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: compress downloadable walkthrough assets [skip ci]"
+            git push origin HEAD:codex/optimize-advisio-video-assets
+          else
+            echo "No assets qualified for replacement"
+          fi
