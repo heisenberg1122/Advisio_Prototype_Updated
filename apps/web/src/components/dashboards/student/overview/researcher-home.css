@@ -824,3 +824,31 @@
     width: 100%;
   }
 }
+
+/* Coming up and Latest updates share one row height. Inside each card the
+   content spreads out: an empty list is centered and "Book consultation"
+   sits at the bottom, so a shorter card never shows a blank gap. */
+.researcher-home .rh-columns {
+  align-items: stretch;
+}
+.researcher-home .rh-columns > .rh-card {
+  display: flex;
+  flex-direction: column;
+}
+.researcher-home .rh-columns > .rh-card > .rh-empty {
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 0;
+  text-align: center;
+}
+.researcher-home .rh-columns > .rh-card > .rh-book {
+  align-self: flex-start;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.researcher-home .rh-columns > .rh-card > .rh-agenda + .rh-book {
+  border-top: 1px solid var(--rcc-line);
+  align-self: stretch;
+}
