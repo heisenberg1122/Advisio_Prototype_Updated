@@ -7,6 +7,8 @@ vi.mock("../lib/prisma.js", () => ({ createClient: vi.fn() }));
 import { EvaluationRuntime } from "./runtime.js";
 import type { Session } from "./runtime.js";
 import { createClient } from "../lib/prisma.js";
+import { workspaceDatasetIds } from "./fresh-accounts.js";
+import { schemaName } from "./config.js";
 
 let runtime: EvaluationRuntime | undefined;
 let directory: string | undefined;
@@ -90,8 +92,14 @@ describe("concurrent expired workspace cleanup", () => {
     }) as any);
     await Promise.all(Array.from({ length: 20 }, () => service.cleanup()));
     expect(
-      query.mock.calls.filter(([sql]) => String(sql).startsWith("DROP SCHEMA")),
-    ).toHaveLength(1);
+      query.mock.calls
+        .filter(([sql]) => String(sql).startsWith("DROP SCHEMA"))
+        .map(([sql]) => sql),
+    ).toEqual(
+      workspaceDatasetIds(id).map(
+        (key) => `DROP SCHEMA IF EXISTS "${schemaName(key)}" CASCADE`,
+      ),
+    );
     expect(
       query.mock.calls.filter(([sql]) =>
         String(sql).startsWith(

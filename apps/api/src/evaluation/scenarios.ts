@@ -3,7 +3,7 @@ import type { EvaluationRole, Scenario } from "./catalog.js";
 export type ScenarioChoice = {
   id: string;
   label: string;
-  project: Scenario;
+  project: Scenario | null;
   destination?:
     | "defense"
     | "evaluation"
@@ -13,6 +13,11 @@ export type ScenarioChoice = {
     | "inbox";
   studentIdentity?: boolean;
 };
+const freshAccount = {
+  id: "fresh-account",
+  label: "Fresh account",
+  project: null,
+} as const;
 export const DEMO_SIGNING_PASSWORD = "Demo-Dean-Review-2026!";
 export const ROLE_SCENARIOS: Record<EvaluationRole, readonly ScenarioChoice[]> =
   {
@@ -39,6 +44,7 @@ export const ROLE_SCENARIOS: Record<EvaluationRole, readonly ScenarioChoice[]> =
         destination: "defense",
         studentIdentity: true,
       },
+      freshAccount,
     ],
     professor: [
       { id: "overview", label: "All assigned projects", project: "A" },
@@ -72,6 +78,7 @@ export const ROLE_SCENARIOS: Record<EvaluationRole, readonly ScenarioChoice[]> =
         project: "D",
         destination: "inbox",
       },
+      freshAccount,
     ],
     adviser: [
       { id: "overview", label: "All assigned projects", project: "A" },
@@ -99,6 +106,7 @@ export const ROLE_SCENARIOS: Record<EvaluationRole, readonly ScenarioChoice[]> =
         project: "F",
         destination: "defense",
       },
+      freshAccount,
     ],
     panelist: [
       { id: "overview", label: "All assigned defenses", project: "C" },
@@ -132,6 +140,7 @@ export const ROLE_SCENARIOS: Record<EvaluationRole, readonly ScenarioChoice[]> =
         project: "F",
         destination: "results",
       },
+      freshAccount,
     ],
     dean: [
       { id: "overview", label: "College overview", project: "G" },
@@ -159,6 +168,7 @@ export const ROLE_SCENARIOS: Record<EvaluationRole, readonly ScenarioChoice[]> =
         project: "F",
         destination: "defense",
       },
+      freshAccount,
     ],
   };
 
@@ -167,6 +177,7 @@ export function scenarioTasks(
   scenario: string,
   fallback: string[],
 ) {
+  if (scenario === "fresh-account") return FRESH_ACCOUNT_TASKS[role];
   if (role === "student" && scenario === "live-defense")
     return [
       "Open your live defense record.",
@@ -210,3 +221,46 @@ export function scenarioTasks(
     ];
   return fallback;
 }
+
+const FRESH_ACCOUNT_TASKS: Record<EvaluationRole, string[]> = {
+  student: [
+    "Explore Home with no project, group or class enrollment yet.",
+    "Open Guide and try a getting-started walkthrough.",
+    "Find the options to create or join a research group.",
+    "Check Tasks & Requirements for the class invitation or code entry.",
+    "Inspect the empty Documents, Grades and Schedule pages.",
+    "Open your profile and Settings to check your assigned college and program.",
+  ],
+  professor: [
+    "Explore Overview with no class or research project created yet.",
+    "Open Guide to locate the coordinator tools.",
+    "Find the option to create a research class or workflow.",
+    "Inspect the empty submission and review lists.",
+    "Explore Calendar and Inbox before scheduling or sending anything.",
+    "Open your profile and Settings to check your assigned college and program.",
+  ],
+  adviser: [
+    "Explore Overview with no assigned advisees or pending requests.",
+    "Open Guide and try the advising workspace introduction.",
+    "Inspect My Advisees and the empty manuscript review queue.",
+    "Explore Consultations and Calendar with no meetings yet.",
+    "Check the empty Messages and Inbox views.",
+    "Open your profile and Settings to check your assigned college and program.",
+  ],
+  panelist: [
+    "Explore Overview with no assigned defenses yet.",
+    "Open Guide to locate the panelist tools.",
+    "Inspect the empty manuscript review and evaluation lists.",
+    "Check Calendar and Schedule with no defense assignment.",
+    "Explore the empty results and communication views.",
+    "Open your profile and Settings to check your assigned college and program.",
+  ],
+  dean: [
+    "Explore the college overview before any research projects are created.",
+    "Open Guide to locate the dean tools.",
+    "Inspect monitoring and reports with no research activity yet.",
+    "Check Inbox with no pending signature requests or signed history.",
+    "Explore Calendar and your profile before any defense is scheduled.",
+    "Open Settings and check the available account and appearance options.",
+  ],
+};

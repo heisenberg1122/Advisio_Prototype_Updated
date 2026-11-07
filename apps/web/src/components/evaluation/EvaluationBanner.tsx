@@ -345,13 +345,14 @@ export function EvaluationBanner() {
                       </a>
                     </p>
                   )}
-                {session.role === "professor" && (
-                  <p>
-                    <a href="/api/evaluation/request-letter" download>
-                      Download the fictional Dean approval request letter
-                    </a>
-                  </p>
-                )}
+                {session.role === "professor" &&
+                  session.requestLetterAvailable !== false && (
+                    <p>
+                      <a href="/api/evaluation/request-letter" download>
+                        Download the fictional Dean approval request letter
+                      </a>
+                    </p>
+                  )}
                 {session.signingPassword && (
                   <p className="evaluation-help">
                     For the fictional Dean signing activity, use the saved demo

@@ -90,10 +90,10 @@ export type WorkspaceScenario = {
   id: string;
   label: string;
   userId: string;
-  projectId: string;
+  projectId: string | null;
   title: string;
   defenseId: string | null;
-  projectIds: string[];
+  projectIds?: string[];
   home: string;
 };
 export type WorkspaceAccounts = Record<
@@ -808,6 +808,8 @@ export async function seedWorkspace(
   );
   const accounts = {} as WorkspaceAccounts;
   function destination(role: EvaluationRole, choice: ScenarioChoice) {
+    if (choice.project === null)
+      return EVALUATION_ROLES.find((r) => r.id === role)!.home;
     const projectId = projects[choice.project],
       defenseId = defenses[choice.project];
     const base = EVALUATION_ROLES.find((r) => r.id === role)!.home;
@@ -832,20 +834,31 @@ export async function seedWorkspace(
     return "/professor/dashboard?tab=defense";
   }
   for (const role of EVALUATION_ROLES) {
-    const scenarios = ROLE_SCENARIOS[role.id].map((choice) => ({
-      id: choice.id,
-      label: choice.label,
-      userId: choice.studentIdentity ? owners[choice.project] : users[role.id],
-      projectId: projects[choice.project],
-      title: projectTitles[choice.project],
-      defenseId: defenses[choice.project] || null,
-      projectIds:
-        role.id === "student"
-          ? [projects[choice.project]]
-          : ROLE_PROJECTS[role.id].map((s) => projects[s]),
-      home: destination(role.id, choice),
-    }));
-    const primary = ROLE_SCENARIOS[role.id][0].project;
+    // Fresh identities are provisioned separately and attached by the runtime.
+    const scenarios = ROLE_SCENARIOS[role.id].flatMap((choice) =>
+      choice.project === null
+        ? []
+        : [
+            {
+              id: choice.id,
+              label: choice.label,
+              userId: choice.studentIdentity
+                ? owners[choice.project]
+                : users[role.id],
+              projectId: projects[choice.project],
+              title: projectTitles[choice.project],
+              defenseId: defenses[choice.project] || null,
+              projectIds:
+                role.id === "student"
+                  ? [projects[choice.project]]
+                  : ROLE_PROJECTS[role.id].map((s) => projects[s]),
+              home: destination(role.id, choice),
+            },
+          ],
+    );
+    const primary = ROLE_SCENARIOS[role.id].find(
+      (choice) => choice.project !== null,
+    )!.project!;
     accounts[role.id] = { ...scenarios[0], scenarios };
     await db.notification.create({
       data: {

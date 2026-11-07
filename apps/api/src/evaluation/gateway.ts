@@ -140,8 +140,7 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
           selectedCourse.id,
           abandoned.signal,
         );
-        if (!res.destroyed)
-          res.status(201).json(service.describe(session));
+        if (!res.destroyed) res.status(201).json(service.describe(session));
         return;
       } finally {
         res.off("close", abandon);
@@ -172,12 +171,10 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
         Object.keys(body).length !== 1 ||
         typeof body[key] !== "string"
       )
-        return void res
-          .status(400)
-          .json({
-            error:
-              "Choose only an available role or scenario. College and workspace cannot be changed.",
-          });
+        return void res.status(400).json({
+          error:
+            "Choose only an available role or scenario. College and workspace cannot be changed.",
+        });
       const nextToken = randomBytes(32).toString("hex");
       const updated = switchingRole
         ? await service.switchRole(session, body.role, nextToken)
@@ -209,11 +206,15 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
     }
     if (endpoint === "/api/evaluation/request-letter" && req.method === "GET") {
       if (session.role !== "professor")
+        return void res.status(403).json({
+          error: "The prepared request letter is for the Coordinator scenario.",
+        });
+      if (!service.describe(session).requestLetterAvailable)
         return void res
-          .status(403)
+          .status(404)
           .json({
             error:
-              "The prepared request letter is for the Coordinator scenario.",
+              "No prepared request letter belongs to the Fresh account scenario.",
           });
       return void res.download(
         `${service.storageRoot(session.id)}/Prepared_Defense_Approval_Request.pdf`,
@@ -222,12 +223,10 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
     }
     if (endpoint === "/api/evaluation/revision" && req.method === "GET") {
       if (!service.describe(session).revisionAvailable)
-        return void res
-          .status(404)
-          .json({
-            error:
-              "The prepared revision belongs to the In progress student scenario.",
-          });
+        return void res.status(404).json({
+          error:
+            "The prepared revision belongs to the In progress student scenario.",
+        });
       const filename = service.describe(session).revisionName;
       return void res.download(
         `${service.storageRoot(session.id)}/${filename}`,
@@ -272,7 +271,9 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
     const acquireStarted = performance.now();
     try {
       acquired = await service.acquire(
-        session, () => res.destroy(), abandoned.signal,
+        session,
+        () => res.destroy(),
+        abandoned.signal,
       );
     } catch (error) {
       res.off("close", abandon);
@@ -321,12 +322,10 @@ export const evaluationGateway: RequestHandler = async (req, res, next) => {
           select: { id: true },
         });
         if (!version)
-          return void res
-            .status(403)
-            .json({
-              error:
-                "Only a Dean approval request addressed to this demo Dean may be signed.",
-            });
+          return void res.status(403).json({
+            error:
+              "Only a Dean approval request addressed to this demo Dean may be signed.",
+          });
       }
       req.headers.authorization = `Bearer ${generateToken(session.user_id, 0)}`;
       next();

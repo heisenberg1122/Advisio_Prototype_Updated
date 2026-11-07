@@ -19,12 +19,13 @@ describe("readable fictional research documents", () => {
 });
 
 describe("role scenarios and discipline branding", () => {
-  it("provides the four student stages and role-specific work without administrative identities", () => {
+  it("preserves the four student stages and adds Fresh account to every role", () => {
     expect(ROLE_SCENARIOS.student.map((s) => s.id)).toEqual([
       "in-progress",
       "live-defense",
       "completed-title",
       "completed-final",
+      "fresh-account",
     ]);
     expect(Object.keys(ROLE_SCENARIOS).sort()).toEqual([
       "adviser",
@@ -34,6 +35,12 @@ describe("role scenarios and discipline branding", () => {
       "student",
     ]);
     for (const [role, scenarios] of Object.entries(ROLE_SCENARIOS)) {
+      expect(scenarios[0].id).not.toBe("fresh-account");
+      expect(
+        scenarios.filter((scenario) => scenario.id === "fresh-account"),
+      ).toEqual([
+        { id: "fresh-account", label: "Fresh account", project: null },
+      ]);
       expect(new Set(scenarios.map((s) => s.id)).size).toBe(scenarios.length);
       for (const scenario of scenarios)
         expect(

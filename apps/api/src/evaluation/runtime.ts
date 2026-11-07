@@ -23,6 +23,13 @@ import {
 import { DEMO_SIGNING_PASSWORD, scenarioTasks } from "./scenarios.js";
 import { evaluationSurveyUrl } from "./survey.js";
 import { EvaluationRequestSlots } from "./request-slots.js";
+import {
+  attachFreshAccounts,
+  FRESH_ACCOUNT_SCENARIO,
+  freshWorkspaceId,
+  seedFreshAccounts,
+  workspaceDatasetIds,
+} from "./fresh-accounts.js";
 
 export const COOKIE = "advisio_evaluation";
 export const tokenHash = (value: string) =>
@@ -33,8 +40,8 @@ export type Session = {
   role: EvaluationRole;
   course: string;
   user_id: string;
-  project_id: string;
-  defense_id: string;
+  project_id: string | null;
+  defense_id: string | null;
   created_at: Date;
   touched_at: Date;
   state: string;
@@ -399,10 +406,12 @@ export class EvaluationRuntime {
       const provisioner = await this.pool.connect();
       try {
         await provisioner.query("BEGIN");
-        await provisioner.query(
-          `CREATE SCHEMA "${schemaName(id)}"; SET LOCAL search_path TO "${schemaName(id)}", public;`,
-        );
-        await provisioner.query(this.ddl);
+        for (const datasetId of workspaceDatasetIds(id)) {
+          await provisioner.query(
+            `CREATE SCHEMA "${schemaName(datasetId)}"; SET LOCAL search_path TO "${schemaName(datasetId)}", public;`,
+          );
+          await provisioner.query(this.ddl);
+        }
         await provisioner.query("COMMIT");
       } catch (e) {
         await provisioner.query("ROLLBACK");
@@ -419,6 +428,11 @@ export class EvaluationRuntime {
       );
       await db.$disconnect();
       db = undefined;
+      db = this.makeClient(freshWorkspaceId(id));
+      const freshAccounts = await seedFreshAccounts(db, course);
+      await db.$disconnect();
+      db = undefined;
+      attachFreshAccounts(seeded.accounts, freshAccounts);
       const {
         rows: [session],
       } = await this.pool.query<Session>(
@@ -462,6 +476,11 @@ export class EvaluationRuntime {
       (item) => item.id === session.scenario,
     );
   }
+  private datasetId(session: Session) {
+    return this.selectedScenario(session)?.id === FRESH_ACCOUNT_SCENARIO
+      ? freshWorkspaceId(session.id)
+      : session.id;
+  }
   async switchRole(session: Session, role: EvaluationRole, nextToken: string) {
     if (!EVALUATION_ROLES.some((r) => r.id === role))
       throw Object.assign(new Error("Choose an evaluation role."), {
@@ -475,12 +494,17 @@ export class EvaluationRuntime {
         ),
         { statusCode: 409 },
       );
-    const account = base.scenarios?.[0] || base;
+    const choice =
+      session.scenario === FRESH_ACCOUNT_SCENARIO
+        ? base.scenarios?.find((item) => item.id === FRESH_ACCOUNT_SCENARIO) ||
+          base.scenarios?.[0]
+        : base.scenarios?.[0];
+    const account = choice || base;
     return this.switchIdentity(
       session,
       role,
       account,
-      base.scenarios?.[0]?.id || null,
+      choice?.id || null,
       nextToken,
     );
   }
@@ -584,11 +608,12 @@ export class EvaluationRuntime {
       releaseSlot?.();
       throw error;
     }
-    let item = this.clients.get(session.id);
+    const datasetId = this.datasetId(session);
+    let item = this.clients.get(datasetId);
     if (!item) {
       try {
-        item = { prisma: this.makeClient(session.id), users: 0, ended: false };
-        this.clients.set(session.id, item);
+        item = { prisma: this.makeClient(datasetId), users: 0, ended: false };
+        this.clients.set(datasetId, item);
       } catch (error) {
         unwatch();
         releaseSlot();
@@ -600,7 +625,7 @@ export class EvaluationRuntime {
     const releaseDatabase = () => {
       if (disconnecting) return disconnecting;
       item!.users--;
-      if (item!.users === 0) this.clients.delete(session.id);
+      if (item!.users === 0) this.clients.delete(datasetId);
       disconnecting = (async () => {
         try {
           if (item!.users === 0) await item!.prisma.$disconnect();
@@ -620,9 +645,13 @@ export class EvaluationRuntime {
         id: session.id,
         prisma: item.prisma,
         storageRoot: this.storageRoot(session.id),
+        // The fresh dataset has no sample projects. Native role/college checks
+        // cover newly created work inside this participant's private schema.
         projectIds:
-          this.selectedScenario(session)?.projectIds ||
-          session.accounts?.[session.role]?.projectIds,
+          this.selectedScenario(session)?.id === FRESH_ACCOUNT_SCENARIO
+            ? undefined
+            : this.selectedScenario(session)?.projectIds ||
+              session.accounts?.[session.role]?.projectIds,
       },
       releaseDatabase,
       release: () => {
@@ -655,7 +684,11 @@ export class EvaluationRuntime {
           label,
         })) || [],
       signingPassword:
-        role.id === "dean" && selected ? DEMO_SIGNING_PASSWORD : undefined,
+        role.id === "dean" && selected && selected.id !== FRESH_ACCOUNT_SCENARIO
+          ? DEMO_SIGNING_PASSWORD
+          : undefined,
+      requestLetterAvailable:
+        role.id === "professor" && selected?.id !== FRESH_ACCOUNT_SCENARIO,
       revisionAvailable:
         role.id === "student" && (!selected || selected.id === "in-progress"),
       projectId: session.project_id,
@@ -686,11 +719,11 @@ export class EvaluationRuntime {
       [session.id],
     );
     for (const revoke of this.revokers.get(session.id) || []) revoke();
-    const item = this.clients.get(session.id);
-    if (item) {
-      item.ended = true;
-      if (item.users) return;
-    }
+    const items = workspaceDatasetIds(session.id).map((id) =>
+      this.clients.get(id),
+    );
+    for (const item of items) if (item) item.ended = true;
+    if (items.some((item) => item?.users)) return;
     if (!this.config.prewarm.size) await this.removeData(session.id);
   }
   private removeData(id: string) {
@@ -703,12 +736,17 @@ export class EvaluationRuntime {
     return removal;
   }
   private async removeDataOnce(id: string) {
-    const item = this.clients.get(id);
-    if (item?.users) return;
-    await item?.prisma.$disconnect();
-    this.clients.delete(id);
+    const datasetIds = workspaceDatasetIds(id);
+    if (datasetIds.some((key) => this.clients.get(key)?.users)) return;
+    for (const key of datasetIds) {
+      await this.clients.get(key)?.prisma.$disconnect();
+      this.clients.delete(key);
+    }
     // Only a validated server-generated ID can ever become a schema or directory.
-    await this.pool.query(`DROP SCHEMA IF EXISTS "${schemaName(id)}" CASCADE`);
+    for (const key of datasetIds)
+      await this.pool.query(
+        `DROP SCHEMA IF EXISTS "${schemaName(key)}" CASCADE`,
+      );
     await fs.rm(this.storageRoot(id), { recursive: true, force: true });
     await this.pool.query(
       "UPDATE public.advisio_evaluation_sessions SET cleaned_at=now() WHERE id=$1",
@@ -720,8 +758,10 @@ export class EvaluationRuntime {
       "UPDATE public.advisio_evaluation_sessions SET state='EXPIRED',token_hash=NULL WHERE (state='ACTIVE' AND (touched_at<now()-interval '20 minutes' OR created_at<now()-interval '60 minutes')) OR (state IN ('PROVISIONING','WARMING') AND created_at<now()-interval '10 minutes') RETURNING *",
     );
     for (const session of rows) {
-      const item = this.clients.get(session.id);
-      if (item) item.ended = true;
+      for (const key of workspaceDatasetIds(session.id)) {
+        const item = this.clients.get(key);
+        if (item) item.ended = true;
+      }
       for (const revoke of this.revokers.get(session.id) || []) revoke();
       await this.removeData(session.id);
     }

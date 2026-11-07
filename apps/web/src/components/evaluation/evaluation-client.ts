@@ -14,10 +14,11 @@ export type EvaluationSession = {
   revisionAvailable?: boolean;
   title: string;
   home: string;
-  projectId: string;
+  projectId: string | null;
   defenseId: string | null;
   tasks: string[];
   revisionName: string;
+  requestLetterAvailable?: boolean;
   expiresAt: string;
 };
 
