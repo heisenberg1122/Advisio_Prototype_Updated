@@ -96,6 +96,7 @@ export default function JoinResearchGroupPage() {
             </label>
             <input
               value={code}
+              data-guide="group-code"
               onChange={(event) => {
                 setCode(
                   event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""),
@@ -109,6 +110,7 @@ export default function JoinResearchGroupPage() {
             />
             <button
               disabled={!code.trim() || loading}
+              data-guide="group-review"
               className="mt-5 w-full rounded-xl bg-[#0B3A53] px-5 py-3 text-sm font-extrabold text-white shadow-xs transition hover:bg-[#072A3D] disabled:opacity-50"
             >
               {loading ? "Checking…" : "Review group"}
@@ -122,7 +124,7 @@ export default function JoinResearchGroupPage() {
                   <p className="text-sm font-extrabold uppercase tracking-widest text-[#C58A18]">
                     {previewKind === "workspace" ? "Workspace preview" : "Group preview"}
                   </p>
-                  <h2 className="mt-1 text-lg font-black text-[#17212B] dark:text-white">
+                  <h2 data-guide="group-preview" className="mt-1 text-lg font-black text-[#17212B] dark:text-white">
                     {preview.groupName || "Research group"}
                   </h2>
                   <p className="mt-1 text-base text-slate-600 dark:text-slate-300">

@@ -42,7 +42,7 @@ export default function JoinWorkflowPage() {
           <p role="status">Checking workflow link...</p>
         ) : query.isError || !invitation ? (
           <>
-            <h1 className="text-xl font-bold">Workflow link unavailable</h1>
+            <h1 data-guide="class-invitation" className="text-xl font-bold">Workflow link unavailable</h1>
             <p>
               {(query.error as Error)?.message ||
                 "This link is invalid, expired, or unavailable to your account."}
@@ -53,7 +53,7 @@ export default function JoinWorkflowPage() {
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-bold">
+            <h1 data-guide="class-invitation" className="text-2xl font-bold">
               Request to join {invitation.name}
             </h1>
             <p>

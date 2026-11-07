@@ -639,7 +639,7 @@ export default function ResearchTasksPage() {
 
       <section className={`grid gap-4 ${enrollments.length === 0 ? "lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)]" : ""}`}>
         <div className="rt-workflow">
-          <div className="rt-workflow-heading">
+          <div className="rt-workflow-heading" data-guide="class-status">
             <div>
               <p className="rt-eyebrow">
                 Active workflow
@@ -704,6 +704,7 @@ export default function ResearchTasksPage() {
             <label className="mt-4 block text-sm font-semibold">
               Joined workflow
               <select
+                data-guide="class-selector"
                 value={workflowId || ""}
                 onChange={(event) => {
                   setStartedTaskOverride(null);
@@ -752,11 +753,13 @@ export default function ResearchTasksPage() {
                 }
                 maxLength={32}
                 placeholder="Invitation code"
+                data-guide="class-code"
                 className="min-w-0 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2.5 font-mono text-base font-bold uppercase text-[var(--color-text-primary)] outline-none focus:border-[var(--color-primary)]"
               />
               <button
                 type="submit"
                 disabled={!workflowCode.trim()}
+                data-guide="class-review"
                 className="rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
               >
                 Review
@@ -775,6 +778,7 @@ export default function ResearchTasksPage() {
           type="button"
           role="tab"
           aria-selected={activeSection === "requirements"}
+          data-guide="class-requirements"
           onClick={() => setActiveSection("requirements")}
           className="rt-tab"
         >
@@ -814,7 +818,7 @@ export default function ResearchTasksPage() {
               }
             />
           ) : (
-            <section className="rt-milestones">
+            <section data-tour="task-records" className="rt-milestones">
               {!workflowProject && (
                 <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
                   <i className="ti ti-eye mt-0.5 text-lg" />
@@ -840,6 +844,8 @@ export default function ResearchTasksPage() {
                         openTask(task);
                     }}
                     className="rt-milestone"
+                    data-guide={task.id === (tasks.find((candidate: any) => candidate.stage.sequence === currentSequence)?.id || tasks[0]?.id) ? "task-open" : undefined}
+                    data-guide-name={task.title}
                     data-status={status}
                   >
                     <div className="rt-card-layout">
@@ -1418,7 +1424,7 @@ export function MilestoneDetailsWorkspace({
         <i className="ti ti-arrow-left" aria-hidden="true" />
         Back to Tasks
       </Link>
-      <header className="td-header">
+      <header data-tour="task-details" className="td-header">
         <nav
           aria-label="Breadcrumb"
           className="text-xs font-semibold text-[var(--color-text-secondary)]"
@@ -1453,6 +1459,7 @@ export function MilestoneDetailsWorkspace({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Tag
+              data-guide="task-status"
               variant={
                 status === "APPROVED" || status === "COMPLETED"
                   ? "success"
@@ -1479,7 +1486,7 @@ export function MilestoneDetailsWorkspace({
 
       <div className="td-layout">
         <article className="td-document" aria-label="Milestone task workspace">
-          <section className="td-instructions">
+          <section className="td-instructions" data-guide="task-instructions">
             <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
               Professor instructions
             </h2>
@@ -1512,7 +1519,7 @@ export function MilestoneDetailsWorkspace({
               )}
             </div>
           </section>
-          <div className="td-action-area">
+          <div className="td-action-area" data-guide={task.previewOnly || task.isTitleProposal || task.locked || task.isAdviserMilestone || task.milestoneOnly || task.noDocumentRequired || !submissionOptionsQuery.isPending ? "task-action-info" : undefined}>
           {task.previewOnly ? (
             <WorkflowStartPanel workflowId={task.stage.workflowId} locked={task.locked} message={task.conditionMessage} />
           ) : task.isTitleProposal ? (
@@ -1598,6 +1605,7 @@ export function MilestoneDetailsWorkspace({
                   type="button"
                   onClick={() => setSubmissionMode("documents")}
                   disabled={!submissionOptions.length}
+                  data-guide={submissionOptions.length ? "task-documents-method" : undefined}
                   aria-describedby={
                     !submissionOptions.length
                       ? "no-document-options"
@@ -1619,6 +1627,7 @@ export function MilestoneDetailsWorkspace({
                   type="button"
                   onClick={() => setSubmissionMode("upload")}
                   disabled={!canUpload}
+                  data-guide={canUpload ? "task-upload-method" : undefined}
                   className="rounded-xl border-2 border-[var(--color-primary)] bg-[var(--color-primary-light)]/20 p-5 text-left transition hover:bg-[var(--color-primary-light)]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] disabled:cursor-not-allowed disabled:border-[var(--color-border)] disabled:opacity-60"
                 >
                   <i className="ti ti-upload text-2xl text-[var(--color-primary)]" />
@@ -1657,7 +1666,7 @@ export function MilestoneDetailsWorkspace({
               <SubmissionBackButton
                 onClick={() => setSubmissionMode("choose")}
               />
-              <h2 className="text-lg font-extrabold text-[var(--color-text-primary)]">
+              <h2 data-guide="task-version-choice" className="text-lg font-extrabold text-[var(--color-text-primary)]">
                 Choose an exact document version
               </h2>
               <p className="mt-1 text-base leading-5 text-[var(--color-text-secondary)]">
@@ -1736,7 +1745,7 @@ export function MilestoneDetailsWorkspace({
                 The server will verify the file again before creating the
                 immutable submission record.
               </p>
-              <label className="mt-4 flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-[var(--color-border)] p-6 text-center transition hover:border-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--college-focus-ring)]">
+              <label data-guide="task-file-choice" className="mt-4 flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-[var(--color-border)] p-6 text-center transition hover:border-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--college-focus-ring)]">
                 <i className="ti ti-upload text-3xl text-[var(--color-primary)]" />
                 <span className="mt-2 break-all text-sm font-bold text-[var(--color-text-primary)]">
                   {file?.name || "Choose requirement file"}
@@ -1770,7 +1779,7 @@ export function MilestoneDetailsWorkspace({
           </div>
           {!task.isAdviserMilestone && task.submission && (
             <section className="task-submission-record">
-              <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
+              <h2 data-guide="task-submission-record" className="text-lg font-bold text-[var(--color-text-primary)]">
                 Your submission
               </h2>
               <p className="task-submission-next-steps">
@@ -1881,7 +1890,7 @@ export function MilestoneDetailsWorkspace({
           )}
           {!task.isAdviserMilestone && !task.submission && (
             <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
-              <h2 className="text-lg font-bold text-[var(--color-text-primary)]">
+              <h2 data-guide="task-submission-record" data-guide-empty="true" className="text-lg font-bold text-[var(--color-text-primary)]">
                 Submission history
               </h2>
               <p className="mt-3 text-base text-[var(--color-text-secondary)]">
@@ -2524,7 +2533,7 @@ function Empty({ text }: { text: string }) {
   return (
     <div className="rounded-2xl border-2 border-dashed border-[#DDE3E8] dark:border-white/10 bg-white/60 dark:bg-[var(--color-surface)]/60 p-10 text-center flex flex-col items-center justify-center gap-2">
       <i className="ti ti-checklist text-4xl text-slate-300 dark:text-slate-600 mb-1" />
-      <p className="font-extrabold text-[var(--color-text-primary)]">
+      <p className="font-extrabold text-[var(--color-text-primary)]" data-guide="task-empty">
         No milestones deployed yet
       </p>
       <p className="text-base text-slate-500 dark:text-slate-400 max-w-sm">

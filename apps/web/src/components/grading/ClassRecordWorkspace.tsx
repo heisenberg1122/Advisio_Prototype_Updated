@@ -345,6 +345,8 @@ export default function ClassRecordWorkspace({
           Class / workflow
           <select
             aria-label="Class / workflow"
+            data-guide={student ? "student-grade-context" : undefined}
+            data-tour="class-selection"
             value={workflowId}
             disabled={!!busy}
             onChange={(e) => chooseClass(e.target.value)}

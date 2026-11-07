@@ -62,7 +62,7 @@ function StudentNavigation({ collapsed, onNavigate }: { collapsed: boolean; onNa
 
   return (
     <div className="researcher-navigation">
-      <NavItem label="Home" href={projectHref("/student/dashboard")} icon={LayoutDashboard} active={destination === "home"} collapsed={collapsed} onClick={onNavigate} />
+      <NavItem guideTarget="nav-home" label="Home" href={projectHref("/student/dashboard")} icon={LayoutDashboard} active={destination === "home"} collapsed={collapsed} onClick={onNavigate} />
       {groups.map(({ id, label, icon: Icon, items }) => {
         const open = id === openGroup;
         const active = id === activeGroup;
@@ -72,6 +72,7 @@ function StudentNavigation({ collapsed, onNavigate }: { collapsed: boolean; onNa
             <button
               type="button"
               className="researcher-navigation-trigger"
+              data-guide={`nav-section-${id}`}
               data-active={active}
               data-collapsed={collapsed}
               title={collapsed ? label : undefined}
@@ -85,7 +86,7 @@ function StudentNavigation({ collapsed, onNavigate }: { collapsed: boolean; onNa
             </button>
             <div className="researcher-navigation-children" id={controlsId} hidden={!open} data-collapsed={collapsed}>
               {items.map(({ id: itemId, href, ...item }) => (
-                <NavItem key={itemId} {...item} href={projectHref(href)} active={destination === itemId} collapsed={collapsed} onClick={onNavigate} />
+                <NavItem key={itemId} guideTarget={`nav-${itemId}`} {...item} href={projectHref(href)} active={destination === itemId} collapsed={collapsed} onClick={onNavigate} />
               ))}
             </div>
           </div>
@@ -130,9 +131,9 @@ export function ResearchWorkspaceNavigation() {
       </nav>
       {destination === "documents" && (
         <nav aria-label="Document areas" className="researcher-document-nav">
-          <Link href={projectHref("/student/documents")} aria-current={documentArea === "workspace" ? "page" : undefined}>Document workspace</Link>
-          <Link href={projectHref("/student/dashboard?tab=submissions")} aria-current={documentArea === "submissions" ? "page" : undefined}>Submission history</Link>
-          <Link href={projectHref("/student/group-files")} aria-current={documentArea === "group-files" ? "page" : undefined}>Group Files</Link>
+          <Link data-guide="documents-workspace-tab" href={projectHref("/student/documents")} aria-current={documentArea === "workspace" ? "page" : undefined}>Document workspace</Link>
+          <Link data-guide="documents-submissions-tab" href={projectHref("/student/dashboard?tab=submissions")} aria-current={documentArea === "submissions" ? "page" : undefined}>Submission history</Link>
+          <Link data-guide="documents-files-tab" href={projectHref("/student/group-files")} aria-current={documentArea === "group-files" ? "page" : undefined}>Group Files</Link>
         </nav>
       )}
     </div>

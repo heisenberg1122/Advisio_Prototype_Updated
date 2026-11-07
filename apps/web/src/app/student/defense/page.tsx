@@ -67,7 +67,7 @@ export default function DefensePage() {
     return (
       <div className="researcher-defense rdf-fallback">
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
-          <h1 className="font-extrabold">
+          <h1 data-guide="researcher-defense-empty" className="font-extrabold">
             Defense information could not be loaded.
           </h1>
           <p className="mt-1">
@@ -88,7 +88,7 @@ export default function DefensePage() {
       <div className="researcher-defense rdf-fallback">
         <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
           <i className="ti ti-presentation-off text-4xl text-slate-300" />
-          <h1 className="mt-3 text-2xl font-extrabold text-[var(--color-text-primary)]">
+          <h1 data-guide="researcher-defense-empty" className="mt-3 text-2xl font-extrabold text-[var(--color-text-primary)]">
             {data.projects.length
               ? "Select a research project"
               : "No research project yet"}
@@ -131,7 +131,7 @@ export default function DefensePage() {
     return (
       <div className="researcher-defense rdf-fallback">
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
-          <h1 className="font-extrabold">Defense session not found</h1>
+          <h1 data-guide="researcher-defense-empty" className="font-extrabold">Defense session not found</h1>
           <p className="mt-1">
             This session is not assigned to your active research project, or it
             is no longer available.
@@ -157,7 +157,7 @@ export default function DefensePage() {
         <div className="rdf-identity">
           <p className="rdf-eyebrow">Research defense</p>
           <div className="rdf-title-row">
-            <h1>{event?.code || "Defense readiness"}</h1>
+            <h1 data-guide={selectedSession ? undefined : "researcher-defense-info"}>{event?.code || "Defense readiness"}</h1>
             {selectedSession && (
               <span
                 className="rdf-session-status"

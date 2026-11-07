@@ -31,11 +31,13 @@ const notificationStyles = {
 };
 
 interface NotificationPopoverProps {
+  guideTarget?: string;
   viewAllHref: string;
   compact?: boolean;
 }
 
 export function NotificationPopover({
+  guideTarget,
   viewAllHref,
   compact = false,
 }: NotificationPopoverProps) {
@@ -94,6 +96,7 @@ export function NotificationPopover({
     <div ref={containerRef} className="relative">
       <button
         type="button"
+        data-guide={guideTarget}
         onClick={() => setOpen((current) => !current)}
         aria-label={
           unreadCount > 0

@@ -327,6 +327,7 @@ export function UserManagement({
             {!invitationView && <div className="admin-users__filters grid grid-cols-1 gap-2 sm:grid-cols-3">
               <input
                 aria-label="Search users"
+                data-tour="page-filter"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search name, email, or ID"

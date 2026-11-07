@@ -1196,6 +1196,7 @@ export default function DocumentWorkspacePage() {
             tabIndex={useDocumentLibraryStyles ? -1 : undefined}
           >
             <PageHeader
+              data-guide={isResearcherPortal ? "document-page-heading" : undefined}
               variant="plain"
               className="border-0 pb-0"
               title={isPanelistPortal ? "Panel Documents" : "Documents"}

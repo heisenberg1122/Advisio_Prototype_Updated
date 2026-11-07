@@ -20,7 +20,7 @@ export function OverviewHeader({
     <header className="workspace-page-header workspace-dashboard-welcome rcc-header">
       <div>
         <p className="rcc-eyebrow">Today&apos;s overview</p>
-        <h1>Good day, {firstName?.trim() || "Student Researcher"}</h1>
+        <h1 data-guide="researcher-home-heading">Good day, {firstName?.trim() || "Student Researcher"}</h1>
         <p className="rcc-header-summary">
           Here&apos;s an overview of your research progress and what needs your
           attention.

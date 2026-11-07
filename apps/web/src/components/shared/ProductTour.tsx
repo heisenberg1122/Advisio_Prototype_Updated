@@ -1,202 +1,114 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
+import type { GuidedStep } from "@/lib/workspace-tours";
+import "./product-tour.css";
 
-export interface TourStep {
-  selector?: string;
-  title: string;
-  content: string;
-  placement?: "top" | "bottom" | "left" | "right" | "center";
-}
+type Rect = { top: number; left: number; width: number; height: number; bottom: number; right: number };
+type ProductTourProps = {
+  step: GuidedStep; index: number; total: number; routeReady: boolean;
+  onBack: () => void; onNext: (completedStep: boolean) => void; onClose: () => void; onRetry: () => void;
+};
 
-interface ProductTourProps {
-  tourKey: string; // e.g. "student-dashboard-tour"
-  steps: TourStep[];
-  isOpen?: boolean;
-  onClose?: () => void;
-  autoStart?: boolean;
-}
+export function ProductTour({ step, index, total, routeReady, onBack, onNext, onClose, onRetry }: ProductTourProps) {
+  const [rect, setRect] = useState<Rect | null>(null);
+  const [missing, setMissing] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const [tooltipHeight, setTooltipHeight] = useState(250);
+  const dialog = useRef<HTMLDivElement>(null);
+  const target = useRef<HTMLElement | null>(null);
+  const next = useRef<HTMLButtonElement>(null);
+  const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
 
-export const ProductTour: React.FC<ProductTourProps> = ({
-  tourKey,
-  steps,
-  isOpen: controlledIsOpen,
-  onClose: controlledOnClose,
-  autoStart = true,
-}) => {
-  const [internalIsOpen, setInternalIsOpen] = useState(false);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
-
-  const isControlled = controlledIsOpen !== undefined;
-  const active = isControlled ? controlledIsOpen : internalIsOpen;
-
-  // Check if user has already completed this tour
   useEffect(() => {
-    if (!isControlled && autoStart) {
-      const seen = localStorage.getItem(`advisio_tour_${tourKey}`);
-      if (!seen) {
-        // Small delay so layout finishes rendering
-        const timer = setTimeout(() => {
-          setInternalIsOpen(true);
-        }, 800);
-        return () => clearTimeout(timer);
+    setRect(null); setMissing(false); target.current = null;
+    let frame = 0;
+    let scrolled = false;
+    const started = performance.now();
+    const update = () => {
+      const element = routeReady ? Array.from(document.querySelectorAll<HTMLElement>(`[data-tour="${step.target}"]`)).find(el => el.getClientRects().length && getComputedStyle(el).visibility !== "hidden") : undefined;
+      if (!element) {
+        setRect(previous => previous ? null : previous);
+        if (performance.now() - started > 8000) setMissing(true);
+        return;
       }
-    }
-  }, [tourKey, autoStart, isControlled]);
-
-  const handleClose = useCallback(() => {
-    localStorage.setItem(`advisio_tour_${tourKey}`, "completed");
-    if (isControlled && controlledOnClose) {
-      controlledOnClose();
-    } else {
-      setInternalIsOpen(false);
-    }
-  }, [tourKey, isControlled, controlledOnClose]);
-
-  // Compute spotlight position
-  useEffect(() => {
-    if (!active) return;
-    const step = steps[currentStepIndex];
-    if (!step || !step.selector) {
-      setTargetRect(null);
-      return;
-    }
-
-    const el = document.querySelector(step.selector);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-      const updateRect = () => {
-        setTargetRect(el.getBoundingClientRect());
-      };
-      updateRect();
-      window.addEventListener("resize", updateRect);
-      window.addEventListener("scroll", updateRect);
-      return () => {
-        window.removeEventListener("resize", updateRect);
-        window.removeEventListener("scroll", updateRect);
-      };
-    } else {
-      setTargetRect(null);
-    }
-  }, [active, currentStepIndex, steps]);
-
-  // Keyboard navigation
-  useEffect(() => {
-    if (!active) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        handleClose();
-      } else if (e.key === "ArrowRight") {
-        if (currentStepIndex < steps.length - 1) {
-          setCurrentStepIndex((prev) => prev + 1);
-        } else {
-          handleClose();
-        }
-      } else if (e.key === "ArrowLeft") {
-        if (currentStepIndex > 0) {
-          setCurrentStepIndex((prev) => prev - 1);
-        }
+      target.current = element;
+      if (!scrolled) {
+        scrolled = true;
+        if (step.target === "workspace-content") window.scrollTo({ top: 0, behavior: "instant" });
+        else element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
       }
+      const raw = element.getBoundingClientRect();
+      const width = window.innerWidth, height = window.innerHeight;
+      if (raw.bottom < 0 || raw.top > height || raw.right < 0 || raw.left > width) { setRect(null); setMissing(true); return; }
+      const top = Math.max(8, Math.min(raw.top - 5, height - 60));
+      const left = Math.max(8, raw.left - 5);
+      const right = Math.min(width - 8, raw.right + 5);
+      const bottom = Math.min(height - 8, raw.bottom + 5, top + (step.target === "workspace-content" ? 180 : 260));
+      const measured = { top, left, width: Math.max(0, right - left), height: Math.max(0, bottom - top), bottom, right };
+      if (measured.width < 1 || measured.height < 1) { setRect(null); return; }
+      setMissing(false);
+      setViewport(previous => previous.width === width && previous.height === height ? previous : { width, height });
+      setRect(previous => previous && Object.keys(measured).every(key => previous[key as keyof Rect] === measured[key as keyof Rect]) ? previous : measured);
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [active, currentStepIndex, steps.length, handleClose]);
+    const poll = () => { update(); frame = requestAnimationFrame(poll); };
+    frame = requestAnimationFrame(poll);
+    return () => { cancelAnimationFrame(frame); };
+  }, [step.target, step.href, routeReady, retry]);
 
-  if (!active || steps.length === 0) return null;
+  useLayoutEffect(() => {
+    if (!dialog.current) return;
+    const measure = () => setTooltipHeight(dialog.current?.offsetHeight || 250);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(dialog.current);
+    return () => observer.disconnect();
+  }, []);
 
-  const currentStep = steps[currentStepIndex];
-  const isLast = currentStepIndex === steps.length - 1;
+  const ready = Boolean(rect) || missing;
+  useEffect(() => { if (ready) next.current?.focus({ preventScroll: true }); }, [index, ready]);
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); return; }
+      if (event.key !== "Tab") return;
+      const tooltipItems = Array.from(dialog.current?.querySelectorAll<HTMLElement>("button:not([disabled]),a[href]") || []);
+      const targetItems = step.interactive && rect ? [target.current, ...Array.from(target.current?.querySelectorAll<HTMLElement>("input:not([type=file]),select,button,a[href]") || [])]
+        .filter((el): el is HTMLElement => Boolean(el && el.matches("input,select,button,a[href]") && el.getClientRects().length && !el.hasAttribute("disabled"))) : [];
+      const items = [...targetItems, ...tooltipItems];
+      if (!items.length) return;
+      const position = items.indexOf(document.activeElement as HTMLElement);
+      event.preventDefault();
+      items[(position + (event.shiftKey ? -1 : 1) + items.length) % items.length]?.focus({ preventScroll: true });
+    };
+    window.addEventListener("keydown", keydown, true);
+    return () => window.removeEventListener("keydown", keydown, true);
+  }, [onClose, step.interactive, rect]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto select-none">
-      {/* Darkened backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300"
-        onClick={handleClose}
-      />
+  const width = Math.min(340, viewport.width - 24);
+  const left = rect ? Math.max(12, Math.min(rect.left, viewport.width - width - 12)) : Math.max(12, (viewport.width - width) / 2);
+  const below = rect && viewport.height - rect.bottom >= tooltipHeight + 20;
+  const top = rect ? below ? rect.bottom + 10 : rect.top >= tooltipHeight + 20 ? rect.top - tooltipHeight - 10 : Math.max(12, viewport.height - tooltipHeight - 12) : Math.max(12, (viewport.height - tooltipHeight) / 2);
+  const retryTarget = () => { onRetry(); setRetry(value => value + 1); };
 
-      {/* Target spotlight glow */}
-      {targetRect && (
-        <div
-          className="absolute rounded-xl border-2 border-primary shadow-[0_0_0_9999px_rgba(0,0,0,0.55),0_0_24px_rgba(59,130,246,0.5)] transition-all duration-300 pointer-events-none"
-          style={{
-            top: targetRect.top - 6,
-            left: targetRect.left - 6,
-            width: targetRect.width + 12,
-            height: targetRect.height + 12,
-          }}
-        />
-      )}
-
-      {/* Step Tooltip Card */}
-      <div
-        className="relative z-50 max-w-md w-full mx-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 transition-all duration-300 animate-in fade-in zoom-in-95"
-      >
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary uppercase tracking-wider">
-            Step {currentStepIndex + 1} of {steps.length}
-          </span>
-          <button
-            onClick={handleClose}
-            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg transition-colors"
-            title="Skip Tour (Esc)"
-          >
-            <i className="ti ti-x text-lg" />
-          </button>
-        </div>
-
-        <div className="py-4">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
-            {currentStep.title}
-          </h3>
-          <p className="text-base text-slate-600 dark:text-slate-300 leading-relaxed">
-            {currentStep.content}
-          </p>
-        </div>
-
-        {/* Progress dots and actions */}
-        <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-          <div className="flex space-x-1.5">
-            {steps.map((_, i) => (
-              <span
-                key={i}
-                className={`h-1.5 rounded-full transition-all duration-300 ${
-                  i === currentStepIndex
-                    ? "w-6 bg-primary"
-                    : "w-1.5 bg-slate-200 dark:bg-slate-700"
-                }`}
-              />
-            ))}
-          </div>
-
-          <div className="flex items-center space-x-2">
-            {currentStepIndex > 0 && (
-              <button
-                onClick={() => setCurrentStepIndex((prev) => prev - 1)}
-                className="px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                Back
-              </button>
-            )}
-
-            <button
-              onClick={() => {
-                if (isLast) {
-                  handleClose();
-                } else {
-                  setCurrentStepIndex((prev) => prev + 1);
-                }
-              }}
-              className="px-4 py-1.5 text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg shadow-sm transition-colors flex items-center gap-1"
-            >
-              {isLast ? (
-                <>Finish <i className="ti ti-check text-xs" /></>
-              ) : (
-                <>Next <i className="ti ti-chevron-right text-xs" /></>
-              )}
-            </button>
-          </div>
-        </div>
+  return createPortal(<div className="product-tour" data-tour-active="true">
+    {rect && <>
+      <div className="product-tour__shade" style={{ left: 0, top: 0, width: "100%", height: rect.top }} />
+      <div className="product-tour__shade" style={{ left: 0, top: rect.top, width: rect.left, height: rect.height }} />
+      <div className="product-tour__shade" style={{ left: rect.right, top: rect.top, right: 0, height: rect.height }} />
+      <div className="product-tour__shade" style={{ left: 0, top: rect.bottom, width: "100%", bottom: 0 }} />
+      <div className="product-tour__spotlight" data-tour-spotlight={step.target} style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height, pointerEvents: step.interactive ? "none" : "auto" }} />
+    </>}
+    <div ref={dialog} role="dialog" aria-modal={step.interactive ? undefined : true} aria-labelledby="product-tour-title" aria-describedby="product-tour-content" className="product-tour__tooltip" style={{ left, top, width, maxHeight: viewport.height - 24 }}>
+      <div className="product-tour__heading"><span role="status" aria-live="polite">Step {index + 1} of {total}</span><button type="button" aria-label="Close tour" onClick={onClose}><X size={18} /></button></div>
+      <h2 id="product-tour-title">{step.title}</h2>
+      <p id="product-tour-content">{missing ? step.fallback || "This area is unavailable. Retry or skip this step to continue safely." : !rect ? "Finding this part of your workspace…" : step.content}</p>
+      {step.interactive && rect && <p className="product-tour__hint">You can try the highlighted controls.</p>}
+      <div className="product-tour__actions">
+        <button type="button" onClick={onClose}>Skip tour</button>
+        {index > 0 && <button type="button" onClick={onBack}>Back</button>}
+        {missing && <button type="button" onClick={retryTarget}>Retry</button>}
+        <button ref={next} type="button" className="product-tour__primary" disabled={!rect && !missing} onClick={() => onNext(!missing)}>{missing ? "Skip step" : index === total - 1 ? "Finish" : "Next"}</button>
       </div>
     </div>
-  );
-};
+  </div>, document.body);
+}

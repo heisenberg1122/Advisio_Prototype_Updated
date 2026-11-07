@@ -9,6 +9,7 @@ import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { AdvisioBrandMark } from "@/components/ui/AdvisioBrandMark";
 import { cn } from "@/lib/utils";
 import { GroupedWorkspaceNavigation } from "./GroupedWorkspaceNavigation";
+import { TourLauncher } from "@/providers/workspace-tour-provider";
 
 export interface NavSection {
   title?: string;
@@ -165,9 +166,11 @@ export function AppSidebar({
           )}
         >
           {/* Settings Link */}
+          <TourLauncher collapsed={isVisuallyCollapsed} />
           <Link
             href={settingsHref}
             onClick={handleMobileClose}
+            data-guide={settingsHref === "/student/settings" ? "nav-settings" : undefined}
             title={isVisuallyCollapsed ? "Settings" : undefined}
             className={cn(
               "flex h-11 items-center select-none outline-none transition-colors duration-150 rounded-xl cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--college-focus-ring)]",

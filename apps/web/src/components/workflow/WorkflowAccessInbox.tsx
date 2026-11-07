@@ -55,7 +55,7 @@ export function WorkflowAccessInbox() {
           className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--color-surface-muted)] p-3 text-sm"
         >
           <div>
-            <strong>{e.workflow.name}</strong>
+            <strong data-guide={`class-access-${e.kind === "INVITATION" ? "invited" : e.status === "PENDING" ? "pending" : "declined"}`}>{e.workflow.name}</strong>
             <p>
               {e.kind === "INVITATION"
                 ? "You have been invited. Open your Advisio inbox to accept or decline."

@@ -4283,7 +4283,7 @@ function ProfessorDashboardContent() {
               </div>
             ),
             defense: (
-              <div className="coordinator-defense mx-auto flex w-full max-w-[1440px] flex-col gap-5">
+              <div data-tour="defense-records" className="coordinator-defense mx-auto flex w-full max-w-[1440px] flex-col gap-5">
                 <section className="cdf-header workspace-page-header rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:p-6">
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
@@ -5325,6 +5325,7 @@ function ProfessorDashboardContent() {
                               setSubmissionSearch(event.target.value)
                             }
                             placeholder="Requirement or research group"
+                            data-tour="page-filter"
                             className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-3 text-base font-normal normal-case tracking-normal outline-none focus:border-[#173f63]"
                           />
                         </span>
@@ -5506,6 +5507,7 @@ function ProfessorDashboardContent() {
                         setMonitoringSearch(event.target.value)
                       }
                       placeholder="Search project, adviser, research type, or program…"
+                      data-tour="page-filter"
                       aria-label="Search research projects"
                       className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-base text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#173f63] focus:ring-2 focus:ring-[#173f63]/10"
                     />
@@ -5760,7 +5762,7 @@ function ProfessorDashboardContent() {
               </div>
             ),
             builder: (
-              <div className="professor-workflow mx-auto flex w-full max-w-[1360px] flex-col gap-5 text-[var(--color-text-primary)]">
+              <div data-tour="workflow-structure" className="professor-workflow mx-auto flex w-full max-w-[1360px] flex-col gap-5 text-[var(--color-text-primary)]">
                 <section className="workflow-builder-header workspace-page-header rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] lg:p-6">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
@@ -6678,7 +6680,7 @@ function ProfessorDashboardContent() {
               </div>
             ),
             tracking: (
-              <section className="coordinator-progress" aria-labelledby="coordinator-progress-title">
+              <section data-tour="progress-records" className="coordinator-progress" aria-labelledby="coordinator-progress-title">
                 <header className="workspace-page-header cprogress-header">
                   <div>
                     <p className="cprogress-eyebrow">Research workspace</p>

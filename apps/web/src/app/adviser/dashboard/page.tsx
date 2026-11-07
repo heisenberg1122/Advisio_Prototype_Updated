@@ -1034,7 +1034,7 @@ function AdviserDashboardContent() {
                 <div className="workspace-page-header college-hero-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl border text-[var(--color-text-primary)]">
                   <div>
                     <h2 className="text-xl font-bold text-[var(--color-text-primary)]">
-                      Assigned Research Groups
+                      <span data-tour="advisee-records">Assigned Research Groups</span>
                     </h2>
                     <p className="text-base text-[var(--color-text-secondary)] mt-1">
                       View your research groups, track progress, and open their workspaces.

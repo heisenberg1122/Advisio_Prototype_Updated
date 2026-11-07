@@ -11,6 +11,7 @@ export interface NavItemProps {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }> | string;
+  guideTarget?: string;
   tabName?: string;
   active?: boolean;
   badge?: string | number;
@@ -25,6 +26,7 @@ export function NavItem({
   href,
   icon: Icon,
   tabName,
+  guideTarget,
   active,
   badge,
   badgeVariant = "accent",
@@ -76,6 +78,8 @@ export function NavItem({
 
   return (
     <Link
+      data-guide={guideTarget}
+      data-tour={href.split("?")[0].endsWith("/inbox") ? "navigation-inbox" : undefined}
       href={href}
       onClick={onClick}
       title={collapsed ? label : undefined}

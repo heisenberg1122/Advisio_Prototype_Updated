@@ -34,7 +34,6 @@ import { portalQuickLinks } from "@/lib/portal-navigation";
 import { DashboardSwitcher } from "@/components/layout/DashboardSwitcher";
 import { CollegeSwitcher } from "@/components/layout/CollegeSwitcher";
 import { AcademicIdentity } from "@/components/layout/AcademicIdentity";
-import { WorkspaceHelp } from "@/components/layout/WorkspaceHelp";
 import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
 import { getRoleBadgeLabel, getRolePortalBadge } from "@/lib/dashboard-navigation";
 
@@ -76,6 +75,7 @@ export function AppTopbar({
 }: AppTopbarProps) {
   const router = useRouter();
   const pathname = usePathname() || "";
+  const researcher = pathname.startsWith("/student/") || pathname === "/join-group";
   const { profile } = useProfile();
   const { activeWorkspace } = useDashboardWorkspace();
   const { logout, user } = useAuth();
@@ -359,8 +359,7 @@ export function AppTopbar({
 
         {actions && <div className="flex items-center gap-2">{actions}</div>}
 
-        <WorkspaceHelp />
-        <NotificationPopover viewAllHref={notificationsHref} compact />
+        <NotificationPopover viewAllHref={notificationsHref} compact guideTarget={researcher ? "notification-button" : undefined} />
 
         {/* User Profile Dropdown Menu */}
         <div ref={profileRef} className="relative">
@@ -368,6 +367,7 @@ export function AppTopbar({
             type="button"
             onClick={() => setIsProfileOpen((prev) => !prev)}
             aria-label="Open profile menu"
+            data-guide={researcher ? "profile-menu-button" : undefined}
             aria-expanded={isProfileOpen}
             aria-haspopup="true"
             className="flex items-center gap-2 rounded-full p-1 sm:pr-2.5 hover:bg-[var(--nav-hover-bg)] dark:hover:bg-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] select-none cursor-pointer"
@@ -433,6 +433,8 @@ export function AppTopbar({
                 <button
                   type="button"
                   onClick={toggleTheme}
+                  data-guide={researcher ? "appearance-toggle" : undefined}
+                  aria-pressed={researcher ? isDark : undefined}
                   className="w-full flex items-center justify-between p-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] cursor-pointer"
                 >
                   <span className="flex items-center gap-2.5">

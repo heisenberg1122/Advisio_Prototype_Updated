@@ -808,6 +808,7 @@ export function ManuscriptReviewWorkspace({
                 "rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 sm:p-5",
             )}
             aria-labelledby="pending-review-heading"
+            data-tour="review-records"
           >
             <div className="flex items-center justify-between gap-4">
               <div>
