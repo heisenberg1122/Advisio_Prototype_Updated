@@ -247,10 +247,10 @@ console.log(
 if (process.argv.includes("--publish")) {
   const target = path.join(root, `apps/web/public/walkthroughs/${role}`);
   await fs.mkdir(target, { recursive: true });
+  await fs.rm(path.join(target, `${role}-captioned.mp4`), { force: true });
   // Metadata is copied last: visitors never see a partially published bundle.
   for (const name of [
     `${role}-web.mp4`,
-    `${role}-captioned.mp4`,
     "poster.jpg",
     "subtitles.vtt",
     "subtitles.srt",
@@ -258,7 +258,11 @@ if (process.argv.includes("--publish")) {
     "transcript.txt",
     "media.json",
   ])
-    await fs.copyFile(path.join(exported, name), path.join(target, name));
+    if (name === "media.json") {
+      const released = { ...(await readJson(path.join(exported, name))) };
+      delete released.captionedVideo;
+      await writeJson(path.join(target, name), released);
+    } else await fs.copyFile(path.join(exported, name), path.join(target, name));
   // The web build was already validated. Include media in that artifact without
   // rerunning the compiler/build just to copy static files.
   const built = path.join(root, "apps/web/dist");
@@ -270,9 +274,9 @@ if (process.argv.includes("--publish")) {
   ) {
     const builtMedia = path.join(built, `walkthroughs/${role}`);
     await fs.mkdir(builtMedia, { recursive: true });
+    await fs.rm(path.join(builtMedia, `${role}-captioned.mp4`), { force: true });
     for (const name of [
       `${role}-web.mp4`,
-      `${role}-captioned.mp4`,
       "poster.jpg",
       "subtitles.vtt",
       "subtitles.srt",
@@ -280,7 +284,11 @@ if (process.argv.includes("--publish")) {
       "transcript.txt",
       "media.json",
     ])
-      await fs.copyFile(path.join(exported, name), path.join(builtMedia, name));
+      if (name === "media.json") {
+        const released = { ...(await readJson(path.join(exported, name))) };
+        delete released.captionedVideo;
+        await writeJson(path.join(builtMedia, name), released);
+      } else await fs.copyFile(path.join(exported, name), path.join(builtMedia, name));
   }
   console.log(
     `Static ${role} media bundle published to the web public folder.`,
