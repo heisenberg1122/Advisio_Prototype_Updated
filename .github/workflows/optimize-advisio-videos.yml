@@ -29,10 +29,12 @@ jobs:
         with:
           ref: codex/optimize-advisio-video-assets
           persist-credentials: true
-      - name: Verify video tools
+      - name: Install FFmpeg and FFprobe
         run: |
-          command -v ffmpeg
-          command -v ffprobe
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ffmpeg
+          ffmpeg -version | head -n 1
+          ffprobe -version | head -n 1
       - name: Recompress downloadable MP4s and refresh checksums
         run: node scripts/optimize-deployment-media.mjs
       - name: Commit optimized media on optimization branch only
