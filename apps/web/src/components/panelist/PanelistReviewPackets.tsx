@@ -330,7 +330,7 @@ export function PanelistReviewPackets() {
     );
   if (!sessions.length)
     return (
-      <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
+      <div data-guide="panelist-packet-empty" className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
         <i className="ti ti-file-search text-4xl text-slate-300" />
         <h3 className="mt-3 font-extrabold text-[var(--color-text-primary)]">
           No manuscript is ready for review
@@ -344,7 +344,7 @@ export function PanelistReviewPackets() {
 
   if (!selected)
     return (
-      <div className="rounded-2xl border border-dashed border-[var(--color-border)] p-8 text-center">
+      <div data-guide="panelist-packet-empty" className="rounded-2xl border border-dashed border-[var(--color-border)] p-8 text-center">
         <h3 className="font-extrabold">
           No manuscripts match this review status
         </h3>
@@ -379,7 +379,7 @@ export function PanelistReviewPackets() {
             <p className="text-sm font-extrabold uppercase tracking-[.16em] text-[#d98d00]">
               Pending reviews and history
             </p>
-            <h2 className="mt-1 text-lg font-black text-[var(--color-text-primary)]">
+            <h2 data-guide="panelist-packet-list" className="mt-1 text-lg font-black text-[var(--color-text-primary)]">
               Defense documents
             </h2>
           </div>
@@ -497,6 +497,7 @@ export function PanelistReviewPackets() {
                 .map(([id, label]) => (
                   <button
                     key={id}
+                    data-guide={`panelist-${id}-tab`}
                     onClick={() => setTab(id)}
                     className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-extrabold ${tab === id ? "bg-[var(--color-primary)] text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]" : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-subtle)]"}`}
                   >
@@ -694,7 +695,7 @@ export function PanelistReviewPackets() {
                 </div>
               </section>
               <section>
-                <h3 className="font-extrabold text-[#173f63]">
+                <h3 data-guide="panelist-notes" className="font-extrabold text-[#173f63]">
                   Required-revision checklist
                 </h3>
                 <p className="mt-1 text-base text-slate-500">
@@ -814,7 +815,7 @@ export function PanelistReviewPackets() {
           ) : tab === "recommendation" ? (
             <div className="grid gap-5 p-5 lg:grid-cols-[1fr_300px]">
               <section>
-                <h3 className="font-extrabold text-[#173f63]">
+                <h3 data-guide="panelist-recommendation" className="font-extrabold text-[#173f63]">
                   Panel recommendation
                 </h3>
                 <p className="mt-1 text-base text-slate-500">

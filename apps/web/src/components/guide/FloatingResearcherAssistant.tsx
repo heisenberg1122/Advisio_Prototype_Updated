@@ -16,6 +16,8 @@ import { useResearcherGuide } from "@/providers/researcher-guide-provider";
 import { useAssistantVisibility } from "@/lib/assistant-preference";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { useLocation } from "react-router-dom";
+import { panelistPopular } from "@research-management/shared/src/panelist-help";
+import { currentPanelistEvaluationNotice, panelistPageHelp } from "@/lib/panelist-walkthroughs";
 import { adviserPopular } from "@research-management/shared/src/adviser-help";
 import { adviserPageHelp } from "@/lib/adviser-walkthroughs";
 import { researcherPageHelp } from "@/lib/researcher-guide";
@@ -59,6 +61,7 @@ export function FloatingResearcherAssistant() {
   const nextId = useRef(0);
   const workspace = guide?.workspace ?? "researcher";
   const adviser = workspace === "adviser";
+  const panelist = workspace === "panelist";
   const available = authorizedAssistantTopics(
     user?.permissions || [],
     workspace,
@@ -124,7 +127,8 @@ export function FloatingResearcherAssistant() {
           (item.reply && ["local", "ai"].includes(item.reply.source)),
       )
       .slice(-4)
-      .map((item) => ({ role: item.role, content: item.text.slice(0, 1000) }));
+      .map((item) => ({ role: item.role, content: (item.reply?.text ?? item.text).slice(0, 1000) }));
+    const evaluationNotice = panelist && currentPanelistEvaluationNotice();
     setMessages((items) => [
       ...items.slice(-38),
       { id: ++nextId.current, role: "user", text: message },
@@ -140,8 +144,10 @@ export function FloatingResearcherAssistant() {
         "/api/researcher-assistant",
         {
           message,
-          ...(adviser ? { workspace } : {}),
-          page: adviser
+          ...(workspace === "researcher" ? {} : { workspace }),
+          page: panelist
+            ? panelistPageHelp(location.pathname, location.search)
+            : adviser
             ? adviserPageHelp(location.pathname, location.search)
             : researcherPageHelp(location.pathname, location.search),
           previousTopic: previous,
@@ -166,7 +172,9 @@ export function FloatingResearcherAssistant() {
         {
           id: ++nextId.current,
           role: "assistant",
-          text: safeReply.text,
+          text: evaluationNotice && safeReply.source === "local" && safeReply.topicIds.includes("pn-14")
+            ? evaluationNotice
+            : safeReply.text,
           reply: safeReply,
           retryQuestion:
             safeReply.retryable || safeReply.needsConsent ? message : undefined,
@@ -246,7 +254,7 @@ export function FloatingResearcherAssistant() {
             </span>
             <div>
               <h2 id="advisio-assistant-title">Advisio Assistant</h2>
-              <p>{adviser ? "Faculty Adviser" : "Researcher Workspace"}</p>
+              <p>{panelist ? "Defense Panelist" : adviser ? "Faculty Adviser" : "Researcher Workspace"}</p>
             </div>
             <button
               type="button"
@@ -282,14 +290,14 @@ export function FloatingResearcherAssistant() {
             aria-relevant="additions"
           >
             <div className="researcher-assistant__message researcher-assistant__message--assistant">
-              <p>{welcome}</p>
+              <p>{panelist ? "Hi! Need help finding a defense invitation, reviewing a manuscript, or completing an evaluation?" : welcome}</p>
             </div>
             {!messages.length && (
               <div
                 className="researcher-assistant__suggestions"
                 aria-label="Suggested questions"
               >
-                {(adviser ? adviserPopular : suggestions)
+                {(panelist ? panelistPopular : adviser ? adviserPopular : suggestions)
                   .flatMap((id) => available.filter((topic) => topic.id === id))
                   .map(({ id, question }) => (
                     <button

@@ -55,7 +55,13 @@ export function PanelistSidebar() {
     <AppSidebar
       roleTitle="Defense Panelist"
       roleBadge="PANELIST CENTER"
-      navSections={PANELIST_NAV_SECTIONS}
+      navSections={PANELIST_NAV_SECTIONS.map((section) => ({
+        ...section,
+        items: section.items.map((item) => ({
+          ...item,
+          guideTarget: "panelist-nav-" + (item.tabName || item.href.split("?")[0].split("/").at(-1)),
+        })),
+      }))}
       groupedNavigation
       collapsed={collapsed}
       onToggleCollapse={toggle}

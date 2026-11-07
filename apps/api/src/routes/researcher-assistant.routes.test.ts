@@ -18,7 +18,7 @@ vi.mock("../middleware/auth.js", () => ({
       return;
     }
     req.user = {
-      id: role === "ADVISER" ? "test-adviser" : "test-account",
+      id: role === "ADVISER" || role === "PANELIST" ? `test-${role.toLowerCase()}` : "test-account",
       email: "test@example.test",
       universityId: "test",
       roles: [role as "RESEARCHER"],
@@ -62,10 +62,10 @@ describe("Authenticated Researcher help API", () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     await service.close();
   });
-  const post = (body: unknown, role = "RESEARCHER") =>
+  const post = (body: unknown, role = "RESEARCHER", headers = {}) =>
     fetch(base, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Test-Role": role },
+      headers: { "Content-Type": "application/json", "X-Test-Role": role, ...headers },
       body: JSON.stringify(body),
     });
   it("requires authentication and rejects other dashboard roles", async () => {
@@ -122,6 +122,17 @@ describe("Authenticated Researcher help API", () => {
     expect(metrics.requests).toBe(4);
     expect(JSON.stringify(metrics)).not.toContain("test-account");
     expect(JSON.stringify(metrics)).not.toContain("Where can");
+  });
+  it("authorizes Panelist help only in a college with the Panelist role", async () => {
+    const body = { message: "Saan ang defense schedule ko?", page: "pn-04", workspace: "panelist" };
+    expect((await post(body, "ADVISER")).status).toBe(403);
+    expect((await post(body, "RESEARCHER")).status).toBe(403);
+    expect((await post(body, "PANELIST", { "X-Test-No-College": "1" })).status).toBe(403);
+    expect((await post({ ...body, page: "ad-07" }, "PANELIST")).status).toBe(400);
+    const result = await post(body, "PANELIST");
+    expect(result.status).toBe(200);
+    expect(await result.json()).toMatchObject({ source: "local", topicIds: ["pn-04"] });
+    expect(provider).not.toHaveBeenCalled();
   });
   it("uses only the requested workspace and requires an approved Adviser college", async () => {
     const body = {

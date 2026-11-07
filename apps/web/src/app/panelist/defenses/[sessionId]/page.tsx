@@ -279,7 +279,7 @@ export default function PanelistDefenseWorkspacePage() {
             <p className="mt-4 text-sm font-bold uppercase tracking-[.16em] text-[var(--color-primary)]">
               {session.research.groupName || "Research group"}
             </p>
-            <h1 className="mt-1 max-w-4xl text-2xl font-bold leading-tight text-[var(--color-text-primary)] sm:text-3xl">
+            <h1 data-guide="panelist-session" className="mt-1 max-w-4xl text-2xl font-bold leading-tight text-[var(--color-text-primary)] sm:text-3xl">
               {session.research.title}
             </h1>
             <p className="mt-2 text-base text-[var(--color-text-secondary)]">
@@ -308,6 +308,7 @@ export default function PanelistDefenseWorkspacePage() {
             {packetReady && invitationAccepted && (
               <Button
                 variant="secondary"
+                data-guide="panelist-open-packet"
                 icon={<FileText className="h-4 w-4" />}
                 onClick={() =>
                   router.push(
@@ -320,6 +321,7 @@ export default function PanelistDefenseWorkspacePage() {
             )}
             {isLive && invitationAccepted && !evaluationLocked && (
               <Button
+                data-guide="panelist-open-evaluation"
                 icon={<ClipboardCheck className="h-4 w-4" />}
                 onClick={() =>
                   router.push(
@@ -553,6 +555,7 @@ export default function PanelistDefenseWorkspacePage() {
                 </div>
               </div>
               <Button
+                data-guide="panelist-open-packet"
                 onClick={() =>
                   router.push(
                     `/panelist/dashboard?tab=documents&sessionId=${session.id}`,
@@ -650,6 +653,7 @@ export default function PanelistDefenseWorkspacePage() {
                 are not calculated grades.
               </p>
               <Button
+                data-guide="panelist-open-evaluation"
                 className="mt-3"
                 onClick={() =>
                   router.push(

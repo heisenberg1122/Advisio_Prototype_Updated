@@ -43,11 +43,15 @@ export function createResearcherAssistantRouter(
       });
       return;
     }
-    const adviser = parsed.data.workspace === "adviser";
-    const requiredRole = adviser ? "ADVISER" : "RESEARCHER";
+    const workspace = parsed.data.workspace ?? "researcher";
+    const requiredRole = ({
+      adviser: "ADVISER",
+      panelist: "PANELIST",
+      researcher: "RESEARCHER",
+    } as const)[workspace];
     if (
       !req.user!.roles.includes(requiredRole) ||
-      (adviser && !req.user!.collegeId)
+      (workspace !== "researcher" && !req.user!.collegeId)
     ) {
       res
         .status(403)

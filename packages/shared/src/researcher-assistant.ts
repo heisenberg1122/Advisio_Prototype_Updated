@@ -10,11 +10,19 @@ import {
   type AdviserHelpId,
 } from "./adviser-help";
 
-export type AssistantWorkspace = "researcher" | "adviser";
+import { PANELIST_HELP, panelistPopular, type PanelistHelpId } from "./panelist-help";
+
+export type AssistantWorkspace = "researcher" | "adviser" | "panelist";
+export const assistantWorkspaceLabels: Record<AssistantWorkspace, string> = {
+  researcher: "Researcher",
+  adviser: "Faculty Adviser",
+  panelist: "Defense Panelist",
+};
 export const ASSISTANT_HELP_VERSION = "workspace-assistant-2";
 export type AssistantTopicId =
   | ResearcherHelpId
   | AdviserHelpId
+  | PanelistHelpId
   | "tasks"
   | "history";
 export type AssistantActionKind = "navigate" | "show" | "guide";
@@ -23,7 +31,7 @@ export interface AssistantTopic {
   question: string;
   answer: string;
   href: string;
-  guide: ResearcherHelpId | AdviserHelpId;
+  guide: ResearcherHelpId | AdviserHelpId | PanelistHelpId;
   permission?: string;
   requirements?: string;
   projectRequired?: boolean;
@@ -197,8 +205,20 @@ const adviserAssistantTopics: AssistantTopic[] = ADVISER_HELP.map((topic) => ({
   requirements: topic.requirements,
   phrases: topic.keywords,
 }));
-const topicsFor = (workspace: AssistantWorkspace) =>
-  workspace === "adviser" ? adviserAssistantTopics : ASSISTANT_TOPICS;
+const panelistAssistantTopics: AssistantTopic[] = PANELIST_HELP.map((topic) => ({
+  id: topic.id,
+  guide: topic.walkthrough,
+  question: topic.question,
+  answer: topic.answer.join("\n\n"),
+  href: topic.href,
+  requirements: topic.requirements,
+  phrases: topic.keywords.map(normalizeAssistantQuestion),
+}));
+const topicsFor = (workspace: AssistantWorkspace) => ({
+  adviser: adviserAssistantTopics,
+  panelist: panelistAssistantTopics,
+  researcher: ASSISTANT_TOPICS,
+})[workspace];
 export const assistantTopic = (
   id: string,
   workspace: AssistantWorkspace = "researcher",
@@ -264,20 +284,25 @@ export function resolveAssistantQuestion(
 ): AssistantResolution {
   const available = authorizedAssistantTopics(permissions, workspace);
   const normalized = normalizeAssistantQuestion(question);
-  if (workspace === "adviser") {
+  if (workspace !== "researcher") {
+    const panelist = workspace === "panelist";
+    const popular: readonly AssistantTopicId[] = panelist ? panelistPopular : adviserPopular;
     const previous = available.find((topic) => topic.id === previousTopic);
     if (/^(yes|show me|take me there)$/.test(normalized) && previous)
       return { kind: "local", topic: previous };
     if (
-      /^(help|help me|group|review|consultation|request|show me|yes)$/.test(
-        normalized,
-      )
+      (panelist
+        ? /^(help|help me|review|evaluation|defense|results|show me|yes)$/
+        : /^(help|help me|group|review|consultation|request|show me|yes)$/
+      ).test(normalized)
     ) {
       return {
         kind: "clarification",
-        text: "What are you trying to do: find an advisee, review a manuscript, respond to a request, or plan a consultation?",
+        text: panelist
+          ? "Are you looking for an invitation, reviewing a defense packet, completing an evaluation, or checking results?"
+          : "What are you trying to do: find an advisee, review a manuscript, respond to a request, or plan a consultation?",
         topicIds: available
-          .filter((topic) => adviserPopular.some((id) => id === topic.id))
+          .filter((topic) => popular.includes(topic.id))
           .map((topic) => topic.id),
       };
     }

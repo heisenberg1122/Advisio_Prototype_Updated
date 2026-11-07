@@ -1,0 +1,7 @@
+ADVISIO Panelist Team Handoff v1.0
+Date: 2026-11-07
+Reference repository: heisenberg1122/Advisio_Prototype_Updated
+Inspected reference branch: codex/qr-evaluation-local (NOT guaranteed working branch)
+Verified implementation base: origin/main at 78211cc3e1e20328a8fb5cfde60ad68f8a9b5a21
+Phase scope: Panelist only
+No source changes, deployment, or tests performed by this package generation

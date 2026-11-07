@@ -33,6 +33,8 @@ import {
   adviserPageHelp,
   buildAdviserJourney,
 } from "@/lib/adviser-walkthroughs";
+import { buildPanelistJourney, panelistPageHelp } from "@/lib/panelist-walkthroughs";
+import type { PanelistHelpId } from "@research-management/shared/src/panelist-help";
 import type { AdviserHelpId } from "@research-management/shared/src/adviser-help";
 import { GuideDrawer, type GuideHelpId } from "@/components/guide/GuideDrawer";
 import {
@@ -109,11 +111,18 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     activeWorkspace?.id === "adviser" &&
     eligible === "adviser" &&
     Boolean(user?.college?.id);
-  const workspace: AssistantWorkspace = adviser ? "adviser" : "researcher";
+  const panelist =
+    activeWorkspace?.id === "panelist" &&
+    eligible === "panelist" &&
+    Boolean(user?.college?.id);
+  const workspace: AssistantWorkspace = panelist
+    ? "panelist"
+    : adviser ? "adviser" : "researcher";
+  const researcher = workspace === "researcher";
   const enabled =
     !isLoading &&
     !isSwitchingCollege &&
-    (adviser ||
+    (!researcher ||
       ((activeWorkspace?.id === "researcher" || groupJoinPage) &&
         eligible === "researcher"));
   const href = location.pathname + location.search;
@@ -124,7 +133,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<ActiveJourney | null>(null);
   const [requested, setRequested] = useState<TopicId | null>(null);
   const { state, loading } = useResearcherGuideState(
-    enabled && !adviser && (drawer || Boolean(active)),
+    enabled && researcher && (drawer || Boolean(active)),
     user?.id,
   );
   const evaluation = token === "__evaluation__";
@@ -173,13 +182,13 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
   );
 
   const progressKey = (topic: TopicId, project: string | null) =>
-    (adviser ? "advisio:adviser-guide:v1:" : "advisio:researcher-guide:v3:") +
+    (researcher ? "advisio:researcher-guide:v3:" : `advisio:${workspace}-guide:v1:`) +
     [
       user?.id || "",
       user?.college?.id || "unassigned",
       sessionKey,
       topic,
-      !adviser && sensitiveToProject(topic)
+      researcher && sensitiveToProject(topic)
         ? project || "no-project"
         : "workspace",
     ]
@@ -237,9 +246,9 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
       profile.click();
   };
   const topicLoading = (topic: TopicId) =>
-    !adviser && loading(topic as ResearcherHelpId | "introduction");
+    researcher && loading(topic as ResearcherHelpId | "introduction");
   const routeHref = (destination: string, project?: string | null) =>
-    adviser ? destination : projectHref(destination, project);
+    researcher ? projectHref(destination, project) : destination;
   const hasEdits = () =>
     hasDirtyForms() ||
     Array.from(edited.current).some(
@@ -251,7 +260,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     setActive(null);
     ownNavigation.current = false;
     cleanView();
-    const modal = adviser
+    const modal = !researcher
       ? Array.from(
           document.querySelectorAll<HTMLElement>(
             '[role="dialog"][aria-modal="true"]',
@@ -271,7 +280,9 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     }
     setNotice(
       completed
-        ? adviser
+        ? panelist
+          ? "Walkthrough finished. You can return to Guide for another task."
+          : adviser
           ? "Walkthrough finished. No decision, approval or meeting was submitted by the Guide."
           : "Walkthrough finished. Only the guide is complete; no class enrollment, request, or research submission was made for you."
         : "You can return to this question or restart its walkthrough whenever you need it.",
@@ -352,10 +363,12 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
       setNotice(
         "The page changed, so the walkthrough paused. Open Guide to continue with the current page.",
       );
+    } else if (panelist && running && running.href !== href) {
+      setActive({ ...running, href });
     }
   }, [location.key]);
   useEffect(() => {
-    if (!running || adviser) return;
+    if (!running || !researcher) return;
     if (
       (sensitiveToProject(running.topic) &&
         state.projectKnown &&
@@ -376,7 +389,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
   const begin = (topic: TopicId) => {
     if (
       !enabled ||
-      (adviser &&
+      (!researcher &&
         topic !== "introduction" &&
         !resolveAssistantAction(
           topic + ":show",
@@ -385,7 +398,9 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
         ))
     )
       return;
-    const journey = adviser
+    const journey = panelist
+      ? buildPanelistJourney(topic as PanelistHelpId | "introduction", href)
+      : adviser
       ? buildAdviserJourney(
           topic as AdviserHelpId | "introduction",
           location.pathname,
@@ -402,7 +417,10 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
           destination && routeKey(destination) !== routeKey(href),
       ),
     );
-    if ((leavesPage || adviser) && hasEdits()) {
+    const changesView = panelist && journey.steps.some((step) =>
+      step.targets.some((target) => target.interaction === "click"),
+    );
+    if ((leavesPage || adviser || changesView) && hasEdits()) {
       setRequested(null);
       setNotice(
         "Save and close your edited form, or discard your draft, before a walkthrough takes you to another page. Your work has not been changed.",
@@ -439,7 +457,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
   const start = (topic: TopicId) => {
     if (
       !enabled ||
-      (adviser &&
+      (!researcher &&
         topic !== "introduction" &&
         !resolveAssistantAction(
           topic + ":show",
@@ -517,13 +535,13 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     const nextStep = running.journey.steps.find((item) => item.id === nextId);
     const destination = interacted
       ? undefined
-      : variant?.to || step.to || (adviser ? nextStep?.route : undefined);
+      : variant?.to || step.to || (!researcher ? nextStep?.route : undefined);
     const nextHref =
       destination && routeKey(destination) !== routeKey(href)
         ? routeHref(destination, running.project)
         : href;
     if (nextHref !== href) {
-      if (adviser && hasEdits()) {
+      if (!researcher && hasEdits()) {
         end(false);
         setNotice(
           "Save or close your edited form before continuing to another page.",
@@ -551,7 +569,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     const previous = running.history.at(-1);
     if (!previous) return;
     if (previous.href !== href) {
-      if (adviser && hasEdits()) {
+      if (!researcher && hasEdits()) {
         end(false);
         setNotice(
           "Save or close your edited form before going back to another page.",
@@ -571,7 +589,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     if (!enabled) return;
     opener.current = document.activeElement as HTMLElement;
     closeMobile();
-    if (topic || adviser) {
+    if (topic || !researcher) {
       setSelected(topic ?? null);
       setQuery("");
     }
@@ -586,10 +604,12 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
       workspace,
     );
     if (!action) return false;
-    if (action.kind !== "guide" && hasEdits()) return false;
+    if (action.kind !== "guide" && !(panelist && action.kind === "show") && hasEdits())
+      return false;
     if (action.kind === "navigate") {
       closeMobile();
-      navigate(routeHref(action.topic.href));
+      if (!panelist || routeKey(action.topic.href) !== routeKey(href))
+        navigate(routeHref(action.topic.href));
     } else {
       open(action.topic.guide);
       if (action.kind === "show") {
@@ -618,7 +638,9 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
           workspace={workspace}
           permissions={user?.permissions || []}
           page={
-            adviser
+            panelist
+              ? panelistPageHelp(location.pathname, location.search)
+              : adviser
               ? adviserPageHelp(location.pathname, location.search)
               : researcherPageHelp(location.pathname, location.search)
           }
@@ -656,7 +678,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
           key={running.step}
           step={step}
           index={stepIndex}
-          total={adviser ? undefined : running.journey.steps.length}
+          total={researcher ? running.journey.steps.length : undefined}
           canGoBack={Boolean(running.history.length)}
           isLast={
             stepIndex === running.journey.steps.length - 1 ||

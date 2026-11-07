@@ -46,10 +46,11 @@ export function PacketManuscriptWorkspace({
   return (
     <div className="space-y-4 p-3">
       <div className="rounded-xl border p-4">
-        <label className="text-sm font-bold">
+        <label data-guide="panelist-manuscript" className="text-sm font-bold">
           Manuscript version
           <select
             aria-label="Manuscript review version"
+            data-guide={versions.length > 1 ? "panelist-packet-history" : undefined}
             value={selected.id}
             onChange={(e) =>
               setSelected(versions.find((v) => v.id === e.target.value)!)

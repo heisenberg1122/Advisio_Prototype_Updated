@@ -122,6 +122,35 @@ describe("Faculty Adviser assistant layers", () => {
   });
 });
 
+describe("Defense Panelist assistant", () => {
+  it("uses bounded Panelist-only help and filters cross-workspace model actions", async () => {
+    const provider = vi.fn<typeof fetch>().mockResolvedValue(
+      response("Your personal submission and the official decision have different release conditions.", ["pn-16", "ad-07"]),
+    );
+    const service = new ResearcherAssistantService(config(), provider);
+    const prompt = {
+      ...request("What is the difference between my completed evaluation and the official decision?", false),
+      workspace: "panelist" as const,
+      page: "pn-15" as const,
+    };
+    expect(await service.answer(identity, prompt)).toMatchObject({
+      source: "fallback", needsConsent: true,
+    });
+    expect(provider).not.toHaveBeenCalled();
+    const reply = await service.answer(identity, { ...prompt, allowAI: true });
+    expect(reply.topicIds).not.toContain("ad-07");
+    expect(provider).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(provider.mock.calls[0][1]?.body as string);
+    const input = JSON.parse(body.input);
+    expect(body.store).toBe(false);
+    expect(input).toMatchObject({ role: "Defense Panelist", page: "pn-15", recentConversation: [] });
+    expect(input.verifiedKnowledge.map(({ id }: { id: string }) => id)).toEqual(["pn-15", "pn-16"]);
+    expect(body.input).not.toContain(identity.id);
+    expect(body.input).not.toContain(identity.collegeId);
+    expect(service.snapshot()).toMatchObject({ aiRequests: 1, inputTokens: 120, outputTokens: 45 });
+  });
+});
+
 describe("Researcher assistant layers", () => {
   it.each([
     "How do I join a class?",

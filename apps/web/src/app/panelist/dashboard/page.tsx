@@ -61,7 +61,7 @@ const attendanceMode = (session: any) => {
 
 function PanelistDashboardContent() {
   const searchParams = useSearchParams();
-  const { switchDashboard } = useDashboardWorkspace();
+  const { switchDashboard, registerDirtyForm } = useDashboardWorkspace();
   const activeTab = searchParams.get("tab") || "overview";
   const requestedSessionId = searchParams.get("sessionId") || "";
   const { user } = useAuth();
@@ -215,6 +215,11 @@ function PanelistDashboardContent() {
     setActiveRemarks(existing?.remarks || "");
     setEvaluationDirty(false);
   }, [liveSession?.id, liveSession?.evaluations?.[0]?.id, activeTemplate?.id]);
+
+  useEffect(() => {
+    if (!evaluationDirty) return;
+    return registerDirtyForm({ id: "panelist-legacy-evaluation", isDirty: () => true });
+  }, [evaluationDirty, registerDirtyForm]);
 
   useEffect(() => {
     if (!evaluationDirty) return;
@@ -477,7 +482,7 @@ function PanelistDashboardContent() {
             const tabContent: Record<string, React.ReactNode> = {
               messages: <FacultyGroupChats triggerToast={triggerToast} />,
               overview: (
-                <div className="flex w-full flex-col gap-6">
+                <div data-guide="panelist-overview" className="flex w-full flex-col gap-6">
                   <DashboardWelcome
                     firstName={user?.firstName}
                     fallbackName="Panelist"
@@ -866,7 +871,7 @@ function PanelistDashboardContent() {
                 </div>
               ),
               schedule: (
-                <div data-tour="defense-records" className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-6">
+                <div data-tour="defense-records" data-guide="panelist-schedule" data-guide-empty={!schedules.length} className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-6">
                   <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
                     Defense Schedule Management
                   </h3>
@@ -943,7 +948,7 @@ function PanelistDashboardContent() {
                                 {s.date} at {s.time} · {attendanceMode(s)}
                                 {s.venue ? ` · ${s.venue}` : ""}
                               </span>
-                              <span className="mt-1 block text-xs font-semibold text-[var(--color-text-muted)]">
+                              <span data-guide="panelist-invitation" className="mt-1 block text-xs font-semibold text-[var(--color-text-muted)]">
                                 Invited as {readable(s.myInvitation?.role)} ·{" "}
                                 {readable(s.myInvitation?.status)}
                               </span>
@@ -978,7 +983,7 @@ function PanelistDashboardContent() {
                             ["PENDING", "RECONFIRMATION_REQUIRED"].includes(
                               s.myInvitation.status,
                             ) && (
-                              <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
+                              <div data-guide="panelist-invite-actions" className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -1010,6 +1015,7 @@ function PanelistDashboardContent() {
                           <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--color-border)] pt-3">
                             <button
                               type="button"
+                              data-guide="panelist-open-session"
                               onClick={() =>
                                 router.push(`/panelist/defenses/${s.id}`)
                               }
@@ -1038,7 +1044,7 @@ function PanelistDashboardContent() {
                         </div>
                       ))
                     ) : (
-                      <div className="text-xs text-slate-400 py-6 text-center">
+                      <div data-guide="panelist-schedule-empty" className="text-xs text-slate-400 py-6 text-center">
                         No defense schedules assigned yet.
                       </div>
                     )}
@@ -1047,7 +1053,7 @@ function PanelistDashboardContent() {
               ),
               documents: <PanelistReviewPackets />,
               evaluation: (
-                <div data-tour="evaluation-records" className="mx-auto flex w-full max-w-[1320px] flex-col gap-4">
+                <div data-tour="evaluation-records" data-guide="panelist-evaluation" className="mx-auto flex w-full max-w-[1320px] flex-col gap-4">
                   {evaluationSession?.packet?.evaluationMode ===
                   "STRUCTURED" ? (
                     <StructuredEvaluationWorkspace
@@ -1059,15 +1065,17 @@ function PanelistDashboardContent() {
                       key={pdfEvaluationSession.id}
                       sessionId={pdfEvaluationSession.id}
                     />
-                  ) : !liveSession ? (
+                  ) : !liveSession || (requestedSessionId && liveSession.id !== requestedSessionId) ? (
                     <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
                       <i className="ti ti-broadcast-off text-4xl text-slate-300" />
-                      <h3 className="mt-3 text-lg font-extrabold text-[var(--color-text-primary)]">
-                        No live defense session
+                      <h3 data-guide={liveError || dashboardError ? "panelist-evaluation-unavailable" : "panelist-evaluation-not-live"}
+                        data-panelist-evaluation-state={liveError || dashboardError ? "unverified" : !schedules.length ? "no-assignment" : requestedSessionId && !evaluationSession ? "session-unavailable" : "no-live-session"} className="mt-3 text-lg font-extrabold text-[var(--color-text-primary)]">
+                        {requestedSessionId ? "This evaluation is unavailable" : "No live defense session"}
                       </h3>
                       <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-                        The scoring sheet will unlock automatically when the
-                        professor starts your assigned defense.
+                        {requestedSessionId
+                          ? "Check your assignment and session readiness in Defense Schedule."
+                          : "The scoring sheet will unlock automatically when the professor starts your assigned defense."}
                       </p>
                       {liveError && (
                         <p className="mt-3 text-base font-bold text-rose-600">
@@ -1103,14 +1111,14 @@ function PanelistDashboardContent() {
                         </div>
                       </section>
                       {!activeTemplate ? (
-                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm font-bold text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+                        <div data-guide="panelist-evaluation-unavailable" data-panelist-evaluation-state="missing-rubric" className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm font-bold text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
                           No published evaluation rubric is available for this
                           research type.
                         </div>
                       ) : liveSession.evaluations?.[0]?.status === "LOCKED" ? (
                         <section className="rounded-2xl border border-emerald-200 bg-[var(--color-surface)] p-8 text-center">
                           <i className="ti ti-lock-check text-5xl text-emerald-600" />
-                          <h3 className="mt-3 text-xl font-extrabold text-[var(--color-text-primary)]">
+                          <h3 data-guide="panelist-evaluation-locked" data-panelist-evaluation-state="locked" className="mt-3 text-xl font-extrabold text-[var(--color-text-primary)]">
                             Final evaluation locked
                           </h3>
                           <p className="mt-2 text-base text-[var(--color-text-secondary)]">
@@ -1270,6 +1278,7 @@ function PanelistDashboardContent() {
                           )}
                           <div className="mt-5 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-end">
                             <button
+                              data-guide="panelist-save-draft"
                               onClick={() => handleSaveEvaluation(false)}
                               disabled={isSavingEvaluation}
                               className="h-11 rounded-xl border border-slate-300 px-5 text-sm font-extrabold text-[#173f63] disabled:opacity-50"
@@ -1286,6 +1295,7 @@ function PanelistDashboardContent() {
                                   handleSaveEvaluation(true);
                               }}
                               disabled={isSavingEvaluation}
+                              data-guide="panelist-final-evaluation"
                               className="submission-action h-11 rounded-xl bg-[#f6a800] px-5 text-sm font-extrabold text-[#102f49] disabled:opacity-50"
                             >
                               <i className="ti ti-lock-check mr-2" />
@@ -1299,7 +1309,7 @@ function PanelistDashboardContent() {
                 </div>
               ),
               grades: (
-                <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-6">
+                <div data-guide="panelist-results" className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-6">
                   <h3 className="font-extrabold text-[#1b4264] text-lg">
                     Grades & Recommendations
                   </h3>
@@ -1329,16 +1339,17 @@ function PanelistDashboardContent() {
                       </div>
                     ))}
                     {completedStructuredEvaluations.map((session: any) => (
-                      <button key={session.id} className="rounded-xl border border-[var(--color-border)] p-4 text-left"
+                      <button key={session.id} data-guide="panelist-completed-evaluation" className="rounded-xl border border-[var(--color-border)] p-4 text-left"
                         onClick={() => router.push(`/panelist/dashboard?tab=evaluation&sessionId=${session.id}`)}>
                         <strong className="block">{session.research.title}</strong>
                         <span className="mt-1 block text-sm text-[var(--color-text-secondary)]">Structured evaluation submitted and locked · View my completed evaluation and PDF</span>
-                        <span className="mt-1 block text-sm text-[var(--color-text-secondary)]">{session.defenseEvent?.defenseType === "FINAL_DEFENSE" ? "Final Defense" : "Title Defense"} · {session.releasedAt ? `Released decision: ${readable(session.decision)}` : "Result awaiting release"}</span>
+                        <span data-guide="panelist-release-status" className="mt-1 block text-sm text-[var(--color-text-secondary)]">{session.defenseEvent?.defenseType === "FINAL_DEFENSE" ? "Final Defense" : "Title Defense"} · {session.releasedAt ? `Released decision: ${readable(session.decision)}` : "Result awaiting release"}</span>
                       </button>
                     ))}
                     {completedPdfEvaluations.map((session: any) => (
                       <button
                         key={session.id}
+                        data-guide="panelist-completed-evaluation"
                         className="rounded-xl border p-4 text-left"
                         onClick={() =>
                           router.push(
@@ -1388,7 +1399,7 @@ function PanelistDashboardContent() {
                               <strong className="block text-[#1b4264] dark:text-white">
                                 {session.research.title}
                               </strong>
-                              <span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
+                              <span data-guide="panelist-release-status" className="mt-1 block text-xs text-slate-500 dark:text-slate-400">
                                 Completed {formatDateTime(session.endedAt)} ·
                                 Official decision:{" "}
                                 {session.releasedAt

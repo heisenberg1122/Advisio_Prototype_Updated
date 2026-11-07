@@ -1,5 +1,5 @@
 import { ManuscriptReviewWorkspace } from "@/components/documents/ManuscriptReviewWorkspace";
 
 export default function PanelistReviewsPage() {
-  return <ManuscriptReviewWorkspace />;
+  return <ManuscriptReviewWorkspace presentation="panelist" />;
 }

@@ -1,0 +1,67 @@
+# ADVISIO — Panelist Phase 3 Acceptance & Evidence Matrix
+
+Status vocabulary: `TODO`, `PASS`, `FAIL`, `BLOCKED`, `NOT TESTED`. **No unexecuted test can be marked PASS.** For each completed item, record route, screenshot, test output, or relevant behavior evidence. Validate using authorized safe fixtures; do not mutate live academic records for demo purposes.
+
+| ID | Expected verifiable behavior | Status | Evidence |
+| --- | --- | --- | --- |
+| BASE-01 | Team-approved base branch and exact commit SHA recorded; working tree inspected | PASS | Verified GitHub `main` at `78211cc3e1e20328a8fb5cfde60ad68f8a9b5a21` and created `codex/panelist-guide-phase3` in a clean worktree. |
+| BASE-02 | Current shared Guide, AI, registry, tour and settings system verified; no duplicate app or endpoint created | PASS | Source audit confirmed reuse of the shared Guide drawer, walkthrough engine, preferences, action registry, and authenticated `/api/researcher-assistant`. |
+| BASE-03 | Newer team-approved contract checked and conflicts reconciled; existing AGENTS.md preserved | PASS | Compared the ZIP's proposed contract with the committed shared contract. Kept the committed contract and applied the Panelist specification within its role scope. |
+| UI-01 | Panelist sidebar shows Guide with icon directly above Settings in desktop/collapsed/mobile | NOT TESTED | Guide appeared above Settings on the desktop sidebar and opened from the mobile menu. Collapsed desktop placement remains unverified. |
+| UI-02 | Guide opens nonblocking right drawer, no fullscreen blur, organized search/on-page help/topics/start tour | PASS | Browser fixtures opened the shared drawer and used topic search. The authenticated local demo confirmed Guide opens from the Panelist sidebar and replaces Take a Tour. |
+| UI-03 | Floating AI button default-visible with unset preference, chat closed; explicit OFF persists across refresh/login | NOT TESTED | Browser fixture verified the button starts visible, chat opens on request, and OFF persists through refresh. A fresh login with a saved preference remains unverified. |
+| UI-04 | Settings preference correctly scoped to user and compatible with Researcher/Adviser semantics | PASS | The shared account-keyed preference was retained. The web Assistant preference tests passed. |
+| UI-05 | Current-page recommendations and searches match actual Panelist context | PASS | Panelist page-to-topic mapping, registry search, and browser searches were checked in the Panelist test and smoke harness. |
+| TOUR-01 | Tooltip connected arrow precisely targets a real visible control, mobile/scroll responsive | NOT TESTED | Desktop screenshots show connected highlights. The 390 px mobile fixture used reduced motion and displayed a connected arrow. Full mobile scrolling and resizing remain unverified. |
+| TOUR-02 | Cross-route walk-through waits for loading, safely expands nav and recovers on missing target | NOT TESTED | The browser followed a chosen session and waited for a rendered packet control. Full collapsed-nav and missing-target recovery coverage remains unverified. |
+| TOUR-03 | Tour does not auto-accept, sign, score, submit, share, lock, release or mutate records | PASS | The browser fixture recorded zero academic write requests during the tested journeys. The unit test checks all Panelist journeys for read-only steps or safe view-opening targets. |
+| TOUR-04 | Leave page with unsaved scoring changes: existing confirmation not bypassed | PASS | A legacy draft remained intact when the Guide tried to leave for Defense Schedule. Same-page Save draft help still opened. |
+| PN-01 | Intro tour describes real dashboard and adapts to empty assignments | NOT TESTED | Intro is registered. Browser execution with and without assignments remains unverified. |
+| PN-02 | Invitation help locates actual pending/accepted/reconfirmation states, no fictitious invite | NOT TESTED | Pending invitation and an accepted defense were exercised. Reconfirmation and empty invitation states remain unverified. |
+| PN-03 | Accept/decline instructions correctly identify UI and safeguards; no response submitted | PASS | Browser fixture highlighted the real Accept invitation and I’m unavailable controls. The fixture recorded zero response requests. |
+| PN-04 | Schedule guide distinguishes tentative/confirmed/rescheduling and shows permitted session details | NOT TESTED | The fixture displayed a tentative schedule and selected a defense. Confirmed and rescheduled variants remain unverified. |
+| PN-05 | Authorized defense session route opens and indicates invitation/packet/review/evaluation readiness | PASS | Selecting the second rendered defense opened `/panelist/defenses/live` and advanced the guide to session readiness. |
+| PN-06 | Manuscript Reviews queue vs defense packet distinguished and navigated correctly | NOT TESTED | Registry and walkthrough distinguish the general queue from the defense packet. The combined browser journey remains unverified. |
+| PN-07 | Defense manuscript review covers published version, notes/annotations/checklist/privacy | PASS | The browser guide followed `/panelist/defenses/live` to its published packet, highlighted the published manuscript selector, and reached the Notes & revisions checklist. |
+| PN-08 | Assigned-version review covers appropriate commenting/recommendation controls; no submit | NOT TESTED | Assigned-version snapshot and feedback targets were source-audited. An active reviewer-assignment fixture was not exercised. |
+| PN-09 | Previous versions displayed only in authorized relevant review context | NOT TESTED | The browser displayed the published version. An earlier authorized manuscript version was not exercised. |
+| PN-10 | Recommendation draft/preview/lock explained only when actually available; no mutation | NOT TESTED | The separate recommendation tab and structured-mode availability were source-audited. Recommendation preview and lock fixtures were not exercised. |
+| PN-11 | Evaluation route opens appropriate session/mode, handles not-LIVE state accurately | NOT TESTED | Structured, PDF and legacy routes were exercised. An unavailable session was blocked from opening another defense’s rubric. A pre-defense fixture remains unverified. |
+| PN-12 | Save draft guide targets mode-specific control and explains privacy/editability; no mutation | NOT TESTED | Browser exercised the legacy Save draft anchor with existing unsaved edits. Structured and PDF draft anchors were source-audited. |
+| PN-13 | Final evaluation guide explains mode-specific prerequisites and irreversible lock; no final send | PASS | Read-only browser fixtures checked structured PDF preview, PDF evaluation preview, and legacy final-confirmation anchors. Zero final submission requests were recorded. |
+| PN-14 | Locked/unavailable evaluation explanations grounded in actual status; no fabricated causes | NOT TESTED | The Assistant and Guide use the current evaluation’s rendered status code. Browser verified an unavailable session. Full locked, pre-defense, and missing-rubric coverage remains unverified. |
+| PN-15 | Personal completed/locked evaluation view shown correctly | NOT TESTED | The completed record was visible in Results. Opening its locked preview remains unverified. |
+| PN-16 | Official results release gating distinguished from personal completed evaluation | PASS | The browser fixture displayed a personal locked evaluation alongside a pending official release and highlighted that distinction. |
+| PN-17 | Official Copies route shows permitted archival documents; no incorrect edit/sign instruction | NOT TESTED | Verified the Panelist Official Copies route in the router. An authorized archival download was not exercised. |
+| PN-18 | Panelist consultations/calendar only describe actually supported actions | NOT TESTED | Consultations and Calendar destinations were verified in source. The browser journey remains unverified. |
+| PN-19 | Messages and Inbox guides work without automatic sends | NOT TESTED | Messages and Inbox destinations were verified in source. The browser journey remains unverified. |
+| PN-20 | Theme and assistance settings guide targets actual controls, supports OFF and ON | NOT TESTED | The browser verified the Assistant switch and OFF persistence. Theme switching and restoring ON remain unverified. |
+| AI-01 | High-confidence navigation bypasses provider/model (0 calls), including paraphrases | PASS | The Panelist Taglish schedule question resolved to `pn-04` in the browser and API route tests with zero provider calls. The authenticated local demo also received a verified schedule answer from the real API. |
+| AI-02 | Ambiguous questions do not receive incorrect deterministic answer; controlled AI or clarification used | PASS | The web test checks clarification for a bare review question. The API test checks a single consented request for a comparison question. |
+| AI-03 | Model context excludes full documents, private grades, scores, notes, cross-college data by default | PASS | A mocked provider received two verified help entries and bounded context, with no account or college ID. Browser status copy stays local and is excluded from provider history. |
+| AI-04 | Server validates current role, college and action allowlist; no unrestricted model URLs/writes | PASS | Router tests reject unauthorized roles, missing college and cross-role topics. Service and web tests reject cross-role model IDs and unsupported actions. |
+| AI-05 | Provider unavailable: useful local Guide fallback; no broken widget | PASS | Assistant API tests cover fallback and the shared Guide works independently. A live provider outage was not simulated. |
+| AI-06 | Metrics available for request category, latency, provider token cost if supported | PASS | Service tests verified provider usage metrics, including 120 input and 45 output tokens from the simulated provider. Aggregate metrics remain administrator-only. |
+| SCOPE-01 | Researcher/Adviser and other role dashboards unchanged except justified shared fixes | PASS | The diff adds Panelist integration and role branches in existing shared code. Researcher and Adviser suites passed. |
+| SCOPE-02 | Multiple authorized colleges/roles tested for isolation and tour cancellation on context switch | NOT TESTED | API authorization and action isolation were tested. A browser college switch during an active tour remains unverified. |
+| UX-01 | Browser visually checked desktop/mobile, collapsed nav, light/dark/college, focus/reduced motion | NOT TESTED | Desktop light mode and mobile dark mode with reduced motion were visually reviewed. Full college theme, collapsed-navigation and keyboard coverage remains unverified. |
+| QA-01 | Relevant tests/typecheck/lint/build executed; commands and PASS/FAIL captured | PASS | Web and API builds, API type-check, web lint, all 598 web tests, and all 30 Assistant route/service tests passed. The web build includes TypeScript checking. |
+| QA-02 | Screenshot or trace evidence provided for five golden flows below, or marked NOT TESTED | PASS | The five golden flows were exercised with a read-only browser fixture. Screenshot evidence is in the worktree’s `.local/panelist-evidence/` directory. |
+
+## Five golden flow checks
+
+1. **Invitation:** “Where do I accept my defense invitation?” → correct real invitation target; only user can accept.
+2. **Review packet:** “How do I review the defense manuscript?” → correct published session-specific packet, not unrelated general Review queue.
+3. **Evaluation:** “How do I submit my defense evaluation?” → configured PDF/structured/legacy path with draft vs final lock carefully distinguished; no actual finalization.
+4. **Results:** “Why can't I see the decision?” → distinguishes personal locked evaluation from release-gated official results.
+5. **AI efficiency:** “Where is Defense Schedule?” → 0 LLM calls; ambiguous question receives accurate contextual guidance with bounded safe context.
+
+## Handoff completion record
+
+- **Base and worktree:** GitHub `main` at `78211cc3e1e20328a8fb5cfde60ad68f8a9b5a21`. Feature branch `codex/panelist-guide-phase3` in `.local/panelist-guide-phase3`.
+- **Changes:** Panelist registry and walkthroughs, scoped Assistant routing and authorization, role-specific UI anchors, evaluation draft protection, and targeted tests. See `git status --short` in the worktree for file-level changes.
+- **Topic coverage:** PN-01 through PN-20 are registered with written help and walkthroughs. Rows marked NOT TESTED identify acceptance cases with incomplete verification.
+- **Browser evidence:** Read-only Playwright fixtures used the real web UI and the shared Assistant service. `.local/panelist-smoke.mjs` recorded the five golden flows and saved screenshots in `.local/panelist-evidence/`. The fixture captured zero academic write requests.
+- **Provider usage:** Defense Schedule paraphrase used zero provider calls. The comparison test made one simulated call with two vetted help entries and measured 120 input tokens and 45 output tokens from the fixture response.
+- **Local verification:** `npm run build --workspace=web`, `npm run lint --workspace=web`, `npm run type-check --workspace=api`, and `npm run build --workspace=api` passed. Vitest passed 598 web tests across 72 files and 30 Assistant API tests across two files.
+- **Remote verification:** See the Panelist commit on GitHub for Actions and deployment status. The results above describe local verification.
