@@ -398,18 +398,10 @@ export const ADVISER_HELP = [
   help(
     "ad-19",
     account,
-    "How do I hide the Assistant?",
+    "How do I find my settings?",
     r.settings,
-    [
-      "hide the assistant",
-      "hide assistant",
-      "disable assistant",
-      "turn off assistant",
-      "turn off the assistant",
-      "floating ai assistant",
-      "workspace assistance",
-    ],
-    "Open Settings → Appearance → Workspace Assistance and turn off Show floating AI Assistant. The preference is saved for your account in this browser, and Guide stays above Settings.",
-    "Return to Appearance and switch it on whenever you want the launcher back.",
+    ["settings", "preferences", "profile", "account", "appearance", "security"],
+    "Settings is directly below Guide in the sidebar. Open it for account details, notification preferences, appearance and security. Guide remains available while you explore these areas.",
+    "Read each settings area before making changes. The walkthrough only shows the navigation; it does not edit your account or preferences.",
   ),
 ] satisfies AdviserTopic[];

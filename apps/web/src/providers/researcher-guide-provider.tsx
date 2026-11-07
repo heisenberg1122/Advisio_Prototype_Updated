@@ -45,10 +45,9 @@ import type {
 } from "@/components/guide/guided-walkthrough-types";
 import { cn } from "@/lib/utils";
 import {
-  resolveAssistantAction,
-  type AssistantWorkspace,
-} from "@research-management/shared/src/researcher-assistant";
-import { FloatingResearcherAssistant } from "@/components/guide/FloatingResearcherAssistant";
+  authorizedAdviserHelp,
+  type GuideWorkspace,
+} from "@research-management/shared/src/guide-help";
 
 type TopicId = GuideHelpId | "introduction";
 interface ActiveJourney {
@@ -63,12 +62,11 @@ interface ActiveJourney {
   skipped: boolean;
 }
 interface ResearcherGuideContext {
-  workspace: AssistantWorkspace;
+  workspace: GuideWorkspace;
   enabled: boolean;
   busy: boolean;
   drawerOpen: boolean;
   open: (topic?: GuideHelpId) => void;
-  act: (actionId: string) => boolean;
 }
 const Context = createContext<ResearcherGuideContext | null>(null);
 export const useResearcherGuide = () => useContext(Context);
@@ -109,7 +107,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     activeWorkspace?.id === "adviser" &&
     eligible === "adviser" &&
     Boolean(user?.college?.id);
-  const workspace: AssistantWorkspace = adviser ? "adviser" : "researcher";
+  const workspace: GuideWorkspace = adviser ? "adviser" : "researcher";
   const enabled =
     !isLoading &&
     !isSwitchingCollege &&
@@ -313,12 +311,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
         )
       )
         return;
-      if (
-        element.closest(
-          "[data-researcher-guide-drawer], [data-researcher-assistant]",
-        )
-      )
-        return;
+      if (element.closest("[data-researcher-guide-drawer]")) return;
       if (
         ["class-code", "group-code", "adviser-official-project"].includes(
           element.dataset.guide || "",
@@ -378,10 +371,8 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
       !enabled ||
       (adviser &&
         topic !== "introduction" &&
-        !resolveAssistantAction(
-          topic + ":show",
-          user?.permissions || [],
-          workspace,
+        !authorizedAdviserHelp(user?.permissions || []).some(
+          (item) => item.id === topic,
         ))
     )
       return;
@@ -441,10 +432,8 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
       !enabled ||
       (adviser &&
         topic !== "introduction" &&
-        !resolveAssistantAction(
-          topic + ":show",
-          user?.permissions || [],
-          workspace,
+        !authorizedAdviserHelp(user?.permissions || []).some(
+          (item) => item.id === topic,
         ))
     )
       return;
@@ -578,36 +567,12 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     setDrawer(true);
     setNotice("");
   };
-  const act = (actionId: string) => {
-    if (!enabled || !user) return false;
-    const action = resolveAssistantAction(
-      actionId,
-      user.permissions,
-      workspace,
-    );
-    if (!action) return false;
-    if (action.kind !== "guide" && hasEdits()) return false;
-    if (action.kind === "navigate") {
-      closeMobile();
-      navigate(routeHref(action.topic.href));
-    } else {
-      open(action.topic.guide);
-      if (action.kind === "show") {
-        setRequested(action.topic.guide);
-        setNotice(
-          "Checking your actual workspace before choosing the right steps…",
-        );
-      }
-    }
-    return true;
-  };
   return (
     <Context.Provider
       value={{
         workspace,
         enabled,
         open,
-        act,
         busy: Boolean(running || requested),
         drawerOpen: drawer,
       }}
@@ -670,7 +635,6 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
           onExplore={() => end(true, true)}
         />
       )}
-      {enabled && <FloatingResearcherAssistant key={scope} />}
     </Context.Provider>
   );
 }

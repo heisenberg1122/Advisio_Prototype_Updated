@@ -652,3 +652,10 @@ body:has(.evaluation-banner) .app-workspace::after {
   flex: 0 0 calc(var(--evaluation-controls-height, 90px) + 32px);
   min-height: calc(var(--evaluation-controls-height, 90px) + 32px);
 }
+
+/* The evaluation controls must not cover Guide/Settings in the mobile sidebar. */
+@media (max-width: 1023px) {
+  body:has(.evaluation-banner) aside:has([data-tour="tour-launcher"]) {
+    padding-bottom: calc(var(--evaluation-controls-height, 90px) + 24px);
+  }
+}

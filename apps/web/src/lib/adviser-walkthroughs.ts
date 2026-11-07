@@ -180,7 +180,7 @@ const appearance = () =>
     click(
       "appearance-tab",
       "Open Appearance",
-      "Choose Appearance to find display and workspace assistance preferences.",
+      "Choose Appearance to find color theme and display preferences.",
     ),
     route.settings,
   );
@@ -517,14 +517,7 @@ export function buildAdviserJourney(
       ];
       break;
     case "ad-19":
-      steps = [
-        appearance(),
-        read(
-          "assistant-switch",
-          "Set floating Assistant visibility",
-          "Turn this switch off to hide Ask Advisio on this browser. Guide stays in the sidebar above Settings.",
-        ),
-      ];
+      steps = [appearance()];
       break;
     case "introduction": {
       const research = permissions.includes("research.view");
@@ -556,7 +549,7 @@ export function buildAdviserJourney(
           ...read(
             "finish-intro",
             "Find help whenever you need it",
-            "Open Guide for a task walkthrough, or ask Advisio Assistant a question.",
+            "Open Guide for written answers and a walkthrough of your current task.",
             "guide-launcher",
           ),
           prepare: "sidebar",

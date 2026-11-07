@@ -1,3 +1,5 @@
+> **TAM branch:** The AI Assistant has been removed from this branch. This document describes the implementation retained on `main`. TAM keeps the updated written Guide and walkthroughs; see [TAM Guide-only scope](tam-guide-only.md).
+
 # Researcher Assistant implementation
 
 The Researcher workspace now has a floating **Ask Advisio** button and a conversational panel connected to Guide. The panel opens on request, follows the existing college/display theme, and minimizes when a Guide or walkthrough opens. The existing Guide remains available through the sidebar.

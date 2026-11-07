@@ -26,7 +26,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { COLLEGE_THEMES } from "@/lib/college-themes";
-import { useAssistantVisibility } from "@/lib/assistant-preference";
 import "./account-settings.css";
 
 type SettingsTab = "account" | "notifications" | "appearance" | "security";
@@ -126,10 +125,8 @@ async function prepareProfilePhoto(file: File) {
 
 export default function AccountSettingsPage({ guideTarget }: { guideTarget?: string } = {}) {
   const { user } = useAuth();
-  const assistant = useAssistantVisibility(user?.id);
   const guide = useResearcherGuide();
   const adviserGuide = guide?.enabled && guide.workspace === "adviser";
-  const [assistantMessage, setAssistantMessage] = useState("");
   const { profile, updateProfile } = useProfile();
   const {
     theme,
@@ -344,21 +341,6 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
             <Card>
               <CardHeader><div><CardTitle icon={Palette}>Appearance</CardTitle><CardDescription>Choose your Advisio color identity and display mode. Preferences are saved to your account.</CardDescription></div></CardHeader>
               <CardContent className="space-y-6">
-                {guideTarget === "researcher-settings-navigation" && (
-                  <section aria-labelledby="workspace-assistance-heading">
-                    <h3 id="workspace-assistance-heading" className="text-lg font-extrabold text-[var(--color-text-primary)]">Workspace Assistance</h3>
-                    <label className="mt-3 flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                      <span><strong className="block text-sm text-[var(--color-text-primary)]">Show floating AI Assistant</strong>
-                        <span className="mt-1 block text-sm text-[var(--color-text-secondary)]">Show the assistant button while using your workspace.</span>
-                      </span>
-                      <input type="checkbox" role="switch" data-guide={adviserGuide ? "adviser-assistant-switch" : undefined} aria-label="Show floating AI Assistant" checked={assistant.visible}
-                        onChange={event => setAssistantMessage(assistant.setVisible(event.target.checked) ? "Saved for your account in this browser." : "Applied for this session. Browser storage is unavailable.")}
-                        className="h-5 w-5 shrink-0 accent-[var(--color-primary)]" />
-                    </label>
-                    <p className="mt-2 text-xs text-[var(--color-text-secondary)]">This preference is saved for your signed-in account in this browser. Set it separately on other devices. Guide is always available in the sidebar.</p>
-                    {assistantMessage && <p className="mt-2 text-sm text-[var(--color-text-secondary)]" role="status">{assistantMessage}</p>}
-                  </section>
-                )}
                 <section aria-labelledby="color-theme-heading">
                   <div className="mb-3">
                     <h3 id="color-theme-heading" className="text-lg font-extrabold text-slate-800 dark:text-white">Color theme</h3>

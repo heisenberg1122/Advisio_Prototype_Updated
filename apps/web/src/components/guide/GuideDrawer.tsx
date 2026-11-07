@@ -17,16 +17,15 @@ import {
   type ResearcherHelpId,
 } from "@/lib/researcher-guide";
 import {
-  ADVISER_HELP,
   adviserCategories,
   adviserPopular,
   type AdviserHelpId,
 } from "@research-management/shared/src/adviser-help";
 import {
-  authorizedAssistantTopics,
-  normalizeAssistantQuestion,
-  type AssistantWorkspace,
-} from "@research-management/shared/src/researcher-assistant";
+  authorizedAdviserHelp,
+  normalizeGuideQuestion,
+  type GuideWorkspace,
+} from "@research-management/shared/src/guide-help";
 import { searchHelpTopics } from "@research-management/shared/src/researcher-help";
 import "./researcher-guide.css";
 
@@ -115,7 +114,7 @@ const contextual: Record<
   },
 };
 interface Props {
-  workspace: AssistantWorkspace;
+  workspace: GuideWorkspace;
   permissions: readonly string[];
   page: GuideHelpId;
   selected: GuideHelpId | null;
@@ -149,12 +148,7 @@ export function GuideDrawer({
   const search = useRef<HTMLInputElement>(null),
     heading = useRef<HTMLHeadingElement>(null);
   const adviser = workspace === "adviser";
-  const adviserTopics = adviser
-    ? authorizedAssistantTopics(permissions, workspace)
-    : [];
-  const adviserHelp = ADVISER_HELP.filter((item) =>
-    adviserTopics.some((topic) => topic.id === item.id),
-  );
+  const adviserHelp = authorizedAdviserHelp(permissions);
   const topics = adviser ? adviserHelp : RESEARCHER_HELP;
   const topic = topics.find((item) => item.id === selected);
   const contextTopic = topics.find((item) => item.id === page);
@@ -167,7 +161,7 @@ export function GuideDrawer({
   const results = !query.trim()
     ? []
     : adviser
-      ? searchHelpTopics(normalizeAssistantQuestion(query), adviserHelp)
+      ? searchHelpTopics(normalizeGuideQuestion(query), adviserHelp)
       : searchResearcherHelp(query);
   useEffect(() => {
     (selected ? heading.current : search.current)?.focus({
