@@ -149,6 +149,12 @@ export function ResearcherHomeHero({
           </ol>
         </div>
       )}
+      {steps.length === 0 && (
+        <p className="rh-journey-empty">
+          <i aria-hidden="true" className="ti ti-route" />
+          Your milestones will appear here once your project is linked to a workflow.
+        </p>
+      )}
       {position && (
         <div className="rh-mobile-step">
           <p>

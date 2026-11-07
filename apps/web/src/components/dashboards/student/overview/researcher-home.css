@@ -852,3 +852,39 @@
   border-top: 1px solid var(--rcc-line);
   align-self: stretch;
 }
+
+/* Banner keeps a steady size on desktop whatever the account's state, so a
+   new project without a timeline doesn't collapse into a thin strip. */
+@media (min-width: 768px) {
+  .researcher-home .rh-hero {
+    display: flex;
+    flex-direction: column;
+    min-height: 236px;
+  }
+  .researcher-home .rh-hero > .rh-steps-scroll,
+  .researcher-home .rh-hero > .rh-journey-empty {
+    margin-top: auto;
+  }
+}
+@media (min-width: 1600px) {
+  .researcher-home .rh-hero {
+    min-height: 260px;
+    padding: 28px 32px 24px;
+  }
+}
+.rh-journey-empty {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rh-hero-line);
+  color: var(--rh-hero-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.rh-journey-empty i {
+  color: var(--rh-accent);
+  font-size: 1rem;
+}
