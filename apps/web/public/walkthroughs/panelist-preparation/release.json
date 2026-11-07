@@ -7,8 +7,8 @@
   "files": [
     {
       "name": "master-1080p.mp4",
-      "bytes": 12705378,
-      "sha256": "6dc949cc47cd0585fb16b567e9fc103f583af2e91b182d51af1181455ad2a624"
+      "bytes": 9600511,
+      "sha256": "2430dfe3b5211f0d0d674b70ba13f06ea377726983e589d3ec38505be69ad851"
     },
     {
       "name": "panelist-preparation-web.mp4",
@@ -52,13 +52,13 @@
     },
     {
       "name": "chapters/workspace.mp4",
-      "bytes": 5784364,
-      "sha256": "36fbb65850bc5e6a8609ec178ad2d5e6e94c717522406e8bb82221b6dce7e90d"
+      "bytes": 5012752,
+      "sha256": "e71fa35dbe62aaa4c96b03f15b58c90dda94e4b0884bb51429fa4ddc782ff678"
     },
     {
       "name": "chapters/preparation.mp4",
-      "bytes": 4880182,
-      "sha256": "a258b8d3744fe2aae1af640f07a32d1f05790a9dc1a8df754310658cfcda8908"
+      "bytes": 4331272,
+      "sha256": "13fbacaf8575eb77a38961668e50c9d7dd056a1d74b75acc498764d0cda7d323"
     },
     {
       "name": "chapters/support.mp4",

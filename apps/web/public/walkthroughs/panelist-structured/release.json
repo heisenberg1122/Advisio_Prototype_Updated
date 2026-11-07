@@ -7,8 +7,8 @@
   "files": [
     {
       "name": "master-1080p.mp4",
-      "bytes": 23358184,
-      "sha256": "68594898fb56aef3f98b4f285469b98a609d2621bee3549667c3befd5f000678"
+      "bytes": 17652188,
+      "sha256": "7a5a98579c63748e4b786f67521e117a9861127e493eb20b12ebc2b9d99c9084"
     },
     {
       "name": "panelist-structured-web.mp4",
@@ -52,33 +52,33 @@
     },
     {
       "name": "chapters/workspace.mp4",
-      "bytes": 5765463,
-      "sha256": "2635470ac9dd7b1c8c0c77386a1c29add66c87331bbfde76e70ed74482fbc7cd"
+      "bytes": 5012476,
+      "sha256": "e9eb261d366c063b38a3a14199f62cf723bd9c45e2750d5797bb5181b58de953"
     },
     {
       "name": "chapters/preparation.mp4",
-      "bytes": 4898622,
-      "sha256": "8590a5a5f7b2a76c2f5c581ef60878efe149557037bc74cd05486f861b5c739a"
+      "bytes": 4367132,
+      "sha256": "0a944edb2b57df85b809908e0c8a6d6dc0efc5a8ee86d5c507fe3477076143c2"
     },
     {
       "name": "chapters/live.mp4",
-      "bytes": 1196801,
-      "sha256": "424a64957e00fc1ed257ea6280d58a411660c7d980ddcd2ed24fa60bfd7556f2"
+      "bytes": 1043181,
+      "sha256": "903112f9cb72089130a387bfdb5828c7801571fef605962c5e2a83c2b04dd7ca"
     },
     {
       "name": "chapters/structured.mp4",
-      "bytes": 4036927,
-      "sha256": "33504b7667b5018fb128dc4c3a0c8680805d6abe0950699d4f6d738d54cb23f4"
+      "bytes": 3466524,
+      "sha256": "d9ad0c79324d773cdd5a47498e6f9e08dc01794f42a742d2fa0e13bcdf050c51"
     },
     {
       "name": "chapters/results.mp4",
-      "bytes": 2336825,
-      "sha256": "cf873b7aaa0547969cc38366b48c197ceedf04d979d1f69e1fb38dd5a79c97ff"
+      "bytes": 2092121,
+      "sha256": "3ee3f7cc48491ab477bf4cb499028e0a7b2d217cb73e956b9b260e2723e6ec57"
     },
     {
       "name": "chapters/support.mp4",
-      "bytes": 2103262,
-      "sha256": "6758e18e4f45856a6de2b4e39c0188d3e5ceb77d566ba42d758bfb857b703617"
+      "bytes": 1808392,
+      "sha256": "52c4bc256f93296e31cfdd8bb556f6265df436fcea8531ef8e66a18a6b1ae801"
     }
   ]
 }
