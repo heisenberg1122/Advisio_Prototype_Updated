@@ -1,9 +1,8 @@
-import {
-  OverviewHeader,
-  OverviewDefenseResult,
-  OverviewConsultation,
-  OverviewGettingStarted,
-} from "@/components/dashboards/student/overview/ResearchCommandCenter";
+import { OverviewDefenseResult, OverviewGettingStarted } from "@/components/dashboards/student/overview/ResearchCommandCenter";
+import { ResearcherComingUp, ResearcherHomeHero, ResearcherLatestUpdates, ResearcherNextStep, ResearcherWorkflows } from "@/components/dashboards/student/overview/ResearcherHome";
+import { buildComingUp, buildJourney, buildLatestUpdates, memberInitials } from "@/lib/researcher-home";
+import { getAcademicIdentity } from "@/lib/academic-identity";
+import { humanizeTimestamps } from "@/lib/project-overview-display";
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
 import { JoinedWorkflows } from "@/components/workflow/JoinedWorkflows";
 import { resolveStudentWorkflow } from "@/lib/student-workflow-context";
@@ -22,6 +21,7 @@ import { Button } from "@/components/ui/Button";
 import { CardsPageSkeleton, DashboardSkeleton, FilesPageSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import "@/components/dashboards/student/my-project-workspace.css";
 import { StudentProjectOverview } from "@/components/dashboards/student/StudentProjectOverview";
+import { ProjectGroupPanel } from "@/components/dashboards/student/ProjectGroupPanel";
 import {
   currentProjectMilestone, overviewDate, overviewStatus, pendingProjectRequirements, projectActivityHref,
   projectConsultationHref, projectSectionHref, resolveProjectNextStep, summarizeProjectDocuments,
@@ -1269,26 +1269,86 @@ function StudentDashboardContent() {
     loading: progressLoading,
     error: progressError,
     isLeader: isGroupLeader,
+    defenseDecision: officialDefenseResult?.releasedAt ? officialDefenseResult.decision : null,
   }) : null;
   const homeDeadlines = activeProject && !progressError
     ? pendingProjectRequirements(activeProject, manuscriptWorkflowData?.milestones, now)
-      .filter(({ dueAt, priority }) => dueAt && dueAt.getTime() >= now && priority < 3).slice(0, 3)
+      .filter(({ dueAt, overdue, priority }) => dueAt && (overdue || dueAt.getTime() >= now) && priority < 3).slice(0, 4)
     : [];
   const projectActivity = activeProject && !activeProject.workflowAccessRemoved && !progressError
     ? (manuscriptWorkflowData?.activity || []).slice(0, 4).map((event) => ({
-      id: event.id, title: event.title, detail: event.description, date: event.timestamp,
+      id: event.id, title: event.title, detail: humanizeTimestamps(event.description), date: event.timestamp,
       href: projectActivityHref(event, activeProject.id),
     }))
     : [];
+  const homeJourney = buildJourney(
+    manuscriptWorkflowData?.milestones,
+    activeProject ? currentProjectMilestone(activeProject, manuscriptWorkflowData?.milestones)?.id : undefined,
+    Boolean(activeProject?.workflowInstance?.completedAt),
+  );
+  const homeLogoSrc = getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc;
+  const homeMembers = activeStudentMembers.map((member: any) => ({ id: member.id, initials: memberInitials(member.user) }));
+  const homeComingUp = buildComingUp([
+    ...homeDeadlines.map((task) => ({
+      id: task.id, kind: "deadline" as const, title: task.title, date: task.dueAt!,
+      href: studentTaskDetailsHref(task.id, activeProject?.id),
+    })),
+    ...(activeProject ? upcomingConsultations.map((item: ConsultationItem) => ({
+      id: item.id, kind: "consultation" as const, title: item.topic, date: item.scheduledStart, mode: item.mode,
+      href: projectConsultationHref(activeProject.id, item.id),
+    })) : []),
+    ...(activeProject && upcomingDefense ? [{
+      id: upcomingDefense.id, kind: "defense" as const, title: "Scheduled defense", date: upcomingDefense.scheduledStart,
+      href: projectSelection.projectHref(`/student/defense/${upcomingDefense.id}`),
+    }] : []),
+  ], now);
+  const homeUpdates = buildLatestUpdates([
+    ...apiNotifications.map((notification: { id: string; title: string; message?: string; createdAt: string; actionUrl?: string; isRead?: boolean }) => ({
+      id: notification.id, title: notification.title || notification.message, date: notification.createdAt,
+      href: notificationLink(notification.actionUrl, "student"), unread: !notification.isRead,
+    })),
+    ...projectActivity.map(({ id, title, href, date }) => ({ id, title, date, href })),
+  ]);
+  const homeSetupSteps = [
+    {
+      label: activeProject || canStartProject ? "Register project" : "View group",
+      icon: "ti-file-description",
+      description: "View your project or register a research title.",
+      complete: Boolean(activeProject?.registeredAt),
+      onClick: () => !activeProject && canStartProject ? setShowCreateModal(true) : handleTabChange("group"),
+    },
+    {
+      label: "Set up your group",
+      icon: "ti-users",
+      description: "Invite your team, if any.",
+      complete: activeStudentMembers.length > 1,
+      onClick: () => handleTabChange("my-group"),
+    },
+    {
+      label: "Choose an adviser",
+      icon: "ti-user-check",
+      description: isGroupLeader ? "Browse verified faculty and send a formal request." : "View your project\u2019s adviser status.",
+      complete: Boolean(activeAdviserMembership),
+      onClick: () => isGroupLeader ? handleTabChange("adviser-pool") : handleTabChange("group"),
+    },
+  ];
+  // The group step is optional because solo research is allowed.
+  const homeSetupComplete = homeSetupSteps[0].complete && homeSetupSteps[2].complete;
+  const homeGettingStarted = (
+    <OverviewGettingStarted
+      onTour={() => localStorage.getItem("advisio_token") === "__evaluation__" ? window.dispatchEvent(new Event("advisio:evaluation-activities")) : router.push("/walkthrough/research-dashboard")}
+      steps={homeSetupSteps}
+    />
+  );
   const academic: OverviewRecord[] = [];
   if (activeProject && upcomingConsultation) academic.push({
     id: upcomingConsultation.id, title: upcomingConsultation.topic,
-    detail: `Confirmed consultation · ${overviewDate(upcomingConsultation.scheduledStart, true)}`,
+    detail: "Confirmed", date: upcomingConsultation.scheduledStart, dateWithTime: true,
     href: projectConsultationHref(activeProject.id, upcomingConsultation.id),
   });
   if (activeProject && upcomingDefense) academic.push({
     id: upcomingDefense.id, title: "Scheduled defense",
-    detail: overviewDate(upcomingDefense.scheduledStart, true),
+    detail: "Scheduled", date: upcomingDefense.scheduledStart, dateWithTime: true,
     href: projectSelection.projectHref(`/student/defense/${upcomingDefense.id}`),
   });
   if (activeProject && officialDefenseResult?.releasedAt) academic.push({
@@ -1355,104 +1415,58 @@ function StudentDashboardContent() {
 
           const tabContent: Record<string, React.ReactNode> = {
             overview: (
-              <div className="research-command-center">
-                <OverviewHeader firstName={user?.firstName} actions={null} />
-                <div className="rcc-workflow-access"><WorkflowAccessInbox /></div>
-                <section className="rcc-panel researcher-home-project" data-tour="researcher-project">
-                  <div>
-                    <p className="rcc-eyebrow">Active research project</p>
-                    <h2 className="rcc-project-title">{activeProject?.title || (activeProject ? "Research title not added" : "Select or register a project")}</h2>
-                    {activeProject && (
-                      <p className="rcc-supporting">
-                        {activeProject.workflowAccessRemoved ? "Workflow access removed"
-                          : activeProject.workflowInstance?.completedAt ? "Workflow completed"
-                          : currentProjectMilestone(activeProject, manuscriptWorkflowData?.milestones)?.name
-                            || activeProject.workflowInstance?.currentStage?.name || "No current stage"}
-                      </p>
-                    )}
-                  </div>
-                  {isResearchError ? (
+              <div className="research-command-center researcher-home">
+                <ResearcherHomeHero
+                  firstName={user?.firstName}
+                  title={activeProject?.title || (activeProject ? "Research title not added" : "Let\u2019s set up your research project")}
+                  steps={homeJourney}
+                  progress={activeProject && !progressLoading && !progressError && homeJourney.length ? projectProgress : null}
+                  members={homeMembers}
+                  memberCount={homeMembers.length}
+                  adviserName={[activeAdviserMembership?.user?.firstName, activeAdviserMembership?.user?.lastName].filter(Boolean).join(" ")}
+                  logoSrc={homeLogoSrc}
+                  action={isResearchError ? (
                     <button type="button" onClick={() => void refetchResearch()} className="rcc-button rcc-button--secondary">Retry project lookup</button>
                   ) : (
-                    <Link href={projectSelection.projectHref(projectSectionHref("overview"), activeProject?.id)} className="rcc-button rcc-button--secondary">Open Research Workspace</Link>
+                    <Link href={projectSelection.projectHref(projectSectionHref("overview"), activeProject?.id)} className="rcc-button rcc-button--secondary">Open research workspace <i aria-hidden="true" className="ti ti-arrow-right" /></Link>
                   )}
-                </section>
-                {homeNextStep && (
-                  <section className="rcc-panel researcher-home-next" data-tour="researcher-next">
-                    <div>
-                      <p className="rcc-eyebrow">{homeNextStep.label}</p>
-                      <h2>{homeNextStep.title}</h2>
-                      <p className="rcc-supporting">{homeNextStep.description}</p>
-                    </div>
-                    {homeNextStep.action && <button type="button" onClick={() => handleProjectAction(homeNextStep.action!)} className="rcc-button rcc-button--primary">{homeNextStep.buttonLabel}</button>}
-                  </section>
-                )}
+                />
+                <div className="rcc-workflow-access"><WorkflowAccessInbox /></div>
                 {officialDefenseResult && <OverviewDefenseResult decision={officialDefenseResult.decision} releasedOn={overviewDate(officialDefenseResult.releasedAt)} />}
-                <div className="rcc-activity-grid researcher-home-grid">
-                  <section className="rcc-panel" data-tour="researcher-deadlines">
-                    <h2>Upcoming deadlines</h2>
-                    {homeDeadlines.length > 0 ? <ul className="researcher-home-list">
-                      {homeDeadlines.map((task) => (
-                        <li key={task.id}>
-                          <Link href={studentTaskDetailsHref(task.id, activeProject?.id)}>{task.title}</Link>
-                          <time dateTime={task.dueAt!.toISOString()}>{overviewDate(task.dueAt!)}</time>
-                        </li>
-                      ))}
-                    </ul> : <p className="rcc-supporting">{isMilestoneLoading ? "Checking deadlines…" : isMilestoneError ? "Deadlines could not be loaded." : "No upcoming deadlines for the selected project."}</p>}
-                  </section>
-                  <OverviewConsultation consultation={upcomingConsultation || null} onConsultations={() => handleTabChange("consultations")} />
-                  <section className="rcc-panel">
-                    <div className="rcc-panel-heading">
-                      <h2>Notifications</h2>
-                      <Link className="rcc-link" href={projectSelection.projectHref("/student/notifications")}>View all</Link>
-                    </div>
-                    {apiNotifications.length > 0 ? <ul className="researcher-home-list">
-                      {apiNotifications.slice(0, 3).map((notification: { id: string; title: string; message?: string; createdAt: string; actionUrl?: string; isRead?: boolean }) => {
-                        const href = notificationLink(notification.actionUrl, "student");
-                        const label = notification.title || notification.message;
-                        return <li key={notification.id}>
-                          <span>{!notification.isRead && <strong>Unread · </strong>}{href ? <Link href={href}>{label}</Link> : label}</span>
-                          <time dateTime={notification.createdAt}>{overviewDate(notification.createdAt)}</time>
-                        </li>;
-                      })}
-                    </ul> : <p className="rcc-supporting">No recent notifications.</p>}
-                  </section>
-                  <section className="rcc-panel">
-                    <h2>Recent research updates</h2>
-                    {projectActivity.length > 0 ? <ul className="researcher-home-list">
-                      {projectActivity.slice(0, 3).map(({ id, title, href, date }) => (
-                        <li key={id}><Link href={href!}>{title}</Link>{date && <time dateTime={date}>{overviewDate(date)}</time>}</li>
-                      ))}
-                    </ul> : <p className="rcc-supporting">{isMilestoneLoading ? "Checking project activity…" : isMilestoneError ? "Project activity could not be loaded." : "No recent research updates."}</p>}
-                  </section>
-                  <OverviewGettingStarted
-                    onTour={() => localStorage.getItem("advisio_token") === "__evaluation__" ? window.dispatchEvent(new Event("advisio:evaluation-activities")) : router.push("/walkthrough/research-dashboard")}
-                    steps={[
-                      {
-                        label: activeProject || canStartProject ? "Register project" : "View group",
-                        icon: "ti-file-description",
-                        description: "View your project or register a research title.",
-                        complete: Boolean(activeProject?.registeredAt),
-                        onClick: () => !activeProject && canStartProject ? setShowCreateModal(true) : handleTabChange("group"),
-                      },
-                      {
-                        label: "Set up your group",
-                        icon: "ti-users",
-                        description: "Invite your team, if any.",
-                        complete: activeStudentMembers.length > 1,
-                        onClick: () => handleTabChange("my-group"),
-                      },
-                      {
-                        label: "Choose an adviser",
-                        icon: "ti-user-check",
-                        description: isGroupLeader ? "Browse verified faculty and send a formal request." : "View your project’s adviser status.",
-                        complete: Boolean(activeAdviserMembership),
-                        onClick: () => isGroupLeader ? handleTabChange("adviser-pool") : handleTabChange("group"),
-                      },
-                    ]}
+                {homeNextStep ? (
+                  <ResearcherNextStep
+                    step={homeNextStep}
+                    now={now}
+                    action={homeNextStep.action ? <button type="button" onClick={() => handleProjectAction(homeNextStep.action!)} className="rcc-button rcc-button--primary">{homeNextStep.buttonLabel} <i aria-hidden="true" className="ti ti-arrow-right" /></button> : null}
                   />
-                  <div className="rcc-joined"><JoinedWorkflows enrollments={workflowEnrollmentData?.enrollments || []} /></div>
+                ) : (
+                  <ResearcherNextStep
+                    step={{ label: "Your next step", tone: "neutral", title: canStartProject ? "Register your research project" : "Select your research project", description: canStartProject ? "Add your project to start tracking milestones, deadlines, and consultations here." : "Choose a project, or check with your group leader if you haven\u2019t been added to one yet." }}
+                    now={now}
+                    action={<button type="button" onClick={() => canStartProject ? setShowCreateModal(true) : handleTabChange("group")} className="rcc-button rcc-button--primary">{canStartProject ? "Get started" : "View projects"} <i aria-hidden="true" className="ti ti-arrow-right" /></button>}
+                  />
+                )}
+                <div className="rh-columns">
+                  {activeProject ? (
+                    <ResearcherComingUp
+                      items={homeComingUp}
+                      emptyMessage={isMilestoneLoading ? "Checking deadlines\u2026" : isMilestoneError ? "Deadlines could not be loaded." : "No upcoming deadlines or consultations for this project."}
+                      calendarHref={projectSelection.projectHref("/student/calendar")}
+                      onBookConsultation={() => handleTabChange("consultations")}
+                    />
+                  ) : homeGettingStarted}
+                  {(activeProject || homeUpdates.length > 0) && (
+                    <ResearcherLatestUpdates
+                      items={homeUpdates}
+                      emptyMessage={isMilestoneLoading ? "Checking project activity\u2026" : "No recent updates."}
+                      viewAllHref={projectSelection.projectHref("/student/notifications")}
+                    />
+                  )}
                 </div>
+                {activeProject && !homeSetupComplete && homeGettingStarted}
+                <ResearcherWorkflows count={workflowEnrollmentData?.enrollments?.length || 0}>
+                  <JoinedWorkflows enrollments={workflowEnrollmentData?.enrollments || []} />
+                </ResearcherWorkflows>
               </div>
             ),
             "overview-legacy": (
@@ -1735,7 +1749,45 @@ function StudentDashboardContent() {
             ),
             "my-group": (
               <section className="student-projects-readable mp-workspace mp-group">
-                {!activeProject && (researchData?.projects?.length || 0) > 0 ? <p data-guide="group-selection" className="text-base text-[var(--color-text-secondary)]">Select a research project above to view its group.</p> : activeProject || activeWorkspace ? <>
+                {!activeProject && (researchData?.projects?.length || 0) > 0 ? <p data-guide="group-selection" className="text-base text-[var(--color-text-secondary)]">Select a research project above to view its group.</p> : activeProject ? (
+                  <ProjectGroupPanel
+                    groupName={activeProject.groupName || "Research team"}
+                    projectTitle={activeProject.title}
+                    isLeader={isGroupLeader}
+                    logoSrc={homeLogoSrc}
+                    members={activeStudentMembers.map((member: any) => ({
+                      id: member.id,
+                      name: [member.user?.firstName, member.user?.lastName].filter(Boolean).join(" ") || "Group member",
+                      email: member.user?.email,
+                      leader: member.projectRole === "LEADER",
+                      isYou: member.userId === user?.id || member.user?.id === user?.id,
+                      raw: member,
+                    }))}
+                    joinRequests={isGroupLeader && pendingJoinRequests.length > 0 ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center justify-between"><div><h2 className="font-extrabold text-[#102f49]">Pending join requests</h2><p className="mt-1 text-base text-slate-600">Approve only researchers who should receive this project’s workflow and files.</p></div><span className="rounded-full bg-amber-200 px-2.5 py-1 text-xs font-extrabold text-amber-900">{pendingJoinRequests.length}</span></div><div className="mt-3 space-y-2">{pendingJoinRequests.map((request: any) => <div key={request.id} className="flex flex-col gap-3 rounded-xl bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#102f49]">{request.requester ? `${request.requester.firstName} ${request.requester.lastName}` : "Researcher"}</p><p className="text-base text-slate-500">{request.requester?.email} · Requested {new Date(request.createdAt).toLocaleDateString()}</p></div><div className="flex gap-2"><button onClick={() => decideJoinRequest(request.id, "REJECT")} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-700">Reject</button><button onClick={() => decideJoinRequest(request.id, "ACCEPT")} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-extrabold text-white">Accept</button></div></div>)}</div></div> : null}
+                    onTransfer={(member) => setGroupAction({ type: "transfer", member })}
+                    onRemove={(member) => setGroupAction({ type: "remove", member })}
+                    onLeave={!isGroupLeader && currentMembership ? () => setGroupAction({ type: "leave" }) : undefined}
+                    onMessages={() => handleTabChange("group-chats")}
+                    onTasks={() => router.push(projectSelection.projectHref("/student/tasks"))}
+                    onFiles={() => router.push(projectSelection.projectHref("/student/group-files"))}
+                    invite={isGroupLeader ? <>
+                      <TeamEmailInvitation teamId={activeProject.id} kind="project" />
+                      <div className="mp-panel mp-invitation-code">
+                      <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Invitation code and link</h2>
+                      <p className="mt-1 text-base text-slate-600">Researchers review the group before joining or requesting approval.</p>
+                      {inviteCode ? <div className="mt-3 space-y-2"><div className="rounded-lg bg-white p-3 font-mono text-sm font-bold text-[#173f63]">Code: {inviteCode}</div><div className="flex flex-wrap gap-2"><button onClick={() => navigator.clipboard.writeText(inviteCode).then(() => triggerToast("Invite code copied."))} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-700"><i className="ti ti-copy mr-1" />Copy code</button><button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join-group?code=${inviteCode}`).then(() => triggerToast("Shareable link copied."))} className="rounded-lg bg-[#173f63] px-3 py-2 text-sm font-extrabold text-white"><i className="ti ti-link mr-1" />Copy link</button><button onClick={handleCreateInvite} className="rounded-lg px-3 py-2 text-sm font-bold text-slate-600">Rotate code</button></div></div> : <button onClick={handleCreateInvite} className="mt-3 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"><i className="ti ti-user-plus mr-1" />Create invitation</button>}
+                      </div>
+                    </> : undefined}
+                    settings={isGroupLeader ? {
+                      summary: [projectParticipationMode === "SOLO" ? "Solo" : "Group", projectParticipationMode === "GROUP" ? ({ INVITE_ONLY: "Invite only", PUBLIC_APPROVAL: "Code access, leader approval", PUBLIC_OPEN: "Code access, join immediately" } as Record<string, string>)[projectAccessMode] : null].filter(Boolean).join(" · "),
+                      content: <>
+                        <label className="mt-3 block text-sm font-bold text-slate-600">Working arrangement<select value={projectParticipationMode} onChange={(event) => setProjectParticipationMode(event.target.value as "SOLO" | "GROUP")} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="SOLO">Solo</option><option value="GROUP">Group</option></select></label>
+                        {projectParticipationMode === "GROUP" && <><label className="mt-3 block text-sm font-bold text-slate-600">How researchers can join<select value={projectAccessMode} onChange={(event) => setProjectAccessMode(event.target.value as typeof projectAccessMode)} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="INVITE_ONLY">Invite only</option><option value="PUBLIC_APPROVAL">Code access — leader approval</option><option value="PUBLIC_OPEN">Code access — join immediately</option></select></label><label className="mt-3 flex items-center gap-2 text-sm font-bold text-slate-600"><input type="checkbox" checked={projectInviteEnabled} onChange={(event) => setProjectInviteEnabled(event.target.checked)} />Accept joins using the current code</label></>}
+                        <button onClick={handleSaveProjectAccess} disabled={projectAccessSaving} className="mt-4 rounded-lg bg-[#173f63] px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">{projectAccessSaving ? "Saving…" : "Save access settings"}</button>
+                      </>,
+                    } : undefined}
+                  />
+                ) : activeWorkspace ? <>
                   <div className="mp-panel mp-group-identity" data-guide="group-identity">
                     <h2 className="text-lg font-bold text-[#102f49]">{activeProject ? activeProject.groupName || "Research team" : activeWorkspace?.name}</h2>
                     <p className="mt-1 text-base text-slate-600">{activeProject?.title || "Research project awaiting registration by your leader."}</p>
@@ -1796,6 +1848,8 @@ function StudentDashboardContent() {
                   <StudentProjectOverview
                     project={activeProject}
                     isLeader={isGroupLeader}
+                    defenseDecision={officialDefenseResult?.releasedAt ? officialDefenseResult.decision : null}
+                    logoSrc={homeLogoSrc}
                     workflowName={activeProject.workflowInstance?.workflow?.name}
                     coordinator={workflowProject && activeWorkflowEnrollment?.workflow?.creator ? [activeWorkflowEnrollment.workflow.creator.firstName, activeWorkflowEnrollment.workflow.creator.lastName].filter(Boolean).join(" ") || activeWorkflowEnrollment.workflow.creator.email : undefined}
                     academicYear={activeProject.academicYear?.name}

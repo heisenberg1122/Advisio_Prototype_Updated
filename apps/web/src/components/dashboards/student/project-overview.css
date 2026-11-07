@@ -1,0 +1,432 @@
+/* Project Overview refinements. The page keeps its existing cards (mp-*); these
+   rules add the tinted header, quieter status text and a steadier rhythm. */
+.po-page {
+  --po-line: color-mix(in srgb, var(--color-border) 75%, var(--color-surface));
+  --po-tint: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+
+/* Header */
+.mp-project .po-cover {
+  position: relative;
+  overflow: hidden;
+  padding: 24px 26px;
+  border-width: 1px;
+  background: linear-gradient(
+    120deg,
+    var(--color-surface) 0%,
+    color-mix(in srgb, var(--po-tint) 40%, var(--color-surface)) 45%,
+    var(--po-tint) 100%
+  );
+}
+.po-cover-seal {
+  position: absolute;
+  top: -40px;
+  right: -30px;
+  width: 250px;
+  height: 250px;
+  object-fit: contain;
+  opacity: 0.07;
+  filter: grayscale(1);
+  pointer-events: none;
+  user-select: none;
+}
+.dark .po-cover-seal {
+  opacity: 0.06;
+}
+.po-cover-layout {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 24px;
+}
+.po-cover-copy {
+  flex: 1;
+  min-width: 0;
+}
+.po-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 6px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.po-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text-secondary) 12%, var(--color-surface));
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.po-badge--attention {
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
+  color: var(--color-danger);
+}
+.mp-project .po-title {
+  max-width: 46ch;
+  margin: 0;
+  font-size: clamp(1.25rem, 1rem + 0.8vw, 1.5rem);
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-wrap: pretty;
+}
+.mp-project .po-title--empty {
+  color: var(--color-text-secondary);
+}
+.po-people {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 22px;
+  margin-top: 14px;
+  font-size: 13.5px;
+}
+.po-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.po-person small {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 11.5px;
+  line-height: 1.2;
+}
+.po-person b {
+  display: block;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.po-stack {
+  display: flex;
+}
+.po-stack > span,
+.po-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.po-stack > span {
+  margin-left: -7px;
+  border: 2px solid var(--color-surface);
+  background: color-mix(in srgb, var(--color-text-secondary) 14%, var(--color-surface));
+  color: var(--color-text-primary);
+}
+.po-stack > span:first-child {
+  margin-left: 0;
+}
+.po-avatar {
+  background: var(--color-primary);
+  color: var(--college-on-primary, #ffffff);
+}
+.dark .po-avatar {
+  color: var(--color-text-inverse);
+}
+.po-avatar--muted,
+.dark .po-avatar--muted {
+  background: color-mix(in srgb, var(--color-text-secondary) 14%, var(--color-surface));
+  color: var(--color-text-primary);
+}
+.po-pending-title {
+  margin-top: 10px;
+}
+.po-cover-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.po-cover-actions {
+  display: flex;
+  gap: 8px;
+}
+.mp-workspace .po-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+.po-abstract-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+.po-abstract-toggle svg {
+  transition: transform 160ms ease;
+}
+.po-abstract-toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+.po-abstract {
+  position: relative;
+  max-width: 90ch;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--po-line);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.po-abstract[hidden] {
+  display: none;
+}
+
+/* Next step */
+.mp-project .po-next {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 24px 28px;
+}
+.po-eyebrow {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.mp-project .po-next-title {
+  margin: 8px 0 6px;
+  font-size: 20px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  text-wrap: pretty;
+}
+.po-next-description {
+  max-width: 60ch;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.po-next-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-top: 18px;
+}
+.po-due {
+  color: var(--color-danger);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Section headings and lists */
+.po-heading {
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--po-line);
+}
+.po-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.po-rows > li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+.po-rows > li + li {
+  border-top: 1px solid var(--po-line);
+}
+.po-row-body {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+}
+.po-row-title {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
+  text-underline-offset: 3px;
+}
+a.po-row-title:hover {
+  text-decoration-color: currentColor;
+}
+.po-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+}
+.po-status--attention {
+  color: var(--color-danger);
+}
+.po-status--attention::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.po-page .po-row-body > .po-status {
+  display: flex;
+  width: fit-content;
+  margin-top: 4px;
+}
+.po-page .po-row-body > .po-status--clip {
+  display: block;
+  width: auto;
+}
+.po-status--clip {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.po-when {
+  flex: none;
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  text-align: right;
+  white-space: nowrap;
+}
+.po-when--soon {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+.po-member .po-status {
+  margin-top: 0;
+}
+.po-empty {
+  padding-top: 10px;
+}
+
+/* Milestones */
+.po-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 6px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.po-progress progress {
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-text-secondary) 14%, var(--color-surface));
+  appearance: none;
+}
+.po-progress progress::-webkit-progress-bar {
+  background: transparent;
+}
+.po-progress progress::-webkit-progress-value {
+  border-radius: 6px;
+  background: var(--color-primary);
+}
+.po-progress progress::-moz-progress-bar {
+  border-radius: 6px;
+  background: var(--color-primary);
+}
+.po-milestones {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.po-milestone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 14px;
+}
+.po-milestone + .po-milestone {
+  border-top: 1px solid var(--po-line);
+}
+.po-milestone strong {
+  flex: 1;
+  min-width: 0;
+  font-weight: 500;
+}
+.po-milestone > span:last-child {
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.po-milestone-dot {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.po-milestone--done .po-milestone-dot {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--college-on-primary, #ffffff);
+}
+.dark .po-milestone--done .po-milestone-dot {
+  color: var(--color-text-inverse);
+}
+.po-milestone--current .po-milestone-dot {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+.po-milestone--current strong {
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .mp-project .po-cover {
+    padding: 18px;
+  }
+  .po-cover-layout {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .po-cover-side {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .po-cover-seal {
+    width: 190px;
+    height: 190px;
+  }
+  .mp-project .po-next {
+    padding: 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .po-abstract-toggle svg {
+    transition: none;
+  }
+}

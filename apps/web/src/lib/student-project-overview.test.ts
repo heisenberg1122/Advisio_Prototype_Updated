@@ -183,6 +183,41 @@ describe("project next step", () => {
     });
     expect(next.description).toContain("remaining eligibility");
   });
+  it("reflects the released defense decision once the workflow is complete", () => {
+    const decided = (defenseDecision: string) =>
+      resolveProjectNextStep({
+        project: { ...project, workflowInstance: { completedAt: "2026-10-25" } },
+        milestones: [stage],
+        isLeader: true,
+        defenseDecision,
+      });
+    expect(decided("APPROVED")).toMatchObject({
+      label: "Research complete",
+      tone: "success",
+      buttonLabel: "View defense result",
+    });
+    expect(decided("APPROVED")).not.toMatchObject({
+      description: expect.stringContaining("eligibility"),
+    });
+    expect(decided("APPROVED_WITH_MINOR_REVISIONS")).toMatchObject({
+      title: "Finish your minor revisions",
+      action: { kind: "defense" },
+    });
+    expect(decided("REDEFENSE_REQUIRED")).toMatchObject({
+      title: "Review your defense result",
+      tone: "action",
+    });
+  });
+  it("ignores a defense decision while the workflow is still in progress", () => {
+    expect(
+      resolveProjectNextStep({
+        project,
+        milestones: [stage],
+        isLeader: true,
+        defenseDecision: "APPROVED",
+      }),
+    ).toMatchObject({ title: "Complete Fieldwork plan" });
+  });
   it("never offers a workflow action after access removal, even with cached progress", () => {
     const next = resolve([stage], { workflowAccessRemoved: true });
     expect(next.label).toBe("Workflow access removed");
