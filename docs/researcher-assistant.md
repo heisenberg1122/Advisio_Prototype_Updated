@@ -9,7 +9,7 @@ The Researcher workspace now has a floating **Ask Advisio** button and a convers
 - `FloatingResearcherAssistant.tsx` and `researcher-assistant.css` provide the panel, suggestions, loading/errors/retry, keyboard access and responsive layout. `researcher-guide-provider.tsx` authorizes each Take me there, Show me and Open Guide action and preserves the selected project.
 - `POST /api/researcher-assistant` uses existing authentication and the Researcher role. It resolves confident questions from verified help, clarifies ambiguity and uses the server-side provider for remaining questions only after the user enables AI explanations.
 - AI requests contain the current help-page identifier, the question, up to four relevant recent turns and three to five authorized help entries. Project records, manuscripts, grades, messages and account details are excluded. Duplicate questions and fallback notices are removed from model history.
-- The OpenAI Responses adapter requests strict JSON with topic IDs from the retrieved entries and `store: false`. Server validation rejects invented routes, unregistered topics, malformed/incomplete responses and provider failures. The implementation follows the official [Structured Outputs documentation](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses).
+- Both providers request strict JSON with topic IDs from retrieved entries. Groq uses Chat Completions with low reasoning effort. OpenAI uses Responses with `store: false`. Server validation rejects invented routes, unregistered topics and malformed or incomplete responses. [Groq Structured Outputs](https://console.groq.com/docs/structured-outputs) · [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses)
 
 The conversation remains in component memory, bounded to about 40 displayed messages. Refresh, sign-out, account/college change or Clear conversation removes it. Provider processing follows its data policy. AI explanations are opt-in for each workspace session.
 
@@ -19,15 +19,33 @@ The conversation remains in component memory, bounded to about 40 displayed mess
 
 The current account schema supports specific display preferences and browser-local notification preferences. Assistant visibility therefore uses browser-local persistence with an on-screen cross-device explanation. The setting applies separately on other browsers/devices.
 
+## Edit the AI reply instructions
+
+Open `apps/api/src/config/assistant-instructions.ts` and add one instruction per quoted line in the list. For example, add `"Give the next step first, then explain why it matters.",` to put the action before the explanation. Restart the local API after editing. These instructions apply to AI replies across all supported workspaces. Verified Guide entries supply the workflow facts and quick answers.
+
 ## Provider and cost controls
 
-The local preview uses verified help and a provider-unavailable fallback. The AI path was tested using mocked responses.
+### Try Groq locally
+
+Create a key in the [Groq console](https://console.groq.com/keys). Set these values in the ignored `apps/api/.env` file and keep the key on the API server.
+
+```dotenv
+ASSISTANT_AI_ENABLED="true"
+ASSISTANT_AI_PROVIDER="groq"
+ASSISTANT_MODEL="openai/gpt-oss-120b"
+GROQ_API_KEY="paste-your-key-here"
+```
+
+Restart `npm run dev`. In the Researcher workspace, open Advisio Assistant and ask “What’s the difference between joining a class and joining a research group?” After the assistant identifies Groq, select **Use AI for harder questions** and click **Ask with AI**. Consent applies to the named provider in the current workspace session. The Guide handles common questions even while AI is off. [Groq data controls](https://console.groq.com/docs/your-data)
+
+For a hosted rollout, set the same variables in the API host’s environment and provide a reachable `ASSISTANT_REDIS_URL` for shared quotas. Groq replies use the same bounded chat history, timeout, concurrency limit, and Guide fallback as OpenAI.
 
 | Server setting | Default or purpose |
 | --- | --- |
 | `ASSISTANT_AI_ENABLED` | `false`; explicitly enable provider explanations |
-| `OPENAI_API_KEY` | Server-only provider credential |
-| `ASSISTANT_MODEL` | Required approved ordinary model supporting Responses structured JSON |
+| `ASSISTANT_AI_PROVIDER` | `openai` (default for existing installs) or `groq` |
+| `GROQ_API_KEY` / `OPENAI_API_KEY` | Server-only credential for the selected provider |
+| `ASSISTANT_MODEL` | Defaults to `openai/gpt-oss-120b` with Groq. Required with OpenAI. |
 | `ASSISTANT_COMPLEX_MODEL` | Optional stronger model for complex questions |
 | `ASSISTANT_TIMEOUT_MS` | 15000, capped at 25000 |
 | `ASSISTANT_INPUT_TOKEN_BUDGET` | 10000 conservative UTF-8-byte bound including instruction/envelope allowance |
@@ -46,7 +64,7 @@ There is one model call per eligible request, with cancellation and timeout hand
 
 System Administrators can read `GET /api/researcher-assistant/metrics`. It returns aggregate request, local/cache, AI, fallback, error, latency and provider-token counters without prompts, identity data or credentials. Estimated cost is unavailable when pricing is missing or a separately routed model is unpriced. Metrics cover the process lifetime. The daily quota store has its own persistence.
 
-## Verification
+## Original implementation verification
 
 - **584 frontend tests passed across 70 files.** This includes the existing Guide regressions, English/Taglish matching, trusted actions and per-account visibility.
 - **25 targeted backend tests passed.** They cover role enforcement, schema/size bounds, rate limits, atomic reservations, production shared-store requirements, consent, grounding, invented-route rejection, timeouts, failures, stronger-model routing, token accounting and cache isolation.

@@ -25,6 +25,7 @@ import {
   assistantActionId,
   authorizedAssistantTopics,
   resolveAssistantQuestion,
+  type AssistantAIProvider,
   type AssistantReply,
   type AssistantTopicId,
   type AssistantTurn,
@@ -50,6 +51,7 @@ export function FloatingResearcherAssistant() {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [allowAI, setAllowAI] = useState(false);
+  const [aiProvider, setAIProvider] = useState<AssistantAIProvider>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [pending, setPending] = useState(false);
   const [actionNotice, setActionNotice] = useState("");
@@ -69,6 +71,7 @@ export function FloatingResearcherAssistant() {
   const allowedIds = new Set(available.map((topic) => topic.id));
   const enabled = Boolean(guide?.enabled && visible && user);
   const hiddenByGuide = guide?.busy || guide?.drawerOpen;
+  const aiProviderName = aiProvider === "groq" ? "Groq" : "OpenAI";
 
   useEffect(() => {
     if (!enabled) {
@@ -77,6 +80,7 @@ export function FloatingResearcherAssistant() {
       setMessages([]);
       setDraft("");
       setAllowAI(false);
+      setAIProvider(undefined);
     }
     if (!enabled) return;
     document.documentElement.style.setProperty(
@@ -153,6 +157,7 @@ export function FloatingResearcherAssistant() {
           previousTopic: previous,
           history,
           allowAI,
+          aiProvider,
         },
         { signal: current.signal },
       );
@@ -167,6 +172,10 @@ export function FloatingResearcherAssistant() {
         ...reply,
         topicIds: (reply.topicIds || []).filter((id) => allowedIds.has(id)),
       };
+      if (safeReply.needsConsent) {
+        setAIProvider(safeReply.consentProvider ?? "openai");
+        setAllowAI(false);
+      }
       setMessages((items) => [
         ...items,
         {
@@ -367,7 +376,11 @@ export function FloatingResearcherAssistant() {
                     type="button"
                     className="researcher-assistant__retry"
                     disabled={
-                      pending || (message.reply?.needsConsent && !allowAI)
+                      pending ||
+                      (message.reply?.needsConsent &&
+                        (!allowAI ||
+                          (message.reply.consentProvider ?? "openai") !==
+                            aiProvider))
                     }
                     onClick={() => void send(message.retryQuestion)}
                   >
@@ -446,23 +459,25 @@ export function FloatingResearcherAssistant() {
             </button>
           </form>
           <div className="researcher-assistant__privacy">
-            <label>
-              <input
-                type="checkbox"
-                checked={allowAI}
-                onChange={(event) => setAllowAI(event.target.checked)}
-              />
-              <span>Use AI for harder questions</span>
-              {allowAI && <Check size={13} aria-hidden="true" />}
-            </label>
-            <p>
-              When enabled, your question and up to 4 recent turns may be sent
-              to OpenAI. Avoid private research or personal details.
-            </p>
-            <p>
-              Chat clears on refresh or sign-out. AI processing follows OpenAI’s
-              data policy.
-            </p>
+            {aiProvider && (
+              <>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={allowAI}
+                    onChange={(event) => setAllowAI(event.target.checked)}
+                  />
+                  <span>Use AI for harder questions</span>
+                  {allowAI && <Check size={13} aria-hidden="true" />}
+                </label>
+                <p>
+                  When enabled, your question and up to 4 recent turns may be
+                  sent to {aiProviderName}. Avoid private research or personal
+                  details.
+                </p>
+              </>
+            )}
+            <p>Chat clears on refresh or sign-out.</p>
           </div>
         </aside>
       ) : (

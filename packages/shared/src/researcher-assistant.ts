@@ -342,6 +342,14 @@ export function resolveAssistantQuestion(
   }
   const ranked = rankAssistantTopics(question, available);
   const strongest = ranked[0];
+  if (
+    strongest?.topic.id === "history" &&
+    /\bsubmission history\b/.test(normalized) &&
+    /\bdrafts?\b/.test(normalized) &&
+    /\b(different|difference|compare|versus|vs)\b/.test(normalized)
+  ) {
+    return { kind: "local", topic: strongest.topic };
+  }
   const independent = ranked.filter(
     (item) =>
       item.topic.id !== strongest?.topic.id &&
@@ -365,11 +373,14 @@ export function resolveAssistantQuestion(
     return { kind: "local", topic: strongest.topic };
   return { kind: "ai", relevant: ranked.map((item) => item.topic).slice(0, 5) };
 }
+export type AssistantAIProvider = "openai" | "groq";
+
 export interface AssistantReply {
   text: string;
   source: "local" | "ai" | "fallback" | "clarification";
   topicIds: AssistantTopicId[];
   needsConsent?: boolean;
+  consentProvider?: AssistantAIProvider;
   retryable?: boolean;
   usage?: {
     inputTokens: number;
@@ -388,6 +399,7 @@ export interface AssistantRequest {
   previousTopic?: AssistantTopicId;
   history?: AssistantTurn[];
   allowAI: boolean;
+  aiProvider?: AssistantAIProvider;
 }
 export function assistantActionId(
   topic: AssistantTopicId,

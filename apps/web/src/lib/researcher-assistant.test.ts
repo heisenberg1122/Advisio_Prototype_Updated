@@ -23,6 +23,7 @@ describe("Confident Researcher help matching", () => {
     ["How do I see my grades?", "grades"],
     ["dark mode", "theme"],
     ["submission history", "history"],
+    ["Why are drafts and submission history different?", "history"],
     ["Paano sumali sa klase?", "class"],
     ["Saan ko makikita ang kagrupo ko?", "group"],
     ["Paano magpasa ng work?", "submit"],

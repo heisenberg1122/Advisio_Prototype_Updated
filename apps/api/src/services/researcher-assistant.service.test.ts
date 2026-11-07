@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { assistantInstructions } from "../config/assistant-instructions.js";
 import {
   AssistantRateError,
   ResearcherAssistantService,
@@ -19,6 +20,7 @@ const request = (message: string, allowAI = true) => ({
 });
 const config = () => ({
   ...assistantConfig(),
+  provider: "openai" as const,
   enabled: true,
   apiKey: "fake-test-key",
   model: "test-model",
@@ -188,7 +190,7 @@ describe("Researcher assistant layers", () => {
       (
         await service.answer(
           identity,
-          request("Why are drafts and submission history different?"),
+          request("Why does submission history show an older version?"),
         )
       ).source,
     ).toBe("fallback");
@@ -200,7 +202,7 @@ describe("Researcher assistant layers", () => {
     expect(
       await service.answer(
         identity,
-        request("Why are drafts and submission history different?", false),
+        request("Why does submission history show an older version?", false),
       ),
     ).toMatchObject({ source: "fallback", needsConsent: true });
     expect(provider).not.toHaveBeenCalled();
@@ -234,7 +236,7 @@ describe("Researcher assistant layers", () => {
     const provider = vi.fn<typeof fetch>().mockResolvedValue(response());
     const service = new ResearcherAssistantService(config(), provider);
     const result = await service.answer(identity, {
-      ...request("Why are drafts and submission history different?"),
+      ...request("Why does submission history show an older version?"),
       history: [
         { role: "user", content: "I want to understand how files work." },
       ],
@@ -262,7 +264,7 @@ describe("Researcher assistant layers", () => {
       outputTokens: 45,
       estimatedCostUsd: 0.00021,
     });
-    expect(JSON.stringify(service.snapshot())).not.toContain("drafts");
+    expect(JSON.stringify(service.snapshot())).not.toContain("older version");
   });
   it("does not use client conversation text as navigation authority", async () => {
     const provider = vi
@@ -289,7 +291,7 @@ describe("Researcher assistant layers", () => {
       (
         await service.answer(
           identity,
-          request("Why are drafts and submission history different?"),
+          request("Why does submission history show an older version?"),
         )
       ).source,
     ).toBe("fallback");
@@ -305,7 +307,7 @@ describe("Researcher assistant layers", () => {
       (
         await service.answer(
           identity,
-          request("Why are drafts and submission history different?"),
+          request("Why does submission history show an older version?"),
         )
       ).source,
     ).toBe("fallback");
@@ -327,7 +329,7 @@ describe("Researcher assistant layers", () => {
       );
       const answer = await service.answer(
         identity,
-        request("Why are drafts and submission history different?"),
+        request("Why does submission history show an older version?"),
       );
       expect(answer).toMatchObject({ source: "fallback", retryable: true });
       expect(answer.text).not.toContain("private provider");
@@ -352,7 +354,7 @@ describe("Researcher assistant layers", () => {
       (
         await service.answer(
           identity,
-          request("Why are drafts and submission history different?"),
+          request("Why does submission history show an older version?"),
         )
       ).source,
     ).toBe("fallback");
@@ -368,7 +370,7 @@ describe("Researcher assistant layers", () => {
       (
         await service.answer(
           identity,
-          request("Why are drafts and submission history different?"),
+          request("Why does submission history show an older version?"),
         )
       ).source,
     ).toBe("fallback");
@@ -382,11 +384,11 @@ describe("Researcher assistant layers", () => {
     const service = new ResearcherAssistantService(config(), provider);
     const first = await service.answer(
       identity,
-      request("Why are drafts and submission history different?"),
+      request("Why does submission history show an older version?"),
     );
     const second = await service.answer(
       { ...identity, id: "another-student" },
-      request("Why are drafts and submission history different?"),
+      request("Why does submission history show an older version?"),
     );
     expect(first.text).not.toBe(second.text);
     expect(provider).toHaveBeenCalledTimes(2);
@@ -426,6 +428,115 @@ describe("Researcher assistant layers", () => {
       }).success,
     ).toBe(false);
   });
+});
+
+describe("Groq assistant", () => {
+  const groqConfig = () => ({
+    ...config(),
+    provider: "groq" as const,
+    model: "openai/gpt-oss-120b",
+  });
+  const question = "Why does submission history show an older version?";
+  const completion = (topicId: string, finishReason = "stop") =>
+    Response.json({
+      choices: [
+        {
+          finish_reason: finishReason,
+          message: {
+            content: JSON.stringify({
+              text: "Check the task’s submission record.",
+              topicIds: [topicId],
+            }),
+          },
+        },
+      ],
+      usage: { prompt_tokens: 120, completion_tokens: 45 },
+    });
+
+  it("requires Groq consent and sends one grounded request with a bounded reply", async () => {
+    const provider = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(completion("history"));
+    const service = new ResearcherAssistantService(groqConfig(), provider);
+    for (const input of [
+      request(question),
+      { ...request(question), aiProvider: "openai" as const },
+      { ...request(question, false), aiProvider: "groq" as const },
+    ]) {
+      expect(await service.answer(identity, input)).toMatchObject({
+        needsConsent: true,
+        consentProvider: "groq",
+        text: expect.stringContaining("Groq"),
+      });
+    }
+    expect(provider).not.toHaveBeenCalled();
+
+    expect(
+      await service.answer(identity, {
+        ...request(question),
+        aiProvider: "groq",
+        history: [{ role: "user", content: "I uploaded a draft." }],
+      }),
+    ).toMatchObject({
+      source: "ai",
+      topicIds: ["history"],
+      usage: { inputTokens: 120, outputTokens: 45, estimatedCostUsd: 0.00021 },
+    });
+    expect(provider).toHaveBeenCalledOnce();
+    const [url, options] = provider.mock.calls[0];
+    expect(url).toBe("https://api.groq.com/openai/v1/chat/completions");
+    expect(options?.headers).toMatchObject({
+      Authorization: "Bearer fake-test-key",
+    });
+    const body = JSON.parse(options?.body as string);
+    expect(body).toMatchObject({
+      model: "openai/gpt-oss-120b",
+      stream: false,
+      reasoning_effort: "low",
+      include_reasoning: false,
+      max_completion_tokens: expect.any(Number),
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          strict: true,
+          schema: {
+            properties: {
+              topicIds: {
+                items: { enum: expect.arrayContaining(["history"]) },
+              },
+            },
+          },
+        },
+      },
+    });
+    expect(body.messages[0]).toEqual({
+      role: "system",
+      content: expect.stringContaining(assistantInstructions.join("\n")),
+    });
+    expect(JSON.parse(body.messages[1].content)).toMatchObject({
+      recentConversation: [{ role: "user", content: "I uploaded a draft." }],
+      question,
+    });
+  });
+
+  it.each([
+    ["system-admin", "stop"],
+    ["history", "length"],
+  ])(
+    "falls back for topic %s with finish reason %s",
+    async (topicId, reason) => {
+      const service = new ResearcherAssistantService(
+        groqConfig(),
+        vi.fn<typeof fetch>().mockResolvedValue(completion(topicId, reason)),
+      );
+      expect(
+        await service.answer(identity, {
+          ...request(question),
+          aiProvider: "groq",
+        }),
+      ).toMatchObject({ source: "fallback", retryable: true });
+    },
+  );
 });
 
 describe("Conservative token reservations", () => {
