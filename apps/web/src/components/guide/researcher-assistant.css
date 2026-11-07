@@ -26,9 +26,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 9px;
+  gap: 0;
+  min-width: 50px;
+  height: 50px;
   min-height: 50px;
-  padding: 12px 17px;
+  padding: 12px;
   border-radius: 30px;
   background: var(--color-primary);
   color: var(--college-on-primary);
@@ -36,6 +38,45 @@
   font-size: 13px;
   font-weight: 650;
   border: 1px solid var(--color-border);
+  transition: padding 180ms ease;
+}
+.researcher-assistant__launcher > svg {
+  flex-shrink: 0;
+}
+.researcher-assistant__launcher > span {
+  max-width: 0;
+  margin-inline-start: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  transition:
+    max-width 180ms ease,
+    margin-inline-start 180ms ease,
+    opacity 180ms ease;
+}
+.researcher-assistant__launcher:focus-visible {
+  padding-inline: 17px;
+}
+.researcher-assistant__launcher:focus-visible > span {
+  max-width: 8em;
+  margin-inline-start: 9px;
+  opacity: 1;
+}
+@media (hover: hover) and (pointer: fine) {
+  .researcher-assistant__launcher:hover {
+    padding-inline: 17px;
+  }
+  .researcher-assistant__launcher:hover > span {
+    max-width: 8em;
+    margin-inline-start: 9px;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .researcher-assistant__launcher,
+  .researcher-assistant__launcher > span {
+    transition: none;
+  }
 }
 .dark .researcher-assistant__launcher {
   color: var(--college-on-primary-dark);
