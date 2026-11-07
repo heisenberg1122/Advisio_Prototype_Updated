@@ -9,17 +9,21 @@ import { getPermissionsForRoles } from "@research-management/auth";
 vi.mock("../middleware/auth.js", () => ({
   requireAuth(req: Request, res: Response, next: NextFunction) {
     const role = req.get("x-test-role");
-    if (!["RESEARCHER", "ADVISER", "SYSTEM_ADMIN"].includes(role || "")) {
+    if (
+      !["RESEARCHER", "ADVISER", "PANELIST", "SYSTEM_ADMIN"].includes(
+        role || "",
+      )
+    ) {
       res.status(401).json({ error: "Authentication required" });
       return;
     }
     req.user = {
-      id: "test-account",
+      id: role === "ADVISER" ? "test-adviser" : "test-account",
       email: "test@example.test",
       universityId: "test",
       roles: [role as "RESEARCHER"],
       permissions: getPermissionsForRoles([role as "RESEARCHER"]),
-      collegeId: "test-college",
+      collegeId: req.get("x-test-no-college") ? null : "test-college",
     };
     next();
   },
@@ -118,5 +122,33 @@ describe("Authenticated Researcher help API", () => {
     expect(metrics.requests).toBe(4);
     expect(JSON.stringify(metrics)).not.toContain("test-account");
     expect(JSON.stringify(metrics)).not.toContain("Where can");
+  });
+  it("uses only the requested workspace and requires an approved Adviser college", async () => {
+    const body = {
+      message: "How do I review a manuscript?",
+      page: "ad-07",
+      workspace: "adviser",
+    };
+    expect((await post(body, "PANELIST")).status).toBe(403);
+    expect((await post(body, "RESEARCHER")).status).toBe(403);
+    expect(
+      (await post({ ...body, previousTopic: "class" }, "ADVISER")).status,
+    ).toBe(400);
+    const result = await fetch(base, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Test-Role": "ADVISER",
+        "X-Test-No-College": "1",
+      },
+      body: JSON.stringify(body),
+    });
+    expect(result.status).toBe(403);
+    const approved = await post(body, "ADVISER");
+    expect(approved.status).toBe(200);
+    expect(await approved.json()).toMatchObject({
+      source: "local",
+      topicIds: ["ad-07"],
+    });
   });
 });

@@ -76,6 +76,7 @@ export function AppTopbar({
   const router = useRouter();
   const pathname = usePathname() || "";
   const researcher = pathname.startsWith("/student/") || pathname === "/join-group";
+  const adviser = pathname.startsWith("/adviser/");
   const { profile } = useProfile();
   const { activeWorkspace } = useDashboardWorkspace();
   const { logout, user } = useAuth();
@@ -367,7 +368,7 @@ export function AppTopbar({
             type="button"
             onClick={() => setIsProfileOpen((prev) => !prev)}
             aria-label="Open profile menu"
-            data-guide={researcher ? "profile-menu-button" : undefined}
+            data-guide={researcher || adviser ? "profile-menu-button" : undefined}
             aria-expanded={isProfileOpen}
             aria-haspopup="true"
             className="flex items-center gap-2 rounded-full p-1 sm:pr-2.5 hover:bg-[var(--nav-hover-bg)] dark:hover:bg-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] select-none cursor-pointer"
@@ -424,7 +425,7 @@ export function AppTopbar({
               </div>
               <AcademicIdentity college={user?.college} program={user?.program} />
               {/* Multi-role Dashboard Switcher */}
-              <div className="px-3 py-2"><CollegeSwitcher /></div>
+              <div className="px-3 py-2"><CollegeSwitcher guideTarget={adviser ? "adviser-college-switcher" : undefined} /></div>
               <DashboardSwitcher onCloseMenu={() => setIsProfileOpen(false)} />
 
               {/* Theme Toggle & Links */}
@@ -433,7 +434,7 @@ export function AppTopbar({
                 <button
                   type="button"
                   onClick={toggleTheme}
-                  data-guide={researcher ? "appearance-toggle" : undefined}
+                  data-guide={researcher || adviser ? "appearance-toggle" : undefined}
                   aria-pressed={researcher ? isDark : undefined}
                   className="w-full flex items-center justify-between p-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] cursor-pointer"
                 >

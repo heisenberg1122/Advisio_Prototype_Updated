@@ -12,6 +12,7 @@ export function connectedGuideGeometry(
   target: GuideRect,
   tooltip: { width: number; height: number },
   viewport: { width: number; height: number },
+  preferVertical = false,
 ) {
   const gap = 22,
     edge = 12;
@@ -19,11 +20,14 @@ export function connectedGuideGeometry(
   const below = viewport.height - target.bottom - gap - edge;
   let left: number, top: number;
   let side: "left" | "right" | "top" | "bottom";
-  if (viewport.width - target.right >= tooltip.width + gap + edge) {
+  if (
+    !preferVertical &&
+    viewport.width - target.right >= tooltip.width + gap + edge
+  ) {
     side = "right";
     left = target.right + gap;
     top = target.top + (target.height - tooltip.height) / 2;
-  } else if (target.left >= tooltip.width + gap + edge) {
+  } else if (!preferVertical && target.left >= tooltip.width + gap + edge) {
     side = "left";
     left = target.left - tooltip.width - gap;
     top = target.top + (target.height - tooltip.height) / 2;

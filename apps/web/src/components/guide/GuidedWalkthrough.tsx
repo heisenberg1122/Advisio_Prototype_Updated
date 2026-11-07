@@ -26,7 +26,8 @@ export function findGuideTarget(key: string): HTMLElement | null {
       Boolean(
         element?.getClientRects().length &&
         (element.checkVisibility?.({
-          opacityProperty: true,
+          // Styled native selects can be transparent over a visible label.
+          opacityProperty: element.dataset.guideTransparent !== "true",
           visibilityProperty: true,
         }) ??
           getComputedStyle(element).visibility !== "hidden"),
@@ -37,7 +38,7 @@ export function findGuideTarget(key: string): HTMLElement | null {
 interface Props {
   step: GuidedControlStep;
   index: number;
-  total: number;
+  total?: number;
   canGoBack: boolean;
   isLast: boolean;
   onIntent: () => void;
@@ -166,27 +167,37 @@ export function GuidedWalkthrough({
       frame = requestAnimationFrame(update);
     };
     const capture = (event: Event) => {
-      const current = step.targets.find(
-        (target) =>
-          target.key === element.current?.dataset.guide ||
-          target.key === "id:" + element.current?.id,
+      const clicked =
+        event.target instanceof Element
+          ? event.target.closest<HTMLElement>("[data-guide]")
+          : null;
+      const chosen = step.targets.find(
+        (target) => target.anyMatching && target.key === clicked?.dataset.guide,
       );
+      const targetElement = chosen ? clicked : element.current;
+      const current =
+        chosen ||
+        step.targets.find(
+          (target) =>
+            target.key === targetElement?.dataset.guide ||
+            target.key === "id:" + targetElement?.id,
+        );
       if (
-        !element.current?.contains(event.target as Node) ||
-        element.current.hasAttribute("disabled")
+        !targetElement?.contains(event.target as Node) ||
+        targetElement.hasAttribute("disabled")
       )
         return;
       if (
         event.type === "change" &&
         current?.interaction === "input" &&
-        element.current instanceof HTMLSelectElement
+        targetElement instanceof HTMLSelectElement
       ) {
         clickIntent();
         return;
       }
       if (
         event instanceof KeyboardEvent &&
-        (!element.current.matches('[role="button"]:not(button)') ||
+        (!targetElement.matches('[role="button"]:not(button)') ||
           !["Enter", " "].includes(event.key))
       )
         return;
@@ -251,7 +262,7 @@ export function GuidedWalkthrough({
         rect &&
         control &&
         control.matches(
-          "button,a[href],input:not([type=file]),select,[role=button]",
+          "button,a[href],input:not([type=file]),select,summary,[role=button]",
         ) &&
         !control.hasAttribute("disabled")
           ? [control]
@@ -261,7 +272,17 @@ export function GuidedWalkthrough({
           "button:not([disabled])",
         ) || [],
       );
-      const focusable = [...safe, ...buttons];
+      const choices = variant?.anyMatching
+        ? Array.from(
+            document.querySelectorAll<HTMLElement>(
+              '[data-guide="' + variant.key + '"]',
+            ),
+          ).filter(
+            (node) =>
+              node.getClientRects().length && !node.hasAttribute("disabled"),
+          )
+        : safe;
+      const focusable = [...choices, ...buttons];
       if (!focusable.length) return;
       event.preventDefault();
       const position = focusable.indexOf(document.activeElement as HTMLElement);
@@ -279,11 +300,33 @@ export function GuidedWalkthrough({
   }, [onExit, variant, rect]);
 
   const width = Math.min(336, viewport.width - 24);
+  const horizontalChoices =
+    rect &&
+    variant?.anyMatching &&
+    Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[data-guide="' + variant.key + '"]',
+      ),
+    ).some((node) => {
+      const bounds = node.getBoundingClientRect();
+      return (
+        node !== element.current &&
+        bounds.height > 0 &&
+        bounds.top < rect.bottom &&
+        bounds.bottom > rect.top
+      );
+    });
   const geometry = rect
-    ? connectedGuideGeometry(rect, { width, height: tooltipHeight }, viewport)
+    ? connectedGuideGeometry(
+        rect,
+        { width, height: tooltipHeight },
+        viewport,
+        Boolean(horizontalChoices),
+      )
     : null;
   const nextDisabled = !ready || (!missing && clickRequired);
   const optional = Boolean(variant?.optional);
+  const terminal = isLast || variant?.next === "finish";
   const proceed = () => {
     if (missing) onNext(null, true);
     else if (optional) onExit();
@@ -293,6 +336,7 @@ export function GuidedWalkthrough({
     <div
       className="researcher-guide-walkthrough"
       data-researcher-walkthrough={step.id}
+      data-guide-open-choice={variant?.anyMatching || undefined}
     >
       {rect && (
         <>
@@ -382,9 +426,10 @@ export function GuidedWalkthrough({
       >
         <div className="researcher-guide-walkthrough__top">
           <span role="status" aria-live="polite">
-            Step {index + 1} of {total}
+            Step {index + 1}
+            {total ? " of " + total : ""}
           </span>
-          {rect && !isLast && (
+          {rect && !terminal && (
             <button
               type="button"
               className="researcher-guide-walkthrough__skip"
@@ -412,8 +457,9 @@ export function GuidedWalkthrough({
         </p>
         {clickRequired && rect && (
           <p className="researcher-guide-walkthrough__hint">
-            Select the highlighted control to continue. You can use Tab and
-            Enter.
+            {variant?.anyMatching
+              ? "Select the highlighted control or another matching record. You can use Tab and Enter."
+              : "Select the highlighted control to continue. You can use Tab and Enter."}
           </p>
         )}
         {optional && rect && (
@@ -453,10 +499,10 @@ export function GuidedWalkthrough({
               ? "Skip step"
               : optional
                 ? "Finish for now"
-                : isLast
+                : terminal
                   ? "Finish"
                   : "Next"}
-            {!isLast && !optional && <ArrowRight size={14} />}
+            {!terminal && !optional && <ArrowRight size={14} />}
           </button>
         </div>
         {isLast && (

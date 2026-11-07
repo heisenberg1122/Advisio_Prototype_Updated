@@ -23,7 +23,7 @@ export function createResearcherAssistantRouter(
   router.get("/metrics", requireRole("SYSTEM_ADMIN"), (_req, res) => {
     res.json(service.snapshot());
   });
-  router.post("/", requireRole("RESEARCHER"), async (req, res) => {
+  router.post("/", async (req, res) => {
     if (Buffer.byteLength(JSON.stringify(req.body || {}), "utf8") > 10_000) {
       res.status(413).json({
         error: "Please shorten the question and recent conversation.",
@@ -33,12 +33,25 @@ export function createResearcherAssistantRouter(
     const parsed = assistantRequestSchema.safeParse(req.body);
     if (
       !parsed.success ||
-      (parsed.data.page && !assistantTopic(parsed.data.page)) ||
-      (parsed.data.previousTopic && !assistantTopic(parsed.data.previousTopic))
+      (parsed.data.page &&
+        !assistantTopic(parsed.data.page, parsed.data.workspace)) ||
+      (parsed.data.previousTopic &&
+        !assistantTopic(parsed.data.previousTopic, parsed.data.workspace))
     ) {
       res.status(400).json({
         error: "Use a supported question, page and short conversation.",
       });
+      return;
+    }
+    const adviser = parsed.data.workspace === "adviser";
+    const requiredRole = adviser ? "ADVISER" : "RESEARCHER";
+    if (
+      !req.user!.roles.includes(requiredRole) ||
+      (adviser && !req.user!.collegeId)
+    ) {
+      res
+        .status(403)
+        .json({ error: "Forbidden: workspace unauthorized", requiredRole });
       return;
     }
     const controller = new AbortController();

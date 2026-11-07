@@ -1232,6 +1232,8 @@ export default function DocumentWorkspacePage() {
               </span>
               <select
                 id="research-project"
+                data-guide={isAdviserPortal && activeTab === "official" && projects.length ? "adviser-official-project" : undefined}
+                data-guide-transparent={isAdviserPortal && activeTab === "official" ? "true" : undefined}
                 value={activeProjectId}
                 onChange={(event) => {
                   const projectId = event.target.value;
@@ -1297,6 +1299,7 @@ export default function DocumentWorkspacePage() {
       {useDocumentLibrary && !activeProjectId && <h2 className="sr-only">Research project</h2>}
       {!activeProjectId ? (
         <EmptyState
+          data-guide={isAdviserPortal && activeTab === "official" && !projects.length && !pageError ? "adviser-official-no-projects" : undefined}
           icon={FolderKanban}
           title={
             projects.length
@@ -1714,7 +1717,8 @@ export default function DocumentWorkspacePage() {
                 )}
               </div>
             ) : (
-              <div className="space-y-5 p-5 sm:p-6">
+              <div className="space-y-5 p-5 sm:p-6"
+                data-guide={isAdviserPortal && officialPermissions?.canView ? "adviser-official-copies" : undefined}>
                 {officialPermissions?.canFinalize &&
                   officialEligibleVersions.length > 0 && (
                     <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">

@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
 import { resolvePostLoginAction } from "@/lib/post-login-navigation";
 
-export function CollegeSwitcher() {
+export function CollegeSwitcher({ guideTarget }: { guideTarget?: string } = {}) {
   const { user, switchCollege, isSwitchingCollege } = useAuth();
   const { hasDirtyForms } = useDashboardWorkspace();
   const navigate = useNavigate();
@@ -36,6 +36,7 @@ export function CollegeSwitcher() {
         Active college
         <select
           aria-label="Active college"
+          data-guide={guideTarget}
           value={user?.college?.id || ""}
           disabled={isSwitchingCollege}
           onChange={(event) => void change(event.target.value)}

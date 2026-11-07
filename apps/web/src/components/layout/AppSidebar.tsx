@@ -170,7 +170,7 @@ export function AppSidebar({
           <Link
             href={settingsHref}
             onClick={handleMobileClose}
-            data-guide={settingsHref === "/student/settings" ? "nav-settings" : undefined}
+            data-guide={settingsHref === "/student/settings" ? "nav-settings" : settingsHref === "/adviser/settings" ? "adviser-nav-settings" : undefined}
             title={isVisuallyCollapsed ? "Settings" : undefined}
             className={cn(
               "flex h-11 items-center select-none outline-none transition-colors duration-150 rounded-xl cursor-pointer focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--college-focus-ring)]",

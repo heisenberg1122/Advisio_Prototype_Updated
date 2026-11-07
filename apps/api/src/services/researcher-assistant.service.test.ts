@@ -53,6 +53,75 @@ const response = (
     }),
   );
 
+describe("Faculty Adviser assistant layers", () => {
+  it("answers common Adviser questions without model calls or tokens", async () => {
+    const provider = vi.fn<typeof fetch>();
+    const service = new ResearcherAssistantService(config(), provider);
+    for (const [message, id] of [
+      ["Saan makita ang assigned groups ko?", "ad-01"],
+      ["How do I review a manuscript?", "ad-07"],
+      ["How do I respond to a request?", "ad-04"],
+      ["Can I set a meeting with the group?", "ad-13"],
+      ["Why can’t I accept another group?", "ad-05"],
+    ]) {
+      expect(
+        await service.answer(identity, {
+          ...request(message),
+          workspace: "adviser",
+        }),
+      ).toMatchObject({ source: "local", topicIds: [id] });
+    }
+    expect(service.snapshot()).toMatchObject({
+      withoutAI: 5,
+      aiRequests: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+    });
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it("grounds one consented provider call in Adviser help and rejects cross-role IDs", async () => {
+    const provider = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(response("Use this topic.", ["class"]));
+    const service = new ResearcherAssistantService(config(), provider);
+    const message =
+      "What is the difference between manuscript review and official copies?";
+    expect(
+      await service.answer(identity, {
+        ...request(message, false),
+        workspace: "adviser",
+      }),
+    ).toMatchObject({ source: "fallback", needsConsent: true });
+    expect(provider).not.toHaveBeenCalled();
+    const reply = await service.answer(identity, {
+      ...request(message),
+      workspace: "adviser",
+      page: "ad-07",
+    });
+    expect(reply).toMatchObject({ source: "fallback", retryable: true });
+    expect(provider).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(provider.mock.calls[0][1]?.body as string);
+    const input = JSON.parse(body.input);
+    expect(body.store).toBe(false);
+    expect(input).toMatchObject({
+      role: "Faculty Adviser",
+      page: "ad-07",
+      recentConversation: [],
+    });
+    expect(
+      input.verifiedKnowledge.map((entry: { id: string }) => entry.id),
+    ).toEqual(["ad-07", "ad-16"]);
+    expect(body.input).not.toContain(identity.id);
+    expect(body.input).not.toContain(identity.collegeId);
+    expect(service.snapshot()).toMatchObject({
+      aiRequests: 1,
+      inputTokens: 120,
+      outputTokens: 45,
+    });
+  });
+});
+
 describe("Researcher assistant layers", () => {
   it.each([
     "How do I join a class?",

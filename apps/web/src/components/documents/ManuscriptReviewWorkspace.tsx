@@ -521,6 +521,7 @@ export function ManuscriptReviewWorkspace({
               {canDecide && (
                 <Button
                   size="md"
+                  data-guide="adviser-review-open"
                   icon={<MessageSquareText className="h-4 w-4" />}
                   onClick={() => void openDecision(assignment)}
                 >
@@ -814,6 +815,8 @@ export function ManuscriptReviewWorkspace({
               <div>
                 <h2
                   id="pending-review-heading"
+                  data-guide={isAdviserPresentation && !error ? "adviser-review-queue" : undefined}
+                  data-guide-empty={!active.length}
                   className="flex items-center gap-2 text-xl font-black text-[var(--color-text-primary)]"
                 >
                   <Clock3 className="h-5 w-5 text-[var(--color-primary)]" />{" "}
@@ -936,7 +939,7 @@ export function ManuscriptReviewWorkspace({
           versionId={selected?.documentVersion.id || ""}
         >
           <div className="grid gap-5 lg:h-[65vh] lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="flex h-[55vh] min-h-80 min-w-0 overflow-hidden rounded-xl border border-[var(--color-border)] lg:h-full">
+            <div data-guide={isAdviserPresentation && selected ? "adviser-review-snapshot" : undefined} className="flex h-[55vh] min-h-80 min-w-0 overflow-hidden rounded-xl border border-[var(--color-border)] lg:h-full">
               {selected && (
                 <SubmissionDocumentPreview
                   key={selected.id}
@@ -991,6 +994,7 @@ export function ManuscriptReviewWorkspace({
                 </label>
                 <select
                   id="review-recommendation"
+                  data-guide={isAdviserPresentation ? "adviser-review-recommendation" : undefined}
                   value={recommendation}
                   onChange={(event) =>
                     setRecommendation(event.target.value as Recommendation)
@@ -1018,6 +1022,7 @@ export function ManuscriptReviewWorkspace({
                 </label>
                 <textarea
                   id="review-overall"
+                  data-guide={isAdviserPresentation ? "adviser-review-feedback" : undefined}
                   rows={5}
                   value={overallComment}
                   onChange={(event) => setOverallComment(event.target.value)}
@@ -1057,7 +1062,7 @@ export function ManuscriptReviewWorkspace({
                 />
               </div>
               <div className="rounded-xl border border-[var(--color-border)] p-4">
-                <p className="text-base font-bold text-[var(--color-text-primary)]">
+                <p data-guide={isAdviserPresentation ? "adviser-review-previous" : undefined} className="text-base font-bold text-[var(--color-text-primary)]">
                   Previous versions and decisions
                 </p>
                 {historyLoading ? (

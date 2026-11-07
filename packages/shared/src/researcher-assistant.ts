@@ -4,15 +4,26 @@ import {
   type ResearcherHelpId,
 } from "./researcher-help";
 
-export const ASSISTANT_HELP_VERSION = "researcher-assistant-1";
-export type AssistantTopicId = ResearcherHelpId | "tasks" | "history";
+import {
+  ADVISER_HELP,
+  adviserPopular,
+  type AdviserHelpId,
+} from "./adviser-help";
+
+export type AssistantWorkspace = "researcher" | "adviser";
+export const ASSISTANT_HELP_VERSION = "workspace-assistant-2";
+export type AssistantTopicId =
+  | ResearcherHelpId
+  | AdviserHelpId
+  | "tasks"
+  | "history";
 export type AssistantActionKind = "navigate" | "show" | "guide";
 export interface AssistantTopic {
   id: AssistantTopicId;
   question: string;
   answer: string;
   href: string;
-  guide: ResearcherHelpId;
+  guide: ResearcherHelpId | AdviserHelpId;
   permission?: string;
   requirements?: string;
   projectRequired?: boolean;
@@ -176,10 +187,27 @@ export const ASSISTANT_TOPICS: AssistantTopic[] = [
     ],
   },
 ];
-export const assistantTopic = (id: string) =>
-  ASSISTANT_TOPICS.find((topic) => topic.id === id);
-export const authorizedAssistantTopics = (permissions: readonly string[]) =>
-  ASSISTANT_TOPICS.filter(
+const adviserAssistantTopics: AssistantTopic[] = ADVISER_HELP.map((topic) => ({
+  id: topic.id,
+  guide: topic.walkthrough,
+  question: topic.question,
+  answer: topic.answer.join("\n\n"),
+  href: topic.href,
+  permission: topic.permission,
+  requirements: topic.requirements,
+  phrases: topic.keywords,
+}));
+const topicsFor = (workspace: AssistantWorkspace) =>
+  workspace === "adviser" ? adviserAssistantTopics : ASSISTANT_TOPICS;
+export const assistantTopic = (
+  id: string,
+  workspace: AssistantWorkspace = "researcher",
+) => topicsFor(workspace).find((topic) => topic.id === id);
+export const authorizedAssistantTopics = (
+  permissions: readonly string[],
+  workspace: AssistantWorkspace = "researcher",
+) =>
+  topicsFor(workspace).filter(
     (topic) => !topic.permission || permissions.includes(topic.permission),
   );
 
@@ -232,9 +260,45 @@ export function resolveAssistantQuestion(
   question: string,
   permissions: readonly string[],
   previousTopic?: AssistantTopicId,
+  workspace: AssistantWorkspace = "researcher",
 ): AssistantResolution {
-  const available = authorizedAssistantTopics(permissions);
+  const available = authorizedAssistantTopics(permissions, workspace);
   const normalized = normalizeAssistantQuestion(question);
+  if (workspace === "adviser") {
+    const previous = available.find((topic) => topic.id === previousTopic);
+    if (/^(yes|show me|take me there)$/.test(normalized) && previous)
+      return { kind: "local", topic: previous };
+    if (
+      /^(help|help me|group|review|consultation|request|show me|yes)$/.test(
+        normalized,
+      )
+    ) {
+      return {
+        kind: "clarification",
+        text: "What are you trying to do: find an advisee, review a manuscript, respond to a request, or plan a consultation?",
+        topicIds: available
+          .filter((topic) => adviserPopular.some((id) => id === topic.id))
+          .map((topic) => topic.id),
+      };
+    }
+    const ranked = rankAssistantTopics(question, available);
+    const first = ranked[0],
+      second = ranked[1];
+    const complex =
+      /\b(compare|difference|because|even though|not working|kahit|ayaw|versus|vs)\b/.test(
+        normalized,
+      ) || normalized.split(" ").length > 18;
+    if (
+      !complex &&
+      first &&
+      (first.score === 100 || !second || first.score >= second.score + 6)
+    )
+      return { kind: "local", topic: first.topic };
+    return {
+      kind: "ai",
+      relevant: ranked.slice(0, 4).map((item) => item.topic),
+    };
+  }
   if (
     /^(help|help me|join|how do i join|group|workflow|yes|show me|take me there)$/.test(
       normalized,
@@ -293,6 +357,7 @@ export interface AssistantTurn {
   content: string;
 }
 export interface AssistantRequest {
+  workspace?: AssistantWorkspace;
   message: string;
   page?: AssistantTopicId;
   previousTopic?: AssistantTopicId;
@@ -308,10 +373,11 @@ export function assistantActionId(
 export function resolveAssistantAction(
   id: string,
   permissions: readonly string[],
+  workspace: AssistantWorkspace = "researcher",
 ) {
   const [topicId, kind, extra] = id.split(":");
   if (extra || !["navigate", "show", "guide"].includes(kind)) return null;
-  const topic = authorizedAssistantTopics(permissions).find(
+  const topic = authorizedAssistantTopics(permissions, workspace).find(
     (topic) => topic.id === topicId,
   );
   return topic ? { topic, kind: kind as AssistantActionKind } : null;

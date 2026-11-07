@@ -16,10 +16,11 @@ import { useResearcherGuide } from "@/providers/researcher-guide-provider";
 import { useAssistantVisibility } from "@/lib/assistant-preference";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { useLocation } from "react-router-dom";
+import { adviserPopular } from "@research-management/shared/src/adviser-help";
+import { adviserPageHelp } from "@/lib/adviser-walkthroughs";
 import { researcherPageHelp } from "@/lib/researcher-guide";
 import {
   assistantActionId,
-  assistantTopic,
   authorizedAssistantTopics,
   resolveAssistantQuestion,
   type AssistantReply,
@@ -56,7 +57,12 @@ export function FloatingResearcherAssistant() {
     transcript = useRef<HTMLDivElement>(null);
   const controller = useRef<AbortController | null>(null);
   const nextId = useRef(0);
-  const available = authorizedAssistantTopics(user?.permissions || []);
+  const workspace = guide?.workspace ?? "researcher";
+  const adviser = workspace === "adviser";
+  const available = authorizedAssistantTopics(
+    user?.permissions || [],
+    workspace,
+  );
   const allowedIds = new Set(available.map((topic) => topic.id));
   const enabled = Boolean(guide?.enabled && visible && user);
   const hiddenByGuide = guide?.busy || guide?.drawerOpen;
@@ -134,7 +140,10 @@ export function FloatingResearcherAssistant() {
         "/api/researcher-assistant",
         {
           message,
-          page: researcherPageHelp(location.pathname, location.search),
+          ...(adviser ? { workspace } : {}),
+          page: adviser
+            ? adviserPageHelp(location.pathname, location.search)
+            : researcherPageHelp(location.pathname, location.search),
           previousTopic: previous,
           history,
           allowAI,
@@ -169,6 +178,7 @@ export function FloatingResearcherAssistant() {
         message,
         user.permissions,
         previous,
+        workspace,
       );
       const denied =
         error instanceof ApiError && [401, 403, 429].includes(error.statusCode);
@@ -236,7 +246,7 @@ export function FloatingResearcherAssistant() {
             </span>
             <div>
               <h2 id="advisio-assistant-title">Advisio Assistant</h2>
-              <p>Researcher Workspace</p>
+              <p>{adviser ? "Faculty Adviser" : "Researcher Workspace"}</p>
             </div>
             <button
               type="button"
@@ -279,16 +289,16 @@ export function FloatingResearcherAssistant() {
                 className="researcher-assistant__suggestions"
                 aria-label="Suggested questions"
               >
-                {suggestions
-                  .filter((id) => allowedIds.has(id))
-                  .map((id) => (
+                {(adviser ? adviserPopular : suggestions)
+                  .flatMap((id) => available.filter((topic) => topic.id === id))
+                  .map(({ id, question }) => (
                     <button
                       key={id}
                       type="button"
                       disabled={pending}
-                      onClick={() => void send(assistantTopic(id)!.question)}
+                      onClick={() => void send(question)}
                     >
-                      {assistantTopic(id)!.question}
+                      {question}
                     </button>
                   ))}
               </div>

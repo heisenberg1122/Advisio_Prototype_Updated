@@ -7,6 +7,8 @@ export interface GuidedTarget {
   next?: string;
   to?: string;
   optional?: boolean;
+  /** A user can choose a different rendered record with the same guide marker. */
+  anyMatching?: boolean;
 }
 export interface GuidedControlStep {
   id: string;

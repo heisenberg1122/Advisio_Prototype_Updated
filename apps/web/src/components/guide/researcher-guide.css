@@ -274,6 +274,9 @@
   background: rgb(15 23 42 / 0.24);
   pointer-events: auto;
 }
+.researcher-guide-walkthrough[data-guide-open-choice="true"] .researcher-guide-walkthrough__shade {
+  pointer-events: none;
+}
 .researcher-guide-walkthrough__ring {
   position: fixed;
   border: 2px solid var(--color-primary);

@@ -417,12 +417,18 @@ function nearWord(a: string, b: string) {
   return previous[b.length] <= 1;
 }
 export function searchResearcherHelp(query: string): ResearcherHelpTopic[] {
+  return searchHelpTopics(query, RESEARCHER_HELP);
+}
+
+export function searchHelpTopics<
+  T extends Pick<ResearcherHelpTopic, "question" | "keywords">,
+>(query: string, topics: readonly T[]): T[] {
   const normalized = normalizeHelpSearch(query);
   const tokens = normalized
     .split(" ")
     .filter((token) => token && !stopWords.has(token));
   if (!tokens.length) return [];
-  return RESEARCHER_HELP.map((topic) => {
+  return topics.map((topic) => {
     const title = normalizeHelpSearch(topic.question);
     const aliases = topic.keywords.map(normalizeHelpSearch);
     const words = (title + " " + aliases.join(" ")).split(" ");
