@@ -7,8 +7,8 @@
   "files": [
     {
       "name": "master-1080p.mp4",
-      "bytes": 33915198,
-      "sha256": "06ca93a40ac44b8d842f9af9b30998a317c82ecf0d9cdf444dc6fd480001776e"
+      "bytes": 24472812,
+      "sha256": "70d0af859b4579ddd96599f01eaff459e39dcbf7f4398253dc6689cb00546fc0"
     },
     {
       "name": "adviser-web.mp4",
@@ -52,33 +52,33 @@
     },
     {
       "name": "chapters/workspace.mp4",
-      "bytes": 7093443,
-      "sha256": "b51266891a87c192987677f706adf31c89bff43a1b69041508b166f78e586ea5"
+      "bytes": 6049885,
+      "sha256": "dded7e229549322f4ef6d98ffe5947136ecff6446a29c177466b5415764fbac8"
     },
     {
       "name": "chapters/groups.mp4",
-      "bytes": 4828676,
-      "sha256": "6a449f32b972647f8194054b2ebeb1621c16e25022b4df1624398ee59f681135"
+      "bytes": 4021246,
+      "sha256": "bb8a17f4d9312c23afbc9a401458a3d75dfb7321ccf0dc52cad3df2dfb731138"
     },
     {
       "name": "chapters/reviews.mp4",
-      "bytes": 7018656,
-      "sha256": "6e716b412ca44940cc0c6fb700674d875b90b77b452f05b1a301821642f2fa1c"
+      "bytes": 5849170,
+      "sha256": "e0ddcd0014eb6c6779e2bc01bdf2f413c79023f0ff5d143d51e08255232f6a48"
     },
     {
       "name": "chapters/consultations.mp4",
-      "bytes": 4622192,
-      "sha256": "a4519c94de7ba90d2fbe2f6952b9b5c367feda7d176c52b63b9c6b52134aa841"
+      "bytes": 3899534,
+      "sha256": "677b8dbf0231ff002f9cb1fb077897109516489c1a3e6d6847440779b034b521"
     },
     {
       "name": "chapters/defense.mp4",
-      "bytes": 1905316,
-      "sha256": "100683e2f61b6bc8b52852bcb17338b6988ef26aef5372dd3f2f17a2a68be933"
+      "bytes": 1559284,
+      "sha256": "e6327e072f5719447fb88c9317378b20da3af424e946c16cc0178a8af88e1d3a"
     },
     {
       "name": "chapters/communication.mp4",
-      "bytes": 3835754,
-      "sha256": "a73ed9b9e6e19e9002c7c113ed358e9377864baddd2244dd30492055c460a481"
+      "bytes": 3296027,
+      "sha256": "9918e9541958fb7bf4071874e79790c25a31b052a17cff370ff711918f16ccb2"
     }
   ]
 }
