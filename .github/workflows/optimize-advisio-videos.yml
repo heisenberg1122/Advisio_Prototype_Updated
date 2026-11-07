@@ -4,18 +4,31 @@ on:
   push:
     branches:
       - codex/optimize-advisio-video-assets
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/optimize-deployment-media.mjs
+      - .github/workflows/optimize-advisio-videos.yml
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: optimize-advisio-media
+  cancel-in-progress: false
+
 jobs:
   recompress:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && (github.event_name != 'pull_request' || (github.head_ref == 'codex/optimize-advisio-video-assets' && github.event.pull_request.head.repo.full_name == github.repository))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: codex/optimize-advisio-video-assets
+          persist-credentials: true
       - name: Verify video tools
         run: |
           command -v ffmpeg
