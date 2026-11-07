@@ -11,7 +11,7 @@
 | `roles/panelist/PANELIST_ACCEPTANCE_MATRIX.md` | PASS/FAIL/BLOCKED/NOT TESTED evidence checklist |
 | `roles/panelist/START_PROMPT_FOR_CODEX.md` | One short reusable Codex instruction that references these files |
 | `roles/panelist/OPTIONAL_AGENTS_MD_SNIPPET.md` | Minimal pointer to add to an existing AGENTS.md, if appropriate |
-| `roles/panelist/visual_anti_examples/` | Screenshot examples of old bad Guide designs — not layouts to reproduce |
+| [Guide screenshots](../adviser/visual_anti_examples/) | Examples of layouts to avoid |
 
 ## Correct setup
 

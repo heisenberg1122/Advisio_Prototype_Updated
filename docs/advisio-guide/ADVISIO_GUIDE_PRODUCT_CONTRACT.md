@@ -95,4 +95,4 @@ Do not use a fragile hardcoded exact-word matcher that fails obvious paraphrases
 
 ## Visual anti-examples
 
-See `visual_anti_examples/old_guide_modal_avoid.png` and `visual_anti_examples/old_tour_avoid.png` for undesirable states (obstructive modal, generic disconnected tour). **They are not desired mockups**. Use existing Advisio styling and its college/dark-mode tokens for the actual UI.
+See the [obstructive modal](roles/adviser/visual_anti_examples/old_guide_modal_avoid.png) and [disconnected tour](roles/adviser/visual_anti_examples/old_tour_avoid.png) for examples to avoid. Use existing Advisio styling and its college/dark-mode tokens for the actual UI.
