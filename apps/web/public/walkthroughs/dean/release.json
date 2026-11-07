@@ -6,19 +6,9 @@
   "captionCount": 153,
   "files": [
     {
-      "name": "master-1080p.mp4",
-      "bytes": 27329087,
-      "sha256": "6d97257baf656fb6e40736973245991fad925069f4b44da3315608df7332df6f"
-    },
-    {
       "name": "dean-web.mp4",
       "bytes": 14789436,
       "sha256": "46be09078043a35be77d8e47f349a5692345a8b7c911fab99e0d9050a591c9fe"
-    },
-    {
-      "name": "dean-captioned.mp4",
-      "bytes": 15660881,
-      "sha256": "ada7e49695a3f96ca966c9df8bc63ee74d52f08ec04d30d6af531d837ed3b0ab"
     },
     {
       "name": "subtitles.vtt",
