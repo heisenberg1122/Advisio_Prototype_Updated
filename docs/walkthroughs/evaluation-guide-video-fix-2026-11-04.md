@@ -1,5 +1,7 @@
 # Evaluation guide video visibility
 
+> Historical release notes. The current website publishes written walkthroughs and transcripts. See [published written walkthroughs](../../walkthrough/README.md#published-written-walkthroughs).
+
 The Render evaluation guide was still serving a release without the published
 walkthroughs. On 4 November, the live health endpoint reported evaluation mode
 with a connected database, but Researcher and Dean media manifests and the video

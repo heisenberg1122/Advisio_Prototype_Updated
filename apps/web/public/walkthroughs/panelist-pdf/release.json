@@ -6,11 +6,6 @@
   "captionCount": 124,
   "files": [
     {
-      "name": "panelist-pdf-web.mp4",
-      "bytes": 11970062,
-      "sha256": "7c8885bf4238ef5af7e4d0189735376fec20324eb99cb3d1c59a409df61f60dd"
-    },
-    {
       "name": "subtitles.vtt",
       "bytes": 10493,
       "sha256": "f50f22a7a1b199f12349629277a5cab3ca03767f696c30a7f8feef35e40b5add"
@@ -37,8 +32,8 @@
     },
     {
       "name": "media.json",
-      "bytes": 1172,
-      "sha256": "c566a8d8e51135ddeb9bf758ca8238a725605cba2749b75c2eabfeabb7dbb5d2"
+      "bytes": 1087,
+      "sha256": "3af7de0cf0d51961e79b6e49461ade365d46a2c9e17ca752f439205bb5219c5b"
     }
   ]
 }

@@ -113,77 +113,10 @@ const results = {
   chapters: script.chapters.length,
   captionCount,
   files,
-  browserViewports: [],
 };
 if (process.argv.includes("--browser")) {
   const browser = await chromium.launch();
   try {
-    for (const [label, width, height] of [
-      ["desktop", 1920, 1080],
-      ["laptop", 1366, 768],
-      ["tablet", 768, 1024],
-      ["mobile", 390, 844],
-    ]) {
-      const context = await browser.newContext({ viewport: { width, height } });
-      const page = await context.newPage();
-      const errors = [];
-      page.on("pageerror", (error) => errors.push(error.message));
-      await page.goto("http://localhost:3100/walkthrough/research-dashboard");
-      await page
-        .getByRole("button", { name: "Watch Quick Walkthrough", exact: true })
-        .click();
-      const video = page.locator("video");
-      await video.waitFor();
-      await page.waitForFunction(
-        () => document.querySelector("video")?.readyState >= 1,
-      );
-      assert.equal(await video.evaluate((element) => element.paused), true);
-      assert.equal(await video.getAttribute("autoplay"), null);
-      await page.waitForFunction(
-        () => document.querySelector("video track")?.readyState === 2,
-      );
-      assert.equal(
-        await video.evaluate((element) => element.textTracks[0].cues.length),
-        captionCount,
-      );
-      const chapters = page
-        .getByRole("navigation", { name: "Walkthrough chapters" })
-        .getByRole("button");
-      assert.equal(await chapters.count(), 14);
-      await chapters.nth(4).click();
-      await page.waitForFunction(
-        (expected) =>
-          Math.abs(document.querySelector("video").currentTime - expected) <
-          0.3,
-        media.chapters[4].start,
-      );
-      await video.evaluate((element) => {
-        element.volume = 0.2;
-        return element.play();
-      });
-      await page.waitForFunction(
-        (expected) =>
-          document.querySelector("video").currentTime > expected + 1.2,
-        media.chapters[4].start,
-      );
-      await video.evaluate((element) => element.pause());
-      assert.equal(await video.evaluate((element) => element.volume), 0.2);
-      assert.ok(
-        await page.evaluate(
-          () => document.documentElement.scrollWidth <= innerWidth,
-        ),
-      );
-      await page.screenshot({
-        path: path.join(qa, `actual-player-${label}.png`),
-        fullPage: true,
-      });
-      assert.deepEqual(errors, []);
-      await context.close();
-      results.browserViewports.push(label);
-      console.log(
-        `Actual exported media playback, ${captionCount} caption cues, seeking, volume and layout verified: ${label}`,
-      );
-    }
     const evaluation = await browser.newContext({
       baseURL: "http://localhost:3100",
     });
@@ -231,7 +164,7 @@ if (process.argv.includes("--browser")) {
       results.dashboardWalkthroughEntry = true;
       results.optionalContinuation = true;
       console.log(
-        "Prepared Researcher workspace can be entered without starting or completing the video.",
+        "Prepared Researcher workspace can be entered without completing the written guide.",
       );
     } finally {
       if (session)

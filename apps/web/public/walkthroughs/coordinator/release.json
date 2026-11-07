@@ -6,11 +6,6 @@
   "captionCount": 199,
   "files": [
     {
-      "name": "coordinator-web.mp4",
-      "bytes": 21247802,
-      "sha256": "9936aee309fa66966e37cf6d056418425a527b75854b6799addde7dfab604b0f"
-    },
-    {
       "name": "subtitles.vtt",
       "bytes": 16445,
       "sha256": "d327f43af537bf8c339323e865d419d6f71750051e5d80110243c3382aa8ba0d"
@@ -37,8 +32,8 @@
     },
     {
       "name": "media.json",
-      "bytes": 1143,
-      "sha256": "f55bad9fce0cddaa48983a4a55feb1b96bcc5db039573718deb0769bdaf12896"
+      "bytes": 1060,
+      "sha256": "9093cbdf5cd98a5b95c6194a31ff38d79d24d9e77621af30f09f31e0d4f4e03a"
     }
   ]
 }

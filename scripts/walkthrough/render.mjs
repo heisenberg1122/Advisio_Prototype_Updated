@@ -26,6 +26,10 @@ import {
   subtitleAss,
 } from "../../walkthrough/shared/timing.mjs";
 
+if (process.argv.includes("--publish")) {
+  throw new Error("Walkthrough recordings are local only. Run npm run walkthrough:publish for written guides.");
+}
+
 const script = await readScript();
 await prepareBrandAssets();
 const voice = await readJson(path.join(output, "voice.json"));
@@ -244,53 +248,3 @@ await fs.writeFile(
 console.log(
   `Rendered ${(measured / 60).toFixed(2)} minutes. Master, web, captioned video, subtitles, poster and chapter data: ${exported}`,
 );
-if (process.argv.includes("--publish")) {
-  const target = path.join(root, `apps/web/public/walkthroughs/${role}`);
-  await fs.mkdir(target, { recursive: true });
-  await fs.rm(path.join(target, `${role}-captioned.mp4`), { force: true });
-  // Metadata is copied last: visitors never see a partially published bundle.
-  for (const name of [
-    `${role}-web.mp4`,
-    "poster.jpg",
-    "subtitles.vtt",
-    "subtitles.srt",
-    "chapters.json",
-    "transcript.txt",
-    "media.json",
-  ])
-    if (name === "media.json") {
-      const released = { ...(await readJson(path.join(exported, name))) };
-      delete released.captionedVideo;
-      await writeJson(path.join(target, name), released);
-    } else await fs.copyFile(path.join(exported, name), path.join(target, name));
-  // The web build was already validated. Include media in that artifact without
-  // rerunning the compiler/build just to copy static files.
-  const built = path.join(root, "apps/web/dist");
-  if (
-    await fs.access(path.join(built, "index.html")).then(
-      () => true,
-      () => false,
-    )
-  ) {
-    const builtMedia = path.join(built, `walkthroughs/${role}`);
-    await fs.mkdir(builtMedia, { recursive: true });
-    await fs.rm(path.join(builtMedia, `${role}-captioned.mp4`), { force: true });
-    for (const name of [
-      `${role}-web.mp4`,
-      "poster.jpg",
-      "subtitles.vtt",
-      "subtitles.srt",
-      "chapters.json",
-      "transcript.txt",
-      "media.json",
-    ])
-      if (name === "media.json") {
-        const released = { ...(await readJson(path.join(exported, name))) };
-        delete released.captionedVideo;
-        await writeJson(path.join(builtMedia, name), released);
-      } else await fs.copyFile(path.join(exported, name), path.join(builtMedia, name));
-  }
-  console.log(
-    `Static ${role} media bundle published to the web public folder.`,
-  );
-}

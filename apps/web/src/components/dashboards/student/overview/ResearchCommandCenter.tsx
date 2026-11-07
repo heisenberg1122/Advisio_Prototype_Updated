@@ -279,7 +279,7 @@ export function OverviewGettingStarted({
           aria-label="Open Researcher walkthrough"
           onClick={onTour}
         >
-          <i aria-hidden="true" className="ti ti-player-play-filled" />
+          <i aria-hidden="true" className="ti ti-book" />
         </button>
       </div>
       <p className="rcc-supporting">

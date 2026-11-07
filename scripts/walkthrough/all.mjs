@@ -9,6 +9,5 @@ for (const file of [
 ]) {
   await run(process.execPath, [
     path.join(root, "scripts/walkthrough", file),
-    ...(file === "render.mjs" ? ["--publish"] : []),
   ]);
 }

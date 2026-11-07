@@ -6,11 +6,6 @@
   "captionCount": 166,
   "files": [
     {
-      "name": "adviser-web.mp4",
-      "bytes": 16563528,
-      "sha256": "d74e582bf683e103214c8f8e8da96add238dab9472dae3c497c4525db16f0642"
-    },
-    {
       "name": "subtitles.vtt",
       "bytes": 13766,
       "sha256": "e4f82bc9c53b864077a90142b869ecf6be5346cd578977e0680799523c197eef"
@@ -37,8 +32,8 @@
     },
     {
       "name": "media.json",
-      "bytes": 1235,
-      "sha256": "61b9889397f64a10dfe5839b2b21231f6e81c1d8377cbcc2aa1ae5e8b9f70316"
+      "bytes": 1160,
+      "sha256": "dad839af43d63ece466076251ce37f8093f4eb47c2e1d79e95851f598c3d3563"
     }
   ]
 }

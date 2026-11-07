@@ -6,11 +6,6 @@
   "captionCount": 153,
   "files": [
     {
-      "name": "dean-web.mp4",
-      "bytes": 14789436,
-      "sha256": "46be09078043a35be77d8e47f349a5692345a8b7c911fab99e0d9050a591c9fe"
-    },
-    {
       "name": "subtitles.vtt",
       "bytes": 12693,
       "sha256": "25e7af4866891c81711a9505a4d9f8f51c861f25860f2de385b2776bf5589a41"
@@ -37,8 +32,8 @@
     },
     {
       "name": "media.json",
-      "bytes": 2308,
-      "sha256": "5e11a18466303f7abdfe54b42253a632c1417b3d99733c91fdcaff8fa9e07144"
+      "bytes": 2239,
+      "sha256": "7a258cf61d2fb4fef6041c2ed320446c54860408f5e974548b09726a0558afac"
     }
   ]
 }
