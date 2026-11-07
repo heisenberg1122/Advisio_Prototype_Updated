@@ -359,14 +359,17 @@ export function AppRoutes() {
             </StudentPortal>
           }
         />
-        <Route
-          path="/join-group"
-          element={
-            <StudentPortal>
-              <JoinResearchGroupPage />
-            </StudentPortal>
-          }
-        />
+        {["/student/join-group", "/join-group"].map(path => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              <StudentPortal>
+                <JoinResearchGroupPage />
+              </StudentPortal>
+            }
+          />
+        ))}
         <Route
           path="/student/workflows/join/:code"
           element={

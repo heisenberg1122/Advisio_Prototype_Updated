@@ -866,7 +866,7 @@ function PanelistDashboardContent() {
                 </div>
               ),
               schedule: (
-                <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-6">
+                <div data-tour="defense-records" className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-6">
                   <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
                     Defense Schedule Management
                   </h3>
@@ -1047,7 +1047,7 @@ function PanelistDashboardContent() {
               ),
               documents: <PanelistReviewPackets />,
               evaluation: (
-                <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-4">
+                <div data-tour="evaluation-records" className="mx-auto flex w-full max-w-[1320px] flex-col gap-4">
                   {evaluationSession?.packet?.evaluationMode ===
                   "STRUCTURED" ? (
                     <StructuredEvaluationWorkspace

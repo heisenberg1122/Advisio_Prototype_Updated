@@ -258,6 +258,7 @@ export function AuditTrail() {
         <label className="grid gap-1 text-sm">
           Category
           <select
+            data-tour="audit-filters"
             className={inputStyle}
             value={filters.category}
             onChange={(e) => update("category", e.target.value)}

@@ -56,7 +56,7 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
     return (
       <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-10 text-center">
         <i className="ti ti-timeline-event text-3xl text-[var(--color-text-muted)]" />
-        <p className="mt-2 text-base font-semibold text-[var(--color-text-primary)]">No workflow timeline available</p>
+        <p className="mt-2 text-base font-semibold text-[var(--color-text-primary)]" data-guide="timeline-empty">No workflow timeline available</p>
         <p className="mt-1 text-base text-[var(--color-text-secondary)]">A professor must deploy workflow milestones before a Gantt timeline can be generated.</p>
       </div>
     );
@@ -66,7 +66,7 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
     <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)]" aria-label="Project Gantt timeline">
       <div className="flex flex-col gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">Project Gantt Timeline</h3>
+          <h3 className="text-lg font-semibold text-[var(--color-text-primary)]" data-guide="timeline-plan">Project Gantt Timeline</h3>
           <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">Dates follow milestone targets and legacy durations in Philippine time. Milestones without a target use a projected span.</p>
         </div>
         <div className="flex items-center gap-3">

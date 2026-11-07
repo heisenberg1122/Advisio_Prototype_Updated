@@ -904,7 +904,7 @@ function StudentDashboardContent() {
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)]">
                 <i className="ti ti-calendar-time text-lg" />
               </span>
-              <h3 className="flex items-center gap-2 text-lg font-extrabold text-[var(--color-text-primary)] dark:text-white">
+              <h3 className="flex items-center gap-2 text-lg font-extrabold text-[var(--color-text-primary)] dark:text-white" data-guide="researcher-consultation-status">
                 Your sessions
               </h3>
             </div>
@@ -1052,7 +1052,7 @@ function StudentDashboardContent() {
           <div className="lg:col-span-7 flex flex-col gap-5">
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                <h3 className="font-extrabold text-[#1b4264] text-lg flex items-center gap-2">
+                <h3 data-guide="submission-history-heading" className="font-extrabold text-[#1b4264] text-lg flex items-center gap-2">
                   <i className="ti ti-history text-[#ffa400]" />
                   Manuscript Versions & Upload History
                 </h3>
@@ -1735,8 +1735,8 @@ function StudentDashboardContent() {
             ),
             "my-group": (
               <section className="student-projects-readable mp-workspace mp-group">
-                {!activeProject && (researchData?.projects?.length || 0) > 0 ? <p className="text-base text-[var(--color-text-secondary)]">Select a research project above to view its group.</p> : activeProject || activeWorkspace ? <>
-                  <div className="mp-panel mp-group-identity">
+                {!activeProject && (researchData?.projects?.length || 0) > 0 ? <p data-guide="group-selection" className="text-base text-[var(--color-text-secondary)]">Select a research project above to view its group.</p> : activeProject || activeWorkspace ? <>
+                  <div className="mp-panel mp-group-identity" data-guide="group-identity">
                     <h2 className="text-lg font-bold text-[#102f49]">{activeProject ? activeProject.groupName || "Research team" : activeWorkspace?.name}</h2>
                     <p className="mt-1 text-base text-slate-600">{activeProject?.title || "Research project awaiting registration by your leader."}</p>
                     <p className="mt-2 text-sm font-semibold text-[#173f63]">Your role: {(activeProject ? isGroupLeader : isWorkspaceLeader) ? "Group Leader" : "Member"}</p>
@@ -1748,12 +1748,12 @@ function StudentDashboardContent() {
                       {isGroupLeader && pendingJoinRequests.length > 0 && (
                         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center justify-between"><div><h2 className="font-extrabold text-[#102f49]">Pending join requests</h2><p className="mt-1 text-base text-slate-600">Approve only researchers who should receive this project’s workflow and files.</p></div><span className="rounded-full bg-amber-200 px-2.5 py-1 text-xs font-extrabold text-amber-900">{pendingJoinRequests.length}</span></div><div className="mt-3 space-y-2">{pendingJoinRequests.map((request: any) => <div key={request.id} className="flex flex-col gap-3 rounded-xl bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#102f49]">{request.requester ? `${request.requester.firstName} ${request.requester.lastName}` : "Researcher"}</p><p className="text-base text-slate-500">{request.requester?.email} · Requested {new Date(request.createdAt).toLocaleDateString()}</p></div><div className="flex gap-2"><button onClick={() => decideJoinRequest(request.id, "REJECT")} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-700">Reject</button><button onClick={() => decideJoinRequest(request.id, "ACCEPT")} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-extrabold text-white">Accept</button></div></div>)}</div></div>
                       )}
-                      <div className="mp-panel mp-roster">
+                      <div className="mp-panel mp-roster" data-guide="group-members">
                         <div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Active researchers</h2><span className="mp-member-count">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div>
                         <div className="mp-members">{activeStudentMembers.map((member: any) => <div key={member.id} className="mp-member-row"><div><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{(member.userId === user?.id || member.user?.id === user?.id) ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.projectRole === "LEADER" ? "Group Leader" : "Member"}</p></div>{isGroupLeader && member.projectRole === "MEMBER" && <div className="flex gap-2"><button onClick={() => setGroupAction({ type: "transfer", member })} className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm font-bold text-blue-700">Transfer leadership</button><button onClick={() => setGroupAction({ type: "remove", member })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-600">Remove</button></div>}</div>)}</div>
                       </div>
                       </div>
-                  ) : <div className="mp-panel mp-roster"><h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Group members</h2><div className="mp-members">{(activeWorkspace.members || []).filter((member: any) => !member.leftAt).map((member: any) => <div key={member.id} className="mp-member-row"><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{member.userId === user?.id ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.role === "LEADER" ? "Group Leader" : "Member"}</p></div>)}</div></div>}
+                  ) : <div className="mp-panel mp-roster" data-guide="group-members"><h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Group members</h2><div className="mp-members">{(activeWorkspace.members || []).filter((member: any) => !member.leftAt).map((member: any) => <div key={member.id} className="mp-member-row"><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{member.userId === user?.id ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.role === "LEADER" ? "Group Leader" : "Member"}</p></div>)}</div></div>}
 
                   {activeProject && <div className="mp-collaboration"><button onClick={() => handleTabChange("group-chats")} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Group messages</button><button onClick={() => router.push(projectSelection.projectHref("/student/tasks"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Tasks</button><button onClick={() => router.push(projectSelection.projectHref("/student/group-files"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Shared files</button></div>}
                   {activeProject && !isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-bold text-amber-700">Leave group</button>}
@@ -1782,7 +1782,7 @@ function StudentDashboardContent() {
                   {!activeProject && canDeleteWorkspace && <button onClick={() => { setWorkspaceDeleteError(""); setWorkspaceToDelete({ id: activeWorkspace.id, name: activeWorkspace.name }); }} className="rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-sm font-extrabold text-rose-700 hover:bg-rose-50"><i className="ti ti-trash mr-1" />Delete workspace</button>}
 
                   </div>
-                </> : <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center"><p className="text-base text-slate-500">{isWorkspaceLoading ? "Loading your group…" : !workspaceData ? "Unable to load your group. Refresh to try again." : "You have not joined a research group yet."}</p>{workspaceData && <button onClick={() => handleTabChange("group")} className="mt-4 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Open My Project</button>}</div>}
+                </> : <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center"><p className="text-base text-slate-500" data-guide={isWorkspaceLoading ? undefined : "group-empty"}>{isWorkspaceLoading ? "Loading your group…" : !workspaceData ? "Unable to load your group. Refresh to try again." : "You have not joined a research group yet."}</p>{workspaceData && <button onClick={() => handleTabChange("group")} className="mt-4 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Open My Project</button>}</div>}
               </section>
             ),
             group: (
@@ -1876,10 +1876,10 @@ function StudentDashboardContent() {
                       )}</div>}
                   />
                 ) : projectSelection.invalidRequestedProjectId || (researchData?.projects?.length || 0) > 0 ? (
-                  <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6"><h2 className="text-xl font-bold text-[var(--color-text-primary)]">{projectSelection.invalidRequestedProjectId ? "Project unavailable" : "Select a research project"}</h2><p className="mt-2 text-base text-[var(--color-text-secondary)]">Use the project selector above to view a project’s title, workflow, and next step.</p></section>
+                  <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6"><h2 data-guide="project-empty" className="text-xl font-bold text-[var(--color-text-primary)]">{projectSelection.invalidRequestedProjectId ? "Project unavailable" : "Select a research project"}</h2><p className="mt-2 text-base text-[var(--color-text-secondary)]">Use the project selector above to view a project’s title, workflow, and next step.</p></section>
                 ) : (
                   <section className="student-projects-readable rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-xs">
-                    <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Research title not added</h2>
+                    <h2 className="text-xl font-bold text-[var(--color-text-primary)]" data-guide="project-empty">Research title not added</h2>
                     <p className="mt-2 text-base text-[var(--color-text-secondary)]">{activeWorkspace && !isWorkspaceLeader ? "Your leader will register the project after joining a workflow. View your teammates in My Group." : "Create or join a workspace, then register your research title after joining your professor’s workflow."}</p>
                     {activeWorkspace ? (
                       <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
@@ -1896,7 +1896,7 @@ function StudentDashboardContent() {
                     ) : (
                       <div className="mt-5 grid gap-4 md:grid-cols-2">
                         <button onClick={() => { setCreateTitle(""); setCreateGroupName(""); setShowCreateModal(true); }} className="rounded-2xl border-2 border-[var(--color-primary)] bg-[var(--color-surface)] p-6 text-left text-[var(--color-text-primary)] shadow-sm transition hover:-translate-y-0.5 hover:bg-[var(--color-surface-subtle)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)]"><i className="ti ti-folder-plus text-xl" /></span><span className="mt-4 block text-base font-extrabold">Create a workspace</span><span className="mt-1 block text-sm leading-5 text-[var(--color-text-secondary)]">Start Solo or create a group. Add a research title now or later.</span></button>
-                        <button onClick={() => router.push("/join-group")} className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-6 text-left transition hover:-translate-y-0.5 hover:border-[#173f63]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100"><i className="ti ti-users-plus text-xl text-[#173f63]" /></span><span className="mt-4 block text-base font-extrabold text-[#102f49]">Join a group</span><span className="mt-1 block text-sm leading-5 text-slate-500">Enter a group invitation code to join a research workspace.</span></button>
+                        <button data-guide="group-join-entry" onClick={() => router.push(projectSelection.projectHref("/student/join-group"))} className="rounded-2xl border-2 border-slate-200 bg-slate-50 p-6 text-left transition hover:-translate-y-0.5 hover:border-[#173f63]"><span className="grid h-11 w-11 place-items-center rounded-xl bg-blue-100"><i className="ti ti-users-plus text-xl text-[#173f63]" /></span><span className="mt-4 block text-base font-extrabold text-[#102f49]">Join a group</span><span className="mt-1 block text-sm leading-5 text-slate-500">Enter a group invitation code to join a research workspace.</span></button>
                       </div>
                     )}
                     {activeWorkspace && <button type="button" onClick={() => handleTabChange("my-group")} className="mt-5 text-sm font-semibold text-[var(--color-primary)] hover:underline">View My Group →</button>}
@@ -2056,7 +2056,7 @@ function StudentDashboardContent() {
                   </div>
                 </div>
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                  <h3 className="font-extrabold text-[#1b4264] text-lg">Milestone Details</h3>
+                  <h3 className="font-extrabold text-[#1b4264] text-lg" data-guide="timeline-milestones">Milestone Details</h3>
                   <p className="text-base text-slate-400 font-bold">Review the professor-defined sequence, target dates, approval gates, and current status.</p>
                   <div className="flex flex-col gap-2.5 mt-2">
                   {milestones.length > 0 ? (

@@ -1,102 +1,98 @@
-# ADVISIO Guide and Floating AI Assistant product contract
+# ADVISIO Guide & AI Assistant — Product Contract
 
-**Version 1.0 · November 7, 2026 · Application snapshot: `b78a1196381d60b88e687c0b5db1cba3c80c2b9f`**
+**Version 1.0 — shared rules across Researcher, Adviser, and later role phases.** Adviser-specific behavior is in `ADVISER_PHASE2_SPEC.md`.
 
-This is the authoritative shared specification for dashboard-specific Guide and AI Assistant work. Start with [README_START_HERE.md](README_START_HERE.md) for the base, ownership, and readiness gates. Adviser details live in [ADVISER_PHASE2_SPEC.md](ADVISER_PHASE2_SPEC.md); verification lives in [ADVISER_ACCEPTANCE_MATRIX.md](ADVISER_ACCEPTANCE_MATRIX.md).
+## Product purpose and priority
 
-## Status vocabulary and scope
+Users reported low perceived ease of use and confusion about how the app works. The solution must help a person **find a feature, understand its purpose, and safely complete a task**. Prioritize: (1) accuracy and permissions, (2) useful guided task completion, (3) clear conversational UX, (4) visual polish/accessibility, (5) reasonable token and runtime cost.
 
-- **VERIFIED IN SOURCE**: inspected in the reference checkout; does not mean executed or passing acceptance tests.
-- **PARTIAL**: reusable source exists but lacks behavior required below.
-- **NOT FOUND**: targeted source/documentation searches found no implementation in this checkout. Another branch or external specification has not been verified.
-- **REQUIRED**: target behavior, including features absent today. Requirement text is not evidence of implementation.
+## UI contract
 
-This documentation task does not implement either role's Guide or assistant, rebuild the Researcher workspace, alter permissions/backend workflows, touch production data or TAM evaluation records, or add dependencies. Future role-help work must remain within its authorized scope.
+| Surface | Must do | Must not do |
+| --- | --- | --- |
+| Sidebar | Label **Guide** with clear icon immediately **above Settings** (then Sign Out) | Rename it back to Take a Tour or bury it in Settings |
+| Guide launcher | Nonblocking right-side drawer, approx. 380–420px desktop; page stays visible; responsive mobile panel | Heavy blur/dim, oversized centered modal, giant flat feature list |
+| Guide home | Current-page help; popular **How do I…?** questions; searchable topics; optional **Start tour** inside Guide | Launch tour immediately just by opening Guide |
+| Walkthrough | Precise anchor, short conversational tooltip, connected arrow/leader line, working **Show me**, Back/Exit/Next where needed | Arrow pointing to empty space; full-sidebar highlight for a single action; generic disconnected slideshow |
+| AI launcher | Small floating button, initially visible for eligible new accounts; chat panel stays closed until clicked | Auto-open chat, proactive model calls on page load, intrusive animations |
+| AI panel | Conversational responses, optional **Show me**, **Take me there**, **Open Guide** actions | Pretend to take actions it did not take or invent routes |
+| Settings | **Show floating AI Assistant** switch; default ON only when no saved choice; OFF hides button; Guide remains | Re-enable an explicit OFF setting or leak account preferences |
 
-## Verified source inventory
+### Suggested Guide visual hierarchy (not a pixel-perfect mockup)
 
-This table describes the original snapshot above. The later delivery base `257b4257b1550d4b1cae5a8dd5e773b642f010c6` adds a contextual Help & Guide modal and static role help definitions; see the synchronization note in [README_START_HERE.md](README_START_HERE.md). Inspect and reuse those additions before planning shared work. They are partial help infrastructure, not evidence of an implemented floating assistant/API or contract-compliant anchored tours.
+```text
+┌──────────────────────────────────────────┐
+│ 📖 Guide                    Adviser  ×   │
+│ What can we help you with?               │
+│ [ Search e.g. “review a manuscript”   ]  │
+│                                          │
+│ On this page                             │
+│ [ Need help with Reviews?  Show me → ]   │
+│                                          │
+│ Popular questions                        │
+│ > Where are my advisees?                 │
+│ > How do I review a manuscript?          │
+│ > How do I schedule a consultation?      │
+│                                          │
+│ Browse topics                            │
+│ > Advisees & requests                    │
+│ > Reviews & feedback                     │
+│ > Progress & consultations               │
+│                                          │
+│ ─────────────────────────────────────    │
+│ 🧭 Explore workspace       Start tour →  │
+└──────────────────────────────────────────┘
+```
 
-All paths below are relative to the repository through the links. Recheck them on the approved implementation base.
+Do not force all sections into a tiny viewport; allow inner scrolling without a nested-scroll mess. Maintain the important entry points above the fold on a normal desktop display.
 
-| Area                              | Source evidence                                                                                                                                                                                                                                                                                                                                  | Finding at the snapshot                                                                                                                                                                                                                                                                                        |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Researcher reference content      | [ResearcherWalkthrough.tsx](../../apps/web/src/components/evaluation/ResearcherWalkthrough.tsx), [researcher-guide.json](../../apps/web/src/components/evaluation/researcher-guide.json), [written walkthrough](../walkthroughs/researcher-evaluation-guide.md)                                                                                  | VERIFIED IN SOURCE: chapter-based video/written tutorial. This is not an in-dashboard conversational Guide drawer or assistant knowledge registry.                                                                                                                                                             |
-| Guide compatibility route         | [EvaluationGuide.tsx](../../apps/web/src/components/evaluation/EvaluationGuide.tsx), [routes.tsx](../../apps/web/src/routes.tsx)                                                                                                                                                                                                                 | VERIFIED IN SOURCE: `/evaluate/guide` is a compatibility redirect to evaluation home or `/evaluate`; standalone Researcher tutorial is `/walkthrough/research-dashboard`. Do not repurpose evaluation access or token handling for an assistant.                                                               |
-| Shared shell/navigation           | [AppSidebar.tsx](../../apps/web/src/components/layout/AppSidebar.tsx), [StudentSidebar.tsx](../../apps/web/src/components/dashboards/student/StudentSidebar.tsx), [AdviserSidebar.tsx](../../apps/web/src/components/dashboards/adviser/AdviserSidebar.tsx), [AppWorkspaceFrame.tsx](../../apps/web/src/components/layout/AppWorkspaceFrame.tsx) | VERIFIED IN SOURCE: common shell, collapsible/mobile navigation, role links, Settings footer. NOT FOUND: Guide entry above Settings or shared Guide drawer.                                                                                                                                                    |
-| Tour component                    | [ProductTour.tsx](../../apps/web/src/components/shared/ProductTour.tsx)                                                                                                                                                                                                                                                                          | PARTIAL: step selectors, target rectangle, scroll/resize handling, keyboard Back/Next/Escape, browser-local completion key. No caller found in application source. Card remains centered; `placement` is declared but unused; no anchored arrow or cross-route readiness flow. It does not meet the target UX. |
-| Standalone tour assets            | [student-product-tour.js](../../student-product-tour.js), [student-product-tour.css](../../student-product-tour.css)                                                                                                                                                                                                                             | PARTIAL: legacy DOM-based prototype assets; no application import found. They are not the canonical React tour engine or proof that their selectors/routes are current.                                                                                                                                        |
-| Settings/themes                   | [AccountSettingsPage.tsx](../../apps/web/src/components/settings/AccountSettingsPage.tsx), [theme-provider.tsx](../../apps/web/src/providers/theme-provider.tsx), [college-themes.ts](../../apps/web/src/lib/college-themes.ts), [typography](../TYPOGRAPHY.md)                                                                                  | VERIFIED IN SOURCE: shared appearance settings, light/dark/system modes, college/program identity, account theme persistence and browser-local notification preferences. NOT FOUND: Workspace Assistance toggle or assistant preference/default migration.                                                     |
-| Role/navigation helpers           | [routes.tsx](../../apps/web/src/routes.tsx), [dashboard-navigation.ts](../../apps/web/src/lib/dashboard-navigation.ts), [portal-navigation.ts](../../apps/web/src/lib/portal-navigation.ts), [document-task-navigation.ts](../../apps/web/src/lib/document-task-navigation.ts)                                                                   | VERIFIED IN SOURCE: route/workspace helpers. They are not a complete validator for untrusted AI actions; some labels/mappings need contextual verification.                                                                                                                                                    |
-| Authenticated requests/access     | [api-client.ts](../../apps/web/src/lib/api-client.ts), [ProtectedRoute.tsx](../../apps/web/src/components/auth/ProtectedRoute.tsx), [RBAC middleware](../../apps/api/src/middleware/rbac.ts), [college scope](../../apps/api/src/lib/college-scope.ts), [document access](../../apps/api/src/services/document-access.service.ts)                | VERIFIED IN SOURCE: reusable authenticated request and backend access infrastructure. Reuse enforcement rather than changing role/college permissions for help features.                                                                                                                                       |
-| Floating assistant and AI service | Inspected `apps/web/src`, `apps/api/src`, and `packages/shared/src` for assistant/provider/knowledge infrastructure                                                                                                                                                                                                                              | NOT FOUND: assistant UI, assistant API/provider routing, deterministic help resolver, role help registry, retrieval pipeline, bounded conversation policy, or shared AI action validator. No endpoint, model, preference key, or working integration is established here.                                      |
-| Adviser workflow references       | [Adviser dashboard](../../apps/web/src/app/adviser/dashboard/page.tsx), [group workspace](../../apps/web/src/app/adviser/advisees/[researchId]/page.tsx), [review workspace](../../apps/web/src/components/documents/ManuscriptReviewWorkspace.tsx), [video plan](../walkthroughs/adviser-production-plan.md)                                    | VERIFIED IN SOURCE: existing academic workflows to explain. No Adviser Guide/assistant implementation or original Phase 2 task handoff found.                                                                                                                                                                  |
+## Guidance copy contract
 
-**Integration prerequisite:** the shared owner must supply and verify the intended Researcher Guide/assistant source commit and interfaces, or complete missing shared work under separate authorization. Do not build a second backend or let the Adviser owner fill these gaps independently. Record the endpoint, registry exports, validator, preference storage semantics, tour API, configured limits, and tests in this contract when they exist. Do not infer them from desired behavior.
+- Short, natural, professional and task-oriented; no robotic “Navigate to...” narration.
+- One topic per step; usually one or two short sentences, but provide enough detail for complex tasks.
+- *Where*, *what happens*, and *what next* are more useful than naming a page.
+- Example **good**: “Ready to review a manuscript? Your assigned reviews are here. Open one and I'll show you the tools.”
+- Example **bad**: “Navigate to the Review Workspace. You can manage all manuscript reviewing functionality here.”
+- Questions must use users' language, not only internal labels; tolerate English and common Taglish phrasings where supported.
+- Explain empty states and permission restrictions instead of claiming records or controls exist.
 
-## REQUIRED UI and interaction behavior
+## Walkthrough and navigation behavior
 
-1. **Entry and drawer.** Place **Guide directly above Settings** in the shared sidebar footer, including collapsed and mobile navigation. Its accessible name remains Guide. Open a compact side drawer that preserves workspace context and lets desktop users continue their task. No oversized centered Guide, page takeover, or excessive background blur. On narrow screens fit a side sheet to the viewport, with reachable close/back controls and no horizontal overflow; apply dialog focus containment only if the sheet is actually modal.
-2. **Tone and relevance.** Use conversational, task-focused explanations: what the user can do now, why a control may be unavailable, and the next permitted step. Prefer a short answer and useful action over a long feature catalogue. Use the active role, route, selected project/version, and verified visible state; request clarification when the target is ambiguous. Never infer a completed submission or approval from an empty list or loading state.
-3. **Action semantics.** **Show me** opens the relevant anchored walkthrough after the route/tab/target is ready. **Take me there** navigates to the verified permitted destination without submitting anything. **Open Guide** opens the matching Guide topic independently of assistant visibility. Show an action only when its target exists and passes shared validation; otherwise explain the unavailable action and offer an appropriate safe topic. No placeholder or dead buttons.
-4. **Spotlights.** Use small anchored tooltips with arrows pointing to the highlighted control, respecting preferred placement and flipping/clamping to viewport edges. Recompute after scrolling, resizing, drawer changes, and route rendering. Wait for a visible stable target with a bounded wait. If absent, stop/skip with an explanation and recovery action; never point at an unrelated target or fall back silently to a large centered card. Preserve Back, Next, Skip/Close, Escape, and replay. A tour never clicks a destructive/academic decision for the user.
-5. **Visual consistency.** Reuse shared components, spacing, typography, college tokens (`--color-primary`, surfaces/text, `--college-focus-ring`), and existing light/dark/system theme behavior. Follow [TYPOGRAPHY.md](../TYPOGRAPHY.md). Do not hardcode another college's palette. Use available approved screenshots with commit and viewport metadata; none has been supplied here for the requested compact Guide/assistant.
-6. **Accessibility.** Provide named buttons/regions, visible keyboard focus, logical focus order, readable contrast, screen-reader status for loading/errors/new answers, and reduced-motion support. Restore focus on close. A desktop nonmodal drawer must not trap the user away from the workspace. Tooltips must remain readable at zoom and must not rely only on color or arrows to communicate their target.
+- All app actions are selected from a **verified role-aware allowlist** of routes/help topics/walkthrough IDs.
+- Navigate with app router and preserve current authorized college, workspace, and project context.
+- `Show me` must highlight a **real, rendered element** using stable identifiers, position a tooltip by that element, and optionally let the user click safely.
+- Expand hidden/collapsed navigation before selecting a target. Recalculate arrow after route transitions, scroll, viewport changes, and async loads.
+- If target missing: wait reasonably for loading, then explain and provide an exit/recovery path. **Never show a floating disconnected arrow.**
+- Do not perform consequential writes during a guide: review decisions, approvals, requests, scheduling, emails, edits or deletion.
+- Guides remain available without the AI assistant. Avoid duplicate topic registries that drift apart.
 
-These are target requirements. The centered legacy `ProductTour` is a documented gap, not an exception to them. Any shared engine improvement belongs to the shared owner.
+## AI routing and token/cost contract
 
-## REQUIRED AI architecture and token efficiency
+1. **Deterministic first:** search a verified FAQ/navigation registry by high-confidence intent, synonyms, role and state; answer without LLM whenever appropriate.
+2. **Authorized state second:** inspect minimal relevant permitted state if needed (e.g. request/review status). If factual data explains it, do not waste an LLM call.
+3. **AI only when useful:** for ambiguous/multi-step reasoning, pass only concise system rules, active role, current page, a small set of relevant vetted help entries, minimal non-sensitive state, and limited essential conversation history.
+4. **Output sizing:** simple responses ~1–3 sentences + valid action; longer only when genuinely helpful. Never truncate critical conditions merely to hit a token quota.
+5. **Operations:** one model call rather than model-based classify+rewrite chains; avoid unnecessary retries, broad tool scans, embeddings/vector DB without measured need. Reuse shared authenticated backend/provider.
+6. **Metrics:** count registry vs AI responses, provider-reported input/output tokens when available, response time/errors. Cache only safe non-sensitive shared help; never globally cache private adviser/student data.
 
-Use one shared assistant API and request-routing implementation for all roles once its source is supplied. Extend it through role registries; do not create a separate Adviser backend, provider client, classification endpoint, or copied assistant UI. Reuse the authenticated API client and server-side access controls.
+Do not use a fragile hardcoded exact-word matcher that fails obvious paraphrases. Route ambiguous or low-confidence questions to a clarification or model rather than a wrong deterministic answer.
 
-The required logical pipeline is:
+## Privacy and authorization contract
 
-1. Resolve active authenticated workspace and minimum necessary authorized UI context. Keep help context read-only.
-2. Run deterministic matching for known questions and supported task/state explanations. Navigation, settings, common status meanings, and registered walkthrough questions should usually resolve with **zero model requests**.
-3. If needed, retrieve only relevant, verified entries from the current role's approved knowledge registry. Do not send whole repositories, all roles' help, manuscripts, gradebooks, inboxes, or project histories as default context. Ask for missing context rather than fabricating an answer.
-4. Make one shared model request for an unresolved turn where needed. Avoid separate model classification or duplicate retrieval calls for the same turn. Reuse deterministic results/context within the same authorized user/role/scope; never share private cached context between users or colleges.
-5. Validate the answer's structured actions through the shared validator before display and again before execution. Treat model text as untrusted. Provide source/topic grounding or an honest limitation. Unsupported answers fall back to verified Guide help.
+- Active workspace + active approved college must control help eligibility and actions; first role on account is insufficient.
+- Unauthorized routes/actions are never emitted as executable suggestions; UI authorization must also be checked server-side for any data reads.
+- Never send private manuscripts, grades, reviews/comments, messages, passwords, or personal student records to external AI by default.
+- Provider calls must be authenticated, rate-limited, bounded, and protected against prompt injection. Keep keys server-side.
+- If AI unavailable: Guide continues to work; show truthful fallback.
+- Default floating visibility for new eligible accounts is ON **only when no preference has been saved**. Respect the established shared account-wide or explicitly role-scoped preference model.
 
-Keep a finite history window and explicit input/context/output limits. The shared owner must record the actual numerical caps, truncation strategy, cancellation/timeout behavior, and output schema before integration; no values are verified in this checkout. Trim older/redundant conversation while retaining the latest question, necessary disambiguation, and relevant verified facts. Exceeding a cap must produce a bounded request or clear recovery, never silent invention. Never sacrifice answer accuracy or required safeguards for an arbitrary token target.
+## Invariants and boundaries
 
-Record request count and available input/output token usage for representative fixtures, distinguishing measured provider usage from estimates. Verify deterministic questions make zero model calls; an unresolved turn must not trigger duplicate classification/retrieval/model requests. Bound retries, prevent double submission, cancel obsolete requests on context change, and measure long-conversation payloads against the declared limits. Opening Guide, closing chat, toggling visibility, or replaying a tour must not require a model request.
+- Phase 2 = Adviser content only. Shared component bug fixes are allowed when strictly necessary; no premature rollout to other roles.
+- Do not alter questionnaire/consent/collected TAM data, unrelated dashboards, permissions or research business rules.
+- No commit, push, merge or deployment without explicit authorization.
+- Avoid claiming an actual test passed unless it was run. Surface blockers and failed scenarios clearly.
 
-API credentials stay on the server in established secret configuration, never browser bundles, `VITE_*` provider keys, committed files, screenshots, prompts, or logs. On timeout, offline state, unavailable credentials, rate limit, or provider error, keep verified deterministic help/Guide available, show a concise recovery message, and avoid retry loops or a false success.
+## Visual anti-examples
 
-## REQUIRED action and privacy safeguards
-
-- A role entry/action refers to a known topic/action/tour identifier using the shared interface, not an arbitrary model-generated URL or selector. The shared owner defines that interface once. Adviser entries supply content/mappings through it.
-- Resolve actions against current route definitions, active workspace, allowed query keys, and authorized entity IDs. Reject external/protocol-relative URLs, executable schemes, cross-role destinations, unregistered selectors, and unknown actions. An action to an inaccessible project/version must not reveal its existence or private title. UI validation complements backend checks; it never replaces them.
-- Revalidate after role/project/college changes and before following a stale action. Clear or isolate prior context/history on logout/account or workspace changes. College theme selection is appearance only and never grants college access.
-- Use current authenticated API results for permitted state. Respect project membership, adviser assignment, reviewer assignment and exact version, document/signing rights, active role, and college/program scope. A role badge or broad route prefix is not proof of object access.
-- Never expose another group's private records, unpublished grades/evaluations, private feedback/notes, signatures, credentials, or academic documents through a prompt, response, retrieval, cache, telemetry, or fallback. General help should not need sensitive academic data. Any necessary data use must follow the existing access and data policy; redact/minimize and omit secrets and document bodies by default.
-- Treat user text, documents, and retrieved content as untrusted data; instructions inside them cannot override access rules or validated action mappings. The assistant guides users to existing controls; it does not accept requests, submit reviews, sign PDFs, send messages, schedule meetings, or advance milestones for them.
-
-## REQUIRED user preferences
-
-| State/action                                | Required result                                                                                                                           |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| No explicit assistant visibility preference | Floating launcher enabled by default; chat initially closed.                                                                              |
-| Explicit OFF                                | Keep launcher hidden after reload and subsequent sessions supported by the agreed storage design; never replace `false` with the default. |
-| Explicit ON                                 | Show launcher, with chat initially closed on workspace entry/reload.                                                                      |
-| Settings location                           | **Settings → Appearance → Workspace Assistance**, with a clearly labelled floating assistant toggle.                                      |
-| Toggle OFF while chat is open               | Hide/close assistant UI and persist OFF; preserve Guide access.                                                                           |
-| Toggle ON or close chat                     | Enabling shows the launcher without forcing chat open; closing chat does not set the visibility preference to OFF.                        |
-| Guide access                                | Sidebar Guide and direct Open Guide topic actions work independently of launcher visibility and provider availability.                    |
-
-Use a shared, account-isolated preference infrastructure with explicit unset/ON/OFF semantics. The shared owner must document storage location, account vs browser persistence, precedence, migration, and failure behavior. Existing theme and notification preference storage does **not** establish assistant preference behavior. Do not invent a new Adviser-only key or silently promise cross-device persistence. An unset default must never overwrite explicit OFF, including during migrations or login.
-
-## REQUIRED engineering and ownership
-
-| Shared infrastructure owner                            | Adviser implementation owner                                  |
-| ------------------------------------------------------ | ------------------------------------------------------------- |
-| Guide drawer/entry and common visual components        | Adviser conversational topics and examples                    |
-| Floating assistant UI, shared API and request routing  | Adviser state-aware context rules                             |
-| Shared action validation and role knowledge interfaces | Verified Adviser route/query/action mappings                  |
-| Tour engine, tooltip geometry, target readiness        | Adviser walkthrough step definitions and stable target hooks  |
-| Settings preference defaults, storage and migration    | Adviser scenario fixtures and acceptance evidence             |
-| Shared regression/contract tests                       | Adviser-specific accuracy, state, navigation, and scope tests |
-
-Use stable named selectors or agreed `data-*` hooks rather than text/index/CSS-layout guesses; verify actual mounted targets per state. New role-specific hooks may be added by the Adviser owner when needed; changes to shared hook conventions require coordination. Keep changes focused, reusable, responsive, and accessible. Do not alter unrelated components, permissions, backend academic workflows, TAM forms/responses, or data to make help scenarios work. No unnecessary dependencies or duplicated systems.
-
-If a shared gap blocks Adviser work, record its source evidence, impact, owner, and proposed coordinated change. Supply the missing source/interface before integration. Follow the consistency and review process in [README_START_HERE.md](README_START_HERE.md); report deviations and actual tests rather than claiming compliance from matching prompts.
+See `visual_anti_examples/old_guide_modal_avoid.png` and `visual_anti_examples/old_tour_avoid.png` for undesirable states (obstructive modal, generic disconnected tour). **They are not desired mockups**. Use existing Advisio styling and its college/dark-mode tokens for the actual UI.

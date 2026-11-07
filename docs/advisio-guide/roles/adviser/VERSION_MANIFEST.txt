@@ -1,0 +1,8 @@
+Handoff version: 1.0
+Created: 2026-11-07
+Project: ADVISIO - Research Advising and Management Platform
+Repo: heisenberg1122/Advisio_Prototype_Updated
+Implementation target: Phase 2 Faculty Adviser
+Source basis: user-provided Adviser Phase 2 prompt (Pasted text(8).txt) and the current conversation.
+Source-control baseline: TO BE FILLED BY TEAM after confirming actual feature branch and HEAD SHA.
+Do not assume the previously discussed codex/qr-evaluation-local branch is still the feature-implementation branch.

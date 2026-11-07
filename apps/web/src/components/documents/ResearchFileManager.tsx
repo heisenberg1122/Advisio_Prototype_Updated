@@ -319,7 +319,7 @@ export function ResearchFileManager({
   }
 
   return (
-    <div className="min-w-0 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
+    <div data-tour="file-records" className="min-w-0 overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
       {taskId && taskHref && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-primary-light)]/25 px-4 py-2">
           <div className="flex items-center gap-2">

@@ -1,3 +1,7 @@
 "use client";
 
-export { default } from "@/components/settings/AccountSettingsPage";
+import AccountSettingsPage from "@/components/settings/AccountSettingsPage";
+
+export default function ResearcherSettingsPage() {
+  return <AccountSettingsPage guideTarget="researcher-settings-navigation" />;
+}

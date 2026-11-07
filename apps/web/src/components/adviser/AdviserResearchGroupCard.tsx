@@ -41,6 +41,7 @@ export function AdviserResearchGroupCard({
   return (
     <Link
       href={href}
+      data-guide="adviser-group-card"
       aria-label={`Open ${groupName}: ${title}`}
       className={cn(
         "group flex min-h-[328px] flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)] outline-none transition duration-200",

@@ -221,10 +221,10 @@ export default function GroupFilesPage() {
   return (
     <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-5 p-4 sm:p-6 lg:p-8">
       {notice && <div className="fixed right-5 top-20 z-50 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-3 text-sm font-bold text-white shadow-xl">{notice}</div>}
-      <section className="college-hero-surface flex flex-col justify-between gap-4 rounded-2xl border border-[var(--color-border)] p-6 text-[var(--color-text-primary)] shadow-[var(--shadow-card-soft)] sm:flex-row sm:items-center">
+      <section data-tour="file-records" className="college-hero-surface flex flex-col justify-between gap-4 rounded-2xl border border-[var(--color-border)] p-6 text-[var(--color-text-primary)] shadow-[var(--shadow-card-soft)] sm:flex-row sm:items-center">
         <div>
           <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">Collaborative workspace</p>
-          <h1 className="mt-1 text-2xl font-bold text-[var(--color-text-primary)]">Group Files</h1>
+          <h1 className="mt-1 text-2xl font-bold text-[var(--color-text-primary)]" data-guide="group-files-heading">Group Files</h1>
           <p className="mt-1 max-w-2xl text-base text-[var(--color-text-secondary)]">Upload and organize drafts, datasets, references, and other working materials for {project?.groupName || "your research group"}.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">

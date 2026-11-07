@@ -19,6 +19,7 @@ export default function GradesPage() {
       >
         <button
           aria-pressed={tab === "class"}
+          data-guide="grades-class"
           className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-semibold text-[var(--color-text-primary)] aria-pressed:bg-[var(--color-primary)] aria-pressed:text-white"
           onClick={() => setTab("class")}
         >
@@ -26,6 +27,7 @@ export default function GradesPage() {
         </button>
         <button
           aria-pressed={tab === "defense"}
+          data-guide="grades-defense"
           className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm font-semibold text-[var(--color-text-primary)] aria-pressed:bg-[var(--color-primary)] aria-pressed:text-white"
           onClick={() => setTab("defense")}
         >
@@ -43,23 +45,23 @@ function DefenseGrades() {
   if (isPending) return <GradesSkeleton />;
   if (error)
     return (
-      <p role="alert" className="p-6 text-red-700">
+      <p data-guide="defense-grade-state" role="alert" className="p-6 text-red-700">
         Unable to load grades. Please try again.
       </p>
     );
   if (!projectId)
     return (
-      <p className="p-6">
+      <p data-guide="defense-grade-state" className="p-6">
         Select or register a research project to view its grades.
       </p>
     );
-  if (!grades) return null;
+  if (!grades) return <p data-guide="defense-grade-state" className="p-6">No defense grades are available for this project.</p>;
 
   const isReleased = grades.status === "released";
   const structuredSessionId = (grades as any).structuredSessionId;
   if (structuredSessionId)
     return (
-      <div className="mx-auto max-w-[1360px] p-4 sm:p-6">
+      <div data-guide="defense-grade-state" className="mx-auto max-w-[1360px] p-4 sm:p-6">
         <ConsolidatedEvaluations sessionId={structuredSessionId} student />
       </div>
     );
@@ -67,7 +69,7 @@ function DefenseGrades() {
   return (
     <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1">
+        <div data-guide="defense-grade-state" className="md:col-span-1">
           <FinalGradeCard
             finalGrade={grades.finalGrade}
             isReleased={isReleased}

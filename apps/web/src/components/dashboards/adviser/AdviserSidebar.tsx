@@ -51,9 +51,11 @@ export function AdviserSidebar() {
   const navSections = ADVISER_NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.map((item) =>
-      item.tabName === "advisees" && pathname.startsWith("/adviser/advisees/")
-        ? { ...item, active: true }
-        : item,
+      ({
+        ...item,
+        guideTarget: "adviser-nav-" + (item.tabName || item.href.split("?")[0].split("/").at(-1)),
+        ...(item.tabName === "advisees" && pathname.startsWith("/adviser/advisees/") ? { active: true } : {}),
+      }),
     ),
   }));
 

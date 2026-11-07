@@ -17,6 +17,7 @@ import {
   Trash2,
   User,
 } from "lucide-react";
+import { useResearcherGuide } from "@/providers/researcher-guide-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { useProfile } from "@/hooks/use-profile";
 import { useTheme } from "@/providers/theme-provider";
@@ -25,6 +26,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { COLLEGE_THEMES } from "@/lib/college-themes";
+import { useAssistantVisibility } from "@/lib/assistant-preference";
 import "./account-settings.css";
 
 type SettingsTab = "account" | "notifications" | "appearance" | "security";
@@ -122,8 +124,12 @@ async function prepareProfilePhoto(file: File) {
   return canvas.toDataURL("image/jpeg", 0.86);
 }
 
-export default function AccountSettingsPage() {
+export default function AccountSettingsPage({ guideTarget }: { guideTarget?: string } = {}) {
   const { user } = useAuth();
+  const assistant = useAssistantVisibility(user?.id);
+  const guide = useResearcherGuide();
+  const adviserGuide = guide?.enabled && guide.workspace === "adviser";
+  const [assistantMessage, setAssistantMessage] = useState("");
   const { profile, updateProfile } = useProfile();
   const {
     theme,
@@ -248,9 +254,9 @@ export default function AccountSettingsPage() {
       </div>
 
       <div className="grid items-start gap-6 lg:grid-cols-[260px_1fr]">
-        <nav className="account-settings-nav flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:pb-0" aria-label="Account settings sections">
+        <nav className="account-settings-nav flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:pb-0" aria-label="Account settings sections" data-guide={guideTarget}>
           {categories.map(({ id, label, description, icon: Icon }) => (
-            <button key={id} type="button" onClick={() => setActiveTab(id)} className={cn("flex min-w-52 items-center gap-3 rounded-xl border p-3 text-left transition", activeTab === id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]" : "border-[var(--color-border)] bg-[var(--color-surface)] text-slate-700 hover:bg-[var(--color-primary-light)] dark:text-slate-200")}>
+            <button key={id} type="button" data-guide={adviserGuide && id === "appearance" ? "adviser-appearance-tab" : undefined} onClick={() => setActiveTab(id)} className={cn("flex min-w-52 items-center gap-3 rounded-xl border p-3 text-left transition", activeTab === id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]" : "border-[var(--color-border)] bg-[var(--color-surface)] text-slate-700 hover:bg-[var(--color-primary-light)] dark:text-slate-200")}>
               <span className={cn("grid h-9 w-9 place-items-center rounded-lg", activeTab === id ? "bg-white/15" : "bg-slate-100 dark:bg-white/10")}><Icon className="h-4 w-4" /></span>
               <span><strong className="block text-sm">{label}</strong><span className={cn("text-sm", activeTab === id ? "text-slate-200" : "text-slate-400")}>{description}</span></span>
             </button>
@@ -338,6 +344,21 @@ export default function AccountSettingsPage() {
             <Card>
               <CardHeader><div><CardTitle icon={Palette}>Appearance</CardTitle><CardDescription>Choose your Advisio color identity and display mode. Preferences are saved to your account.</CardDescription></div></CardHeader>
               <CardContent className="space-y-6">
+                {guideTarget === "researcher-settings-navigation" && (
+                  <section aria-labelledby="workspace-assistance-heading">
+                    <h3 id="workspace-assistance-heading" className="text-lg font-extrabold text-[var(--color-text-primary)]">Workspace Assistance</h3>
+                    <label className="mt-3 flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+                      <span><strong className="block text-sm text-[var(--color-text-primary)]">Show floating AI Assistant</strong>
+                        <span className="mt-1 block text-sm text-[var(--color-text-secondary)]">Show the assistant button while using your workspace.</span>
+                      </span>
+                      <input type="checkbox" role="switch" data-guide={adviserGuide ? "adviser-assistant-switch" : undefined} aria-label="Show floating AI Assistant" checked={assistant.visible}
+                        onChange={event => setAssistantMessage(assistant.setVisible(event.target.checked) ? "Saved for your account in this browser." : "Applied for this session. Browser storage is unavailable.")}
+                        className="h-5 w-5 shrink-0 accent-[var(--color-primary)]" />
+                    </label>
+                    <p className="mt-2 text-xs text-[var(--color-text-secondary)]">This preference is saved for your signed-in account in this browser. Set it separately on other devices. Guide is always available in the sidebar.</p>
+                    {assistantMessage && <p className="mt-2 text-sm text-[var(--color-text-secondary)]" role="status">{assistantMessage}</p>}
+                  </section>
+                )}
                 <section aria-labelledby="color-theme-heading">
                   <div className="mb-3">
                     <h3 id="color-theme-heading" className="text-lg font-extrabold text-slate-800 dark:text-white">Color theme</h3>

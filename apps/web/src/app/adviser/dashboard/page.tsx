@@ -78,7 +78,7 @@ function AdviserDashboardContent() {
   const [conferenceProjectId, setConferenceProjectId] = useState("");
 
   // Live query for consultations with background refresh
-  const { data: consultationsApiData, refetch: refetchConsultations } = useQuery({
+  const { data: consultationsApiData, isPending: consultationsLoading, isError: consultationsError, refetch: refetchConsultations } = useQuery({
     queryKey: ["consultations"],
     queryFn: () => apiClient.get<{ consultations: any[] }>("/api/consultations"),
     refetchInterval: 15000,
@@ -224,9 +224,9 @@ function AdviserDashboardContent() {
   };
 
   // Live query for assigned advisee research projects
-  const { data: researchData, isLoading: researchLoading, refetch: refetchResearch } = useQuery({
+  const { data: researchData, isPending: researchLoading, isError: researchError, refetch: refetchResearch } = useQuery({
     queryKey: ["adviser-research"],
-    queryFn: () => apiClient.get<{ projects: any[] }>("/api/research").catch(() => ({ projects: [] })),
+    queryFn: () => apiClient.get<{ projects: any[] }>("/api/research"),
     staleTime: 60000,
     refetchInterval: 15000,
     refetchOnWindowFocus: true,
@@ -618,7 +618,7 @@ function AdviserDashboardContent() {
                 </div>
                 {requestDetails.status === "PENDING" && <div className="mt-6 flex flex-wrap justify-end gap-2">
                   <button type="button" onClick={() => { setRequestDecision({ request: requestDetails, decision: "reject" }); setRequestResponseNote(""); }} className="rounded-lg border border-slate-300 px-4 py-2 font-bold text-slate-700">Reject</button>
-                  <button type="button" disabled={adviserCapacity?.isFull} onClick={() => { setRequestDecision({ request: requestDetails, decision: "accept" }); setRequestResponseNote(""); }} className="rounded-lg bg-emerald-600 px-4 py-2 font-bold text-white disabled:opacity-60">Accept request</button>
+                  <button type="button" data-guide="adviser-request-accept" disabled={adviserCapacity?.isFull} onClick={() => { setRequestDecision({ request: requestDetails, decision: "accept" }); setRequestResponseNote(""); }} className="rounded-lg bg-emerald-600 px-4 py-2 font-bold text-white disabled:opacity-60">Accept request</button>
                   {adviserCapacity?.isFull && <p className="w-full text-sm text-amber-800">Your adviser capacity is full or new requests are paused.</p>}
                 </div>}
               </>
@@ -754,7 +754,8 @@ function AdviserDashboardContent() {
                   <div className="adviser-overview__panel adviser-overview__attention">
                     <div className="adviser-overview__section-heading">
                       <div>
-                        <h2 className="flex items-center gap-2 text-lg font-bold text-[#17212B] dark:text-white">
+                        <h2 data-guide={!requestsLoading && !requestsError ? "adviser-attention" : undefined} data-guide-empty={pendingAdviserRequests.length === 0}
+                          className="flex items-center gap-2 text-lg font-bold text-[#17212B] dark:text-white">
                           Needs your attention{" "}
                           {pendingAdviserRequests.length > 0 && (
                             <span className="rounded-full bg-[#C9A227]/20 px-2 py-0.5 text-xs font-bold text-[#8A6A0B] dark:text-[#C9A227]">
@@ -803,7 +804,7 @@ function AdviserDashboardContent() {
                               </span>
                             </div>
                             <div className="mt-3 flex flex-wrap justify-end gap-2">
-                              <button type="button" onClick={() => { const params = new URLSearchParams(searchParams.toString()); params.set("requestId", request.id); router.push(`/adviser/dashboard?${params}`); }} className="mr-auto rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-bold text-[#173f63] dark:text-slate-200">View full request</button>
+                              <button type="button" data-guide="adviser-request-open" onClick={() => { const params = new URLSearchParams(searchParams.toString()); params.set("requestId", request.id); router.push(`/adviser/dashboard?${params}`); }} className="mr-auto rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-bold text-[#173f63] dark:text-slate-200">View full request</button>
                               <button
                                 onClick={() => {
                                   setRequestDecision({ request, decision: "reject" });
@@ -1034,7 +1035,7 @@ function AdviserDashboardContent() {
                 <div className="workspace-page-header college-hero-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl border text-[var(--color-text-primary)]">
                   <div>
                     <h2 className="text-xl font-bold text-[var(--color-text-primary)]">
-                      Assigned Research Groups
+                      <span data-tour="advisee-records" data-guide={!researchLoading && !researchError ? "adviser-group-list" : undefined} data-guide-empty={advisees.length === 0}>Assigned Research Groups</span>
                     </h2>
                     <p className="text-base text-[var(--color-text-secondary)] mt-1">
                       View your research groups, track progress, and open their workspaces.
@@ -1042,7 +1043,7 @@ function AdviserDashboardContent() {
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     {adviserCapacity && (
-                      <div className="min-w-56 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+                      <div data-guide="adviser-capacity" className="min-w-56 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
                         <div className="flex items-center justify-between text-xs">
                           <span className="font-bold text-[var(--color-text-primary)]">Capacity</span>
                           <span className="font-extrabold text-[var(--color-text-primary)]">{adviserCapacity.adviseeCount} / {adviserCapacity.maxAdviseeGroups}</span>
@@ -1080,7 +1081,7 @@ function AdviserDashboardContent() {
                   </div>
                 ) : (
                   <div className="rounded-2xl border border-dashed border-slate-300 dark:border-white/15 bg-white dark:bg-[#101b2b] p-12 text-center text-slate-400">
-                    No assigned advisee groups registered yet.
+                    {researchLoading ? "Loading assigned groups…" : researchError ? "Assigned groups could not be loaded. Try refreshing this page." : "No assigned advisee groups registered yet."}
                   </div>
                 )}
               </div>
@@ -1142,7 +1143,7 @@ function AdviserDashboardContent() {
                             <p className="text-sm font-bold uppercase tracking-widest text-slate-400">Consultation calendar</p>
                             <p className="mt-1 text-lg font-bold text-[#0B3A53] dark:text-white">{today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
                           </div>
-                          <button onClick={() => setShowScheduleModal(true)} className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 text-sm font-bold text-white transition hover:bg-[#072A3D] xl:hidden"><i className="ti ti-plus" />Schedule</button>
+                          <button data-guide="adviser-consultation-open" onClick={() => setShowScheduleModal(true)} className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 text-sm font-bold text-white transition hover:bg-[#072A3D] xl:hidden"><i className="ti ti-plus" />Schedule</button>
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="grid flex-1 grid-cols-7 gap-1 sm:gap-2">
@@ -1151,7 +1152,7 @@ function AdviserDashboardContent() {
                               return <div key={date.toISOString()} className={`flex min-w-10 flex-col items-center rounded-xl px-2 py-2 text-center sm:min-w-14 ${isToday ? "bg-[#0B3A53] text-white shadow-sm dark:bg-[#C9A227] dark:text-[#072A3D]" : "text-slate-500 dark:text-slate-400"}`}><span className="text-xs font-bold uppercase">{date.toLocaleDateString(undefined, { weekday: "short" })}</span><span className="mt-1 text-sm font-black">{date.getDate()}</span></div>;
                             })}
                           </div>
-                          <button onClick={() => setShowScheduleModal(true)} className="hidden h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 text-sm font-bold text-white transition hover:bg-[#072A3D] xl:flex"><i className="ti ti-plus" />Schedule consultation</button>
+                          <button data-guide="adviser-consultation-open" onClick={() => setShowScheduleModal(true)} className="hidden h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 text-sm font-bold text-white transition hover:bg-[#072A3D] xl:flex"><i className="ti ti-plus" />Schedule consultation</button>
                         </div>
                       </div>
                     </section>
@@ -1169,20 +1170,21 @@ function AdviserDashboardContent() {
 
                 {/* SCHEDULE MODAL */}
                 {showScheduleModal && (
-                  <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 w-full max-w-md flex flex-col gap-4 animate-fade-in-up">
+                  <div className="fixed inset-0 z-60 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="adviser-consultation-form-title">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto flex flex-col gap-4 animate-fade-in-up">
                       <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
                             <i className="ti ti-video text-base" />
                           </div>
                           <div>
-                            <h4 className="font-bold text-lg text-slate-900">New Google Meet Consultation</h4>
+                            <h4 id="adviser-consultation-form-title" className="font-bold text-lg text-slate-900">New Google Meet Consultation</h4>
                             <span className="text-xs text-slate-400">Generate real calendar video conference</span>
                           </div>
                         </div>
                         <button
                           onClick={() => setShowScheduleModal(false)}
+                          aria-label="Close scheduling form"
                           className="text-slate-400 hover:text-slate-600 cursor-pointer p-1"
                         >
                           <i className="ti ti-x text-base" />
@@ -1193,6 +1195,8 @@ function AdviserDashboardContent() {
                         <div className="flex flex-col gap-1">
                           <label className="font-bold text-slate-700">Advisee Group / Research Project</label>
                           <select
+                            data-guide="adviser-consultation-group"
+                            data-guide-empty={advisees.length === 0}
                             value={consultGroupId}
                             onChange={(e) => setConsultGroupId(e.target.value)}
                             className="bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800 focus:outline-none focus:border-[#1b4264]"
@@ -1210,6 +1214,7 @@ function AdviserDashboardContent() {
                           <input
                             type="text"
                             required
+                            data-guide="adviser-consultation-topic"
                             value={consultTopic}
                             onChange={(e) => setConsultTopic(e.target.value)}
                             placeholder="e.g. Chapter 3 Methodology & Analysis Discussion"
@@ -1223,6 +1228,7 @@ function AdviserDashboardContent() {
                             <input
                               type="date"
                               required
+                              data-guide="adviser-consultation-date"
                               value={consultDate}
                               onChange={(e) => setConsultDate(e.target.value)}
                               className="bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800 focus:outline-none focus:border-[#1b4264]"
@@ -1233,6 +1239,7 @@ function AdviserDashboardContent() {
                             <input
                               type="time"
                               required
+                              data-guide="adviser-consultation-time"
                               value={consultTime}
                               onChange={(e) => setConsultTime(e.target.value)}
                               className="bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-800 focus:outline-none focus:border-[#1b4264]"
@@ -1284,7 +1291,7 @@ function AdviserDashboardContent() {
                 <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101B2B]">
                   <div className="mb-5 flex items-center justify-between gap-4">
                     <div>
-                      <h3 className="text-lg font-bold text-[#0B3A53] dark:text-white">Consultation Schedule</h3>
+                      <h3 data-guide={!consultationsLoading && !consultationsError ? "adviser-consultation-list" : undefined} data-guide-empty={!consultationsApiData?.consultations?.length} className="text-lg font-bold text-[#0B3A53] dark:text-white">Consultation Schedule</h3>
                       <p className="mt-1 text-base text-slate-500 dark:text-slate-400">Manage requests, meeting links, and upcoming advising sessions.</p>
                     </div>
                     <span className="rounded-full bg-[#EAF3F7] px-3 py-1 text-xs font-bold text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">{consultations.length} total</span>
@@ -1323,6 +1330,7 @@ function AdviserDashboardContent() {
                           </button>
                         )}
                         <button
+                          data-guide={c.meetingUrl && ["scheduled", "confirmed", "approved"].includes(String(c.status).toLowerCase()) ? "adviser-consultation-meeting" : undefined}
                           onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic, c.researchId)}
                           className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[#0B3A53] px-3.5 text-sm font-bold text-white transition hover:bg-[#072A3D]"
                         >
@@ -1388,7 +1396,7 @@ function AdviserDashboardContent() {
             ),
             approvals: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-lg">Milestone Approval & Recommendation</h3>
+                <h3 data-guide="adviser-milestone-queue" className="font-extrabold text-[#1b4264] text-lg">Milestone Approval & Recommendation</h3>
                 <p className="text-base text-slate-400 font-bold">Approve core outline thresholds and issue recommendations for oral review panels.</p>
                 <div className="flex flex-col gap-3 mt-2">
                   {approvals.map(a => (
@@ -1412,7 +1420,7 @@ function AdviserDashboardContent() {
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                   <div>
-                    <h3 className="font-extrabold text-[#1b4264] text-lg">Consultation History & Transcript Archive</h3>
+                    <h3 data-guide="adviser-consultation-history" className="font-extrabold text-[#1b4264] text-lg">Consultation History & Transcript Archive</h3>
                     <p className="text-base text-slate-400 font-bold">Access historical meeting schedules, advising minutes, and Google Meet chat records.</p>
                   </div>
                   <div className="flex items-center gap-2">

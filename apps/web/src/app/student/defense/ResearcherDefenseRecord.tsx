@@ -197,7 +197,7 @@ export function ResearcherDefenseSession({ session }: { session: any }) {
       </p>
       <div className="rdf-session-grid">
         <div>
-          <h3>Schedule and venue</h3>
+          <h3 data-guide="researcher-defense-schedule">Schedule and venue</h3>
           <dl className="rdf-facts">
             <div>
               <dt>Defense type</dt>

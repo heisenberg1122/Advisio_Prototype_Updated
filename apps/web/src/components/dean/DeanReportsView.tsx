@@ -122,6 +122,7 @@ export function DeanReportsView() {
       <section className={filtersClass} aria-label="Report filters">
         <FilterField label="Report">
           <select
+            data-tour="report-selection"
             value={type}
             className={inputClass}
             onChange={(e) => {

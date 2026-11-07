@@ -678,7 +678,7 @@ function AdviserWorkloadView({
       <div className="space-y-4">
         <div className="workspace-page-header flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Adviser Directory & Workload</h2>
+            <h2 data-tour="adviser-workload" className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Adviser Directory & Workload</h2>
             <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
               {canManage
                 ? "Assign advisers to a program, manage capacity, and control availability."
@@ -970,6 +970,7 @@ function RegistryView({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search records…"
+              data-tour="page-filter"
               className="h-10 w-64 rounded-xl border border-slate-200 bg-slate-50/70 pl-9 pr-3 text-base outline-none focus:border-[#0B3A53] dark:border-white/10 dark:bg-white/5 dark:text-white"
             />
           </label>

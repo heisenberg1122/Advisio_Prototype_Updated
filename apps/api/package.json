@@ -6,7 +6,7 @@
   "main": "./dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --format=esm --packages=external && node scripts/copy-evaluation-assets.mjs",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --format=esm --packages=external --alias:@research-management/shared/src/researcher-assistant=../../packages/shared/src/researcher-assistant.ts && node scripts/copy-evaluation-assets.mjs",
     "start": "prisma migrate deploy --schema=../../packages/database/prisma/schema.prisma && node dist/index.js",
     "type-check": "tsc --noEmit",
     "test": "vitest run",

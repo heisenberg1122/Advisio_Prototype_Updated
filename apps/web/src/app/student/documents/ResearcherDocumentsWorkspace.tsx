@@ -327,7 +327,7 @@ export function ResearcherDocumentsWorkspace({
 
   if (!documents.length) {
     return (
-      <section aria-label="Working files">
+      <section data-tour="document-records" data-guide="document-empty" aria-label="Working files">
         <h2 className="sr-only">Working files</h2>
         <EmptyState
           className="rd-empty"
@@ -361,6 +361,7 @@ export function ResearcherDocumentsWorkspace({
   return (
     <div
       className="rd-file-workspace"
+      data-tour="document-records"
       data-view={selectedDocument ? "viewer" : "library"}
     >
       {taskId && taskHref && (
@@ -439,7 +440,7 @@ export function ResearcherDocumentsWorkspace({
             </div>
           </div>
           <h2 className="sr-only">Working files</h2>
-          <div className="rd-columns" aria-hidden="true">
+          <div className="rd-columns" data-guide="document-list-heading" aria-hidden="true">
             <span>Name</span>
             <span>Type</span>
             <span>Milestone</span>
@@ -467,6 +468,8 @@ export function ResearcherDocumentsWorkspace({
                     <button
                       type="button"
                       id={`researcher-file-${document.id}`}
+                      data-guide="document-open"
+                      data-guide-name={document.title}
                       onClick={() => onSelectDocument(document.id)}
                       className="rd-file-row"
                       aria-current={selected ? "true" : undefined}
@@ -476,7 +479,7 @@ export function ResearcherDocumentsWorkspace({
                           fileType={documentFileType(document)}
                         />
                         <span className="min-w-0">
-                          <span className="rd-file-name" title={document.title}>
+                          <span className="rd-file-name" title={document.title} data-guide="document-mobile-list">
                             {document.title}
                           </span>
                           {!document.milestone && latest?.fileName && (
@@ -561,6 +564,7 @@ export function ResearcherDocumentsWorkspace({
                     </span>
                     <h1
                       ref={headingRef}
+                      data-guide="document-heading"
                       tabIndex={-1}
                       className={`rd-document-title${isTitleWrapped ? " rd-document-title--wrapped" : ""}`}
                     >
@@ -891,6 +895,7 @@ export function ResearcherDocumentsWorkspace({
                 hidden={detailTab !== "file-history"}
                 role="tabpanel"
                 aria-labelledby="tab-file-history"
+                data-guide="document-versions"
                 className="border-t border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5"
               >
                 <div className="flex items-center justify-between gap-3">
@@ -983,6 +988,8 @@ export function ResearcherDocumentsWorkspace({
                 hidden={detailTab !== "file-feedback"}
                 role="tabpanel"
                 aria-labelledby="tab-file-feedback"
+                data-guide="document-feedback"
+                data-guide-empty={feedback.length === 0}
                 className="space-y-3 p-4 sm:p-5"
               >
                 <h2 className="sr-only">Document feedback</h2>

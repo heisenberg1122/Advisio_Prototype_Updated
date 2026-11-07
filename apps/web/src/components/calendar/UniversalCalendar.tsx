@@ -542,7 +542,7 @@ export default function UniversalCalendar() {
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-[40px_1fr_40px] items-center gap-2 sm:flex">
+            <div data-tour="calendar-navigation" className="grid grid-cols-[40px_1fr_40px] items-center gap-2 sm:flex">
               <button
                 onClick={() =>
                   setCursor(

@@ -82,19 +82,19 @@ export function StudentProjectOverview({
 
   return (
     <div className="student-projects-readable mp-workspace mp-project">
-      <section className="mp-panel mp-identity" aria-label="Project details">
+      <section data-tour="researcher-project-summary" className="mp-panel mp-identity" aria-label="Project details">
         <div className="mp-identity-layout">
           <div className="mp-identity-copy">
             <div className="mp-identity-metadata">
               <p className="mp-workflow-meta">{workflowAvailable ? workflowName || "Research workflow" : "Workflow unavailable"}{academicYear && ` · AY ${academicYear}`}</p>
               {project.status && <span className="mp-status bg-[var(--color-surface-muted)]">{overviewStatus(project.status)}</span>}
             </div>
-            <h1 className="mp-project-title">{project.title?.trim() || "Research title not added"}</h1>
+            <h1 className="mp-project-title" data-guide="researcher-project-summary">{project.title?.trim() || "Research title not added"}</h1>
             <p className="mp-note">{titleLabel}</p>
             {project.abstract?.trim() && <p className="mp-project-description">{project.abstract}</p>}
             <dl className="mp-project-context">
               <div><dt>Group</dt><dd>{teamName}{groupCode && ` · ${groupCode}`}</dd></div>
-              <div><dt>Assigned adviser</dt><dd>{adviserName || "Not assigned"}</dd></div>
+              <div data-guide="adviser-summary"><dt>Assigned adviser</dt><dd>{adviserName || "Not assigned"}</dd></div>
               {coordinator && workflowAvailable && <div><dt>Coordinator</dt><dd>{coordinator}</dd></div>}
             </dl>
             {pendingTitle && <p className="mp-note">Title amendment awaiting review <strong>{pendingTitle.proposedTitle}</strong></p>}
