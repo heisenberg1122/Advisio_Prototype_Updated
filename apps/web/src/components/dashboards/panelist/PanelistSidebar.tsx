@@ -2,7 +2,7 @@
 
 import { AppSidebar, NavSection } from "@/components/layout/AppSidebar";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
-import {
+import { Bell,
   LayoutDashboard,
   CalendarCheck,
   CalendarDays,
@@ -44,6 +44,7 @@ export const PANELIST_NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Messages", href: "/panelist/dashboard?tab=messages", tabName: "messages", icon: MessageSquare },
       { label: "Inbox", href: "/panelist/inbox", icon: Mail },
+      { label: "Notifications", href: "/panelist/notifications", icon: Bell },
     ],
   },
 ];

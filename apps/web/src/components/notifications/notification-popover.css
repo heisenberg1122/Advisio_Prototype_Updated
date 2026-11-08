@@ -1,0 +1,103 @@
+/* Bell dropdown: same quiet rows as the Notifications page. */
+.np-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 100;
+  width: min(360px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  text-align: left;
+  color: var(--color-text-primary);
+  box-shadow: 0 18px 48px rgb(15 23 42 / 0.16);
+}
+.np-panel button:focus-visible,
+.np-panel a:focus-visible { outline: 2px solid var(--college-focus-ring, var(--color-primary)); outline-offset: -2px; }
+.np-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+.np-head strong { font-size: 15px; font-weight: 700; }
+.np-head span { font-size: 13px; color: var(--color-text-secondary); }
+.np-mark { font-size: 13px; font-weight: 600; color: var(--color-primary); white-space: nowrap; }
+.np-mark:hover { text-decoration: underline; text-underline-offset: 3px; }
+.dark .np-mark { color: color-mix(in srgb, var(--color-primary) 55%, white); }
+.np-list { max-height: 340px; overflow-y: auto; }
+.np-item {
+  display: grid;
+  grid-template-columns: 7px 32px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 16px 12px 10px;
+  border-top: 1px solid var(--color-border);
+  text-align: left;
+  transition: background 0.15s ease;
+}
+.np-item:first-child { border-top: 0; }
+.np-item:hover { background: var(--color-surface-subtle); }
+.np-item[data-read="false"] { background: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface)); }
+.np-item[data-read="false"]:hover { background: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface)); }
+.np-dot { width: 7px; height: 7px; margin-top: 13px; border-radius: 50%; }
+.np-item[data-read="false"] .np-dot { background: var(--color-primary); }
+.np-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 16px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+}
+.np-item[data-read="false"] .np-icon { color: var(--color-primary); background: var(--color-surface); box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 20%, transparent); }
+.np-item[data-type="success"] .np-icon { color: color-mix(in srgb, var(--color-success) 65%, var(--color-text-primary)); }
+.np-item[data-type="warning"] .np-icon { color: color-mix(in srgb, var(--color-warning) 60%, var(--color-text-primary)); }
+.np-item[data-type="danger"] .np-icon { color: var(--color-danger); }
+.np-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.np-title { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.np-item[data-read="false"] .np-title { font-weight: 700; }
+.np-message { font-size: 13px; line-height: 1.45; color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.np-meta { margin-top: 2px; font-size: 12px; color: var(--color-text-secondary); }
+.np-error { padding: 16px; font-size: 13.5px; color: var(--color-danger); }
+.np-error button { text-decoration: underline; }
+.np-empty { display: grid; justify-items: center; gap: 3px; padding: 30px 20px; text-align: center; color: var(--color-text-secondary); }
+.np-empty > span { display: grid; place-items: center; width: 42px; height: 42px; margin-bottom: 6px; border-radius: 12px; background: var(--color-surface-subtle); font-size: 19px; }
+.np-empty p { font-size: 14.5px; font-weight: 700; color: var(--color-text-primary); }
+.np-empty small { font-size: 13px; }
+.np-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+.np-all:hover { background: var(--color-surface-subtle); }
+.dark .np-all { color: color-mix(in srgb, var(--color-primary) 55%, white); }
+
+/* Search and bell share one icon-button style in the top bar. */
+.topbar-icon-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in srgb, var(--color-text-primary) 72%, var(--color-surface)) !important;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.topbar-icon-btn:hover { background: color-mix(in srgb, var(--color-text-primary) 7%, transparent); color: var(--color-text-primary) !important; }
+.topbar-icon-btn:focus-visible { outline: 2px solid var(--college-focus-ring, var(--color-primary)); outline-offset: 1px; }
+.topbar-icon-btn[aria-expanded="true"] { background: color-mix(in srgb, var(--color-primary) 10%, transparent); color: var(--color-primary) !important; }

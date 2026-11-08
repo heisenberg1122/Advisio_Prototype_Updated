@@ -104,7 +104,9 @@ export async function synchronizeAdviserMilestone(
       recipientId,
       type: "WORKFLOW_CHANGED",
       title: "Adviser milestone approved",
-      message: `${adviserName} is now the official adviser for ${project.title}.`,
+      message: project.title?.trim()
+        ? `${adviserName} is now the official adviser for ${project.title.trim()}.`
+        : `${adviserName} is now the group's official adviser.`,
       entityType: "WorkflowStage",
       entityId: stage.id,
       actionUrl: `/research/manuscript?projectId=${project.id}&milestoneId=${stage.id}`,

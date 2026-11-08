@@ -1,0 +1,63 @@
+/* Panelist defense workspace layout. Visual pieces come from the shared system (src/styles/advisio-ui.css). */
+.pw { display: flex; flex-direction: column; gap: var(--au-gap-3); }
+.pw .au-band-meta .au-status { vertical-align: -1px; }
+.pw-note { display: flex; align-items: flex-start; gap: 6px; width: 100%; padding-top: 10px; border-top: 1px solid var(--color-border); font-size: var(--au-text-13); color: var(--color-text-secondary); white-space: pre-wrap; }
+.pw-note strong { font-weight: 600; color: var(--color-text-primary); }
+.pw-link-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 10px; font-size: var(--au-text-13); font-weight: 600; color: var(--au-brand-text); }
+.pw-link-btn:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pw-head { position: relative; }
+.pw-head > .au-band { padding-left: 72px; }
+.pw-back { position: absolute; z-index: 1; top: 20px; left: 20px; display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--color-border); border-radius: 50%; color: var(--color-text-primary); background: var(--color-surface); transition: border-color var(--au-speed) ease, color var(--au-speed) ease; }
+.pw-back:hover { border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border)); color: var(--color-primary); }
+.pw-back i { font-size: 18px; }
+@media (max-width: 640px) { .pw-head > .au-band { padding-left: 60px; } .pw-back { top: 14px; left: 14px; } }
+
+/* The one card to act on now; an unfinished task gets a quieter amber edge. */
+.pw-focus { border: 1.5px solid var(--color-primary); }
+.pw-nudge { border-color: color-mix(in srgb, var(--color-warning) 55%, var(--color-border)); }
+.pw-kicker { display: inline-flex; align-items: center; gap: 6px; font-size: var(--au-text-12); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--au-brand-text); }
+.pw-kicker::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pw-focus-body { padding: 2px var(--au-gap-3) 0; }
+.pw-focus-body h3 { font-size: 1.125rem; font-weight: 700; color: var(--color-text-primary); }
+.pw-focus-body p { margin-top: 2px; font-size: var(--au-text-14); color: var(--color-text-secondary); }
+.pw-focus-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px var(--au-gap-3) 14px; }
+
+/* Progress strip: finished steps go quiet, the step to do now is filled, an unfinished step is amber. */
+.pw-steps { display: flex; align-items: center; margin: 0; padding: 10px var(--au-gap-2); list-style: none; }
+.pw-step { display: flex; flex: 1; align-items: center; min-width: 0; }
+.pw-step:last-child { flex: 0 0 auto; }
+.pw-step:not(:last-child)::after { content: ""; flex: 1; height: 1px; margin: 0 10px; background: var(--color-border); }
+.pw-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; color: var(--color-text-secondary); }
+.pw-chip strong { display: block; font-size: var(--au-text-13); font-weight: 600; white-space: nowrap; }
+.pw-chip span span { display: block; font-size: var(--au-text-12); white-space: nowrap; }
+.pw-step-icon { flex: none; font-size: 17px; }
+.pw-step[data-state="pending"] .pw-chip { color: var(--color-text-muted, var(--color-text-secondary)); }
+.pw-step[data-state="current"] .pw-chip strong { color: var(--color-text-primary); }
+.pw-step[data-state="todo"] .pw-chip { color: var(--au-waiting); background: color-mix(in srgb, var(--color-warning) 13%, var(--color-surface)); }
+.pw-step[data-state="focus"] .pw-chip { color: var(--college-on-primary, #ffffff); background: var(--color-primary); }
+.dark .pw-step[data-state="focus"] .pw-chip { color: var(--college-on-primary-dark, #ffffff); }
+
+/* Paired cards share a row and a height; their last line sits at the bottom. */
+.pw-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: var(--au-gap-3); }
+.pw-pair > .au-card { display: flex; flex-direction: column; }
+.pw-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: auto; padding: 10px var(--au-gap-3) 12px; border-top: 1px solid var(--color-border); font-size: var(--au-text-13); color: var(--color-text-secondary); }
+.pw-foot strong { font-weight: 600; color: var(--color-text-primary); }
+.pw-ok { color: var(--au-done); }
+
+.pw-avatar { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; font-size: var(--au-text-12); font-weight: 700; color: var(--color-text-secondary); background: var(--color-surface-subtle); }
+.pw-tag { padding: 2px 9px; border: 1px solid var(--color-border); border-radius: 999px; font-size: var(--au-text-12); font-weight: 600; color: var(--color-text-secondary); }
+.pw-tag[data-role="LEADER"] { color: var(--au-brand-text); border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border)); }
+
+.pw-timeline { margin: 0; padding: 4px var(--au-gap-3) 14px; list-style: none; }
+.pw-timeline li { position: relative; padding: 6px 0 6px 20px; }
+.pw-timeline li::before { content: ""; position: absolute; top: 12px; left: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--color-text-muted, var(--color-text-secondary)); }
+.pw-timeline li:not(:last-child)::after { content: ""; position: absolute; top: 22px; bottom: -8px; left: 3.5px; width: 1px; background: var(--color-border); }
+.pw-timeline strong { display: block; font-size: var(--au-text-14); font-weight: 600; color: var(--color-text-primary); }
+.pw-timeline time { font-size: var(--au-text-12); color: var(--color-text-secondary); }
+
+@media (max-width: 1000px) {
+  .pw-pair { grid-template-columns: minmax(0, 1fr); }
+  .pw-steps { flex-wrap: wrap; gap: 10px 16px; }
+  .pw-step, .pw-step:last-child { flex: 1 1 40%; }
+  .pw-step:not(:last-child)::after { display: none; }
+}

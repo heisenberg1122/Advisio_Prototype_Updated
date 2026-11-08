@@ -129,9 +129,10 @@ export function ResearchWorkspaceNavigation() {
           <Link key={id} href={projectHref(href)} aria-current={id === destination ? "page" : undefined}>{label}</Link>
         ))}
       </nav>
-      {destination === "documents" && (
+      {/* On the Documents page itself these links join its tab row instead. */}
+      {destination === "documents" && documentArea !== "workspace" && (
         <nav aria-label="Document areas" className="researcher-document-nav">
-          <Link data-guide="documents-workspace-tab" href={projectHref("/student/documents")} aria-current={documentArea === "workspace" ? "page" : undefined}>Document workspace</Link>
+          <Link data-guide="documents-workspace-tab" href={projectHref("/student/documents")}>Document workspace</Link>
           <Link data-guide="documents-submissions-tab" href={projectHref("/student/dashboard?tab=submissions")} aria-current={documentArea === "submissions" ? "page" : undefined}>Submission history</Link>
           <Link data-guide="documents-files-tab" href={projectHref("/student/group-files")} aria-current={documentArea === "group-files" ? "page" : undefined}>Group Files</Link>
         </nav>

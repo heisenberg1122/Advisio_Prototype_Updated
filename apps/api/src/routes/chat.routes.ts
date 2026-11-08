@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth";
 import { sseManager } from "../realtime/sse";
+import { planResearchGroupChat } from "../services/research-group-chat";
 
 const router = Router();
 
@@ -328,6 +329,140 @@ router.post("/", async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("[ChatRoutes] Failed to create chat group:", error);
     res.status(500).json({ error: "Failed to create chat group" });
+  }
+});
+
+/** Research groups the signed-in researcher belongs to, and whether each already has a chat. */
+async function researcherGroups(userId: string) {
+  const projects = await prisma.researchProject.findMany({
+    where: { members: { some: { userId, leftAt: null, projectRole: { in: ["LEADER", "MEMBER"] } } } },
+    select: {
+      id: true,
+      title: true,
+      groupName: true,
+      members: {
+        select: {
+          userId: true,
+          projectRole: true,
+          leftAt: true,
+          user: { select: { firstName: true, middleName: true, lastName: true, status: true } },
+        },
+      },
+    },
+  });
+  const chats = await prisma.chatGroup.findMany({
+    where: { relatedResearchGroupId: { in: projects.map((project) => project.id) } },
+    select: { id: true, relatedResearchGroupId: true },
+  });
+  return projects.map((project) => ({
+    project,
+    chatId: chats.find((chat) => chat.relatedResearchGroupId === project.id)?.id || null,
+    members: project.members.map((member) => ({
+      userId: member.userId,
+      projectRole: member.projectRole as string,
+      leftAt: member.leftAt,
+      name: fullName(member.user),
+      active: member.user.status === "ACTIVE",
+    })),
+  }));
+}
+
+router.get("/my-group", async (req: Request, res: Response) => {
+  try {
+    const current = await databaseUser(req);
+    if (!current) {
+      res.status(403).json({ error: "A persisted user account is required" });
+      return;
+    }
+    const groups = await researcherGroups(current.id);
+    res.json({
+      groups: groups.map(({ project, chatId, members }) => {
+        const plan = planResearchGroupChat({ requesterId: current.id, research: project, members, existingChatId: chatId });
+        const others = members.filter((member) => !member.leftAt && member.active && member.userId !== current.id);
+        return {
+          researchId: project.id,
+          name: (project.groupName || "").trim() || project.title,
+          chatId,
+          canStart: plan.ok,
+          groupmates: others.filter((member) => member.projectRole === "LEADER" || member.projectRole === "MEMBER").map((member) => member.name),
+          adviserName: others.find((member) => member.projectRole === "ADVISER")?.name || null,
+        };
+      }),
+    });
+  } catch (error: any) {
+    console.error("[ChatRoutes] Failed to load research group chats:", error);
+    res.status(500).json({ error: "Failed to load research group chats" });
+  }
+});
+
+router.post("/my-group", async (req: Request, res: Response) => {
+  try {
+    const current = await databaseUser(req);
+    const researchId = String(req.body.researchId || "");
+    if (!current || !researchId) {
+      res.status(400).json({ error: "A research group is required" });
+      return;
+    }
+    const group = (await researcherGroups(current.id)).find(({ project }) => project.id === researchId);
+    if (!group) {
+      res.status(403).json({ error: "Only a member of this research group can start its chat" });
+      return;
+    }
+    const plan = planResearchGroupChat({
+      requesterId: current.id,
+      research: group.project,
+      members: group.members,
+      existingChatId: group.chatId,
+    });
+    if (!plan.ok) {
+      res.status(plan.status).json({ error: plan.error });
+      return;
+    }
+    const creatorRoles = current.roles.map((entry) => entry.role.name as string);
+    const now = new Date();
+    const created = await prisma.chatGroup.create({
+      data: {
+        title: plan.title,
+        description: "Research group chat",
+        createdByAdviserId: current.email,
+        adviserName: plan.adviserName || fullName(current),
+        relatedResearchGroupId: researchId,
+        createdByUserId: current.id,
+        isFacultyOnly: false,
+        participants: {
+          create: [
+            {
+              userId: current.id,
+              roleSnapshot: creatorRoles.includes("RESEARCHER") ? "RESEARCHER" : creatorRoles[0] || "RESEARCHER",
+              status: "ACCEPTED",
+              isAdmin: true,
+              respondedAt: now,
+              lastReadAt: now,
+            },
+            ...plan.studentIds.map((userId) => ({
+              userId,
+              roleSnapshot: "RESEARCHER",
+              status: "ACCEPTED" as const,
+              invitedByUserId: current.id,
+              respondedAt: now,
+            })),
+            ...plan.adviserIds.map((userId) => ({
+              userId,
+              roleSnapshot: "ADVISER",
+              status: "PENDING" as const,
+              invitedByUserId: current.id,
+            })),
+          ],
+        },
+      },
+    });
+    const event = { chatId: created.id };
+    [current.id, ...plan.studentIds].forEach((userId) => sseManager.sendToUser(userId, "chat:updated", event));
+    plan.adviserIds.forEach((userId) => sseManager.sendToUser(userId, "chat:invitation", event));
+    res.status(201).json({ chat: created });
+  } catch (error: any) {
+    console.error("[ChatRoutes] Failed to start research group chat:", error);
+    res.status(500).json({ error: "Failed to start the group chat" });
   }
 });
 

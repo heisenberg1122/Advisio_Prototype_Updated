@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { AppSidebar, NavSection } from "@/components/layout/AppSidebar";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
-import {
+import { Bell,
   LayoutDashboard,
   Users,
   FileSearch,
@@ -41,6 +41,7 @@ export const ADVISER_NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Messages", href: "/adviser/dashboard?tab=group-chats", tabName: "group-chats", icon: MessageSquare },
       { label: "Inbox", href: "/adviser/inbox", icon: Mail },
+      { label: "Notifications", href: "/adviser/notifications", icon: Bell },
     ],
   },
 ];

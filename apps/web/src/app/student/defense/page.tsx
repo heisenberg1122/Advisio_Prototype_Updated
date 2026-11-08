@@ -3,14 +3,14 @@
 import { useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useDefense } from "@/hooks/use-student";
-import { EligibilityBanner } from "@/components/defense/EligibilityBanner";
-import { DefenseChecklist } from "@/components/defense/DefenseChecklist";
 import { DefenseSkeleton } from "@/components/defense/DefenseSkeleton";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { useActiveProject } from "@/providers/active-project-provider";
 import { ResearcherDefenseRecord, readable } from "./ResearcherDefenseRecord";
+import { useAuth } from "@/hooks/use-auth";
+import { getAcademicIdentity } from "@/lib/academic-identity";
+import { DefenseReadiness } from "./DefenseReadiness";
 import "./researcher-defense.css";
 
 const activeStatuses = new Set([
@@ -24,6 +24,8 @@ export default function DefensePage() {
   const { sessionId } = useParams<{ sessionId?: string }>();
   const navigate = useNavigate();
   const { data, isPending, isError, error, refetch } = useDefense();
+  const { user } = useAuth();
+  const seal = getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc;
   const projectSelection = useActiveProject(data?.projects || []);
   const preferredSession =
     data?.sessions.find((session: any) => activeStatuses.has(session.status)) ||
@@ -153,7 +155,8 @@ export default function DefensePage() {
 
   return (
     <div className="researcher-defense">
-      <header className="college-hero-surface rdf-header">
+      <header className="rdf-header">
+        {seal && <img className="rdf-seal" src={seal} alt="" aria-hidden="true" draggable={false} />}
         <div className="rdf-identity">
           <p className="rdf-eyebrow">Research defense</p>
           <div className="rdf-title-row">
@@ -168,6 +171,15 @@ export default function DefensePage() {
             )}
           </div>
           <p className="rdf-project-title">{data.project.title}</p>
+          {!selectedSession && (
+            <dl className="rdf-facts">
+              <div><dt>Requirements</dt><dd>{data.requirements.filter((item: any) => item.status === "done").length} of {data.requirements.length} met</dd></div>
+              {data.progress && data.progress.total > 0 && (
+                <div><dt>Research progress</dt><dd>{data.progress.completed} of {data.progress.total} milestones</dd></div>
+              )}
+              {data.progress?.current && <div><dt>Now on</dt><dd>{data.progress.current}</dd></div>}
+            </dl>
+          )}
           {selectedSession && (
             <div className="rdf-identifiers">
               <span>
@@ -190,8 +202,8 @@ export default function DefensePage() {
             </div>
           )}
         </div>
-        <div className="rdf-header-actions">
-          {data.projects.length > 1 && (
+        {data.projects.length > 1 && (
+          <div className="rdf-header-actions">
             <select
               aria-label="Research project"
               value={data.project.id}
@@ -208,34 +220,25 @@ export default function DefensePage() {
                 </option>
               ))}
             </select>
-          )}
-          <Link
-            to={projectSelection.projectHref("/student/dashboard?tab=group")}
-            className="rdf-action"
-          >
-            Back to My Projects
-          </Link>
-        </div>
+          </div>
+        )}
       </header>
-      {data.progress && data.progress.total > 0 && (
+      {!selectedSession && (
+        <div className="rdf-readiness">
+          <DefenseReadiness
+            eligibility={data.eligibility}
+            requirements={data.requirements}
+            progress={data.progress}
+            timelineHref={projectSelection.projectHref("/student/dashboard?tab=milestones")}
+          />
+        </div>
+      )}
+      {selectedSession && data.progress && data.progress.total > 0 && (
         <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5" aria-label="Research completion">
           <h2 className="font-extrabold">Research completion: {data.progress.completed} of {data.progress.total} milestones</h2>
           <progress className="mt-3 w-full" value={data.progress.completed} max={data.progress.total} />
           <p className="mt-2 text-sm">{data.progress.completed === data.progress.total ? "All research milestones completed." : `Current milestone: ${data.progress.current || "Awaiting the next milestone"}`}</p>
         </section>
-      )}
-      {!selectedSession && (
-        <div className="rdf-readiness">
-          <h2 className="sr-only">Defense requirements</h2>
-          <EligibilityBanner eligibility={data.eligibility} />
-          <DefenseChecklist requirements={data.requirements} />
-          <EmptyState
-            size="md"
-            icon="ti-calendar-time"
-            title="No defense session has been created"
-            description="Once every requirement is complete, the professor or coordinator can place your project into a defense event. The exact session will appear here automatically."
-          />
-        </div>
       )}
       <ResearcherDefenseRecord
         selectedSession={selectedSession}

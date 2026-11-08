@@ -2,7 +2,7 @@
 
 import React, { Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import {
+import { Bell,
   BookOpenCheck,
   CalendarClock,
   CalendarDays,
@@ -60,6 +60,7 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
       { label: "Announcements", href: "/admin/dashboard?tab=announcements", tabName: "announcements", icon: Megaphone },
       { label: "Messages", href: "/admin/dashboard?tab=messages", tabName: "messages", icon: MessageSquare },
       { label: "Inbox", href: "/admin/inbox", icon: Mail },
+      { label: "Notifications", href: "/admin/notifications", icon: Bell },
     ],
   },
 ];

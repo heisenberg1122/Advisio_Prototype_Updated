@@ -1,14 +1,11 @@
 "use client";
 
-import { Card } from "@/components/ui/Card";
 import { NotificationList } from "@/components/notifications/NotificationList";
 
 export default function AdminNotificationsPage() {
   return (
-    <div>
-      <Card>
-        <NotificationList />
-      </Card>
+    <div className="mx-auto w-full max-w-[1360px]">
+      <NotificationList standalone />
     </div>
   );
 }

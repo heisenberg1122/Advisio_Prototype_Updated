@@ -454,3 +454,276 @@
     min-height: 32px;
   }
 }
+
+/* One tab row: in-page tabs, then links to the other document areas. */
+.researcher-documents .rd-tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  border-bottom: 1px solid var(--color-border);
+}
+.researcher-documents .rd-tab-row > [role="tablist"] {
+  border-bottom: 0;
+}
+.researcher-documents .rd-tab-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin-left: 8px;
+  padding-left: 10px;
+  border-left: 1px solid var(--color-border);
+}
+.researcher-documents .rd-tab-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.researcher-documents .rd-tab-links a:hover {
+  color: var(--color-primary);
+}
+.researcher-documents .rd-tab-links a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  border-radius: 6px;
+}
+.researcher-documents .rd-tab-links .rd-tab-tasks {
+  margin-left: auto;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+.researcher-documents .rd-tab-links:has(.rd-tab-tasks) {
+  flex: 1;
+}
+
+/* Header: same faint college seal as the other workspace pages. */
+.researcher-documents .rd-library-hero {
+  position: relative;
+}
+.researcher-documents .rd-library-hero > :not(.rd-library-seal-clip) {
+  position: relative;
+}
+/* Crop the seal on its own layer so menus can still open past the header. */
+.researcher-documents .rd-library-seal-clip {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.researcher-documents .rd-library-hero:has([aria-expanded="true"]) {
+  z-index: 20;
+}
+.researcher-documents .rd-library-seal {
+  position: absolute;
+  top: -40px;
+  right: -30px;
+  width: 230px;
+  height: 230px;
+  object-fit: contain;
+  opacity: 0.07;
+  filter: grayscale(1);
+  pointer-events: none;
+  user-select: none;
+}
+.dark .researcher-documents .rd-library-seal {
+  opacity: 0.06;
+}
+
+/* Table statuses as quiet text with a dot instead of pills. */
+.researcher-documents .rd-status {
+  gap: 6px;
+  min-height: 0;
+  padding: 0;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--color-text-secondary) !important;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.researcher-documents .rd-status::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.researcher-documents .rd-status[data-tone="success"] {
+  color: color-mix(in srgb, var(--color-success) 55%, var(--color-text-primary)) !important;
+}
+.researcher-documents .rd-status[data-tone="info"] {
+  color: color-mix(in srgb, var(--color-warning) 58%, var(--color-text-primary)) !important;
+}
+.researcher-documents .rd-status:is([data-tone="warning"], [data-tone="danger"]) {
+  color: color-mix(in srgb, var(--color-danger) 80%, var(--color-text-primary)) !important;
+}
+.dark .researcher-documents .rd-status[data-tone="success"] { color: var(--color-success) !important; }
+.dark .researcher-documents .rd-status[data-tone="info"] { color: var(--color-warning) !important; }
+.dark .researcher-documents .rd-status:is([data-tone="warning"], [data-tone="danger"]) { color: var(--color-danger) !important; }
+
+@media (max-width: 767px) {
+  .researcher-documents .rd-tab-links {
+    width: 100%;
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+  }
+}
+
+/* Table polish: clearer milestone text, one link style for names, no edge stripe. */
+.researcher-documents .rd-file-row {
+  min-height: 76px;
+}
+.researcher-documents .rd-file-name {
+  color: var(--color-text-primary);
+}
+.researcher-documents .rd-file-row:hover .rd-file-name {
+  color: var(--color-primary);
+}
+.researcher-documents .rd-milestone {
+  color: color-mix(in srgb, var(--color-text-primary) 78%, var(--color-text-secondary));
+  font-weight: 500;
+}
+.researcher-documents .rd-file-row[aria-current="true"] {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-primary) 35%, transparent);
+}
+.researcher-documents .rd-library-hero {
+  background:
+    radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--color-primary) 6%, transparent), transparent 60%),
+    var(--color-surface);
+}
+
+/* Five columns now: name, milestone, status, modified, row arrow. */
+.researcher-documents .rd-columns,
+.researcher-documents .rd-file-row {
+  grid-template-columns: minmax(0, 2.6fr) minmax(0, 1.4fr) minmax(110px, 0.8fr) 80px 16px;
+}
+.researcher-documents .rd-columns {
+  padding-block: 10px;
+  font-size: 11.5px;
+  letter-spacing: 0.01em;
+}
+.researcher-documents .rd-milestone {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.researcher-documents .rd-milestone > .ti {
+  flex: none;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  opacity: 0.75;
+}
+.researcher-documents .rd-row-arrow {
+  font-size: 16px;
+  color: var(--color-text-secondary);
+  opacity: 0;
+  transform: translateX(-3px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.researcher-documents .rd-file-row:is(:hover, :focus-visible, [aria-current="true"]) .rd-row-arrow {
+  opacity: 0.8;
+  transform: none;
+}
+
+/* File badge: soft tint and symbol by file type. */
+.rd-file-icon {
+  --kind: var(--color-text-secondary);
+  display: inline-flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  color: color-mix(in srgb, var(--kind) 82%, var(--color-text-primary));
+  background: color-mix(in srgb, var(--kind) 11%, var(--color-surface));
+}
+.rd-file-icon .ti { font-size: 17px; line-height: 1; }
+.rd-file-icon b { font-size: 8px; font-weight: 700; line-height: 1; letter-spacing: 0.03em; }
+.rd-file-icon[data-kind="pdf"] { --kind: #d64545; }
+.rd-file-icon[data-kind="word"],
+.rd-file-icon[data-kind="gdoc"] { --kind: #2f6fd6; }
+.rd-file-icon[data-kind="slides"] { --kind: #d9822b; }
+.rd-file-icon[data-kind="sheet"] { --kind: #2e9a5b; }
+.rd-file-icon[data-kind="image"] { --kind: #7d5bd0; }
+.dark .rd-file-icon {
+  color: color-mix(in srgb, var(--kind) 70%, white);
+  background: color-mix(in srgb, var(--kind) 18%, var(--color-surface));
+}
+.dark .rd-file-icon[data-kind="other"] { color: var(--color-text-secondary); }
+
+/* Tab row: icons, soft count squares, outbound marks, Open Tasks as a light button. */
+.researcher-documents .rd-tab-row [role="tab"] > span:last-child:not(:only-of-type) {
+  min-width: 20px;
+  border-radius: 6px;
+  text-align: center;
+}
+.researcher-documents .rd-tab-row [role="tab"] .ti {
+  font-size: 16px;
+}
+.researcher-documents .rd-tab-links .ti {
+  font-size: 16px;
+}
+.researcher-documents .rd-tab-links .rd-tab-out {
+  font-size: 12px;
+  margin-left: -2px;
+  opacity: 0.55;
+}
+.researcher-documents .rd-tab-links .rd-tab-tasks {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+  border-radius: 8px;
+}
+.researcher-documents .rd-tab-links .rd-tab-tasks:hover {
+  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+}
+
+/* Quiet "Switch project" link beside the project title. */
+.researcher-documents .rd-project-switch {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 7px;
+  color: var(--color-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-primary) 7%, transparent);
+  transition: background 0.15s ease;
+}
+.researcher-documents .rd-project-switch:hover {
+  background: color-mix(in srgb, var(--color-primary) 13%, transparent);
+}
+.researcher-documents .rd-project-switch:focus-within {
+  outline: 2px solid var(--college-focus-ring, var(--color-primary));
+  outline-offset: 2px;
+}
+.dark .researcher-documents .rd-project-switch {
+  color: color-mix(in srgb, var(--color-primary) 60%, white);
+}
+
+@media (max-width: 1099px) {
+  .researcher-documents .rd-columns,
+  .researcher-documents .rd-file-row {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1.1fr) minmax(104px, 0.7fr) 72px 16px;
+  }
+}
+@media (max-width: 767px) {
+  .researcher-documents .rd-file-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .researcher-documents .rd-row-arrow {
+    display: none;
+  }
+}

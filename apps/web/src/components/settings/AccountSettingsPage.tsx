@@ -3,14 +3,15 @@
 import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
+  BadgeCheck,
   Bell,
   Camera,
+  Lock,
   Check,
   Laptop,
   Moon,
   Palette,
   Pencil,
-  Phone,
   Save,
   Shield,
   Sun,
@@ -22,9 +23,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { useProfile } from "@/hooks/use-profile";
 import { useTheme } from "@/providers/theme-provider";
 import { Avatar } from "@/components/ui/Avatar";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { cn } from "@/lib/utils";
+import { getAcademicIdentity } from "@/lib/academic-identity";
 import { COLLEGE_THEMES } from "@/lib/college-themes";
 import { useAssistantVisibility } from "@/lib/assistant-preference";
 import "./account-settings.css";
@@ -141,6 +140,7 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
   } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>("account");
   const [savedMessage, setSavedMessage] = useState("");
+  const [preferenceStatus, setPreferenceStatus] = useState("");
   const [editingAccount, setEditingAccount] = useState(false);
   const [accountName, setAccountName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
@@ -177,12 +177,6 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
     setContactNumber(profile.contactNumber || "");
     setPhotoUrl(profile.photoUrl || "");
   }, [editingAccount, profile]);
-
-  const savePreferences = () => {
-    localStorage.setItem(storageKey, JSON.stringify(preferences));
-    setSavedMessage("Notification preferences saved.");
-    window.setTimeout(() => setSavedMessage(""), 3000);
-  };
 
   const editAccount = () => {
     setAccountName(profile.name || "");
@@ -232,250 +226,311 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
     window.setTimeout(() => setSavedMessage(""), 3000);
   };
 
-  const categories: Array<{ id: SettingsTab; label: string; description: string; icon: typeof User }> = [
-    { id: "account", label: "Account", description: "Institutional identity", icon: User },
-    { id: "notifications", label: "Notifications", description: "Role-specific alerts", icon: Bell },
-    { id: "appearance", label: "Appearance", description: "Theme preferences", icon: Palette },
-    { id: "security", label: "Security", description: "Password and access", icon: Shield },
+  const categories: Array<{ id: SettingsTab; label: string; icon: typeof User }> = [
+    { id: "account", label: "Profile", icon: User },
+    { id: "notifications", label: "Notifications", icon: Bell },
+    { id: "appearance", label: "Appearance", icon: Palette },
+    { id: "security", label: "Security", icon: Shield },
   ];
 
+  const roleLabel = ROLE_LABELS[primaryRole] || primaryRole.replace(/_/g, " ");
+  const seal = getAcademicIdentity({ college: user?.college as any, program: user?.program as any })?.logoSrc;
+  const identityLine = [roleLabel, user?.program?.name, user?.universityId].filter(Boolean).join(" · ");
+  const togglePreference = (id: string, value: boolean) => {
+    const next = { ...preferences, [id]: value };
+    setPreferences(next);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(next));
+      setPreferenceStatus("Saved");
+    } catch {
+      setPreferenceStatus("Applied for this session. Browser storage is unavailable.");
+    }
+  };
+  const themeSwatch = (color: string) => (
+    <span className="as-swatch" aria-hidden="true">
+      <i style={{ backgroundColor: color }} />
+      <i style={{ backgroundColor: `color-mix(in srgb, ${color} 45%, white)` }} />
+      <i style={{ backgroundColor: `color-mix(in srgb, ${color} 14%, white)` }} />
+    </span>
+  );
+
   return (
-    <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+    <div className="as-page mx-auto flex w-full max-w-screen-2xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
       {savedMessage && (
-        <div className="fixed right-5 top-20 z-50 flex items-center gap-2 rounded-xl border border-white/10 bg-[#0B3A53] px-4 py-3 text-sm font-bold text-white shadow-xl">
-          <Check className="h-4 w-4 text-[var(--color-primary)]" /> {savedMessage}
+        <div role="status" className="as-toast">
+          <Check className="h-4 w-4" aria-hidden="true" /> {savedMessage}
         </div>
       )}
 
-      <div className="workspace-page-header">
-        <p className="text-sm font-extrabold uppercase tracking-[0.14em] text-[var(--color-primary)]">My account</p>
-        <h1 className="mt-1 text-2xl font-extrabold text-[#17212B] dark:text-white">Account Settings</h1>
-        <p className="mt-1 text-base text-slate-500 dark:text-slate-400">Manage personal preferences for your Advisio account.</p>
-      </div>
+      <section className="as-card" aria-labelledby="as-title">
+        <header className="as-band">
+          {seal && <img className="as-seal" src={seal} alt="" aria-hidden="true" draggable={false} />}
+          <Avatar initials={profile.initials} name={profile.name} src={profile.photoUrl || undefined} colorVariant="accent" size="lg" className="as-avatar" />
+          <div className="min-w-0">
+            <p id="as-title" className="as-eyebrow">Account settings</p>
+            <h1>{profile.name || user?.email}</h1>
+            <p className="as-identity">{identityLine}</p>
+          </div>
+        </header>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[260px_1fr]">
-        <nav className="account-settings-nav flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:pb-0" aria-label="Account settings sections" data-guide={guideTarget}>
-          {categories.map(({ id, label, description, icon: Icon }) => (
-            <button key={id} type="button" data-guide={guidePrefix && id === "appearance" ? `${guidePrefix}-appearance-tab` : undefined} onClick={() => setActiveTab(id)} className={cn("flex min-w-52 items-center gap-3 rounded-xl border p-3 text-left transition", activeTab === id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-primary)]" : "border-[var(--color-border)] bg-[var(--color-surface)] text-slate-700 hover:bg-[var(--color-primary-light)] dark:text-slate-200")}>
-              <span className={cn("grid h-9 w-9 place-items-center rounded-lg", activeTab === id ? "bg-white/15" : "bg-slate-100 dark:bg-white/10")}><Icon className="h-4 w-4" /></span>
-              <span><strong className="block text-sm">{label}</strong><span className={cn("text-sm", activeTab === id ? "text-slate-200" : "text-slate-400")}>{description}</span></span>
-            </button>
-          ))}
-        </nav>
+        <div className="as-body">
+          <nav className="as-nav" aria-label="Account settings sections" data-guide={guideTarget}>
+            {categories.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                aria-current={activeTab === id ? "page" : undefined}
+                data-guide={guidePrefix && id === "appearance" ? `${guidePrefix}-appearance-tab` : undefined}
+                onClick={() => setActiveTab(id)}
+              >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                {label}
+              </button>
+            ))}
+          </nav>
 
-        <div>
-          {activeTab === "account" && (
-            <Card>
-              <CardHeader>
-                <div><CardTitle icon={User}>Account Profile</CardTitle><CardDescription>Update your name, contact number, and profile photo. Verified university details remain protected.</CardDescription></div>
-                {!editingAccount && <Button type="button" variant="primary" size="sm" icon={<Pencil className="h-4 w-4" />} onClick={editAccount}>Edit profile</Button>}
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <section className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-5 dark:border-white/10 dark:from-white/[.04] dark:to-transparent sm:flex-row sm:items-center">
-                  <div className="relative mx-auto shrink-0 sm:mx-0">
-                    <Avatar initials={profile.initials} name={accountName || profile.name} src={photoUrl || undefined} colorVariant="accent" size="xl" className="h-24 w-24 border-4 border-white text-2xl shadow-md dark:border-[#101b2b]" />
-                    {editingAccount && (
-                      <button type="button" onClick={() => photoInputRef.current?.click()} disabled={photoBusy} aria-label="Choose profile photo" className="absolute -bottom-1 -right-1 grid h-9 w-9 place-items-center rounded-full border-2 border-white bg-[#0B3A53] text-white shadow-md transition hover:bg-[#072A3D] disabled:opacity-60 dark:border-[#101b2b]">
-                        <Camera className="h-4 w-4" />
-                      </button>
-                    )}
-                    <input ref={photoInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={selectProfilePhoto} />
+          <div className="as-panel">
+            {activeTab === "account" && (
+              <>
+                <div className="as-section-head">
+                  <div>
+                    <h2>Your details</h2>
+                    <p>You can change these.</p>
                   </div>
-                  <div className="min-w-0 flex-1 text-center sm:text-left">
-                    <p className="truncate text-lg font-extrabold text-slate-900 dark:text-white">{accountName || profile.name}</p>
-                    <p className="mt-1 text-base font-semibold text-[#9A6A00] dark:text-[#C9A227]">{ROLE_LABELS[primaryRole] || primaryRole.replace(/_/g, " ")}</p>
-                    <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{user?.email || profile.email}</p>
-                    {editingAccount && (
-                      <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
-                        <button type="button" onClick={() => photoInputRef.current?.click()} disabled={photoBusy} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200"><Camera className="h-3.5 w-3.5" />{photoBusy ? "Preparing photo…" : photoUrl ? "Change photo" : "Add photo"}</button>
-                        {photoUrl && <button type="button" onClick={() => setPhotoUrl("")} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-rose-600 transition hover:bg-rose-50 dark:hover:bg-rose-500/10"><Trash2 className="h-3.5 w-3.5" />Remove</button>}
-                      </div>
-                    )}
-                    {editingAccount && <p className="mt-2 text-base text-slate-400">PNG, JPEG, or WebP · Maximum 5 MB</p>}
-                  </div>
-                </section>
-
-                {accountError && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-base font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">{accountError}</p>}
-
-                <div>
-                  <div className="mb-3 flex items-center gap-2"><Pencil className="h-4 w-4 text-[#C9A227]" /><h3 className="text-lg font-extrabold text-slate-800 dark:text-white">Editable profile information</h3></div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <EditableField label="Full name" value={accountName} placeholder="Enter your full name" editing={editingAccount} onChange={setAccountName} />
-                    <EditableField label="Contact number" value={contactNumber} placeholder="Add your contact number" editing={editingAccount} onChange={setContactNumber} icon={<Phone className="h-4 w-4" />} />
-                  </div>
+                  {!editingAccount && (
+                    <button type="button" className="as-btn" onClick={editAccount}>
+                      <Pencil className="h-4 w-4" aria-hidden="true" /> Edit
+                    </button>
+                  )}
                 </div>
-
-                <div>
-                  <div className="mb-3 flex items-center gap-2"><Shield className="h-4 w-4 text-emerald-600" /><h3 className="text-lg font-extrabold text-slate-800 dark:text-white">Verified institutional information</h3></div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <ReadOnlyField label="University ID" value={user?.universityId || "Not available"} />
-                    <ReadOnlyField label="Institutional email" value={user?.email || "Not available"} />
-                    <ReadOnlyField label="Account role" value={ROLE_LABELS[primaryRole] || primaryRole.replace(/_/g, " ")} />
-                    <ReadOnlyField label="College" value={user?.college?.name || "Not assigned"} />
-                    <ReadOnlyField label="Program" value={user?.program?.name || "Not assigned"} />
+                {accountError && <p role="alert" className="as-error">{accountError}</p>}
+                <dl className="as-rows">
+                  <div className="as-row">
+                    <dt>Full name</dt>
+                    <dd>
+                      {editingAccount ? (
+                        <input aria-label="Full name" value={accountName} onChange={(event) => setAccountName(event.target.value)} placeholder="Enter your full name" />
+                      ) : (
+                        profile.name || <span className="as-muted">Not added yet</span>
+                      )}
+                    </dd>
+                    <span />
                   </div>
-                </div>
-              </CardContent>
-              {editingAccount && (
-                <CardFooter className="justify-end gap-3">
-                  <Button type="button" variant="outline" size="md" onClick={cancelAccountEdit}>Cancel</Button>
-                  <Button type="button" variant="primary" size="md" icon={<Save className="h-4 w-4" />} onClick={saveAccount} disabled={photoBusy}>Save profile</Button>
-                </CardFooter>
-              )}
-            </Card>
-          )}
-
-          {activeTab === "notifications" && (
-            <Card>
-              <CardHeader><div><CardTitle icon={Bell}>Notification Preferences</CardTitle><CardDescription>Choose which {ROLE_LABELS[primaryRole] || "account"} updates should appear in your notifications.</CardDescription></div></CardHeader>
-              <CardContent className="space-y-3">
-                {options.map(([id, title, description]) => (
-                  <label key={id} className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-                    <span><strong className="block text-sm text-slate-800 dark:text-white">{title}</strong><span className="mt-1 block text-xs text-slate-500 dark:text-slate-400">{description}</span></span>
-                    <input type="checkbox" checked={preferences[id] ?? true} onChange={(event) => setPreferences((current) => ({ ...current, [id]: event.target.checked }))} className="mt-1 h-4 w-4 accent-[var(--color-primary)]" />
-                  </label>
-                ))}
-              </CardContent>
-              <CardFooter className="justify-end"><Button type="button" variant="primary" size="md" icon={<Save className="h-4 w-4" />} onClick={savePreferences}>Save Preferences</Button></CardFooter>
-            </Card>
-          )}
-
-          {activeTab === "appearance" && (
-            <Card>
-              <CardHeader><div><CardTitle icon={Palette}>Appearance</CardTitle><CardDescription>Choose your Advisio color identity and display mode. Preferences are saved to your account.</CardDescription></div></CardHeader>
-              <CardContent className="space-y-6">
-                {guideTarget === "researcher-settings-navigation" && (
-                  <section aria-labelledby="workspace-assistance-heading">
-                    <h3 id="workspace-assistance-heading" className="text-lg font-extrabold text-[var(--color-text-primary)]">Workspace Assistance</h3>
-                    <label className="mt-3 flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-                      <span><strong className="block text-sm text-[var(--color-text-primary)]">Show floating AI Assistant</strong>
-                        <span className="mt-1 block text-sm text-[var(--color-text-secondary)]">Show the assistant button while using your workspace.</span>
-                      </span>
-                      <input type="checkbox" role="switch" data-guide={guidePrefix ? `${guidePrefix}-assistant-switch` : undefined} aria-label="Show floating AI Assistant" checked={assistant.visible}
-                        onChange={event => setAssistantMessage(assistant.setVisible(event.target.checked) ? "Saved for your account in this browser." : "Applied for this session. Browser storage is unavailable.")}
-                        className="h-5 w-5 shrink-0 accent-[var(--color-primary)]" />
-                    </label>
-                    <p className="mt-2 text-xs text-[var(--color-text-secondary)]">This preference is saved for your signed-in account in this browser. Set it separately on other devices. Guide is always available in the sidebar.</p>
-                    {assistantMessage && <p className="mt-2 text-sm text-[var(--color-text-secondary)]" role="status">{assistantMessage}</p>}
-                  </section>
+                  <div className="as-row">
+                    <dt>Contact number</dt>
+                    <dd>
+                      {editingAccount ? (
+                        <input aria-label="Contact number" value={contactNumber} onChange={(event) => setContactNumber(event.target.value)} placeholder="Add your contact number" inputMode="tel" />
+                      ) : (
+                        profile.contactNumber || <span className="as-muted">Not added yet</span>
+                      )}
+                    </dd>
+                    {!editingAccount && !profile.contactNumber ? (
+                      <button type="button" className="as-link" onClick={editAccount}>Add</button>
+                    ) : (
+                      <span />
+                    )}
+                  </div>
+                  <div className="as-row">
+                    <dt>Profile photo</dt>
+                    <dd className="as-photo">
+                      <Avatar initials={profile.initials} name={accountName || profile.name} src={photoUrl || undefined} colorVariant="accent" size="sm" />
+                      {editingAccount ? (
+                        <span className="as-photo-actions">
+                          <button type="button" className="as-btn" onClick={() => photoInputRef.current?.click()} disabled={photoBusy}>
+                            <Camera className="h-4 w-4" aria-hidden="true" />
+                            {photoBusy ? "Preparing photo…" : photoUrl ? "Change photo" : "Add photo"}
+                          </button>
+                          {photoUrl && (
+                            <button type="button" className="as-btn as-btn-danger" onClick={() => setPhotoUrl("")}>
+                              <Trash2 className="h-4 w-4" aria-hidden="true" /> Remove
+                            </button>
+                          )}
+                          <span className="as-muted">PNG, JPEG or WebP · up to 5 MB</span>
+                        </span>
+                      ) : (
+                        <span className="as-muted">{profile.photoUrl ? "Photo added" : "Initials shown"}</span>
+                      )}
+                      <input ref={photoInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={selectProfilePhoto} />
+                    </dd>
+                    {!editingAccount && !profile.photoUrl ? (
+                      <button type="button" className="as-link" onClick={editAccount}>Upload</button>
+                    ) : (
+                      <span />
+                    )}
+                  </div>
+                </dl>
+                {editingAccount && (
+                  <div className="as-actions">
+                    <button type="button" className="as-btn" onClick={cancelAccountEdit}>Cancel</button>
+                    <button type="button" className="as-btn as-btn-primary" onClick={saveAccount} disabled={photoBusy}>
+                      <Save className="h-4 w-4" aria-hidden="true" /> Save changes
+                    </button>
+                  </div>
                 )}
-                <section aria-labelledby="color-theme-heading">
-                  <div className="mb-3">
-                    <h3 id="color-theme-heading" className="text-lg font-extrabold text-slate-800 dark:text-white">Color theme</h3>
-                    <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
+
+                <div className="as-section-head as-section-gap">
+                  <div>
+                    <h2><BadgeCheck className="as-verified" aria-hidden="true" /> Verified by the university</h2>
+                    <p>Managed by the university. Contact your research coordinator to correct these.</p>
+                  </div>
+                </div>
+                <dl className="as-rows">
+                  {[
+                    ["University ID", user?.universityId || "Not available"],
+                    ["Institutional email", user?.email || "Not available"],
+                    ["Account role", roleLabel],
+                    ["College", user?.college?.name || "Not assigned"],
+                    ["Program", user?.program?.name || "Not assigned"],
+                  ].map(([label, value]) => (
+                    <div key={label} className="as-row">
+                      <dt>{label}</dt>
+                      <dd>{value}</dd>
+                      <Lock className="as-lock" aria-label="Verified, read only" />
+                    </div>
+                  ))}
+                </dl>
+              </>
+            )}
+
+            {activeTab === "notifications" && (
+              <>
+                <div className="as-section-head">
+                  <div>
+                    <h2>Notifications</h2>
+                    <p>Choose which {roleLabel.toLowerCase()} updates appear in your notifications.</p>
+                  </div>
+                  {preferenceStatus && <span className="as-saved" role="status"><Check className="h-4 w-4" aria-hidden="true" /> {preferenceStatus}</span>}
+                </div>
+                <ul className="as-rows">
+                  {options.map(([id, title, description]) => (
+                    <li key={id} className="as-row as-row-switch">
+                      <span className="as-row-text">
+                        <strong id={`as-pref-${id}`}>{title}</strong>
+                        <span>{description}</span>
+                      </span>
+                      <Switch labelledBy={`as-pref-${id}`} checked={preferences[id] ?? true} onChange={(value) => togglePreference(id, value)} />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {activeTab === "appearance" && (
+              <>
+                <div className="as-section-head">
+                  <div>
+                    <h2>Color theme</h2>
+                    <p>
                       {isSystemAdministrator
                         ? "System Administrators always use the original University of the Assumption-inspired Advisio theme."
-                        : "Use your assigned academic identity or restore the original Advisio palette."}
+                        : "Use your college or program colors, or the original Advisio palette."}
                     </p>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      aria-pressed={colorThemePreference === "DEFAULT_ADVISIO"}
-                      onClick={() => setColorThemePreference("DEFAULT_ADVISIO")}
-                      className={cn(
-                        "relative flex min-h-28 items-start gap-4 rounded-xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] focus-visible:ring-offset-2",
-                        colorThemePreference === "DEFAULT_ADVISIO"
-                          ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] ring-2 ring-[var(--college-focus-ring)]"
-                          : "border-slate-200 bg-white hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10",
-                      )}
-                    >
-                      <span className="h-12 w-12 shrink-0 rounded-xl border border-black/10 shadow-sm" style={{ backgroundColor: COLLEGE_THEMES.default.referenceColor }} aria-hidden="true" />
-                      <span className="min-w-0 pr-6">
-                        <strong className="block text-sm text-slate-800 dark:text-white">Default Advisio Theme</strong>
-                        <span className="mt-1 block text-sm leading-5 text-slate-500 dark:text-slate-400">Original University of the Assumption-inspired palette.</span>
-                      </span>
-                      {colorThemePreference === "DEFAULT_ADVISIO" && <Check className="absolute right-3 top-3 h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />}
+                </div>
+                <div className="as-themes">
+                  <button type="button" className="as-theme" aria-pressed={colorThemePreference === "DEFAULT_ADVISIO"} onClick={() => setColorThemePreference("DEFAULT_ADVISIO")}>
+                    {themeSwatch(COLLEGE_THEMES.default.referenceColor)}
+                    <strong>Advisio default</strong>
+                    <span>Original University of the Assumption palette</span>
+                    {colorThemePreference === "DEFAULT_ADVISIO" && <span className="as-in-use"><Check className="h-3.5 w-3.5" aria-hidden="true" /> In use</span>}
+                  </button>
+                  <button
+                    type="button"
+                    className="as-theme"
+                    aria-pressed={colorThemePreference === "COLLEGE_PROGRAM"}
+                    disabled={isSystemAdministrator || assignedCollegeTheme.key === "default"}
+                    onClick={() => setColorThemePreference("COLLEGE_PROGRAM")}
+                  >
+                    {themeSwatch(assignedCollegeTheme.referenceColor)}
+                    <strong>{assignedCollegeTheme.key === "default" ? "College / program" : assignedCollegeTheme.name}</strong>
+                    <span>{assignedCollegeTheme.key === "default" ? "No college or program theme is assigned" : "Your college or program colors"}</span>
+                    {colorThemePreference === "COLLEGE_PROGRAM" && <span className="as-in-use"><Check className="h-3.5 w-3.5" aria-hidden="true" /> In use</span>}
+                  </button>
+                </div>
+
+                <div className="as-section-head as-section-gap">
+                  <div>
+                    <h2>Display</h2>
+                    <p>Light, dark, or follow your device.</p>
+                  </div>
+                </div>
+                <div className="as-seg" role="group" aria-label="Display mode">
+                  {([{ id: "light", label: "Light", icon: Sun }, { id: "dark", label: "Dark", icon: Moon }, { id: "system", label: "System", icon: Laptop }] as const).map(({ id, label, icon: Icon }) => (
+                    <button key={id} type="button" aria-pressed={theme === id} onClick={() => setTheme(id)}>
+                      <Icon className="h-4 w-4" aria-hidden="true" /> {label}
                     </button>
+                  ))}
+                </div>
 
-                    <button
-                      type="button"
-                      aria-pressed={colorThemePreference === "COLLEGE_PROGRAM"}
-                      disabled={isSystemAdministrator || assignedCollegeTheme.key === "default"}
-                      onClick={() => setColorThemePreference("COLLEGE_PROGRAM")}
-                      className={cn(
-                        "relative flex min-h-28 items-start gap-4 rounded-xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-55",
-                        colorThemePreference === "COLLEGE_PROGRAM"
-                          ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] ring-2 ring-[var(--college-focus-ring)]"
-                          : "border-slate-200 bg-white hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10",
-                      )}
-                    >
-                      <span className="h-12 w-12 shrink-0 rounded-xl border border-black/10 shadow-sm" style={{ backgroundColor: assignedCollegeTheme.referenceColor }} aria-hidden="true" />
-                      <span className="min-w-0 pr-6">
-                        <strong className="block text-sm text-slate-800 dark:text-white">College / Program Theme</strong>
-                        <span className="mt-1 block text-sm leading-5 text-slate-500 dark:text-slate-400">
-                          {assignedCollegeTheme.key === "default" ? "No college or program theme is assigned." : assignedCollegeTheme.name}
-                        </span>
+                {guideTarget === "researcher-settings-navigation" && (
+                  <ul className="as-rows as-section-gap" aria-labelledby="workspace-assistance-heading">
+                    <li className="as-row as-row-switch">
+                      <span className="as-row-text">
+                        <strong id="workspace-assistance-heading">AI assistant button</strong>
+                        <span>Shows the floating assistant while you work. Guide stays in the sidebar either way. Saved for this browser.</span>
+                        {assistantMessage && <span role="status">{assistantMessage}</span>}
                       </span>
-                      {colorThemePreference === "COLLEGE_PROGRAM" && <Check className="absolute right-3 top-3 h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />}
-                    </button>
-                  </div>
-                  <div className="mt-3 flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
-                    <span className="h-8 w-8 shrink-0 rounded-lg border border-black/10" style={{ backgroundColor: collegeTheme.referenceColor }} aria-hidden="true" />
-                    <p className="min-w-0 text-base text-slate-500 dark:text-slate-400">Currently using <strong className="text-slate-800 dark:text-white">{collegeTheme.name}</strong>.</p>
-                  </div>
-                </section>
+                      <Switch
+                        labelledBy="workspace-assistance-heading"
+                        label="Show floating AI Assistant"
+                        guide={guidePrefix ? `${guidePrefix}-assistant-switch` : undefined}
+                        checked={assistant.visible}
+                        onChange={(value) => setAssistantMessage(assistant.setVisible(value) ? "Saved for your account in this browser." : "Applied for this session. Browser storage is unavailable.")}
+                      />
+                    </li>
+                  </ul>
+                )}
+              </>
+            )}
 
-                <section aria-labelledby="display-mode-heading">
-                  <div className="mb-3">
-                    <h3 id="display-mode-heading" className="text-lg font-extrabold text-slate-800 dark:text-white">Display mode</h3>
-                    <p className="mt-1 text-base text-slate-500 dark:text-slate-400">Choose Light, Dark, or follow your device setting.</p>
+            {activeTab === "security" && (
+              <>
+                <div className="as-section-head">
+                  <div>
+                    <h2>Security</h2>
+                    <p>Password changes go through the university's secure account recovery.</p>
                   </div>
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    {([{ id: "light", label: "Light", icon: Sun }, { id: "dark", label: "Dark", icon: Moon }, { id: "system", label: "System", icon: Laptop }] as const).map(({ id, label, icon: Icon }) => (
-                      <button key={id} type="button" aria-pressed={theme === id} onClick={() => setTheme(id)} className={cn("rounded-xl border p-5 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] focus-visible:ring-offset-2", theme === id ? "border-[var(--color-primary)] bg-[var(--color-primary-light)] ring-2 ring-[var(--college-focus-ring)]" : "border-slate-200 bg-white hover:bg-slate-50 dark:border-white/10 dark:bg-white/5")}>
-                        <Icon className="mx-auto h-6 w-6 text-[var(--color-primary)]" /><strong className="mt-2 block text-sm text-slate-800 dark:text-white">{label}</strong>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              </CardContent>
-            </Card>
-          )}
-
-          {activeTab === "security" && (
-            <Card>
-              <CardHeader><div><CardTitle icon={Shield}>Security and Password</CardTitle><CardDescription>Password changes use the secure university account-recovery flow.</CardDescription></div></CardHeader>
-              <CardContent>
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">For your security, Advisio will send password-reset instructions to your verified institutional email address.</div>
-              </CardContent>
-              <CardFooter className="justify-end"><Link href="/forgot-password" className="inline-flex items-center gap-2 rounded-xl bg-[#0B3A53] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#072A3D]"><Shield className="h-4 w-4 text-[#C9A227]" />Reset Password Securely</Link></CardFooter>
-            </Card>
-          )}
+                </div>
+                <ul className="as-rows">
+                  <li className="as-row as-row-switch">
+                    <span className="as-row-text">
+                      <strong>Password</strong>
+                      <span>A reset link goes to {user?.email || "your institutional email"}.</span>
+                    </span>
+                    <Link href="/forgot-password" className="as-btn">
+                      <Shield className="h-4 w-4" aria-hidden="true" /> Send reset link
+                    </Link>
+                  </li>
+                </ul>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
 
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5"><span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">{label}</span><p className="mt-1 break-words text-base font-bold text-slate-800 dark:text-slate-100">{value}</p></div>;
-}
-
-function EditableField({ label, value, placeholder, editing, onChange, icon }: {
-  label: string;
-  value: string;
-  placeholder: string;
-  editing: boolean;
-  onChange: (value: string) => void;
-  icon?: React.ReactNode;
+function Switch({ checked, onChange, labelledBy, label, guide }: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  labelledBy?: string;
+  label?: string;
+  guide?: string;
 }) {
-  if (!editing) {
-    return <ReadOnlyField label={label} value={value || "Not provided"} />;
-  }
-
   return (
-    <label className="block">
-      <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
-      <span className="relative mt-1.5 block">
-        {icon && <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">{icon}</span>}
-        <input
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={placeholder}
-          className={cn("h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base font-semibold text-slate-800 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--college-focus-ring)] dark:border-white/15 dark:bg-white/5 dark:text-white", icon && "pl-10")}
-        />
-      </span>
-    </label>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-labelledby={label ? undefined : labelledBy}
+      aria-label={label}
+      data-guide={guide}
+      className="as-switch"
+      onClick={() => onChange(!checked)}
+    >
+      <span aria-hidden="true" />
+    </button>
   );
 }

@@ -10,6 +10,8 @@ export interface TabItem {
   label: string;
   icon?: React.ComponentType<{ className?: string }> | string;
   badge?: string | number;
+  /** Optional Guide target placed on the tab button. */
+  guide?: string;
 }
 
 export interface TabsProps {
@@ -52,6 +54,7 @@ export function Tabs({ tabs, activeTab, onChange, className }: TabsProps) {
             <button
               key={tab.id}
               id={`tab-${tab.id}`}
+              data-guide={tab.guide}
               role="tab"
               aria-selected={isActive}
               tabIndex={isActive ? 0 : -1}

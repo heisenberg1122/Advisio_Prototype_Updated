@@ -197,3 +197,127 @@
   .rm-filters button { flex: 1; padding-inline: 8px; }
   .rm-reader article > header time { width: 100%; padding-left: 52px; }
 }
+
+/* One card: tinted band on top, folders on the left, mail on the right. */
+.researcher-mail,
+.researcher-mail[data-empty="true"] {
+  grid-template-columns: 210px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card-soft);
+}
+.rm-band {
+  position: relative;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  overflow: hidden;
+  padding: 20px 22px 18px;
+  border-bottom: 1px solid var(--color-border);
+  background:
+    radial-gradient(120% 160% at 100% 0%, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 62%),
+    color-mix(in srgb, var(--color-surface-subtle) 55%, var(--color-surface));
+}
+.rm-band > :not(.rm-seal) { position: relative; }
+.rm-seal {
+  position: absolute;
+  top: -40px;
+  right: -30px;
+  width: 230px;
+  height: 230px;
+  object-fit: contain;
+  opacity: 0.06;
+  filter: grayscale(1);
+  pointer-events: none;
+  user-select: none;
+}
+.rm-band-text p { font-size: 13px; color: var(--color-text-secondary); }
+.rm-band-text strong { font-weight: 700; color: var(--color-text-primary); }
+.rm-band-text h1 { margin-top: 4px; font-size: 26px; font-weight: 700; line-height: 1.2; letter-spacing: -.01em; }
+.rm-band .rm-compose { width: auto; min-height: 40px; padding: 0 16px; border-radius: 10px; }
+.rm-navigation { padding: 14px 12px; border-right: 1px solid var(--color-border); }
+.rm-folders { margin-top: 0; gap: 2px; }
+.rm-folders > button { min-height: 40px; border-radius: 9px; }
+.rm-note { margin-top: 18px; padding: 0 12px; font-size: 12.5px; line-height: 1.55; }
+.rm-content { gap: 0; }
+.rm-heading { padding: 14px 16px; border-bottom: 1px solid var(--color-border); }
+.rm-search { min-height: 40px; border-radius: 10px; }
+.rm-search input { height: 38px; }
+.rm-filters {
+  gap: 0;
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface-subtle);
+}
+.rm-filters button {
+  min-height: 32px;
+  padding: 4px 13px;
+  border: 0;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.rm-filters button:hover { background: transparent; color: var(--color-text-primary); }
+.rm-filters button[aria-pressed="true"] {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+.dark .rm-filters button[aria-pressed="true"] { background: var(--color-surface); }
+.rm-panes { border: 0; border-radius: 0; background: var(--color-surface); }
+.rm-empty { gap: 6px; }
+.rm-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 6px;
+  border-radius: 13px;
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+}
+.rm-empty h2 { font-size: 16px; font-weight: 700; color: var(--color-text-primary); }
+.rm-empty p { max-width: 380px; font-size: 13.5px; line-height: 1.55; }
+.rm-empty-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  margin-top: 10px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.rm-empty-action:hover { border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border)); color: var(--color-primary); }
+
+@media (max-width: 1279px) {
+  .researcher-mail,
+  .researcher-mail[data-empty="true"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 0;
+  }
+  .rm-navigation { padding: 10px 12px; border-right: 0; border-bottom: 1px solid var(--color-border); }
+  .rm-folders { margin-top: 0; }
+  .rm-note { display: none; }
+}
+@media (max-width: 600px) {
+  .rm-band { padding: 16px; }
+  .rm-band-text h1 { font-size: 22px; }
+  .rm-band .rm-compose { width: 100%; justify-content: center; }
+  .rm-panes { border-radius: 0; }
+  .rm-filters button { flex: 1; }
+}

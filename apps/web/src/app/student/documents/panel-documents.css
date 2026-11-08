@@ -1,0 +1,89 @@
+/* Panelist project card on Panel documents. Shared tokens come from src/styles/advisio-ui.css. */
+.pd-project {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--au-radius-card, 16px);
+  background: var(--color-surface);
+}
+.pd-project-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 19px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+}
+.pd-project-text { flex: 1 1 260px; min-width: 0; }
+.pd-project-title {
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pd-project-meta { margin-top: 2px; font-size: 0.8125rem; color: var(--color-text-secondary); }
+.pd-project-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pd-change,
+.pd-all {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.pd-change {
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+}
+.pd-change:hover { border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border)); }
+.pd-change { gap: 6px; }
+.pd-change[aria-expanded="true"] { border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border)); }
+.pd-chevron { font-size: 14px; color: var(--color-text-secondary); }
+
+/* Project menu */
+.pd-menu-root { position: relative; }
+.pd-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(420px, calc(100vw - 32px));
+  padding: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+  box-shadow: 0 12px 32px rgba(20, 30, 45, 0.16);
+}
+.pd-menu-head { padding: 6px 10px 4px; font-size: 0.75rem; font-weight: 600; color: var(--color-text-secondary); }
+.pd-menu ul { margin: 0; padding: 0; list-style: none; max-height: 320px; overflow-y: auto; }
+.pd-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-align: left;
+  color: var(--color-text-primary);
+}
+.pd-menu-item:hover,
+.pd-menu-item:focus-visible { background: var(--color-surface-subtle); outline: none; }
+.pd-menu-item[aria-current="true"] { background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface)); }
+.pd-menu-text { flex: 1; min-width: 0; }
+.pd-menu-group { display: block; font-size: 0.75rem; font-weight: 600; color: var(--color-text-secondary); }
+.pd-menu-title { display: -webkit-box; overflow: hidden; font-size: 0.875rem; font-weight: 600; line-height: 1.3; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.pd-menu-check { flex: none; font-size: 16px; color: var(--color-primary); }
+.pd-all { gap: 6px; color: var(--color-text-secondary); }
+.pd-all:hover { color: var(--color-primary); background: var(--color-surface-subtle); }

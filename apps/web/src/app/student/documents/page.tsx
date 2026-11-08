@@ -2,6 +2,9 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { withProjectContext } from "@/lib/active-project";
+import { useAuth } from "@/hooks/use-auth";
+import { getAcademicIdentity } from "@/lib/academic-identity";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
@@ -39,7 +42,10 @@ import { ResearchFileManager } from "@/components/documents/ResearchFileManager"
 import { ResearcherDocumentsWorkspace } from "./ResearcherDocumentsWorkspace";
 import { documentTaskDetailsHref, type TaskPortal } from "@/lib/document-task-navigation";
 import "./researcher-documents.css";
+import "./panel-documents.css";
+import { PanelistProjectMenu } from "./PanelistProjectMenu";
 import { DocumentAddMenu } from "@/components/documents/DocumentAddMenu";
+import { ListRow, PageBand, RowIcon, SectionCard } from "@/components/ui/advisio";
 import {
   documentStatusLabel,
   resolveDocumentSelection,
@@ -392,6 +398,8 @@ export default function DocumentWorkspacePage() {
   const pathname = usePathname();
   const isPanelistPortal = pathname.startsWith("/panelist/");
   const isResearcherPortal = pathname.startsWith("/student/");
+  const { user: sealUser } = useAuth();
+  const librarySeal = isResearcherPortal ? getAcademicIdentity({ college: sealUser?.college, program: sealUser?.program })?.logoSrc : undefined;
   const isAdviserPortal = pathname.startsWith("/adviser/");
   const useDocumentLibrary =
     isResearcherPortal || isAdviserPortal || pathname.startsWith("/professor/");
@@ -407,6 +415,7 @@ export default function DocumentWorkspacePage() {
   const {
     projectId: resolvedProjectId,
     invalidRequestedProjectId,
+    requestedProjectId: providerRequestedProjectId,
     selectProject,
   } = useActiveProject(projects);
   const activeProjectId = resolvedProjectId || "";
@@ -1143,21 +1152,37 @@ export default function DocumentWorkspacePage() {
     }
   };
 
+  // "All projects": clear the URL first, then forget the remembered project on the next tick.
+  // The active-project provider's own effect runs after this page's effects in the same commit and
+  // would otherwise save the old project back.
+  const [clearingProject, setClearingProject] = useState(false);
+  useEffect(() => {
+    if (!clearingProject || providerRequestedProjectId) return;
+    const timer = window.setTimeout(() => {
+      setClearingProject(false);
+      selectProject(null, { replace: true });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [clearingProject, providerRequestedProjectId, selectProject]);
   const tabs = [
     {
       id: "workspace",
       label: "Working files",
       badge: documents.length,
+      icon: isResearcherPortal ? "ti-files" : undefined,
+      guide: isResearcherPortal ? "documents-workspace-tab" : undefined,
     },
     {
       id: "reviews",
       label: "Feedback",
       badge: reviewAssignments.length,
+      icon: isResearcherPortal ? "ti-message-2" : undefined,
     },
     {
       id: "milestones",
       label: "Files by milestone",
       badge: workflowMilestones.length,
+      icon: isResearcherPortal ? "ti-flag" : undefined,
     },
     ...(officialPermissions?.canView
       ? [
@@ -1165,6 +1190,7 @@ export default function DocumentWorkspacePage() {
             id: "official",
             label: "Official copies",
             badge: officialCopies.length,
+            icon: isResearcherPortal ? "ti-certificate" : undefined,
           },
         ]
       : []),
@@ -1180,6 +1206,33 @@ export default function DocumentWorkspacePage() {
     );
   }
 
+  const openProject = (projectId: string) => {
+    if (!projectId) {
+      selectProject(null);
+      return;
+    }
+    const params = new URLSearchParams(location.search);
+    for (const key of ["researchId", "documentId", "versionId", "taskId", "milestoneId"])
+      params.delete(key);
+    params.set("projectId", projectId);
+    setSelectedDocumentId("");
+    navigate(`${pathname}?${params}`);
+  };
+  const showAllProjects = () => {
+    const params = new URLSearchParams(location.search);
+    for (const key of ["projectId", "researchId", "documentId", "versionId", "taskId", "milestoneId"])
+      params.delete(key);
+    setSelectedDocumentId("");
+    setClearingProject(true);
+    navigate(`${pathname}?${params}`);
+  };
+  // Panelists only see tabs that have something in them, plus Official copies and the open tab.
+  const visibleTabs = isPanelistPortal
+    ? tabs.filter((tab) => tab.id === "official" || tab.id === activeTab || Number(tab.badge) > 0)
+    : tabs;
+  // Panelists pick from a list of their panel projects instead of a hidden dropdown.
+  const showPanelistPicker = isPanelistPortal && !activeProjectId && projects.length > 0;
+
   return (
     <PageContainer
       maxWidth="full"
@@ -1191,10 +1244,19 @@ export default function DocumentWorkspacePage() {
     >
       {!researcherViewerOpen && (
         <div className={useDocumentLibraryStyles ? `rd-library-hero${isAdviserPortal ? " college-hero-surface" : ""}` : "contents"}>
+          {librarySeal && useDocumentLibraryStyles && <span className="rd-library-seal-clip" aria-hidden="true"><img className="rd-library-seal" src={librarySeal} alt="" draggable={false} /></span>}
           <div
             id={useDocumentLibraryStyles ? "researcher-library-title" : undefined}
             tabIndex={useDocumentLibraryStyles ? -1 : undefined}
           >
+            {isPanelistPortal ? (
+              <PageBand
+                titleId="panel-documents-title"
+                eyebrow="Panelist · Panel documents"
+                title={activeTab === "official" ? "Official copies" : "Panel documents"}
+                meta="Signed, released records from the panels you’ve accepted."
+              />
+            ) : (
             <PageHeader
               data-guide={isResearcherPortal ? "document-page-heading" : undefined}
               variant="plain"
@@ -1203,7 +1265,9 @@ export default function DocumentWorkspacePage() {
               subtitle={
                 isPanelistPortal
                   ? "View official copies and records available through your accepted panel assignments."
-                  : "Prepare drafts, track feedback, and access finalized copies."
+                  : isResearcherPortal
+                    ? "Prepare drafts and track feedback here. Submit requirements through Tasks."
+                    : "Prepare drafts, track feedback, and access finalized copies."
               }
               actions={
                 permissions?.canManageWorkingDocuments ? (
@@ -1216,7 +1280,38 @@ export default function DocumentWorkspacePage() {
                 ) : undefined
               }
             />
+            )}
           </div>
+          {isPanelistPortal && activeProject ? (
+            <div className="pd-project">
+              <span className="pd-project-icon" aria-hidden="true">
+                <i className="ti ti-folder" />
+              </span>
+              <div className="pd-project-text">
+                <p className="pd-project-title" title={activeProject.title || undefined}>
+                  {activeProject.title || "Research title not registered"}
+                </p>
+                <p className="pd-project-meta">
+                  {[activeProject.groupName, activeProject.workflowInstance?.workflow?.name].filter(Boolean).join(" · ") || "Research project"}
+                </p>
+              </div>
+              <div className="pd-project-actions">
+                {projects.length > 1 && (
+                  <PanelistProjectMenu
+                    projects={projects}
+                    activeProjectId={activeProjectId}
+                    onSelect={openProject}
+                    guide={activeTab === "official" ? "panelist-official-projects" : undefined}
+                  />
+                )}
+                {projects.length > 1 && (
+                  <button type="button" className="pd-all" onClick={showAllProjects}>
+                    <i className="ti ti-layout-list" aria-hidden="true" /> All projects
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : !showPanelistPicker && (
           <div className="rd-library-project flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 border-l-[3px] border-[var(--color-primary)] pl-2.5">
             <span className="min-w-0 break-words text-base font-bold text-[var(--color-text-primary)]">
               {activeProject
@@ -1226,34 +1321,22 @@ export default function DocumentWorkspacePage() {
             <label htmlFor="research-project" className="sr-only">
               Research project
             </label>
-            <div className="relative rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--college-focus-ring)]">
-              <span aria-hidden="true" className="flex items-center gap-2">
-                Change project <span className="text-[10px]">⌄</span>
-              </span>
+            <div className={isResearcherPortal ? "rd-project-switch relative" : "relative rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--college-focus-ring)]"}>
+              {isResearcherPortal ? (
+                <span aria-hidden="true" className="flex items-center gap-1.5">
+                  <i className="ti ti-arrows-exchange text-[15px]" /> Switch project
+                </span>
+              ) : (
+                <span aria-hidden="true" className="flex items-center gap-2">
+                  Change project <span className="text-[10px]">⌄</span>
+                </span>
+              )}
               <select
                 id="research-project"
                 data-guide={activeTab === "official" && projects.length ? (isPanelistPortal ? "panelist-official-projects" : isAdviserPortal ? "adviser-official-project" : undefined) : undefined}
                 data-guide-transparent={isAdviserPortal && activeTab === "official" ? "true" : undefined}
                 value={activeProjectId}
-                onChange={(event) => {
-                  const projectId = event.target.value;
-                  if (!projectId) {
-                    selectProject(null);
-                    return;
-                  }
-                  const params = new URLSearchParams(location.search);
-                  for (const key of [
-                    "researchId",
-                    "documentId",
-                    "versionId",
-                    "taskId",
-                    "milestoneId",
-                  ])
-                    params.delete(key);
-                  params.set("projectId", projectId);
-                  setSelectedDocumentId("");
-                  navigate(`${pathname}?${params}`);
-                }}
+                onChange={(event) => openProject(event.target.value)}
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               >
                 <option value="">
@@ -1275,6 +1358,7 @@ export default function DocumentWorkspacePage() {
               </span>
             )}
           </div>
+          )}
         </div>
       )}
 
@@ -1297,7 +1381,40 @@ export default function DocumentWorkspacePage() {
       )}
 
       {useDocumentLibrary && !activeProjectId && <h2 className="sr-only">Research project</h2>}
-      {!activeProjectId ? (
+      {showPanelistPicker ? (
+        <SectionCard
+          title="Choose a project"
+          titleId="panel-documents-projects"
+          count={projects.length}
+          action={projects.length > 1 ? <span className="au-row-meta">You’re on more than one panel</span> : undefined}
+        >
+          {invalidRequestedProjectId && (
+            <p role="alert" className="au-card-body text-sm text-[var(--color-text-secondary)]">
+              The requested project is unavailable or outside your panel assignments. Choose one below.
+            </p>
+          )}
+          <ul className="au-list" data-guide={activeTab === "official" ? "panelist-official-projects" : undefined}>
+            {projects.map((project) => {
+              const title = project.title || "Research title not registered";
+              return (
+                <li key={project.id}>
+                  <ListRow
+                    leading={<RowIcon icon="ti-folder" />}
+                    title={title}
+                    titleHint={title}
+                    meta={[project.groupName, project.workflowInstance?.workflow?.name].filter(Boolean).join(" · ") || "Research project"}
+                    end={
+                      <Button size="sm" variant="secondary" onClick={() => openProject(project.id)} aria-label={`Open ${title}`}>
+                        Open
+                      </Button>
+                    }
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </SectionCard>
+      ) : !activeProjectId ? (
         <EmptyState
           data-guide={activeTab === "official" && !projects.length && !pageError ? (isPanelistPortal ? "panelist-official-projects" : isAdviserPortal ? "adviser-official-no-projects" : undefined) : undefined}
           icon={FolderKanban}
@@ -1358,14 +1475,29 @@ export default function DocumentWorkspacePage() {
               hidden={researcherViewerOpen}
               className={useDocumentLibraryStyles ? "rd-categories" : undefined}
             >
-              <Tabs
-                tabs={tabs}
-                activeTab={activeTab}
-                onChange={setActiveTab}
-                className="gap-2 [&_[role=tab]]:px-3 [&_[role=tab]]:py-3"
-              />
+              <div className={isResearcherPortal ? "rd-tab-row" : "contents"}>
+                <Tabs
+                  tabs={visibleTabs}
+                  activeTab={activeTab}
+                  onChange={setActiveTab}
+                  className="gap-2 [&_[role=tab]]:px-3 [&_[role=tab]]:py-3"
+                />
+                {isResearcherPortal && (
+                  <nav className="rd-tab-links" aria-label="Other document areas">
+                    <Link data-guide="documents-submissions-tab" to={withProjectContext("/student/dashboard?tab=submissions", activeProjectId)}>
+                      <i className="ti ti-history" aria-hidden="true" />Submission history<i className="ti ti-arrow-up-right rd-tab-out" aria-hidden="true" />
+                    </Link>
+                    <Link data-guide="documents-files-tab" to={withProjectContext("/student/group-files", activeProjectId)}>
+                      <i className="ti ti-folder" aria-hidden="true" />Group files<i className="ti ti-arrow-up-right rd-tab-out" aria-hidden="true" />
+                    </Link>
+                    <Link className="rd-tab-tasks" to={taskHref}>
+                      <i className="ti ti-checklist" aria-hidden="true" />Open Tasks<i className="ti ti-arrow-right" aria-hidden="true" />
+                    </Link>
+                  </nav>
+                )}
+              </div>
 
-              {activeTab === "workspace" && (
+              {activeTab === "workspace" && !isResearcherPortal && (
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-1 py-3 text-sm text-[var(--color-text-secondary)]">
                   <span>
                     {isResearcherPortal
@@ -2005,11 +2137,31 @@ export default function DocumentWorkspacePage() {
                     })}
                   </div>
                 ) : (
+                  isPanelistPortal ? (
+                    <EmptyState
+                      icon={Archive}
+                      title="No official copies for this project yet"
+                      description="The professor finalizes the approved manuscript after the defense. It'll appear here, signed and locked."
+                      action={
+                        <div className="flex flex-wrap justify-center gap-2">
+                          <Button size="sm" icon={<i className="ti ti-file-text" aria-hidden="true" />} onClick={() => navigate("/panelist/reviews")}>
+                            Review defense documents
+                          </Button>
+                          {projects.length > 1 && (
+                            <Button size="sm" variant="secondary" onClick={showAllProjects}>
+                              Choose another project
+                            </Button>
+                          )}
+                        </div>
+                      }
+                    />
+                  ) : (
                   <EmptyState
                     icon={Archive}
                     title="No official copies yet"
                     description="Approved documents appear here after an authorized person finalizes them. Your working files and submissions remain available in their tabs."
                   />
+                  )
                 )}
               </div>
             )}

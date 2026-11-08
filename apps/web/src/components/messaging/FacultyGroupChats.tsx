@@ -19,6 +19,9 @@ import { apiClient } from "@/lib/api-client";
 import { realtimeClient } from "@/lib/realtime/sse-client";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
+import { getAcademicIdentity } from "@/lib/academic-identity";
+import { Link } from "react-router-dom";
+import "./group-chats.css";
 
 type ParticipantStatus = "pending" | "accepted" | "declined" | "removed";
 
@@ -163,10 +166,21 @@ function formatMessageTime(dateString: string) {
   }
 }
 
+type MyGroupChat = {
+  researchId: string;
+  name: string;
+  chatId: string | null;
+  canStart: boolean;
+  groupmates: string[];
+  adviserName: string | null;
+};
+
 export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: string) => void }) {
   const { user } = useAuth();
   const canCreate = Boolean(user?.roles.some((role) => ["ADVISER", "RESEARCH_COORDINATOR", "PANELIST", "DEAN"].includes(role)));
   const [payload, setPayload] = useState<ChatPayload>({ chats: [], invitations: [], messages: [] });
+  const [myGroups, setMyGroups] = useState<MyGroupChat[]>([]);
+  const [startingGroupChat, setStartingGroupChat] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -189,6 +203,10 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
     try {
       const data = await apiClient.get<ChatPayload>("/api/chats");
       setPayload(data);
+      if (!canCreate) {
+        const groups = await apiClient.get<{ groups: MyGroupChat[] }>("/api/chats/my-group").catch(() => ({ groups: [] }));
+        setMyGroups(groups.groups || []);
+      }
       setError("");
       setActiveChatId((current) => current && data.chats.some((chat) => chat.id === current && chat.membershipStatus === "accepted") ? current : null);
     } catch (requestError: any) {
@@ -196,7 +214,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
     } finally {
       if (!quiet) setLoading(false);
     }
-  }, []);
+  }, [canCreate]);
 
   useEffect(() => {
     void loadChats();
@@ -287,6 +305,21 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
     }
   };
 
+  const startGroupChat = async (researchId: string) => {
+    setStartingGroupChat(true);
+    try {
+      const created = await apiClient.post<{ chat: { id: string } }>("/api/chats/my-group", { researchId });
+      await loadChats(true);
+      toast("Group chat started.");
+      if (created?.chat?.id) void openConversation(created.chat.id);
+    } catch (requestError: any) {
+      toast(requestError?.message || "Unable to start the group chat.");
+      await loadChats(true);
+    } finally {
+      setStartingGroupChat(false);
+    }
+  };
+
   const openConversation = async (chatId: string) => {
     setActiveChatId(chatId);
     try {
@@ -325,19 +358,75 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
 
   if (loading) return <MessagingSkeleton />;
 
+  const seal = getAcademicIdentity({ college: user?.college as any, program: user?.program as any })?.logoSrc;
+  const unreadTotal = acceptedChats.reduce((sum, chat) => sum + (chat.unreadCount || 0), 0);
+  const bandStatus = acceptedChats.length
+    ? `${acceptedChats.length} ${acceptedChats.length === 1 ? "conversation" : "conversations"}${unreadTotal ? ` · ${unreadTotal} unread` : ""}`
+    : pendingInvitations.length
+      ? `${pendingInvitations.length} ${pendingInvitations.length === 1 ? "invitation" : "invitations"} waiting`
+      : "No conversations yet";
+
+  const groupOffer = myGroups.find((group) => group.canStart) || null;
+  const offerCard = groupOffer && (
+    <div className="gc-offer">
+      <span className="gc-offer-people" aria-hidden="true">
+        {[...groupOffer.groupmates, ...(groupOffer.adviserName ? [groupOffer.adviserName] : [])].slice(0, 4).map((name, index) => (
+          <span key={`${name}-${index}`} data-adviser={groupOffer.adviserName === name && index >= groupOffer.groupmates.length}>{initials(name)}</span>
+        ))}
+      </span>
+      <span className="gc-offer-text">
+        <strong>{groupOffer.name} has no chat yet</strong>
+        <span>
+          {groupOffer.groupmates.length
+            ? `Start one for your ${groupOffer.groupmates.length} ${groupOffer.groupmates.length === 1 ? "groupmate" : "groupmates"}.`
+            : "Start one for your group."}
+          {groupOffer.adviserName ? ` Your adviser, ${groupOffer.adviserName}, gets an invitation.` : ""}
+        </span>
+      </span>
+      <button type="button" className="gc-offer-btn" disabled={startingGroupChat} onClick={() => void startGroupChat(groupOffer.researchId)}>
+        <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+        {startingGroupChat ? "Starting…" : "Start group chat"}
+      </button>
+    </div>
+  );
+  const researcherEmpty = !canCreate && !acceptedChats.length && !pendingInvitations.length;
+
   return (
-    <section className="grid min-h-[720px] w-full animate-fade-in overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-slate-800 dark:bg-[#0c1420] lg:h-[calc(100vh-124px)] lg:grid-cols-[330px_minmax(0,1fr)] xl:grid-cols-[360px_minmax(0,1fr)]">
+    <section className="gc-card animate-fade-in" aria-labelledby="gc-title">
+      <header className="gc-band">
+        {seal && <img className="gc-seal" src={seal} alt="" aria-hidden="true" draggable={false} />}
+        <div>
+          <p><strong id="gc-title">Messages</strong> · Group chats with your {canCreate ? "research groups and colleagues" : "team and adviser"}</p>
+          <h1>{bandStatus}</h1>
+        </div>
+      </header>
+    {researcherEmpty ? (
+      <div className="gc-empty">
+        {offerCard || (
+          <div className="gc-empty-lead">
+            <span className="gc-empty-icon" aria-hidden="true"><MessageSquareText className="h-5 w-5" /></span>
+            <span>
+              <strong>Your group chat starts here</strong>
+              <span>
+                {myGroups.some((group) => group.chatId)
+                  ? "Your group already has a chat. Ask a groupmate or your adviser to add you."
+                  : "Join a research group to chat with your groupmates and adviser. Invitations from faculty also appear here."}
+              </span>
+            </span>
+          </div>
+        )}
+        <p className="gc-empty-sub">Or, for something formal</p>
+        <div className="gc-empty-links">
+          <Link to="/student/inbox"><i className="ti ti-mail" aria-hidden="true" /> Write to your adviser in Inbox</Link>
+          <Link to="/student/dashboard?tab=consultations"><i className="ti ti-calendar-plus" aria-hidden="true" /> Book a consultation</Link>
+        </div>
+      </div>
+    ) : (
+    <div className="gc-body grid min-h-[620px] w-full bg-white dark:bg-[#0c1420] lg:h-[calc(100vh-232px)] lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)]">
       {/* LEFT PANEL: CONVERSATIONS SIDEBAR */}
       <aside className={`relative min-h-0 flex-col border-b border-slate-200/80 bg-white p-4 dark:border-slate-800 dark:bg-[#0e1726] sm:p-5 lg:border-b-0 lg:border-r ${activeChatId ? "hidden lg:flex" : "flex"}`}>
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-wider text-[#58647A] dark:text-slate-400">Advisio Messages</p>
-            <h2 className="mt-0.5 text-lg font-bold tracking-tight text-[#0B3A53] dark:text-white">Conversations</h2>
-          </div>
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#EAF3F7] text-[#0B3A53] dark:bg-white/10 dark:text-sky-400">
-            <MessageSquareText className="h-4.5 w-4.5" />
-          </div>
-        </div>
+        <h2 className="sr-only">Conversations</h2>
+        {!canCreate && offerCard && <div className="gc-offer-side">{offerCard}</div>}
 
         {canCreate && (
           <div ref={composerRef} className="relative mb-4">
@@ -354,7 +443,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                 onSubmit={createConversation}
                 role="dialog"
                 aria-label="Create a group conversation"
-                className="absolute left-0 top-11 z-50 w-[min(480px,calc(100vw-2rem))] rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-[#141f30] sm:p-5"
+                className="absolute left-0 top-11 z-50 max-h-[calc(100dvh-200px)] w-[min(480px,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-slate-200/90 bg-white p-4 shadow-xl dark:border-slate-700 dark:bg-[#141f30] sm:p-5"
               >
                 <div className="flex items-start justify-between">
                   <div>
@@ -490,7 +579,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-0.5">
           {/* INVITATIONS */}
-          <div>
+          {pendingInvitations.length > 0 && <div>
             <div className="mb-2 flex items-center justify-between px-1">
               <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#58647A] dark:text-slate-400">
                 <Inbox className="h-3.5 w-3.5 text-amber-500" />
@@ -534,19 +623,13 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
                 </article>
               );
             })}
-            {!pendingInvitations.length && (
-              <p className="px-1 py-1.5 text-base text-slate-400 dark:text-slate-500">
-                No pending invitations
-              </p>
-            )}
-          </div>
+          </div>}
 
           {/* ACTIVE CHATS */}
           <div>
             <div className="mb-2 flex items-center justify-between px-1">
               <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#58647A] dark:text-slate-400">
-                <Users className="h-3.5 w-3.5 text-[#58647A] dark:text-slate-400" />
-                Active Chats
+                Chats
               </span>
               {acceptedChats.length > 0 && (
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -601,10 +684,9 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
               })}
             </div>
             {!acceptedChats.length && (
-              <div className="py-6 px-2 text-center text-xs text-slate-400 dark:text-slate-500">
-                No active conversations yet
-              </div>
+              <p className="gc-side-empty">None yet</p>
             )}
+            {!pendingInvitations.length && <p className="gc-side-note">No pending invitations</p>}
           </div>
         </div>
       </aside>
@@ -617,10 +699,16 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
               <MessageSquareText className="h-6 w-6 stroke-[1.5]" />
             </div>
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
-              Select a conversation
+              {acceptedChats.length ? "Pick a conversation" : "Talk with your group in one place"}
             </h3>
-            <p className="mt-1 max-w-xs text-base text-slate-400 dark:text-slate-500">
-              Choose a conversation from the sidebar to view messages or collaborate with your group.
+            <p className="mt-1 max-w-sm text-base text-slate-500 dark:text-slate-400">
+              {acceptedChats.length
+                ? "Choose a chat on the left to read and reply."
+                : canCreate
+                  ? "Start a chat with a research group or colleagues using New conversation."
+                  : pendingInvitations.length
+                    ? "Accept the invitation on the left to join your group chat."
+                    : "Your adviser starts group chats. When you're invited, the invitation appears here for you to accept."}
             </p>
           </div>
         ) : (
@@ -759,6 +847,8 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
           </>
         )}
       </main>
+    </div>
+    )}
     </section>
   );
 }

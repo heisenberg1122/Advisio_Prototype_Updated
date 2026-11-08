@@ -1,0 +1,213 @@
+/* Recorded activity feed and milestone details on the Research Timeline. */
+.tl-card {
+  padding: 20px 22px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card-soft);
+}
+.tl-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.tl-head h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+.tl-head p {
+  margin-top: 3px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+.tl-count {
+  flex: none;
+  padding-top: 4px;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+}
+.tl-empty {
+  margin: 10px 0 6px;
+  padding: 18px;
+  border: 1px dashed var(--color-border);
+  border-radius: 12px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.tl-day h4 {
+  margin: 14px 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+.tl-day li + li { border-top: 1px solid var(--color-border); }
+.tl-event {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0 -8px;
+  padding: 9px 8px;
+  border-radius: 10px;
+  text-align: left;
+  box-sizing: content-box;
+}
+button.tl-event { cursor: pointer; }
+button.tl-event:hover { background: var(--color-surface-subtle); }
+button.tl-event:hover .tl-title { color: var(--color-primary); }
+button.tl-event:focus-visible {
+  outline: 2px solid var(--college-focus-ring, var(--color-primary));
+  outline-offset: -2px;
+}
+.tl-event time {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.tl-icon {
+  --tone: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 16px;
+  color: color-mix(in srgb, var(--tone) 75%, var(--color-text-primary));
+  background: color-mix(in srgb, var(--tone) 12%, var(--color-surface));
+}
+.tl-icon[data-tone="info"] { --tone: var(--color-primary); }
+.tl-icon[data-tone="success"] { --tone: var(--color-success); }
+.tl-icon[data-tone="warning"] { --tone: var(--color-warning); color: color-mix(in srgb, var(--color-warning) 55%, var(--color-text-primary)); }
+.tl-icon[data-tone="danger"] { --tone: var(--color-danger); }
+.dark .tl-icon { color: color-mix(in srgb, var(--tone) 70%, white); background: color-mix(in srgb, var(--tone) 20%, var(--color-surface)); }
+.dark .tl-icon[data-tone="neutral"] { color: var(--color-text-secondary); }
+
+.tl-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.tl-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.tl-desc {
+  overflow: hidden;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tl-desc .ti {
+  margin-right: 4px;
+  font-size: 13px;
+  vertical-align: -2px;
+}
+.tl-note {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.tl-more {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 0 4px;
+  border-top: 1px solid var(--color-border);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+.tl-more:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Milestone rows: same number circle and dot status as the Gantt. */
+.tl-milestones { margin-top: 8px; }
+.tl-milestone {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+}
+.tl-milestones li + li { border-top: 1px solid var(--color-border); }
+.tl-topic {
+  padding: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+.tl-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+}
+.tl-num .ti { font-size: 14px; }
+.tl-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.tl-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.tl-milestone[data-status="upcoming"] .tl-title { font-weight: 500; color: var(--color-text-secondary); }
+.tl-milestone[data-status="upcoming"] .tl-state { font-weight: 500; }
+.tl-milestone[data-status="completed"] .tl-num,
+.tl-milestone[data-status="completed"] .tl-state {
+  color: color-mix(in srgb, var(--color-success) 60%, var(--color-text-primary));
+}
+.tl-milestone[data-status="completed"] .tl-num { background: color-mix(in srgb, var(--color-success) 14%, var(--color-surface)); }
+.tl-milestone[data-status="in-progress"] {
+  margin: 0 -22px;
+  padding-inline: 22px;
+  background: color-mix(in srgb, var(--color-warning) 8%, var(--color-surface));
+}
+.tl-milestone[data-status="in-progress"] .tl-num {
+  color: color-mix(in srgb, var(--color-warning) 55%, var(--color-text-primary));
+  background: var(--color-surface);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--color-warning) 55%, transparent);
+}
+.tl-milestone[data-status="in-progress"] .tl-title { font-weight: 700; }
+.tl-milestone[data-status="in-progress"] .tl-state {
+  color: color-mix(in srgb, var(--color-warning) 58%, var(--color-text-primary));
+}
+.dark .tl-milestone[data-status="completed"] :is(.tl-num, .tl-state) { color: var(--color-success); }
+.dark .tl-milestone[data-status="in-progress"] .tl-state { color: var(--color-warning); }
+
+@media (max-width: 640px) {
+  .tl-card { padding: 16px 16px 10px; }
+  .tl-milestone[data-status="in-progress"] { margin: 0 -16px; padding-inline: 16px; }
+  .tl-desc { white-space: normal; }
+  .tl-milestone { grid-template-columns: 26px minmax(0, 1fr); }
+  .tl-state { grid-column: 2; }
+}

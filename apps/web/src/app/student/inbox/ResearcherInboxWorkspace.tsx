@@ -4,6 +4,8 @@ import type { MailThreadList } from "@/components/messaging/MailThreadList";
 import type { MailCounts, MailThreadListResponse } from "@/components/messaging/mail-types";
 import { ResearcherThreadRows } from "./ResearcherThreadRows";
 import { isEmptyFolder, mergeObservation, observeFolder, type FolderObservation, type ResearcherMailFolder } from "./mailbox-presentation";
+import { useAuth } from "@/hooks/use-auth";
+import { getAcademicIdentity } from "@/lib/academic-identity";
 import "./researcher-inbox.css";
 
 type Props = ComponentProps<typeof MailThreadList> & {
@@ -19,15 +21,17 @@ type Props = ComponentProps<typeof MailThreadList> & {
 };
 
 const folders = [
-  { id: "inbox", label: "Inbox", icon: Inbox, empty: "Your inbox is currently empty." },
-  { id: "sent", label: "Sent", icon: Send, empty: "Your sent folder is currently empty." },
-  { id: "drafts", label: "Drafts", icon: FileText, empty: "Your drafts folder is currently empty." },
-  { id: "archive", label: "Archive", icon: Archive, empty: "Your archive is currently empty." },
-  { id: "trash", label: "Trash", icon: Trash2, empty: "Your trash is currently empty." },
+  { id: "inbox", label: "Inbox", icon: Inbox, empty: "Your inbox is currently empty.", hint: "Letters from your adviser, panel or coordinator, like approvals and endorsements, arrive here." },
+  { id: "sent", label: "Sent", icon: Send, empty: "Your sent folder is currently empty.", hint: "Messages you send appear here." },
+  { id: "drafts", label: "Drafts", icon: FileText, empty: "Your drafts folder is currently empty.", hint: "Unsent messages are kept here until you send them." },
+  { id: "archive", label: "Archive", icon: Archive, empty: "Your archive is currently empty.", hint: "Archive a conversation to keep it out of your inbox without deleting it." },
+  { id: "trash", label: "Trash", icon: Trash2, empty: "Your trash is currently empty.", hint: "Deleted conversations stay here until they are cleared." },
 ] as const;
 
 export function ResearcherInboxWorkspace(props: Props) {
   const { folder, data, resolvedQuery, filter, loading, errored, selectedId } = props;
+  const { user } = useAuth();
+  const seal = getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc;
   const [history, setHistory] = useState<Partial<Record<ResearcherMailFolder, FolderObservation>>>({});
   const [lastCounts, setLastCounts] = useState<MailCounts>();
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -67,11 +71,22 @@ export function ResearcherInboxWorkspace(props: Props) {
   const showReader = Boolean(selectedId || (resolved && resolved.count > 0) || errored);
   const currentFolder = folders.find(item => item.id === folder)!;
   const counts = data?.counts || lastCounts;
+  const total = props.pagination?.total ?? 0;
+  const status = total
+    ? `${total} ${total === 1 ? "conversation" : "conversations"}${folder === "inbox" && counts?.unread ? ` · ${counts.unread} unread` : ""}`
+    : folder === "inbox" ? "No messages yet" : `${currentFolder.label} is empty`;
 
   return (
     <div ref={workspaceRef} className="researcher-mail" data-empty={empty} data-selected={Boolean(selectedId)}>
-      <aside className="rm-navigation">
+      <header className="rm-band">
+        {seal && <img className="rm-seal" src={seal} alt="" aria-hidden="true" draggable={false} />}
+        <div className="rm-band-text">
+          <p><strong>{currentFolder.label}</strong> · Formal academic correspondence</p>
+          <h1>{status}</h1>
+        </div>
         <button type="button" onClick={props.onCompose} className="rm-compose"><Pencil size={16} aria-hidden="true" />Compose</button>
+      </header>
+      <aside className="rm-navigation">
         <nav aria-label="Mail folders" className="rm-folders">
           {folders.map(item => {
             const count = item.id === "inbox" ? counts?.unread : counts?.[item.id];
@@ -82,11 +97,10 @@ export function ResearcherInboxWorkspace(props: Props) {
           })}
           {props.additionalFolders}
         </nav>
-        <div className="rm-note"><p>Formal correspondence</p><p>Inbox is separate from project group chats and uses authorized academic contacts only.</p></div>
+        <p className="rm-note">Separate from group chats. Only authorized academic contacts can write here.</p>
       </aside>
       <div className="rm-content">
         <header className="rm-heading">
-          <div className="rm-title"><div><p>Academic correspondence</p><h1>{currentFolder.label}</h1></div><span>{props.pagination?.total ?? 0} {props.pagination?.total === 1 ? "thread" : "threads"}</span></div>
           <div className="rm-tools">
             <label className="rm-search"><Search size={17} aria-hidden="true" /><span className="sr-only">Search mail</span><input value={props.query} onChange={event => props.onQueryChange(event.target.value)} placeholder="Search sender, subject, or message" /></label>
             {folder !== "drafts" ? <div className="rm-filters" aria-label="Message filters">
@@ -98,7 +112,7 @@ export function ResearcherInboxWorkspace(props: Props) {
           <section className="rm-list" aria-label={`${currentFolder.label} message list`}>
             <div className="rm-list-scroll" aria-live="polite">
               {errored && props.listError ? <p role="alert" className="rm-list-error">{props.listError}</p> : null}
-              {empty ? <div className="rm-empty"><currentFolder.icon size={28} aria-hidden="true" /><h2>{currentFolder.empty}</h2></div> : errored && props.threads.length === 0 ? null : <ResearcherThreadRows {...props} />}
+              {empty ? <div className="rm-empty"><span className="rm-empty-icon"><currentFolder.icon size={22} aria-hidden="true" /></span><h2>{currentFolder.empty}</h2><p>{currentFolder.hint}</p>{folder === "inbox" && !resolvedQuery ? <button type="button" className="rm-empty-action" onClick={props.onCompose}><Pencil size={15} aria-hidden="true" />Write a message</button> : null}</div> : errored && props.threads.length === 0 ? null : <ResearcherThreadRows {...props} />}
             </div>
           </section>
           <div className="rm-reader" tabIndex={-1} role="region" aria-label="Selected conversation">{props.reader}</div>

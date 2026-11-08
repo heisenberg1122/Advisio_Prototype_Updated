@@ -136,13 +136,24 @@ function lifecycleVariant(status: string) {
   return "neutral";
 }
 
+const FILE_KINDS: Array<{ kind: string; icon: string; types: string[] }> = [
+  { kind: "pdf", icon: "ti-file-type-pdf", types: ["PDF"] },
+  { kind: "word", icon: "ti-file-type-doc", types: ["DOC", "DOCX", "ODT", "RTF"] },
+  { kind: "gdoc", icon: "ti-brand-google-drive", types: ["Google Doc"] },
+  { kind: "slides", icon: "ti-file-type-ppt", types: ["PPT", "PPTX", "ODP", "KEY"] },
+  { kind: "sheet", icon: "ti-file-spreadsheet", types: ["XLS", "XLSX", "CSV", "ODS"] },
+  { kind: "image", icon: "ti-photo", types: ["PNG", "JPG", "JPEG", "GIF", "WEBP", "SVG"] },
+];
+
+/** Soft tinted file badge whose colour and symbol follow the file type. */
 function DocumentFileIcon({ fileType }: { fileType: string }) {
+  const match = FILE_KINDS.find(({ types }) => types.includes(fileType));
+  const label = fileType === "Google Doc" ? "GDOC" : fileType === "Uploaded file" ? "FILE" : fileType;
   return (
-    <FileText
-      aria-hidden="true"
-      className="h-5 w-5 shrink-0 text-[var(--color-text-secondary)]"
-      data-file-type={fileType}
-    />
+    <span className="rd-file-icon" data-kind={match?.kind || "other"} data-file-type={fileType} aria-hidden="true">
+      <i className={`ti ${match?.icon || "ti-file"}`} />
+      <b>{label.slice(0, 4)}</b>
+    </span>
   );
 }
 
@@ -442,10 +453,10 @@ export function ResearcherDocumentsWorkspace({
           <h2 className="sr-only">Working files</h2>
           <div className="rd-columns" data-guide="document-list-heading" aria-hidden="true">
             <span>Name</span>
-            <span>Type</span>
             <span>Milestone</span>
             <span>Status</span>
             <span>Modified</span>
+            <span />
           </div>
           <p className="sr-only" role="status">
             {visibleDocuments.length} files
@@ -482,25 +493,26 @@ export function ResearcherDocumentsWorkspace({
                           <span className="rd-file-name" title={document.title} data-guide="document-mobile-list">
                             {document.title}
                           </span>
-                          {!document.milestone && latest?.fileName && (
+                          {latest && (
                             <span className="rd-file-subtitle">
-                              {latest.fileName}
+                              Version {latest.versionNumber}
+                              {!document.milestone && latest.fileName ? ` · ${latest.fileName}` : ""}
                             </span>
                           )}
                         </span>
                       </span>
-                      <span className="rd-type">
-                        <span className="rd-mobile-label">Type: </span>
-                        {documentFileType(document)}
-                      </span>
+                      <span className="sr-only">Type: {documentFileType(document)}</span>
                       <span className="rd-milestone">
                         <span className="rd-mobile-label">Milestone: </span>
+                        {document.milestone && <i className="ti ti-flag" aria-hidden="true" />}
                         {document.milestone?.name || "—"}
                       </span>
                       <span className="min-w-0">
                         <Tag
                           size="xs"
                           variant={lifecycleVariant(document.lifecycleStatus)}
+                          className="rd-status"
+                          data-tone={lifecycleVariant(document.lifecycleStatus)}
                         >
                           {documentStatusLabel(document.lifecycleStatus)}
                         </Tag>
@@ -513,6 +525,7 @@ export function ResearcherDocumentsWorkspace({
                       >
                         {displayModifiedDate(documentModifiedAt(document))}
                       </span>
+                      <i className="ti ti-chevron-right rd-row-arrow" aria-hidden="true" />
                     </button>
                   </div>
                 );

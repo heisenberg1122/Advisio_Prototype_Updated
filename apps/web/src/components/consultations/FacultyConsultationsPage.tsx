@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { apiClient } from "@/lib/api-client";
+import { calendarDaysUntil } from "@/lib/researcher-home";
+import { CountStrip, DateTile, EmptyNote, InlineFeedback, ListRow, PageBand, SectionCard, StatusDot, type StatusTone } from "@/components/ui/advisio";
 import { useAuth } from "@/providers/auth-provider";
 
 type Workspace = "coordinator" | "panelist" | "dean";
@@ -33,13 +35,49 @@ const descriptions: Record<Workspace, string> = {
   panelist: "See project consultations for the research groups you’re assigned to.",
   dean: "Review consultation schedules and status across your active college.",
 };
-const panelClass = "rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]";
+const roleLabels: Record<Workspace, string> = {
+  coordinator: "Research coordinator",
+  panelist: "Panelist",
+  dean: "Dean",
+};
+const emptyText: Record<Workspace, string> = {
+  coordinator: "Consultations you schedule or approve for your groups appear here.",
+  panelist: "Consultations the coordinator schedules for your assigned groups appear here.",
+  dean: "Consultations scheduled across your college appear here.",
+};
+const statusTones: Record<Consultation["status"], StatusTone> = {
+  REQUESTED: "waiting",
+  SCHEDULED: "brand",
+  ONGOING: "live",
+  COMPLETED: "done",
+  CANCELLED: "neutral",
+};
 const fieldClass = "min-h-11 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2";
 const dateTime = new Intl.DateTimeFormat("en-PH", {
   dateStyle: "medium",
   timeStyle: "short",
   timeZone: "Asia/Manila",
 });
+
+const timeOnly = new Intl.DateTimeFormat("en-PH", {
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "Asia/Manila",
+});
+const monthOnly = new Intl.DateTimeFormat("en-PH", { month: "short", timeZone: "Asia/Manila" });
+const dayOnly = new Intl.DateTimeFormat("en-PH", { day: "numeric", timeZone: "Asia/Manila" });
+const shortDay = new Intl.DateTimeFormat("en-PH", {
+  month: "short",
+  day: "numeric",
+  timeZone: "Asia/Manila",
+});
+
+function dayLabel(date: Date) {
+  const offset = calendarDaysUntil(date, Date.now());
+  if (offset === 0) return "Today";
+  if (offset === 1) return "Tomorrow";
+  return shortDay.format(date);
+}
 
 function httpsUrl(value?: string | null) {
   if (!value) return null;
@@ -165,69 +203,98 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
     onSettled: refreshLists,
   });
 
+  const items = consultations.data?.consultations ?? [];
+  // Counts only describe the whole list when it fits on one page.
+  const showCounts = consultations.isSuccess && page === 1 && !consultations.data.hasNextPage;
+  const count = (...statuses: Consultation["status"][]) => items.filter((item) => statuses.includes(item.status)).length;
+
   return (
     <PageContainer>
-      <header className={`${panelClass} flex flex-wrap items-center justify-between gap-4 p-5 sm:p-6`}>
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-[var(--color-text-primary)]">
+      <PageBand
+        titleId="consultations-title"
+        eyebrow={`${roleLabels[workspace]} · Philippine time`}
+        title={
+          <span className="inline-flex items-center gap-2">
             <CalendarClock aria-hidden="true" className="size-6 text-[var(--color-primary)]" />
             Consultations
-          </h1>
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">{descriptions[workspace]}</p>
-        </div>
-        {workspace === "coordinator" && <Button onClick={() => setScheduling(true)}>Schedule consultation</Button>}
-      </header>
+          </span>
+        }
+        meta={descriptions[workspace]}
+        counts={showCounts ? (
+          <CountStrip
+            label="Consultation summary"
+            items={[
+              { label: "Upcoming", value: count("SCHEDULED", "ONGOING") },
+              { label: "Awaiting approval", value: count("REQUESTED"), tone: count("REQUESTED") ? "waiting" : undefined },
+              { label: "Completed", value: count("COMPLETED") },
+            ]}
+          />
+        ) : undefined}
+        actions={workspace === "coordinator" ? <Button onClick={() => setScheduling(true)}>Schedule consultation</Button> : undefined}
+      />
 
-      {notice && <p role="status" className="text-sm text-[var(--color-text-secondary)]">{notice}</p>}
+      {notice && <InlineFeedback tone="ok">{notice}</InlineFeedback>}
       {approval.error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{approval.error.message}</p>}
-      <section className={panelClass} aria-label="Project consultations">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] px-5 py-4">
-          <h2 className="font-semibold text-[var(--color-text-primary)]">Project consultations</h2>
-          <p className="text-sm text-[var(--color-text-secondary)]">Philippine time</p>
-        </div>
-        {consultations.isPending && <p role="status" className="p-5">Loading consultations…</p>}
+      <SectionCard title="Project consultations" titleId="consultations-list" count={consultations.isSuccess ? items.length : undefined}>
+        {consultations.isPending && <p role="status" className="au-card-body text-sm text-[var(--color-text-secondary)]">Loading consultations…</p>}
         {consultations.isError && (
-          <div className="space-y-3 p-5">
+          <div className="au-card-body space-y-3">
             <p role="alert">{consultations.error.message}</p>
             <Button variant="secondary" onClick={() => void consultations.refetch()}>Try again</Button>
           </div>
         )}
-        {consultations.data?.consultations.length === 0 && (
-          <p className="p-5 text-[var(--color-text-secondary)]">No consultations to show.</p>
+        {consultations.isSuccess && items.length === 0 && (
+          <EmptyNote icon="ti-calendar-time" title="No consultations yet" text={emptyText[workspace]} />
         )}
-        <ul className="divide-y divide-[var(--color-border)]">
-          {consultations.data?.consultations.map((item) => {
-            const meeting = item.status === "SCHEDULED" || item.status === "ONGOING" ? httpsUrl(item.meetingUrl) : null;
-            return (
-              <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-                <div className="min-w-0 space-y-1 break-words">
-                  <h3 className="font-semibold text-[var(--color-text-primary)]">{item.title}</h3>
-                  <p className="text-sm text-[var(--color-text-secondary)]">{projectLabel(item.research)}</p>
-                  <p className="text-sm text-[var(--color-text-secondary)]">
-                    <time dateTime={item.scheduledStart}>{dateTime.format(new Date(item.scheduledStart))}</time>
-                    {" – "}
-                    <time dateTime={item.scheduledEnd}>{dateTime.format(new Date(item.scheduledEnd))}</time>
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-[var(--color-surface-muted)] px-3 py-1.5 text-sm font-medium">{statusLabels[item.status]}</span>
-                  {workspace === "coordinator" && item.status === "REQUESTED" && (
-                    <Button size="sm" variant="secondary" disabled={approval.isPending} isLoading={approval.isPending && approval.variables === item.id} onClick={() => {
-                      setNotice("");
-                      approval.mutate(item.id);
-                    }}>Approve</Button>
-                  )}
-                  {meeting && workspace !== "dean" && (
-                    <a href={meeting.href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-[var(--color-primary)] hover:underline focus-visible:outline">
-                      <Video className="size-4" aria-hidden="true" />
-                      {meeting.hostname === "meet.google.com" ? "Open Google Meet" : "Open meeting link"}
-                    </a>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        {items.length > 0 && (
+          <ul className="au-list">
+            {items.map((item) => {
+              const meeting = item.status === "SCHEDULED" || item.status === "ONGOING" ? httpsUrl(item.meetingUrl) : null;
+              const start = new Date(item.scheduledStart);
+              return (
+                <li key={item.id}>
+                  <ListRow
+                    leading={
+                      <DateTile
+                        tone={item.status === "ONGOING" ? "live" : item.status === "COMPLETED" || item.status === "CANCELLED" ? "muted" : undefined}
+                        top={monthOnly.format(start)}
+                        bottom={dayOnly.format(start)}
+                        label={dateTime.format(start)}
+                      />
+                    }
+                    title={item.title}
+                    titleHint={item.title}
+                    meta={
+                      <>
+                        {projectLabel(item.research)} · {dayLabel(start)},{" "}
+                        <time dateTime={item.scheduledStart}>{timeOnly.format(start)}</time>
+                        {" – "}
+                        <time dateTime={item.scheduledEnd}>{timeOnly.format(new Date(item.scheduledEnd))}</time>
+                      </>
+                    }
+                    end={
+                      <span className="flex flex-wrap items-center justify-end gap-2">
+                        <StatusDot tone={statusTones[item.status]}>{statusLabels[item.status]}</StatusDot>
+                        {workspace === "coordinator" && item.status === "REQUESTED" && (
+                          <Button size="sm" variant="secondary" disabled={approval.isPending} isLoading={approval.isPending && approval.variables === item.id} onClick={() => {
+                            setNotice("");
+                            approval.mutate(item.id);
+                          }}>Approve</Button>
+                        )}
+                        {meeting && workspace !== "dean" && (
+                          <a href={meeting.href} target="_blank" rel="noopener noreferrer" className="au-link">
+                            <Video className="size-4" aria-hidden="true" />
+                            {meeting.hostname === "meet.google.com" ? "Google Meet" : "Meeting link"}
+                          </a>
+                        )}
+                      </span>
+                    }
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        )}
         {(page > 1 || consultations.data?.hasNextPage) && (
           <nav aria-label="Consultation pages" className="flex flex-wrap items-center justify-end gap-3 border-t border-[var(--color-border)] p-4">
             <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage(page - 1)}>Previous</Button>
@@ -235,7 +302,7 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
             <Button variant="secondary" size="sm" disabled={!consultations.data?.hasNextPage} onClick={() => setPage(page + 1)}>Next</Button>
           </nav>
         )}
-      </section>
+      </SectionCard>
 
       {scheduling && <ScheduleConsultation scope={scope} onClose={() => setScheduling(false)} onScheduled={(message) => {
         setNotice(message);

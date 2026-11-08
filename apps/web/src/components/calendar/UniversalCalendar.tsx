@@ -1,5 +1,6 @@
 "use client";
 import "./calendar-event-colors.css";
+import "./universal-calendar.css";
 import { Link } from "react-router-dom";
 
 import { FormEvent, useMemo, useState } from "react";
@@ -19,6 +20,8 @@ import {
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/providers/auth-provider";
 import { CalendarSkeleton } from "@/components/ui/Skeleton";
+import { getAcademicIdentity } from "@/lib/academic-identity";
+import { calendarDaysUntil } from "@/lib/researcher-home";
 
 type CalendarEventType =
   | "ACADEMIC"
@@ -143,6 +146,25 @@ const timeText = (date: string) =>
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(date));
+const toneClass = (type: string) => `calendar-event-tone--${(type || "OTHER").toLowerCase()}`;
+const FILTER_TYPES: CalendarEventType[] = ["CONSULTATION", "DEADLINE", "MILESTONE", "DEFENSE", "ACADEMIC", "AVAILABILITY"];
+const FILTER_LABELS: Partial<Record<CalendarEventType, string>> = {
+  CONSULTATION: "Consultations",
+  DEADLINE: "Deadlines",
+  MILESTONE: "Milestones",
+  DEFENSE: "Defenses",
+  ACADEMIC: "Academic",
+  AVAILABILITY: "Availability",
+};
+const shortDateText = (date: string) =>
+  new Date(date).toLocaleDateString("en-PH", { timeZone: TZ, weekday: "short", month: "short", day: "numeric" });
+const weekRangeText = (week: Date[]) => {
+  const first = week[0];
+  const last = week[week.length - 1];
+  const month = (date: Date) => date.toLocaleDateString("en-PH", { month: "short" });
+  const end = first.getMonth() === last.getMonth() ? `${last.getDate()}` : `${month(last)} ${last.getDate()}`;
+  return `${month(first)} ${first.getDate()} – ${end}, ${last.getFullYear()}`;
+};
 const prettyType = (value: string) =>
   value
     .replace(/_/g, " ")
@@ -289,18 +311,22 @@ export default function UniversalCalendar() {
     [gridStart.getTime(), gridEnd.getTime()],
   );
 
+  const lookAhead = new Date();
+  lookAhead.setHours(0, 0, 0, 0);
+  lookAhead.setDate(lookAhead.getDate() + 15);
+  const rangeEnd = lookAhead > gridEnd ? lookAhead : gridEnd;
   const calendar = useQuery({
     queryKey: [
       "universal-calendar",
       gridStart.toISOString(),
-      gridEnd.toISOString(),
+      rangeEnd.toISOString(),
     ],
     queryFn: () =>
       apiClient.get<{
         events: CalendarEvent[];
         scope: { panelistRestricted: boolean };
       }>("/api/calendar", {
-        params: { start: gridStart.toISOString(), end: gridEnd.toISOString() },
+        params: { start: gridStart.toISOString(), end: rangeEnd.toISOString() },
       }),
   });
   const options = useQuery({
@@ -475,322 +501,238 @@ export default function UniversalCalendar() {
     });
   };
 
+  const [view, setView] = useState<"month" | "week" | "agenda">("month");
+  const [hidden, setHidden] = useState<Set<CalendarEventType>>(() => new Set());
+  const now = new Date();
+  const todayKey = dateKey(now);
+  const seal = getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc;
+  const allEvents = calendar.data?.events || [];
+  const eventsOn = (day: Date) => {
+    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+    const end = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1);
+    return allEvents
+      .filter((item) => new Date(item.startsAt) < end && new Date(item.endsAt) > start)
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  };
+  const visibleOn = (day: Date) => eventsOn(day).filter((item) => !hidden.has(item.type));
+  const toggleType = (type: CalendarEventType) =>
+    setHidden((current) => {
+      const next = new Set(current);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  const moveMonth = (step: number) => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + step, 1));
+  const moveWeek = (step: number) => setCursor(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + step * 7));
+  const weekDays = Array.from({ length: 7 }, (_, index) => new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() - cursor.getDay() + index));
+  const nextUp = upcoming.find((item) => item.type !== "AVAILABILITY" && !hidden.has(item.type)) || null;
+  const relativeLabel = (item: CalendarEvent) => {
+    const days = calendarDaysUntil(new Date(item.startsAt), now.getTime());
+    if (days <= 0) return new Date(item.endsAt) > now && new Date(item.startsAt) <= now ? "happening now" : "today";
+    if (days === 1) return "tomorrow";
+    return `in ${days} days`;
+  };
+  const monthCounts = allEvents.reduce<Partial<Record<CalendarEventType, number>>>((counts, item) => {
+    const start = new Date(item.startsAt);
+    if (start >= monthStart && start < monthEnd) counts[item.type] = (counts[item.type] || 0) + 1;
+    return counts;
+  }, {});
+  const agendaDays = days
+    .filter((day) => day.getMonth() === cursor.getMonth())
+    .map((day) => ({ day, items: visibleOn(day) }))
+    .filter(({ items }) => items.length > 0);
+
   if (calendar.isLoading) return <CalendarSkeleton />;
 
   return (
-    <div className="universal-calendar mx-auto w-full max-w-[1800px] space-y-5 p-3 sm:p-5 lg:p-6 xl:p-7">
-      <section className="universal-calendar__header college-hero-surface relative overflow-hidden rounded-[24px] border px-5 py-6 sm:px-7 sm:py-7">
-        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-4">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[var(--color-primary-light)] text-[var(--color-primary)] ring-1 ring-[var(--college-focus-ring)]">
-              <CalendarDays size={24} />
-            </span>
-            <div>
-              <p className="text-sm font-black uppercase tracking-[.24em] text-[var(--color-primary)]">
-                Universal Calendar
-              </p>
-              <h1 className="mt-1.5 text-2xl font-black tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
-                Your Advisio schedule
-              </h1>
-              <p className="mt-1.5 max-w-2xl text-base leading-6 text-[var(--color-text-secondary)]">
-                Review deadlines, defenses, consultations, and availability in
-                one shared calendar.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80 px-4 py-3 text-xs font-semibold text-[var(--color-text-secondary)] shadow-[var(--shadow-card)] backdrop-blur">
-              <span className="mb-0.5 block text-xs font-black uppercase tracking-widest text-[var(--color-primary)]">
-                Your calendar scope
-              </span>
-              {isPanelist
-                ? "Events and defenses assigned to you"
-                : user?.program?.name ||
-                  user?.college?.name ||
-                  "Institution events assigned to you"}
-            </div>
-            {canSchedule && (
-              <button
-                onClick={() => openComposer(new Date())}
-                className="college-focus inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-4 text-sm font-black text-[var(--college-on-primary)] shadow-sm transition hover:bg-[var(--color-primary-dark)] focus-visible:outline-none dark:text-[var(--college-on-primary-dark)]"
-              >
-                <Plus size={16} />
-                New entry
-              </button>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_344px]">
-        <section className="overflow-hidden rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)]">
-          <div className="flex flex-col gap-4 border-b border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            <div className="flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)]">
-                <CalendarDays size={20} />
-              </span>
-              <div>
-                <h2 className="text-lg font-black text-[var(--color-text-primary)]">
-                  {cursor.toLocaleDateString("en-PH", {
-                    month: "long",
-                    year: "numeric",
-                  })}
+    <div className="universal-calendar uc mx-auto w-full max-w-[1800px] p-3 sm:p-5 lg:p-6 xl:p-7">
+        <section className="uc-card uc-main">
+          <div className="uc-band">
+            {seal && <img className="uc-seal" src={seal} alt="" aria-hidden="true" draggable={false} />}
+            <div className="uc-band-main">
+              <div className="uc-scope">
+                <h1>Calendar</h1>
+                <span aria-hidden="true">·</span>
+                <span>
+                  {isPanelist
+                    ? "Events and defenses assigned to you"
+                    : user?.program?.name || user?.college?.name || "Institution events assigned to you"}
+                </span>
+                <span aria-hidden="true">·</span>
+                <span>Philippine time</span>
+              </div>
+              <div className="uc-toolbar-nav" data-tour="calendar-navigation">
+                <h2>
+                  {view === "week"
+                    ? weekRangeText(weekDays)
+                    : cursor.toLocaleDateString("en-PH", { month: "long", year: "numeric" })}
                 </h2>
-                <p className="text-base font-semibold text-slate-400">
-                  Philippine Time
-                  {canSchedule ? " · Select any date to add an entry" : ""}
-                </p>
+                <button type="button" className="uc-icon-btn" aria-label={view === "week" ? "Previous week" : "Previous month"} onClick={() => (view === "week" ? moveWeek(-1) : moveMonth(-1))}><ChevronLeft size={16} /></button>
+                <button type="button" className="uc-btn" onClick={() => setCursor(new Date())}>Today</button>
+                <button type="button" className="uc-icon-btn" aria-label={view === "week" ? "Next week" : "Next month"} onClick={() => (view === "week" ? moveWeek(1) : moveMonth(1))}><ChevronRight size={16} /></button>
               </div>
             </div>
-            <div data-tour="calendar-navigation" className="grid grid-cols-[40px_1fr_40px] items-center gap-2 sm:flex">
-              <button
-                onClick={() =>
-                  setCursor(
-                    new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1),
-                  )
-                }
-                className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)]"
-                aria-label="Previous month"
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <button
-                onClick={() => setCursor(new Date())}
-                className="h-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 text-sm font-black text-[var(--color-text-primary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)]"
-              >
-                Today
-              </button>
-              <button
-                onClick={() =>
-                  setCursor(
-                    new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1),
-                  )
-                }
-                className="grid h-10 w-10 place-items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] transition hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)]"
-                aria-label="Next month"
-              >
-                <ChevronRight size={18} />
-              </button>
+            <div className="uc-band-side">
+              {nextUp ? (
+                <button type="button" className={`uc-next ${toneClass(nextUp.type)}`} onClick={() => setSelectedEvent(nextUp)}>
+                  <span className="uc-next-date" aria-hidden="true">
+                    <span>{new Date(nextUp.startsAt).toLocaleDateString("en-PH", { timeZone: TZ, month: "short" })}</span>
+                    <strong>{new Date(nextUp.startsAt).toLocaleDateString("en-PH", { timeZone: TZ, day: "numeric" })}</strong>
+                  </span>
+                  <span className="uc-next-text">
+                    <span className="uc-next-label">Next up · {relativeLabel(nextUp)}</span>
+                    <span className="uc-next-title">{nextUp.title}</span>
+                    <span className="uc-next-meta">
+                      <span className="sr-only">{shortDateText(nextUp.startsAt)} · </span>
+                      {nextUp.allDay ? "All day" : timeText(nextUp.startsAt)}
+                      {nextUp.location ? ` · ${nextUp.location}` : ""}
+                    </span>
+                  </span>
+                  <ChevronRight size={16} className="uc-next-arrow" aria-hidden="true" />
+                </button>
+              ) : (
+                <div className="uc-next uc-next--empty">
+                  <span className="uc-next-date" aria-hidden="true"><CalendarDays size={18} /></span>
+                  <span className="uc-next-text">
+                    <span className="uc-next-label">Next up</span>
+                    <span className="uc-next-title">Nothing in the next 14 days</span>
+                  </span>
+                </div>
+              )}
+              {canSchedule && (
+                <button type="button" onClick={() => openComposer(new Date())} className="uc-new">
+                  <Plus size={16} aria-hidden="true" /> New entry
+                </button>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-4 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-4 py-3 sm:px-5">
-            <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)]">
-              Event types
-            </span>
-            <div className="flex items-center gap-4">
-              {(
-                [
-                  "ACADEMIC",
-                  "CONSULTATION",
-                  "DEFENSE",
-                  "DEADLINE",
-                  "MILESTONE",
-                  "AVAILABILITY",
-                ] as CalendarEventType[]
-              ).map((type) => (
-                <span
-                  key={type}
-                  className="flex shrink-0 items-center gap-2 text-xs font-semibold text-[var(--color-text-primary)]"
-                >
-                  <span
-                    className={`h-3 w-3 rounded-full ${LEGEND_DOTS[type]}`}
-                  />
-                  {prettyType(type)}
-                </span>
+
+          <div className="uc-toolbar">
+            <div className="uc-filters" role="group" aria-label="Show event types">
+              {FILTER_TYPES.map((type) => (
+                <button key={type} type="button" className="uc-filter" aria-pressed={!hidden.has(type)} onClick={() => toggleType(type)}>
+                  <i className={toneClass(type)} aria-hidden="true" />
+                  {FILTER_LABELS[type]}
+                  {monthCounts[type] ? <span className="uc-filter-count">{monthCounts[type]}</span> : null}
+                </button>
+              ))}
+            </div>
+            <div className="uc-views" role="group" aria-label="Calendar view">
+              {(["month", "week", "agenda"] as const).map((option) => (
+                <button key={option} type="button" aria-pressed={view === option} onClick={() => setView(option)}>
+                  {option === "month" ? "Month" : option === "week" ? "Week" : "Agenda"}
+                </button>
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-7 border-b border-[var(--color-border)] bg-[var(--color-surface-muted)]/55">
-            {[
-              "Sunday",
-              "Monday",
-              "Tuesday",
-              "Wednesday",
-              "Thursday",
-              "Friday",
-              "Saturday",
-            ].map((day) => (
-              <div
-                key={day}
-                className="px-1 py-2 text-center text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400"
-              >
-                <span className="sm:hidden">{day.slice(0, 1)}</span>
-                <span className="hidden sm:inline">{day.slice(0, 3)}</span>
-              </div>
-            ))}
-          </div>
           {calendar.isError ? (
-            <div className="grid min-h-[420px] place-items-center p-8 text-center">
-              <div>
-                <CalendarDays className="mx-auto text-rose-300" size={30} />
-                <p className="mt-3 text-base font-bold text-rose-600">
-                  The calendar could not be loaded.
-                </p>
-                <p className="mt-1 text-base text-slate-400">
-                  Refresh the page to try again.
-                </p>
-              </div>
+            <div className="uc-error">
+              <CalendarDays size={28} aria-hidden="true" />
+              <p>The calendar could not be loaded.</p>
+              <span>Refresh the page to try again.</span>
+            </div>
+          ) : view === "agenda" ? (
+            <div className="uc-agenda">
+              {agendaDays.length ? (
+                agendaDays.map(({ day, items }) => (
+                  <div key={dateKey(day)} className="uc-agenda-day" data-today={dateKey(day) === todayKey}>
+                    <div className="uc-agenda-date">
+                      <span>{day.toLocaleDateString("en-PH", { weekday: "short" })}</span>
+                      <strong>{day.getDate()}</strong>
+                    </div>
+                    <ul>
+                      {items.map((item) => (
+                        <li key={item.id}>
+                          <button type="button" className={`uc-agenda-item ${toneClass(item.type)}`} onClick={() => setSelectedEvent(item)}>
+                            <span className="uc-agenda-time">{item.allDay ? "All day" : timeText(item.startsAt)}</span>
+                            <span className="uc-agenda-text">
+                              <span className="uc-agenda-title">{item.title}</span>
+                              <span className="uc-agenda-meta">
+                                {prettyType(item.type)}
+                                {item.location ? ` · ${item.location}` : ""}
+                                {defenseStatus(item) ? ` · ${defenseStatus(item)}` : ""}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))
+              ) : (
+                <p className="uc-empty">Nothing on the calendar this month.</p>
+              )}
             </div>
           ) : (
-            <div className="grid grid-cols-7">
-              {days.map((day) => {
-                const key = dateKey(day);
-                const dayEvents = eventsByDay.get(key) || [];
-                const inMonth = day.getMonth() === cursor.getMonth();
-                const today = key === dateKey(new Date());
-                const weekend = day.getDay() === 0 || day.getDay() === 6;
-                return (
-                  <div
-                    key={key}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`View ${day.toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}`}
-                    onClick={() => setSelectedDay(day)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        setSelectedDay(day);
-                      }
-                    }}
-                    className={`group min-h-[72px] cursor-pointer border-b border-r border-[var(--color-border)] p-1 outline-none transition hover:z-10 hover:bg-[var(--color-primary-light)]/55 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-primary)] sm:min-h-[112px] sm:p-2 ${inMonth ? (weekend ? "bg-[var(--color-surface-subtle)]" : "bg-[var(--color-surface)]") : "bg-[var(--color-surface-muted)]/45"}`}
-                  >
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <span
-                        className={`grid h-7 w-7 place-items-center rounded-full text-xs font-semibold sm:h-8 sm:w-8 ${today ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : inMonth ? "text-slate-800 dark:text-slate-200" : "text-slate-400 dark:text-slate-500"}`}
-                      >
-                        {day.getDate()}
+            <>
+              <div className="uc-dow" aria-hidden="true">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((name) => <span key={name}>{name}</span>)}
+              </div>
+              <div className="uc-grid" data-view={view}>
+                {(view === "week" ? weekDays : days).map((day) => {
+                  const key = dateKey(day);
+                  const dayEvents = visibleOn(day);
+                  const inMonth = view === "week" || day.getMonth() === cursor.getMonth();
+                  const today = key === todayKey;
+                  const past = key < todayKey;
+                  const limit = view === "week" ? 8 : 3;
+                  return (
+                    <div
+                      key={key}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`View ${day.toLocaleDateString("en-PH", { month: "long", day: "numeric", year: "numeric" })}${dayEvents.length ? `, ${dayEvents.length} ${dayEvents.length === 1 ? "event" : "events"}` : ""}`}
+                      onClick={() => setSelectedDay(day)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedDay(day);
+                        }
+                      }}
+                      className="uc-day"
+                      data-out={!inMonth}
+                      data-today={today}
+                      data-past={past}
+                      data-weekend={day.getDay() === 0 || day.getDay() === 6}
+                    >
+                      <span className="uc-day-num">{day.getDate()}</span>
+                      <span className="uc-day-dots" aria-hidden="true">
+                        {dayEvents.slice(0, 3).map((item) => <i key={item.id} className={toneClass(item.type)} />)}
                       </span>
-                      <span className="hidden text-xs font-black uppercase tracking-wide text-[var(--color-primary)] group-hover:sm:inline">
-                        View
-                      </span>
+                      <div className="uc-day-events">
+                        {dayEvents.slice(0, limit).map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className={`uc-block ${toneClass(item.type)}`}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedEvent(item);
+                            }}
+                          >
+                            {!item.allDay && <b>{timeText(item.startsAt)}</b>} {item.title}
+                          </button>
+                        ))}
+                        {dayEvents.length > limit && (
+                          <button
+                            type="button"
+                            className="uc-more"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSelectedDay(day);
+                            }}
+                          >
+                            +{dayEvents.length - limit} more
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 px-1 sm:hidden">
-                      {dayEvents.slice(0, 3).map((calendarEvent) => (
-                        <span
-                          key={calendarEvent.id}
-                          className={`h-2 w-2 rounded-full ${LEGEND_DOTS[calendarEvent.type] || LEGEND_DOTS.OTHER}`}
-                        />
-                      ))}
-                      {dayEvents.length > 0 && (
-                        <span className="ml-auto text-xs font-black text-slate-400">
-                          {dayEvents.length}
-                        </span>
-                      )}
-                    </div>
-                    <div className="hidden space-y-1 sm:block">
-                      {dayEvents.slice(0, 3).map((calendarEvent) => (
-                        <button
-                          key={calendarEvent.id}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSelectedEvent(calendarEvent);
-                          }}
-                          className={`block w-full truncate rounded-md border px-2 py-1 text-left text-sm font-medium transition hover:brightness-95 ${COLORS[calendarEvent.type] || COLORS.OTHER}`}
-                        >
-                          {calendarEvent.allDay
-                            ? ""
-                            : `${timeText(calendarEvent.startsAt)} `}
-                          {calendarEvent.title}
-                        </button>
-                      ))}
-                      {dayEvents.length > 3 && (
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSelectedDay(day);
-                          }}
-                          className="px-1 text-sm font-semibold text-slate-500 hover:text-[var(--color-primary)] dark:text-slate-400"
-                        >
-                          +{dayEvents.length - 3} more
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </section>
-
-        <aside className="rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-5 xl:sticky xl:top-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-black uppercase tracking-[.18em] text-[var(--color-primary)]">
-                Coming up
-              </p>
-              <h2 className="mt-1 text-lg font-black text-[var(--color-text-primary)]">
-                Upcoming events
-              </h2>
-            </div>
-            <span className="grid h-9 min-w-9 place-items-center rounded-xl bg-[var(--color-primary-light)] px-2 text-xs font-black text-[var(--color-primary)]">
-              {upcoming.length}
-            </span>
-          </div>
-          <p className="mt-1 text-base text-slate-400">
-            Your next assigned dates in this calendar view.
-          </p>
-          <div className="mt-4 space-y-2.5">
-            {upcoming.length ? (
-              upcoming.map((calendarEvent) => (
-                <button
-                  key={calendarEvent.id}
-                  onClick={() => setSelectedEvent(calendarEvent)}
-                  className="group flex w-full items-start gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3 text-left transition hover:-translate-y-0.5 hover:border-[var(--color-primary)] hover:shadow-sm"
-                >
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--color-primary-light)] text-center text-[var(--color-primary)]">
-                    <span>
-                      <span className="block text-xs font-black uppercase leading-none">
-                        {new Date(calendarEvent.startsAt).toLocaleDateString(
-                          "en-PH",
-                          { timeZone: TZ, month: "short" },
-                        )}
-                      </span>
-                      <span className="mt-0.5 block text-base font-black leading-none">
-                        {new Date(calendarEvent.startsAt).toLocaleDateString(
-                          "en-PH",
-                          { timeZone: TZ, day: "numeric" },
-                        )}
-                      </span>
-                    </span>
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-start justify-between gap-2">
-                      <strong className="line-clamp-2 text-xs leading-5 text-[var(--color-text-primary)]">
-                        {calendarEvent.title}
-                      </strong>
-                      <ChevronRight
-                        size={14}
-                        className="mt-0.5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[var(--color-primary)]"
-                      />
-                    </span>
-                    <span className="mt-1 block text-sm font-semibold text-slate-500 dark:text-slate-400">
-                      {prettyType(calendarEvent.type)} ·{" "}
-                      {calendarEvent.allDay
-                        ? "All day"
-                        : timeText(calendarEvent.startsAt)}
-                      {defenseStatus(calendarEvent)
-                        ? ` · ${defenseStatus(calendarEvent)}`
-                        : ""}
-                    </span>
-                  </span>
-                </button>
-              ))
-            ) : (
-              <div className="flex min-h-52 flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-7 text-center">
-                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--color-primary-light)] text-[var(--color-primary)]">
-                  <CalendarDays size={24} />
-                </span>
-                <p className="mt-4 text-base font-bold text-[var(--color-text-primary)]">
-                  No upcoming events
-                </p>
-                <p className="mt-1 max-w-48 text-base leading-5 text-[var(--color-text-secondary)]">
-                  Your schedule is clear for this calendar view.
-                </p>
-              </div>
-            )}
-          </div>
-        </aside>
-      </div>
 
       {selectedDay && (
         <DayOverviewDialog

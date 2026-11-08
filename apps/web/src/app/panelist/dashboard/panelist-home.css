@@ -1,0 +1,19 @@
+/* Panelist home layout only. Every visual piece comes from the shared system (src/styles/advisio-ui.css). */
+.pe { display: flex; flex-direction: column; gap: var(--au-gap-3); }
+.pe-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: stretch; gap: var(--au-gap-3); }
+.pe-row > .au-card { display: flex; flex-direction: column; }
+.pe-card-sub { margin-top: -2px; padding: 0 var(--au-gap-3) var(--au-gap-1); font-size: var(--au-text-13); color: var(--color-text-secondary); }
+.pe-chevron { font-size: 16px; color: var(--color-text-muted, var(--color-text-secondary)); }
+.pe-project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--au-gap-2); padding: 4px var(--au-gap-3) var(--au-gap-3); }
+/* The seal is a faint watermark, so the counts can sit over it and leave room for the buttons on the left. */
+.pe-band { column-gap: 12px; }
+.pe-band .au-band-side { margin-right: 0; align-self: flex-end; }
+.pe-band .au-counts > div { padding: 0 var(--au-gap-2); }
+.pe-band .au-counts > div:first-child { padding-left: 0; }
+.au-band--home .pe-on-home { color: #ffffff; border-color: rgba(255, 255, 255, 0.4); }
+.au-band--home .pe-on-home:hover { background: rgba(255, 255, 255, 0.14); color: #ffffff; }
+@media (max-width: 1100px) { .pe-row { grid-template-columns: minmax(0, 1fr); } }
+.ps-attention { border-color: color-mix(in srgb, var(--color-warning, #d99a00) 45%, var(--color-border)); }
+.ps-end { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.ps-status { min-width: 96px; }
+.ps-end > button { width: 148px; }

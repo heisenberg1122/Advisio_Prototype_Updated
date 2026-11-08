@@ -11,6 +11,11 @@ import {
   TablePageSkeleton,
 } from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
+import { getAcademicIdentity } from "@/lib/academic-identity";
+import { calendarDaysUntil } from "@/lib/researcher-home";
+import { CardLink, CountStrip, DateTile, EmptyNote, ListRow, PageBand, RowIcon, SectionCard, StatusDot, type StatusTone } from "@/components/ui/advisio";
+import { Button } from "@/components/ui/Button";
+import "./panelist-home.css";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 import { PanelistReviewPackets } from "@/components/panelist/PanelistReviewPackets";
 import { PdfEvaluationWorkspace } from "@/components/panelist/PdfEvaluationWorkspace";
@@ -482,573 +487,461 @@ function PanelistDashboardContent() {
             const tabContent: Record<string, React.ReactNode> = {
               messages: <FacultyGroupChats triggerToast={triggerToast} />,
               overview: (
-                <div data-guide="panelist-overview" className="flex w-full flex-col gap-6">
-                  <DashboardWelcome
-                    firstName={user?.firstName}
-                    fallbackName="Panelist"
-                    summary="Here's an overview of your assigned research projects, defense schedules, and evaluations."
-                    actions={
+                <div data-guide="panelist-overview" className="pe">
+                  {(() => {
+                    const now = Date.now();
+                    const today = new Date().toLocaleDateString("en-PH", { timeZone: "Asia/Manila", weekday: "long", month: "long", day: "numeric" });
+                    const timeOf = (value?: string | null) =>
+                      value ? new Date(value).toLocaleTimeString("en-PH", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" }) : "";
+                    const dayLabel = (value: Date) => {
+                      const offset = calendarDaysUntil(value, now);
+                      if (offset === 0) return "Today";
+                      if (offset === 1) return "Tomorrow";
+                      return value.toLocaleDateString("en-PH", { timeZone: "Asia/Manila", month: "short", day: "numeric" });
+                    };
+                    const submittedCount = gradesSubmitted.length + completedPdfEvaluations.length;
+                    const liveId = liveSession?.status === "LIVE" ? liveSession.id : null;
+                    const defenses = [
+                      ...(liveId && !upcomingSchedules.some((item: any) => item.id === liveId) ? [{ ...liveSession, title: liveSession.research?.title }] : []),
+                      ...upcomingSchedules,
+                    ].sort((a: any, b: any) => new Date(a.scheduledStart || 0).getTime() - new Date(b.scheduledStart || 0).getTime());
+                    const projectStatus = (project: any): { tone: StatusTone; label: string } => {
+                      if (String(project.defenseStatus || "").toUpperCase() === "LIVE") return { tone: "live", label: "Live now" };
+                      const status = String(project.status || "").toUpperCase();
+                      if (status === "APPROVED") return { tone: "done", label: "Approved" };
+                      if (status === "COMPLETED") return { tone: "neutral", label: "Completed" };
+                      if (status === "DEFENSE" || status === "SCHEDULED") return { tone: "brand", label: "Scheduled" };
+                      return { tone: "brand", label: readable(project.status, "Active") };
+                    };
+                    const nextDefense = defenses[0];
+                    const nextStart = nextDefense?.scheduledStart ? new Date(nextDefense.scheduledStart) : null;
+                    const summary = [
+                      evaluations.length
+                        ? `${evaluations.length} ${evaluations.length === 1 ? "evaluation" : "evaluations"} waiting for your score`
+                        : "Nothing waiting for your score",
+                      documents.length ? `${documents.length} ${documents.length === 1 ? "manuscript" : "manuscripts"} to review` : null,
+                      nextDefense
+                        ? nextDefense.status === "LIVE"
+                          ? "a defense is live now"
+                          : nextStart
+                            ? `next defense ${dayLabel(nextStart) === "Today" || dayLabel(nextStart) === "Tomorrow" ? dayLabel(nextStart).toLowerCase() : dayLabel(nextStart)}, ${timeOf(nextDefense.scheduledStart)}`
+                            : null
+                        : null,
+                    ].filter(Boolean).join(" · ");
+                    const firstEvaluation = evaluations.find((item: any) => item.status === "LIVE" || item.id === liveId) || evaluations[0];
+                    const openEvaluation = (sessionId?: string) =>
+                      sessionId ? router.push(`/panelist/dashboard?tab=evaluation&sessionId=${sessionId}`) : handleTabChange("evaluation");
+                    const submittedActivity = [
+                      ...gradesSubmitted.map((item: any) => ({ id: `grade-${item.id}`, sessionId: item.sessionId, title: item.title, meta: `Score ${item.score}${item.maximum ? ` / ${item.maximum}` : ""} · ${readable(item.recommendation, "No recommendation")}`, at: item.lockedAt })),
+                      ...completedStructuredEvaluations.map((session: any) => ({ id: `structured-${session.id}`, sessionId: session.id, title: session.research?.title, meta: "Digital evaluation submitted", at: session.structuredEvaluations?.[0]?.lockedAt || session.endedAt })),
+                      ...completedPdfEvaluations.map((session: any) => ({ id: `pdf-${session.id}`, sessionId: session.id, title: session.research?.title, meta: "PDF evaluation submitted", at: session.pdfEvaluations?.[0]?.lockedAt || session.endedAt })),
+                    ].sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime());
+                    const manuscriptRows = documents.slice(0, 4);
+                    const submittedRows = submittedActivity.slice(0, Math.max(0, 4 - manuscriptRows.length));
+                    const quickActions = [
+                      { icon: "ti-calendar-event", label: "View schedule", hint: "Defense dates and invitations", onClick: () => handleTabChange("schedule") },
+                      { icon: "ti-file-search", label: "Review documents", hint: "Manuscripts for your panels", onClick: () => handleTabChange("documents") },
+                      { icon: "ti-clipboard-check", label: "Score defense", hint: "Open your score sheet", onClick: () => openEvaluation(firstEvaluation?.id) },
+                      { icon: "ti-award", label: "View results", hint: "Submitted scores and decisions", onClick: () => handleTabChange("grades") },
+                    ];
+                    return (
                       <>
-                        <button
-                          onClick={() => handleTabChange("evaluation")}
-                          className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition dark:text-[var(--college-on-primary-dark)]"
-                        >
-                          <i className="ti ti-clipboard-check text-base" />{" "}
-                          Start Evaluation
-                        </button>
-                        <button
-                          onClick={() => handleTabChange("schedule")}
-                          className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
-                        >
-                          <i className="ti ti-calendar-event text-base" />{" "}
-                          Defense Schedule ({upcomingSchedules.length})
-                        </button>
-                        <button
-                          onClick={() => handleTabChange("documents")}
-                          className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
-                        >
-                          <i className="ti ti-file-text text-base" /> Review
-                          Manuscripts ({documents.length})
-                        </button>
-                      </>
-                    }
-                  />
-                  {/* Key Metrics Grid - Standardized UA Institutional Pattern */}
-                  <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    {[
-                      {
-                        label: "Assigned Projects",
-                        value: dashboardData?.counts?.assignedProjects || 0,
-                        suffix: "projects",
-                        icon: "ti-flask",
-                        tone: "bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#38bdf8]",
-                        tab: "documents",
-                      },
-                      {
-                        label: "Pending Evaluations",
-                        value: evaluations.length,
-                        suffix: "to score",
-                        icon: "ti-clipboard-check",
-                        tone: "bg-[#C9A227]/15 text-[#8A6A0B] dark:text-[#C9A227]",
-                        tab: "evaluation",
-                      },
-                      {
-                        label: "Completed Evaluations",
-                        value:
-                          gradesSubmitted.length +
-                          completedPdfEvaluations.length,
-                        suffix: "submitted",
-                        icon: "ti-circle-check",
-                        tone: "bg-blue-50 text-[#0B3A53] dark:bg-white/10 dark:text-white",
-                        tab: "grades",
-                      },
-                      {
-                        label: "Upcoming Defenses",
-                        value: upcomingSchedules.length,
-                        suffix: "scheduled",
-                        icon: "ti-calendar-event",
-                        tone: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
-                        tab: "schedule",
-                      },
-                    ].map((item) => (
-                      <button
-                        key={item.label}
-                        onClick={() => handleTabChange(item.tab)}
-                        className="group flex min-h-[96px] items-center gap-4 rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-4 sm:p-5 text-left shadow-xs transition hover:shadow-md hover:border-[#0B3A53]/40 hover:-translate-y-0.5 outline-none"
-                      >
-                        <span
-                          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl ${item.tone}`}
-                        >
-                          <i className={`ti ${item.icon}`} />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold text-slate-500 dark:text-slate-400">
-                            {item.label}
-                          </span>
-                          <span className="mt-0.5 block text-2xl font-black text-[#0B3A53] dark:text-white truncate">
-                            {item.value}{" "}
-                            <small className="text-xs font-semibold text-slate-400">
-                              · {item.suffix}
-                            </small>
-                          </span>
-                        </span>
-                      </button>
-                    ))}
-                  </section>
+                        <PageBand
+                          variant="home"
+                          className="pe-band"
+                          titleId="pe-greeting"
+                          eyebrow={`${today} · Panelist`}
+                          title={`Good day, ${user?.firstName || "Panelist"}`}
+                          meta={summary}
+                          counts={
+                            <CountStrip
+                              label="Your evaluation work"
+                              items={[
+                                { label: "Assigned", value: assignedProjects.length, onClick: () => handleTabChange("documents") },
+                                { label: "To evaluate", value: evaluations.length, tone: evaluations.length ? "waiting" : undefined, onClick: () => handleTabChange("evaluation") },
+                                { label: "Upcoming", value: upcomingSchedules.length, onClick: () => handleTabChange("schedule") },
+                                { label: "Submitted", value: submittedCount, onClick: () => handleTabChange("grades") },
+                              ]}
+                            />
+                          }
+                          footer={
+                            <>
+                              <Button size="sm" variant="secondary" icon={<i className="ti ti-clipboard-check" aria-hidden="true" />} onClick={() => openEvaluation(firstEvaluation?.id)}>
+                                Start evaluation
+                              </Button>
+                              <Button size="sm" variant="ghost" className="pe-on-home" icon={<i className="ti ti-file-text" aria-hidden="true" />} onClick={() => handleTabChange("documents")}>
+                                Review manuscripts ({documents.length})
+                              </Button>
+                              <Button size="sm" variant="ghost" className="pe-on-home" icon={<i className="ti ti-calendar-event" aria-hidden="true" />} onClick={() => handleTabChange("schedule")}>
+                                Defense schedule
+                              </Button>
+                            </>
+                          }
+                        />
 
-                  <section className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
-                    <div className="mb-4 flex items-center justify-between gap-4">
-                      <div>
-                        <h3 className="text-lg font-bold text-[#17212B] dark:text-white sm:text-lg">
-                          Assigned Research Projects
-                        </h3>
-                        <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
-                          Research work currently available within your panel
-                          assignment scope.
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => handleTabChange("documents")}
-                        className="shrink-0 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
-                      >
-                        Review manuscripts <i className="ti ti-chevron-right" />
-                      </button>
-                    </div>
-                    {assignedProjects.length > 0 ? (
-                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        {assignedProjects.slice(0, 3).map((project: any) => (
-                          <button
-                            key={project.id}
-                            onClick={() =>
-                              router.push(
-                                `/panelist/defenses/${project.defenseSessionId}`,
-                              )
-                            }
-                            className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 text-left transition hover:border-[#0B3A53]/30 hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5 dark:hover:bg-white/10"
-                          >
-                            <span className="flex items-start justify-between gap-3">
-                              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">
-                                <i className="ti ti-flask" />
-                              </span>
-                              <Tag
-                                variant={
-                                  project.status === "COMPLETED"
-                                    ? "success"
-                                    : "info"
-                                }
-                              >
-                                {String(project.status || "ACTIVE").replace(
-                                  /_/g,
-                                  " ",
-                                )}
-                              </Tag>
-                            </span>
-                            <span className="mt-3 block truncate text-sm font-bold text-[#17212B] dark:text-white">
-                              {project.title || "Untitled research project"}
-                            </span>
-                            <span className="mt-1 block truncate text-sm text-slate-500 dark:text-slate-400">
-                              {project.workflowInstance?.currentStage?.name ||
-                                "Research review"}{" "}
-                              · {readable(project.defenseStatus)}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex min-h-32 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 px-4 text-center dark:border-white/10">
-                        <i className="ti ti-flask-off text-2xl text-slate-300" />
-                        <p className="mt-2 text-base font-bold text-[#17212B] dark:text-white">
-                          No assigned research projects
-                        </p>
-                        <p className="text-base text-slate-400">
-                          Projects will appear here when a defense panel is
-                          assigned.
-                        </p>
-                      </div>
-                    )}
-                  </section>
+                        <div className="pe-row">
+                          <SectionCard title="Evaluation queue" titleId="pe-queue" count={evaluations.length} action={<CardLink onClick={() => handleTabChange("grades")}>Results</CardLink>}>
+                            <p className="pe-card-sub">Groups waiting for your score</p>
+                            {evaluations.length ? (
+                              <ul className="au-list">
+                                {evaluations.slice(0, 4).map((item: any) => {
+                                  const isLive = item.status === "LIVE" || item.id === liveId;
+                                  return (
+                                    <li key={item.id}>
+                                      <ListRow
+                                        tone={isLive ? "live" : undefined}
+                                        leading={<RowIcon icon="ti-clipboard-check" />}
+                                        title={item.research?.title}
+                                        titleHint={item.research?.title}
+                                        meta={isLive ? `Live now${item.startedAt ? ` · started ${timeOf(item.startedAt)}` : ""}` : [item.defenseEvent?.name, item.research?.groupName].filter(Boolean).join(" · ") || "Waiting for your score"}
+                                        end={
+                                          <Button size="sm" variant={isLive ? "primary" : "secondary"} onClick={() => openEvaluation(item.id)}>
+                                            {isLive ? "Score now" : "Open"}
+                                          </Button>
+                                        }
+                                      />
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            ) : (
+                              <EmptyNote icon="ti-circle-check" title="All caught up" text="Score sheets appear here when a defense needs your evaluation." />
+                            )}
+                          </SectionCard>
 
-                  {/* Upcoming Defenses & Evaluation Queue */}
-                  <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.95fr]">
-                    <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
-                            Upcoming Defenses
-                          </h3>
-                          <p className="mt-0.5 text-base text-slate-500 dark:text-slate-400">
-                            Your assigned oral defense panel schedule.
-                          </p>
+                          <SectionCard title="Upcoming defenses" titleId="pe-defenses" action={<CardLink onClick={() => handleTabChange("schedule")}>Schedule</CardLink>}>
+                            {defenses.length ? (
+                              <ul className="au-list">
+                                {defenses.slice(0, 3).map((session: any) => {
+                                  const start = session.scheduledStart ? new Date(session.scheduledStart) : null;
+                                  const isLive = session.status === "LIVE";
+                                  return (
+                                    <li key={session.id}>
+                                      <ListRow
+                                        leading={<DateTile tone={isLive ? "live" : undefined} top={start ? new Date(start).toLocaleDateString("en-PH", { timeZone: "Asia/Manila", month: "short" }) : "TBA"} bottom={start ? new Date(start).toLocaleDateString("en-PH", { timeZone: "Asia/Manila", day: "numeric" }) : "—"} label={start ? formatDateTime(session.scheduledStart) : "Date to be announced"} />}
+                                        title={session.title}
+                                        titleHint={session.title}
+                                        meta={[isLive ? "Live now" : start ? `${dayLabel(start)}, ${timeOf(session.scheduledStart)}` : null, attendanceMode(session)].filter(Boolean).join(" · ")}
+                                        onClick={() => router.push(`/panelist/defenses/${session.id}`)}
+                                      />
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            ) : (
+                              <EmptyNote icon="ti-calendar-event" title="No defenses scheduled" text="New panel assignments appear here." />
+                            )}
+                          </SectionCard>
                         </div>
-                        <button
-                          onClick={() => handleTabChange("schedule")}
-                          className="flex items-center gap-1 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
+
+                        <div className="pe-row">
+                          <SectionCard title="Recent evaluation activity" titleId="pe-activity" action={<CardLink onClick={() => handleTabChange("documents")}>All manuscripts</CardLink>}>
+                            <p className="pe-card-sub">Manuscripts to review and evaluations you've submitted</p>
+                            {manuscriptRows.length || submittedRows.length ? (
+                              <ul className="au-list">
+                                {manuscriptRows.map((item: any) => {
+                                  const started = (item.manuscriptReviews || []).length > 0;
+                                  const due = item.scheduledStart ? new Date(item.scheduledStart) : null;
+                                  return (
+                                    <li key={item.id}>
+                                      <ListRow
+                                        leading={<RowIcon icon="ti-file-text" />}
+                                        title={item.research?.title}
+                                        titleHint={item.research?.title}
+                                        meta={`Defense documents · ${item.status === "LIVE" ? "defense live now" : due ? `${["Today", "Tomorrow"].includes(dayLabel(due)) ? dayLabel(due).toLowerCase() : dayLabel(due)} ${timeOf(item.scheduledStart)}` : "defense date to be set"}`}
+                                        end={<StatusDot tone={started ? "neutral" : "waiting"}>{started ? "Started" : "Not reviewed"}</StatusDot>}
+                                        onClick={() => handleTabChange("documents")}
+                                      />
+                                    </li>
+                                  );
+                                })}
+                                {submittedRows.map((item) => (
+                                  <li key={item.id}>
+                                    <ListRow
+                                      leading={<RowIcon icon="ti-lock-check" />}
+                                      title={item.title}
+                                      titleHint={item.title}
+                                      meta={item.at ? `${item.meta} · ${formatDate(item.at)}` : item.meta}
+                                      end={<StatusDot tone="done">Submitted</StatusDot>}
+                                      onClick={() => openEvaluation(item.sessionId)}
+                                    />
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <EmptyNote icon="ti-file-check" title="No evaluation activity yet" text="Manuscripts and submitted evaluations appear here." />
+                            )}
+                          </SectionCard>
+
+                          <SectionCard title="Quick actions" titleId="pe-quick">
+                            <ul className="au-list">
+                              {quickActions.map((action) => (
+                                <li key={action.label}>
+                                  <ListRow
+                                    leading={<RowIcon icon={action.icon} />}
+                                    title={action.label}
+                                    meta={action.hint}
+                                    end={<i className="ti ti-chevron-right pe-chevron" aria-hidden="true" />}
+                                    onClick={action.onClick}
+                                  />
+                                </li>
+                              ))}
+                            </ul>
+                          </SectionCard>
+                        </div>
+
+                        <SectionCard
+                          title="Assigned projects"
+                          titleId="pe-projects"
+                          count={assignedProjects.length}
+                          action={<CardLink onClick={() => handleTabChange("documents")}>All manuscripts</CardLink>}
                         >
-                          View schedule{" "}
-                          <i className="ti ti-chevron-right text-xs" />
-                        </button>
-                      </div>
-                      <div className="space-y-3">
-                        {upcomingSchedules.length ? (
-                          upcomingSchedules.slice(0, 3).map((s: any) => (
-                            <button
-                              key={s.id}
-                              onClick={() =>
-                                router.push(`/panelist/defenses/${s.id}`)
-                              }
-                              className="flex w-full items-center gap-4 rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5"
-                            >
-                              <span className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-white">
-                                <i className="ti ti-calendar text-xl" />
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate font-bold text-sm text-[#17212B] dark:text-white">
-                                  {s.title}
-                                </span>
-                                <span className="mt-0.5 block text-sm text-slate-500 dark:text-slate-400">
-                                  {s.date} · {s.time} · {attendanceMode(s)}
-                                </span>
-                              </span>
-                              <i className="ti ti-chevron-right text-slate-400" />
-                            </button>
-                          ))
-                        ) : (
-                          <div className="flex min-h-40 flex-col items-center justify-center text-center">
-                            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#C9A227]">
-                              <i className="ti ti-calendar-time text-2xl" />
-                            </span>
-                            <p className="mt-3 font-bold text-base text-[#17212B] dark:text-white">
-                              No defenses scheduled
-                            </p>
-                            <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
-                              New panel assignments will appear here.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </article>
-
-                    <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
-                      <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
-                        Evaluation Queue
-                      </h3>
-                      <p className="mt-0.5 text-base text-slate-500 dark:text-slate-400 mb-4">
-                        Research groups waiting for your evaluation score.
-                      </p>
-                      <div className="space-y-3">
-                        {evaluations.length ? (
-                          evaluations.slice(0, 3).map((e: any) => (
-                            <div
-                              key={e.id}
-                              className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 dark:border-white/5 dark:bg-white/5"
-                            >
-                              <span className="min-w-0">
-                                <span className="block truncate font-bold text-sm text-[#17212B] dark:text-white">
-                                  {e.research.title}
-                                </span>
-                                <span className="text-xs text-slate-500 dark:text-slate-400">
-                                  Ready for evaluation
-                                </span>
-                              </span>
-                              <button
-                                onClick={() =>
-                                  router.push(
-                                    `/panelist/dashboard?tab=evaluation&sessionId=${e.id}`,
-                                  )
-                                }
-                                className="ml-3 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2 text-sm font-bold text-white shadow-xs transition"
-                              >
-                                Evaluate
-                              </button>
+                          {assignedProjects.length ? (
+                            <div className="pe-project-grid">
+                              {assignedProjects.map((project: any) => {
+                                const status = projectStatus(project);
+                                return (
+                                  <button key={project.id} type="button" className="au-tile" onClick={() => router.push(`/panelist/defenses/${project.defenseSessionId}`)}>
+                                    <span className="au-row-title" title={project.title}>{project.title || "Untitled research project"}</span>
+                                    <span className="au-row-meta">{project.workflowInstance?.currentStage?.name || "Research review"}</span>
+                                    <StatusDot tone={status.tone}>{status.label}</StatusDot>
+                                  </button>
+                                );
+                              })}
                             </div>
-                          ))
-                        ) : (
-                          <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 text-center dark:border-white/10 dark:bg-white/5">
-                            <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                              <i className="ti ti-circle-check text-lg" />
-                            </span>
-                            <p className="font-bold text-base text-[#17212B] dark:text-white">
-                              You’re all caught up
-                            </p>
-                            <p className="mt-1 text-base text-slate-400">
-                              New evaluation sheets will appear here.
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </article>
-                  </section>
-
-                  {/* Recent Activity & Quick Actions */}
-                  <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_.85fr]">
-                    <article className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
-                      <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
-                        Recent Evaluation Activity
-                      </h3>
-                      <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
-                        Your latest completed evaluations and available
-                        manuscripts.
-                      </p>
-                      <div className="mt-4 space-y-2.5">
-                        {gradesSubmitted.slice(0, 3).map((grade) => (
-                          <button
-                            key={grade.id}
-                            onClick={() => handleTabChange("grades")}
-                            className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5"
-                          >
-                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                              <i className="ti ti-circle-check" />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">
-                                {grade.title}
-                              </span>
-                              <span className="block text-sm text-slate-500 dark:text-slate-400">
-                                Evaluation submitted · {grade.score} points
-                              </span>
-                            </span>
-                          </button>
-                        ))}
-                        {gradesSubmitted.length === 0 &&
-                          documents.slice(0, 3).map((document: any) => (
-                            <button
-                              key={document.id}
-                              onClick={() => handleTabChange("documents")}
-                              className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5"
-                            >
-                              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">
-                                <i className="ti ti-file-text" />
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">
-                                  {document.research.title}
-                                </span>
-                                <span className="block truncate text-sm text-slate-500 dark:text-slate-400">
-                                  Defense documents · review not completed
-                                </span>
-                              </span>
-                            </button>
-                          ))}
-                        {gradesSubmitted.length === 0 &&
-                          documents.length === 0 && (
-                            <div className="flex min-h-32 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 px-4 text-center dark:border-white/10">
-                              <i className="ti ti-history text-2xl text-slate-300" />
-                              <p className="mt-2 text-base font-bold text-[#17212B] dark:text-white">
-                                No recent evaluation activity
-                              </p>
-                              <p className="text-base text-slate-400">
-                                Completed evaluations and manuscript reviews
-                                will appear here.
-                              </p>
-                            </div>
+                          ) : (
+                            <EmptyNote icon="ti-flask" title="No assigned projects yet" text="Projects appear here when a defense panel is assigned." />
                           )}
-                      </div>
-                    </article>
-
-                    <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
-                      <h3 className="mb-4 text-lg font-bold text-[#17212B] dark:text-white">
-                        Quick Actions
-                      </h3>
-                      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                        {[
-                          {
-                            label: "View schedule",
-                            icon: "ti-calendar-event",
-                            tab: "schedule",
-                          },
-                          {
-                            label: "Review documents",
-                            icon: "ti-file-search",
-                            tab: "documents",
-                          },
-                          {
-                            label: "Score defense",
-                            icon: "ti-clipboard-check",
-                            tab: "evaluation",
-                          },
-                          {
-                            label: "View results",
-                            icon: "ti-award",
-                            tab: "grades",
-                          },
-                        ].map((action) => (
-                          <button
-                            key={action.label}
-                            onClick={() => handleTabChange(action.tab)}
-                            className="flex items-center gap-3 rounded-xl border border-[#E2E8F0] dark:border-white/10 bg-slate-50/50 dark:bg-white/5 p-3 text-left transition hover:border-[#0B3A53] dark:hover:border-[#C9A227] hover:bg-white hover:shadow-xs"
-                          >
-                            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0B3A53]/10 dark:bg-white/10 text-lg text-[#0B3A53] dark:text-[#C9A227]">
-                              <i className={`ti ${action.icon}`} />
-                            </span>
-                            <span className="text-sm font-bold text-[#17212B] dark:text-white">
-                              {action.label}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    </article>
-                  </section>
+                        </SectionCard>
+                      </>
+                    );
+                  })()}
                 </div>
               ),
               schedule: (
-                <div data-tour="defense-records" data-guide="panelist-schedule" data-guide-empty={!schedules.length} className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-6">
-                  <h3 className="text-lg font-extrabold text-[var(--color-text-primary)]">
-                    Defense Schedule Management
-                  </h3>
-                  <p className="text-base text-[var(--color-text-secondary)]">
-                    Review invitations, distinguish tentative and confirmed
-                    sessions, and open the workspace for each assigned defense.
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    {[
-                      [
-                        "Awaiting response",
-                        dashboardData?.counts?.pendingInvitations || 0,
-                        "text-amber-700 bg-amber-50",
-                      ],
-                      [
-                        "Confirmed upcoming",
-                        dashboardData?.counts?.upcomingDefenses || 0,
-                        "text-emerald-700 bg-emerald-50",
-                      ],
-                      [
-                        "Rescheduling",
-                        dashboardData?.counts?.rescheduling || 0,
-                        "text-rose-700 bg-rose-50",
-                      ],
-                      [
-                        "Completed",
-                        dashboardData?.counts?.archivedDefenses || 0,
-                        "text-sky-700 bg-sky-50",
-                      ],
-                    ].map(([label, value, tone]) => (
-                      <div
-                        key={String(label)}
-                        className={`rounded-xl p-3 ${tone}`}
-                      >
-                        <span className="block text-xs font-extrabold uppercase tracking-wider">
-                          {label}
-                        </span>
-                        <strong className="mt-1 block text-xl">{value}</strong>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex flex-col gap-3 mt-2">
-                    {completedStructuredEvaluations.map((session: any) => (
-                      <button
-                        key={session.id}
-                        className="rounded-xl border border-[var(--color-border)] p-4 text-left"
-                        onClick={() =>
-                          router.push(
-                            `/panelist/dashboard?tab=evaluation&sessionId=${session.id}`,
-                          )
-                        }
-                      >
-                        <strong className="block">
-                          {session.research.title}
-                        </strong>
-                        <span className="text-sm text-[var(--color-text-secondary)]">
-                          Digital evaluation submitted and locked · View
-                          researcher scores and completed PDF
-                        </span>
-                      </button>
-                    ))}
-                    {schedules.length > 0 ? (
-                      schedules.map((s) => (
-                        <div
-                          key={s.id}
-                          className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 shadow-xs"
-                        >
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="min-w-0">
-                              <span className="block font-bold text-[var(--color-text-primary)]">
-                                {s.title}
-                              </span>
-                              <span className="mt-1 block text-xs text-[var(--color-text-secondary)]">
-                                {s.date} at {s.time} · {attendanceMode(s)}
-                                {s.venue ? ` · ${s.venue}` : ""}
-                              </span>
-                              <span data-guide="panelist-invitation" className="mt-1 block text-xs font-semibold text-[var(--color-text-muted)]">
-                                Invited as {readable(s.myInvitation?.role)} ·{" "}
-                                {readable(s.myInvitation?.status)}
-                              </span>
+                <div data-tour="defense-records" data-guide="panelist-schedule" data-guide-empty={!schedules.length} className="pe">
+                  {(() => {
+                    const now = Date.now();
+                    const timeOf = (value?: string | null) =>
+                      value ? new Date(value).toLocaleTimeString("en-PH", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" }) : "";
+                    const dayLabel = (value: Date) => {
+                      const offset = calendarDaysUntil(value, now);
+                      if (offset === 0) return "Today";
+                      if (offset === 1) return "Tomorrow";
+                      return value.toLocaleDateString("en-PH", { timeZone: "Asia/Manila", month: "short", day: "numeric" });
+                    };
+                    const submittedIds = new Set<string>([
+                      ...completedStructuredEvaluations.map((session: any) => session.id),
+                      ...completedPdfEvaluations.map((session: any) => session.id),
+                      ...gradesSubmitted.map((grade: any) => grade.sessionId),
+                    ]);
+                    const needsResponse = (session: any) =>
+                      Boolean(session.myInvitation && ["PENDING", "RECONFIRMATION_REQUIRED"].includes(session.myInvitation.status));
+                    const isFinished = (session: any) => ["COMPLETED", "CANCELLED", "ARCHIVED"].includes(String(session.status));
+                    const byStart = (a: any, b: any) => new Date(a.scheduledStart || 0).getTime() - new Date(b.scheduledStart || 0).getTime();
+                    const waiting = schedules.filter(needsResponse).sort(byStart);
+                    const upcoming = schedules.filter((session: any) => !needsResponse(session) && !isFinished(session)).sort(byStart);
+                    const finished = schedules.filter((session: any) => !needsResponse(session) && isFinished(session)).sort((a: any, b: any) => byStart(b, a));
+                    const statusOf = (session: any): { tone: StatusTone; label: string } => {
+                      if (session.myInvitation?.status === "DECLINED") return { tone: "attention", label: "You declined" };
+                      switch (session.status) {
+                        case "LIVE": return { tone: "live", label: "Live" };
+                        case "SCHEDULED": return { tone: "done", label: "Confirmed" };
+                        case "PENDING_ACKNOWLEDGEMENT": return { tone: "waiting", label: "Tentative" };
+                        case "NEEDS_RESCHEDULING": return { tone: "attention", label: "Rescheduling" };
+                        case "COMPLETED": return { tone: "neutral", label: "Completed" };
+                        default: return { tone: "brand", label: readable(session.status, "Scheduled") };
+                      }
+                    };
+                    const venueOf = (session: any) =>
+                      session.venue && session.venue !== "Online" && session.venue !== "To be announced" ? session.venue : null;
+                    const roleOf = (session: any) => (session.myInvitation?.role ? readable(session.myInvitation.role) : null);
+                    // When every row in a card shares the same room and role, say it once in the card header.
+                    const sharedContext = (list: any[]) => {
+                      const keys = list.map((session) => [venueOf(session), roleOf(session)].filter(Boolean).join(" · "));
+                      return list.length > 1 && keys[0] && keys.every((key) => key === keys[0]) ? keys[0] : null;
+                    };
+                    const sharedNote = (text: string | null) =>
+                      text ? <span className="au-row-meta" data-guide="panelist-invitation">{text}</span> : undefined;
+                    const metaOf = (session: any, hideShared: boolean) => {
+                      const live = session.status === "LIVE";
+                      const when = live
+                        ? `Live now${session.startedAt ? ` · started ${timeOf(session.startedAt)}` : ""}`
+                        : session.scheduledStart ? timeOf(session.scheduledStart) : "Time to be announced";
+                      const note =
+                        session.myInvitation?.status === "DECLINED" ? "the professor was notified"
+                        : session.status === "SCHEDULED" ? "all panelists confirmed"
+                        : session.status === "PENDING_ACKNOWLEDGEMENT" ? "waiting for panel responses"
+                        : null;
+                      return (
+                        <>
+                          {[when, attendanceMode(session), hideShared ? null : venueOf(session)].filter(Boolean).join(" · ")}
+                          {!hideShared && roleOf(session) && <span data-guide="panelist-invitation"> · {roleOf(session)}</span>}
+                          {note && ` · ${note}`}
+                        </>
+                      );
+                    };
+                    const dateTile = (session: any, finishedRow = false) => {
+                      const start = session.scheduledStart ? new Date(session.scheduledStart) : null;
+                      const live = session.status === "LIVE";
+                      return (
+                        <DateTile
+                          tone={live ? "live" : finishedRow ? "muted" : undefined}
+                          top={start ? new Date(start).toLocaleDateString("en-PH", { timeZone: "Asia/Manila", month: "short" }) : "TBA"}
+                          bottom={start ? new Date(start).toLocaleDateString("en-PH", { timeZone: "Asia/Manila", day: "numeric" }) : "—"}
+                          label={start ? formatDateTime(session.scheduledStart) : "Date to be announced"}
+                        />
+                      );
+                    };
+                    const openWorkspace = (session: any, primary = false) => (
+                      <Button size="sm" variant={primary ? "primary" : "secondary"} data-guide="panelist-open-session" onClick={() => router.push(`/panelist/defenses/${session.id}`)}>
+                        Open workspace
+                      </Button>
+                    );
+                    const meetingLink = (session: any) => {
+                      const url = session.meetingUrl || session.defenseEvent?.meetingUrl;
+                      return url ? (
+                        <a href={url} target="_blank" rel="noreferrer" className="au-link">
+                          <i className="ti ti-video" aria-hidden="true" /> Join meeting
+                        </a>
+                      ) : null;
+                    };
+                    const waitingShared = sharedContext(waiting);
+                    const upcomingShared = sharedContext(upcoming);
+                    const finishedShared = sharedContext(finished);
+                    const counts = dashboardData?.counts || {};
+                    return (
+                      <>
+                        <PageBand
+                          titleId="ps-title"
+                          eyebrow="Panelist · Philippine time"
+                          title={
+                            <span className="inline-flex items-center gap-2">
+                              <i className="ti ti-calendar-event text-[var(--color-primary)]" aria-hidden="true" />
+                              Defense schedule
+                            </span>
+                          }
+                          meta="Respond to invitations and open the workspace for each defense you're on."
+                          counts={
+                            <CountStrip
+                              label="Defense schedule summary"
+                              items={[
+                                { label: "Awaiting response", value: counts.pendingInvitations || 0, tone: counts.pendingInvitations ? "waiting" : undefined },
+                                { label: "Confirmed", value: counts.upcomingDefenses || 0 },
+                                { label: "Rescheduling", value: counts.rescheduling || 0 },
+                                { label: "Completed", value: counts.archivedDefenses || 0 },
+                              ]}
+                            />
+                          }
+                        />
+
+                        {!schedules.length ? (
+                          <SectionCard title="Your defenses" titleId="ps-empty">
+                            <div data-guide="panelist-schedule-empty">
+                              <EmptyNote icon="ti-calendar-event" title="No defenses assigned yet" text="Defense invitations appear here when a professor adds you to a panel." />
                             </div>
-                            <Tag
-                              variant={
-                                s.status === "SCHEDULED"
-                                  ? "success"
-                                  : s.status === "NEEDS_RESCHEDULING"
-                                    ? "danger"
-                                    : s.status === "COMPLETED"
-                                      ? "info"
-                                      : "warn"
-                              }
-                            >
-                              {s.type}
-                            </Tag>
-                          </div>
-                          {s.status === "PENDING_ACKNOWLEDGEMENT" && (
-                            <p className="mt-3 rounded-lg bg-amber-50 p-2 text-base text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-                              Tentative schedule · waiting for all required
-                              panel responses.
-                            </p>
-                          )}
-                          {s.status === "SCHEDULED" && (
-                            <p className="mt-3 rounded-lg bg-emerald-50 p-2 text-base text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
-                              Confirmed schedule · all required participants
-                              accepted.
-                            </p>
-                          )}
-                          {s.myInvitation &&
-                            ["PENDING", "RECONFIRMATION_REQUIRED"].includes(
-                              s.myInvitation.status,
-                            ) && (
-                              <div data-guide="panelist-invite-actions" className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    respondToInvitation(
-                                      s.myInvitation,
-                                      "ACCEPTED",
-                                    )
-                                  }
-                                  disabled={invitationSaving}
-                                  className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-extrabold text-white disabled:opacity-50"
-                                >
-                                  <i className="ti ti-check mr-1" />
-                                  Accept invitation
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setRespondingInvitation(s.myInvitation);
-                                    setDeclineReason("");
-                                    setSuggestedAvailability("");
-                                  }}
-                                  className="rounded-lg border border-rose-300 bg-white px-3 py-2 text-sm font-extrabold text-rose-700"
-                                >
-                                  <i className="ti ti-x mr-1" />
-                                  I’m unavailable
-                                </button>
-                              </div>
+                          </SectionCard>
+                        ) : (
+                          <>
+                            {waiting.length > 0 && (
+                              <SectionCard title="Needs your response" titleId="ps-waiting" count={waiting.length} className="ps-attention" action={sharedNote(waitingShared)}>
+                                <ul className="au-list">
+                                  {waiting.map((session: any) => (
+                                    <li key={session.id}>
+                                      <ListRow
+                                        leading={dateTile(session)}
+                                        title={session.title}
+                                        titleHint={session.title}
+                                        meta={metaOf(session, Boolean(waitingShared))}
+                                        end={
+                                          <span data-guide="panelist-invite-actions" className="flex flex-wrap items-center justify-end gap-2">
+                                            <Button size="sm" variant="primary" icon={<i className="ti ti-check" aria-hidden="true" />} disabled={invitationSaving} onClick={() => respondToInvitation(session.myInvitation, "ACCEPTED")}>
+                                              Accept
+                                            </Button>
+                                            <Button size="sm" variant="secondary" onClick={() => {
+                                              setRespondingInvitation(session.myInvitation);
+                                              setDeclineReason("");
+                                              setSuggestedAvailability("");
+                                            }}>
+                                              I’m unavailable
+                                            </Button>
+                                          </span>
+                                        }
+                                      />
+                                    </li>
+                                  ))}
+                                </ul>
+                              </SectionCard>
                             )}
-                          <div className="mt-3 flex flex-wrap gap-2 border-t border-[var(--color-border)] pt-3">
-                            <button
-                              type="button"
-                              data-guide="panelist-open-session"
-                              onClick={() =>
-                                router.push(`/panelist/defenses/${s.id}`)
-                              }
-                              className="rounded-lg bg-[var(--color-primary)] px-3 py-2 text-sm font-bold text-[var(--college-on-primary)] dark:text-[var(--college-on-primary-dark)]"
-                            >
-                              Open defense workspace
-                            </button>
-                            {(s.meetingUrl || s.defenseEvent?.meetingUrl) && (
-                              <a
-                                href={s.meetingUrl || s.defenseEvent.meetingUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm font-bold text-[var(--color-primary)]"
-                              >
-                                Join meeting
-                              </a>
+
+                            <SectionCard title="Upcoming and live" titleId="ps-upcoming" count={upcoming.length} action={sharedNote(upcomingShared)}>
+                              {upcoming.length ? (
+                                <ul className="au-list">
+                                  {upcoming.map((session: any) => {
+                                    const status = statusOf(session);
+                                    const live = session.status === "LIVE";
+                                    return (
+                                      <li key={session.id}>
+                                        <ListRow
+                                          leading={dateTile(session)}
+                                          title={session.title}
+                                          titleHint={session.title}
+                                          meta={metaOf(session, Boolean(upcomingShared))}
+                                          end={
+                                            <span className="ps-end">
+                                              <span className="ps-status"><StatusDot tone={status.tone}>{status.label}</StatusDot></span>
+                                              {meetingLink(session)}
+                                              {openWorkspace(session, live)}
+                                            </span>
+                                          }
+                                        />
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              ) : (
+                                <EmptyNote icon="ti-calendar-check" title="Nothing coming up" text="Confirmed and live defenses appear here." />
+                              )}
+                            </SectionCard>
+
+                            {finished.length > 0 && (
+                              <SectionCard title="Completed" titleId="ps-completed" count={finished.length} action={sharedNote(finishedShared)}>
+                                <ul className="au-list">
+                                  {finished.map((session: any) => {
+                                    const submitted = submittedIds.has(session.id);
+                                    return (
+                                      <li key={session.id}>
+                                        <ListRow
+                                          leading={dateTile(session, true)}
+                                          title={session.title}
+                                          titleHint={session.title}
+                                          meta={metaOf(session, Boolean(finishedShared))}
+                                          end={
+                                            <span className="ps-end">
+                                              <span className="ps-status">
+                                                <StatusDot tone={submitted ? "done" : "neutral"}>{submitted ? "Submitted" : "Completed"}</StatusDot>
+                                              </span>
+                                              {submitted ? (
+                                                <Button size="sm" variant="secondary" onClick={() => router.push(`/panelist/dashboard?tab=evaluation&sessionId=${session.id}`)}>
+                                                  View evaluation
+                                                </Button>
+                                              ) : (
+                                                openWorkspace(session)
+                                              )}
+                                            </span>
+                                          }
+                                        />
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </SectionCard>
                             )}
-                          </div>
-                          {s.myInvitation?.status === "DECLINED" && (
-                            <p className="mt-3 rounded-lg bg-rose-50 p-2 text-base font-bold text-rose-800">
-                              <i className="ti ti-calendar-exclamation mr-1" />
-                              You declined this schedule. The professor has been
-                              notified.
-                            </p>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div data-guide="panelist-schedule-empty" className="text-xs text-slate-400 py-6 text-center">
-                        No defense schedules assigned yet.
-                      </div>
-                    )}
-                  </div>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               ),
               documents: <PanelistReviewPackets />,
@@ -1309,71 +1202,131 @@ function PanelistDashboardContent() {
                 </div>
               ),
               grades: (
-                <div data-guide="panelist-results" className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card-soft)] sm:p-6">
-                  <h3 className="font-extrabold text-[#1b4264] text-lg">
-                    Grades & Recommendations
-                  </h3>
-                  <p className="text-base text-slate-400 font-bold">
-                    Monitor submitted grades, final marks, and panel consensus
-                    records.
-                  </p>
-                  <div className="flex flex-col gap-3 mt-2">
-                    {gradesSubmitted.map((g) => (
-                      <div
-                        key={g.id}
-                        className="p-4 bg-slate-50 border border-slate-200 rounded-xl flex justify-between items-center text-[12.5px] shadow-sm"
-                      >
-                        <div>
-                          <span className="font-bold text-[#1b4264] block">
-                            {g.title}
-                          </span>
-                          <span className="text-xs text-slate-400 font-mono">
-                            Score: {g.score}
-                            {g.maximum ? ` / ${g.maximum}` : ""} ·{" "}
-                            {String(
-                              g.recommendation || "No recommendation",
-                            ).replace(/_/g, " ")}
-                          </span>
-                        </div>
-                        <Tag variant="success">{g.status}</Tag>
-                      </div>
-                    ))}
-                    {completedStructuredEvaluations.map((session: any) => (
-                      <button key={session.id} data-guide="panelist-completed-evaluation" className="rounded-xl border border-[var(--color-border)] p-4 text-left"
-                        onClick={() => router.push(`/panelist/dashboard?tab=evaluation&sessionId=${session.id}`)}>
-                        <strong className="block">{session.research.title}</strong>
-                        <span className="mt-1 block text-sm text-[var(--color-text-secondary)]">Structured evaluation submitted and locked · View my completed evaluation and PDF</span>
-                        <span data-guide="panelist-release-status" className="mt-1 block text-sm text-[var(--color-text-secondary)]">{session.defenseEvent?.defenseType === "FINAL_DEFENSE" ? "Final Defense" : "Title Defense"} · {session.releasedAt ? `Released decision: ${readable(session.decision)}` : "Result awaiting release"}</span>
-                      </button>
-                    ))}
-                    {completedPdfEvaluations.map((session: any) => (
-                      <button
-                        key={session.id}
-                        data-guide="panelist-completed-evaluation"
-                        className="rounded-xl border p-4 text-left"
-                        onClick={() =>
-                          router.push(
-                            `/panelist/dashboard?tab=evaluation&sessionId=${session.id}`,
-                          )
-                        }
-                      >
-                        <strong className="block">
-                          {session.research.title}
-                        </strong>
-                        <span className="text-sm text-[var(--color-text-secondary)]">
-                          PDF evaluation submitted and locked · Open completed
-                          copy
-                        </span>
-                      </button>
-                    ))}
-                    {gradesSubmitted.length === 0 &&
-                      completedStructuredEvaluations.length === 0 &&
-                      completedPdfEvaluations.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-400">
-                          No locked evaluations yet.
-                        </div>
-                      )}
-                  </div>
+                <div data-guide="panelist-results" className="pe">
+                  {(() => {
+                    const lookup = (id: string) =>
+                      [...completedStructuredEvaluations, ...completedPdfEvaluations, ...archives, ...schedules].find(
+                        (session: any) => session.id === id,
+                      ) as any;
+                    const defenseLabel = (session: any) =>
+                      session?.defenseEvent?.defenseType ? readable(session.defenseEvent.defenseType) : "Defense";
+                    const rows = [
+                      ...completedStructuredEvaluations.map((session: any) => ({
+                        key: `structured-${session.id}`,
+                        sessionId: session.id,
+                        session,
+                        title: session.research?.title,
+                        kind: "Structured evaluation",
+                        at: session.structuredEvaluations?.[0]?.lockedAt || session.endedAt || session.scheduledStart,
+                      })),
+                      ...completedPdfEvaluations.map((session: any) => ({
+                        key: `pdf-${session.id}`,
+                        sessionId: session.id,
+                        session,
+                        title: session.research?.title,
+                        kind: "PDF evaluation",
+                        at: session.pdfEvaluations?.[0]?.lockedAt || session.endedAt || session.scheduledStart,
+                      })),
+                      ...gradesSubmitted.map((grade: any) => ({
+                        key: `grade-${grade.id}`,
+                        sessionId: grade.sessionId,
+                        session: lookup(grade.sessionId),
+                        title: grade.title,
+                        kind: `Score ${grade.score}${grade.maximum ? ` / ${grade.maximum}` : ""}`,
+                        at: grade.lockedAt,
+                      })),
+                    ].sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime());
+                    const awaiting = rows.filter((row) => !row.session?.releasedAt);
+                    const released = rows.filter((row) => row.session?.releasedAt);
+                    const decisionTone = (decision?: string | null): StatusTone =>
+                      decision === "APPROVED" ? "done" : decision === "REJECTED" ? "attention" : "waiting";
+                    const renderRows = (list: typeof rows) => (
+                      <ul className="au-list">
+                        {list.map((row) => {
+                          const at = row.at ? new Date(row.at) : null;
+                          const isReleased = Boolean(row.session?.releasedAt);
+                          return (
+                            <li key={row.key}>
+                              <ListRow
+                                leading={
+                                  <DateTile
+                                    top={at ? at.toLocaleDateString("en-PH", { timeZone: "Asia/Manila", month: "short" }) : "—"}
+                                    bottom={at ? at.toLocaleDateString("en-PH", { timeZone: "Asia/Manila", day: "numeric" }) : "—"}
+                                    label={at ? formatDateTime(row.at) : "Date not recorded"}
+                                  />
+                                }
+                                title={row.title || "Research project"}
+                                titleHint={row.title}
+                                meta={
+                                  <span data-guide="panelist-release-status">
+                                    {defenseLabel(row.session)} · {row.kind} · locked
+                                    {isReleased && row.session?.releasedAt ? ` · released ${formatDate(row.session.releasedAt)}` : ""}
+                                  </span>
+                                }
+                                end={
+                                  <span className="ps-end">
+                                    <span className="ps-status">
+                                      {isReleased ? (
+                                        <StatusDot tone={decisionTone(row.session?.decision)}>{readable(row.session?.decision, "Released")}</StatusDot>
+                                      ) : (
+                                        <StatusDot tone="neutral">Awaiting release</StatusDot>
+                                      )}
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="secondary"
+                                      data-guide="panelist-completed-evaluation"
+                                      onClick={() => router.push(`/panelist/dashboard?tab=evaluation&sessionId=${row.sessionId}`)}
+                                    >
+                                      View evaluation
+                                    </Button>
+                                  </span>
+                                }
+                              />
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    );
+                    return (
+                      <>
+                        <PageBand
+                          titleId="pr-title"
+                          eyebrow="Panelist · Results"
+                          title="Your submitted evaluations"
+                          meta="Your locked scores and the panel’s released decisions."
+                          counts={
+                            <CountStrip
+                              label="Results summary"
+                              items={[
+                                { label: "Submitted", value: rows.length },
+                                { label: "Released", value: released.length },
+                                { label: "Awaiting release", value: awaiting.length, tone: awaiting.length ? "waiting" : undefined },
+                              ]}
+                            />
+                          }
+                        />
+                        {!rows.length ? (
+                          <SectionCard title="Your evaluations" titleId="pr-empty">
+                            <EmptyNote icon="ti-award" title="No submitted evaluations yet" text="Evaluations you submit and lock appear here, with the panel’s decision once it’s released." />
+                          </SectionCard>
+                        ) : (
+                          <>
+                            {awaiting.length > 0 && (
+                              <SectionCard title="Awaiting release" titleId="pr-awaiting" count={awaiting.length} action={<span className="au-row-meta">The professor or facilitator releases decisions</span>}>
+                                {renderRows(awaiting)}
+                              </SectionCard>
+                            )}
+                            {released.length > 0 && (
+                              <SectionCard title="Released decisions" titleId="pr-released" count={released.length}>
+                                {renderRows(released)}
+                              </SectionCard>
+                            )}
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               ),
               history: (
