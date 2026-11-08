@@ -2,23 +2,29 @@
    everywhere outside this wrapper, including the My Advisees tab. */
 .adviser-dashboard-container:has(> .adviser-overview) {
   min-width: 0;
-  padding: 16px 24px 24px;
+  padding: 16px 24px 80px;
 }
 
 .adviser-overview {
   --overview-ink: var(--color-text-primary);
   --overview-link: var(--color-primary);
+  --overview-card: var(--color-white);
+  --overview-border: color-mix(in srgb, var(--color-text-primary) 18%, var(--overview-card));
+  --overview-inset: color-mix(in srgb, var(--color-primary) 4%, var(--overview-card));
+  --overview-shadow: 0 1px 2px rgb(20 35 50 / 4%), 0 6px 18px rgb(20 35 50 / 6%);
   /* Secondary text needs more contrast than the inherited muted palette. */
   --overview-secondary: color-mix(in srgb, var(--color-text-primary) 76%, var(--color-surface));
   --overview-pending-ink: #77520d;
   --overview-pending-surface: #fff4d6;
-  gap: 16px;
+  gap: 18px;
   color: var(--overview-ink);
   font-size: 14px;
   line-height: 1.5;
 }
 
 .dark .adviser-overview {
+  --overview-card: var(--color-surface);
+  --overview-shadow: none;
   --overview-link: color-mix(in srgb, var(--color-primary) 75%, var(--color-text-primary));
   --college-on-primary-dark: var(--color-text-inverse);
   --overview-pending-ink: #ffda8b;
@@ -65,151 +71,200 @@
   opacity: 0.6;
 }
 
-.adviser-overview__summary {
-  /* Match the Assigned Research Groups header's neutral surface beneath
-     the existing college-hero-surface gradient. */
-  --color-surface: var(--color-white);
-  --overview-secondary: color-mix(in srgb, var(--color-text-primary) 88%, var(--color-surface));
-  padding: 32px;
-  min-height: 300px;
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
+/* The foundation is role-neutral. The workload tiles below belong to Adviser Home. */
+.adviser-overview__hero {
+  --hero-start: color-mix(in srgb, var(--color-primary) 32%, #0b1524);
+  --hero-end: color-mix(in srgb, var(--color-primary) 38%, #233448);
+  --hero-ink: #fff;
+  --hero-muted: rgb(255 255 255 / 90%);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 20px;
+  background: linear-gradient(115deg, var(--hero-start), var(--hero-end));
+  color: var(--hero-ink);
+  box-shadow: 0 10px 26px rgb(20 35 50 / 15%);
 }
 
-.dark .adviser-overview__summary {
-  --color-surface: var(--adviser-dark-panel);
-}
-
-.adviser-overview .adviser-overview__welcome {
-  padding: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
+.dark .adviser-overview__hero {
+  --hero-start: color-mix(in srgb, var(--color-primary) 22%, #0b1524);
+  --hero-end: color-mix(in srgb, var(--color-primary) 27%, #162235);
   box-shadow: none;
 }
 
-.adviser-overview__welcome > div {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 24px;
-  min-height: 100px;
-  align-items: center;
+.adviser-overview__seal {
+  position: absolute;
+  z-index: -1;
+  inset: 0 12px auto auto;
+  width: min(54%, 235px);
+  aspect-ratio: 1;
+  object-fit: contain;
+  opacity: 0.12;
+  filter: grayscale(1);
+  pointer-events: none;
+  user-select: none;
 }
 
-.adviser-overview__welcome > div > div:last-child {
-  flex-shrink: 1;
+.adviser-overview__hero-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px 24px;
+}
+
+.adviser-overview__hero-heading > div:first-child {
+  flex: 1 1 330px;
+}
+
+.adviser-overview__hero h1 {
+  margin: 4px 0 6px;
+  color: var(--hero-ink);
+  font-size: clamp(24px, 2.6vw, 34px);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.adviser-overview__hero p {
+  color: var(--hero-muted);
+}
+
+.adviser-overview__hero .adviser-overview__eyebrow,
+.adviser-overview__hero .adviser-overview__snapshot-title {
+  color: var(--hero-muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 18px;
+  letter-spacing: 0.06em;
+}
+
+.adviser-overview__eyebrow {
+  text-transform: uppercase;
+}
+
+.adviser-overview__hero-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.adviser-overview .adviser-overview__welcome h2 {
-  margin-top: 6px;
-  font-size: 30px;
-  line-height: 38px;
-}
-
-.adviser-overview__welcome p:first-child {
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-}
-
-.adviser-overview__welcome p:last-child {
-  margin-top: 4px;
-}
-
-.adviser-overview__welcome button {
+.adviser-overview__hero-actions button {
+  display: inline-flex;
   min-height: 44px;
-  height: auto;
-  padding: 8px 12px;
+  align-items: center;
   justify-content: center;
+  gap: 8px;
+  padding: 8px 13px;
+  border: 1px solid transparent;
   border-radius: 10px;
-  font-weight: 600;
-  white-space: normal;
+  font-size: 13px;
+  font-weight: 650;
 }
 
-.adviser-overview__metrics {
+.adviser-overview__hero-primary {
+  background: #fff;
+  color: var(--hero-start);
+}
+
+.adviser-overview__hero-primary:hover {
+  background: #edf3f8;
+}
+
+.adviser-overview__hero-actions .adviser-overview__hero-secondary {
+  border-color: rgb(255 255 255 / 42%);
+  color: var(--hero-ink);
+}
+
+.adviser-overview__hero-secondary:hover,
+.adviser-overview__workload-item:hover {
+  background: rgb(255 255 255 / 14%);
+}
+
+.adviser-overview__hero :is(button, a):focus-visible {
+  outline-color: #fff;
+}
+
+.adviser-overview__snapshot-title {
+  margin: 20px 0 8px;
+}
+
+.adviser-overview__workload {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 24px;
+  gap: 10px;
 }
 
-.adviser-overview__metric {
+.adviser-overview__workload-item {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 16px;
+  grid-template-columns: 34px minmax(0, 1fr) 12px;
   align-items: center;
-  gap: 12px;
-  min-height: 108px;
-  padding: 20px 16px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 10px;
-  background: var(--color-surface);
+  gap: 8px;
+  min-height: 82px;
+  padding: 10px 12px;
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 7%);
+  color: var(--hero-ink);
   text-align: left;
   cursor: pointer;
 }
 
-.adviser-overview__metric:hover {
-  border-color: var(--color-primary);
-  background: var(--color-surface-subtle);
-  box-shadow: 0 2px 6px rgb(0 0 0 / 8%);
-}
-
-.adviser-overview__metric:active {
-  background: var(--color-surface-muted);
-  box-shadow: none;
+.adviser-overview__workload-item:hover {
+  border-color: rgb(255 255 255 / 55%);
 }
 
 .adviser-overview__metric-arrow {
-  color: var(--overview-link);
-  font-size: 16px;
+  color: var(--hero-muted);
+  font-size: 14px;
 }
 
 .adviser-overview__metric-icon {
   display: grid;
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   place-items: center;
   border-radius: 10px;
-  color: var(--color-primary);
-  background: var(--color-surface-subtle);
-  font-size: 24px;
+  color: #f0f5ff;
+  background: rgb(232 240 255 / 14%);
+  font-size: 19px;
 }
 
-.adviser-overview__metric .adviser-overview__review-icon {
-  color: var(--overview-pending-ink);
-  background: var(--overview-pending-surface);
+.adviser-overview__workload-item[data-workload="reviews"] .adviser-overview__metric-icon {
+  color: #ffe5ad;
+  background: rgb(255 221 150 / 15%);
 }
-
-.adviser-overview__review-icon i {
-  color: inherit;
+.adviser-overview__workload-item[data-workload="approvals"] .adviser-overview__metric-icon {
+  color: #cdf1df;
+  background: rgb(170 225 201 / 14%);
 }
-
 .adviser-overview__metric-label {
   display: block;
-  color: var(--overview-secondary);
-  font-size: 14px;
+  color: var(--hero-muted);
+  font-size: 12px;
+  font-weight: 550;
 }
 
 .adviser-overview__metric-value {
   display: block;
-  color: var(--overview-ink);
-  font-size: 32px;
-  font-weight: 600;
-  line-height: 40px;
+  color: var(--hero-ink);
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
 }
 
 .adviser-overview__metric-value small {
-  color: var(--overview-secondary);
-  font-size: 14px;
+  display: block;
+  margin-top: 2px;
+  color: var(--hero-muted);
+  font-size: 12px;
   font-weight: 400;
-}
-
-.adviser-overview__metric-value .adviser-overview__review-marker {
-  color: var(--overview-pending-ink);
-  font-weight: 600;
+  line-height: 1.35;
 }
 
 .adviser-overview__split {
@@ -219,15 +274,95 @@
   gap: 16px;
 }
 
-.adviser-overview__panel {
-  padding: 16px;
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  background: var(--color-surface);
+.adviser-overview__panel,
+.adviser-overview__shortcuts > section {
+  --workspace-panel-radius: 17px;
+  padding: clamp(16px, 2.2vw, 22px);
+  border: 1px solid var(--overview-border);
+  border-radius: var(--workspace-panel-radius);
+  background: var(--overview-card);
+  box-shadow: var(--overview-shadow);
 }
 
-.adviser-overview__attention {
-  border: 1px solid var(--color-primary);
+.adviser-overview__shortcuts h2 {
+  margin-bottom: 12px;
+}
+
+.adviser-overview .adviser-overview__shortcuts button {
+  min-height: 44px;
+  border-color: var(--overview-border);
+  background: var(--overview-inset);
+}
+
+.adviser-overview .adviser-overview__shortcuts button:hover {
+  border-color: var(--overview-link);
+  background: var(--overview-card);
+}
+
+.adviser-overview__shortcuts button > span:first-child,
+.adviser-overview__empty-icon {
+  color: var(--overview-link);
+  background: color-mix(in srgb, var(--color-primary) 11%, var(--overview-card));
+}
+
+.adviser-overview__count,
+.adviser-overview__request-label {
+  color: var(--overview-pending-ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.adviser-overview__count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--overview-pending-surface);
+}
+
+.adviser-overview__request-label {
+  flex-shrink: 0;
+}
+
+.adviser-overview__request {
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--overview-inset);
+}
+
+.adviser-overview__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 16px 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: 12px;
+  background: var(--overview-inset);
+  text-align: center;
+}
+
+.adviser-overview__empty p:empty {
+  display: none;
+}
+
+.adviser-overview__empty-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 4px;
+  place-items: center;
+  border-radius: 10px;
+  font-size: 19px;
+}
+
+.adviser-overview__empty-action {
+  min-height: 44px;
+  padding-inline: 8px;
+  color: var(--overview-link);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .adviser-overview__section-heading {
@@ -270,7 +405,7 @@
   padding: 10px 12px;
   border: 1px solid var(--color-border);
   border-radius: 10px;
-  background: var(--color-surface);
+  background: var(--overview-inset);
   color: var(--overview-ink);
   text-align: left;
 }
@@ -288,7 +423,7 @@
   place-items: center;
   border-radius: 8px;
   background: var(--color-surface-subtle);
-  color: var(--color-primary);
+  color: var(--overview-link);
   font-size: 18px;
 }
 
@@ -346,7 +481,10 @@
 .adviser-overview__consultation {
   display: flex;
   flex-direction: column;
-  align-self: start;
+}
+
+.adviser-overview__consultation > .adviser-overview__empty {
+  flex: 1;
 }
 
 .adviser-overview__consultation > .adviser-overview__section-heading {
@@ -387,7 +525,7 @@
   height: 48px;
   min-height: 44px;
   max-height: 52px;
-  margin-top: 0;
+  margin-top: auto;
   border-radius: 10px;
   font-weight: 600;
 }
@@ -404,8 +542,9 @@
 
 /* Use the existing card className hook, without changing its component or props. */
 .adviser-overview .adviser-overview__research-card {
+  --workspace-panel-radius: 16px;
   min-height: 0;
-  border-radius: 12px;
+  border-radius: var(--workspace-panel-radius);
   box-shadow: 0 2px 4px rgb(0 0 0 / 3%);
   transform: none;
 }
@@ -536,34 +675,28 @@
 
 /* Dark-mode control boundaries remain distinguishable from both the tile
    fill and the surrounding card, independently of the college accent. */
-.dark .adviser-overview .adviser-overview__metric {
-  border-color: var(--overview-control-edge);
-}
-
 .dark .adviser-overview .adviser-overview__research-card > div:last-child > div:nth-child(2) > div:last-child {
   background-color: var(--overview-control-edge);
 }
 
-@media (max-width: 1279px) {
-  .adviser-overview__welcome > div { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .adviser-overview__welcome > div > div:last-child { justify-content: flex-start; }
-  .adviser-overview__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .adviser-overview__metric { padding: 12px; }
+@media (max-width: 1099px) {
+  .adviser-overview__workload { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .adviser-overview__split { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 767px) {
-  .adviser-overview__summary { padding: 20px; min-height: 0; }
-  .adviser-overview__welcome > div { min-height: 0; }
-  .adviser-overview .adviser-overview__welcome h2 { font-size: 28px; line-height: 36px; }
-  .adviser-dashboard-container:has(> .adviser-overview) { padding: 16px; }
-  .adviser-overview__welcome > div > div:last-child { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
-  .adviser-overview__welcome button { width: 100%; }
-  .adviser-overview__metric { grid-template-columns: 32px minmax(0, 1fr) 16px; gap: 8px; padding: 12px; align-content: start; }
-  .adviser-overview__metric-icon { width: 32px; height: 32px; }
-  .adviser-overview__metric-content { grid-column: 1 / -1; grid-row: 2; }
+  .adviser-dashboard-container:has(> .adviser-overview) { padding: 16px 16px 80px; }
+  .adviser-overview__hero-heading { flex-direction: column; }
+  .adviser-overview__hero-heading > div:first-child { flex-basis: auto; }
+  .adviser-overview__seal { inset-inline-end: 6px; opacity: 0.09; }
+  .adviser-overview__workload-item {
+    grid-template-columns: 30px minmax(0, 1fr) 12px;
+    padding: 9px 10px;
+    align-content: start;
+  }
+  .adviser-overview__metric-icon { width: 30px; height: 30px; }
+  .adviser-overview__metric-content { grid-column: 1 / -1; }
   .adviser-overview__metric-arrow { grid-column: 3; grid-row: 1; }
-  .adviser-overview__metric-value small { display: block; line-height: 20px; }
   .adviser-overview__section-heading { flex-wrap: wrap; gap: 4px; }
   .adviser-overview__section-heading > button { padding: 0; }
   .adviser-overview__review-task { flex-wrap: wrap; }
@@ -572,11 +705,15 @@
 }
 
 @media (max-width: 359px) {
-  .adviser-dashboard-container:has(> .adviser-overview) { padding: 12px; }
-  .adviser-overview__panel { padding: 12px; }
+  .adviser-dashboard-container:has(> .adviser-overview) { padding: 12px 12px 76px; }
+  .adviser-overview__hero-actions { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .adviser-overview,
-  .adviser-overview * { transition-duration: 0s; animation-duration: 0s; }
+  .adviser-overview *,
+  .adviser-overview :is(button, a) {
+    transition-duration: 0s;
+    animation-duration: 0s;
+  }
 }
