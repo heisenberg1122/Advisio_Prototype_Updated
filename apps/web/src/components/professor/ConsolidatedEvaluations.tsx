@@ -356,7 +356,7 @@ export async function openEvaluationPdf(sessionId: string, panelistId: string) {
   if (!response.ok) throw new Error("Unable to load the evaluation PDF.");
   return URL.createObjectURL(await response.blob());
 }
-function EvaluationPdfPreview({
+export function EvaluationPdfPreview({
   sessionId,
   panelistId,
   onClose,
