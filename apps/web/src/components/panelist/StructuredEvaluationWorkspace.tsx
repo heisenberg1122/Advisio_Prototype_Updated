@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { IconFileTypePdf } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { apiClient } from "@/lib/api-client";
@@ -10,7 +11,11 @@ import {
 } from "@/components/defense/StructuredEvaluationFields";
 import { PdfDocumentPreview } from "@/components/documents/PdfDocumentPreview";
 import { EvaluationFormBranding } from "@/components/defense/EvaluationFormBranding";
-import { openEvaluationPdf } from "@/components/professor/ConsolidatedEvaluations";
+import {
+  EvaluationPdfPreview,
+  openEvaluationPdf,
+} from "@/components/professor/ConsolidatedEvaluations";
+import { Button } from "@/components/ui/Button";
 export function StructuredEvaluationWorkspace({
   sessionId,
 }: {
@@ -33,6 +38,7 @@ export function StructuredEvaluationWorkspace({
     [status, setStatus] = useState(""),
     [busy, setBusy] = useState(false),
     [url, setUrl] = useState(""),
+    [lockedPreviewOpen, setLockedPreviewOpen] = useState(false),
     [review, setReview] = useState(false),
     [confirmed, setConfirmed] = useState(false);
   const revision = useRef(0),
@@ -145,6 +151,7 @@ export function StructuredEvaluationWorkspace({
       );
       setItem(result.evaluation);
       setReview(false);
+      setUrl("");
       setStatus("Final evaluation submitted and locked");
     } catch (e: any) {
       setError(e.message);
@@ -160,6 +167,19 @@ export function StructuredEvaluationWorkspace({
     editable = query.data.sessionStatus === "LIVE" && !locked;
   return (
     <div className="space-y-4">
+      {locked && user && (
+        <div className="flex justify-end">
+          <Button
+            variant="secondary"
+            size="icon"
+            aria-label="View locked evaluation PDF"
+            aria-haspopup="dialog"
+            title="View locked evaluation PDF"
+            icon={<IconFileTypePdf className="h-5 w-5" />}
+            onClick={() => setLockedPreviewOpen(true)}
+          />
+        </div>
+      )}
       <section className={evaluationCard}>
         <EvaluationFormBranding form={snapshot.spec} />
         <p className="text-xs text-[var(--color-text-secondary)]">
@@ -267,22 +287,13 @@ export function StructuredEvaluationWorkspace({
           </div>
         </div>
       )}
-      {locked && (
-        <button
-          className={evaluationButton}
-          onClick={async () => {
-            try {
-              const pdf = await openEvaluationPdf(sessionId, user!.id);
-              setUrl(pdf);
-            } catch (e: any) {
-              setError(e.message);
-            }
-          }}
-        >
-          View locked evaluation PDF
-        </button>
+      {locked && user && lockedPreviewOpen && (
+        <EvaluationPdfPreview
+          sessionId={sessionId}
+          panelistId={user.id}
+          onClose={() => setLockedPreviewOpen(false)}
+        />
       )}
-      {locked && url && <PdfDocumentPreview url={url} />}
       {error && (
         <p role="alert" className="text-sm text-red-600">
           {error}
