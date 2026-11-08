@@ -84,8 +84,11 @@ export async function renderAnnotatedPdf(
   source: Uint8Array,
   marks: PdfMark[],
   signature?: { data: Uint8Array; placement: PdfBox } | null,
+  options?: { preserveMetadata: boolean },
 ) {
-  const pdf = await PDFDocument.load(source);
+  const pdf = await PDFDocument.load(source, {
+    updateMetadata: !options?.preserveMetadata,
+  });
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   for (const mark of marks) {
     if (mark.text) {

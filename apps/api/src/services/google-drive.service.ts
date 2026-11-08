@@ -1069,12 +1069,105 @@ class GoogleDriveService {
     };
   }
 
-  public async getFileStream(fileId: string) {
+  public async reserveSharedPdfId(folderId: string) {
+    const connection = await this.connectedClient();
+    if (!connection?.drive) throw new Error("Google Drive is not connected");
+    const folder = await connection.drive.files.get(
+      {
+        fileId: folderId,
+        fields: "driveId,mimeType,trashed,capabilities(canAddChildren)",
+        supportsAllDrives: true,
+      },
+      { timeout: DRIVE_REQUEST_TIMEOUT_MS },
+    );
+    if (
+      !folder.data.driveId ||
+      folder.data.trashed ||
+      folder.data.mimeType !== "application/vnd.google-apps.folder" ||
+      !folder.data.capabilities?.canAddChildren
+    ) {
+      throw new Error("Evaluation PDFs require a writable Shared Drive folder");
+    }
+    const response = await connection.drive.files.generateIds(
+      { count: 1, space: "drive" },
+      { timeout: DRIVE_REQUEST_TIMEOUT_MS },
+    );
+    const id = response.data.ids?.[0];
+    if (!id) throw new Error("Google Drive did not reserve a file ID");
+    return id;
+  }
+
+  public async storeSharedPdf(options: {
+    fileId: string;
+    folderId: string;
+    buffer: Buffer;
+  }) {
+    const connection = await this.connectedClient();
+    if (!connection?.drive) throw new Error("Google Drive is not connected");
+    const { fileId, folderId, buffer } = options;
+    try {
+      await connection.drive.files.create(
+        {
+          requestBody: {
+            id: fileId,
+            name: `advisio-evaluation-${fileId}.pdf`,
+            parents: [folderId],
+            appProperties: {
+              advisioManaged: "true",
+              advisioEntityType: "PDF_EVALUATION_ARTIFACT",
+            },
+          },
+          media: { mimeType: "application/pdf", body: Readable.from(buffer) },
+          fields: "id",
+          supportsAllDrives: true,
+        },
+        { timeout: DRIVE_REQUEST_TIMEOUT_MS },
+      );
+    } catch (error) {
+      const failure = error as {
+        response?: { status?: number };
+        code?: number;
+      };
+      if ((failure.response?.status ?? failure.code) !== 409) throw error;
+      // A prior attempt may have created this reserved ID before its response was lost.
+    }
+  }
+
+  public async verifySharedPdf(options: {
+    fileId: string;
+    folderId: string;
+    size: number;
+    checksum: string;
+  }) {
+    const connection = await this.connectedClient();
+    if (!connection?.drive) throw new Error("Google Drive is not connected");
+    const { fileId, folderId, size, checksum } = options;
+    const { data } = await connection.drive.files.get(
+      {
+        fileId,
+        fields: "driveId,mimeType,parents,sha256Checksum,size,trashed",
+        supportsAllDrives: true,
+      },
+      { timeout: DRIVE_REQUEST_TIMEOUT_MS },
+    );
+    if (
+      !data.driveId ||
+      data.trashed ||
+      !data.parents?.includes(folderId) ||
+      data.mimeType !== "application/pdf" ||
+      data.size !== String(size) ||
+      data.sha256Checksum !== checksum
+    ) {
+      throw new Error("Stored evaluation PDF did not match the expected file");
+    }
+  }
+
+  public async getFileStream(fileId: string, signal?: AbortSignal) {
     const connection = await this.connectedClient();
     if (!connection?.drive) throw new Error("Google Drive is not connected");
     return connection.drive.files.get(
       { fileId, alt: "media", supportsAllDrives: true },
-      { responseType: "stream" },
+      { responseType: "stream", signal },
     );
   }
 

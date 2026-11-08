@@ -71,6 +71,49 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+describe("Shared Drive evaluation PDFs", () => {
+  it("requires a writable Shared Drive folder before reserving a file ID", async () => {
+    const get = vi.fn().mockResolvedValue({
+      data: { mimeType: "application/vnd.google-apps.folder", capabilities: { canAddChildren: true } },
+    });
+    const generateIds = vi.fn().mockResolvedValue({ data: { ids: ["reserved-id"] } });
+    vi.spyOn(googleDriveService as any, "connectedClient").mockResolvedValue({
+      drive: { files: { get, generateIds } },
+    });
+    await expect(googleDriveService.reserveSharedPdfId("folder")).rejects.toThrow("Shared Drive folder");
+    expect(generateIds).not.toHaveBeenCalled();
+    get.mockResolvedValueOnce({
+      data: {
+        driveId: "university-drive",
+        mimeType: "application/vnd.google-apps.folder",
+        capabilities: { canAddChildren: true },
+      },
+    });
+    await expect(googleDriveService.reserveSharedPdfId("folder")).resolves.toBe("reserved-id");
+  });
+
+  it("recovers a reserved ID conflict and verifies its destination and checksum", async () => {
+    const create = vi.fn().mockRejectedValue({ response: { status: 409 } });
+    const stored = {
+      driveId: "university-drive", mimeType: "application/pdf", parents: ["folder"],
+      sha256Checksum: "expected", size: "3",
+    };
+    const get = vi.fn().mockResolvedValue({ data: stored });
+    vi.spyOn(googleDriveService as any, "connectedClient").mockResolvedValue({
+      drive: { files: { create, get } },
+    });
+    const file = { fileId: "reserved-id", folderId: "folder" };
+    await googleDriveService.storeSharedPdf({ ...file, buffer: Buffer.from("pdf") });
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      requestBody: expect.objectContaining({ id: file.fileId, parents: [file.folderId] }),
+      supportsAllDrives: true,
+    }), expect.anything());
+    await expect(googleDriveService.verifySharedPdf({ ...file, size: 3, checksum: "expected" })).resolves.toBeUndefined();
+    get.mockResolvedValueOnce({ data: { ...stored, sha256Checksum: "wrong" } });
+    await expect(googleDriveService.verifySharedPdf({ ...file, size: 3, checksum: "expected" })).rejects.toThrow("did not match");
+  });
+});
+
 describe("saved Drive storage", () => {
   it("persists quota and returns the same figures on subsequent status reads", async () => {
     const result = await googleDriveService.refreshStorage();

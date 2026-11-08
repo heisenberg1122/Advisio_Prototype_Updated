@@ -2216,12 +2216,28 @@ model DefenseBadge {
 
 // Each reviewer owns a separate source snapshot and editable annotation draft.
 // Final PDF bytes are retained with the exact revision and checksum submitted.
+model PdfEvaluationArtifact {
+  operationKey String    @id @map("operation_key") @db.VarChar(200)
+  fileId       String    @unique @map("file_id") @db.VarChar(255)
+  folderId     String    @map("folder_id") @db.VarChar(255)
+  checksum     String    @db.VarChar(64)
+  size         Int
+  createdAt    DateTime  @default(now()) @map("created_at")
+  verifiedAt   DateTime? @map("verified_at")
+
+  sources PdfEvaluation[] @relation("PdfEvaluationSourceArtifact")
+  final   PdfEvaluation?  @relation("PdfEvaluationFinalArtifact")
+
+  @@map("pdf_evaluation_artifacts")
+}
+
 model PdfEvaluation {
   id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   defenseSessionId   String           @map("defense_session_id") @db.Uuid
   panelistId         String           @map("panelist_id") @db.Uuid
   sourceVersionId    String           @map("source_version_id") @db.Uuid
-  sourceData         Bytes            @map("source_data")
+  sourceData         Bytes?           @map("source_data")
+  sourceDriveFileId  String?          @map("source_drive_file_id") @db.VarChar(255)
   sourceChecksum     String           @map("source_checksum") @db.VarChar(64)
   annotations        Json             @default("[]")
   revision           Int              @default(1)
@@ -2231,6 +2247,7 @@ model PdfEvaluation {
   signedAt           DateTime?        @map("signed_at")
   previewHash        String?          @map("preview_hash") @db.VarChar(64)
   finalData          Bytes?           @map("final_data")
+  finalDriveFileId   String?          @unique @map("final_drive_file_id") @db.VarChar(255)
   integrityHash      String?          @map("integrity_hash") @db.VarChar(64)
   lockedAt           DateTime?        @map("locked_at")
   createdAt          DateTime         @default(now()) @map("created_at")
@@ -2239,8 +2256,11 @@ model PdfEvaluation {
   defenseSession DefenseSession  @relation(fields: [defenseSessionId], references: [id], onDelete: Cascade)
   panelist       User            @relation(fields: [panelistId], references: [id], onDelete: Restrict)
   sourceVersion  DocumentVersion @relation(fields: [sourceVersionId], references: [id], onDelete: Restrict)
+  sourceArtifact PdfEvaluationArtifact? @relation("PdfEvaluationSourceArtifact", fields: [sourceDriveFileId], references: [fileId], onDelete: Restrict)
+  finalArtifact  PdfEvaluationArtifact? @relation("PdfEvaluationFinalArtifact", fields: [finalDriveFileId], references: [fileId], onDelete: Restrict)
 
   @@unique([defenseSessionId, panelistId])
+  @@index([sourceDriveFileId])
   @@map("pdf_evaluations")
 }
 

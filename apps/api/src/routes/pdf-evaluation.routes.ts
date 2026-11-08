@@ -21,6 +21,12 @@ import {
   renderAnnotatedPdf,
   PdfAnnotationError,
 } from "../services/pdf-annotation.service.js";
+import {
+  PdfEvaluationStorageError,
+  pdfEvaluationDriveFolder,
+  readPdfEvaluationArtifact,
+  storePdfEvaluationArtifact,
+} from "../services/pdf-evaluation-storage.service.js";
 
 const router = Router();
 class Conflict extends Error {
@@ -59,17 +65,20 @@ const run =
         .status(
           error instanceof Conflict
             ? error.status
-            : error instanceof z.ZodError ||
-                error instanceof SignatureImageError ||
-                error instanceof PdfAnnotationError
-              ? 400
-              : 500,
+            : error instanceof PdfEvaluationStorageError
+              ? 503
+              : error instanceof z.ZodError ||
+                  error instanceof SignatureImageError ||
+                  error instanceof PdfAnnotationError
+                ? 400
+                : 500,
         )
         .json({
           error:
             error instanceof z.ZodError
               ? error.issues[0]?.message
               : error instanceof Conflict ||
+                  error instanceof PdfEvaluationStorageError ||
                   error instanceof SignatureImageError ||
                   error instanceof PdfAnnotationError
                 ? error.message
@@ -77,6 +86,29 @@ const run =
         });
     }
   };
+
+const maxConcurrentPdfRequests = 4;
+let activePdfRequests = 0;
+const runPdf = (fn: (req: Request, res: Response) => Promise<void>) =>
+  run(async (req, res) => {
+    if (!pdfEvaluationDriveFolder(String(req.params.id))) {
+      await fn(req, res);
+      return;
+    }
+    if (activePdfRequests >= maxConcurrentPdfRequests) {
+      res.setHeader("Retry-After", "2");
+      throw new Conflict(
+        "Evaluation PDF processing is busy. Please retry shortly.",
+        503,
+      );
+    }
+    activePdfRequests++;
+    try {
+      await fn(req, res);
+    } finally {
+      activePdfRequests--;
+    }
+  });
 
 async function access(req: Request, facilitator = false) {
   const id = z.string().uuid().parse(req.params.id);
@@ -144,6 +176,7 @@ async function mutable(
   id: string,
   userId: string,
   revision: number,
+  submissionPreviewHash?: string,
 ) {
   await lockSession(tx, id);
   const session = await tx.defenseSession.findUniqueOrThrow({
@@ -166,6 +199,29 @@ async function mutable(
       403,
     );
   const item = await tx.pdfEvaluation.findUnique({ where: key(id, userId) });
+  assertRevision(session, item, revision, submissionPreviewHash);
+  return { session, item };
+}
+function isSubmissionRetry(
+  item: PdfEvaluation | null,
+  revision: number,
+  previewHash?: string,
+) {
+  return (
+    item?.status === "LOCKED" &&
+    item.finalDriveFileId &&
+    item.revision === revision &&
+    item.previewHash === previewHash &&
+    Boolean(previewHash)
+  );
+}
+function assertRevision(
+  session: { packet: { evaluationTemplateVersionId: string | null } | null },
+  item: PdfEvaluation | null,
+  revision: number,
+  submissionPreviewHash?: string,
+) {
+  if (isSubmissionRetry(item, revision, submissionPreviewHash)) return;
   if (item?.status === "LOCKED")
     throw new Conflict("Your submitted PDF evaluation is locked.");
   if ((item?.revision || 0) !== revision)
@@ -179,7 +235,41 @@ async function mutable(
     throw new Conflict(
       "The evaluation template changed. Contact the professor.",
     );
-  return { session, item };
+}
+function readSource(item: PdfEvaluation) {
+  return readPdfEvaluationArtifact(
+    item.sourceDriveFileId,
+    item.sourceData,
+    item.sourceChecksum,
+  );
+}
+async function renderDraft(item: PdfEvaluation, preserveMetadata = false) {
+  return renderAnnotatedPdf(
+    await readSource(item),
+    annotationsSchema.parse(item.annotations),
+    item.signatureData
+      ? {
+          data: item.signatureData,
+          placement: boxSchema.parse(item.signaturePlacement),
+        }
+      : null,
+    { preserveMetadata },
+  );
+}
+function assertSubmittable(
+  item: PdfEvaluation | null,
+  signatureRequired: boolean,
+  previewHash: string,
+): asserts item is PdfEvaluation {
+  if (!item || !annotationsSchema.parse(item.annotations).length)
+    throw new Conflict("Add evaluation marks before submitting.");
+  if (signatureRequired && !item.signedAt)
+    throw new Conflict("This evaluation requires your signature.");
+  if (
+    item.previewHash !== previewHash ||
+    evaluationRevisionHash(item) !== previewHash
+  )
+    throw new Conflict("Preview the current revision before submitting.");
 }
 function pdfResponse(res: Response, bytes: Uint8Array, download = false) {
   res.setHeader("Cache-Control", "private, no-store");
@@ -231,7 +321,9 @@ router.put(
       )
         throw new Conflict("This session cannot change evaluation settings.");
       if (current.packet.mappingVersion !== input.expectedMappingVersion)
-        throw new Conflict("The defense documents changed. Reopen their settings.");
+        throw new Conflict(
+          "The defense documents changed. Reopen their settings.",
+        );
       const used =
         (await tx.pdfEvaluation.count({
           where: { defenseSessionId: session.id },
@@ -299,22 +391,22 @@ router.get(
 router.get(
   "/defense-sessions/:id/pdf-evaluation/source",
   requireAuth,
-  run(async (req, res) => {
+  runPdf(async (req, res) => {
     const session = await access(req);
     pdfMode(session);
     const item = await prisma.pdfEvaluation.findUnique({
       where: key(session.id, req.user!.id),
     });
-    const bytes =
-      item?.sourceData ||
-      (await source(session.packet!.evaluationTemplateVersionId!)).buffer;
+    const bytes = item
+      ? await readSource(item)
+      : (await source(session.packet!.evaluationTemplateVersionId!)).buffer;
     pdfResponse(res, bytes);
   }),
 );
 router.put(
   "/defense-sessions/:id/pdf-evaluation",
   requireAuth,
-  run(async (req, res) => {
+  runPdf(async (req, res) => {
     const session = await access(req);
     pdfMode(session);
     const input = z
@@ -329,14 +421,24 @@ router.put(
     const snapshot = await prisma.pdfEvaluation.findUnique({
       where: key(session.id, req.user!.id),
     });
-    const stored = snapshot
-      ? {
-          version: { id: snapshot.sourceVersionId },
-          buffer: Buffer.from(snapshot.sourceData),
-        }
-      : await source(input.sourceVersionId);
+    assertRevision(session, snapshot, input.revision);
+    if (session.status !== "LIVE")
+      throw new Conflict("Editing is available only during the live defense.");
+    const buffer = snapshot
+      ? await readSource(snapshot)
+      : (await source(input.sourceVersionId)).buffer;
     // Validate page references, supported text, and text-box fit before saving.
-    await renderAnnotatedPdf(stored.buffer, input.annotations);
+    await renderAnnotatedPdf(buffer, input.annotations);
+    const checksum = snapshot?.sourceChecksum ?? pdfHash(buffer);
+    const folder = pdfEvaluationDriveFolder(session.id);
+    const sourceDriveFileId =
+      !snapshot && folder
+        ? await storePdfEvaluationArtifact(
+            folder,
+            `source:${input.sourceVersionId}:${checksum}`,
+            buffer,
+          )
+        : null;
     const result = await prisma.$transaction(async (tx) => {
       const { item, session: current } = await mutable(
         tx,
@@ -361,9 +463,10 @@ router.put(
           ...data,
           defenseSessionId: session.id,
           panelistId: req.user!.id,
-          sourceVersionId: stored.version.id,
-          sourceData: Uint8Array.from(stored.buffer),
-          sourceChecksum: pdfHash(stored.buffer),
+          sourceVersionId: input.sourceVersionId,
+          sourceData: sourceDriveFileId ? null : Uint8Array.from(buffer),
+          sourceDriveFileId,
+          sourceChecksum: checksum,
         },
       });
     });
@@ -374,7 +477,7 @@ router.put(
 router.post(
   "/defense-sessions/:id/pdf-evaluation/sign",
   requireAuth,
-  run(async (req, res) => {
+  runPdf(async (req, res) => {
     const session = await access(req);
     pdfMode(session);
     const input = z
@@ -396,6 +499,16 @@ router.post(
     )
       throw new Conflict("Password confirmation failed.", 403);
     const image = await resolveSigningImage(req.user!.id, input);
+    const snapshot = await prisma.pdfEvaluation.findUnique({
+      where: key(session.id, req.user!.id),
+    });
+    assertRevision(session, snapshot, input.revision);
+    if (!snapshot) throw new Conflict("Save a draft before signing.");
+    await renderAnnotatedPdf(
+      await readSource(snapshot),
+      annotationsSchema.parse(snapshot.annotations),
+      { data: image.imageData, placement: input.placement },
+    );
     const result = await prisma.$transaction(async (tx) => {
       const { item } = await mutable(
         tx,
@@ -404,11 +517,6 @@ router.post(
         input.revision,
       );
       if (!item) throw new Conflict("Save a draft before signing.");
-      await renderAnnotatedPdf(
-        item.sourceData,
-        annotationsSchema.parse(item.annotations),
-        { data: image.imageData, placement: input.placement },
-      );
       const saved = await tx.pdfEvaluation.update({
         where: { id: item.id },
         data: {
@@ -455,40 +563,38 @@ router.get(
 router.post(
   "/defense-sessions/:id/pdf-evaluation/preview",
   requireAuth,
-  run(async (req, res) => {
+  runPdf(async (req, res) => {
     const session = await access(req);
     pdfMode(session);
     const revision = z.number().int().positive().parse(req.body.revision);
-    const result = await prisma.$transaction(async (tx) => {
+    const snapshot = await prisma.pdfEvaluation.findUnique({
+      where: key(session.id, req.user!.id),
+    });
+    assertRevision(session, snapshot, revision);
+    if (!snapshot) throw new Conflict("Save a draft before previewing.");
+    const hash = evaluationRevisionHash(snapshot);
+    const bytes = await renderDraft(
+      snapshot,
+      Boolean(pdfEvaluationDriveFolder(session.id)),
+    );
+    await prisma.$transaction(async (tx) => {
       const { item } = await mutable(tx, session.id, req.user!.id, revision);
       if (!item) throw new Conflict("Save a draft before previewing.");
-      const hash = evaluationRevisionHash(item);
-      const bytes = await renderAnnotatedPdf(
-        item.sourceData,
-        annotationsSchema.parse(item.annotations),
-        item.signatureData
-          ? {
-              data: item.signatureData,
-              placement: boxSchema.parse(item.signaturePlacement),
-            }
-          : null,
-      );
       await tx.pdfEvaluation.update({
         where: { id: item.id },
         data: { previewHash: hash },
       });
-      return { hash, bytes };
     });
     res.json({
-      previewHash: result.hash,
-      pdfBase64: result.bytes.toString("base64"),
+      previewHash: hash,
+      pdfBase64: bytes.toString("base64"),
     });
   }),
 );
 router.post(
   "/defense-sessions/:id/pdf-evaluation/submit",
   requireAuth,
-  run(async (req, res) => {
+  runPdf(async (req, res) => {
     const session = await access(req);
     pdfMode(session);
     const input = z
@@ -498,39 +604,54 @@ router.post(
         confirmed: z.literal(true),
       })
       .parse(req.body);
+    const snapshot = await prisma.pdfEvaluation.findUnique({
+      where: key(session.id, req.user!.id),
+    });
+    assertRevision(session, snapshot, input.revision, input.previewHash);
+    if (isSubmissionRetry(snapshot, input.revision, input.previewHash)) {
+      res.json({ evaluation: metadata(snapshot) });
+      return;
+    }
+    if (session.status !== "LIVE")
+      throw new Conflict("Editing is available only during the live defense.");
+    assertSubmittable(
+      snapshot,
+      session.packet!.evaluationSignatureRequired,
+      input.previewHash,
+    );
+    const folder = pdfEvaluationDriveFolder(session.id);
+    const finalData = await renderDraft(snapshot, Boolean(folder));
+    const integrityHash = pdfHash(finalData);
+    const finalDriveFileId = folder
+      ? await storePdfEvaluationArtifact(
+          folder,
+          `final:${snapshot.id}:${input.previewHash}`,
+          finalData,
+        )
+      : null;
     const result = await prisma.$transaction(async (tx) => {
       const { item, session: current } = await mutable(
         tx,
         session.id,
         req.user!.id,
         input.revision,
+        input.previewHash,
       );
-      if (!item || !annotationsSchema.parse(item.annotations).length)
-        throw new Conflict("Add evaluation marks before submitting.");
-      if (current.packet!.evaluationSignatureRequired && !item.signedAt)
-        throw new Conflict("This evaluation requires your signature.");
-      if (
-        item.previewHash !== input.previewHash ||
-        evaluationRevisionHash(item) !== input.previewHash
-      )
-        throw new Conflict("Preview the current revision before submitting.");
-      const finalData = await renderAnnotatedPdf(
-        item.sourceData,
-        annotationsSchema.parse(item.annotations),
-        item.signatureData
-          ? {
-              data: item.signatureData,
-              placement: boxSchema.parse(item.signaturePlacement),
-            }
-          : null,
+      if (isSubmissionRetry(item, input.revision, input.previewHash))
+        return item;
+      assertSubmittable(
+        item,
+        current.packet!.evaluationSignatureRequired,
+        input.previewHash,
       );
       const saved = await tx.pdfEvaluation.update({
         where: { id: item.id },
         data: {
           status: "LOCKED",
           lockedAt: new Date(),
-          finalData: Uint8Array.from(finalData),
-          integrityHash: pdfHash(finalData),
+          finalData: finalDriveFileId ? null : Uint8Array.from(finalData),
+          finalDriveFileId,
+          integrityHash,
         },
       });
       await tx.auditLog.create({
@@ -572,19 +693,24 @@ router.get(
 router.get(
   "/defense-sessions/:id/pdf-evaluations/:evaluationId/content",
   requireAuth,
-  run(async (req, res) => {
+  runPdf(async (req, res) => {
     const id = z.string().uuid().parse(req.params.evaluationId);
     const item = await prisma.pdfEvaluation.findUnique({ where: { id } });
     if (
       !item ||
       item.defenseSessionId !== req.params.id ||
       item.status !== "LOCKED" ||
-      !item.finalData
+      (!item.finalData && !item.finalDriveFileId)
     )
       throw new Conflict("Submitted PDF not found.", 404);
     if (item.panelistId === req.user!.id) await access(req);
     else await access(req, true);
-    pdfResponse(res, item.finalData, req.query.download === "1");
+    const bytes = await readPdfEvaluationArtifact(
+      item.finalDriveFileId,
+      item.finalData,
+      item.integrityHash,
+    );
+    pdfResponse(res, bytes, req.query.download === "1");
   }),
 );
 export default router;
