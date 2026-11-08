@@ -1,14 +1,14 @@
 import {
   useEffect,
   useEffectEvent,
-  useId,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
-import { connectedGuideGeometry, type GuideRect } from "./guide-geometry";
+import { GuideConnector } from "./GuideConnector";
+import { guidePlacement, type GuideRect } from "./guide-geometry";
 import type {
   GuidedControlStep,
   GuidedTarget,
@@ -79,7 +79,6 @@ export function GuidedWalkthrough({
     tooltip = useRef<HTMLDivElement>(null),
     primary = useRef<HTMLButtonElement>(null);
   const exit = useRef<HTMLButtonElement>(null);
-  const marker = "guide-arrow-" + useId().replace(/[^a-z0-9]/gi, "");
   const clickIntent = useEffectEvent(() => onIntent());
   const interacted = useEffectEvent((target: GuidedTarget) =>
     onNext(target, false, true),
@@ -95,6 +94,12 @@ export function GuidedWalkthrough({
     setVariant(null);
     setMissing(false);
     const update = () => {
+      const width = innerWidth, height = innerHeight;
+      setViewport((previous) =>
+        previous.width === width && previous.height === height
+          ? previous
+          : { width, height },
+      );
       const found = step.targets
         .map((target) => ({ target, node: findGuideTarget(target.key) }))
         .find((item) => item.node);
@@ -111,9 +116,7 @@ export function GuidedWalkthrough({
             behavior: "instant",
           });
         }
-        const bounds = found.node!.getBoundingClientRect(),
-          width = innerWidth,
-          height = innerHeight;
+        const bounds = found.node!.getBoundingClientRect();
         if (
           bounds.bottom <= 0 ||
           bounds.top >= height ||
@@ -144,11 +147,6 @@ export function GuidedWalkthrough({
             )
               ? previous
               : next,
-          );
-          setViewport((previous) =>
-            previous.width === width && previous.height === height
-              ? previous
-              : { width, height },
           );
           setVariant(found.target);
           const description =
@@ -230,7 +228,7 @@ export function GuidedWalkthrough({
     const observer = new ResizeObserver(measure);
     if (tooltip.current) observer.observe(tooltip.current);
     return () => observer.disconnect();
-  }, []);
+  }, [text, rect !== null, missing, canGoBack, isLast]);
   const ready = Boolean(rect) || missing;
   const interaction = variant?.interaction || "read";
   const clickRequired = interaction === "click" && !variant?.optional;
@@ -316,14 +314,12 @@ export function GuidedWalkthrough({
         bounds.bottom > rect.top
       );
     });
-  const geometry = rect
-    ? connectedGuideGeometry(
-        rect,
-        { width, height: tooltipHeight },
-        viewport,
-        Boolean(horizontalChoices),
-      )
-    : null;
+  const { connector, ...placement } = guidePlacement(
+    rect,
+    { width, height: tooltipHeight },
+    viewport,
+    Boolean(horizontalChoices),
+  );
   const nextDisabled = !ready || (!missing && clickRequired);
   const optional = Boolean(variant?.optional);
   const terminal = isLast || variant?.next === "finish";
@@ -379,50 +375,15 @@ export function GuidedWalkthrough({
           />
         </>
       )}
-      {geometry && (
-        <svg
-          className="researcher-guide-walkthrough__connector"
-          aria-hidden="true"
-          width={viewport.width}
-          height={viewport.height}
-        >
-          <defs>
-            <marker
-              id={marker}
-              markerWidth="7"
-              markerHeight="7"
-              refX="6"
-              refY="3.5"
-              orient="auto"
-            >
-              <path d="M 0 0 L 7 3.5 L 0 7 Z" fill="currentColor" />
-            </marker>
-          </defs>
-          <path
-            data-guide-connector="true"
-            data-target-x={geometry.end.x}
-            data-target-y={geometry.end.y}
-            d={geometry.path}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            markerEnd={`url(#${marker})`}
-          />
-        </svg>
-      )}
+      {connector && <GuideConnector connector={connector} viewport={viewport} />}
       <div
         ref={tooltip}
         className="researcher-guide-walkthrough__tooltip"
+        data-guide-docked={Boolean(rect && !connector) || undefined}
         role="dialog"
         aria-labelledby="researcher-step-title"
         aria-describedby="researcher-step-text"
-        style={{
-          width,
-          left: geometry?.left ?? Math.max(12, viewport.width - width - 16),
-          top:
-            geometry?.top ?? Math.max(12, viewport.height - tooltipHeight - 24),
-          maxHeight: geometry?.maxHeight ?? viewport.height - 24,
-        }}
+        style={{ width, ...placement }}
       >
         <div className="researcher-guide-walkthrough__top">
           <span role="status" aria-live="polite">

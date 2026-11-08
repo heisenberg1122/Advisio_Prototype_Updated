@@ -2,16 +2,17 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import type { GuidedStep } from "@/lib/workspace-tours";
+import { GuideConnector } from "../guide/GuideConnector";
+import { guidePlacement, type GuideRect } from "../guide/guide-geometry";
 import "./product-tour.css";
 
-type Rect = { top: number; left: number; width: number; height: number; bottom: number; right: number };
 type ProductTourProps = {
   step: GuidedStep; index: number; total: number; routeReady: boolean;
   onBack: () => void; onNext: (completedStep: boolean) => void; onClose: () => void; onRetry: () => void;
 };
 
 export function ProductTour({ step, index, total, routeReady, onBack, onNext, onClose, onRetry }: ProductTourProps) {
-  const [rect, setRect] = useState<Rect | null>(null);
+  const [rect, setRect] = useState<GuideRect | null>(null);
   const [missing, setMissing] = useState(false);
   const [retry, setRetry] = useState(0);
   const [tooltipHeight, setTooltipHeight] = useState(250);
@@ -23,9 +24,11 @@ export function ProductTour({ step, index, total, routeReady, onBack, onNext, on
   useEffect(() => {
     setRect(null); setMissing(false); target.current = null;
     let frame = 0;
-    let scrolled = false;
+    let scrolled: HTMLElement | null = null;
     const started = performance.now();
     const update = () => {
+      const width = window.innerWidth, height = window.innerHeight;
+      setViewport(previous => previous.width === width && previous.height === height ? previous : { width, height });
       const element = routeReady ? Array.from(document.querySelectorAll<HTMLElement>(`[data-tour="${step.target}"]`)).find(el => el.getClientRects().length && getComputedStyle(el).visibility !== "hidden") : undefined;
       if (!element) {
         setRect(previous => previous ? null : previous);
@@ -33,23 +36,21 @@ export function ProductTour({ step, index, total, routeReady, onBack, onNext, on
         return;
       }
       target.current = element;
-      if (!scrolled) {
-        scrolled = true;
+      if (scrolled !== element) {
+        scrolled = element;
         if (step.target === "workspace-content") window.scrollTo({ top: 0, behavior: "instant" });
         else element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
       }
       const raw = element.getBoundingClientRect();
-      const width = window.innerWidth, height = window.innerHeight;
-      if (raw.bottom < 0 || raw.top > height || raw.right < 0 || raw.left > width) { setRect(null); setMissing(true); return; }
-      const top = Math.max(8, Math.min(raw.top - 5, height - 60));
+      if (raw.bottom <= 0 || raw.top >= height || raw.right <= 0 || raw.left >= width) { setRect(null); setMissing(true); return; }
+      const top = Math.max(8, raw.top - 5);
       const left = Math.max(8, raw.left - 5);
       const right = Math.min(width - 8, raw.right + 5);
       const bottom = Math.min(height - 8, raw.bottom + 5, top + (step.target === "workspace-content" ? 180 : 260));
       const measured = { top, left, width: Math.max(0, right - left), height: Math.max(0, bottom - top), bottom, right };
-      if (measured.width < 1 || measured.height < 1) { setRect(null); return; }
+      if (measured.width < 1 || measured.height < 1) { setRect(null); setMissing(true); return; }
       setMissing(false);
-      setViewport(previous => previous.width === width && previous.height === height ? previous : { width, height });
-      setRect(previous => previous && Object.keys(measured).every(key => previous[key as keyof Rect] === measured[key as keyof Rect]) ? previous : measured);
+      setRect(previous => previous && Object.keys(measured).every(key => previous[key as keyof GuideRect] === measured[key as keyof GuideRect]) ? previous : measured);
     };
     const poll = () => { update(); frame = requestAnimationFrame(poll); };
     frame = requestAnimationFrame(poll);
@@ -57,13 +58,14 @@ export function ProductTour({ step, index, total, routeReady, onBack, onNext, on
   }, [step.target, step.href, routeReady, retry]);
 
   useLayoutEffect(() => {
-    if (!dialog.current) return;
-    const measure = () => setTooltipHeight(dialog.current?.offsetHeight || 250);
+    const node = dialog.current;
+    if (!node) return;
+    const measure = () => setTooltipHeight(node.scrollHeight + 2);
     measure();
     const observer = new ResizeObserver(measure);
-    observer.observe(dialog.current);
+    observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [step, index, total, rect !== null, missing]);
 
   const ready = Boolean(rect) || missing;
   useEffect(() => { if (ready) next.current?.focus({ preventScroll: true }); }, [index, ready]);
@@ -85,9 +87,7 @@ export function ProductTour({ step, index, total, routeReady, onBack, onNext, on
   }, [onClose, step.interactive, rect]);
 
   const width = Math.min(340, viewport.width - 24);
-  const left = rect ? Math.max(12, Math.min(rect.left, viewport.width - width - 12)) : Math.max(12, (viewport.width - width) / 2);
-  const below = rect && viewport.height - rect.bottom >= tooltipHeight + 20;
-  const top = rect ? below ? rect.bottom + 10 : rect.top >= tooltipHeight + 20 ? rect.top - tooltipHeight - 10 : Math.max(12, viewport.height - tooltipHeight - 12) : Math.max(12, (viewport.height - tooltipHeight) / 2);
+  const { connector, ...placement } = guidePlacement(rect, { width, height: tooltipHeight }, viewport);
   const retryTarget = () => { onRetry(); setRetry(value => value + 1); };
 
   return createPortal(<div className="product-tour" data-tour-active="true">
@@ -98,7 +98,8 @@ export function ProductTour({ step, index, total, routeReady, onBack, onNext, on
       <div className="product-tour__shade" style={{ left: 0, top: rect.bottom, width: "100%", bottom: 0 }} />
       <div className="product-tour__spotlight" data-tour-spotlight={step.target} style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height, pointerEvents: step.interactive ? "none" : "auto" }} />
     </>}
-    <div ref={dialog} role="dialog" aria-modal={step.interactive ? undefined : true} aria-labelledby="product-tour-title" aria-describedby="product-tour-content" className="product-tour__tooltip" style={{ left, top, width, maxHeight: viewport.height - 24 }}>
+    {connector && <GuideConnector connector={connector} viewport={viewport} />}
+    <div ref={dialog} role="dialog" aria-modal={step.interactive ? undefined : true} aria-labelledby="product-tour-title" aria-describedby="product-tour-content" className="product-tour__tooltip" data-guide-docked={Boolean(rect && !connector) || undefined} style={{ width, ...placement }}>
       <div className="product-tour__heading"><span role="status" aria-live="polite">Step {index + 1} of {total}</span><button type="button" aria-label="Close tour" onClick={onClose}><X size={18} /></button></div>
       <h2 id="product-tour-title">{step.title}</h2>
       <p id="product-tour-content">{missing ? step.fallback || "This area is unavailable. Retry or skip this step to continue safely." : !rect ? "Finding this part of your workspace…" : step.content}</p>

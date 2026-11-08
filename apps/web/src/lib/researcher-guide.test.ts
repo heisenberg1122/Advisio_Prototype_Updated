@@ -7,7 +7,7 @@ import {
 } from "./researcher-guide";
 import { buildResearcherJourney } from "./researcher-walkthroughs";
 import { resolveResearcherGuideState } from "@/hooks/use-researcher-guide-state";
-import { connectedGuideGeometry } from "@/components/guide/guide-geometry";
+import { guidePlacement } from "@/components/guide/guide-geometry";
 
 const state: ResearcherGuideState = {
   projectKnown: true,
@@ -224,27 +224,40 @@ describe("Connected arrows", () => {
         height: 44,
       };
       const tooltip = { width: Math.min(336, width - 24), height: 290 };
-      const geometry = connectedGuideGeometry(target, tooltip, {
+      const geometry = guidePlacement(target, tooltip, {
         width,
         height: 844,
       });
       expect(geometry.left).toBeGreaterThanOrEqual(12);
       expect(geometry.left + tooltip.width).toBeLessThanOrEqual(width - 12);
       expect(geometry.top).toBeGreaterThanOrEqual(12);
+      const { connector } = geometry;
+      expect(connector).not.toBeNull();
+      if (!connector) throw new Error("Expected an arrow for a visible control");
       const distance = Math.hypot(
         Math.max(
-          target.left - geometry.end.x,
+          target.left - connector.end.x,
           0,
-          geometry.end.x - target.right,
+          connector.end.x - target.right,
         ),
         Math.max(
-          target.top - geometry.end.y,
+          target.top - connector.end.y,
           0,
-          geometry.end.y - target.bottom,
+          connector.end.y - target.bottom,
         ),
       );
       expect(distance).toBe(5);
-      expect(geometry.path).toContain("L " + geometry.end.x);
+      expect(connector.path).toContain("L " + connector.end.x);
     },
   );
+
+  it("docks a compact card without an arrow when a tall highlight leaves too little room", () => {
+    const target = { left: 12, right: 378, top: 100, bottom: 540, width: 366, height: 440 };
+    const viewport = { width: 390, height: 640 };
+    const placement = guidePlacement(target, { width: 336, height: 220 }, viewport);
+
+    expect(placement.connector).toBeNull();
+    expect(placement.maxHeight).toBeLessThanOrEqual(viewport.height / 3);
+    expect(placement.top + placement.maxHeight).toBeLessThan(viewport.height);
+  });
 });

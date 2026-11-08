@@ -14,4 +14,4 @@
 .product-tour .product-tour__primary { background: var(--color-primary); color: var(--college-on-primary); padding-inline: 14px; }
 .dark .product-tour .product-tour__primary { color: var(--college-on-primary-dark); }
 @media (prefers-reduced-motion: no-preference) { .product-tour__tooltip { animation: tour-appear .15s ease-out; } }
-@keyframes tour-appear { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes tour-appear { from { opacity: 0; } to { opacity: 1; } }

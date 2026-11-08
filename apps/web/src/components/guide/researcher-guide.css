@@ -357,6 +357,20 @@
   width: 100%;
   color: var(--color-primary);
 }
+div[data-guide-docked] {
+  padding: 8px 12px;
+}
+div[data-guide-docked] h2 {
+  margin: 0 0 3px;
+  line-height: 1.25;
+}
+div[data-guide-docked] p {
+  line-height: 1.4;
+}
+[data-guide-docked] .researcher-guide-walkthrough__actions,
+[data-guide-docked] .product-tour__actions {
+  margin-top: 2px;
+}
 @media (max-width: 640px) {
   .researcher-guide {
     top: 64px;
@@ -394,10 +408,8 @@
 @keyframes researcher-tip-open {
   from {
     opacity: 0;
-    transform: translateY(3px);
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
