@@ -2,6 +2,9 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { withProjectContext } from "@/lib/active-project";
+import { useAuth } from "@/hooks/use-auth";
+import { getAcademicIdentity } from "@/lib/academic-identity";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
@@ -9,7 +12,6 @@ import {
   CheckCircle2,
   Download,
   ExternalLink,
-  FileCheck2,
   FileClock,
   FolderKanban,
   Import,
@@ -39,7 +41,11 @@ import { ResearchFileManager } from "@/components/documents/ResearchFileManager"
 import { ResearcherDocumentsWorkspace } from "./ResearcherDocumentsWorkspace";
 import { documentTaskDetailsHref, type TaskPortal } from "@/lib/document-task-navigation";
 import "./researcher-documents.css";
+import "./panel-documents.css";
+import { PanelistProjectMenu } from "./PanelistProjectMenu";
+import { AdviserProjectPicker } from "./AdviserProjectPicker";
 import { DocumentAddMenu } from "@/components/documents/DocumentAddMenu";
+import { EmptyNote, ListRow, PageBand, RowIcon, SectionCard, StatusDot, type StatusTone } from "@/components/ui/advisio";
 import {
   documentStatusLabel,
   resolveDocumentSelection,
@@ -392,7 +398,10 @@ export default function DocumentWorkspacePage() {
   const pathname = usePathname();
   const isPanelistPortal = pathname.startsWith("/panelist/");
   const isResearcherPortal = pathname.startsWith("/student/");
+  const { user: sealUser } = useAuth();
+  const librarySeal = isResearcherPortal ? getAcademicIdentity({ college: sealUser?.college, program: sealUser?.program })?.logoSrc : undefined;
   const isAdviserPortal = pathname.startsWith("/adviser/");
+  const adviserSeal = isAdviserPortal ? getAcademicIdentity({ college: sealUser?.college, program: sealUser?.program })?.logoSrc : undefined;
   const useDocumentLibrary =
     isResearcherPortal || isAdviserPortal || pathname.startsWith("/professor/");
   const useDocumentLibraryStyles = useDocumentLibrary;
@@ -407,6 +416,7 @@ export default function DocumentWorkspacePage() {
   const {
     projectId: resolvedProjectId,
     invalidRequestedProjectId,
+    requestedProjectId: providerRequestedProjectId,
     selectProject,
   } = useActiveProject(projects);
   const activeProjectId = resolvedProjectId || "";
@@ -1143,21 +1153,37 @@ export default function DocumentWorkspacePage() {
     }
   };
 
+  // "All projects": clear the URL first, then forget the remembered project on the next tick.
+  // The active-project provider's own effect runs after this page's effects in the same commit and
+  // would otherwise save the old project back.
+  const [clearingProject, setClearingProject] = useState(false);
+  useEffect(() => {
+    if (!clearingProject || providerRequestedProjectId) return;
+    const timer = window.setTimeout(() => {
+      setClearingProject(false);
+      selectProject(null, { replace: true });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [clearingProject, providerRequestedProjectId, selectProject]);
   const tabs = [
     {
       id: "workspace",
       label: "Working files",
       badge: documents.length,
+      icon: isResearcherPortal ? "ti-files" : undefined,
+      guide: isResearcherPortal ? "documents-workspace-tab" : undefined,
     },
     {
       id: "reviews",
       label: "Feedback",
       badge: reviewAssignments.length,
+      icon: isResearcherPortal ? "ti-message-2" : undefined,
     },
     {
       id: "milestones",
       label: "Files by milestone",
       badge: workflowMilestones.length,
+      icon: isResearcherPortal ? "ti-flag" : undefined,
     },
     ...(officialPermissions?.canView
       ? [
@@ -1165,6 +1191,7 @@ export default function DocumentWorkspacePage() {
             id: "official",
             label: "Official copies",
             badge: officialCopies.length,
+            icon: isResearcherPortal ? "ti-certificate" : undefined,
           },
         ]
       : []),
@@ -1180,6 +1207,79 @@ export default function DocumentWorkspacePage() {
     );
   }
 
+  const openProject = (projectId: string) => {
+    if (!projectId) {
+      selectProject(null);
+      return;
+    }
+    const params = new URLSearchParams(location.search);
+    for (const key of ["researchId", "documentId", "versionId", "taskId", "milestoneId"])
+      params.delete(key);
+    params.set("projectId", projectId);
+    setSelectedDocumentId("");
+    navigate(`${pathname}?${params}`);
+  };
+  const showAllProjects = () => {
+    const params = new URLSearchParams(location.search);
+    for (const key of ["projectId", "researchId", "documentId", "versionId", "taskId", "milestoneId"])
+      params.delete(key);
+    setSelectedDocumentId("");
+    setClearingProject(true);
+    navigate(`${pathname}?${params}`);
+  };
+  // Panelists only see tabs that have something in them, plus Official copies and the open tab.
+  const visibleTabs = isPanelistPortal
+    ? tabs.filter((tab) => tab.id === "official" || tab.id === activeTab || Number(tab.badge) > 0)
+    : tabs;
+  const onFileCopies = officialCopies.filter((copy) => copy.status === "ACTIVE");
+  const signedCopies = onFileCopies.filter((copy) => copy.signatures.some((signature) => signature.status === "ACTIVE"));
+  const readyToFinalize = officialEligibleVersions.length;
+  const canFinalizeNow = Boolean(officialPermissions?.canFinalize && readyToFinalize > 0);
+  const canSignNow = !canFinalizeNow && onFileCopies.some((copy) => copy.canSign);
+  const officialSteps: Array<{ label: string; detail: string; icon: string; state: "done" | "focus" | "waiting" | "pending" }> = [
+    {
+      label: "Approved",
+      icon: "ti-circle-check",
+      detail: `${readyToFinalize + onFileCopies.length} ${readyToFinalize + onFileCopies.length === 1 ? "version" : "versions"}`,
+      state: readyToFinalize + onFileCopies.length > 0 ? "done" : "pending",
+    },
+    {
+      label: "Finalize",
+      icon: "ti-archive",
+      detail: canFinalizeNow ? `${readyToFinalize} ready now` : readyToFinalize > 0 ? `${readyToFinalize} waiting` : onFileCopies.length > 0 ? "Finalized" : "Nothing yet",
+      state: canFinalizeNow ? "focus" : readyToFinalize > 0 ? "waiting" : onFileCopies.length > 0 ? "done" : "pending",
+    },
+    {
+      label: "Sign",
+      icon: "ti-signature",
+      detail: canSignNow ? "Add your signature" : `${signedCopies.length} signed`,
+      state: canSignNow ? "focus" : signedCopies.length > 0 ? "done" : "pending",
+    },
+    {
+      label: "Official copy",
+      icon: "ti-certificate",
+      detail: `${onFileCopies.length} on file`,
+      state: onFileCopies.length > 0 ? "done" : "pending",
+    },
+  ];
+  const adviserTabLabel = tabs.find((tab) => tab.id === activeTab)?.label ?? "Documents";
+  const adviserBannerSummary = activeTab !== "official"
+    ? activeProject?.workflowInstance?.workflow?.name || "Files, feedback, and records for this research group."
+    : canFinalizeNow
+      ? `${readyToFinalize} approved ${readyToFinalize === 1 ? "version is" : "versions are"} ready to become the official record.`
+      : canSignNow
+        ? `${onFileCopies.length} official ${onFileCopies.length === 1 ? "copy is" : "copies are"} on file and waiting for your signature.`
+        : onFileCopies.length
+          ? `${onFileCopies.length} official ${onFileCopies.length === 1 ? "copy is" : "copies are"} on file for this research group.`
+          : "Official copies appear here once an approved version is finalized.";
+  const officialStatusTone = (status: OfficialCopy["status"]): StatusTone =>
+    status === "ACTIVE" ? "done" : status === "REVOKED" ? "attention" : "neutral";
+  const officialStatusLabel = (status: OfficialCopy["status"]) =>
+    status === "ACTIVE" ? "Active" : status === "REVOKED" ? "Revoked" : "Superseded";
+  // Panelists pick from a list of their panel projects instead of a hidden dropdown.
+  const showPanelistPicker = isPanelistPortal && !activeProjectId && projects.length > 0;
+  const showAdviserPicker = isAdviserPortal && !activeProjectId && projects.length > 0;
+
   return (
     <PageContainer
       maxWidth="full"
@@ -1189,12 +1289,75 @@ export default function DocumentWorkspacePage() {
           : "gap-2.5 py-4 sm:px-5 lg:px-6 lg:py-5"
       }
     >
-      {!researcherViewerOpen && (
+      {!researcherViewerOpen && isAdviserPortal && activeProject ? (
+        <section className="pd-hero" aria-labelledby="adviser-documents-title" data-guide={activeTab === "official" && projects.length <= 1 ? "adviser-official-project" : undefined}>
+          {adviserSeal && (
+            <span className="pd-hero-seal" aria-hidden="true">
+              <img src={adviserSeal} alt="" draggable={false} />
+            </span>
+          )}
+          <div className="pd-hero-top">
+            <div className="pd-hero-text" id="researcher-library-title" tabIndex={-1}>
+              <p className="pd-hero-eyebrow">{[activeProject.groupName, adviserTabLabel].filter(Boolean).join(" · ")}</p>
+              <h1 id="adviser-documents-title" className="pd-hero-title" title={activeProject.title || undefined}>
+                {activeProject.title || "Research title not registered"}
+              </h1>
+              <p className="pd-hero-summary">{adviserBannerSummary}</p>
+            </div>
+            {activeTab === "official" && officialPermissions?.canView && (
+              <dl className="pd-hero-counts" aria-label="Official copy summary">
+                <div data-waiting={readyToFinalize > 0 ? "true" : undefined}>
+                  <dt>Ready</dt>
+                  <dd>{readyToFinalize}</dd>
+                </div>
+                <div>
+                  <dt>Signed</dt>
+                  <dd>{signedCopies.length}</dd>
+                </div>
+                <div>
+                  <dt>On file</dt>
+                  <dd>{onFileCopies.length}</dd>
+                </div>
+              </dl>
+            )}
+          </div>
+          {(permissions?.canManageWorkingDocuments || projects.length > 1) && (
+            <div className="pd-hero-actions">
+              {permissions?.canManageWorkingDocuments && (
+                <DocumentAddMenu
+                  disabled={!activeProjectId || loadingDocuments}
+                  onCreate={openCreateDialog}
+                  onUpload={openUploadDialog}
+                  onLink={() => setIsLinkOpen(true)}
+                />
+              )}
+              {projects.length > 1 && (
+                <PanelistProjectMenu
+                  projects={projects}
+                  activeProjectId={activeProjectId}
+                  onSelect={openProject}
+                  heading="Your research groups"
+                  guide={activeTab === "official" ? "adviser-official-project" : undefined}
+                />
+              )}
+            </div>
+          )}
+        </section>
+      ) : !researcherViewerOpen && !showAdviserPicker && (
         <div className={useDocumentLibraryStyles ? `rd-library-hero${isAdviserPortal ? " college-hero-surface" : ""}` : "contents"}>
+          {librarySeal && useDocumentLibraryStyles && <span className="rd-library-seal-clip" aria-hidden="true"><img className="rd-library-seal" src={librarySeal} alt="" draggable={false} /></span>}
           <div
             id={useDocumentLibraryStyles ? "researcher-library-title" : undefined}
             tabIndex={useDocumentLibraryStyles ? -1 : undefined}
           >
+            {isPanelistPortal ? (
+              <PageBand
+                titleId="panel-documents-title"
+                eyebrow="Panelist · Panel documents"
+                title={activeTab === "official" ? "Official copies" : "Panel documents"}
+                meta="Signed, released records from the panels you’ve accepted."
+              />
+            ) : (
             <PageHeader
               data-guide={isResearcherPortal ? "document-page-heading" : pathname.startsWith("/admin/") ? "dean-official-copies" : undefined}
               variant="plain"
@@ -1203,7 +1366,9 @@ export default function DocumentWorkspacePage() {
               subtitle={
                 isPanelistPortal
                   ? "View official copies and records available through your accepted panel assignments."
-                  : "Prepare drafts, track feedback, and access finalized copies."
+                  : isResearcherPortal
+                    ? "Prepare drafts and track feedback here. Submit requirements through Tasks."
+                    : "Prepare drafts, track feedback, and access finalized copies."
               }
               actions={
                 permissions?.canManageWorkingDocuments ? (
@@ -1216,7 +1381,38 @@ export default function DocumentWorkspacePage() {
                 ) : undefined
               }
             />
+            )}
           </div>
+          {isPanelistPortal && activeProject ? (
+            <div className="pd-project">
+              <span className="pd-project-icon" aria-hidden="true">
+                <i className="ti ti-folder" />
+              </span>
+              <div className="pd-project-text">
+                <p className="pd-project-title" title={activeProject.title || undefined}>
+                  {activeProject.title || "Research title not registered"}
+                </p>
+                <p className="pd-project-meta">
+                  {[activeProject.groupName, activeProject.workflowInstance?.workflow?.name].filter(Boolean).join(" · ") || "Research project"}
+                </p>
+              </div>
+              <div className="pd-project-actions">
+                {projects.length > 1 && (
+                  <PanelistProjectMenu
+                    projects={projects}
+                    activeProjectId={activeProjectId}
+                    onSelect={openProject}
+                    guide={activeTab === "official" ? "panelist-official-projects" : undefined}
+                  />
+                )}
+                {projects.length > 1 && (
+                  <button type="button" className="pd-all" onClick={showAllProjects}>
+                    <i className="ti ti-layout-list" aria-hidden="true" /> All projects
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : !(isPanelistPortal && !activeProjectId) && (
           <div className="rd-library-project flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 border-l-[3px] border-[var(--color-primary)] pl-2.5">
             <span className="min-w-0 break-words text-base font-bold text-[var(--color-text-primary)]">
               {activeProject
@@ -1226,34 +1422,22 @@ export default function DocumentWorkspacePage() {
             <label htmlFor="research-project" className="sr-only">
               Research project
             </label>
-            <div className="relative rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--college-focus-ring)]">
-              <span aria-hidden="true" className="flex items-center gap-2">
-                Change project <span className="text-[10px]">⌄</span>
-              </span>
+            <div className={isResearcherPortal ? "rd-project-switch relative" : "relative rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--college-focus-ring)]"}>
+              {isResearcherPortal ? (
+                <span aria-hidden="true" className="flex items-center gap-1.5">
+                  <i className="ti ti-arrows-exchange text-[15px]" /> Switch project
+                </span>
+              ) : (
+                <span aria-hidden="true" className="flex items-center gap-2">
+                  Change project <span className="text-[10px]">⌄</span>
+                </span>
+              )}
               <select
                 id="research-project"
-                data-guide={isAdviserPortal && activeTab === "official" && projects.length ? "adviser-official-project" : undefined}
+                data-guide={activeTab === "official" && projects.length ? (isPanelistPortal ? "panelist-official-projects" : isAdviserPortal ? "adviser-official-project" : undefined) : undefined}
                 data-guide-transparent={isAdviserPortal && activeTab === "official" ? "true" : undefined}
                 value={activeProjectId}
-                onChange={(event) => {
-                  const projectId = event.target.value;
-                  if (!projectId) {
-                    selectProject(null);
-                    return;
-                  }
-                  const params = new URLSearchParams(location.search);
-                  for (const key of [
-                    "researchId",
-                    "documentId",
-                    "versionId",
-                    "taskId",
-                    "milestoneId",
-                  ])
-                    params.delete(key);
-                  params.set("projectId", projectId);
-                  setSelectedDocumentId("");
-                  navigate(`${pathname}?${params}`);
-                }}
+                onChange={(event) => openProject(event.target.value)}
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               >
                 <option value="">
@@ -1275,6 +1459,7 @@ export default function DocumentWorkspacePage() {
               </span>
             )}
           </div>
+          )}
         </div>
       )}
 
@@ -1297,9 +1482,63 @@ export default function DocumentWorkspacePage() {
       )}
 
       {useDocumentLibrary && !activeProjectId && <h2 className="sr-only">Research project</h2>}
-      {!activeProjectId ? (
+      {showAdviserPicker ? (
+        <AdviserProjectPicker
+          projects={projects}
+          onOpen={openProject}
+          isOfficial={activeTab === "official"}
+          tabLabel={activeTab === "official" ? "Official copies" : adviserTabLabel}
+          seal={adviserSeal}
+          unavailable={Boolean(invalidRequestedProjectId)}
+          guide={activeTab === "official" ? "adviser-official-project" : undefined}
+        />
+      ) : showPanelistPicker ? (
+        <SectionCard
+          title="Choose a project"
+          titleId="panel-documents-projects"
+          count={projects.length}
+          action={projects.length > 1 ? <span className="au-row-meta">You’re on more than one panel</span> : undefined}
+        >
+          {invalidRequestedProjectId && (
+            <p role="alert" className="au-card-body text-sm text-[var(--color-text-secondary)]">
+              The requested project is unavailable or outside your panel assignments. Choose one below.
+            </p>
+          )}
+          <ul className="au-list" data-guide={activeTab === "official" ? "panelist-official-projects" : undefined}>
+            {projects.map((project) => {
+              const title = project.title || "Research title not registered";
+              return (
+                <li key={project.id}>
+                  <ListRow
+                    leading={<RowIcon icon="ti-folder" />}
+                    title={title}
+                    titleHint={title}
+                    meta={[project.groupName, project.workflowInstance?.workflow?.name].filter(Boolean).join(" · ") || "Research project"}
+                    end={
+                      <Button size="sm" variant="secondary" onClick={() => openProject(project.id)} aria-label={`Open ${title}`}>
+                        Open
+                      </Button>
+                    }
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </SectionCard>
+      ) : isPanelistPortal && !activeProjectId ? (
+        <div className="au-card" data-guide={activeTab === "official" && !pageError ? "panelist-official-projects" : undefined}>
+          <EmptyNote
+            layout="page"
+            tone={invalidRequestedProjectId ? "problem" : undefined}
+            icon="ti-folder"
+            title={invalidRequestedProjectId ? "This project isn’t available" : "No panel projects yet"}
+            text={invalidRequestedProjectId ? "It may be outside your panel assignments." : "Projects appear here once you accept a panel assignment."}
+            action={<Button size="sm" icon={<i className="ti ti-calendar-event" aria-hidden="true" />} onClick={() => navigate("/panelist/dashboard?tab=schedule")}>View defense schedule</Button>}
+          />
+        </div>
+      ) : !activeProjectId ? (
         <EmptyState
-          data-guide={isAdviserPortal && activeTab === "official" && !projects.length && !pageError ? "adviser-official-no-projects" : undefined}
+          data-guide={activeTab === "official" && !projects.length && !pageError ? (isPanelistPortal ? "panelist-official-projects" : isAdviserPortal ? "adviser-official-no-projects" : undefined) : undefined}
           icon={FolderKanban}
           title={
             projects.length
@@ -1358,14 +1597,29 @@ export default function DocumentWorkspacePage() {
               hidden={researcherViewerOpen}
               className={useDocumentLibraryStyles ? "rd-categories" : undefined}
             >
-              <Tabs
-                tabs={tabs}
-                activeTab={activeTab}
-                onChange={setActiveTab}
-                className="gap-2 [&_[role=tab]]:px-3 [&_[role=tab]]:py-3"
-              />
+              <div className={isResearcherPortal ? "rd-tab-row" : "contents"}>
+                <Tabs
+                  tabs={visibleTabs}
+                  activeTab={activeTab}
+                  onChange={setActiveTab}
+                  className="gap-2 [&_[role=tab]]:px-3 [&_[role=tab]]:py-3"
+                />
+                {isResearcherPortal && (
+                  <nav className="rd-tab-links" aria-label="Other document areas">
+                    <Link data-guide="documents-submissions-tab" to={withProjectContext("/student/dashboard?tab=submissions", activeProjectId)}>
+                      <i className="ti ti-history" aria-hidden="true" />Submission history<i className="ti ti-arrow-up-right rd-tab-out" aria-hidden="true" />
+                    </Link>
+                    <Link data-guide="documents-files-tab" to={withProjectContext("/student/group-files", activeProjectId)}>
+                      <i className="ti ti-folder" aria-hidden="true" />Group files<i className="ti ti-arrow-up-right rd-tab-out" aria-hidden="true" />
+                    </Link>
+                    <Link className="rd-tab-tasks" to={taskHref}>
+                      <i className="ti ti-checklist" aria-hidden="true" />Open Tasks<i className="ti ti-arrow-right" aria-hidden="true" />
+                    </Link>
+                  </nav>
+                )}
+              </div>
 
-              {activeTab === "workspace" && (
+              {activeTab === "workspace" && !isResearcherPortal && (
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-1 py-3 text-sm text-[var(--color-text-secondary)]">
                   <span>
                     {isResearcherPortal
@@ -1717,188 +1971,152 @@ export default function DocumentWorkspacePage() {
                 )}
               </div>
             ) : (
-              <div className="space-y-5 p-5 sm:p-6"
-                data-guide={isAdviserPortal && officialPermissions?.canView ? "adviser-official-copies" : undefined}>
-                {officialPermissions?.canFinalize &&
-                  officialEligibleVersions.length > 0 && (
-                    <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-500/10">
-                      <div className="flex items-start gap-3">
-                        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" />
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-lg font-extrabold text-amber-950 dark:text-amber-100">
-                            Approved versions awaiting finalization
-                          </h3>
-                          <p className="mt-1 text-base leading-5 text-amber-800 dark:text-amber-200">
-                            Finalization archives the exact approved PDF without
-                            replacing its submitted version or changing defense
-                            history.
+              <div className="oc-page"
+                data-guide={officialPermissions?.canView ? (isPanelistPortal ? "panelist-official" : isAdviserPortal ? "adviser-official-copies" : undefined) : undefined}>
+                <div className="oc-grid" data-long={readyToFinalize > 2 || officialCopies.length > 3 ? "true" : undefined}>
+                <div className="oc-col">
+                {canFinalizeNow && (
+                  <section className="oc-panel" aria-labelledby="official-ready">
+                    <div className="oc-head">
+                      <h2 id="official-ready">Ready to finalize</h2>
+                      <span className="oc-pill" data-tone="waiting">{readyToFinalize}</span>
+                    </div>
+                    <p className="oc-sub">
+                      {readyToFinalize === 1 ? "This version is approved and locked." : "These versions are approved and locked."} Finalizing saves the exact PDF as the official record.
+                    </p>
+                    {officialEligibleVersions.map((version) => (
+                      <div key={version.id} className="oc-doc">
+                        <span className="oc-page-art" aria-hidden="true">
+                          <i />
+                          <i />
+                          <i />
+                          <em>PDF</em>
+                        </span>
+                        <div className="oc-doc-body">
+                          <h3>{version.document.title}</h3>
+                          <p className="oc-doc-meta">
+                            <span className="oc-doc-good"><i className="ti ti-circle-check" aria-hidden="true" />Approved</span>
+                            <span>Version {version.versionNumber}</span>
+                            <span><i className="ti ti-lock" aria-hidden="true" />Locked</span>
+                            {version.milestone?.name && version.milestone.name !== version.document.title && <span>{version.milestone.name}</span>}
                           </p>
-                          <div className="mt-3 space-y-2">
-                            {officialEligibleVersions.map((version) => (
-                              <div
-                                key={version.id}
-                                className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-white/80 p-3 dark:border-amber-500/20 dark:bg-slate-950/20 sm:flex-row sm:items-center sm:justify-between"
-                              >
-                                <div>
-                                  <p className="text-base font-bold text-[var(--color-text-primary)]">
-                                    {version.document.title}
-                                  </p>
-                                  <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-                                    Approved immutable version{" "}
-                                    {version.versionNumber}
-                                    {version.milestone?.name
-                                      ? ` · ${version.milestone.name}`
-                                      : ""}
-                                  </p>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  isLoading={finalizingVersionId === version.id}
-                                  disabled={Boolean(finalizingVersionId)}
-                                  icon={<Archive className="h-4 w-4" />}
-                                  onClick={() =>
-                                    void finalizeOfficialCopy(version)
-                                  }
-                                >
-                                  Finalize & archive
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
                         </div>
-                      </div>
-                    </section>
-                  )}
-                {officialCopies.length ? (
-                  <div className="space-y-3">
-                    {officialCopies.map((copy) => {
-                      const latestSignature = copy.signatures.find(
-                        (signature) => signature.status === "ACTIVE",
-                      );
-                      const document = { title: copy.title };
-                      const version: DocumentVersion = {
-                        id: copy.id,
-                        versionNumber: copy.sourceVersion.versionNumber,
-                        fileName: copy.fileName,
-                        mimeType: "application/pdf",
-                        webViewLink: copy.fileUrl || undefined,
-                        uploadedAt: copy.finalizedAt,
-                        reviews: [],
-                        signedSignature: latestSignature
-                          ? {
-                              signedAt: latestSignature.signedAt,
-                              sourceVersionId: copy.sourceVersionId,
-                              verificationCode:
-                                latestSignature.verificationCode,
-                              revokedAt: latestSignature.revokedAt,
-                              signedBy: latestSignature.signedBy,
-                            }
-                          : null,
-                      };
-                      return (
-                        <div
-                          key={version.id}
-                          className="flex flex-col gap-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between"
+                        <Button
+                          isLoading={finalizingVersionId === version.id}
+                          disabled={Boolean(finalizingVersionId)}
+                          icon={<Archive className="h-4 w-4" />}
+                          onClick={() => void finalizeOfficialCopy(version)}
                         >
-                          <div className="flex items-start gap-3">
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                              <FileCheck2 className="h-5 w-5" />
-                            </span>
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-base font-extrabold text-[var(--color-text-primary)]">
-                                  {document.title}
+                          Finalize & archive
+                        </Button>
+                      </div>
+                    ))}
+                  </section>
+                )}
+
+                <section className="oc-panel oc-panel--grow" aria-labelledby="official-list">
+                  <div className="oc-head">
+                    <h2 id="official-list">Official copies</h2>
+                    <span className="oc-pill">{officialCopies.length}</span>
+                  </div>
+                  {officialCopies.length ? (
+                    <div className="oc-list">
+                      {officialCopies.map((copy) => {
+                        const latestSignature = copy.signatures.find((signature) => signature.status === "ACTIVE");
+                        const version: DocumentVersion = {
+                          id: copy.id,
+                          versionNumber: copy.sourceVersion.versionNumber,
+                          fileName: copy.fileName,
+                          mimeType: "application/pdf",
+                          webViewLink: copy.fileUrl || undefined,
+                          uploadedAt: copy.finalizedAt,
+                          reviews: [],
+                          signedSignature: latestSignature
+                            ? {
+                                signedAt: latestSignature.signedAt,
+                                sourceVersionId: copy.sourceVersionId,
+                                verificationCode: latestSignature.verificationCode,
+                                revokedAt: latestSignature.revokedAt,
+                                signedBy: latestSignature.signedBy,
+                              }
+                            : null,
+                        };
+                        return (
+                          <article key={version.id} className="oc-copy">
+                            <div className="oc-copy-row">
+                              <span className="oc-copy-icon" data-status={copy.status} aria-hidden="true">
+                                <i className={`ti ${copy.status === "ACTIVE" ? "ti-file-check" : "ti-file-off"}`} />
+                              </span>
+                              <div className="oc-copy-text">
+                                <p className="oc-copy-title">{copy.title}</p>
+                                <p className="oc-copy-meta">
+                                  Finalized by {copy.finalizedBy.firstName} {copy.finalizedBy.lastName} · {formatDate(copy.finalizedAt)} · version {copy.sourceVersion.versionNumber}
+                                  {latestSignature ? " · signed" : ""}
                                 </p>
-                                <Tag
-                                  size="xs"
-                                  variant={
-                                    copy.status === "ACTIVE"
-                                      ? "success"
-                                      : copy.status === "REVOKED"
-                                        ? "warning"
-                                        : "neutral"
-                                  }
-                                >
-                                  {copy.status}
-                                </Tag>
                               </div>
-                              <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-                                Finalized by {copy.finalizedBy.firstName}{" "}
-                                {copy.finalizedBy.lastName} ·{" "}
-                                {formatDate(copy.finalizedAt)} · Source version{" "}
-                                {copy.sourceVersion.versionNumber}
-                              </p>
-                              <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-                                Verification code: {copy.verificationCode}
-                              </p>
-                              <p className="mt-1 break-all font-mono text-sm text-[var(--color-text-secondary)]">
-                                SHA-256 {copy.checksum}
-                              </p>
-                              {latestSignature && (
-                                <p className="mt-2 text-base text-[var(--color-text-secondary)]">
-                                  Visually signed by{" "}
-                                  {latestSignature.signedBy.firstName}{" "}
-                                  {latestSignature.signedBy.lastName} ·{" "}
-                                  {formatDate(latestSignature.signedAt)} ·{" "}
-                                  {latestSignature.verificationCode}
-                                </p>
-                              )}
-                              {copy.revocationReason && (
-                                <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-base text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
-                                  Revoked: {copy.revocationReason}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              icon={<ExternalLink className="h-4 w-4" />}
-                              onClick={() => openStoredFile(version)}
-                            >
-                              Open
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              icon={<Download className="h-4 w-4" />}
-                              onClick={() => openStoredFile(version, true)}
-                            >
-                              Download
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              isLoading={verifyingArtifactId === copy.id}
-                              icon={<ShieldCheck className="h-4 w-4" />}
-                              onClick={() => void verifyOfficialArtifact(copy)}
-                            >
-                              Verify integrity
-                            </Button>
-                            {copy.canSign && (
-                              <Button
-                                size="sm"
-                                onClick={() => setSigningOfficialCopy(copy)}
-                              >
-                                Add signature
-                              </Button>
-                            )}
-                            {officialPermissions?.canRevoke &&
-                              copy.status === "ACTIVE" && (
-                                <Button
-                                  size="sm"
-                                  variant="danger"
-                                  onClick={() => {
-                                    setRevocationTarget(copy);
-                                    setRevocationReason("");
-                                  }}
-                                >
-                                  Revoke
+                              <div className="oc-copy-actions">
+                                <StatusDot tone={officialStatusTone(copy.status)}>{officialStatusLabel(copy.status)}</StatusDot>
+                                {copy.canSign && (
+                                  <Button size="sm" onClick={() => setSigningOfficialCopy(copy)}>
+                                    Add signature
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="secondary" icon={<ExternalLink className="h-4 w-4" />} onClick={() => openStoredFile(version)}>
+                                  Open
                                 </Button>
-                              )}
-                          </div>
-                          <div className="grid basis-full gap-4 border-t border-[var(--color-border)] pt-4 lg:grid-cols-2">
+                                <Button size="sm" variant="secondary" icon={<Download className="h-4 w-4" />} onClick={() => openStoredFile(version, true)}>
+                                  Download
+                                </Button>
+                              </div>
+                            </div>
+                            {copy.revocationReason && <p className="oc-revoked">Revoked: {copy.revocationReason}</p>}
+                            <details className="oc-details">
+                              <summary>
+                                Details <i className="ti ti-chevron-down" aria-hidden="true" />
+                              </summary>
+                              <div className="oc-details-body">
+                                <dl className="oc-facts">
+                                  <div>
+                                    <dt>Verification code</dt>
+                                    <dd>{copy.verificationCode}</dd>
+                                  </div>
+                                  <div>
+                                    <dt>SHA-256</dt>
+                                    <dd className="oc-hash">{copy.checksum}</dd>
+                                  </div>
+                                  {latestSignature && (
+                                    <div>
+                                      <dt>Visual signature</dt>
+                                      <dd>
+                                        {latestSignature.signedBy.firstName} {latestSignature.signedBy.lastName} · {formatDate(latestSignature.signedAt)} · {latestSignature.verificationCode}
+                                      </dd>
+                                    </div>
+                                  )}
+                                </dl>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    isLoading={verifyingArtifactId === copy.id}
+                                    icon={<ShieldCheck className="h-4 w-4" />}
+                                    onClick={() => void verifyOfficialArtifact(copy)}
+                                  >
+                                    Verify integrity
+                                  </Button>
+                                  {officialPermissions?.canRevoke && copy.status === "ACTIVE" && (
+                                    <Button
+                                      size="sm"
+                                      variant="danger"
+                                      onClick={() => {
+                                        setRevocationTarget(copy);
+                                        setRevocationReason("");
+                                      }}
+                                    >
+                                      Revoke
+                                    </Button>
+                                  )}
+                                </div>
+                                <div className="oc-history">
                             <section>
                               <h4 className="text-lg font-extrabold uppercase tracking-wide text-[var(--color-text-secondary)]">
                                 Academic approval history
@@ -2000,17 +2218,71 @@ export default function DocumentWorkspacePage() {
                               )}
                             </section>
                           </div>
+                              </div>
+                            </details>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : isPanelistPortal ? (
+                    <EmptyNote
+                      layout="page"
+                      icon="ti-certificate"
+                      title="No official copies for this project yet"
+                      text="The professor finalizes the approved manuscript after the defense. It'll appear here, signed and locked."
+                      action={
+                        <div className="flex flex-wrap justify-center gap-2">
+                          <Button size="sm" icon={<i className="ti ti-file-text" aria-hidden="true" />} onClick={() => navigate("/panelist/reviews")}>
+                            Review defense documents
+                          </Button>
+                          {projects.length > 1 && (
+                            <Button size="sm" variant="secondary" onClick={showAllProjects}>
+                              Choose another project
+                            </Button>
+                          )}
                         </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <EmptyState
-                    icon={Archive}
-                    title="No official copies yet"
-                    description="Approved documents appear here after an authorized person finalizes them. Your working files and submissions remain available in their tabs."
-                  />
-                )}
+                      }
+                    />
+                  ) : (
+                    <div className="oc-void">
+                      <span className="oc-stack" aria-hidden="true">
+                        <b />
+                        <b />
+                        <b><i className="ti ti-certificate" /></b>
+                      </span>
+                      <h3>{canFinalizeNow ? "Your first official copy will appear here" : "No official copies yet"}</h3>
+                      <p>
+                        {canFinalizeNow
+                          ? `Finalize the ${readyToFinalize === 1 ? "version" : "versions"} above and ${readyToFinalize === 1 ? "it’s" : "they’re"} saved here, ready to sign, verify, and download.`
+                          : "Approved documents appear here after an authorized person finalizes them."}
+                      </p>
+                    </div>
+                  )}
+                </section>
+                </div>
+
+                <aside className="oc-panel oc-rail" aria-labelledby="official-path">
+                  <h2 id="official-path">Path to official record</h2>
+                  <ol className="oc-steps">
+                    {officialSteps.map((step) => (
+                      <li key={step.label} data-state={step.state} aria-current={step.state === "focus" ? "step" : undefined}>
+                        <span className="oc-dot" aria-hidden="true">
+                          <i className={`ti ${step.state === "done" ? "ti-check" : step.icon}`} />
+                        </span>
+                        <div>
+                          <strong>{step.label}</strong>
+                          <small>{step.detail}</small>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                  <ul className="oc-facts-list">
+                    <li><i className="ti ti-check" aria-hidden="true" />Keeps this exact PDF as the record</li>
+                    <li><i className="ti ti-check" aria-hidden="true" />Adds a verification code</li>
+                    <li><i className="ti ti-check" aria-hidden="true" />Leaves defense history unchanged</li>
+                  </ul>
+                </aside>
+                </div>
               </div>
             )}
             </div>

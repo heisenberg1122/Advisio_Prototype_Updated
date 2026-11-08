@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { AppSidebar, NavSection } from "@/components/layout/AppSidebar";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
-import {
+import { Bell,
   LayoutDashboard,
   Users,
   FileSearch,
@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Mail,
   Archive,
+  LineChart,
 } from "lucide-react";
 
 export const ADVISER_NAV_SECTIONS: NavSection[] = [
@@ -25,6 +26,7 @@ export const ADVISER_NAV_SECTIONS: NavSection[] = [
     title: "ADVISEE MANAGEMENT",
     items: [
       { label: "My Advisees", href: "/adviser/dashboard?tab=advisees", tabName: "advisees", icon: Users },
+      { label: "Group Progress", href: "/adviser/dashboard?tab=progress", tabName: "progress", icon: LineChart },
       { label: "Reviews", href: "/adviser/reviews", icon: FileSearch },
       { label: "Official Copies", href: "/adviser/documents?tab=official", icon: Archive },
     ],
@@ -41,6 +43,7 @@ export const ADVISER_NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Messages", href: "/adviser/dashboard?tab=group-chats", tabName: "group-chats", icon: MessageSquare },
       { label: "Inbox", href: "/adviser/inbox", icon: Mail },
+      { label: "Notifications", href: "/adviser/notifications", icon: Bell },
     ],
   },
 ];
@@ -68,7 +71,6 @@ export function AdviserSidebar() {
       collapsed={collapsed}
       onToggleCollapse={toggle}
       settingsHref="/adviser/settings"
-      profileHref="/adviser/profile"
       variant="workspace"
     />
   );

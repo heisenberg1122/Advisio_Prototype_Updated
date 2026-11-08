@@ -4,28 +4,13 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  CalendarClock,
-  CheckCircle2,
-  ClipboardCheck,
-  ExternalLink,
-  FileCheck2,
-  FileText,
-  LockKeyhole,
-  MapPin,
-  MonitorUp,
-  ShieldCheck,
-  UsersRound,
-} from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/providers/auth-provider";
 import { deanDefenseReturn } from "@/lib/dean-defense-navigation";
 import { Button } from "@/components/ui/Button";
-import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
-import { Tag, type ExtendedTagVariant } from "@/components/ui/Tag";
+import { EmptyNote, ListRow, PageBand, RowIcon, SectionCard, StatusDot, type StatusTone } from "@/components/ui/advisio";
+import "./defense-workspace.css";
 
 const TZ = "Asia/Manila";
 const dateTime = (value?: string | null) =>
@@ -36,6 +21,16 @@ const dateTime = (value?: string | null) =>
         timeZone: TZ,
       }).format(new Date(value))
     : "Not scheduled";
+const shortDateTime = (value?: string | null) =>
+  value
+    ? new Intl.DateTimeFormat("en-PH", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZone: TZ,
+      }).format(new Date(value))
+    : "";
 const readable = (value?: string | null, fallback = "Not recorded") =>
   value
     ? value
@@ -46,35 +41,24 @@ const readable = (value?: string | null, fallback = "Not recorded") =>
 const fullName = (user?: { firstName?: string; lastName?: string } | null) =>
   [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
   "Research member";
-const statusVariant = (status?: string | null): ExtendedTagVariant => {
-  if (
-    [
-      "ACCEPTED",
-      "SCHEDULED",
-      "LIVE",
-      "LOCKED",
-      "PUBLISHED",
-      "COMPLETED",
-    ].includes(status || "")
-  )
-    return "success";
-  if (
-    ["DECLINED", "CANCELLED", "NEEDS_RESCHEDULING", "REJECTED"].includes(
-      status || "",
-    )
-  )
-    return "danger";
-  if (
-    [
-      "PENDING",
-      "PENDING_ACKNOWLEDGEMENT",
-      "RECONFIRMATION_REQUIRED",
-      "DRAFT",
-    ].includes(status || "")
-  )
-    return "warning";
-  return "info";
-};
+const initials = (user?: { firstName?: string; lastName?: string } | null) =>
+  [user?.firstName, user?.lastName]
+    .filter(Boolean)
+    .map((part) => String(part)[0])
+    .join("")
+    .toUpperCase() || "?";
+
+function sessionStatus(status?: string | null): { tone: StatusTone; label: string } {
+  switch (status) {
+    case "LIVE": return { tone: "live", label: "Live" };
+    case "SCHEDULED": return { tone: "done", label: "Confirmed" };
+    case "PENDING_ACKNOWLEDGEMENT": return { tone: "waiting", label: "Tentative" };
+    case "NEEDS_RESCHEDULING": return { tone: "attention", label: "Rescheduling" };
+    case "COMPLETED": return { tone: "neutral", label: "Completed" };
+    case "CANCELLED": return { tone: "attention", label: "Cancelled" };
+    default: return { tone: "brand", label: readable(status, "Scheduled") };
+  }
+}
 
 function attendanceMode(session: any) {
   if (session.deliveryMode === "HYBRID") return "Hybrid";
@@ -88,35 +72,37 @@ function attendanceMode(session: any) {
   return "To be announced";
 }
 
-function ReadinessItem({
-  done,
-  label,
-  detail,
-}: {
-  done: boolean;
-  label: string;
-  detail: string;
-}) {
+type StepState = "done" | "focus" | "todo" | "current" | "pending";
+
+function durationSince(value: string) {
+  const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000));
+  if (minutes < 1) return "under a minute";
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
+function ProgressStrip({ steps }: { steps: Array<{ label: string; detail: string; state: StepState }> }) {
+  const icons: Record<StepState, string> = {
+    done: "ti-check",
+    focus: "ti-point-filled",
+    todo: "ti-circle-dashed",
+    current: "ti-circle-dashed",
+    pending: "ti-circle",
+  };
   return (
-    <div className="flex gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-3.5">
-      <span
-        className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${done ? "bg-emerald-500/10 text-emerald-600" : "bg-amber-500/10 text-amber-700"}`}
-      >
-        {done ? (
-          <CheckCircle2 className="h-4 w-4" />
-        ) : (
-          <CalendarClock className="h-4 w-4" />
-        )}
-      </span>
-      <span className="min-w-0">
-        <strong className="block text-sm text-[var(--color-text-primary)]">
-          {label}
-        </strong>
-        <span className="mt-0.5 block text-xs leading-5 text-[var(--color-text-secondary)]">
-          {detail}
-        </span>
-      </span>
-    </div>
+    <ol className="au-card pw-steps" aria-label="Defense progress">
+      {steps.map((step) => (
+        <li key={step.label} className="pw-step" data-state={step.state} aria-current={step.state === "focus" ? "step" : undefined}>
+          <span className="pw-chip">
+            <i className={`ti ${icons[step.state]} pw-step-icon`} aria-hidden="true" />
+            <span className="min-w-0">
+              <strong>{step.label}</strong>
+              <span>{step.detail}</span>
+            </span>
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -231,142 +217,118 @@ export default function PanelistDefenseWorkspacePage() {
   if (isLoading) return <DashboardSkeleton />;
   if (error || !session)
     return (
-      <EmptyState
-        icon={ShieldCheck}
-        title="Defense workspace unavailable"
-        description={
-          (error as any)?.message ||
-          "This session was not found or is outside your assigned panel scope."
-        }
-        action={
-          <Button
-            variant="outline"
-            onClick={() => router.push(backHref)}
-          >
-            {deanReturn ? "Back to Dean Defenses" : "Back to schedule"}
-          </Button>
-        }
-      />
+      <div className="au-card">
+        <EmptyNote
+          layout="page"
+          tone="problem"
+          icon="ti-shield-x"
+          title="Defense workspace unavailable"
+          text={(error as any)?.message || "This session was not found or is outside your assigned panel scope."}
+          action={
+            <Button size="sm" variant="secondary" onClick={() => router.push(backHref)}>
+              {deanReturn ? "Back to Dean Defenses" : "Back to schedule"}
+            </Button>
+          }
+        />
+      </div>
     );
 
   const packetReady = packet?.status === "PUBLISHED";
   const invitationAccepted = invitation?.status === "ACCEPTED";
   const reviewComplete = Boolean(review?.reviewedAt);
   const evaluationLocked = evaluation?.status === "LOCKED";
+  const status = sessionStatus(session.status);
+  const role = readable(invitation?.role, "Panelist");
+  const members = (session.research.members || []).filter((member: any) =>
+    ["LEADER", "MEMBER"].includes(member.projectRole),
+  );
+  const typeName = session.research.researchType?.name || session.defenseEvent?.defenseType;
+  const eyebrow = [
+    session.research.groupName || "Research group",
+    typeName ? readable(typeName) : "Research defense",
+    session.research.program?.code,
+    session.defenseEvent?.code,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const openEvaluation = () => router.push(`/panelist/dashboard?tab=evaluation&sessionId=${session.id}`);
+  const openDocuments = () => router.push(`/panelist/dashboard?tab=documents&sessionId=${session.id}`);
+  const evaluationStatus: { tone: StatusTone; label: string } = evaluationLocked
+    ? { tone: "done", label: "Locked" }
+    : evaluation
+      ? { tone: "waiting", label: readable(evaluation.status) }
+      : isLive
+        ? { tone: "live", label: "Ready" }
+        : { tone: "neutral", label: "Not started" };
+  const canOpenEvaluation = invitationAccepted && (isLive || Boolean(evaluation) || session.packet?.evaluationMode === "PDF");
+  // The one thing to do now, in order: answer the invitation, score a live defense, then finish the manuscript review.
+  const needsResponse = Boolean(invitation && ["PENDING", "RECONFIRMATION_REQUIRED"].includes(invitation.status));
+  const reviewOpen = packetReady && invitationAccepted && !reviewComplete;
+  const focus: "respond" | "evaluate" | "review" | null = needsResponse
+    ? "respond"
+    : isLive && invitationAccepted && !evaluationLocked
+      ? "evaluate"
+      : reviewOpen
+        ? "review"
+        : null;
+  const liveFor = isLive && session.startedAt ? durationSince(session.startedAt) : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1540px] flex-col gap-5 p-1 sm:p-2 lg:p-3">
+    <div className="pw mx-auto w-full max-w-[1540px] p-1 sm:p-2 lg:p-3">
+      <div className="pw-head">
       <Link
         href={backHref}
-        className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-[var(--color-text-secondary)] hover:text-[var(--color-primary)]"
+        className="pw-back"
+        aria-label={deanReturn ? "Back to Dean defenses" : "Back to defense schedule"}
+        title={deanReturn ? "Back to Dean defenses" : "Back to defense schedule"}
       >
-        <ArrowLeft className="h-4 w-4" />
-        {deanReturn ? "Back to Dean Defenses" : "Back to defense schedule"}
+        <i className="ti ti-arrow-left" aria-hidden="true" />
       </Link>
-
-      <section className="college-hero-surface overflow-hidden rounded-2xl border border-[var(--color-border)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <Tag variant={statusVariant(session.status)} dot>
-                {readable(session.status)}
-              </Tag>
-              <Tag variant="outline">{attendanceMode(session)}</Tag>
-              <Tag variant={statusVariant(invitation?.status)}>
-                {readable(invitation?.status, "Invitation unavailable")}
-              </Tag>
-            </div>
-            <p className="mt-4 text-sm font-bold uppercase tracking-[.16em] text-[var(--color-primary)]">
-              {session.research.groupName || "Research group"}
-            </p>
-            <h1 className="mt-1 max-w-4xl text-2xl font-bold leading-tight text-[var(--color-text-primary)] sm:text-3xl">
-              {session.research.title}
-            </h1>
-            <p className="mt-2 text-base text-[var(--color-text-secondary)]">
-              {session.research.researchType?.name ||
-              session.defenseEvent?.defenseType
-                ? readable(
-                    session.research.researchType?.name ||
-                      session.defenseEvent?.defenseType,
-                  )
-                : "Research defense"}{" "}
-              · {session.research.program?.code || "Program not recorded"}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
+      <PageBand
+        titleId="pw-title"
+        guide="panelist-session"
+        eyebrow={eyebrow}
+        title={session.research.title}
+        meta={
+          <>
+            <StatusDot tone={status.tone}>{status.label}</StatusDot>
+            {" · "}
+            {dateTime(session.scheduledStart)} · {attendanceMode(session)}
+            {venue ? `, ${venue}` : meetingUrl ? ", online" : ""} · You’re {role.toLowerCase()}
+          </>
+        }
+        actions={
+          <>
             {meetingUrl && (
-              <a
-                href={meetingUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--color-primary)]/30 bg-[var(--color-surface)] px-4 text-sm font-semibold text-[var(--color-primary)] hover:bg-[var(--color-primary-light)]"
-              >
-                <MonitorUp className="h-4 w-4" />
+              <a href={meetingUrl} target="_blank" rel="noreferrer" className="pw-link-btn">
+                <i className="ti ti-video" aria-hidden="true" />
                 Join meeting
               </a>
             )}
             {packetReady && invitationAccepted && (
-              <Button
-                variant="secondary"
-                icon={<FileText className="h-4 w-4" />}
-                onClick={() =>
-                  router.push(
-                    `/panelist/dashboard?tab=documents&sessionId=${session.id}`,
-                  )
-                }
-              >
-                Open defense documents
+              <Button variant="secondary" size="sm" data-guide="panelist-open-packet" icon={<i className="ti ti-file-text" aria-hidden="true" />} onClick={openDocuments}>
+                Documents
               </Button>
             )}
-            {isLive && invitationAccepted && !evaluationLocked && (
-              <Button
-                icon={<ClipboardCheck className="h-4 w-4" />}
-                onClick={() =>
-                  router.push(
-                    `/panelist/dashboard?tab=evaluation&sessionId=${session.id}`,
-                  )
-                }
-              >
+            {isLive && invitationAccepted && !evaluationLocked && focus !== "evaluate" && (
+              <Button size="sm" data-guide="panelist-open-evaluation" icon={<i className="ti ti-clipboard-check" aria-hidden="true" />} onClick={openEvaluation}>
                 Open live evaluation
               </Button>
             )}
-          </div>
-        </div>
-        <div className="mt-5 grid gap-3 border-t border-[var(--color-border)] pt-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-              Schedule
-            </span>
-            <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
-              {dateTime(session.scheduledStart)}
+          </>
+        }
+        footer={
+          session.notes ? (
+            <p className="pw-note">
+              <i className="ti ti-note" aria-hidden="true" />
+              <span>
+                <strong>Facilitator note:</strong> {session.notes}
+              </span>
             </p>
-          </div>
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-              Venue
-            </span>
-            <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
-              {venue || (meetingUrl ? "Online defense" : "Not assigned")}
-            </p>
-          </div>
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-              Your role
-            </span>
-            <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
-              {readable(invitation?.role)}
-            </p>
-          </div>
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-              Academic year
-            </span>
-            <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
-              {session.research.academicYear?.name || "Not recorded"}
-            </p>
-          </div>
-        </div>
-      </section>
+          ) : undefined
+        }
+      />
+      </div>
 
       {notice && (
         <div
@@ -378,414 +340,263 @@ export default function PanelistDefenseWorkspacePage() {
       )}
       {invitation &&
         ["PENDING", "RECONFIRMATION_REQUIRED"].includes(invitation.status) && (
-          <Card className="border-amber-300 bg-amber-50/60 p-4 dark:bg-amber-500/10">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="font-semibold text-[var(--color-text-primary)]">
-                  Your response is required
-                </h2>
-                <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-                  Accept the proposed schedule or privately tell the professor
-                  why you are unavailable.
+          <SectionCard title={<span className="pw-kicker">Do this now · your response is required</span>} titleId="pw-response" className="pw-focus">
+            <div className="au-card-body">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  Accept the proposed schedule or privately tell the professor why you are unavailable.
                 </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  disabled={responding}
-                  onClick={() => setDeclineOpen((open) => !open)}
-                >
-                  Decline
-                </Button>
-                <Button
-                  disabled={responding}
-                  onClick={() => respond("ACCEPTED")}
-                >
-                  Accept invitation
-                </Button>
-              </div>
-            </div>
-            {declineOpen && (
-              <div className="mt-4 border-t border-amber-200 pt-4">
-                <label
-                  htmlFor="decline-reason"
-                  className="text-sm font-semibold text-[var(--color-text-primary)]"
-                >
-                  Private reason for the professor
-                </label>
-                <textarea
-                  id="decline-reason"
-                  value={declineReason}
-                  onChange={(event) => setDeclineReason(event.target.value)}
-                  rows={3}
-                  className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base text-[var(--color-text-primary)]"
-                  placeholder="Explain why you are unavailable"
-                />
-                <div className="mt-3 flex justify-end gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setDeclineOpen(false);
-                      setDeclineReason("");
-                    }}
-                  >
-                    Cancel
+                <div className="flex gap-2">
+                  <Button variant="secondary" size="sm" disabled={responding} onClick={() => setDeclineOpen((open) => !open)}>
+                    Decline
                   </Button>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    disabled={responding || !declineReason.trim()}
-                    onClick={() => respond("DECLINED")}
-                  >
-                    Decline and notify professor
+                  <Button size="sm" disabled={responding} onClick={() => respond("ACCEPTED")}>
+                    Accept invitation
                   </Button>
                 </div>
               </div>
-            )}
-          </Card>
+              {declineOpen && (
+                <div className="mt-4 border-t border-[var(--color-border)] pt-4">
+                  <label htmlFor="decline-reason" className="text-sm font-semibold text-[var(--color-text-primary)]">
+                    Private reason for the professor
+                  </label>
+                  <textarea
+                    id="decline-reason"
+                    value={declineReason}
+                    onChange={(event) => setDeclineReason(event.target.value)}
+                    rows={3}
+                    className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-base text-[var(--color-text-primary)]"
+                    placeholder="Explain why you are unavailable"
+                  />
+                  <div className="mt-3 flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setDeclineOpen(false);
+                        setDeclineReason("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button variant="danger" size="sm" disabled={responding || !declineReason.trim()} onClick={() => respond("DECLINED")}>
+                      Decline and notify professor
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </SectionCard>
         )}
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <ReadinessItem
-          done={invitationAccepted}
-          label="Invitation"
-          detail={
-            invitationAccepted
-              ? "Accepted panel assignment"
-              : readable(invitation?.status)
-          }
-        />
-        <ReadinessItem
-          done={packetReady}
-          label="Defense documents"
-          detail={
-            packetReady
-              ? `Published ${dateTime(packet.publishedAt)}`
-              : "Not yet published by the professor"
-          }
-        />
-        <ReadinessItem
-          done={reviewComplete}
-          label="Manuscript review"
-          detail={
-            reviewComplete
-              ? `Completed ${dateTime(review.reviewedAt)}`
-              : packetReady
-                ? "Available for your review"
-                : "Waiting for the defense documents"
-          }
-        />
-        <ReadinessItem
-          done={evaluationLocked}
-          label="Evaluation"
-          detail={
-            evaluationLocked
-              ? `Final and locked ${dateTime(evaluation.lockedAt)}`
-              : evaluation
-                ? `${readable(evaluation.status)} evaluation`
-                : isLive
-                  ? "Ready during this live session"
-                  : "Unlocks when the defense starts"
-          }
-        />
-      </section>
+      <ProgressStrip
+        steps={[
+          {
+            label: "Invitation",
+            detail: invitationAccepted ? "Accepted" : needsResponse ? "Respond now" : readable(invitation?.status, "Not sent"),
+            state: invitationAccepted ? "done" : needsResponse ? "focus" : "current",
+          },
+          {
+            label: "Documents",
+            detail: packetReady ? `Published ${shortDateTime(packet.publishedAt)}` : "Not shared yet",
+            state: packetReady ? "done" : "pending",
+          },
+          {
+            label: "Manuscript review",
+            detail: reviewComplete ? `Completed ${shortDateTime(review.reviewedAt)}` : focus === "review" ? "Do this next" : reviewOpen ? "Not finished" : "Waiting for documents",
+            state: reviewComplete ? "done" : focus === "review" ? "focus" : reviewOpen ? "todo" : "pending",
+          },
+          {
+            label: "Evaluation",
+            detail: evaluationLocked ? `Locked ${shortDateTime(evaluation.lockedAt)}` : focus === "evaluate" ? "Do this now" : evaluation ? readable(evaluation.status) : "Unlocks when the defense starts",
+            state: evaluationLocked ? "done" : focus === "evaluate" ? "focus" : evaluation ? "current" : "pending",
+          },
+        ]}
+      />
 
-      <section className="grid gap-5 xl:grid-cols-[1.15fr_.85fr]">
-        <Card className="p-5 sm:p-6">
-          <CardHeader>
-            <div>
-              <CardTitle icon={FileCheck2}>Defense documents and review</CardTitle>
-              <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-                The immutable manuscript and your project-specific panel review.
-              </p>
-            </div>
-            {packet && (
-              <Tag variant={statusVariant(packet.status)}>
-                {readable(packet.status)}
-              </Tag>
-            )}
-          </CardHeader>
-          {packetReady && invitationAccepted ? (
-            <div className="space-y-3">
-              <div className="rounded-xl bg-[var(--color-surface-subtle)] p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <strong className="text-sm text-[var(--color-text-primary)]">
-                    {packet.manuscriptVersion?.document?.title ||
-                      "Published manuscript"}
-                  </strong>
-                  <span className="text-xs font-semibold text-[var(--color-primary)]">
-                    Version {packet.manuscriptVersion?.versionNumber}
-                  </span>
-                </div>
-                <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-                  {packet.manuscriptVersion?.fileName ||
-                    "File name unavailable"}
-                  {packet.manuscriptVersion?.milestone?.name
-                    ? ` · ${packet.manuscriptVersion.milestone.name}`
-                    : ""}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Tag
-                    variant={
-                      packet.manuscriptVersion?.isImmutable
-                        ? "success"
-                        : "warning"
-                    }
-                    icon={<LockKeyhole className="h-3 w-3" />}
-                  >
-                    {packet.manuscriptVersion?.isImmutable
-                      ? "Immutable defense version"
-                      : "Immutability not verified"}
-                  </Tag>
-                  {review && (
-                    <Tag variant={reviewComplete ? "success" : "warning"}>
-                      {reviewComplete
-                        ? "Review complete"
-                        : "Review in progress"}
-                    </Tag>
-                  )}
-                  {recommendation && (
-                    <Tag variant={statusVariant(recommendation.status)}>
-                      Recommendation {readable(recommendation.status)}
-                    </Tag>
-                  )}
-                </div>
-              </div>
-              <Button
-                onClick={() =>
-                  router.push(
-                    `/panelist/dashboard?tab=documents&sessionId=${session.id}`,
-                  )
-                }
-                icon={<ExternalLink className="h-4 w-4" />}
-              >
-
-                Open defense documents
-              </Button>
-            </div>
-          ) : (
-            <EmptyState
-              size="sm"
-              icon={FileText}
-              title={
-                packetReady
-                  ? "Accept to open the defense documents"
-                  : "Defense documents not shared yet"
-              }
-              description={
-                packetReady
-                  ? "The documents are ready. Accept your panel invitation to view them."
-                  : "The professor must publish an approved immutable manuscript before panel review becomes available."
-              }
-            />
-          )}
-        </Card>
-
-        <Card className="p-5 sm:p-6">
-          <CardHeader>
-            <CardTitle icon={UsersRound}>Research group</CardTitle>
-            <Tag variant="neutral">
-              {session.research.members?.filter((member: any) =>
-                ["LEADER", "MEMBER"].includes(member.projectRole),
-              ).length || 0}{" "}
-              researchers
-            </Tag>
-          </CardHeader>
-          <div className="space-y-2">
-            {session.research.members
-              ?.filter((member: any) =>
-                ["LEADER", "MEMBER"].includes(member.projectRole),
-              )
-              .map((member: any) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between gap-3 rounded-xl bg-[var(--color-surface-subtle)] px-3.5 py-3"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]">
-                      {fullName(member.user)}
-                    </p>
-                    <p className="truncate text-sm text-[var(--color-text-muted)]">
-                      {member.user.email}
-                    </p>
-                  </div>
-                  <Tag
-                    size="xs"
-                    variant={
-                      member.projectRole === "LEADER" ? "primary" : "neutral"
-                    }
-                  >
-                    {readable(member.projectRole)}
-                  </Tag>
-                </div>
-              ))}
+      <div className="pw-pair">
+        {focus === "evaluate" ? (
+        <SectionCard
+          title={<span className="pw-kicker">Do this now{liveFor ? ` · live for ${liveFor}` : ""}</span>}
+          titleId="pw-evaluation"
+          className="pw-focus"
+        >
+          <div className="pw-focus-body">
+            <h3>{evaluation ? "Finish scoring this defense" : "Score this defense"}</h3>
+            <p>
+              {session.packet?.evaluationMode === "PDF"
+                ? "Mark your department’s original form directly. Submit it before the session ends."
+                : "Save a draft anytime. Submit the final rubric before the session ends."}
+            </p>
           </div>
-        </Card>
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-2">
-        <Card className="p-5 sm:p-6">
-          <CardHeader>
-            <CardTitle icon={ClipboardCheck}>
-              Evaluation and authorized result
-            </CardTitle>
-            {evaluation && (
-              <Tag variant={statusVariant(evaluation.status)}>
-                {readable(evaluation.status)}
-              </Tag>
+          <div className="pw-focus-actions">
+            <Button size="sm" data-guide="panelist-open-evaluation" icon={<i className="ti ti-clipboard-check" aria-hidden="true" />} onClick={openEvaluation}>
+              {evaluation ? "Continue scoring" : "Start scoring"}
+            </Button>
+            {evaluation && <span className="au-row-meta">Draft saved · {readable(evaluation.status).toLowerCase()}</span>}
+          </div>
+          <div className="pw-foot">
+            {session.releasedAt ? (
+              <>
+                <i className="ti ti-rosette-discount-check pw-ok" aria-hidden="true" />
+                <span>
+                  <strong>Official result: {readable(session.decision)}</strong> · released {shortDateTime(session.releasedAt)}
+                </span>
+              </>
+            ) : (
+              <>
+                <i className="ti ti-lock" aria-hidden="true" />
+                <span>Official result not released yet. The professor or facilitator releases it.</span>
+              </>
             )}
-          </CardHeader>
-          {session.packet?.evaluationMode === "PDF" ? (
-            <div className="rounded-xl bg-[var(--color-surface-subtle)] p-4">
-              <p className="text-base font-semibold">
-                {pdfEvaluation?.status === "LOCKED"
+          </div>
+        </SectionCard>
+        ) : (
+        <SectionCard title="Your evaluation" titleId="pw-evaluation" action={<StatusDot tone={evaluationStatus.tone}>{evaluationStatus.label}</StatusDot>}>
+          <ListRow
+            leading={<RowIcon icon={session.packet?.evaluationMode === "PDF" ? "ti-file-pencil" : "ti-clipboard-check"} />}
+            title={
+              session.packet?.evaluationMode === "PDF"
+                ? pdfEvaluation?.status === "LOCKED"
                   ? "PDF evaluation submitted and locked"
                   : pdfEvaluation
                     ? "Your private PDF evaluation draft"
-                    : "Your PDF evaluation has not been started"}
-              </p>
-              <p className="mt-2 text-base text-[var(--color-text-secondary)]">
-                Mark your department’s original form directly. Visual ratings
-                are not calculated grades.
-              </p>
-              <Button
-                className="mt-3"
-                onClick={() =>
-                  router.push(
-                    `/panelist/dashboard?tab=evaluation&sessionId=${session.id}`,
-                  )
+                    : "PDF evaluation not started"
+                : evaluation
+                  ? `Score ${evaluation.totalScore ?? "draft"}${evaluation.template?.totalScore ? ` / ${Number(evaluation.template.totalScore)}` : ""}`
+                  : isLive
+                    ? "Score this defense now"
+                    : "Evaluation not started"
+            }
+            meta={
+              session.packet?.evaluationMode === "PDF"
+                ? "Mark your department’s original form directly. Visual ratings aren’t calculated grades."
+                : evaluation
+                  ? `Recommendation: ${readable(evaluation.recommendation)}${evaluation.status === "SUBMITTED" ? " · submitted, not yet locked" : evaluationLocked ? " · final and locked" : ""}`
+                  : isLive
+                    ? "Save a draft or submit the final rubric while the defense is live."
+                    : "Scoring unlocks when the professor starts this defense."
+            }
+            end={
+              canOpenEvaluation ? (
+                <Button size="sm" variant="secondary" data-guide="panelist-open-evaluation" onClick={openEvaluation}>
+                  Open
+                </Button>
+              ) : undefined
+            }
+          />
+          <div className="pw-foot">
+            {session.releasedAt ? (
+              <>
+                <i className="ti ti-rosette-discount-check pw-ok" aria-hidden="true" />
+                <span>
+                  <strong>Official result: {readable(session.decision)}</strong> · released {shortDateTime(session.releasedAt)}
+                </span>
+              </>
+            ) : (
+              <>
+                <i className="ti ti-lock" aria-hidden="true" />
+                <span>Official result not released yet. The professor or facilitator releases it.</span>
+              </>
+            )}
+          </div>
+        </SectionCard>
+        )}
+
+        <SectionCard
+          title="Defense documents"
+          titleId="pw-documents"
+          className={focus === "review" ? "pw-focus" : reviewOpen ? "pw-nudge" : undefined}
+          action={
+            reviewOpen ? (
+              <StatusDot tone="waiting">Review not finished</StatusDot>
+            ) : packet ? (
+              <StatusDot tone={packetReady ? "done" : "waiting"}>{readable(packet.status)}</StatusDot>
+            ) : (
+              <StatusDot tone="neutral">Not shared</StatusDot>
+            )
+          }
+        >
+          {packetReady && invitationAccepted ? (
+            <>
+              <ListRow
+                leading={<RowIcon icon="ti-file-text" />}
+                title={`${packet.manuscriptVersion?.document?.title || "Published manuscript"}${packet.manuscriptVersion?.versionNumber ? ` · v${packet.manuscriptVersion.versionNumber}` : ""}`}
+                titleHint={packet.manuscriptVersion?.document?.title}
+                meta={[packet.manuscriptVersion?.fileName || "File name unavailable", packet.manuscriptVersion?.milestone?.name].filter(Boolean).join(" · ")}
+                end={
+                  <Button size="sm" variant={focus === "review" ? "primary" : "secondary"} data-guide="panelist-open-packet" onClick={openDocuments}>
+                    {reviewOpen ? (review ? "Continue review" : "Start review") : "Open"}
+                  </Button>
                 }
-              >
-                Open PDF evaluation
-              </Button>
-            </div>
-          ) : evaluation ? (
-            <div className="rounded-xl bg-[var(--color-surface-subtle)] p-4">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                    Score
-                  </span>
-                  <p className="mt-1 text-lg font-bold text-[var(--color-text-primary)]">
-                    {evaluation.totalScore ?? "Draft"}
-                    {evaluation.template?.totalScore
-                      ? ` / ${Number(evaluation.template.totalScore)}`
-                      : ""}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                    Recommendation
-                  </span>
-                  <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
-                    {readable(evaluation.recommendation)}
-                  </p>
-                </div>
+              />
+              <div className="pw-foot">
+                <StatusDot tone={packet.manuscriptVersion?.isImmutable ? "done" : "waiting"}>
+                  {packet.manuscriptVersion?.isImmutable ? "Locked version" : "Lock not verified"}
+                </StatusDot>
+                {packet.publishedAt && <span>Published {shortDateTime(packet.publishedAt)}</span>}
+                {review && reviewComplete && <StatusDot tone={reviewComplete ? "done" : "waiting"}>{reviewComplete ? "Review complete" : "Review in progress"}</StatusDot>}
+                {recommendation && <StatusDot tone="brand">Recommendation {readable(recommendation.status).toLowerCase()}</StatusDot>}
               </div>
-              {evaluation.status === "SUBMITTED" && (
-                <p className="mt-3 text-base text-amber-700 dark:text-amber-300">
-                  Submitted, but not locked as a final immutable evaluation.
-                </p>
-              )}
-              {evaluation.status === "LOCKED" && (
-                <p className="mt-3 flex items-center gap-2 text-base font-semibold text-emerald-700 dark:text-emerald-300">
-                  <LockKeyhole className="h-4 w-4" />
-                  Final submission is immutable.
-                </p>
-              )}
-            </div>
+            </>
           ) : (
-            <EmptyState
-              size="sm"
-              icon={ClipboardCheck}
-              title={isLive ? "Evaluation is ready" : "Evaluation not started"}
-              description={
-                isLive
-                  ? "Open the live evaluation workspace to save a draft or submit the final rubric."
-                  : "Scoring unlocks only when the professor starts this assigned defense."
+            <EmptyNote
+              layout="row"
+              icon="ti-file-text"
+              title={packetReady ? "Accept to open the documents" : "Documents not shared yet"}
+              text={
+                packetReady
+                  ? "The documents are ready. Accept your panel invitation to view them."
+                  : "The professor publishes the approved manuscript before panel review opens."
               }
             />
           )}
-          {session.releasedAt ? (
-            <div className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50/70 p-4 dark:bg-emerald-500/10">
-              <p className="text-sm font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                Official result released
-              </p>
-              <p className="mt-1 text-base font-bold text-[var(--color-text-primary)]">
-                {readable(session.decision)}
-              </p>
-              <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-                Released {dateTime(session.releasedAt)}
-              </p>
-            </div>
-          ) : (
-            <p className="mt-4 rounded-xl border border-dashed border-[var(--color-border)] p-3 text-base text-[var(--color-text-secondary)]">
-              No official result has been released. Release authority remains
-              with the professor or authorized facilitator.
-            </p>
-          )}
-        </Card>
+        </SectionCard>
+      </div>
 
-        <Card className="p-5 sm:p-6">
-          <CardHeader>
-            <CardTitle icon={MapPin}>Session details and activity</CardTitle>
-            <Tag variant="outline">
-              {session.defenseEvent?.code || "Standalone session"}
-            </Tag>
-          </CardHeader>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl bg-[var(--color-surface-subtle)] p-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                Delivery
-              </span>
-              <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
-                {attendanceMode(session)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-[var(--color-surface-subtle)] p-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                Current stage
-              </span>
-              <p className="mt-1 text-base font-semibold text-[var(--color-text-primary)]">
-                {session.research.workflowInstance?.currentStage?.name ||
-                  "Not recorded"}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 space-y-3">
-            {timeline.length ? (
-              timeline.map((item) => (
-                <div key={`${item.label}:${item.at}`} className="flex gap-3">
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[var(--color-primary)]" />
-                  <div>
-                    <p className="text-base font-semibold text-[var(--color-text-primary)]">
-                      {item.label}
-                    </p>
-                    <time className="text-xs text-[var(--color-text-muted)]">
-                      {dateTime(item.at)}
-                    </time>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-base text-[var(--color-text-secondary)]">
-                No session activity has been recorded yet.
-              </p>
-            )}
-          </div>
-          {session.notes && (
-            <div className="mt-4 border-t border-[var(--color-border)] pt-4">
-              <p className="text-sm font-bold uppercase tracking-wider text-[var(--color-text-muted)]">
-                Facilitator notes
-              </p>
-              <p className="mt-2 whitespace-pre-wrap text-base leading-5 text-[var(--color-text-secondary)]">
-                {session.notes}
-              </p>
-            </div>
+      <div className="pw-pair">
+        <SectionCard title="Research group" titleId="pw-group" count={members.length}>
+          {members.length ? (
+            <ul className="au-list">
+              {members.map((member: any) => (
+                <li key={member.id}>
+                  <ListRow
+                    leading={<span className="pw-avatar" aria-hidden="true">{initials(member.user)}</span>}
+                    title={fullName(member.user)}
+                    meta={member.user?.email}
+                    end={<span className="pw-tag" data-role={member.projectRole}>{readable(member.projectRole)}</span>}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyNote layout="row" icon="ti-users" title="No researchers listed" text="Group members appear here once they're recorded." />
           )}
-        </Card>
-      </section>
+          <div className="pw-foot">
+            <span>
+              Stage: <strong>{session.research.workflowInstance?.currentStage?.name || "Not recorded"}</strong>
+            </span>
+            <span>
+              Academic year: <strong>{session.research.academicYear?.name || "Not recorded"}</strong>
+            </span>
+          </div>
+        </SectionCard>
+
+        <SectionCard title="Activity" titleId="pw-activity" count={timeline.length || undefined}>
+          {timeline.length ? (
+            <ol className="pw-timeline">
+              {timeline.map((item) => (
+                <li key={`${item.label}:${item.at}`}>
+                  <strong>{item.label}</strong>
+                  <time dateTime={item.at}>{shortDateTime(item.at)}</time>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <EmptyNote layout="row" icon="ti-history" title="No activity yet" text="Invitations, shared documents and evaluations appear here." />
+          )}
+        </SectionCard>
+      </div>
     </div>
   );
 }

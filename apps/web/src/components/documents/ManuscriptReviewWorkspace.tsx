@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/Button";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyNote } from "@/components/ui/advisio";
 import { Modal } from "@/components/ui/Modal";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -125,7 +126,7 @@ function statusVariant(status: Assignment["status"]) {
 }
 
 interface ManuscriptReviewWorkspaceProps {
-  presentation?: "default" | "adviser";
+  presentation?: "default" | "adviser" | "panelist";
 }
 
 export function ManuscriptReviewWorkspace({
@@ -156,6 +157,7 @@ export function ManuscriptReviewWorkspace({
   const [historyError, setHistoryError] = useState("");
   const contextRequestRef = useRef(0);
   const isAdviserPresentation = presentation === "adviser";
+  const panelistTarget = (name: string) => presentation === "panelist" ? `panelist-review-${name}` : undefined;
 
   const loadAssignments = useCallback(async () => {
     setLoading(true);
@@ -430,6 +432,7 @@ export function ManuscriptReviewWorkspace({
             <Button
               size="sm"
               icon={<MessageSquareText className="h-4 w-4" />}
+              data-guide={panelistTarget("open")}
               onClick={() => void openDecision(assignment)}
             >
               {assignment.review?.status === "DRAFT"
@@ -815,7 +818,7 @@ export function ManuscriptReviewWorkspace({
               <div>
                 <h2
                   id="pending-review-heading"
-                  data-guide={isAdviserPresentation && !error ? "adviser-review-queue" : undefined}
+                  data-guide={!error ? (isAdviserPresentation ? "adviser-review-queue" : panelistTarget("queue")) : undefined}
                   data-guide-empty={!active.length}
                   className="flex items-center gap-2 text-xl font-black text-[var(--color-text-primary)]"
                 >
@@ -848,11 +851,23 @@ export function ManuscriptReviewWorkspace({
                 )}
               </div>
             ) : (
+              presentation === "panelist" ? (
+                <div className="au-card">
+                  <EmptyNote
+                    layout="row"
+                    tone="ok"
+                    icon="ti-circle-check"
+                    title="No manuscript reviews are waiting"
+                    text="New work appears here only after you are assigned to a submitted version."
+                  />
+                </div>
+              ) : (
               <EmptyState
                 icon={ShieldCheck}
                 title="No manuscript reviews are waiting"
                 description="New work appears here only after you are explicitly assigned to a submitted version."
               />
+              )
             )}
           </section>
 
@@ -892,11 +907,22 @@ export function ManuscriptReviewWorkspace({
                 )}
               </div>
             ) : (
+              presentation === "panelist" ? (
+                <div className="au-card">
+                  <EmptyNote
+                    layout="row"
+                    icon="ti-history"
+                    title="No previous decisions"
+                    text="Your completed reviews stay available here."
+                  />
+                </div>
+              ) : (
               <EmptyState
                 icon={FileSearch}
                 title="No previous decisions"
                 description="Your completed reviews will remain available here."
               />
+              )
             )}
           </section>
         </>
@@ -939,7 +965,7 @@ export function ManuscriptReviewWorkspace({
           versionId={selected?.documentVersion.id || ""}
         >
           <div className="grid gap-5 lg:h-[65vh] lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div data-guide={isAdviserPresentation && selected ? "adviser-review-snapshot" : undefined} className="flex h-[55vh] min-h-80 min-w-0 overflow-hidden rounded-xl border border-[var(--color-border)] lg:h-full">
+            <div data-guide={selected ? (isAdviserPresentation ? "adviser-review-snapshot" : panelistTarget("snapshot")) : undefined} className="flex h-[55vh] min-h-80 min-w-0 overflow-hidden rounded-xl border border-[var(--color-border)] lg:h-full">
               {selected && (
                 <SubmissionDocumentPreview
                   key={selected.id}
@@ -1022,7 +1048,7 @@ export function ManuscriptReviewWorkspace({
                 </label>
                 <textarea
                   id="review-overall"
-                  data-guide={isAdviserPresentation ? "adviser-review-feedback" : undefined}
+                  data-guide={isAdviserPresentation ? "adviser-review-feedback" : panelistTarget("feedback")}
                   rows={5}
                   value={overallComment}
                   onChange={(event) => setOverallComment(event.target.value)}
@@ -1062,7 +1088,7 @@ export function ManuscriptReviewWorkspace({
                 />
               </div>
               <div className="rounded-xl border border-[var(--color-border)] p-4">
-                <p data-guide={isAdviserPresentation ? "adviser-review-previous" : undefined} className="text-base font-bold text-[var(--color-text-primary)]">
+                <p data-guide={isAdviserPresentation ? "adviser-review-previous" : panelistTarget("previous")} className="text-base font-bold text-[var(--color-text-primary)]">
                   Previous versions and decisions
                 </p>
                 {historyLoading ? (

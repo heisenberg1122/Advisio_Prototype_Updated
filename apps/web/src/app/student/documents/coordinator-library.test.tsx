@@ -40,6 +40,9 @@ vi.mock("@/providers/active-project-provider", () => ({
     selectProject: vi.fn(),
   }),
 }));
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({ user: null }),
+}));
 vi.mock("@/lib/api-client", () => ({
   apiClient: { get: vi.fn(), post: vi.fn() },
 }));

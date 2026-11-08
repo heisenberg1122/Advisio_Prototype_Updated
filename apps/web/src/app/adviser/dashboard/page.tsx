@@ -1,4 +1,4 @@
-import { DashboardQuickActions } from "@/components/dashboards/DashboardQuickActions";
+import { DateTile, StatusDot } from "@/components/ui/advisio";
 import React, { useState, Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -7,6 +7,9 @@ import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
 import { CardsPageSkeleton, DashboardSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import { AdviserResearchGroupCard } from "@/components/adviser/AdviserResearchGroupCard";
+import { AdviserAdviseesWorkspace } from "@/components/adviser/AdviserAdviseesWorkspace";
+import { AdviserConsultationsWorkspace } from "@/components/adviser/AdviserConsultationsWorkspace";
+import { AdviserProgressWorkspace } from "@/components/adviser/AdviserProgressWorkspace";
 import { AdviserGroupChats } from "@/components/dashboards/adviser/AdviserGroupChats";
 import { getStoredMeetingSession, saveMeetingSession, DEFAULT_SHARED_MEET_URL } from "@/lib/meeting-store";
 import { GoogleMeetConnectModal } from "@/components/consultations/GoogleMeetConnectModal";
@@ -17,7 +20,6 @@ import { getAcademicIdentity } from "@/lib/academic-identity";
 import { AdviserDocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 import { calculateMilestoneProgress } from "@/lib/workflow-progress";
 import "./adviser-overview.css";
-import "./adviser-consultations.css";
 
 const EMPTY_MILESTONE_PROGRESS_BY_PROJECT: Record<string, any[]> = {};
 
@@ -29,6 +31,18 @@ const formatOverviewDate = (value: string) => {
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const month = months[Number(match[2]) - 1];
   return month ? `${Number(match[3])} ${month} ${match[1]}` : value;
+};
+
+const overviewDateParts = (value: string) => {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match && months[Number(match[2]) - 1]) return { month: months[Number(match[2]) - 1], day: String(Number(match[3])) };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { month: "TBA", day: "—" };
+  return {
+    month: date.toLocaleDateString("en-PH", { timeZone: "Asia/Manila", month: "short" }),
+    day: date.toLocaleDateString("en-PH", { timeZone: "Asia/Manila", day: "numeric" }),
+  };
 };
 
 // Keep the source wording intact. Only recognized waiting labels get a chip;
@@ -238,7 +252,7 @@ function AdviserDashboardContent() {
     ))
     .map((project: any) => project.id as string);
   const adviserProjectKey = adviserProjectIds.join(",");
-  const { data: milestoneProgressByProject = EMPTY_MILESTONE_PROGRESS_BY_PROJECT } = useQuery({
+  const { data: milestoneProgressByProject = EMPTY_MILESTONE_PROGRESS_BY_PROJECT, isLoading: milestoneProgressLoading } = useQuery({
     queryKey: ["adviser-milestone-progress", adviserProjectKey],
     queryFn: async () => {
       const entries = await Promise.all(adviserProjectIds.map(async (projectId) => {
@@ -565,7 +579,7 @@ function AdviserDashboardContent() {
     return <TablePageSkeleton />;
   }
 
-  const overviewSeal = activeTab === "overview"
+  const overviewSeal = activeTab === "overview" || activeTab === "advisees" || activeTab === "consultations" || activeTab === "progress"
     ? getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc
     : undefined;
   const now = Date.now();
@@ -588,14 +602,14 @@ function AdviserDashboardContent() {
   };
   const overviewWorkload = [
     {
-      label: "Assigned groups",
+      label: "Groups",
       value: adviserCapacity?.adviseeCount ?? (researchError ? null : advisees.length),
       suffix: adviserCapacity ? `of ${adviserCapacity.maxAdviseeGroups} slots` : "assigned",
       icon: "ti-users",
       tab: "advisees",
     },
     {
-      label: "Document reviews",
+      label: "To review",
       value: reviewQueueError || reviewQueueLoading ? null : reviews.length,
       suffix: "pending",
       icon: "ti-file-text",
@@ -612,6 +626,20 @@ function AdviserDashboardContent() {
       loading: consultationsLoading,
     },
   ];
+  const submittedTime = (value?: string) => (value ? new Date(value).getTime() || 0 : 0);
+  const reviewsOldestFirst = [...reviews].sort((a: any, b: any) => submittedTime(a.submittedAt) - submittedTime(b.submittedAt));
+  const reviewsNewestFirst = [...reviewsOldestFirst].reverse();
+  // The oldest waiting review gets the focus treatment unless a request or approval needs a decision first.
+  const focusReview: any = pendingAdviserRequests.length === 0 && approvals.length === 0 ? reviewsOldestFirst[0] : null;
+  const otherReviews = focusReview ? reviewsOldestFirst.slice(1, 3) : reviewsOldestFirst.slice(0, 2);
+  const attentionCount = pendingAdviserRequests.length + approvals.length + reviews.length;
+  const adviseesByPending = [...advisees].sort((a: any, b: any) => (b.pendingTasks || 0) - (a.pendingTasks || 0));
+  const nextConsultationDate = nextConsultation ? overviewDateParts(nextConsultation.date) : null;
+  const overviewSummary = [
+    reviews.length ? `${reviews.length} ${reviews.length === 1 ? "review is" : "reviews are"} waiting` : null,
+    pendingAdviserRequests.length ? `${pendingAdviserRequests.length} adviser ${pendingAdviserRequests.length === 1 ? "request" : "requests"}` : null,
+    nextConsultation && nextConsultationDate ? `next consultation ${nextConsultationDate.month} ${nextConsultationDate.day}, ${nextConsultation.time}` : null,
+  ].filter(Boolean).join(" · ") || "Your research groups, reviews, and consultations — all in one place.";
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
@@ -737,70 +765,52 @@ function AdviserDashboardContent() {
                     <div>
                       <p className="adviser-overview__eyebrow">Adviser workspace</p>
                       <h1 id="adviser-home-title">Good day, {user?.firstName?.trim() || "Adviser"}</h1>
-                      <p>Your research groups, reviews, and consultations — all in one place.</p>
+                      <p>{overviewSummary}</p>
                     </div>
-                    <div className="adviser-overview__hero-actions">
-                      <button type="button" onClick={() => handleTabChange("reviews")} className="adviser-overview__hero-primary">
-                        <i className="ti ti-file-search" aria-hidden="true" /> Review documents
-                      </button>
-                      <button type="button" onClick={openOverviewSchedule} className="adviser-overview__hero-secondary">
-                        <i className="ti ti-calendar-plus" aria-hidden="true" /> Schedule consultation
-                      </button>
-                    </div>
+                    <section className="adviser-overview__workload" aria-label="Adviser workload snapshot">
+                      {overviewWorkload.map((item) => (
+                        <button
+                          key={item.label}
+                          type="button"
+                          onClick={() => handleTabChange(item.tab)}
+                          className="adviser-overview__workload-item"
+                          data-workload={item.tab}
+                          data-waiting={item.tab === "reviews" && Boolean(item.value) ? "true" : undefined}
+                          title={item.value === null ? (item.loading ? "Loading" : "Unavailable") : `${item.value} ${item.suffix}`}
+                        >
+                          <span className="adviser-overview__metric-value">{item.value ?? "—"}</span>
+                          <span className="adviser-overview__metric-label">{item.label}</span>
+                        </button>
+                      ))}
+                    </section>
                   </header>
 
-                  <h2 className="adviser-overview__snapshot-title" id="adviser-workload-title">Adviser workload snapshot</h2>
-                  <section className="adviser-overview__workload" aria-labelledby="adviser-workload-title">
-                    {overviewWorkload.map((item) => (
-                      <button
-                        key={item.label}
-                        type="button"
-                        onClick={() => handleTabChange(item.tab)}
-                        className="adviser-overview__workload-item"
-                        data-workload={item.tab}
-                      >
-                        <span className="adviser-overview__metric-icon" aria-hidden="true">
-                          <i className={`ti ${item.icon}`} />
-                        </span>
-                        <span className="adviser-overview__metric-content min-w-0">
-                          <span className="adviser-overview__metric-label">{item.label}</span>
-                          <span className="adviser-overview__metric-value">
-                            {item.value ?? "—"} <small>{item.value === null ? (item.loading ? "Loading" : "Unavailable") : item.suffix}</small>
-                          </span>
-                        </span>
-                        <i className="adviser-overview__metric-arrow ti ti-chevron-right" aria-hidden="true" />
-                      </button>
-                    ))}
-                  </section>
+                  <div className="adviser-overview__hero-actions">
+                    <button type="button" onClick={() => handleTabChange("reviews")} className="adviser-overview__hero-primary">
+                      <i className="ti ti-file-search" aria-hidden="true" /> Review documents
+                    </button>
+                    <button type="button" onClick={openOverviewSchedule} className="adviser-overview__hero-secondary">
+                      <i className="ti ti-calendar-plus" aria-hidden="true" /> Schedule consultation
+                    </button>
+                    <button type="button" onClick={() => handleTabChange("group-chats")} className="adviser-overview__hero-secondary">
+                      <i className="ti ti-messages" aria-hidden="true" /> Message groups
+                    </button>
+                    <button type="button" onClick={() => handleTabChange("progress")} className="adviser-overview__hero-secondary">
+                      <i className="ti ti-chart-line" aria-hidden="true" /> Track progress
+                    </button>
+                  </div>
                 </section>
-
-                <div className="adviser-overview__shortcuts">
-                  <DashboardQuickActions
-                    actions={[
-                      { label: "Review documents", icon: "ti-file-search", tab: "reviews" },
-                      { label: "View advisees", icon: "ti-users", tab: "advisees" },
-                      { label: "Message groups", icon: "ti-messages", tab: "group-chats" },
-                      { label: "Track progress", icon: "ti-chart-line", tab: "progress" },
-                    ]}
-                    onAction={handleTabChange}
-                  />
-                </div>
 
                 {/* Attention & Consultation Section */}
                 <section className="adviser-overview__split adviser-overview__priorities" aria-label="Your next steps">
-                  <div className="adviser-overview__panel adviser-overview__attention">
+                  <div className="adviser-overview__panel adviser-overview__attention" data-focus={attentionCount > 0 ? "true" : undefined}>
                     <div className="adviser-overview__section-heading">
                       <div>
                         <h2 data-guide={!requestsLoading && !requestsError ? "adviser-attention" : undefined} data-guide-empty={pendingAdviserRequests.length === 0}
                           className="flex items-center gap-2 text-lg font-bold text-[#17212B] dark:text-white">
                           Needs your attention{" "}
-                          {pendingAdviserRequests.length > 0 && (
-                            <span className="adviser-overview__count">
-                              {pendingAdviserRequests.length} request{pendingAdviserRequests.length > 1 ? "s" : ""}
-                            </span>
-                          )}
+                          {attentionCount > 0 && <span className="adviser-overview__count">{attentionCount}</span>}
                         </h2>
-                        <p>Reviews, requests, and approvals ready for your attention.</p>
                       </div>
                       <button
                         onClick={() => handleTabChange("approvals")}
@@ -889,7 +899,20 @@ function AdviserDashboardContent() {
                           </div>
                         ))}
 
-                        {reviews.slice(0, 2).map((review) => (
+                        {focusReview && (
+                          <div className="adviser-overview__focus-task">
+                            <p className="adviser-overview__focus-title">{focusReview.docName || "Document review"}</p>
+                            <p className="adviser-overview__task-meta">
+                              <span>{focusReview.groupName}</span>
+                              <OverviewSubmissionAge label={getWaitingLabel(focusReview.submittedAt)} />
+                            </p>
+                            <button type="button" onClick={() => openAssignedReview(focusReview)} className="adviser-overview__start">
+                              <i className="ti ti-file-search" aria-hidden="true" /> Start review
+                            </button>
+                          </div>
+                        )}
+
+                        {otherReviews.map((review: any) => (
                           <button
                             key={review.id}
                             onClick={() => openAssignedReview(review)}
@@ -926,7 +949,7 @@ function AdviserDashboardContent() {
 
                   <div className="adviser-overview__panel adviser-overview__consultation">
                     <div className="adviser-overview__section-heading">
-                      <h2 className="text-lg font-bold text-[#17212B] dark:text-white">Next Consultation</h2>
+                      <h2 className="text-lg font-bold text-[#17212B] dark:text-white">Next consultation</h2>
                       <button
                         onClick={() => handleTabChange("consultations")}
                         className="adviser-overview__section-link"
@@ -938,19 +961,23 @@ function AdviserDashboardContent() {
                     </div>
                     {nextConsultation ? (
                       <div className="adviser-overview__session">
-                        <div>
-                          <span className="adviser-overview__session-label">
-                            Upcoming Session
-                          </span>
-                          <h3 className="mt-3 text-lg font-bold">{nextConsultation.topic}</h3>
-                          <p className="adviser-overview__session-group">{nextConsultation.groupName}</p>
-                          <p className="adviser-overview__session-date"><i className="ti ti-calendar-event" aria-hidden="true" /> <time dateTime={nextConsultation.date}>{formatOverviewDate(nextConsultation.date)}</time><span aria-hidden="true">·</span>{nextConsultation.time}</p>
+                        <div className="adviser-overview__session-row">
+                          <DateTile
+                            top={nextConsultationDate?.month}
+                            bottom={nextConsultationDate?.day}
+                            label={formatOverviewDate(nextConsultation.date)}
+                          />
+                          <div className="min-w-0">
+                            <h3>{nextConsultation.topic}</h3>
+                            <p className="adviser-overview__session-group">{nextConsultation.time} · {nextConsultation.groupName}</p>
+                          </div>
                         </div>
                         <button
+                          type="button"
                           onClick={() => handleStartConference(nextConsultation.meetingUrl || DEFAULT_SHARED_MEET_URL, nextConsultation.topic, nextConsultation.researchId)}
-                          className="mt-4 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] py-2.5 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition dark:text-[var(--college-on-primary-dark)]"
+                          className="adviser-overview__join"
                         >
-                          <i aria-hidden="true" className="ti ti-video mr-1.5" /> Join Google Meet
+                          <i aria-hidden="true" className="ti ti-video" /> Join Google Meet
                         </button>
                       </div>
                     ) : (
@@ -976,23 +1003,23 @@ function AdviserDashboardContent() {
                   <div className="adviser-overview__section-heading">
                     <div>
                       <h2 id="adviser-groups-title" className="text-lg font-bold text-[#17212B] dark:text-white">
-                        Advisee Research Overview
+                        Advisee research
                       </h2>
                       <p className="text-base text-slate-500 dark:text-slate-400">
-                        Active research teams currently assigned under your faculty guidance.
+                        {advisees.length > 3 ? `Showing 3 of ${advisees.length} · most pending first` : "Research teams assigned under your guidance."}
                       </p>
                     </div>
                     <button
                       onClick={() => handleTabChange("advisees")}
                       className="adviser-overview__section-link"
                     >
-                        View all groups <i aria-hidden="true" className="ti ti-chevron-right text-xs" />
+                        All groups <i aria-hidden="true" className="ti ti-chevron-right text-xs" />
                     </button>
                   </div>
 
                   {advisees.length > 0 ? (
                     <div className="adviser-overview__research-grid">
-                      {advisees.slice(0, 3).map((adv) => (
+                      {adviseesByPending.slice(0, 3).map((adv: any) => (
                         <AdviserResearchGroupCard
                           className="adviser-overview__research-card"
                           key={adv.id}
@@ -1037,27 +1064,31 @@ function AdviserDashboardContent() {
                       </button>
                     </div>
                     <div className="adviser-overview__feed">
-                      {reviews.slice(0, 3).map((review) => (
+                      {reviewsNewestFirst.slice(0, 3).map((review: any) => (
                         <button key={review.id} onClick={() => openAssignedReview(review)} className="adviser-overview__feed-item">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i aria-hidden="true" className="ti ti-file-text" /></span>
+                          <span className="adviser-overview__task-icon" aria-hidden="true"><i className="ti ti-file-text" /></span>
                           <span className="min-w-0 flex-1">
                             <span className="adviser-overview__feed-title">{review.docName || "Document submission"}</span>
-                            <span className="adviser-overview__feed-group">{review.groupName}</span>
-                            <time className="adviser-overview__feed-time" dateTime={review.submittedAt}>{getWaitingLabel(review.submittedAt)}</time>
+                            <span className="adviser-overview__feed-group">
+                              {review.groupName} · <time dateTime={review.submittedAt}>{getWaitingLabel(review.submittedAt)}</time>
+                            </span>
                           </span>
+                          <StatusDot tone="waiting">Needs review</StatusDot>
                         </button>
                       ))}
-                      {reviews.length === 0 && consultations.slice(0, 3).map((consultation) => (
+                      {upcomingConsultations.slice(0, 2).map(({ session: consultation }: any) => (
                         <button key={consultation.id} onClick={() => handleTabChange("consultations")} className="adviser-overview__feed-item">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i aria-hidden="true" className="ti ti-calendar-event" /></span>
+                          <span className="adviser-overview__task-icon" aria-hidden="true"><i className="ti ti-calendar-time" /></span>
                           <span className="min-w-0 flex-1">
                             <span className="adviser-overview__feed-title">{consultation.topic}</span>
-                            <span className="adviser-overview__feed-group">{consultation.groupName}</span>
-                            <time className="adviser-overview__feed-time" dateTime={consultation.date}>{formatOverviewDate(consultation.date)}</time>
+                            <span className="adviser-overview__feed-group">
+                              {consultation.groupName} · <time dateTime={consultation.date}>{formatOverviewDate(consultation.date)}</time>
+                            </span>
                           </span>
+                          <StatusDot tone="brand">Upcoming</StatusDot>
                         </button>
                       ))}
-                      {reviews.length === 0 && consultations.length === 0 && (
+                      {reviews.length === 0 && upcomingConsultations.length === 0 && (
                         <div className="adviser-overview__empty">
                           <span className="adviser-overview__empty-icon"><i aria-hidden="true" className="ti ti-activity" /></span>
                           <h3>{reviewQueueError || consultationsError ? "Recent activity couldn’t load" : reviewQueueLoading || consultationsLoading ? "Loading recent activity…" : "No recent advisee activity"}</h3>
@@ -1070,60 +1101,16 @@ function AdviserDashboardContent() {
               </div>
             ),
             advisees: (
-              <div className="space-y-6">
-                <div className="workspace-page-header college-hero-surface flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl border text-[var(--color-text-primary)]">
-                  <div>
-                    <h2 className="text-xl font-bold text-[var(--color-text-primary)]">
-                      <span data-tour="advisee-records" data-guide={!researchLoading && !researchError ? "adviser-group-list" : undefined} data-guide-empty={advisees.length === 0}>Assigned Research Groups</span>
-                    </h2>
-                    <p className="text-base text-[var(--color-text-secondary)] mt-1">
-                      View your research groups, track progress, and open their workspaces.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    {adviserCapacity && (
-                      <div data-guide="adviser-capacity" className="min-w-56 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-[var(--color-text-primary)]">Capacity</span>
-                          <span className="font-extrabold text-[var(--color-text-primary)]">{adviserCapacity.adviseeCount} / {adviserCapacity.maxAdviseeGroups}</span>
-                        </div>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
-                          <div className={`h-full rounded-full ${adviserCapacity.isFull ? "bg-rose-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, adviserCapacity.maxAdviseeGroups ? (adviserCapacity.adviseeCount / adviserCapacity.maxAdviseeGroups) * 100 : 100)}%` }} />
-                        </div>
-                        <p className="mt-1.5 text-base font-semibold text-[var(--color-text-secondary)]">
-                          {!adviserCapacity.isAcceptingAdvisees ? "New requests are paused." : adviserCapacity.isFull ? "Capacity reached." : `${adviserCapacity.availableSlots} available.`}
-                        </p>
-                      </div>
-                    )}
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)] text-xs font-bold">
-                      <span>{advisees.length} Active Groups</span>
-                    </div>
-                  </div>
-                </div>
-
-                {advisees.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {advisees.map((adv) => (
-                      <AdviserResearchGroupCard
-                        key={adv.id}
-                        title={adv.projectTitle || "Research Study"}
-                        groupName={adv.groupName}
-                        status={adv.status}
-                        currentStage={adv.currentStage}
-                        progress={adv.progress}
-                        memberCount={adv.members.length}
-                        pendingTasks={adv.pendingTasks}
-                        leader={adv.leader}
-                        href={`/adviser/advisees/${adv.id}`}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-300 dark:border-white/15 bg-white dark:bg-[#101b2b] p-12 text-center text-slate-400">
-                    {researchLoading ? "Loading assigned groups…" : researchError ? "Assigned groups could not be loaded. Try refreshing this page." : "No assigned advisee groups registered yet."}
-                  </div>
-                )}
-              </div>
+              <AdviserAdviseesWorkspace
+                advisees={advisees}
+                loading={researchLoading}
+                countsLoading={milestoneProgressLoading}
+                error={Boolean(researchError)}
+                onRetry={() => void refetchResearch()}
+                capacity={adviserCapacity}
+                seal={overviewSeal}
+                onNavigate={handleTabChange}
+              />
             ),
             reviews: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
@@ -1165,47 +1152,21 @@ function AdviserDashboardContent() {
               </div>
             ),
             consultations: (
-              <div className="flex flex-col gap-6">
-                <section className="adviser-consultation-summary college-hero-surface" aria-label="Consultation overview">
-                {(() => {
-                  const today = new Date();
-                  const visibleDays = Array.from({ length: 7 }, (_, index) => {
-                    const date = new Date(today);
-                    date.setDate(today.getDate() + index - 3);
-                    return date;
-                  });
-                  return (
-                    <section className="adviser-consultation-summary__calendar" aria-label="Consultation calendar">
-                      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="flex items-center justify-between gap-4 xl:block">
-                          <div>
-                            <p className="text-sm font-bold uppercase tracking-widest text-slate-400">Consultation calendar</p>
-                            <p className="mt-1 text-lg font-bold text-[#0B3A53] dark:text-white">{today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
-                          </div>
-                          <button data-guide="adviser-consultation-open" onClick={() => setShowScheduleModal(true)} className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 text-sm font-bold text-white transition hover:bg-[#072A3D] xl:hidden"><i className="ti ti-plus" />Schedule</button>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="grid flex-1 grid-cols-7 gap-1 sm:gap-2">
-                            {visibleDays.map((date) => {
-                              const isToday = date.toDateString() === today.toDateString();
-                              return <div key={date.toISOString()} className={`flex min-w-10 flex-col items-center rounded-xl px-2 py-2 text-center sm:min-w-14 ${isToday ? "bg-[#0B3A53] text-white shadow-sm dark:bg-[#C9A227] dark:text-[#072A3D]" : "text-slate-500 dark:text-slate-400"}`}><span className="text-xs font-bold uppercase">{date.toLocaleDateString(undefined, { weekday: "short" })}</span><span className="mt-1 text-sm font-black">{date.getDate()}</span></div>;
-                            })}
-                          </div>
-                          <button data-guide="adviser-consultation-open" onClick={() => setShowScheduleModal(true)} className="hidden h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0B3A53] px-4 text-sm font-bold text-white transition hover:bg-[#072A3D] xl:flex"><i className="ti ti-plus" />Schedule consultation</button>
-                        </div>
-                      </div>
-                    </section>
-                  );
-                })()}
-
-                <section className="adviser-consultation-summary__metrics grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Consultation summary">
-                  {[
-                    { label: "Scheduled sessions", value: consultations.filter((item) => ["scheduled", "confirmed", "approved"].includes(String(item.status).toLowerCase())).length, icon: "ti-calendar-event" },
-                    { label: "Pending approval", value: consultations.filter((item) => ["pending", "requested"].includes(String(item.status).toLowerCase())).length, icon: "ti-clock" },
-                    { label: "Advisee groups", value: advisees.length, icon: "ti-users" },
-                  ].map((metric) => <div key={metric.label} className="flex min-h-24 items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs dark:border-white/10 dark:bg-[#101B2B]"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#EAF3F7] text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i className={`ti ${metric.icon} text-lg`} /></span><span><span className="block text-xs font-semibold text-slate-500 dark:text-slate-400">{metric.label}</span><span className="mt-1 block text-2xl font-black text-[#0B3A53] dark:text-white">{metric.value}</span></span></div>)}
-                </section>
-                </section>
+              <>
+                <AdviserConsultationsWorkspace
+                  consultations={consultations}
+                  loading={consultationsLoading}
+                  error={Boolean(consultationsError)}
+                  onRetry={() => void refetchConsultations()}
+                  seal={overviewSeal}
+                  onSchedule={() => setShowScheduleModal(true)}
+                  onApprove={(item) => handleApproveConsultation(item.id, item.topic)}
+                  onJoin={(item) => handleStartConference(item.meetingUrl || DEFAULT_SHARED_MEET_URL, item.topic, item.researchId)}
+                  onCopy={(url) => {
+                    void navigator.clipboard.writeText(url);
+                    triggerToast("Copied Google Meet link to clipboard!");
+                  }}
+                />
 
                 {/* SCHEDULE MODAL */}
                 {showScheduleModal && (
@@ -1325,113 +1286,18 @@ function AdviserDashboardContent() {
                     </div>
                   </div>
                 )}
-
-                {/* CONSULTATION SESSIONS LIST */}
-                <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101B2B]">
-                  <div className="mb-5 flex items-center justify-between gap-4">
-                    <div>
-                      <h3 data-guide={!consultationsLoading && !consultationsError ? "adviser-consultation-list" : undefined} data-guide-empty={!consultationsApiData?.consultations?.length} className="text-lg font-bold text-[#0B3A53] dark:text-white">Consultation Schedule</h3>
-                      <p className="mt-1 text-base text-slate-500 dark:text-slate-400">Manage requests, meeting links, and upcoming advising sessions.</p>
-                    </div>
-                    <span className="rounded-full bg-[#EAF3F7] px-3 py-1 text-xs font-bold text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">{consultations.length} total</span>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                  {consultations.map((c: any) => (
-                    <div key={c.id} className="flex flex-col justify-between gap-4 rounded-xl bg-slate-50/80 p-4 text-sm transition hover:bg-slate-100 dark:bg-white/[0.04] dark:hover:bg-white/[0.07]">
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#EAF3F7] text-lg text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">
-                          <i className="ti ti-video" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="block truncate font-bold text-[#0B3A53] dark:text-white">{c.topic}</span>
-                            <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
-                              {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
-                            </Tag>
-                          </div>
-                          <span className="text-xs text-slate-500 block">{c.groupName} · {c.date} at {c.time}</span>
-                          {c.meetingUrl && (
-                            <span className="mt-2 inline-block max-w-full truncate rounded-lg bg-white px-2 py-1 font-mono text-xs text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">
-                              {c.meetingUrl}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        {(c.status === "pending" || c.status === "requested") && (
-                          <button
-                            onClick={() => handleApproveConsultation(c.id, c.topic)}
-                            className="flex h-10 items-center gap-1.5 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-3.5 text-sm font-bold text-white transition"
-                          >
-                            <i className="ti ti-check" />
-                            <span>Approve Consultation</span>
-                          </button>
-                        )}
-                        <button
-                          data-guide={c.meetingUrl && ["scheduled", "confirmed", "approved"].includes(String(c.status).toLowerCase()) ? "adviser-consultation-meeting" : undefined}
-                          onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic, c.researchId)}
-                          className="flex min-h-11 items-center gap-1.5 rounded-xl bg-[#0B3A53] px-3.5 text-sm font-bold text-white transition hover:bg-[#072A3D]"
-                        >
-                          <i className="ti ti-video" />
-                          <span><span className="sm:hidden">Join meeting</span><span className="hidden sm:inline">Join Google Meet</span></span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (c.meetingUrl) {
-                              navigator.clipboard.writeText(c.meetingUrl);
-                              triggerToast("Copied Google Meet link to clipboard!");
-                            }
-                          }}
-                          aria-label="Copy meeting link"
-                          title="Copy Link"
-                          className="grid h-11 w-11 place-items-center rounded-xl bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-slate-100 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10"
-                        >
-                          <i className="ti ti-copy" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {consultations.length === 0 && (
-                    <div className="col-span-full flex min-h-80 flex-col items-center justify-center rounded-2xl bg-slate-50/70 px-6 text-center dark:bg-white/[0.03]">
-                      <span className="grid h-16 w-16 place-items-center rounded-2xl bg-[#EAF3F7] text-2xl text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]"><i className="ti ti-calendar-time" /></span>
-                      <h3 className="mt-5 text-lg font-bold text-[#0B3A53] dark:text-white">No consultations scheduled</h3>
-                      <p className="mt-2 max-w-md text-base leading-6 text-slate-500 dark:text-slate-400">Schedule an advising session or wait for a student consultation request.</p>
-                      <button onClick={() => setShowScheduleModal(true)} className="mt-5 flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 text-sm font-bold text-white transition"><i className="ti ti-plus" />Schedule consultation</button>
-                    </div>
-                  )}
-                  </div>
-                </section>
-              </div>
+              </>
             ),
             progress: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-lg">Research Group Progress Monitoring</h3>
-                <p className="text-base text-slate-400 font-bold">Oversight indicators showing project progression across all assigned advisees.</p>
-                <div className="flex flex-col gap-4 mt-2">
-                  {advisees.map(adv => (
-                    <div key={adv.id} className="bg-slate-50 p-4 border border-slate-200 rounded-xl shadow-sm flex flex-col gap-3">
-                      <div className="flex justify-between items-center text-[12px] font-extrabold text-[#1b4264]">
-                        <span>{adv.groupName} · {adv.projectTitle}</span>
-                        <span className="font-mono text-[#ffa400]">{adv.progress}% COMPLETE</span>
-                      </div>
-                      <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
-                        <div className="bg-gradient-to-r from-[#1b4264] to-[#ffa400] h-full rounded-full" style={{ width: `${adv.progress}%` }} />
-                      </div>
-                      <span className="text-xs font-medium text-slate-500">Current stage: {adv.currentStage}</span>
-                      <div className="mt-1 grid gap-2 border-t border-slate-200 pt-3">
-                        <div className="flex items-center justify-between"><span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Shared task status</span><span className="text-xs font-bold text-slate-500">Adviser view</span></div>
-                        {adv.tasks?.length ? adv.tasks.map((task: any) => {
-                          const submission = task.submission;
-                          const status = submission?.status || "NOT SUBMITTED";
-                          const submitter = submission?.submittedByUser ? `${submission.submittedByUser.firstName} ${submission.submittedByUser.lastName}` : null;
-                          return <div key={task.id} className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#1b4264]">{task.stageSequence}. {task.title}</p><p className="text-base text-slate-500">{submitter ? `Submitted by: ${submitter}` : task.stageName}</p></div><Tag variant={status === "APPROVED" ? "success" : status === "REVISION_REQUIRED" || status === "REJECTED" ? "warn" : "info"}>{status.replace(/_/g, " ")}</Tag></div>;
-                        }) : <p className="rounded-lg bg-white p-3 text-base text-slate-500">No submission requirements configured for this workflow.</p>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <AdviserProgressWorkspace
+                advisees={advisees}
+                loading={researchLoading}
+                countsLoading={milestoneProgressLoading}
+                error={Boolean(researchError)}
+                onRetry={() => void refetchResearch()}
+                seal={overviewSeal}
+                onNavigate={handleTabChange}
+              />
             ),
             approvals: (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
