@@ -322,6 +322,7 @@ export function AuditTrail() {
             className={inputStyle}
             value={filters.eventType}
             onChange={(e) => update("eventType", e.target.value)}
+            data-guide="audit-filters"
             placeholder="e.g. LOGIN_FAILED"
             maxLength={100}
           />
@@ -476,6 +477,7 @@ export function AuditTrail() {
                       <button
                         type="button"
                         className={inputStyle}
+                        data-guide="sa-audit-details"
                         onClick={() => setSelected(event.id)}
                         aria-label={`View details for ${event.eventType || event.entityType} at ${stamp(event.createdAt)}`}
                       >

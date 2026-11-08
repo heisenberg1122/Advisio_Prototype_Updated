@@ -543,23 +543,30 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
                   ))}
                 </div>
 
-                {guideTarget === "researcher-settings-navigation" && (
-                  <ul className="as-rows as-section-gap" aria-labelledby="workspace-assistance-heading">
-                    <li className="as-row as-row-switch">
-                      <span className="as-row-text">
-                        <strong id="workspace-assistance-heading">AI assistant button</strong>
-                        <span>Shows the floating assistant while you work. Guide stays in the sidebar either way. Saved for this browser.</span>
-                        {assistantMessage && <span role="status">{assistantMessage}</span>}
-                      </span>
-                      <Switch
-                        labelledBy="workspace-assistance-heading"
-                        label="Show floating AI Assistant"
-                        guide={guidePrefix ? `${guidePrefix}-assistant-switch` : undefined}
-                        checked={assistant.visible}
-                        onChange={(value) => setAssistantMessage(assistant.setVisible(value) ? "Saved for your account in this browser." : "Applied for this session. Browser storage is unavailable.")}
-                      />
-                    </li>
-                  </ul>
+                {guide?.enabled && (
+                  <section className="as-section-gap" aria-labelledby="workspace-assistance-title">
+                    <h3 id="workspace-assistance-title">Workspace Assistance</h3>
+                    <ul className="as-rows">
+                      <li className="as-row as-row-switch">
+                        <span className="as-row-text">
+                          <strong id="workspace-assistance-heading">Show floating AI Assistant</strong>
+                          <span>Shows the floating assistant while you work. Guide stays in the sidebar either way. Saved for this browser.</span>
+                          {assistantMessage && <span role="status">{assistantMessage}</span>}
+                        </span>
+                        <Switch
+                          labelledBy="workspace-assistance-heading"
+                          label="Show floating AI Assistant"
+                          guide={guidePrefix ? `${guidePrefix}-assistant-switch` : undefined}
+                          checked={assistant.visible}
+                          onChange={(value) => setAssistantMessage(
+                            assistant.setVisible(value)
+                              ? "Saved for your account in this browser."
+                              : "Applied for this session. Browser storage is unavailable.",
+                          )}
+                        />
+                      </li>
+                    </ul>
+                  </section>
                 )}
               </>
             )}

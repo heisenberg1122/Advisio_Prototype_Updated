@@ -122,7 +122,7 @@ export function DeanReportsView() {
       <section className={filtersClass} aria-label="Report filters">
         <FilterField label="Report">
           <select
-            data-tour="report-selection"
+            data-guide="report-selection"
             value={type}
             className={inputClass}
             onChange={(e) => {
@@ -257,6 +257,7 @@ export function DeanReportsView() {
                 {(["pdf", "csv"] as const).map((format) => (
                   <button
                     key={format}
+                    data-guide={format === "csv" ? "de-report-export" : undefined}
                     className={actionClass}
                     disabled={Boolean(exporting) || report.total > 5000}
                     onClick={() => void download(format)}

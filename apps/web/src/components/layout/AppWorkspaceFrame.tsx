@@ -8,7 +8,6 @@ import { useTheme } from "@/providers/theme-provider";
 import "./workspace-layout.css";
 import type { NavSection } from "./AppSidebar";
 import { WorkspaceSectionNavigation } from "./GroupedWorkspaceNavigation";
-import { WorkspaceTourInvitation } from "@/providers/workspace-tour-provider";
 
 interface AppWorkspaceFrameProps {
   children: React.ReactNode;
@@ -47,7 +46,6 @@ export function AppWorkspaceFrame({
       >
         {topbar}
         <main
-          data-tour="workspace-content"
           data-workspace-layout="standard"
           data-workspace-view={workspaceViewForLocation(pathname, search)}
           className={cn(
@@ -55,7 +53,6 @@ export function AppWorkspaceFrame({
           )}
         >
           {workspaceSections && <WorkspaceSectionNavigation sections={workspaceSections} />}
-          <WorkspaceTourInvitation />
           {children}
         </main>
       </div>

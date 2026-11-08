@@ -121,7 +121,7 @@ export function AdviserProgressWorkspace({
         <header className="adviser-overview__hero-heading">
           <div>
             <p className="adviser-overview__eyebrow">Advisee management</p>
-            <h1 id="adviser-progress-title">Group progress</h1>
+            <h1 id="adviser-progress-title" data-guide={!loading && !error && !groups.length ? "adviser-progress-empty" : undefined}>Group progress</h1>
             <p>{summary}</p>
           </div>
           <dl className="adviser-overview__workload ap-counts" aria-label="Progress summary">
@@ -173,6 +173,7 @@ export function AdviserProgressWorkspace({
                   key={group.id}
                   type="button"
                   className="ap-pick"
+                  data-guide="adviser-progress-group"
                   aria-pressed={group.id === selected.id}
                   aria-label={`${group.groupName}, ${progress}% complete, ${group.currentStage}`}
                   onClick={() => setPickedId(group.id)}
@@ -233,7 +234,7 @@ export function AdviserProgressWorkspace({
             </div>
 
             <div className="ap-timeline">
-              <h3>Requirements</h3>
+              <h3 data-guide="adviser-progress-requirements">Requirements</h3>
               {rows.length ? (
                 <ol>
                   {rows.map(({ task, state, label, detail }, index) => (

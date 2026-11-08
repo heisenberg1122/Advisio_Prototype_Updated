@@ -794,7 +794,7 @@ function PanelistDashboardContent() {
                       );
                     };
                     const openWorkspace = (session: any, primary = false) => (
-                      <Button size="sm" variant={primary ? "primary" : "secondary"} data-guide="panelist-open-session" onClick={() => router.push(`/panelist/defenses/${session.id}`)}>
+                      <Button size="sm" variant={primary ? "primary" : "secondary"} data-guide="panelist-open-session" data-orientation-href={`/panelist/defenses/${session.id}`} onClick={() => router.push(`/panelist/defenses/${session.id}`)}>
                         Open workspace
                       </Button>
                     );

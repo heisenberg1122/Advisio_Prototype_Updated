@@ -410,7 +410,8 @@ export default function ClassRecordWorkspace({
             Class / workflow
             <select
               aria-label="Class / workflow"
-              data-guide={student ? "student-grade-context" : undefined}
+              data-guide="co-class-select"
+              data-guide-empty={!classes.length}
               data-tour="class-selection"
               value={workflowId}
               disabled={!!busy}
@@ -545,6 +546,7 @@ export default function ClassRecordWorkspace({
                     aria-label="Record view"
                   >
                     <button
+                      data-guide="co-grade-tab"
                       aria-pressed={mode === "grades"}
                       disabled={!!busy}
                       onClick={() => changeTab(code, "grades")}
@@ -552,6 +554,7 @@ export default function ClassRecordWorkspace({
                       <BookOpen size={15} /> Grades
                     </button>
                     <button
+                      data-guide="co-attendance-tab"
                       aria-pressed={mode === "attendance"}
                       disabled={!!busy}
                       onClick={() => changeTab(code, "attendance")}
@@ -559,6 +562,7 @@ export default function ClassRecordWorkspace({
                       <CalendarCheck size={15} /> Attendance
                     </button>
                     <button
+                      data-orientation="class-history"
                       aria-pressed={mode === "history"}
                       disabled={!!busy}
                       onClick={() => changeTab(code, "history")}
@@ -951,6 +955,7 @@ export default function ClassRecordWorkspace({
                               !period.rows.length ||
                               period.rows.some((r) => !r.calculation.complete)
                             }
+                            data-guide="co-release-period"
                             onClick={() => openDialog("release")}
                           >
                             Release period

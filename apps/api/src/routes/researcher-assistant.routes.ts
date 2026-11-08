@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { getWorkspaceById } from "@research-management/auth";
 import { requireAuth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/rbac.js";
 import {
@@ -44,14 +45,11 @@ export function createResearcherAssistantRouter(
       return;
     }
     const workspace = parsed.data.workspace ?? "researcher";
-    const requiredRole = ({
-      adviser: "ADVISER",
-      panelist: "PANELIST",
-      researcher: "RESEARCHER",
-    } as const)[workspace];
+    const requiredRole = getWorkspaceById(workspace)?.role;
     if (
+      !requiredRole ||
       !req.user!.roles.includes(requiredRole) ||
-      (workspace !== "researcher" && !req.user!.collegeId)
+      (workspace !== "researcher" && workspace !== "system-admin" && !req.user!.collegeId)
     ) {
       res
         .status(403)

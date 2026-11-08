@@ -10,7 +10,7 @@ vi.mock("../middleware/auth.js", () => ({
   requireAuth(req: Request, res: Response, next: NextFunction) {
     const role = req.get("x-test-role");
     if (
-      !["RESEARCHER", "ADVISER", "PANELIST", "SYSTEM_ADMIN"].includes(
+      !["RESEARCHER", "ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "DEAN", "SYSTEM_ADMIN"].includes(
         role || "",
       )
     ) {
@@ -18,7 +18,7 @@ vi.mock("../middleware/auth.js", () => ({
       return;
     }
     req.user = {
-      id: role === "ADVISER" || role === "PANELIST" ? `test-${role.toLowerCase()}` : "test-account",
+      id: `test-${role!.toLowerCase()}`,
       email: "test@example.test",
       universityId: "test",
       roles: [role as "RESEARCHER"],
@@ -34,7 +34,7 @@ import {
   assistantConfig,
 } from "../services/researcher-assistant.service.js";
 
-describe("Authenticated Researcher help API", () => {
+describe("Authenticated workspace help API", () => {
   let server: http.Server, base: string;
   const provider = vi.fn<typeof fetch>();
   const service = new ResearcherAssistantService(
@@ -120,7 +120,7 @@ describe("Authenticated Researcher help API", () => {
     expect(result.status).toBe(200);
     const metrics = await result.json();
     expect(metrics.requests).toBe(4);
-    expect(JSON.stringify(metrics)).not.toContain("test-account");
+    expect(JSON.stringify(metrics)).not.toContain("test-researcher");
     expect(JSON.stringify(metrics)).not.toContain("Where can");
   });
   it("authorizes Panelist help only in a college with the Panelist role", async () => {
@@ -132,6 +132,21 @@ describe("Authenticated Researcher help API", () => {
     const result = await post(body, "PANELIST");
     expect(result.status).toBe(200);
     expect(await result.json()).toMatchObject({ source: "local", topicIds: ["pn-04"] });
+    expect(provider).not.toHaveBeenCalled();
+  });
+  it.each([
+    ["coordinator", "RESEARCH_COORDINATOR", "co-workflow", "How do I create a workflow?"],
+    ["dean", "DEAN", "de-reports", "How do I view or export a college report?"],
+    ["system-admin", "SYSTEM_ADMIN", "sa-audit", "How do I investigate an audit event?"],
+  ])("serves %s local help without invoking a model", async (workspace, role, page, message) => {
+    const body = { workspace, page, message, allowAI: true };
+    expect((await post(body, "ADVISER")).status).toBe(403);
+    expect((await post({ ...body, previousTopic: "class" }, role)).status).toBe(400);
+    const result = await post(body, role, workspace === "system-admin" ? { "X-Test-No-College": "1" } : {});
+    expect(result.status).toBe(200);
+    expect(await result.json()).toMatchObject({ source: "local", topicIds: [page] });
+    if (workspace !== "system-admin")
+      expect((await post(body, role, { "X-Test-No-College": "1" })).status).toBe(403);
     expect(provider).not.toHaveBeenCalled();
   });
   it("uses only the requested workspace and requires an approved Adviser college", async () => {

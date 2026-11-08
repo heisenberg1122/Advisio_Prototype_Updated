@@ -134,6 +134,8 @@ function WorkflowMembersCard({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search name, student number, or email"
+              data-guide={isLoading || error ? undefined : "co-participant-roster"}
+              data-guide-empty={participants.length === 0}
               aria-label="Search workflow participants"
               className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-3 text-base outline-none focus:border-[#173f63] focus:ring-2 focus:ring-blue-100"
             />

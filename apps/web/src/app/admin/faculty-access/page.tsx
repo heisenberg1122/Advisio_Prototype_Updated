@@ -20,7 +20,7 @@ export default function FacultyAccessPage() {
             {user?.college?.name || "your college"}.
           </p>
         </div>
-        <Button disabled={!user?.college} onClick={() => setOpen(true)}>
+        <Button data-guide="de-faculty-invite" disabled={!user?.college} onClick={() => setOpen(true)}>
           Invite or request access
         </Button>
       </header>

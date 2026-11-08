@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ADVISER_HELP } from "@research-management/shared/src/adviser-help";
 import { searchHelpTopics } from "@research-management/shared/src/researcher-help";
-import { resolveAssistantAction } from "@research-management/shared/src/researcher-assistant";
+import { resolveAssistantAction, resolveAssistantQuestion } from "@research-management/shared/src/researcher-assistant";
 import { adviserPageHelp, buildAdviserJourney } from "./adviser-walkthroughs";
 
 describe("Adviser Guide", () => {
@@ -12,6 +12,14 @@ describe("Adviser Guide", () => {
     expect(searchHelpTopics("review a draft", ADVISER_HELP)[0]?.id).toBe(
       "ad-07",
     );
+  });
+
+  it("routes the exact group progress question to verified help", () => {
+    expect(adviserPageHelp("/adviser/dashboard", "?tab=progress")).toBe("ad-20");
+    expect(
+      resolveAssistantQuestion("How do I compare my groups’ progress?", ["research.view"], undefined, "adviser"),
+    ).toMatchObject({ kind: "local", topic: { id: "ad-20" } });
+    expect(resolveAssistantAction("ad-20:show", [], "adviser")).toBeNull();
   });
 
   it("keeps executable actions scoped to the Adviser workspace and permissions", () => {

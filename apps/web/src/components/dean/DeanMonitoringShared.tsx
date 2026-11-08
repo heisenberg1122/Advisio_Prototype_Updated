@@ -138,7 +138,7 @@ export function ScopeFilters({
     <>
       <FilterField label="Program">
         <select
-          data-tour="page-filter"
+          data-guide="de-monitor-search"
           className={inputClass}
           value={query.programId || "all"}
           onChange={(e) => update({ programId: e.target.value })}

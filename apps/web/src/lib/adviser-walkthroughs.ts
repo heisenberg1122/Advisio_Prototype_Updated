@@ -20,6 +20,7 @@ export function adviserPageHelp(path: string, search: string): AdviserHelpId {
   if (path === route.calendar || tab === "consultations") return "ad-13";
   if (tab === "history") return "ad-14";
   if (tab === "approvals") return "ad-12";
+  if (tab === "progress") return "ad-20";
   if (tab === "advisees") return "ad-01";
   return "ad-03";
 }
@@ -328,6 +329,18 @@ export function buildAdviserJourney(
           "Check what happened",
           "Use the actual activity entries, if any, to see recent submissions, reviews and other events.",
         ),
+      ];
+      break;
+    case "ad-20":
+      steps = [
+        go(
+          withFallback(
+            click("progress-group", "Choose an assigned group", "Choose a group to check its stage and requirements."),
+            { key: anchor("progress-empty"), next: "finish", text: "There are no assigned groups to compare. Check My Advisees or the pending requests on Overview." },
+          ),
+          route.progress,
+        ),
+        read("progress-requirements", "Check the remaining requirements", "Read the status for each requirement. Use Open workspace for the group’s milestone history."),
       ];
       break;
     case "ad-12":

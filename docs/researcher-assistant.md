@@ -1,13 +1,14 @@
-# Researcher Assistant implementation
+# Workspace Assistant implementation
 
-The Researcher workspace now has a floating **Ask Advisio** button and a conversational panel connected to Guide. The panel opens on request, follows the existing college/display theme, and minimizes when a Guide or walkthrough opens. The existing Guide remains available through the sidebar.
+All six workspaces share the floating Advisio Assistant and the sidebar Guide. Start or replay a guided tour from the top of the Guide drawer. The panel opens on request, follows the existing college/display theme, and minimizes when a Guide or walkthrough opens. The existing Guide remains available through the sidebar.
 
 ## Architecture
 
 - Verified Guide articles and search live in `packages/shared/src/researcher-help.ts`. The frontend re-exports them through its existing module. A dedicated project-details article and walkthrough were added.
 - `packages/shared/src/researcher-assistant.ts` adds English/Taglish matching, confidence handling, permission-filtered help, and trusted action identifiers. It covers class access, joining a group, members, project details, requirements, documents, upload/version history, submissions, milestones, grades, defense, adviser contact, theme, messages and settings.
+- `packages/shared/src/faculty-help.ts` supplies the Coordinator, Dean, and System Administration questions, permission checks, and read-only walkthrough targets. The same entries power drawer search and deterministic assistant replies.
 - `FloatingResearcherAssistant.tsx` and `researcher-assistant.css` provide the panel, suggestions, loading/errors/retry, keyboard access and responsive layout. `researcher-guide-provider.tsx` authorizes each Take me there, Show me and Open Guide action and preserves the selected project.
-- `POST /api/researcher-assistant` uses existing authentication and the Researcher role. It resolves confident questions from verified help, clarifies ambiguity and uses the server-side provider for remaining questions only after the user enables AI explanations.
+- `POST /api/researcher-assistant` uses existing authentication and validates the requested workspace against the user’s active college roles. System Administration uses the platform-wide administrator role. It resolves confident questions from verified help, clarifies ambiguity and uses the server-side provider for remaining questions only after the user enables AI explanations.
 - AI requests contain the current help-page identifier, the question, up to four relevant recent turns and three to five authorized help entries. Project records, manuscripts, grades, messages and account details are excluded. Duplicate questions and fallback notices are removed from model history.
 - Both providers request strict JSON with topic IDs from retrieved entries. Groq uses Chat Completions with low reasoning effort. OpenAI uses Responses with `store: false`. Server validation rejects invented routes, unregistered topics and malformed or incomplete responses. [Groq Structured Outputs](https://console.groq.com/docs/structured-outputs) · [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses)
 

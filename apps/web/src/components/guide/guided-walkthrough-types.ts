@@ -3,6 +3,7 @@ export interface GuidedTarget {
   key: string;
   text?: string;
   emptyText?: string;
+  disabledText?: string;
   interaction?: GuidedInteraction;
   next?: string;
   to?: string;

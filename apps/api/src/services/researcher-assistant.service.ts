@@ -2,6 +2,8 @@ import {
   ASSISTANT_HELP_VERSION,
   assistantTopic,
   assistantWorkspaceLabels,
+  assistantWorkspaces,
+  assistantPopular,
   authorizedAssistantTopics,
   resolveAssistantQuestion,
   type AssistantAIProvider,
@@ -80,7 +82,7 @@ export interface AssistantIdentity {
 }
 export const assistantRequestSchema = z
   .object({
-    workspace: z.enum(["researcher", "adviser", "panelist"]).optional(),
+    workspace: z.enum(assistantWorkspaces).optional(),
     message: z.string().trim().min(1).max(1600),
     page: z.string().max(30).optional(),
     previousTopic: z.string().max(30).optional(),
@@ -167,13 +169,7 @@ export class ResearcherAssistantService {
     const topicIds = (
       topics.length
         ? topics
-        : allowed.filter((topic) =>
-            ({
-              adviser: ["ad-01", "ad-07", "ad-13"],
-              panelist: ["pn-02", "pn-07", "pn-12"],
-              researcher: ["class", "group", "documents"],
-            })[workspace].includes(topic.id),
-          )
+        : allowed.filter((topic) => assistantPopular[workspace].includes(topic.id))
     )
       .filter((topic) =>
         allowed.some((allowedTopic) => allowedTopic.id === topic.id),
@@ -291,6 +287,9 @@ export class ResearcherAssistantService {
         ({
           adviser: "Use only Adviser procedures. Never infer group assignments, request capacity, review status, or meeting availability. A submitted recommendation applies only to its assigned manuscript version.",
           panelist: "Use only Panelist procedures. Distinguish review assignments from defense packets, configured evaluation modes, drafts from locked submissions, and personal evaluations from release-gated official decisions. Never infer assignment, readiness, scoring or release status.",
+          coordinator: "Explain draft versus published workflows, private versus released grades, and eligibility gates without inferring a group's status.",
+          dean: "Use only college-scoped oversight procedures. Never infer access, risk, workload, or release status for a particular record.",
+          "system-admin": "Use only authorized platform administration guidance. Do not offer operational commands or instructions to bypass role, integration or backup controls.",
           researcher: "Class/workflow access and joining a research group are different processes. In Documents, Submission History lists uploaded versions and their statuses. To confirm an academic submission, open the requirement in Tasks & Requirements and check its status there.",
         })[workspace],
         "You have no research records, grades, messages, enrollment status or documents. Never claim to have checked them. State approval and availability dependencies accurately.",
