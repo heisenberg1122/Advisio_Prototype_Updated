@@ -12,6 +12,7 @@ import { Bell,
   MessageSquare,
   Mail,
   Archive,
+  LineChart,
 } from "lucide-react";
 
 export const ADVISER_NAV_SECTIONS: NavSection[] = [
@@ -25,6 +26,7 @@ export const ADVISER_NAV_SECTIONS: NavSection[] = [
     title: "ADVISEE MANAGEMENT",
     items: [
       { label: "My Advisees", href: "/adviser/dashboard?tab=advisees", tabName: "advisees", icon: Users },
+      { label: "Group Progress", href: "/adviser/dashboard?tab=progress", tabName: "progress", icon: LineChart },
       { label: "Reviews", href: "/adviser/reviews", icon: FileSearch },
       { label: "Official Copies", href: "/adviser/documents?tab=official", icon: Archive },
     ],

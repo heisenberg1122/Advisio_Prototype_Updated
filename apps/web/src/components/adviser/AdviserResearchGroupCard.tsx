@@ -1,11 +1,6 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  CheckCircle2,
-  ClipboardList,
-  Users,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StatusDot, type StatusTone } from "@/components/ui/advisio";
 
 interface AdviserResearchGroupCardProps {
   href: string;
@@ -20,8 +15,23 @@ interface AdviserResearchGroupCardProps {
   className?: string;
 }
 
-const readableStatus = (value: string) =>
+export const readableAdviserGroupStatus = (value: string) =>
   value.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+export const adviserGroupStatusTone = (value: string): StatusTone => {
+  const status = value.toUpperCase();
+  if (status === "ACTIVE" || status === "APPROVED") return "done";
+  if (status === "COMPLETED") return "neutral";
+  if (status === "REJECTED") return "attention";
+  return "brand";
+};
+
+/** "Research Group B" becomes "B"; other names use their first letter. */
+export const adviserGroupInitial = (groupName: string) => {
+  const words = groupName.trim().split(/\s+/);
+  const last = words[words.length - 1] ?? "";
+  return (last.length <= 2 ? last : words[0]?.[0] ?? "?").toUpperCase();
+};
 
 export function AdviserResearchGroupCard({
   href,
@@ -36,7 +46,6 @@ export function AdviserResearchGroupCard({
   className,
 }: AdviserResearchGroupCardProps) {
   const normalizedProgress = Math.min(100, Math.max(0, progress));
-  const active = status.toLowerCase() === "active";
 
   return (
     <Link
@@ -44,69 +53,65 @@ export function AdviserResearchGroupCard({
       data-guide="adviser-group-card"
       aria-label={`Open ${groupName}: ${title}`}
       className={cn(
-        "group flex min-h-[328px] flex-col overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)] outline-none transition duration-200",
-        "hover:-translate-y-1 hover:border-[var(--color-border-strong)] hover:shadow-[var(--shadow-card-hover)]",
+        "group flex flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-[18px] shadow-[0_1px_2px_rgb(20_35_50/4%),0_6px_18px_rgb(20_35_50/6%)] outline-none transition duration-200 dark:shadow-none",
+        "hover:-translate-y-0.5 hover:border-[var(--color-primary)]",
         "focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)]",
         className,
       )}
     >
-      <div className="college-hero-surface relative min-h-[142px] overflow-hidden border-b p-5 text-[var(--color-text-primary)]">
-        <div className="relative flex items-start justify-between gap-3">
-          <span className="max-w-[70%] truncate rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-xs font-black uppercase tracking-[0.14em] text-[var(--color-primary)]">
-            {groupName}
-          </span>
-          <span className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold uppercase tracking-wider",
-            active
-              ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-400/15 dark:text-emerald-200"
-              : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]",
-          )}>
-            <span className={cn("h-1.5 w-1.5 rounded-full", active ? "bg-emerald-500" : "bg-[var(--color-primary)]")} />
-            {readableStatus(status)}
-          </span>
+      <div className="flex items-center gap-2.5">
+        <span
+          aria-hidden="true"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--color-surface))] text-[15px] font-bold text-[var(--color-primary)]"
+        >
+          {adviserGroupInitial(groupName)}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--color-text-secondary)]">{groupName}</span>
+        <StatusDot tone={adviserGroupStatusTone(status)}>{readableAdviserGroupStatus(status)}</StatusDot>
+      </div>
+
+      {/* Three reserved lines keep the stage and progress aligned across a row of cards. */}
+      <h3
+        title={title}
+        className="line-clamp-3 min-h-[4.125rem] text-base font-semibold leading-[1.375rem] text-[var(--color-text-primary)] group-hover:underline group-hover:decoration-[var(--color-primary)] group-hover:underline-offset-4"
+      >
+        {title}
+      </h3>
+
+      <div className="mt-auto">
+        <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
+          <span className="min-w-0 truncate font-medium text-[var(--color-text-secondary)]">{currentStage}</span>
+          <span className="shrink-0 font-semibold text-[var(--color-text-primary)]">{normalizedProgress}%</span>
         </div>
-        <div className="relative mt-6">
-          <h3 className="line-clamp-2 text-lg font-bold leading-snug tracking-tight text-[var(--color-text-primary)] group-hover:underline group-hover:decoration-[var(--color-primary)] group-hover:underline-offset-4">
-            {title}
-          </h3>
-          <p className="mt-2 truncate text-sm font-medium text-[var(--color-text-secondary)]">Group lead: {leader}</p>
+        <div
+          role="progressbar"
+          aria-label={`${groupName} progress`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={normalizedProgress}
+          className="h-[7px] overflow-hidden rounded-full bg-[var(--color-surface-muted)] dark:bg-white/10"
+        >
+          <div
+            className={cn(
+              "h-full rounded-full transition-[width] duration-500",
+              normalizedProgress >= 100 ? "bg-[var(--color-success)]" : "bg-[var(--color-primary)]",
+            )}
+            style={{ width: `${normalizedProgress}%` }}
+          />
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col p-5">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Current research stage</p>
-          <p className="mt-1 line-clamp-1 text-base font-semibold text-[var(--color-text-primary)]">{currentStage}</p>
-        </div>
-
-        <div className="mt-4">
-          <div className="mb-1.5 flex items-center justify-between text-xs">
-            <span className="font-medium text-[var(--color-text-secondary)]">Overall progress</span>
-            <span className="font-bold text-[var(--color-primary)]">{normalizedProgress}%</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-[var(--color-surface-muted)] dark:bg-white/10">
-            <div
-              className="h-full rounded-full bg-[var(--color-primary)] transition-[width] duration-500"
-              style={{ width: `${normalizedProgress}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <span className="flex items-center gap-2 rounded-xl bg-[var(--color-surface-subtle)] px-3 py-2.5 text-sm text-[var(--color-text-secondary)]">
-            <Users className="h-4 w-4 shrink-0 text-[var(--color-primary)]" />
-            <span><strong className="text-[var(--color-text-primary)]">{memberCount}</strong> members</span>
+      <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border)] pt-3 text-sm text-[var(--color-text-secondary)]">
+        <span className="min-w-0 truncate">
+          {memberCount} members · lead {leader}
+        </span>
+        {pendingTasks ? (
+          <span className="shrink-0 rounded-full bg-[color-mix(in_srgb,var(--color-warning)_16%,var(--color-surface))] px-2.5 py-0.5 text-[12.5px] font-semibold text-[var(--au-waiting)]">
+            {pendingTasks} pending
           </span>
-          <span className="flex items-center gap-2 rounded-xl bg-[var(--color-surface-subtle)] px-3 py-2.5 text-sm text-[var(--color-text-secondary)]">
-            {pendingTasks ? <ClipboardList className="h-4 w-4 shrink-0 text-[#C58A18]" /> : <CheckCircle2 className="h-4 w-4 shrink-0 text-[#2E7D5B]" />}
-            <span><strong className="text-[var(--color-text-primary)]">{pendingTasks}</strong> pending</span>
-          </span>
-        </div>
-
-        <div className="mt-auto flex items-center justify-between border-t border-[var(--color-border)] pt-4 text-xs font-semibold text-[var(--color-primary)] dark:border-white/10">
-          <span>Open research workspace</span>
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-        </div>
+        ) : (
+          <span className="shrink-0 py-0.5 text-[12.5px]">Nothing pending</span>
+        )}
       </div>
     </Link>
   );

@@ -231,6 +231,7 @@ a.au-row:hover { background: var(--color-surface-subtle); }
 .au-empty[data-layout="row"] { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 6px var(--au-gap-3) 14px; text-align: left; }
 .au-empty[data-layout="row"] .au-empty-icon { flex: none; width: 40px; height: 40px; margin: 0; }
 .au-empty[data-layout="row"] .au-empty-body { flex: 1 1 180px; justify-items: start; gap: 2px; }
+.au-empty[data-layout="row"] .au-empty-text { max-width: none; }
 .au-empty[data-layout="row"] .au-empty-action { margin: 0; }
 .au-empty[data-layout="page"] { padding: 36px var(--au-gap-3); }
 .au-empty[data-layout="page"] .au-empty-icon { width: 48px; height: 48px; font-size: 22px; }

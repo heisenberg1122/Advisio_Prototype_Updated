@@ -8,11 +8,13 @@ export function PanelistProjectMenu({
   activeProjectId,
   onSelect,
   guide,
+  heading = "Your panel projects",
 }: {
   projects: MenuProject[];
   activeProjectId: string;
   onSelect: (projectId: string) => void;
   guide?: string;
+  heading?: string;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -66,7 +68,7 @@ export function PanelistProjectMenu({
       </button>
       {open && (
         <div className="pd-menu" role="dialog" aria-label="Choose a research project">
-          <p className="pd-menu-head">Your panel projects</p>
+          <p className="pd-menu-head">{heading}</p>
           <ul id={listId} onKeyDown={moveFocus}>
             {projects.map((project) => {
               const current = project.id === activeProjectId;
