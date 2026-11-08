@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@research-management/auth": "*",
+    "@research-management/shared": "*",
     "@research-management/validations": "*",
     "@tabler/icons-react": "^3.44.0",
     "@tanstack/react-query": "^5.101.1",
@@ -40,6 +41,7 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "typescript-eslint": "^8.69.0",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "vitest": "^5.0.0"
   }
 }

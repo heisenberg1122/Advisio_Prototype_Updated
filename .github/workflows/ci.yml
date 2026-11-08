@@ -38,7 +38,12 @@ jobs:
           cache: "npm"
 
       - name: Install Monorepo Dependencies
-        run: npm ci
+        run: |
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          FFMPEG_BIN="$(command -v ffmpeg)" npm ci
 
       - name: Build Internal Packages
         run: |
@@ -109,7 +114,12 @@ jobs:
           cache: "npm"
 
       - name: Install Monorepo Dependencies
-        run: npm ci
+        run: |
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+          FFMPEG_BIN="$(command -v ffmpeg)" npm ci
 
       - name: Build Required Internal Packages
         run: |

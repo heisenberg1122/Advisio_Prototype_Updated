@@ -58,7 +58,7 @@ jobs:
       - name: Build the production frontend
         if: steps.current.outputs.deploy == 'true'
         run: |
-          npm ci
+          npm ci --workspace=web --workspace=@research-management/auth --workspace=@research-management/shared --workspace=@research-management/validations --include-workspace-root=false
           npm run build --workspace=@research-management/auth
           npm run build --workspace=@research-management/validations
           npm run build --workspace=web

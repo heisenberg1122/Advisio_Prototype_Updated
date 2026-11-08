@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "installCommand": "cd ../.. && npm ci",
+  "installCommand": "cd ../.. && npm ci --workspace=web --workspace=@research-management/auth --workspace=@research-management/shared --workspace=@research-management/validations --include-workspace-root=false",
   "buildCommand": "cd ../.. && npm run build --workspace=@research-management/auth && npm run build --workspace=@research-management/validations && npm run build --workspace=web",
   "outputDirectory": "dist",
   "redirects": [
