@@ -22,14 +22,19 @@ import {
   type AdviserHelpId,
 } from "@research-management/shared/src/adviser-help";
 import {
-  authorizedAdviserHelp,
-  normalizeGuideQuestion,
-  type GuideWorkspace,
-} from "@research-management/shared/src/guide-help";
+  authorizedAssistantTopics,
+  normalizeAssistantQuestion,
+  type AssistantWorkspace,
+} from "@research-management/shared/src/researcher-assistant";
+import { PANELIST_HELP, panelistCategories, panelistPopular, type PanelistHelpId } from "@research-management/shared/src/panelist-help";
+import { DEAN_HELP, deanCategories, deanPopular, type DeanHelpId } from "@research-management/shared/src/dean-help";
+import { currentPanelistEvaluationNotice } from "@/lib/panelist-walkthroughs";
+import { currentDeanPanelEvaluationNotice } from "@/lib/dean-walkthroughs";
 import { searchHelpTopics } from "@research-management/shared/src/researcher-help";
+import { authorizedAdviserHelp, normalizeGuideQuestion } from "@research-management/shared/src/guide-help";
 import "./researcher-guide.css";
 
-export type GuideHelpId = ResearcherHelpId | AdviserHelpId;
+export type GuideHelpId = ResearcherHelpId | AdviserHelpId | PanelistHelpId | DeanHelpId;
 
 const categories = [
   "Getting started",
@@ -114,7 +119,7 @@ const contextual: Record<
   },
 };
 interface Props {
-  workspace: GuideWorkspace;
+  workspace: AssistantWorkspace;
   permissions: readonly string[];
   page: GuideHelpId;
   selected: GuideHelpId | null;
@@ -122,6 +127,7 @@ interface Props {
   state: ResearcherGuideState;
   loading: boolean;
   introductionCompleted: boolean;
+  introductionAtTop?: boolean;
   notice: string;
   onQuery: (value: string) => void;
   onSelect: (id: GuideHelpId) => void;
@@ -138,6 +144,7 @@ export function GuideDrawer({
   state,
   loading,
   introductionCompleted,
+  introductionAtTop = false,
   notice,
   onQuery,
   onSelect,
@@ -145,14 +152,26 @@ export function GuideDrawer({
   onClose,
   onStart,
 }: Props) {
+  const startTour = useRef<HTMLButtonElement>(null);
   const search = useRef<HTMLInputElement>(null),
     heading = useRef<HTMLHeadingElement>(null);
   const adviser = workspace === "adviser";
-  const adviserHelp = authorizedAdviserHelp(permissions);
-  const topics = adviser ? adviserHelp : RESEARCHER_HELP;
+  const panelist = workspace === "panelist";
+  const dean = workspace === "dean";
+  const researcher = workspace === "researcher";
+  const allowed = authorizedAssistantTopics(permissions, workspace);
+  const topics = researcher
+    ? RESEARCHER_HELP
+    : adviser ? authorizedAdviserHelp(permissions)
+    : (dean ? DEAN_HELP : PANELIST_HELP).filter((item) =>
+        allowed.some((topic) => topic.id === item.id),
+      );
+  const popular = dean ? deanPopular : panelist ? panelistPopular : adviser ? adviserPopular : frequentlyAsked;
+  const sections = dean ? deanCategories : panelist ? panelistCategories : adviser ? adviserCategories : categories;
+  const label = dean ? "Dean's Office" : panelist ? "Panelist" : adviser ? "Faculty Adviser" : "Researcher";
   const topic = topics.find((item) => item.id === selected);
   const contextTopic = topics.find((item) => item.id === page);
-  const current = adviser
+  const current = !researcher
     ? contextTopic && {
         title: contextTopic.question,
         description: contextTopic.answer[0],
@@ -160,14 +179,14 @@ export function GuideDrawer({
     : contextual[page as ResearcherHelpId];
   const results = !query.trim()
     ? []
-    : adviser
-      ? searchHelpTopics(normalizeGuideQuestion(query), adviserHelp)
-      : searchResearcherHelp(query);
+    : researcher
+      ? searchResearcherHelp(query)
+      : searchHelpTopics<(typeof topics)[number]>(adviser ? normalizeGuideQuestion(query) : normalizeAssistantQuestion(query), topics);
   useEffect(() => {
-    (selected ? heading.current : search.current)?.focus({
+    (selected ? heading.current : dean ? startTour.current : search.current)?.focus({
       preventScroll: true,
     });
-  }, [selected]);
+  }, [selected, dean]);
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -198,16 +217,17 @@ export function GuideDrawer({
     );
   };
   const stateMessage =
-    topic && !adviser
+    topic && researcher
       ? researcherStateNotice(topic.id as ResearcherHelpId, state)
-      : null;
+      : selected === "pn-14" ? currentPanelistEvaluationNotice()
+      : selected === "dean-panel-evaluation" ? currentDeanPanelEvaluationNotice() : null;
   const intro = (
     <section className="researcher-guide__intro">
       <Compass size={19} aria-hidden="true" />
       <div>
         <h4>New to Advisio?</h4>
         <p>
-          Take a guided look around your {adviser ? "advising" : "research"}{" "}
+          Take a guided look around your {panelist ? "panelist" : adviser ? "advising" : "research"}{" "}
           workspace.
         </p>
         <button type="button" onClick={() => onStart("introduction")}>
@@ -232,7 +252,7 @@ export function GuideDrawer({
         <div>
           <h2 id="researcher-guide-title">Guide</h2>
           <p>
-            {adviser ? "Faculty Adviser Workspace" : "Researcher Workspace"}
+            {label} Workspace
           </p>
         </div>
         <button
@@ -307,8 +327,19 @@ export function GuideDrawer({
           </>
         ) : (
           <>
-            {!adviser && !query.trim() && intro}
-            <h3>What do you need help with?</h3>
+            {dean && (
+              <button
+                ref={startTour}
+                type="button"
+                className="researcher-guide__primary researcher-guide__show researcher-guide__start-tour"
+                onClick={() => onStart("introduction")}
+              >
+                Start guided tour
+                <ArrowRight size={16} aria-hidden="true" />
+              </button>
+            )}
+            {(researcher || introductionAtTop) && !query.trim() && intro}
+            <h3>{panelist ? "What can we help you with?" : "What do you need help with?"}</h3>
             <p className="researcher-guide__subtle">
               Find an answer or let me show you around.
             </p>
@@ -318,10 +349,14 @@ export function GuideDrawer({
                 ref={search}
                 type="search"
                 aria-label={
-                  adviser ? "Search adviser help" : "Search researcher help"
+                  dean ? "Search Dean help" : panelist ? "Search panelist help" : adviser ? "Search adviser help" : "Search researcher help"
                 }
                 placeholder={
-                  adviser
+                  dean
+                    ? "Try ‘Where can I monitor research groups?’"
+                    : panelist
+                    ? "Try ‘Where is my defense invitation?’"
+                    : adviser
                     ? "Try ‘How do I review a manuscript?’"
                     : "Try ‘How do I join a class?’"
                 }
@@ -340,7 +375,11 @@ export function GuideDrawer({
                 {results.map((item) => question(item.id, true))}
                 {!results.length && (
                   <p className="researcher-guide__answer">
-                    {adviser
+                    {dean
+                      ? "Try research groups, progress, defense schedules, or reports."
+                      : panelist
+                      ? "Try invitation, defense packet, evaluation, or results."
+                      : adviser
                       ? "Try words such as advisees, review, consultation, or appearance."
                       : "Try words such as class, group, feedback, or dark mode. If your question is outside these topics, ask your professor/coordinator. These are written help topics, not generated answers."}
                   </p>
@@ -369,11 +408,11 @@ export function GuideDrawer({
                   aria-label="Frequently asked questions"
                 >
                   <h4>
-                    {adviser
+                    {!researcher
                       ? "Popular questions"
                       : "Frequently asked questions"}
                   </h4>
-                  {(adviser ? adviserPopular : frequentlyAsked).map((id) =>
+                  {popular.map((id) =>
                     question(id),
                   )}
                 </section>
@@ -382,7 +421,7 @@ export function GuideDrawer({
                   aria-label="Browse help topics"
                 >
                   <h4>Browse help topics</h4>
-                  {(adviser ? adviserCategories : categories)
+                  {sections
                     .filter((category) =>
                       topics.some((topic) => topic.category === category),
                     )
@@ -418,7 +457,7 @@ export function GuideDrawer({
                       </details>
                     ))}
                 </section>
-                {adviser && intro}
+                {!researcher && !dean && !introductionAtTop && intro}
               </>
             )}
           </>

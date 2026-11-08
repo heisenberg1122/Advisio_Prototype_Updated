@@ -269,13 +269,18 @@ function ExistingDeanDashboardContent() {
       <div className={`workspace-page flex w-full flex-col gap-6 ${activeView === "messages" ? "max-w-none p-3 sm:p-4 lg:p-5" : "mx-auto max-w-[1360px] p-4 sm:p-6 lg:p-8"}`}>
         {activeView === "overview" && (
           <DashboardWelcome
+            guideTarget="dean-overview-summary"
             firstName={user?.firstName}
             fallbackName="Dean"
             summary="Here's an overview of research progress, programs, and academic activity across your college."
           />
         )}
         {activeView !== "messages" && activeView !== "announcements" && (
-          <div className="flex flex-wrap items-center justify-end gap-3">
+          <div
+            data-tour={activeView === "overview" ? "page-filter" : undefined}
+            data-dean-guide-filter
+            className="flex flex-wrap items-center justify-end gap-3"
+          >
               <label className="relative min-w-44 flex-1 sm:flex-none">
                 <span className="sr-only">Academic year</span>
                 <select
@@ -410,7 +415,7 @@ function ExistingDeanDashboardContent() {
               </article>
 
               <article className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
-                <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Research Pipeline</h2>
+                <h2 data-guide="dean-pipeline" className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Research Pipeline</h2>
                 <p className="mt-1 text-base text-slate-500 dark:text-slate-400 font-medium">Groups distributed by active workflow milestone.</p>
                 <div className="mt-6 space-y-4">
                   {data.stageDistribution.map((item) => (
@@ -437,7 +442,7 @@ function ExistingDeanDashboardContent() {
               <article className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
+                    <h2 data-guide="dean-attention" className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
                       Needs Dean Attention
                     </h2>
                     <p className="mt-1 text-base text-slate-500 dark:text-slate-400 font-medium">Priority bottlenecks and overdue research milestones.</p>
@@ -952,7 +957,7 @@ function RegistryView({
     <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
       <div className="workspace-page-header workspace-page-header--inset flex flex-col gap-3 border-b border-slate-200 dark:border-white/10 p-5 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
+          <h2 data-guide="dean-registry-heading" className="text-lg font-black tracking-tight text-slate-900 dark:text-white">
             {activeView === "students"
               ? "Students Taking Research"
               : activeView === "progress"
@@ -979,6 +984,8 @@ function RegistryView({
               <Filter className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <select
                 value={riskFilter}
+                data-guide="dean-risk-filter"
+                data-dean-guide-filter
                 onChange={(e) => setRiskFilter(e.target.value)}
                 className="h-10 appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-8 text-base font-semibold dark:border-white/10 dark:bg-[#101b2b] dark:text-white"
               >

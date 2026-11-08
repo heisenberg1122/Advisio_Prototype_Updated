@@ -5,6 +5,7 @@ import "./professor-workflow.css";
 import "./professor-defense.css";
 import "./professor-projects-submissions.css";
 import "./professor-progress.css";
+import "./professor-overview.css";
 import { buildMilestoneMove } from "@/lib/workflow-order";
 import { AdviserApprovalBadge, AdviserTaskReview, needsAdviserApproval } from "@/components/workflow/AdviserTaskReview";
 import React, { useState, Suspense, useEffect, useRef } from "react";
@@ -24,7 +25,7 @@ import {
   resolveWorkflowDeadline,
 } from "@/lib/workflow-deadlines";
 import { DashboardQuickActions } from "@/components/dashboards/DashboardQuickActions";
-import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
+import { getAcademicIdentity } from "@/lib/academic-identity";
 import {
   DashboardSkeleton,
   ListRowsSkeleton,
@@ -179,7 +180,7 @@ function ProfessorDashboardContent() {
     any | null
   >(null);
   const [replacementUserId, setReplacementUserId] = useState("");
-  const { data: announcementData, refetch: refetchAnnouncements } = useQuery({
+  const { data: announcementData, isPending: announcementsLoading, isError: announcementsError, refetch: refetchAnnouncements } = useQuery({
     queryKey: ["professor-announcements"],
     queryFn: () =>
       apiClient.get<{ announcements: any[] }>(
@@ -1912,6 +1913,10 @@ function ProfessorDashboardContent() {
       <TablePageSkeleton />
     );
   }
+
+  const overviewSeal = activeTab === "overview"
+    ? getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc
+    : undefined;
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
@@ -3685,44 +3690,46 @@ function ProfessorDashboardContent() {
           const tabContent: Record<string, React.ReactNode> = {
             messages: <FacultyGroupChats triggerToast={triggerToast} />,
             overview: (
-              <div className="mx-auto flex w-full max-w-[1480px] flex-col gap-4">
-                <DashboardWelcome
-                  firstName={user?.firstName}
-                  fallbackName="Professor"
-                  summary="Here's an overview of the research activity and submissions you are monitoring."
-                  actions={
-                    <>
-                      <button
-                        onClick={() => handleTabChange("builder")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition dark:text-[var(--college-on-primary-dark)]"
-                      >
-                        <i className="ti ti-plus text-base" /> Create Milestone
-                      </button>
-                      <button
-                        onClick={() => handleTabChange("monitoring")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
-                      >
-                        <i className="ti ti-folders text-base" /> Monitor Groups
-                        ({projects.length})
-                      </button>
-                      <button
-                        onClick={() => handleTabChange("submissions")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
-                      >
-                        <i className="ti ti-file-text text-base" /> Submissions
-                      </button>
-                    </>
-                  }
-                />
-                {/* Key Metrics Grid - Standardized UA Institutional Pattern */}
-                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="professor-overview">
+                <section className="professor-overview__hero" aria-labelledby="coordinator-home-title">
+                  {overviewSeal && (
+                    <img src={overviewSeal} className="professor-overview__seal" alt="" aria-hidden="true" draggable={false} />
+                  )}
+                  <p className="professor-overview__eyebrow">Research Coordination</p>
+                  <h1 id="coordinator-home-title">Good day, {user?.firstName?.trim() || "Professor"}</h1>
+                  <p className="professor-overview__intro">Coordinate research groups, manage milestones, and review student submissions.</p>
+                  <div className="professor-overview__hero-actions">
+                    <button type="button" onClick={() => handleTabChange("builder")} className="professor-overview__primary">
+                      <i className="ti ti-plus" aria-hidden="true" /> Create Milestone
+                    </button>
+                    <button type="button" onClick={() => handleTabChange("monitoring")}>
+                      <i className="ti ti-folders" aria-hidden="true" /> Monitor Groups
+                    </button>
+                    <button type="button" onClick={() => handleTabChange("submissions")}>
+                      <i className="ti ti-file-text" aria-hidden="true" /> Submissions
+                    </button>
+                  </div>
+                </section>
+
+                {(projectsError || workflowsError) && (
+                  <div className="professor-overview__notice" role="status">
+                    <span>Some overview data couldn’t load.</span>
+                    <button type="button" className="professor-overview__link" onClick={() => {
+                      if (projectsError) void refetchResearch();
+                      if (workflowsError) void refetchWorkflows();
+                    }}>Try again</button>
+                  </div>
+                )}
+
+                <section className="professor-overview__metrics" aria-label="Coordination metrics">
                   {[
                     {
                       label: "Students Monitored",
                       value: studentsCount,
                       suffix: "active",
                       icon: "ti-users",
-                      tone: "bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#38bdf8]",
+                      tone: "brand",
+                      unavailable: Boolean(projectsError && !researchData),
                       tab: "monitoring",
                     },
                     {
@@ -3730,7 +3737,8 @@ function ProfessorDashboardContent() {
                       value: projects.length,
                       suffix: "cohorts",
                       icon: "ti-folders",
-                      tone: "bg-[#C9A227]/15 text-[#8A6A0B] dark:text-[#C9A227]",
+                      tone: "brand",
+                      unavailable: Boolean(projectsError && !researchData),
                       tab: "monitoring",
                     },
                     {
@@ -3738,7 +3746,8 @@ function ProfessorDashboardContent() {
                       value: milestones.length,
                       suffix: "milestones",
                       icon: "ti-flag",
-                      tone: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+                      tone: "ready",
+                      unavailable: Boolean(workflowsError && !workflowData),
                       tab: "builder",
                     },
                     {
@@ -3746,55 +3755,49 @@ function ProfessorDashboardContent() {
                       value: needsReviewCount,
                       suffix: "pending",
                       icon: "ti-inbox",
-                      tone: "bg-blue-50 text-[#0B3A53] dark:bg-white/10 dark:text-white",
+                      tone: "pending",
+                      unavailable: Boolean(projectsError && !researchData),
                       tab: "submissions",
                     },
                   ].map((item) => (
                     <button
                       key={item.label}
+                      type="button"
                       onClick={() => handleTabChange(item.tab)}
-                      className="group flex min-h-[96px] items-center gap-4 rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-4 sm:p-5 text-left shadow-xs transition hover:shadow-md hover:border-[#0B3A53]/40 hover:-translate-y-0.5 outline-none"
+                      className="professor-overview__metric"
                     >
-                      <span
-                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl ${item.tone}`}
-                      >
+                      <span className="professor-overview__icon" data-tone={item.tone} aria-hidden="true">
                         <i className={`ti ${item.icon}`} />
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-slate-500 dark:text-slate-400">
-                          {item.label}
-                        </span>
-                        <span className="mt-0.5 block text-2xl font-black text-[#0B3A53] dark:text-white truncate">
-                          {item.value}{" "}
-                          <small className="text-xs font-semibold text-slate-400">
-                            · {item.suffix}
-                          </small>
-                        </span>
+                      <span className="professor-overview__metric-copy">
+                        <span className="professor-overview__metric-label">{item.label}</span>
+                        <strong>{item.unavailable ? "—" : item.value}</strong>
+                        <small>{item.unavailable ? "Unavailable" : item.suffix}</small>
                       </span>
+                      <i className="ti ti-chevron-right professor-overview__metric-arrow" aria-hidden="true" />
                     </button>
                   ))}
                 </section>
 
-                <DashboardQuickActions
-                  actions={[
-                    { label: "Review submissions", icon: "ti-inbox", tab: "submissions" },
-                    { label: "View research projects", icon: "ti-users", tab: "monitoring" },
-                    { label: "Track progress", icon: "ti-chart-line", tab: "tracking" },
-                    { label: "Build workflow", icon: "ti-adjustments", tab: "builder" },
-                  ]}
-                  onAction={handleTabChange}
-                />
+                <div className="professor-overview__shortcuts">
+                  <DashboardQuickActions
+                    actions={[
+                      { label: "Review submissions", icon: "ti-inbox", tab: "submissions" },
+                      { label: "View research projects", icon: "ti-users", tab: "monitoring" },
+                      { label: "Track progress", icon: "ti-chart-line", tab: "tracking" },
+                      { label: "Build workflow", icon: "ti-adjustments", tab: "builder" },
+                    ]}
+                    onAction={handleTabChange}
+                  />
+                </div>
 
-                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="flex items-start justify-between gap-4">
+                <section className="professor-overview__panel" aria-labelledby="coordinator-updates-title">
+                  <div className="professor-overview__panel-heading">
                     <div>
-                      <p className="text-sm font-extrabold uppercase tracking-wider text-[#d98d00]">
-                        Recent activity
-                      </p>
-                      <h2 className="mt-1 text-lg font-extrabold text-[#102f49]">
+                      <h2 id="coordinator-updates-title">
                         College and system updates
                       </h2>
-                      <p className="mt-1 text-base text-slate-500">
+                      <p>
                         Official notices are labeled by source so you can
                         quickly distinguish department and system messages.
                       </p>
@@ -3802,22 +3805,24 @@ function ProfessorDashboardContent() {
                     <button
                       type="button"
                       onClick={() => handleTabChange("announcements")}
-                      className="shrink-0 text-sm font-bold text-[#173f63]"
+                      className="professor-overview__link"
                     >
-                      View all <i className="ti ti-chevron-right" />
+                      View all <i className="ti ti-chevron-right" aria-hidden="true" />
                     </button>
                   </div>
-                  <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                  <div className="professor-overview__updates">
                     {announcements.slice(0, 3).map((announcement) => (
                       <article
                         key={announcement.id}
-                        className="rounded-xl border border-slate-200 bg-slate-50 p-3"
+                        className="professor-overview__update"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="professor-overview__source">
                           <span
-                            className={`h-2.5 w-2.5 rounded-full ${announcement.source === "SYSTEM_ADMIN" ? "bg-violet-500" : announcement.source === "DEAN" ? "bg-blue-500" : "bg-emerald-500"}`}
+                            className="professor-overview__source-dot"
+                            data-source={announcement.source}
+                            aria-hidden="true"
                           />
-                          <span className="text-xs font-extrabold uppercase tracking-wide text-slate-500">
+                          <span>
                             {announcement.source === "SYSTEM_ADMIN"
                               ? "System Admin"
                               : announcement.source === "DEAN"
@@ -3825,40 +3830,37 @@ function ProfessorDashboardContent() {
                                 : "Professor"}
                           </span>
                         </div>
-                        <h3 className="mt-2 truncate text-lg font-extrabold text-[#102f49]">
-                          {announcement.title}
-                        </h3>
-                        <p className="mt-1 line-clamp-2 text-base leading-5 text-slate-600">
-                          {announcement.message}
-                        </p>
+                        <h3>{announcement.title}</h3>
+                        <p className="line-clamp-2">{announcement.message}</p>
                       </article>
                     ))}
                     {!announcements.length && (
-                      <div className="col-span-full rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">
-                        No current announcements.
+                      <div className="professor-overview__empty professor-overview__updates-empty" role="status">
+                        <p>{announcementsError ? "Updates couldn’t load." : announcementsLoading ? "Loading updates…" : "No current announcements."}</p>
+                        {announcementsError && <button type="button" className="professor-overview__link" onClick={() => void refetchAnnouncements()}>Try again</button>}
                       </div>
                     )}
                   </div>
                 </section>
 
                 {/* Progress & Attention Grid */}
-                <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.95fr]">
-                  <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
-                    <div className="flex items-center justify-between mb-4">
+                <section className="professor-overview__split" aria-label="Research progress and submissions">
+                  <article className="professor-overview__panel" aria-labelledby="coordinator-monitoring-title">
+                    <div className="professor-overview__panel-heading">
                       <div>
-                        <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
+                        <h2 id="coordinator-monitoring-title">
                           Research Monitoring Overview
-                        </h3>
-                        <p className="mt-0.5 text-base text-slate-500 dark:text-slate-400">
-                          Live monitoring stream of active student research
-                          groups.
+                        </h2>
+                        <p>
+                          Follow the progress of your active research groups.
                         </p>
                       </div>
                       <button
+                        type="button"
                         onClick={() => handleTabChange("tracking")}
-                        className="flex items-center gap-1 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
+                        className="professor-overview__link"
                       >
-                        View all <i className="ti ti-chevron-right text-xs" />
+                        View all <i className="ti ti-chevron-right" aria-hidden="true" />
                       </button>
                     </div>
                     <div className="space-y-3">
@@ -3866,56 +3868,47 @@ function ProfessorDashboardContent() {
                         projects.slice(0, 4).map((p) => (
                           <button
                             key={p.id}
+                            type="button"
                             onClick={() => handleTabChange("tracking")}
-                            className="block w-full rounded-xl border border-slate-100 bg-slate-50/70 p-3.5 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5"
+                            className="professor-overview__row professor-overview__progress-row"
                           >
-                            <span className="flex items-center justify-between">
-                              <span className="font-bold text-sm text-[#17212B] dark:text-white">
-                                {p.group}
-                              </span>
-                              <span className="text-sm font-bold text-[#0B3A53] dark:text-[#C9A227]">
-                                {p.progress}%
-                              </span>
+                            <span className="professor-overview__row-heading">
+                              <span>{p.group}</span>
+                              <strong>{p.progress}%</strong>
                             </span>
-                            <span className="mt-2 block h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                            <span className="professor-overview__progress-track" aria-hidden="true">
                               <span
-                                className="block h-full rounded-full bg-gradient-to-r from-[#0B3A53] to-[#C9A227]"
                                 style={{ width: `${p.progress}%` }}
                               />
                             </span>
                           </button>
                         ))
                       ) : (
-                        <div className="flex min-h-40 flex-col items-center justify-center text-center">
-                          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#C9A227]">
-                            <i className="ti ti-users-group text-2xl" />
-                          </span>
-                          <p className="mt-3 font-bold text-base text-[#17212B] dark:text-white">
-                            No active groups yet
-                          </p>
-                          <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
-                            Research groups will appear here once registered.
-                          </p>
+                        <div className="professor-overview__empty">
+                          <span className="professor-overview__icon" aria-hidden="true"><i className="ti ti-users-group" /></span>
+                          <h3>{projectsError ? "Research groups couldn’t load" : "No active groups yet"}</h3>
+                          {!projectsError && <p>Research groups will appear here once registered.</p>}
                         </div>
                       )}
                     </div>
                   </article>
 
-                  <article className="rounded-2xl border border-[#E2E8F0] dark:border-white/10 bg-white dark:bg-[#101b2b] p-6 shadow-xs">
-                    <div className="flex items-start justify-between mb-4">
+                  <article className="professor-overview__panel" aria-labelledby="coordinator-attention-title">
+                    <div className="professor-overview__panel-heading">
                       <div>
-                        <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
+                        <h2 id="coordinator-attention-title">
                           Needs your attention
-                        </h3>
-                        <p className="mt-0.5 text-base text-slate-500 dark:text-slate-400">
+                        </h2>
+                        <p>
                           Recent student work waiting for instructor review.
                         </p>
                       </div>
                       <button
+                        type="button"
                         onClick={() => handleTabChange("submissions")}
-                        className="flex items-center gap-1 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
+                        className="professor-overview__link"
                       >
-                        View queue <i className="ti ti-chevron-right text-xs" />
+                        View queue <i className="ti ti-chevron-right" aria-hidden="true" />
                       </button>
                     </div>
                     <div className="space-y-2.5">
@@ -3927,36 +3920,33 @@ function ProfessorDashboardContent() {
                         .map((item) => (
                           <button
                             key={item.id}
+                            type="button"
                             onClick={() => {
                               openSubmissionReview(item);
                               handleTabChange("submissions");
                             }}
-                            className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5"
+                            className="professor-overview__row professor-overview__submission"
                           >
                             <span className="min-w-0">
-                              <span className="block truncate text-sm font-bold text-[#17212B] dark:text-white">
+                              <strong>
                                 {item.task?.title}
-                              </span>
-                              <span className="block truncate text-sm text-slate-500 dark:text-slate-400">
+                              </strong>
+                              <small>
                                 {item.projectTitle}
-                              </span>
+                              </small>
                             </span>
-                            <span className="shrink-0 rounded-full bg-[#C9A227]/20 px-2.5 py-1 text-xs font-bold text-[#8A6A0B] dark:text-[#C9A227]">
-                              Review
+                            <span className="professor-overview__review">
+                              Review <i className="ti ti-chevron-right" aria-hidden="true" />
                             </span>
                           </button>
                         ))}
                       {needsReviewCount === 0 && (
-                        <div className="flex min-h-36 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 text-center dark:border-white/10 dark:bg-white/5">
-                          <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                            <i className="ti ti-circle-check text-lg" />
+                        <div className="professor-overview__empty">
+                          <span className="professor-overview__icon" data-tone={projectsError ? "pending" : "ready"} aria-hidden="true">
+                            <i className={projectsError ? "ti ti-alert-circle" : "ti ti-circle-check"} />
                           </span>
-                          <p className="text-base font-bold text-[#17212B] dark:text-white">
-                            You’re all caught up
-                          </p>
-                          <p className="text-base text-slate-400">
-                            New submissions will appear here.
-                          </p>
+                          <h3>{projectsError ? "Submissions couldn’t load" : "You’re all caught up"}</h3>
+                          {!projectsError && <p>New submissions will appear here.</p>}
                         </div>
                       )}
                     </div>

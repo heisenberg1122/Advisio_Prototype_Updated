@@ -34,8 +34,10 @@ export function WorkspaceTourProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const eligible = eligibleTourWorkspace(user, location.pathname);
-  const workspace = eligible !== "adviser" && eligible === activeWorkspace?.id ? eligible : null;
   const evaluation = token === "__evaluation__";
+  const usesGuide = eligible === "adviser" || (eligible === "panelist" && !evaluation) ||
+    (eligible === "dean" && Boolean(user?.college?.id));
+  const workspace = !usesGuide && eligible === activeWorkspace?.id ? eligible : null;
   const generation = evaluationIdentityGeneration();
   const session = useQuery({
     queryKey: ["workspace-tour-evaluation-session", user?.id, user?.college?.id, generation],

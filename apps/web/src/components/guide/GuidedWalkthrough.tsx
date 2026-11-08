@@ -16,10 +16,13 @@ import type {
 import "./researcher-guide.css";
 
 export function findGuideTarget(key: string): HTMLElement | null {
+  const tour = key.startsWith("tour:");
   const elements = key.startsWith("id:")
     ? [document.getElementById(key.slice(3))]
     : Array.from(
-        document.querySelectorAll<HTMLElement>(`[data-guide="${key}"]`),
+        document.querySelectorAll<HTMLElement>(
+          tour ? `[data-tour="${key.slice(5)}"]` : `[data-guide="${key}"]`,
+        ),
       );
   return (
     elements.find((element): element is HTMLElement =>

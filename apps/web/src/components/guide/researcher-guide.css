@@ -252,6 +252,10 @@
   width: 100%;
   margin: 7px 0 12px;
 }
+.researcher-guide__start-tour {
+  min-height: 44px;
+  margin: 0 0 16px;
+}
 .researcher-guide__fallback {
   font-size: 12px;
   line-height: 1.7;

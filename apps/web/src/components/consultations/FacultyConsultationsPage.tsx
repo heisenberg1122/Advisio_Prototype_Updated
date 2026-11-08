@@ -182,7 +182,7 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
       {approval.error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{approval.error.message}</p>}
       <section className={panelClass} aria-label="Project consultations">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)] px-5 py-4">
-          <h2 className="font-semibold text-[var(--color-text-primary)]">Project consultations</h2>
+          <h2 data-guide="faculty-consultations" className="font-semibold text-[var(--color-text-primary)]">Project consultations</h2>
           <p className="text-sm text-[var(--color-text-secondary)]">Philippine time</p>
         </div>
         {consultations.isPending && <p role="status" className="p-5">Loading consultations…</p>}

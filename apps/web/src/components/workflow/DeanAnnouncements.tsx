@@ -125,7 +125,7 @@ export function DeanAnnouncements({
         )}
       </form>
       <div className="space-y-4">
-        <h2 className="text-xl font-bold">Current announcements</h2>
+        <h2 data-guide="dean-announcements" className="text-xl font-bold">Current announcements</h2>
         {feed.isLoading && <p>Loading announcements…</p>}
         {feed.isError && <p role="alert">Announcements could not be loaded.</p>}
         {feed.data?.announcements.map((announcement) => (

@@ -1196,7 +1196,7 @@ export default function DocumentWorkspacePage() {
             tabIndex={useDocumentLibraryStyles ? -1 : undefined}
           >
             <PageHeader
-              data-guide={isResearcherPortal ? "document-page-heading" : undefined}
+              data-guide={isResearcherPortal ? "document-page-heading" : pathname.startsWith("/admin/") ? "dean-official-copies" : undefined}
               variant="plain"
               className="border-0 pb-0"
               title={isPanelistPortal ? "Panel Documents" : "Documents"}

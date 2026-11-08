@@ -72,7 +72,7 @@ export function ResearcherInboxWorkspace(props: Props) {
     <div ref={workspaceRef} className="researcher-mail" data-empty={empty} data-selected={Boolean(selectedId)}>
       <aside className="rm-navigation">
         <button type="button" onClick={props.onCompose} className="rm-compose"><Pencil size={16} aria-hidden="true" />Compose</button>
-        <nav aria-label="Mail folders" className="rm-folders">
+        <nav aria-label="Mail folders" data-guide="mail-folders" className="rm-folders">
           {folders.map(item => {
             const count = item.id === "inbox" ? counts?.unread : counts?.[item.id];
             return <button key={item.id} type="button" onClick={() => props.onFolderChange(item.id)} aria-current={folder === item.id ? "page" : undefined}>

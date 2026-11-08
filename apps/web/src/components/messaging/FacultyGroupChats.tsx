@@ -332,7 +332,7 @@ export function FacultyGroupChats({ triggerToast }: { triggerToast?: (message: s
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-bold uppercase tracking-wider text-[#58647A] dark:text-slate-400">Advisio Messages</p>
-            <h2 className="mt-0.5 text-lg font-bold tracking-tight text-[#0B3A53] dark:text-white">Conversations</h2>
+            <h2 data-guide="faculty-conversations" className="mt-0.5 text-lg font-bold tracking-tight text-[#0B3A53] dark:text-white">Conversations</h2>
           </div>
           <div className="grid h-9 w-9 place-items-center rounded-xl bg-[#EAF3F7] text-[#0B3A53] dark:bg-white/10 dark:text-sky-400">
             <MessageSquareText className="h-4.5 w-4.5" />

@@ -119,7 +119,7 @@ export function DeanReportsView() {
           Refresh
         </button>
       </header>
-      <section className={filtersClass} aria-label="Report filters">
+      <section className={filtersClass} aria-label="Report filters" data-dean-guide-filter>
         <FilterField label="Report">
           <select
             data-tour="report-selection"
@@ -253,7 +253,7 @@ export function DeanReportsView() {
                   rows. A later export may reflect updates since this preview.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div data-guide="dean-report-exports" className="flex flex-wrap gap-2">
                 {(["pdf", "csv"] as const).map((format) => (
                   <button
                     key={format}

@@ -82,7 +82,7 @@ export function NotificationList() {
 
   return (
     <div className="flex flex-col gap-4 text-[12.5px]">
-      <div className="flex flex-wrap gap-2" aria-label="Notification inbox">
+      <div className="flex flex-wrap gap-2" data-guide="notification-inbox" aria-label="Notification inbox">
         {([undefined, "account", "earlier"] as const).map((value) => (
           <button
             key={value || "dashboard"}

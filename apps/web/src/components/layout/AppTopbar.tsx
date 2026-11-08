@@ -368,7 +368,7 @@ export function AppTopbar({
             type="button"
             onClick={() => setIsProfileOpen((prev) => !prev)}
             aria-label="Open profile menu"
-            data-guide={researcher || adviser ? "profile-menu-button" : undefined}
+            data-guide={researcher || adviser || activeWorkspace?.id === "dean" ? "profile-menu-button" : undefined}
             aria-expanded={isProfileOpen}
             aria-haspopup="true"
             className="flex items-center gap-2 rounded-full p-1 sm:pr-2.5 hover:bg-[var(--nav-hover-bg)] dark:hover:bg-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] select-none cursor-pointer"
@@ -425,7 +425,7 @@ export function AppTopbar({
               </div>
               <AcademicIdentity college={user?.college} program={user?.program} />
               {/* Multi-role Dashboard Switcher */}
-              <div className="px-3 py-2"><CollegeSwitcher guideTarget={adviser ? "adviser-college-switcher" : undefined} /></div>
+              <div className="px-3 py-2"><CollegeSwitcher guideTarget={adviser ? "adviser-college-switcher" : activeWorkspace?.id === "dean" ? "dean-college-switcher" : undefined} /></div>
               <DashboardSwitcher onCloseMenu={() => setIsProfileOpen(false)} />
 
               {/* Theme Toggle & Links */}

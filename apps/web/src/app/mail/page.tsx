@@ -433,7 +433,7 @@ export default function MailInboxPage() {
           >
             <Pencil className="h-4 w-4" />Compose
           </button>
-          <nav aria-label="Mail folders" className="rm-folders">
+          <nav aria-label="Mail folders" data-guide="mail-folders" className="rm-folders">
             {FOLDER_ITEMS.map((item) => {
               const count = folderCount(item.id);
               return (

@@ -13,7 +13,7 @@ import { GoogleMeetConnectModal } from "@/components/consultations/GoogleMeetCon
 import { GoogleMeetTranscriptModal, ParsedChatMessage } from "@/components/consultations/GoogleMeetTranscriptModal";
 import type { ConsultationItem } from "@/lib/consultation-store";
 import { useAuth } from "@/providers/auth-provider";
-import { DashboardWelcome } from "@/components/ui/DashboardWelcome";
+import { getAcademicIdentity } from "@/lib/academic-identity";
 import { AdviserDocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 import { calculateMilestoneProgress } from "@/lib/workflow-progress";
 import "./adviser-overview.css";
@@ -344,7 +344,7 @@ function AdviserDashboardContent() {
 
   const [reviews, setReviews] = useState<any[]>([]);
 
-  const { data: reviewQueueData, refetch: refetchReviewQueue } = useQuery({
+  const { data: reviewQueueData, isPending: reviewQueueLoading, isError: reviewQueueError, refetch: refetchReviewQueue } = useQuery({
     queryKey: ["adviser-review-queue", user?.id],
     enabled: Boolean(user?.id),
     queryFn: async () => {
@@ -565,6 +565,54 @@ function AdviserDashboardContent() {
     return <TablePageSkeleton />;
   }
 
+  const overviewSeal = activeTab === "overview"
+    ? getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc
+    : undefined;
+  const now = Date.now();
+  const upcomingConsultations = activeTab === "overview"
+    ? consultations
+        .filter((session) => ["scheduled", "confirmed", "approved"].includes(String(session.status).toLowerCase()))
+        .map((session) => ({
+          session,
+          startsAt: Date.parse(session.scheduledStart || `${session.date}T23:59:59+08:00`),
+        }))
+        .filter(({ startsAt }) => startsAt >= now)
+        .sort((a, b) => a.startsAt - b.startsAt)
+    : [];
+  const nextConsultation = upcomingConsultations[0]?.session;
+  const attentionUnavailable = requestsError || reviewQueueError;
+  const attentionLoading = requestsLoading || reviewQueueLoading;
+  const openOverviewSchedule = () => {
+    setShowScheduleModal(true);
+    handleTabChange("consultations");
+  };
+  const overviewWorkload = [
+    {
+      label: "Assigned groups",
+      value: adviserCapacity?.adviseeCount ?? (researchError ? null : advisees.length),
+      suffix: adviserCapacity ? `of ${adviserCapacity.maxAdviseeGroups} slots` : "assigned",
+      icon: "ti-users",
+      tab: "advisees",
+    },
+    {
+      label: "Document reviews",
+      value: reviewQueueError || reviewQueueLoading ? null : reviews.length,
+      suffix: "pending",
+      icon: "ti-file-text",
+      tab: "reviews",
+      loading: reviewQueueLoading,
+    },
+    { label: "Milestones", value: approvals.length, suffix: "for approval", icon: "ti-circle-check", tab: "approvals" },
+    {
+      label: "Consultations",
+      value: consultationsError || consultationsLoading ? null : upcomingConsultations.length,
+      suffix: "upcoming",
+      icon: "ti-calendar-event",
+      tab: "consultations",
+      loading: consultationsLoading,
+    },
+  ];
+
   return (
     <div className="flex min-h-full flex-1 flex-col bg-transparent font-sans text-slate-800">
       
@@ -681,73 +729,62 @@ function AdviserDashboardContent() {
           const tabContent: Record<string, React.ReactNode> = {
             overview: (
               <div className="adviser-overview mx-auto flex w-full max-w-[1360px] flex-col gap-6">
-                <section className="adviser-overview__summary college-hero-surface" aria-label="Adviser overview">
-                <DashboardWelcome
-                  className="adviser-overview__welcome"
-                  firstName={user?.firstName}
-                  fallbackName="Adviser"
-                  summary="Your research groups, reviews, and upcoming consultations."
-                  actions={
-                    <>
-                      <button
-                        onClick={() => handleTabChange("reviews")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-5 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition dark:text-[var(--college-on-primary-dark)]"
-                      >
-                        <i aria-hidden="true" className="ti ti-file-search text-base" /> Review Documents {reviews.length > 0 && `(${reviews.length})`}
+                <section className="adviser-overview__hero" aria-labelledby="adviser-home-title">
+                  {overviewSeal && (
+                    <img className="adviser-overview__seal" src={overviewSeal} alt="" aria-hidden="true" draggable={false} />
+                  )}
+                  <header className="adviser-overview__hero-heading">
+                    <div>
+                      <p className="adviser-overview__eyebrow">Adviser workspace</p>
+                      <h1 id="adviser-home-title">Good day, {user?.firstName?.trim() || "Adviser"}</h1>
+                      <p>Your research groups, reviews, and consultations — all in one place.</p>
+                    </div>
+                    <div className="adviser-overview__hero-actions">
+                      <button type="button" onClick={() => handleTabChange("reviews")} className="adviser-overview__hero-primary">
+                        <i className="ti ti-file-search" aria-hidden="true" /> Review documents
                       </button>
-                      <button
-                        onClick={() => setShowScheduleModal(true)}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
-                      >
-                        <i aria-hidden="true" className="ti ti-calendar-plus text-base" /> Schedule Consultation
+                      <button type="button" onClick={openOverviewSchedule} className="adviser-overview__hero-secondary">
+                        <i className="ti ti-calendar-plus" aria-hidden="true" /> Schedule consultation
                       </button>
-                      <button
-                        onClick={() => handleTabChange("advisees")}
-                        className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
-                      >
-                        <i aria-hidden="true" className="ti ti-users text-base" /> All Advisees ({advisees.length})
-                      </button>
-                    </>
-                  }
-                />
+                    </div>
+                  </header>
 
-                {/* Key Metrics Grid */}
-                <section className="adviser-overview__metrics" aria-label="Advising overview metrics">
-                  {[
-                    { label: "Advisee Groups", value: adviserCapacity?.adviseeCount ?? advisees.length, suffix: adviserCapacity ? `of ${adviserCapacity.maxAdviseeGroups}` : "assigned", icon: "ti-users", tone: "bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#38bdf8]", tab: "advisees" },
-                    { label: "Document Reviews", value: reviews.length, suffix: "pending", icon: "ti-file-text", tone: "bg-[#C9A227]/15 text-[#8A6A0B] dark:text-[#C9A227]", tab: "reviews" },
-                    { label: "Milestones", value: approvals.length, suffix: "for approval", icon: "ti-circle-check", tone: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400", tab: "approvals" },
-                    { label: "Consultations", value: consultations.length, suffix: "scheduled", icon: "ti-calendar-event", tone: "bg-blue-50 text-[#0B3A53] dark:bg-white/10 dark:text-white", tab: "consultations" },
-                  ].map((item) => (
-                    <button
-                      key={item.label}
-                      onClick={() => handleTabChange(item.tab)}
-                      className="adviser-overview__metric"
-                    >
-                      <span className={`adviser-overview__metric-icon ${item.tab === "reviews" ? "adviser-overview__review-icon" : item.tone}`} aria-hidden="true">
-                        <i aria-hidden="true" className={`ti ${item.icon}`} />
-                      </span>
-                      <span className="adviser-overview__metric-content min-w-0">
-                        <span className="adviser-overview__metric-label">{item.label}</span>
-                        <span className="adviser-overview__metric-value">
-                          {item.value} <small className={item.tab === "reviews" ? "adviser-overview__review-marker" : undefined}>· {item.suffix}</small>
+                  <h2 className="adviser-overview__snapshot-title" id="adviser-workload-title">Adviser workload snapshot</h2>
+                  <section className="adviser-overview__workload" aria-labelledby="adviser-workload-title">
+                    {overviewWorkload.map((item) => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => handleTabChange(item.tab)}
+                        className="adviser-overview__workload-item"
+                        data-workload={item.tab}
+                      >
+                        <span className="adviser-overview__metric-icon" aria-hidden="true">
+                          <i className={`ti ${item.icon}`} />
                         </span>
-                      </span>
-                      <i className="adviser-overview__metric-arrow ti ti-chevron-right" aria-hidden="true" />
-                    </button>
-                  ))}
-                </section>
+                        <span className="adviser-overview__metric-content min-w-0">
+                          <span className="adviser-overview__metric-label">{item.label}</span>
+                          <span className="adviser-overview__metric-value">
+                            {item.value ?? "—"} <small>{item.value === null ? (item.loading ? "Loading" : "Unavailable") : item.suffix}</small>
+                          </span>
+                        </span>
+                        <i className="adviser-overview__metric-arrow ti ti-chevron-right" aria-hidden="true" />
+                      </button>
+                    ))}
+                  </section>
                 </section>
 
-                <DashboardQuickActions
-                  actions={[
-                    { label: "Review documents", icon: "ti-file-search", tab: "reviews" },
-                    { label: "View advisees", icon: "ti-users", tab: "advisees" },
-                    { label: "Message groups", icon: "ti-messages", tab: "group-chats" },
-                    { label: "Track progress", icon: "ti-chart-line", tab: "progress" },
-                  ]}
-                  onAction={handleTabChange}
-                />
+                <div className="adviser-overview__shortcuts">
+                  <DashboardQuickActions
+                    actions={[
+                      { label: "Review documents", icon: "ti-file-search", tab: "reviews" },
+                      { label: "View advisees", icon: "ti-users", tab: "advisees" },
+                      { label: "Message groups", icon: "ti-messages", tab: "group-chats" },
+                      { label: "Track progress", icon: "ti-chart-line", tab: "progress" },
+                    ]}
+                    onAction={handleTabChange}
+                  />
+                </div>
 
                 {/* Attention & Consultation Section */}
                 <section className="adviser-overview__split adviser-overview__priorities" aria-label="Your next steps">
@@ -758,7 +795,7 @@ function AdviserDashboardContent() {
                           className="flex items-center gap-2 text-lg font-bold text-[#17212B] dark:text-white">
                           Needs your attention{" "}
                           {pendingAdviserRequests.length > 0 && (
-                            <span className="rounded-full bg-[#C9A227]/20 px-2 py-0.5 text-xs font-bold text-[#8A6A0B] dark:text-[#C9A227]">
+                            <span className="adviser-overview__count">
                               {pendingAdviserRequests.length} request{pendingAdviserRequests.length > 1 ? "s" : ""}
                             </span>
                           )}
@@ -778,11 +815,11 @@ function AdviserDashboardContent() {
                         {pendingAdviserRequests.map((request: any) => (
                           <div
                             key={request.id}
-                            className="rounded-xl border border-[#C9A227]/30 bg-[#C9A227]/5 p-3.5 dark:border-[#C9A227]/20"
+                            className="adviser-overview__request"
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="flex min-w-0 gap-3">
-                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#101b2b] text-[#0B3A53] dark:text-[#C9A227] shadow-xs">
+                                <span className="adviser-overview__task-icon">
                                   <i aria-hidden="true" className="ti ti-user-plus" />
                                 </span>
                                 <div className="min-w-0">
@@ -799,7 +836,7 @@ function AdviserDashboardContent() {
                                   )}
                                 </div>
                               </div>
-                              <span className="shrink-0 text-xs font-bold uppercase tracking-wider text-[#8A6A0B] dark:text-[#C9A227]">
+                              <span className="adviser-overview__request-label">
                                 Adviser Request
                               </span>
                             </div>
@@ -877,12 +914,12 @@ function AdviserDashboardContent() {
                         ))}
                       </div>
                     ) : (
-                      <div className="flex min-h-36 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 text-center dark:border-white/10 dark:bg-white/5">
-                        <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                          <i aria-hidden="true" className="ti ti-circle-check text-lg" />
+                      <div className="adviser-overview__empty" role="status">
+                        <span className="adviser-overview__empty-icon">
+                          <i aria-hidden="true" className={attentionUnavailable ? "ti ti-alert-circle" : attentionLoading ? "ti ti-clock" : "ti ti-circle-check"} />
                         </span>
-                        <p className="text-base font-bold text-[#17212B] dark:text-white">You’re all caught up</p>
-                        <p className="text-base text-slate-400">New reviews and approvals will appear here.</p>
+                        <h3>{attentionUnavailable ? "Some items couldn’t load" : attentionLoading ? "Checking for new work…" : "You’re all caught up"}</h3>
+                        <p>{attentionUnavailable ? "Open the relevant queue to check for new work." : !attentionLoading ? "New reviews, requests, and approvals will appear here." : null}</p>
                       </div>
                     )}
                   </div>
@@ -899,42 +936,43 @@ function AdviserDashboardContent() {
                         <i aria-hidden="true" className="ti ti-chevron-right" />
                       </button>
                     </div>
-                    {consultations.length > 0 ? (
+                    {nextConsultation ? (
                       <div className="adviser-overview__session">
                         <div>
                           <span className="adviser-overview__session-label">
                             Upcoming Session
                           </span>
-                          <h3 className="mt-3 text-lg font-bold">{consultations[0].topic}</h3>
-                          <p className="adviser-overview__session-group">{consultations[0].groupName}</p>
-                          <p className="adviser-overview__session-date"><i className="ti ti-calendar-event" aria-hidden="true" /> <time dateTime={consultations[0].date}>{formatOverviewDate(consultations[0].date)}</time><span aria-hidden="true">·</span>{consultations[0].time}</p>
+                          <h3 className="mt-3 text-lg font-bold">{nextConsultation.topic}</h3>
+                          <p className="adviser-overview__session-group">{nextConsultation.groupName}</p>
+                          <p className="adviser-overview__session-date"><i className="ti ti-calendar-event" aria-hidden="true" /> <time dateTime={nextConsultation.date}>{formatOverviewDate(nextConsultation.date)}</time><span aria-hidden="true">·</span>{nextConsultation.time}</p>
                         </div>
                         <button
-                          onClick={() => handleStartConference(consultations[0].meetingUrl || DEFAULT_SHARED_MEET_URL, consultations[0].topic, consultations[0].researchId)}
+                          onClick={() => handleStartConference(nextConsultation.meetingUrl || DEFAULT_SHARED_MEET_URL, nextConsultation.topic, nextConsultation.researchId)}
                           className="mt-4 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] py-2.5 text-sm font-bold text-[var(--college-on-primary)] shadow-xs transition dark:text-[var(--college-on-primary-dark)]"
                         >
                           <i aria-hidden="true" className="ti ti-video mr-1.5" /> Join Google Meet
                         </button>
                       </div>
                     ) : (
-                      <div className="flex min-h-40 flex-col items-center justify-center rounded-xl bg-slate-50/50 px-4 text-center dark:bg-white/5">
-                        <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-white">
+                      <div className="adviser-overview__empty">
+                        <span className="adviser-overview__empty-icon">
                           <i aria-hidden="true" className="ti ti-calendar-time text-lg" />
                         </span>
-                        <p className="text-base font-bold text-[#17212B] dark:text-white">No consultation scheduled</p>
-                        <button
-                          onClick={() => setShowScheduleModal(true)}
-                          className="mt-3 rounded-xl bg-[#0B3A53] hover:bg-[#072A3D] px-4 py-2 text-sm font-bold text-white shadow-xs transition"
-                        >
-                          Schedule One
-                        </button>
+                        <div role="status">
+                          <h3>{consultationsError ? "Consultations couldn’t load" : consultationsLoading ? "Loading consultations…" : "No upcoming consultations"}</h3>
+                        </div>
+                        {consultationsError ? (
+                          <button type="button" onClick={() => void refetchConsultations()} className="adviser-overview__empty-action">Try again</button>
+                        ) : !consultationsLoading && (
+                          <button type="button" onClick={openOverviewSchedule} className="adviser-overview__empty-action">Schedule one</button>
+                        )}
                       </div>
                     )}
                   </div>
                 </section>
 
                 {/* Active Advisee Groups - Google Classroom Cards Grid */}
-                <section className="adviser-overview__groups" aria-labelledby="adviser-groups-title">
+                <section className="adviser-overview__panel adviser-overview__groups" aria-labelledby="adviser-groups-title">
                   <div className="adviser-overview__section-heading">
                     <div>
                       <h2 id="adviser-groups-title" className="text-lg font-bold text-[#17212B] dark:text-white">
@@ -948,7 +986,7 @@ function AdviserDashboardContent() {
                       onClick={() => handleTabChange("advisees")}
                       className="adviser-overview__section-link"
                     >
-                      View All ({advisees.length}) <i aria-hidden="true" className="ti ti-chevron-right text-xs" />
+                        View all groups <i aria-hidden="true" className="ti ti-chevron-right text-xs" />
                     </button>
                   </div>
 
@@ -971,16 +1009,17 @@ function AdviserDashboardContent() {
                       ))}
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#DDE3E8] bg-white p-8 text-center shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
-                      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#C9A227]">
-                        <i aria-hidden="true" className="ti ti-users text-3xl" />
+                    <div className="adviser-overview__empty">
+                      <div className="adviser-overview__empty-icon">
+                        <i aria-hidden="true" className="ti ti-users" />
                       </div>
                       <h3 className="text-lg font-bold text-[#17212B] dark:text-white">
-                        No Advisee Groups Assigned Yet
+                        {researchError ? "Assigned groups couldn’t load" : "No assigned research groups"}
                       </h3>
                       <p className="mt-1 max-w-md text-base text-slate-500 dark:text-slate-400">
-                        When student research groups send you adviser requests and you accept them, their course cards will appear here.
+                        {researchError ? "Try loading your assigned groups again." : "Research groups appear here after you accept their adviser requests."}
                       </p>
+                      {researchError && <button type="button" onClick={() => void refetchResearch()} className="adviser-overview__empty-action">Try again</button>}
                     </div>
                   )}
                 </section>
@@ -1019,10 +1058,10 @@ function AdviserDashboardContent() {
                         </button>
                       ))}
                       {reviews.length === 0 && consultations.length === 0 && (
-                        <div className="flex min-h-32 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 px-4 text-center dark:border-white/10">
-                          <i aria-hidden="true" className="ti ti-activity text-2xl text-slate-300" />
-                          <p className="mt-2 text-base font-bold text-[#17212B] dark:text-white">No recent advisee activity</p>
-                          <p className="text-base text-slate-400">New reviews and consultations will appear here.</p>
+                        <div className="adviser-overview__empty">
+                          <span className="adviser-overview__empty-icon"><i aria-hidden="true" className="ti ti-activity" /></span>
+                          <h3>{reviewQueueError || consultationsError ? "Recent activity couldn’t load" : reviewQueueLoading || consultationsLoading ? "Loading recent activity…" : "No recent advisee activity"}</h3>
+                          {!reviewQueueError && !consultationsError && !reviewQueueLoading && !consultationsLoading && <p>New reviews and consultations will appear here.</p>}
                         </div>
                       )}
                     </div>

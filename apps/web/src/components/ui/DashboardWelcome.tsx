@@ -6,6 +6,7 @@ type DashboardWelcomeProps = {
   summary: string;
   actions?: React.ReactNode;
   className?: string;
+  guideTarget?: string;
 };
 
 export function DashboardWelcome({
@@ -14,6 +15,7 @@ export function DashboardWelcome({
   summary,
   actions,
   className = "",
+  guideTarget,
 }: DashboardWelcomeProps) {
   const displayName = firstName?.trim() || fallbackName;
 
@@ -26,7 +28,7 @@ export function DashboardWelcome({
           <p className="text-sm font-semibold uppercase tracking-wider text-[var(--color-primary)]">
             Today&apos;s overview
           </p>
-          <h2 className="mt-1 text-2xl sm:text-[28px] font-bold tracking-tight text-[var(--color-text-primary)] leading-tight">
+          <h2 data-guide={guideTarget} className="mt-1 text-2xl sm:text-[28px] font-bold tracking-tight text-[var(--color-text-primary)] leading-tight">
             Good day, {displayName}
           </h2>
           <p className="mt-2 text-base leading-relaxed text-[var(--color-text-secondary)]">

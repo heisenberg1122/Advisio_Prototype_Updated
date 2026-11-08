@@ -105,7 +105,7 @@ export function DeanDefensesView() {
           Refresh
         </button>
       </header>
-      <section aria-label="Defense filters" className={filtersClass}>
+      <section aria-label="Defense filters" data-dean-guide-filter className={filtersClass}>
         <ScopeFilters
           scope={data?.scope}
           query={query}
@@ -174,6 +174,7 @@ export function DeanDefensesView() {
             <div
               className="flex flex-wrap gap-2 border-b border-[var(--color-border)] p-3"
               aria-label="Defense views"
+              data-guide="dean-defense-views"
             >
               {[
                 ["upcoming", "Upcoming"],
@@ -183,6 +184,7 @@ export function DeanDefensesView() {
               ].map(([view, label]) => (
                 <button
                   key={view}
+                  data-guide={view === "completed" ? "dean-defense-completed" : undefined}
                   aria-pressed={(query.view || "upcoming") === view}
                   onClick={() => update({ view })}
                   className={`${actionClass} ${(query.view || "upcoming") === view ? "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]" : ""}`}
@@ -253,6 +255,7 @@ export function DeanDefensesView() {
                         <button
                           className={actionClass}
                           onClick={() => setSelected(row.id)}
+                          data-guide="dean-defense-details"
                         >
                           View details
                         </button>
@@ -276,7 +279,14 @@ export function DeanDefensesView() {
           </section>
           {user?.roles.includes("PANELIST") && (
             <section className={`${panelClass} p-5`}>
-              <h2 className="text-lg font-extrabold">My Panel Assignments</h2>
+              <h2
+                data-guide="dean-panel-assignments"
+                data-guide-empty={!data.myAssignments.length}
+                data-dean-panel-evaluation={data.myAssignments.some((row) => row.myAssignment?.canEvaluate) ? "available" : "unavailable"}
+                className="text-lg font-extrabold"
+              >
+                My Panel Assignments
+              </h2>
               <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
                 Your assignments in this college, using the selected filters.
                 Evaluation opens in your Panelist workspace.
