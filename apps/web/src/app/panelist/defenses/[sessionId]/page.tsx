@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { panelistDefensePacketsHref } from "@research-management/shared/src/panelist-review-routes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/providers/auth-provider";
@@ -252,7 +253,7 @@ export default function PanelistDefenseWorkspacePage() {
     .filter(Boolean)
     .join(" · ");
   const openEvaluation = () => router.push(`/panelist/dashboard?tab=evaluation&sessionId=${session.id}`);
-  const openDocuments = () => router.push(`/panelist/dashboard?tab=documents&sessionId=${session.id}`);
+  const openDocuments = () => router.push(panelistDefensePacketsHref({ sessionId: session.id }));
   const evaluationStatus: { tone: StatusTone; label: string } = evaluationLocked
     ? { tone: "done", label: "Locked" }
     : evaluation

@@ -7,7 +7,6 @@ const TITLES: Record<string, string> = {
   overview: "Panelist Dashboard",
   messages: "Messages",
   schedule: "Defense Schedule",
-  documents: "Research Documents",
   evaluation: "Evaluations & Scoring",
   evaluations: "Evaluations & Scoring",
   grades: "Results & Recommendations",

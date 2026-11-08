@@ -19,7 +19,7 @@ Targeted source audit (verify files on actual checkout):
 - `apps/web/src/app/panelist/dashboard/page.tsx`
 - `apps/web/src/app/panelist/defenses/[sessionId]/page.tsx`
 - `apps/web/src/app/panelist/reviews/page.tsx`
-- `apps/web/src/components/panelist/PanelistReviewPackets.tsx`
+- `apps/web/src/components/panelist/DefensePacketReview.tsx`
 - `apps/web/src/components/panelist/PdfEvaluationWorkspace.tsx`
 - `apps/web/src/components/panelist/StructuredEvaluationWorkspace.tsx`
 - `apps/web/src/components/documents/ManuscriptReviewWorkspace.tsx`
@@ -43,7 +43,7 @@ Inspect interfaces, routes, permission guards, async loading, invitation status,
 | Inbox | `/panelist/inbox` |
 | Defense session workspace | `/panelist/defenses/[sessionId]` |
 
-The dashboard also contains a defense-packet review area selected using `tab=documents` with applicable `sessionId`. This **does not mean** that all manuscript reviews, defense packets, official copies and scoring screens are interchangeable. Verify actual navigation buttons, route parameters, and visible controls before authoring tutorial targets.
+Manuscript Reviews has an Assigned Reviews view and a Defense Packets view. A packet link can include a `sessionId` to select a defense. Verify navigation buttons, route parameters, and visible controls before authoring tutorial targets.
 
 ## 3. UI contract — extend the existing shared assistant
 
@@ -57,7 +57,7 @@ The dashboard also contains a defense-packet review area selected using `tab=doc
 ## 4. Critical product distinctions (do not collapse these)
 
 1. **Panel invitation is not a review or evaluation.** The panelist may need to accept an invitation before accessing defense packets; a pending/reconfirmation-required/declined assignment is not the same as an accepted one.
-2. **Manuscript Reviews** (`/panelist/reviews`) uses the shared `ManuscriptReviewWorkspace`; **defense review packets** (in the Panelist dashboard Documents section) are a distinct activity involving a published, version-specific defense packet, private notes, annotations, revision checklist, potentially a recommendation form, and evaluation tab. The Guide must tell users the correct path for the actual task.
+2. **Assigned Reviews** (`/panelist/reviews`) uses the shared `ManuscriptReviewWorkspace`. **Defense Packets** (`/panelist/reviews?tab=defense-packets`) includes the published, version-specific defense packet, private notes, annotations, revision checklist, evaluation tab, and recommendation form where available.
 3. **Evaluation mode varies by defense/session configuration:** structured digital scoring, PDF evaluation, or other supported legacy rubric flow. Inspect `evaluationMode` and actual UI; never force the wrong mode or imply every session exposes the same form.
 4. **Pre-defense vs live session:** some scoring unlocks only when the defense becomes `LIVE`. Published packet review may be available earlier if authorized. Distinguish these phases.
 5. **Draft vs final:** saving a draft is not final submission. A final evaluation may require rubric completion, PDF preview and explicit confirmation/signature depending on mode, and becomes **locked**. Tour actions must never actually finalize or lock anything.
@@ -88,7 +88,7 @@ Use real session card to open `/panelist/defenses/[sessionId]`; explain timeline
 Differentiate general **Manuscript Reviews** queue and defense **review packet**. Use correct real route and selection; if user means the defense's published packet, prefer session review packet rather than the unrelated reviewer-assignment page.
 
 ### PN-07. How do I review the defense manuscript?
-Guide to defense review packet (`/panelist/dashboard?tab=documents&sessionId=<authorized>` or verified UI action), published immutable manuscript, version preview, annotations, notes, checklist, and review-complete affordance. Explain private notes vs visible/shared annotations accurately. **Do not save, publish, or mark reviewed** during tour.
+Guide to the defense packet (`/panelist/reviews?tab=defense-packets&sessionId=<authorized>` or verified UI action), published immutable manuscript, version preview, annotations, notes, checklist, and review-complete affordance. Explain private notes and shared annotations accurately. **Do not save, publish, or mark reviewed** during the tour.
 
 ### PN-08. How do I leave feedback on an assigned manuscript version?
 Guide to `/panelist/reviews`, find actual active reviewer assignment, open exact version, explain comment and recommendation controls in `ManuscriptReviewWorkspace`. Handle completed, revoked, reassigned, superseded or inaccessible assignments. Do not confuse this with the defense packet workflow or submit feedback.

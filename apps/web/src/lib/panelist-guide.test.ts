@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { PANELIST_HELP } from "@research-management/shared/src/panelist-help";
+import { PANELIST_HELP, panelistRoutes } from "@research-management/shared/src/panelist-help";
+import { panelistDefensePacketsHref } from "@research-management/shared/src/panelist-review-routes";
 import {
   resolveAssistantAction,
   resolveAssistantQuestion,
@@ -48,13 +49,31 @@ describe("Panelist Guide and Assistant", () => {
     ).toBeUndefined();
   });
 
+  it("routes defense packet help without dropping session and history context", () => {
+    const href = panelistDefensePacketsHref({
+      sessionId: "session+1",
+      review: "history",
+    });
+    const { pathname, search } = new URL(href, "https://advisio.local");
+    const params = new URLSearchParams(search);
+    expect(pathname).toBe(panelistRoutes.reviews);
+    expect(params.get("sessionId")).toBe("session+1");
+    expect(params.get("review")).toBe("history");
+    expect(panelistPageHelp(pathname, search)).toBe("pn-07");
+    expect(panelistPageHelp(pathname, "")).toBe("pn-06");
+    expect(buildPanelistJourney("pn-07", href).steps[0].route).toBeUndefined();
+    expect(
+      resolveAssistantAction("pn-07:navigate", [], "panelist"),
+    ).toMatchObject({ topic: { href: panelistRoutes.packet } });
+  });
+
   it("defines all 20 topics and reserves interaction for opening views", () => {
     expect(new Set(PANELIST_HELP.map(({ id }) => id)).size).toBe(20);
     for (const { id } of PANELIST_HELP) {
       for (const href of [
         "/panelist/dashboard",
         "/panelist/defenses/current",
-        "/panelist/dashboard?tab=documents",
+        panelistRoutes.packet,
       ]) {
         const { steps } = buildPanelistJourney(id, href);
         expect(steps.length).toBeGreaterThan(0);

@@ -819,7 +819,7 @@ export async function seedWorkspace(
         : `/admin/dashboard?tab=defenses&sessionId=${defenseId}`;
     if (role === "panelist")
       return choice.destination === "reviews"
-        ? `/panelist/dashboard?tab=documents&sessionId=${defenseId}&review=${choice.id === "review-history" ? "history" : "pending"}`
+        ? `/panelist/reviews?tab=defense-packets&sessionId=${encodeURIComponent(defenseId)}&review=${choice.id === "review-history" ? "history" : "pending"}`
         : choice.destination === "results"
           ? `/panelist/dashboard?tab=grades`
           : `/panelist/dashboard?tab=evaluation&sessionId=${defenseId}`;

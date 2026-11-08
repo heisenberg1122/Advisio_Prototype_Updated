@@ -55,6 +55,7 @@ test("hosted portals use a first-party SPA, bounded CSP, and real API 404 respon
       "/adviser/dashboard",
       "/professor/dashboard",
       "/panelist/dashboard",
+      "/panelist/reviews?tab=defense-packets&sessionId=completed&review=history",
       "/admin/dashboard",
     ]) {
       const response = await fetch(base + route);

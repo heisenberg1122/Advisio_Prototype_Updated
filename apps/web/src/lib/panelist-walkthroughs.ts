@@ -3,6 +3,7 @@ import {
   panelistRoutes as routes,
   type PanelistHelpId,
 } from "@research-management/shared/src/panelist-help";
+import { defensePacketsTab } from "@research-management/shared/src/panelist-review-routes";
 import type {
   GuidedControlStep,
   GuidedJourney,
@@ -12,7 +13,7 @@ import type {
 export function panelistPageHelp(path: string, search: string): PanelistHelpId {
   const tab = new URLSearchParams(search).get("tab");
   if (path.startsWith("/panelist/defenses/")) return "pn-05";
-  if (path === routes.reviews) return "pn-06";
+  if (path === routes.reviews) return tab === defensePacketsTab ? "pn-07" : "pn-06";
   if (path === "/panelist/documents") return "pn-17";
   if (path === routes.calendar || path === routes.consultations) return "pn-18";
   if (path === routes.inbox) return "pn-19";
@@ -20,8 +21,6 @@ export function panelistPageHelp(path: string, search: string): PanelistHelpId {
   switch (tab) {
     case "schedule":
       return "pn-04";
-    case "documents":
-      return "pn-07";
     case "evaluation":
       return "pn-11";
     case "grades":
@@ -235,7 +234,7 @@ export function buildPanelistJourney(
           ),
           { ...packetPicker(), route: undefined },
         ]
-      : [packetPicker()];
+      : [{ ...packetPicker(), route: onPacket ? undefined : routes.packet }];
   const evalEntry = () =>
     onSession
       ? [
