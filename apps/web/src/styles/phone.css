@@ -1,0 +1,702 @@
+/*
+ * Phone layer. Every rule here sits inside one phone-only query, so desktop and
+ * tablet rendering cannot change through this file. Keep the width in step with
+ * PHONE_MEDIA_QUERY in hooks/use-is-phone.ts.
+ */
+@media (max-width: 767px) {
+  /* Text fields at 16px stop iOS Safari from zooming the page on focus. */
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* ---------- Page frame ---------- */
+  .app-workspace[data-workspace-layout="standard"] {
+    --workspace-page-top: 12px;
+    --workspace-card-padding: 14px;
+    /* Keeps the last item clear of the floating assistant button. */
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+
+  /* ---------- Section tabs: one swipeable line ---------- */
+  .portal-workspace-tabs,
+  .workflow-builder-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    gap: 0;
+    padding-inline-end: 28px;
+    scrollbar-width: none;
+    overscroll-behavior-inline: contain;
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  }
+  .portal-workspace-tabs { margin-top: 4px; }
+  .portal-workspace-tabs::-webkit-scrollbar,
+  .workflow-builder-tabs::-webkit-scrollbar,
+  .as-nav::-webkit-scrollbar,
+  .rm-folders::-webkit-scrollbar { display: none; }
+  .portal-workspace-tabs a {
+    flex: none;
+    padding-inline: 10px;
+    white-space: nowrap;
+  }
+  .as-nav,
+  .rm-folders { scrollbar-width: none; }
+
+  /* ---------- Page headers ---------- */
+  .app-workspace .workspace-page-header,
+  .app-workspace .workspace-page-header--inset,
+  .app-workspace .phone-compact-header {
+    padding: 14px !important;
+  }
+  .app-workspace[data-workspace-layout="standard"] :is(.workspace-page-header, .phone-compact-header) :is(h1, h2, h3) {
+    margin-top: 0;
+    font-size: 21px;
+    line-height: 1.2;
+  }
+  .app-workspace :is(.workspace-page-header, .phone-compact-header) h2 + p,
+  .app-workspace :is(.workspace-page-header, .phone-compact-header) h1 + p {
+    display: -webkit-box;
+    overflow: hidden;
+    margin-top: 3px;
+    font-size: 14px;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .app-workspace :is(.workspace-page-header, .phone-compact-header) > .flex:has(> .phone-icon-action, > div > .phone-icon-action) {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .app-workspace :is(.workspace-page-header, .phone-compact-header) > .flex:has(> .phone-icon-action, > div > .phone-icon-action) > div:first-child {
+    flex: 1;
+    min-width: 0;
+  }
+  .app-workspace :is(.workspace-page-header, .phone-compact-header) > .flex:not(:has(> .phone-icon-action, > div > .phone-icon-action)) {
+    gap: 10px;
+  }
+  .app-workspace .workspace-page-header.flex {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .app-workspace .workspace-page-header.flex > div:first-child { flex: 1 1 200px; min-width: 0; }
+
+  /* An action that collapses to its icon; its text stays for screen readers. */
+  .phone-icon-action {
+    flex: none;
+    width: 44px !important;
+    min-width: 44px;
+    height: 44px;
+    padding: 0 !important;
+    gap: 0;
+    font-size: 0 !important;
+  }
+
+  /* Three stacked stat cards become a single strip. */
+  .phone-stat-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0 !important;
+    margin-top: 10px;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface);
+  }
+  .app-workspace .phone-stat-strip > * {
+    display: block;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .phone-stat-strip > * + * { border-left: 1px solid var(--color-border); }
+  .app-workspace .phone-stat-strip > * > span:first-child { display: none !important; }
+  .phone-stat-strip > * > span:last-child {
+    display: flex;
+    flex-direction: column-reverse;
+  }
+  .phone-stat-strip > * > span:last-child > span:first-child {
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.2;
+    text-transform: none;
+  }
+  .phone-stat-strip > * > span:last-child > span:last-child {
+    margin-top: 0;
+    font-size: 20px;
+    line-height: 1.15;
+  }
+
+  /* ---------- Wide tables become expandable rows ---------- */
+  .app-workspace table[data-phone-cards] {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+    table-layout: auto;
+  }
+  .app-workspace table[data-phone-cards] > caption {
+    display: block;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .app-workspace table[data-phone-cards] > thead { display: none; }
+  .app-workspace table[data-phone-cards] > tbody { display: block; }
+  .app-workspace table[data-phone-cards] > tbody > tr {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .app-workspace table[data-phone-cards] > tbody > tr:last-child { border-bottom: 0; }
+  .app-workspace table[data-phone-cards] > tbody > tr > td {
+    display: block;
+    max-width: none;
+    padding: 0 !important;
+    border: 0;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+  }
+  .app-workspace table[data-phone-cards] .truncate { white-space: normal; }
+  .app-workspace table[data-phone-cards] td[data-phone-role="title"] {
+    flex: 1 0 100%;
+    padding-right: 44px !important;
+    color: var(--color-text-primary);
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .app-workspace table[data-phone-cards] td[data-phone-role="title"] p + p {
+    font-size: 13.5px !important;
+    font-weight: 400;
+  }
+  .app-workspace table[data-phone-cards] td[data-phone-role="summary"] {
+    width: auto !important;
+    flex: 0 1 auto;
+    font-weight: 600;
+  }
+  .app-workspace table[data-phone-cards] tr:not([data-phone-open]) td[data-phone-role="summary"] p { display: none; }
+  .app-workspace table[data-phone-cards] td[data-phone-role="detail"],
+  .app-workspace table[data-phone-cards] td[data-phone-role="actions"] { display: none; }
+  .app-workspace table[data-phone-cards] tr[data-phone-open] td[data-phone-role="detail"] {
+    display: grid;
+    flex: 1 0 100%;
+    grid-template-columns: 108px minmax(0, 1fr);
+    gap: 10px;
+    width: auto !important;
+  }
+  .app-workspace table[data-phone-cards] td[data-phone-role="detail"]::before {
+    content: attr(data-label);
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .app-workspace table[data-phone-cards] tr[data-phone-open] td[data-phone-role="actions"] {
+    display: block;
+    flex: 1 0 100%;
+    width: auto !important;
+    margin-top: 6px;
+  }
+  .app-workspace table[data-phone-cards] td[data-phone-role="actions"] :is(button, a) {
+    min-height: 44px;
+  }
+  .app-workspace table[data-phone-cards] tr[data-phone-full] { display: block; }
+  .app-workspace table[data-phone-cards] tr[data-phone-full] > td { display: block; }
+  .phone-row-toggle {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+  }
+  .phone-row-toggle::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    margin-top: -4px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+  }
+  .phone-row-toggle[aria-expanded="true"]::before {
+    margin-top: 4px;
+    transform: rotate(-135deg);
+  }
+  .phone-row-toggle:focus-visible {
+    outline: 2px solid var(--college-focus-ring, var(--color-primary));
+    outline-offset: -2px;
+  }
+  .admin-users__actions button { font-size: 13px; }
+
+  /* ---------- Filters ---------- */
+  .phone-filter-bar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch;
+    gap: 8px !important;
+    width: 100%;
+  }
+  .phone-filter-bar > :first-child { flex: 1 1 0; min-width: 0 !important; }
+  .phone-filter-bar input { width: 100% !important; min-width: 0 !important; }
+  .phone-filter-section {
+    display: flex !important;
+    justify-content: flex-end;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .phone-filter-button {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .phone-filter-count {
+    display: grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--color-primary);
+    color: var(--college-on-primary, #fff);
+    font-size: 12px;
+  }
+  .phone-filter-fields {
+    display: grid;
+    gap: 12px;
+  }
+  .phone-filter-fields :is(input, select):not([type="checkbox"], [type="radio"]) {
+    width: 100%;
+    min-height: 48px;
+  }
+  .phone-filter-fields .uc-filter {
+    display: flex;
+    width: 100%;
+    min-height: 44px;
+  }
+  .phone-filter-actions {
+    display: flex;
+    width: 100%;
+    gap: 8px;
+  }
+  .phone-filter-clear,
+  .phone-filter-apply {
+    min-height: 48px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .phone-filter-clear {
+    flex: 1;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+  }
+  .phone-filter-apply {
+    flex: 2;
+    background: var(--color-primary);
+    color: var(--college-on-primary, #fff);
+  }
+
+  /* ---------- Dialogs slide up from the bottom ---------- */
+  .ui-modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  .ui-modal-panel {
+    width: 100%;
+    max-width: none !important;
+    max-height: 92dvh;
+    border-width: 1px 0 0 !important;
+    border-radius: 20px 20px 0 0 !important;
+  }
+  .ui-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none !important;
+    overscroll-behavior: contain;
+  }
+  .ui-modal-footer {
+    flex-wrap: wrap;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Hand-built dialogs share the same centered overlay shape. */
+  .fixed.inset-0.flex.items-center.justify-center:not(.ui-modal-overlay):has(> :is(div, form, section):is(:has(h2), :has(h3), :has(form))) {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .fixed.inset-0.flex.items-center.justify-center:not(.ui-modal-overlay) > :is(div, form, section):is(:has(h2), :has(h3), :has(form)) {
+    width: 100%;
+    max-width: none;
+    max-height: 92dvh;
+    overflow-y: auto;
+    border-radius: 20px 20px 0 0 !important;
+  }
+
+  /* ---------- Calendar: month first, details after ---------- */
+  .uc .uc-main {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .uc .uc-band { display: contents; }
+  .uc .uc-seal { display: none; }
+  .uc .uc-band-main {
+    order: 1;
+    padding: 10px 12px 8px;
+  }
+  .uc .uc-scope {
+    display: block;
+    overflow: hidden;
+    min-height: 20px;
+    padding-right: 52px;
+    font-size: 12.5px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .uc .uc-scope h1 { display: inline; font-size: 12.5px; }
+  .uc .uc-toolbar-nav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(3, 44px);
+    gap: 4px;
+    margin-top: 8px;
+  }
+  .uc .uc-toolbar-nav h2 {
+    margin: 0;
+    font-size: clamp(16px, 4.7vw, 20px);
+  }
+  .uc .uc-btn,
+  .uc .uc-icon-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    font-size: 12px;
+  }
+  .uc .uc-toolbar {
+    order: 2;
+    flex-wrap: nowrap;
+    padding: 0 12px 10px;
+  }
+  .uc .uc-views {
+    order: -1;
+    flex: 1;
+  }
+  .uc .uc-views button {
+    flex: 1;
+    min-height: 38px;
+    padding-inline: 6px;
+  }
+  .uc .uc-dow { order: 3; }
+  .uc .uc-grid { order: 4; }
+  .uc .uc-agenda,
+  .uc .uc-empty,
+  .uc .uc-error { order: 4; }
+  .uc .uc-grid:not([data-view="week"]) .uc-day { min-height: 44px; padding: 3px; }
+  .uc .uc-day { align-items: center; }
+  .uc .uc-grid[data-view="week"] .uc-day { align-items: stretch; }
+  .uc .uc-day-dots { margin: 1px 0 0; }
+  .uc .uc-band-side {
+    order: 5;
+    padding: 10px 12px 12px;
+    border-top: 1px solid var(--uc-line);
+  }
+  .uc .uc-new {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    gap: 0;
+    font-size: 0;
+  }
+  .uc .uc-next { width: 100%; }
+
+  /* ---------- Metric tiles sit two across ---------- */
+  .phone-metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  .phone-metric-grid > * {
+    min-width: 0;
+    padding: 12px !important;
+  }
+  .phone-metric-grid > * > .flex:first-child > :first-child:has(> svg) { display: none; }
+  .phone-metric-grid > * > .mt-3.border-t { display: none; }
+
+  .app-workspace .workspace-page { gap: 12px; }
+
+  /* ---------- Role home heroes ---------- */
+  .app-workspace .adviser-overview__hero,
+  .app-workspace .professor-overview__hero {
+    padding: 14px 16px;
+  }
+  .app-workspace .adviser-overview__hero h1,
+  .app-workspace .professor-overview__hero h1 {
+    font-size: 21px;
+  }
+  .app-workspace .adviser-overview__hero p:not(.adviser-overview__eyebrow),
+  .app-workspace .professor-overview__hero p {
+    font-size: 14px;
+    line-height: 1.35;
+  }
+  .app-workspace .adviser-overview__hero .adviser-overview__hero-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .app-workspace .adviser-overview__hero .adviser-overview__hero-actions button {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 8px;
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: normal;
+  }
+  .app-workspace .adviser-overview__hero [class*="adviser-overview__workload"]:has(> .adviser-overview__workload-item) {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    margin-top: 10px;
+  }
+  .app-workspace .adviser-overview__hero .adviser-overview__workload-item {
+    min-width: 0;
+    padding-inline: 8px;
+    border-left: 1px solid rgb(255 255 255 / 0.18);
+  }
+  .app-workspace .adviser-overview__hero .adviser-overview__workload-item:first-child {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .app-workspace .adviser-overview__hero .adviser-overview__metric-value { font-size: 20px; }
+  .app-workspace .adviser-overview__hero .adviser-overview__metric-label { font-size: 12px; }
+  .app-workspace .professor-overview__hero .professor-overview__hero-actions { margin-top: 10px; }
+
+  /* ---------- Documents: work first ---------- */
+  .app-workspace .researcher-documents .rd-library-hero {
+    padding: 14px;
+    gap: 8px;
+  }
+  .app-workspace .researcher-documents .rd-library-seal-clip { display: none; }
+  .app-workspace .researcher-documents .rd-library-hero p { font-size: 14px; line-height: 1.35; }
+  .app-workspace .researcher-documents .rd-library-hero :is(h1, h2) { font-size: 21px; }
+  .app-workspace .researcher-documents .rd-library-project {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .app-workspace .researcher-documents .rd-library-project > span:first-child {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.3;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .app-workspace .researcher-documents .rd-library-project > :last-child:not(:nth-child(2)) {
+    grid-column: 1 / -1;
+    font-size: 13px;
+  }
+  .app-workspace .researcher-documents .rd-tab-links {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 4px;
+    overflow-x: auto;
+    border-top: 0;
+    scrollbar-width: none;
+  }
+  .app-workspace .researcher-documents .rd-tab-links a { flex: none; white-space: nowrap; }
+  .app-workspace .researcher-documents .rd-tab-links .rd-tab-tasks { margin-left: 0; }
+  .phone-menu-left { right: auto !important; left: 0; }
+
+  /* ---------- Research tasks ---------- */
+  .app-workspace .research-tasks .rt-workflow { padding: 14px; }
+  .app-workspace .research-tasks .rt-workflow-seal { display: none; }
+  .app-workspace .research-tasks .rt-workflow-title { font-size: 19px; line-height: 1.25; }
+  .app-workspace .research-tasks .rt-workflow-metadata { gap: 6px 16px; margin-top: 8px; }
+
+  /* ---------- Review cards and signature queue ---------- */
+  .phone-compact-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px !important;
+    padding: 10px !important;
+  }
+  .phone-compact-facts > :last-child { grid-column: 1 / -1; }
+
+  /* ---------- Comfortable tap targets ---------- */
+  .app-workspace button:not([role="switch"], .phone-row-toggle, .uc-block, .uc-more, [class*="gc-"]) {
+    min-height: 44px;
+  }
+  .app-workspace button:has(> :is(svg, i):only-child) { min-width: 44px; }
+  .app-workspace :is(.rh-link, .as-link) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  /* ---------- User management header ---------- */
+  .admin-users .admin-users__header-content { gap: 10px; }
+  .admin-users__title-row { gap: 4px 10px; }
+  .admin-users__title-row h2 { order: 1; flex: 1 1 auto; font-size: 21px; }
+  .admin-users__title-row > button { order: 2; min-height: 44px; }
+  .admin-users__title-row .admin-users__count { order: 3; }
+  .admin-users__header p {
+    display: -webkit-box;
+    overflow: hidden;
+    margin-top: 4px;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .admin-users .admin-users__filters { grid-template-columns: none; }
+  .admin-users .admin-users__views {
+    flex-wrap: nowrap;
+    gap: 4px;
+    padding: 8px 14px;
+  }
+  .admin-users__views button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 4px;
+    font-size: 13px;
+  }
+
+  /* ---------- Calendar composer button sits on the title row ---------- */
+  .uc .uc-main .uc-band-side { position: static; }
+
+  /* ---------- Requirement filters ---------- */
+  .app-workspace .research-tasks .rt-filters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 10px;
+  }
+  .app-workspace .research-tasks .rt-filters > button {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    min-width: 0;
+    padding: 6px 8px;
+    line-height: 1.2;
+  }
+  .app-workspace .research-tasks .rt-filters > button span { font-size: 12.5px; }
+  .app-workspace .research-tasks .rt-sort {
+    grid-column: span 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .app-workspace .research-tasks .rt-sort select { flex: 1; min-width: 0; }
+  .app-workspace .research-tasks .rt-view {
+    display: flex;
+    width: auto;
+    min-height: 0;
+    padding: 0;
+  }
+  .app-workspace .research-tasks .rt-view button { flex: 1; min-width: 0; }
+
+  /* ---------- Signature queue ---------- */
+  .phone-signature-list {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .phone-signature-list > article {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  /* ---------- Metric tiles: tighter copy ---------- */
+  .phone-metric-grid > * p.mt-5 { margin-top: 6px; font-size: 14px; line-height: 1.25; }
+  .phone-metric-grid > * p.mt-3 { margin-top: 2px; font-size: 13px; line-height: 1.25; }
+
+  /* ---------- Panelist and shared page bands ---------- */
+  .app-workspace .au-band { padding: 14px 16px; gap: 10px; }
+  .app-workspace .au-band-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .app-workspace .au-band-actions > * { width: 100%; min-width: 0; }
+  .app-workspace .au-band-actions > :first-child:nth-last-child(odd) { grid-column: 1 / -1; }
+
+  /* ---------- Workflow picker stays inside its card ---------- */
+  .app-workspace .professor-workflow select { width: 100%; max-width: 100%; min-width: 0; }
+
+  /* ---------- Expanded rows: title first, values aligned ---------- */
+  .app-workspace table[data-phone-cards] td[data-phone-role="title"] { order: -2; }
+  .app-workspace table[data-phone-cards] td[data-phone-role="summary"] { order: -1; }
+  .app-workspace table[data-phone-cards] td[data-phone-role="actions"] { order: 1; }
+  .app-workspace table[data-phone-cards] td[data-phone-role="detail"] > * { grid-column: 2; }
+  .app-workspace table[data-phone-cards] td[data-phone-role="detail"] > span { justify-self: start; }
+
+  /* ---------- Calendar title row clears the composer button ---------- */
+  .uc .uc-main .uc-band-main { padding-top: 6px; }
+  .uc .uc-main .uc-scope { min-height: 44px; line-height: 44px; }
+  .uc .uc-main .uc-toolbar-nav { margin-top: 2px; }
+
+  /* ---------- Requirement layout toggle ---------- */
+  .app-workspace .research-tasks .rt-filters .rt-view {
+    display: flex !important;
+    flex-direction: row;
+    align-self: center;
+    justify-self: end;
+    border: 0;
+  }
+
+  /* The floating assistant must not cover a dialog's buttons. */
+  body:has([aria-modal="true"], .fixed.inset-0.flex.items-center.justify-center, .fixed.inset-0.grid) .researcher-assistant__launcher {
+    display: none;
+  }
+
+  /* Grid-centered dialogs follow the same bottom-sheet shape. */
+  .fixed.inset-0.grid.place-items-center:has(> :is(div, form, section):is(:has(h2), :has(h3), :has(form))) {
+    place-items: end stretch;
+    padding: 0;
+  }
+  .fixed.inset-0.grid.place-items-center > :is(div, form, section):is(:has(h2), :has(h3), :has(form)) {
+    width: 100%;
+    max-width: none;
+    max-height: 92dvh;
+    overflow-y: auto;
+    border-radius: 20px 20px 0 0 !important;
+  }
+}

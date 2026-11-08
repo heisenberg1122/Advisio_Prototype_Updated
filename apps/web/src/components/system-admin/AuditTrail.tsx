@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, CircleHelp, XCircle } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
+import { PhoneFilters } from "@/components/ui/PhoneFilters";
 
 type Event = {
   id: string;
@@ -179,6 +180,7 @@ function EventDetail({ id, close }: { id: string; close: () => void }) {
 }
 
 export function AuditTrail() {
+  const filterForm = useRef<HTMLFormElement>(null);
   const [filters, setFilters] = useState({
     category: "",
     action: "",
@@ -237,6 +239,7 @@ export function AuditTrail() {
         </p>
       </div>
       <form
+        ref={filterForm}
         className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
         onSubmit={(event) => {
           event.preventDefault();
@@ -255,6 +258,11 @@ export function AuditTrail() {
           setSelected(null);
         }}
       >
+        <PhoneFilters
+          guide="audit-filters"
+          title="Filter audit events"
+          onApply={() => filterForm.current?.requestSubmit()}
+        >
         <label className="grid gap-1 text-sm">
           Category
           <select
@@ -363,6 +371,7 @@ export function AuditTrail() {
             onChange={(e) => update("to", e.target.value)}
           />
         </label>
+        </PhoneFilters>
         <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4">
           <button className={inputStyle} type="submit">
             Apply filters
@@ -416,7 +425,7 @@ export function AuditTrail() {
       {query.data && (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table data-phone-title="1" className="w-full text-left text-sm">
               <caption className="sr-only">
                 Audit events in Philippine Time
               </caption>

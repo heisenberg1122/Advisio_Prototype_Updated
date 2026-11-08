@@ -30,7 +30,9 @@ import { useAuth } from "@/providers/auth-provider";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Button } from "@/components/ui/Button";
+import { PhoneFilters } from "@/components/ui/PhoneFilters";
 import { useAsyncAction } from "@/hooks/use-async-action";
+import { useIsPhone } from "@/hooks/use-is-phone";
 import { DeanAnnouncements } from "@/components/workflow/DeanAnnouncements";
 import { DeanDefensesView } from "@/components/dean/DeanDefensesView";
 import { DeanReportsView } from "@/components/dean/DeanReportsView";
@@ -175,6 +177,7 @@ function ExistingDeanDashboardContent() {
   const [academicYearId, setAcademicYearId] = useState("all");
   const [search, setSearch] = useState("");
   const [riskFilter, setRiskFilter] = useState("all");
+  const isPhone = useIsPhone();
   const [notice, setNotice] = useState<string | null>(null);
   const dashboard = useQuery({
     queryKey: ["dean-dashboard", programId, academicYearId],
@@ -257,6 +260,50 @@ function ExistingDeanDashboardContent() {
     );
 
   const maxStageCount = Math.max(1, ...data.stageDistribution.map((item) => item.count));
+  const isRegistryView = activeView === "students" || activeView === "research" || activeView === "progress";
+  const scopeFilterCount = Number(academicYearId !== "all") + Number(programId !== "all");
+  const clearScopeFilters = () => {
+    setAcademicYearId("all");
+    setProgramId("all");
+  };
+  const scopeFilterFields = (
+    <>
+      <label className="relative min-w-44 flex-1 sm:flex-none">
+        <span className="sr-only">Academic year</span>
+        <select
+          value={academicYearId}
+          onChange={(e) => setAcademicYearId(e.target.value)}
+          className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-4 pr-10 text-base font-bold text-slate-700 shadow-xs outline-none focus:border-[#C9A227] dark:border-white/10 dark:bg-white/5 dark:text-white sm:w-auto sm:min-w-44"
+        >
+          <option value="all">All academic years</option>
+          {data.scope.academicYears.map((year) => (
+            <option key={year.id} value={year.id}>
+              {year.name}
+              {year.isCurrent ? " · Current" : ""}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-slate-400" />
+      </label>
+
+      <label className="relative min-w-56 flex-1 sm:flex-none">
+        <span className="sr-only">Program</span>
+        <select
+          value={programId}
+          onChange={(e) => setProgramId(e.target.value)}
+          className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-4 pr-10 text-base font-bold text-slate-700 shadow-xs outline-none focus:border-[#C9A227] dark:border-white/10 dark:bg-white/5 dark:text-white sm:w-auto sm:min-w-56"
+        >
+          <option value="all">All programs</option>
+          {data.scope.programs.map((program) => (
+            <option key={program.id} value={program.id}>
+              {program.code} · {program.name}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-slate-400" />
+      </label>
+    </>
+  );
   return (
     <div className="min-h-full bg-transparent text-slate-800 transition-colors dark:text-slate-100">
       {notice && (
@@ -274,50 +321,19 @@ function ExistingDeanDashboardContent() {
             summary="Here's an overview of research progress, programs, and academic activity across your college."
           />
         )}
-        {activeView !== "messages" && activeView !== "announcements" && (
+        {activeView !== "messages" && activeView !== "announcements" && !(isPhone && isRegistryView) && (
           <div className="flex flex-wrap items-center justify-end gap-3">
-              <label className="relative min-w-44 flex-1 sm:flex-none">
-                <span className="sr-only">Academic year</span>
-                <select
-                  value={academicYearId}
-                  onChange={(e) => setAcademicYearId(e.target.value)}
-                  className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-4 pr-10 text-base font-bold text-slate-700 shadow-xs outline-none focus:border-[#C9A227] dark:border-white/10 dark:bg-white/5 dark:text-white sm:w-auto sm:min-w-44"
-                >
-                  <option value="all">All academic years</option>
-                  {data.scope.academicYears.map((year) => (
-                    <option key={year.id} value={year.id}>
-                      {year.name}
-                      {year.isCurrent ? " · Current" : ""}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-slate-400" />
-              </label>
-
-              <label className="relative min-w-56 flex-1 sm:flex-none">
-                <span className="sr-only">Program</span>
-                <select
-                  value={programId}
-                  onChange={(e) => setProgramId(e.target.value)}
-                  className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white pl-4 pr-10 text-base font-bold text-slate-700 shadow-xs outline-none focus:border-[#C9A227] dark:border-white/10 dark:bg-white/5 dark:text-white sm:w-auto sm:min-w-56"
-                >
-                  <option value="all">All programs</option>
-                  {data.scope.programs.map((program) => (
-                    <option key={program.id} value={program.id}>
-                      {program.code} · {program.name}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3 top-3.5 h-4 w-4 text-slate-400" />
-              </label>
-            </div>
+            <PhoneFilters activeCount={scopeFilterCount} onClear={clearScopeFilters}>
+              {scopeFilterFields}
+            </PhoneFilters>
+          </div>
         )}
 
         {/* OVERVIEW TAB */}
         {activeView === "overview" && (
           <div className="space-y-6">
             {/* KEY METRICS GRID */}
-            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <section className="phone-metric-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 {
                   label: "Research Students",
@@ -551,6 +567,9 @@ function ExistingDeanDashboardContent() {
             updateStatus={(id, status) => updateStatus.mutate({ id, status })}
             updating={updateStatus.isPending}
             canManage
+            scopeFilters={scopeFilterFields}
+            scopeFilterCount={scopeFilterCount}
+            onClearScopeFilters={clearScopeFilters}
           />
         )}
 
@@ -936,7 +955,13 @@ function RegistryView({
   updateStatus,
   updating,
   canManage,
+  scopeFilters,
+  scopeFilterCount,
+  onClearScopeFilters,
 }: {
+  scopeFilters: React.ReactNode;
+  scopeFilterCount: number;
+  onClearScopeFilters: () => void;
   activeView: string;
   search: string;
   setSearch: (value: string) => void;
@@ -948,6 +973,7 @@ function RegistryView({
   updating: boolean;
   canManage: boolean;
 }) {
+  const isPhone = useIsPhone();
   return (
     <div className="rounded-2xl border border-slate-200/80 bg-white shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
       <div className="workspace-page-header workspace-page-header--inset flex flex-col gap-3 border-b border-slate-200 dark:border-white/10 p-5 md:flex-row md:items-center md:justify-between">
@@ -963,7 +989,7 @@ function RegistryView({
             Showing records within the selected college, program, and academic year.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="phone-filter-bar flex flex-wrap gap-2">
           <label className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
             <input
@@ -974,6 +1000,14 @@ function RegistryView({
               className="h-10 w-64 rounded-xl border border-slate-200 bg-slate-50/70 pl-9 pr-3 text-base outline-none focus:border-[#0B3A53] dark:border-white/10 dark:bg-white/5 dark:text-white"
             />
           </label>
+          <PhoneFilters
+            activeCount={scopeFilterCount + Number(activeView !== "students" && riskFilter !== "all")}
+            onClear={() => {
+              onClearScopeFilters();
+              setRiskFilter("all");
+            }}
+          >
+          {isPhone && scopeFilters}
           {activeView !== "students" && (
             <label className="relative">
               <Filter className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
@@ -989,12 +1023,13 @@ function RegistryView({
               </select>
             </label>
           )}
+          </PhoneFilters>
         </div>
       </div>
 
       {activeView === "students" ? (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-left text-sm">
+          <table data-phone-summary="1,6" className="w-full min-w-[1100px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 font-extrabold dark:bg-white/[0.02] dark:text-slate-400">
               <tr>
                 {["Student", "Program", "Research group", "Adviser", "Stage", "Progress", "Account", ...(canManage ? ["Action"] : [])].map((heading) => (
@@ -1060,7 +1095,7 @@ function RegistryView({
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left text-sm">
+          <table data-phone-summary="1,6" className="w-full min-w-[980px] text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 font-extrabold dark:bg-white/[0.02] dark:text-slate-400">
               <tr>
                 {["Research project", "Program", "Students", "Adviser", "Current stage", "Progress", "Risk"].map((heading) => (

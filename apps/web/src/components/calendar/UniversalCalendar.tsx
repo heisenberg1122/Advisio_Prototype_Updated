@@ -22,6 +22,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { CalendarSkeleton } from "@/components/ui/Skeleton";
 import { getAcademicIdentity } from "@/lib/academic-identity";
 import { calendarDaysUntil } from "@/lib/researcher-home";
+import { PhoneFilters } from "@/components/ui/PhoneFilters";
 
 type CalendarEventType =
   | "ACADEMIC"
@@ -608,15 +609,17 @@ export default function UniversalCalendar() {
           </div>
 
           <div className="uc-toolbar">
-            <div className="uc-filters" role="group" aria-label="Show event types">
-              {FILTER_TYPES.map((type) => (
-                <button key={type} type="button" className="uc-filter" aria-pressed={!hidden.has(type)} onClick={() => toggleType(type)}>
-                  <i className={toneClass(type)} aria-hidden="true" />
-                  {FILTER_LABELS[type]}
-                  {monthCounts[type] ? <span className="uc-filter-count">{monthCounts[type]}</span> : null}
-                </button>
-              ))}
-            </div>
+            <PhoneFilters title="Event types" label="Types" activeCount={hidden.size} onClear={() => setHidden(new Set())}>
+              <div className="uc-filters" role="group" aria-label="Show event types">
+                {FILTER_TYPES.map((type) => (
+                  <button key={type} type="button" className="uc-filter" aria-pressed={!hidden.has(type)} onClick={() => toggleType(type)}>
+                    <i className={toneClass(type)} aria-hidden="true" />
+                    {FILTER_LABELS[type]}
+                    {monthCounts[type] ? <span className="uc-filter-count">{monthCounts[type]}</span> : null}
+                  </button>
+                ))}
+              </div>
+            </PhoneFilters>
             <div className="uc-views" role="group" aria-label="Calendar view">
               {(["month", "week", "agenda"] as const).map((option) => (
                 <button key={option} type="button" aria-pressed={view === option} onClick={() => setView(option)}>

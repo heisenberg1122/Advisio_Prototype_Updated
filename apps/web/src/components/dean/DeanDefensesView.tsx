@@ -24,6 +24,7 @@ import {
   readable,
   dateTime,
 } from "./DeanMonitoringShared";
+import { PhoneFilters } from "@/components/ui/PhoneFilters";
 
 export function DeanDefensesView() {
   const { query, update, reset, identity, user } = useDeanFilters("defenses");
@@ -105,7 +106,8 @@ export function DeanDefensesView() {
           Refresh
         </button>
       </header>
-      <section aria-label="Defense filters" className={filtersClass}>
+      <section aria-label="Defense filters" className={`${filtersClass} phone-filter-section`}>
+        <PhoneFilters guide="de-monitor-search" title="Filter defenses">
         <ScopeFilters
           scope={data?.scope}
           query={query}
@@ -141,6 +143,7 @@ export function DeanDefensesView() {
         <button className={actionClass} onClick={reset}>
           Reset filters
         </button>
+        </PhoneFilters>
       </section>
       <QueryState
         loading={dataQuery.isPending}
@@ -192,7 +195,7 @@ export function DeanDefensesView() {
               ))}
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
+              <table data-phone-title="1" data-phone-summary="4" className="w-full min-w-[900px] text-left text-sm">
                 <thead className="bg-[var(--color-surface-muted)] text-xs text-[var(--color-text-secondary)]">
                   <tr>
                     {[

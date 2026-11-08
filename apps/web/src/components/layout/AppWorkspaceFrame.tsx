@@ -8,6 +8,7 @@ import { useTheme } from "@/providers/theme-provider";
 import "./workspace-layout.css";
 import type { NavSection } from "./AppSidebar";
 import { WorkspaceSectionNavigation } from "./GroupedWorkspaceNavigation";
+import { PhoneLayoutEnhancer } from "./PhoneLayoutEnhancer";
 
 interface AppWorkspaceFrameProps {
   children: React.ReactNode;
@@ -28,14 +29,17 @@ export function AppWorkspaceFrame({
 }: AppWorkspaceFrameProps) {
   const { isDark } = useTheme();
   const { pathname, search } = useLocation();
+  const frameRef = React.useRef<HTMLDivElement>(null);
 
   return (
     <div
+      ref={frameRef}
       className={cn(
         "workspace-frame min-h-screen bg-[var(--sidebar-background)] text-[var(--color-text-primary)]",
         isDark && "dark"
       )}
     >
+      <PhoneLayoutEnhancer rootRef={frameRef} />
       {sidebar}
 
       <div

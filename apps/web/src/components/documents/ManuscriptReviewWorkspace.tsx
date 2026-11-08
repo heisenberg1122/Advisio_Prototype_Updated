@@ -359,7 +359,7 @@ export function ManuscriptReviewWorkspace({
       </CardHeader>
 
       <CardContent>
-        <div className="grid gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 text-xs sm:grid-cols-3">
+        <div className="phone-compact-facts grid gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-4 text-xs sm:grid-cols-3">
           <div>
             <span className="block font-bold text-[var(--color-text-primary)]">
               Milestone
@@ -694,7 +694,7 @@ export function ManuscriptReviewWorkspace({
   const adviserSummary = !loading && (
     <section
       aria-label="Review assignment summary"
-      className="grid gap-3 sm:grid-cols-3"
+      className="phone-stat-strip grid gap-3 sm:grid-cols-3"
     >
       {[
         {
@@ -749,7 +749,7 @@ export function ManuscriptReviewWorkspace({
       )}
     >
       {isAdviserPresentation ? (
-        <header className="college-hero-surface relative overflow-hidden rounded-3xl border p-5 text-[var(--color-text-primary)] shadow-lg sm:p-6 lg:p-7">
+        <header className="phone-compact-header college-hero-surface relative overflow-hidden rounded-3xl border p-5 text-[var(--color-text-primary)] shadow-lg sm:p-6 lg:p-7">
           <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="max-w-3xl">
               <h1 className="mt-2 text-2xl font-black tracking-tight text-[var(--color-text-primary)] sm:text-3xl">
@@ -762,7 +762,7 @@ export function ManuscriptReviewWorkspace({
             <Button
               variant="secondary"
               size="sm"
-              className="border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-[var(--nav-hover-bg)]"
+              className="phone-icon-action border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-[var(--nav-hover-bg)]"
               icon={<RefreshCw className="h-4 w-4" />}
               onClick={() => void loadAssignments()}
               isLoading={loading}
@@ -782,6 +782,7 @@ export function ManuscriptReviewWorkspace({
             <Button
               variant="secondary"
               size="sm"
+              className="phone-icon-action"
               icon={<RefreshCw className="h-4 w-4" />}
               onClick={() => void loadAssignments()}
               isLoading={loading}

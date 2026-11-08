@@ -21,6 +21,7 @@ import {
   readable,
   dateTime,
 } from "./DeanMonitoringShared";
+import { PhoneFilters } from "@/components/ui/PhoneFilters";
 
 const reports: Record<ReportType, string> = {
   "research-progress": "Research Progress",
@@ -119,7 +120,8 @@ export function DeanReportsView() {
           Refresh
         </button>
       </header>
-      <section className={filtersClass} aria-label="Report filters">
+      <section className={`${filtersClass} phone-filter-section`} aria-label="Report filters">
+        <PhoneFilters guide="report-selection" title="Choose report and filters">
         <FilterField label="Report">
           <select
             data-guide="report-selection"
@@ -232,6 +234,7 @@ export function DeanReportsView() {
         >
           Reset filters
         </button>
+        </PhoneFilters>
       </section>
       <QueryState
         loading={reportQuery.isPending}
