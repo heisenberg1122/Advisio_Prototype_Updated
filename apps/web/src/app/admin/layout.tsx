@@ -107,12 +107,10 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const activeTab = useSearchParams().get("tab") || "overview";
   const pathname = usePathname() || "";
   const pageTitle =
-    pathname === "/admin/profile"
-      ? "My Profile"
-      : pathname === "/admin/profile/edit"
-        ? "Edit Profile"
-        : pathname === "/admin/settings"
-          ? "Account Settings"
+    pathname === "/admin/profile/edit"
+      ? "Edit Profile"
+      : pathname === "/admin/settings"
+        ? "Account Settings"
         : pathname === "/admin/notifications"
           ? "Notifications"
         : pathname === "/admin/inbox"
@@ -130,7 +128,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const currentWorkspaceId = activeWorkspace?.id || "dean";
   const dashboardPath = formatAdminLink("/admin/dashboard", currentWorkspaceId);
   const settingsHref = formatAdminLink("/admin/settings", currentWorkspaceId);
-  const profileHref = formatAdminLink("/admin/profile", currentWorkspaceId);
   const notificationsHref = formatAdminLink("/admin/notifications", currentWorkspaceId);
 
   return (
@@ -148,7 +145,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           collapsed={collapsed}
           onToggleCollapse={toggle}
           settingsHref={settingsHref}
-          profileHref={profileHref}
           variant="workspace"
         />
       }
@@ -158,7 +154,6 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           hideTitle={pathname === "/admin/dashboard" && activeTab === "overview"}
           subtitle="Research Management Center"
           notificationsHref={notificationsHref}
-          profileHref={profileHref}
           settingsHref={settingsHref}
           searchPlaceholder="Search research groups, faculty, defenses..."
           variant="workspace"

@@ -69,7 +69,6 @@ export function AdviserSidebar() {
       collapsed={collapsed}
       onToggleCollapse={toggle}
       settingsHref="/adviser/settings"
-      profileHref="/adviser/profile"
       variant="workspace"
     />
   );

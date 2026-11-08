@@ -16,7 +16,6 @@ const TITLES: Record<string, string> = {
 };
 
 const PAGES: Record<string, string> = {
-  "/panelist/profile": "My Profile",
   "/panelist/profile/edit": "Edit Profile",
   "/panelist/notifications": "Notifications",
   "/panelist/settings": "Account Settings",
@@ -40,7 +39,6 @@ export function PanelistTopbar() {
       hideTitle={pathname === "/panelist/dashboard" && tab === "overview"}
       subtitle="Oral Defense Center"
       notificationsHref="/panelist/notifications"
-      profileHref="/panelist/profile"
       settingsHref="/panelist/settings"
       searchPlaceholder="Search manuscripts, candidates, defenses..."
       variant="workspace"

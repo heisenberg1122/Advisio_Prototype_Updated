@@ -2,9 +2,11 @@
 
 import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "react-router-dom";
 import {
   BadgeCheck,
   Bell,
+  Briefcase,
   Camera,
   Lock,
   Check,
@@ -20,7 +22,8 @@ import {
 } from "lucide-react";
 import { useResearcherGuide } from "@/providers/researcher-guide-provider";
 import { useAuth } from "@/providers/auth-provider";
-import { useProfile } from "@/hooks/use-profile";
+import { useProfile, type ProfileData } from "@/hooks/use-profile";
+import { AdviserFacultyProfileView } from "@/components/profile/AdviserFacultyProfileView";
 import { useTheme } from "@/providers/theme-provider";
 import { Avatar } from "@/components/ui/Avatar";
 import { getAcademicIdentity } from "@/lib/academic-identity";
@@ -28,8 +31,17 @@ import { COLLEGE_THEMES } from "@/lib/college-themes";
 import { useAssistantVisibility } from "@/lib/assistant-preference";
 import "./account-settings.css";
 
-type SettingsTab = "account" | "notifications" | "appearance" | "security";
+type SettingsTab = "account" | "faculty" | "notifications" | "appearance" | "security";
 type NotificationPreferences = Record<string, boolean>;
+
+const officeField = ["department", "Department / Office"] as const;
+const PROFILE_FIELDS: Record<string, ReadonlyArray<readonly [keyof ProfileData, string]>> = {
+  student: [["yearLevel", "Year Level"], ["section", "Section"], ["researchInterests", "Research Interests"]],
+  professor: [officeField, ["specialization", "Research Specialization"], ["subjects", "Handled Subjects / Sections"]],
+  panelist: [officeField, ["specialization", "Research Specialization"], ["panelDetails", "Panel Details"]],
+  admin: [officeField, ["position", "Position Title"]],
+  system_admin: [officeField, ["position", "Position Title"]],
+};
 
 const ROLE_LABELS: Record<string, string> = {
   RESEARCHER: "Researcher",
@@ -40,6 +52,7 @@ const ROLE_LABELS: Record<string, string> = {
   PANELIST: "Defense Panelist",
   ADMIN: "Administrator",
   DEAN: "Research Program Officer",
+  SYSTEM_ADMIN: "System Administrator",
 };
 
 const ROLE_NOTIFICATIONS: Record<string, Array<[string, string, string]>> = {
@@ -72,6 +85,10 @@ const ROLE_NOTIFICATIONS: Record<string, Array<[string, string, string]>> = {
     ["schedules", "Defense scheduling", "Conflicts, confirmations, and schedule changes."],
     ["reports", "Reports and exports", "Notifications when requested reports are ready."],
     ["risk", "Research risk alerts", "Projects requiring administrative attention."],
+  ],
+  SYSTEM_ADMIN: [
+    ["security", "Security notices", "Updates about platform account security."],
+    ["audit", "Audit alerts", "Updates about administrative activity."],
   ],
 };
 
@@ -138,13 +155,16 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
     colorThemePreference,
     setColorThemePreference,
   } = useTheme();
-  const [activeTab, setActiveTab] = useState<SettingsTab>("account");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const hasFacultyProfile = profile.role === "adviser";
+  const profileFields = PROFILE_FIELDS[profile.role] ?? [];
   const [savedMessage, setSavedMessage] = useState("");
   const [preferenceStatus, setPreferenceStatus] = useState("");
   const [editingAccount, setEditingAccount] = useState(false);
   const [accountName, setAccountName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [profileDetails, setProfileDetails] = useState<Partial<ProfileData>>({});
   const [accountError, setAccountError] = useState("");
   const [photoBusy, setPhotoBusy] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -182,6 +202,7 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
     setAccountName(profile.name || "");
     setContactNumber(profile.contactNumber || "");
     setPhotoUrl(profile.photoUrl || "");
+    setProfileDetails(profile);
     setAccountError("");
     setEditingAccount(true);
   };
@@ -215,7 +236,10 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
       setAccountError("Enter your full name before saving.");
       return;
     }
-    const success = updateProfile({ name: normalizedName, contactNumber: contactNumber.trim(), photoUrl });
+    const details = Object.fromEntries(
+      profileFields.map(([key]) => [key, (profileDetails[key] || "").trim()]),
+    );
+    const success = updateProfile({ ...details, name: normalizedName, contactNumber: contactNumber.trim(), photoUrl });
     if (!success) {
       setAccountError("Your account changes could not be saved. Please try again.");
       return;
@@ -232,6 +256,25 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
     { id: "appearance", label: "Appearance", icon: Palette },
     { id: "security", label: "Security", icon: Shield },
   ];
+  if (hasFacultyProfile) {
+    categories.splice(1, 0, { id: "faculty", label: "Faculty Profile", icon: Briefcase });
+  }
+  const activeTab = categories.find(({ id }) => id === searchParams.get("section"))?.id || "account";
+
+  useEffect(() => {
+    if (searchParams.get("saved") !== "true") return;
+    setSavedMessage("Account profile updated.");
+    const timer = window.setTimeout(() => setSavedMessage(""), 3000);
+    return () => window.clearTimeout(timer);
+  }, [searchParams]);
+
+  const selectTab = (tab: SettingsTab) => {
+    const params = new URLSearchParams(searchParams);
+    params.delete("saved");
+    if (tab === "account") params.delete("section");
+    else params.set("section", tab);
+    setSearchParams(params, { replace: true, preventScrollReset: true });
+  };
 
   const roleLabel = ROLE_LABELS[primaryRole] || primaryRole.replace(/_/g, " ");
   const seal = getAcademicIdentity({ college: user?.college as any, program: user?.program as any })?.logoSrc;
@@ -281,7 +324,7 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
                 type="button"
                 aria-current={activeTab === id ? "page" : undefined}
                 data-guide={guidePrefix && id === "appearance" ? `${guidePrefix}-appearance-tab` : undefined}
-                onClick={() => setActiveTab(id)}
+                onClick={() => selectTab(id)}
               >
                 <Icon className="h-4 w-4" aria-hidden="true" />
                 {label}
@@ -360,6 +403,41 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
                     )}
                   </div>
                 </dl>
+                {profileFields.length > 0 && (
+                  <>
+                    <div className="as-section-head as-section-gap">
+                      <div>
+                        <h2>Role details</h2>
+                        <p>Manage information specific to your dashboard.</p>
+                      </div>
+                    </div>
+                    <dl className="as-rows">
+                      {profileFields.map(([key, label]) => {
+                        const Field = key === "researchInterests" ? "textarea" : "input";
+                        return (
+                          <div key={key} className="as-row">
+                            <dt>{label}</dt>
+                            <dd>
+                              {editingAccount ? (
+                                <Field
+                                  aria-label={label}
+                                  value={profileDetails[key] || ""}
+                                  onChange={(event) => {
+                                    const value = event.target.value;
+                                    setProfileDetails((current) => ({ ...current, [key]: value }));
+                                  }}
+                                />
+                              ) : (
+                                profile[key] || <span className="as-muted">Not added yet</span>
+                              )}
+                            </dd>
+                            <span />
+                          </div>
+                        );
+                      })}
+                    </dl>
+                  </>
+                )}
                 {editingAccount && (
                   <div className="as-actions">
                     <button type="button" className="as-btn" onClick={cancelAccountEdit}>Cancel</button>
@@ -392,6 +470,8 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
                 </dl>
               </>
             )}
+
+            {activeTab === "faculty" && <AdviserFacultyProfileView />}
 
             {activeTab === "notifications" && (
               <>

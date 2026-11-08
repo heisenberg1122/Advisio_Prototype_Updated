@@ -127,7 +127,7 @@
 .as-row:first-child { border-top: 0; }
 .as-row dt { font-size: 13.5px; color: var(--color-text-secondary); }
 .as-row dd { min-width: 0; font-size: 14.5px; font-weight: 500; overflow-wrap: anywhere; }
-.as-row dd input {
+.as-row dd :is(input, textarea) {
   width: 100%;
   max-width: 420px;
   height: 40px;
@@ -138,7 +138,8 @@
   font-size: 14.5px;
   color: var(--color-text-primary);
 }
-.as-row dd input:focus { border-color: var(--color-primary); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent); }
+.as-row dd textarea { min-height: 80px; resize: vertical; }
+.as-row dd :is(input, textarea):focus { border-color: var(--color-primary); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent); }
 .as-muted { font-weight: 400; color: var(--color-text-secondary); }
 .as-photo { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .as-photo-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12.5px; }

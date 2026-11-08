@@ -107,7 +107,6 @@ export function StudentSidebar() {
       collapsed={collapsed}
       onToggleCollapse={toggle}
       settingsHref="/student/settings"
-      profileHref="/student/profile"
       variant="workspace"
     />
     </LayoutGroup>

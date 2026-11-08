@@ -11,7 +11,6 @@ import React, { useState, Suspense, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTheme } from "@/providers/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { apiClient } from "@/lib/api-client";
 import { calculateMilestoneProgress } from "@/lib/workflow-progress";
@@ -60,7 +59,6 @@ function StudentDashboardContent() {
     params.set("section", "my-group");
     router.replace(`/student/dashboard?${params}`);
   }, [requestedTab, searchParams, router]);
-  const { isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: apiNotifications = [] } = useStudentNotifications();
@@ -1266,8 +1264,6 @@ function StudentDashboardContent() {
             conferencing: "Group Conferencing",
             defense: "Defense Schedule",
             certificates: "Certificates of Completion",
-            settings: "Settings",
-            profile: "My Profile",
             notifications: "Notifications",
           };
 
@@ -1584,26 +1580,6 @@ function StudentDashboardContent() {
                   </div>
                 </div>
               </>
-            ),
-            profile: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-lg">Student profile Info</h3>
-                <p className="text-base text-slate-400 font-bold">Edit your student representative details, institutional identity cards, and department classifications.</p>
-                <div className="flex flex-col gap-3 mt-2 text-[12px]">
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-slate-600">Student Name</label>
-                    <input type="text" readOnly value={`${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Student Researcher"} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg focus:outline-none" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-slate-600">Represented Department</label>
-                    <input type="text" readOnly value={user?.college?.name || user?.program?.name || "College of Computing"} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg focus:outline-none" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-slate-600">Student ID Number</label>
-                    <input type="text" readOnly value={user?.universityId || "Not Assigned"} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg focus:outline-none" />
-                  </div>
-                </div>
-              </div>
             ),
             "my-group": (
               <section className="student-projects-readable mp-workspace mp-group">
@@ -2138,33 +2114,6 @@ function StudentDashboardContent() {
                   >
                     View Status
                   </button>
-                </div>
-              </div>
-            ),
-            settings: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-lg">Portal Settings</h3>
-                <p className="text-base text-slate-400 font-bold">Manage your notification channels, authentication credentials, and user preferences.</p>
-                <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl text-[12.5px] mt-2 flex flex-col gap-4 shadow-sm">
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-200">
-                    <div>
-                      <span className="font-bold text-[#1b4264] block">Email Notifications</span>
-                      <span className="text-xs text-slate-400">Receive system notifications via email address.</span>
-                    </div>
-                    <input type="checkbox" defaultChecked className="accent-[#ffa400] w-4 h-4 cursor-pointer" />
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className="font-bold text-[#1b4264] block">Dark Mode</span>
-                      <span className="text-xs text-slate-400">Switch platform styling theme to night vision.</span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={isDark}
-                      onChange={toggleTheme}
-                      className="accent-[#ffa400] w-4 h-4 cursor-pointer"
-                    />
-                  </div>
                 </div>
               </div>
             ),

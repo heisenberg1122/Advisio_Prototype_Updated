@@ -28,7 +28,6 @@ export interface AppSidebarProps {
   isMobileOpen?: boolean;
   onMobileClose?: () => void;
   settingsHref?: string;
-  profileHref?: string;
   variant?: "default" | "workspace";
 }
 

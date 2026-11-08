@@ -67,7 +67,6 @@ export function PanelistSidebar() {
       collapsed={collapsed}
       onToggleCollapse={toggle}
       settingsHref="/panelist/settings"
-      profileHref="/panelist/profile"
       variant="workspace"
     />
   );

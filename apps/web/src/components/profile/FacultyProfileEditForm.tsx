@@ -473,7 +473,7 @@ export function FacultyProfileEditForm() {
         async () => {
           await updateProfile(payload);
           setIsDirty(false);
-          router.push("/adviser/profile?saved=true");
+          router.push("/adviser/settings?section=faculty&saved=true");
         },
         {
           successMessage: "Faculty profile saved successfully.",
@@ -519,7 +519,7 @@ export function FacultyProfileEditForm() {
               ) {
                 return;
               }
-              router.push("/adviser/profile");
+              router.push("/adviser/settings?section=faculty");
             }}
           >
             Cancel
@@ -1475,7 +1475,7 @@ export function FacultyProfileEditForm() {
               ) {
                 return;
               }
-              router.push("/adviser/profile");
+              router.push("/adviser/settings?section=faculty");
             }}
           >
             Cancel

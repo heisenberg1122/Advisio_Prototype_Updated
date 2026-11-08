@@ -17,7 +17,6 @@ export interface AppShellProps {
   breadcrumbs?: { label: string; href?: string }[];
   notificationsHref?: string;
   settingsHref?: string;
-  profileHref?: string;
   actions?: React.ReactNode;
   children: React.ReactNode;
   contentClassName?: string;
@@ -34,7 +33,6 @@ export function AppShell({
   breadcrumbs,
   notificationsHref,
   settingsHref,
-  profileHref,
   actions,
   children,
   contentClassName,
@@ -56,7 +54,6 @@ export function AppShell({
         isMobileOpen={isMobileOpen}
         onMobileClose={() => setIsMobileOpen(false)}
         settingsHref={settingsHref}
-        profileHref={profileHref}
       />
 
       {/* Main Layout Area */}
@@ -74,7 +71,6 @@ export function AppShell({
             breadcrumbs={breadcrumbs}
             notificationsHref={notificationsHref}
             settingsHref={settingsHref}
-            profileHref={profileHref}
             onOpenMobileMenu={() => setIsMobileOpen(true)}
             actions={actions}
           />

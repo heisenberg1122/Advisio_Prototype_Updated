@@ -9,7 +9,6 @@ import {
   Search,
   LogOut,
   Settings,
-  User,
   Moon,
   Sun,
   X,
@@ -48,7 +47,6 @@ export interface AppTopbarProps {
   actions?: React.ReactNode;
   searchPlaceholder?: string;
   onSearch?: (query: string) => void;
-  profileHref?: string;
   variant?: "default" | "workspace";
 }
 
@@ -70,7 +68,6 @@ export function AppTopbar({
   actions,
   searchPlaceholder = "Search anything...",
   onSearch,
-  profileHref = "/student/profile",
   variant = "default",
 }: AppTopbarProps) {
   const router = useRouter();
@@ -165,17 +162,9 @@ export function AppTopbar({
       category: "Navigation" as const,
     })),
     {
-      id: "profile",
-      label: "User Profile",
-      subtitle: "View and edit personal academic profile",
-      icon: User,
-      href: profileHref,
-      category: "Navigation",
-    },
-    {
       id: "settings",
       label: "Account Settings",
-      subtitle: "Preferences, appearance, and security",
+      subtitle: "Profile, preferences, appearance, and security",
       icon: Settings,
       href: settingsHref,
       category: "Navigation",
@@ -456,16 +445,6 @@ export function AppTopbar({
 
               {/* Theme Toggle & Links */}
               <div className="py-2 space-y-1">
-                {/* Profile Link */}
-                <Link
-                  href={profileHref}
-                  onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
-                >
-                  <User className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-                  <span>My Profile</span>
-                </Link>
-
                 {/* Settings Link */}
                 <Link
                   href={settingsHref}

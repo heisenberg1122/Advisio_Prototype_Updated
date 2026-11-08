@@ -14,6 +14,7 @@ import {
   CloudCog,
   CalendarDays,
   Mail,
+  Settings,
 } from "lucide-react";
 import { AppSidebar, NavSection } from "@/components/layout/AppSidebar";
 import { AppTopbar } from "@/components/layout/AppTopbar";
@@ -83,6 +84,12 @@ const SYSTEM_ADMIN_NAV_SECTIONS: NavSection[] = [
         tabName: "backups",
         icon: Database,
       },
+      {
+        label: "Portal Settings",
+        href: "/system-admin/dashboard?tab=settings",
+        tabName: "settings",
+        icon: Settings,
+      },
     ],
   },
   {
@@ -120,8 +127,8 @@ function SystemAdminLayoutInner({ children }: { children: React.ReactNode }) {
   const activeTab = useSearchParams().get("tab") || "overview";
   const pathname = usePathname() || "";
   const pageTitle =
-    pathname === "/system-admin/profile"
-      ? "My Profile"
+    pathname === "/system-admin/settings"
+      ? "Account Settings"
       : pathname === "/system-admin/profile/edit"
         ? "Edit Profile"
         : pathname === "/system-admin/notifications"
@@ -146,8 +153,7 @@ function SystemAdminLayoutInner({ children }: { children: React.ReactNode }) {
           groupedNavigation
           collapsed={collapsed}
           onToggleCollapse={toggle}
-          settingsHref="/system-admin/dashboard?tab=settings"
-          profileHref="/system-admin/profile"
+          settingsHref="/system-admin/settings"
           variant="workspace"
         />
       }
@@ -157,8 +163,7 @@ function SystemAdminLayoutInner({ children }: { children: React.ReactNode }) {
           hideTitle={pathname === "/system-admin/dashboard" && activeTab === "overview"}
           subtitle="Platform Control Center"
           notificationsHref="/system-admin/notifications"
-          profileHref="/system-admin/profile"
-          settingsHref="/system-admin/dashboard?tab=settings"
+          settingsHref="/system-admin/settings"
           searchPlaceholder="Search audit logs, users, system settings..."
           variant="workspace"
         />

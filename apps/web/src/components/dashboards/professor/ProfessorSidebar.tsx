@@ -121,7 +121,6 @@ export function ProfessorSidebar() {
       collapsed={collapsed}
       onToggleCollapse={toggle}
       settingsHref="/professor/settings"
-      profileHref="/professor/profile"
       variant="workspace"
     />
   );

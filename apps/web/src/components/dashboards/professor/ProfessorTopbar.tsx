@@ -20,7 +20,6 @@ const TITLES: Record<string, string> = {
 };
 
 const PAGES: Record<string, string> = {
-  "/professor/profile": "My Profile",
   "/professor/profile/edit": "Edit Profile",
   "/professor/notifications": "Notifications",
   "/professor/settings": "Account Settings",
@@ -45,7 +44,6 @@ export function ProfessorTopbar() {
       hideTitle={pathname === "/professor/dashboard" && tab === "overview"}
       subtitle="Faculty Coordinator Workspace"
       notificationsHref="/professor/notifications"
-      profileHref="/professor/profile"
       settingsHref="/professor/settings"
       searchPlaceholder="Search researchers, projects, submissions..."
       variant="workspace"
