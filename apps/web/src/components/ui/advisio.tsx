@@ -205,15 +205,43 @@ export function DateTile({ top, bottom, tone, label }: { top: ReactNode; bottom:
   );
 }
 
-/** Empty state: icon, short title, one explanatory line, optional action. */
-export function EmptyNote({ icon = "ti-inbox", title, text, action }: { icon?: string; title: ReactNode; text?: ReactNode; action?: ReactNode }) {
+/**
+ * Empty state. `center` is the default; `row` is compact for a single empty card; `page` is for a
+ * whole empty page and can list the `steps` that fill it. `tone` marks good news or a problem.
+ */
+export function EmptyNote({
+  icon = "ti-inbox",
+  title,
+  text,
+  action,
+  layout = "center",
+  tone,
+  steps,
+}: {
+  icon?: string;
+  title: ReactNode;
+  text?: ReactNode;
+  action?: ReactNode;
+  layout?: "center" | "row" | "page";
+  tone?: "ok" | "problem";
+  steps?: ReactNode[];
+}) {
   return (
-    <div className="au-empty">
+    <div className="au-empty" data-layout={layout} data-tone={tone}>
       <span className="au-empty-icon" aria-hidden="true">
         <i className={`ti ${icon}`} />
       </span>
-      <p className="au-empty-title">{title}</p>
-      {text && <p className="au-empty-text">{text}</p>}
+      <div className="au-empty-body">
+        <p className="au-empty-title">{title}</p>
+        {text && <p className="au-empty-text">{text}</p>}
+      </div>
+      {steps && steps.length > 0 && (
+        <ol className="au-empty-steps">
+          {steps.map((step, index) => (
+            <li key={index}>{step}</li>
+          ))}
+        </ol>
+      )}
       {action && <div className="au-empty-action">{action}</div>}
     </div>
   );

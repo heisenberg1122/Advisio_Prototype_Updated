@@ -4,12 +4,10 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ShieldCheck } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/providers/auth-provider";
 import { deanDefenseReturn } from "@/lib/dean-defense-navigation";
 import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { DashboardSkeleton } from "@/components/ui/Skeleton";
 import { EmptyNote, ListRow, PageBand, RowIcon, SectionCard, StatusDot, type StatusTone } from "@/components/ui/advisio";
 import "./defense-workspace.css";
@@ -219,22 +217,20 @@ export default function PanelistDefenseWorkspacePage() {
   if (isLoading) return <DashboardSkeleton />;
   if (error || !session)
     return (
-      <EmptyState
-        icon={ShieldCheck}
-        title="Defense workspace unavailable"
-        description={
-          (error as any)?.message ||
-          "This session was not found or is outside your assigned panel scope."
-        }
-        action={
-          <Button
-            variant="outline"
-            onClick={() => router.push(backHref)}
-          >
-            {deanReturn ? "Back to Dean Defenses" : "Back to schedule"}
-          </Button>
-        }
-      />
+      <div className="au-card">
+        <EmptyNote
+          layout="page"
+          tone="problem"
+          icon="ti-shield-x"
+          title="Defense workspace unavailable"
+          text={(error as any)?.message || "This session was not found or is outside your assigned panel scope."}
+          action={
+            <Button size="sm" variant="secondary" onClick={() => router.push(backHref)}>
+              {deanReturn ? "Back to Dean Defenses" : "Back to schedule"}
+            </Button>
+          }
+        />
+      </div>
     );
 
   const packetReady = packet?.status === "PUBLISHED";
@@ -545,6 +541,7 @@ export default function PanelistDefenseWorkspacePage() {
             </>
           ) : (
             <EmptyNote
+              layout="row"
               icon="ti-file-text"
               title={packetReady ? "Accept to open the documents" : "Documents not shared yet"}
               text={
@@ -573,7 +570,7 @@ export default function PanelistDefenseWorkspacePage() {
               ))}
             </ul>
           ) : (
-            <EmptyNote icon="ti-users" title="No researchers listed" text="Group members appear here once they're recorded." />
+            <EmptyNote layout="row" icon="ti-users" title="No researchers listed" text="Group members appear here once they're recorded." />
           )}
           <div className="pw-foot">
             <span>
@@ -596,7 +593,7 @@ export default function PanelistDefenseWorkspacePage() {
               ))}
             </ol>
           ) : (
-            <EmptyNote icon="ti-history" title="No activity yet" text="Invitations, shared documents and evaluations appear here." />
+            <EmptyNote layout="row" icon="ti-history" title="No activity yet" text="Invitations, shared documents and evaluations appear here." />
           )}
         </SectionCard>
       </div>

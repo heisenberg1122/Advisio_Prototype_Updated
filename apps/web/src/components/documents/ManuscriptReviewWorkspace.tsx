@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/Button";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { EmptyNote } from "@/components/ui/advisio";
 import { Modal } from "@/components/ui/Modal";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -850,11 +851,23 @@ export function ManuscriptReviewWorkspace({
                 )}
               </div>
             ) : (
+              presentation === "panelist" ? (
+                <div className="au-card">
+                  <EmptyNote
+                    layout="row"
+                    tone="ok"
+                    icon="ti-circle-check"
+                    title="No manuscript reviews are waiting"
+                    text="New work appears here only after you are assigned to a submitted version."
+                  />
+                </div>
+              ) : (
               <EmptyState
                 icon={ShieldCheck}
                 title="No manuscript reviews are waiting"
                 description="New work appears here only after you are explicitly assigned to a submitted version."
               />
+              )
             )}
           </section>
 
@@ -894,11 +907,22 @@ export function ManuscriptReviewWorkspace({
                 )}
               </div>
             ) : (
+              presentation === "panelist" ? (
+                <div className="au-card">
+                  <EmptyNote
+                    layout="row"
+                    icon="ti-history"
+                    title="No previous decisions"
+                    text="Your completed reviews stay available here."
+                  />
+                </div>
+              ) : (
               <EmptyState
                 icon={FileSearch}
                 title="No previous decisions"
                 description="Your completed reviews will remain available here."
               />
+              )
             )}
           </section>
         </>

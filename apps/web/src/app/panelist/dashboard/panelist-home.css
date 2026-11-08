@@ -17,3 +17,13 @@
 .ps-end { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
 .ps-status { min-width: 96px; }
 .ps-end > button { width: 148px; }
+/* Evaluations with no live defense */
+.pe-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: var(--au-gap-3); }
+.pe-pair > .au-card { display: flex; flex-direction: column; }
+.pe-focus { border: 1.5px solid var(--color-primary); }
+.pe-problem { border-color: color-mix(in srgb, var(--color-warning) 55%, var(--color-border)); }
+.pe-problem .au-empty[data-layout="row"] { padding-top: 14px; }
+.pe-kicker { display: inline-flex; align-items: center; gap: 6px; font-size: var(--au-text-12); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--au-brand-text); }
+.pe-kicker::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pe-card-note { display: flex; align-items: flex-start; gap: 6px; padding: 10px var(--au-gap-3) 12px; border-top: 1px solid var(--color-border); font-size: var(--au-text-13); color: var(--color-text-secondary); }
+@media (max-width: 1000px) { .pe-pair { grid-template-columns: minmax(0, 1fr); } }

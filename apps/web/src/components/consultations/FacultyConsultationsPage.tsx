@@ -244,7 +244,7 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
           </div>
         )}
         {consultations.isSuccess && items.length === 0 && (
-          <EmptyNote icon="ti-calendar-time" title="No consultations yet" text={emptyText[workspace]} />
+          <EmptyNote layout="row" icon="ti-calendar-time" title="No consultations yet" text={emptyText[workspace]} />
         )}
         {items.length > 0 && (
           <ul className="au-list">

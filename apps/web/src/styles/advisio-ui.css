@@ -227,6 +227,21 @@ a.au-row:hover { background: var(--color-surface-subtle); }
 .au-empty-title { font-size: var(--au-text-14); font-weight: 700; color: var(--color-text-primary); }
 .au-empty-text { max-width: 360px; font-size: var(--au-text-13); line-height: 1.5; }
 .au-empty-action { margin-top: var(--au-gap-1); }
+.au-empty-body { display: grid; justify-items: inherit; gap: 4px; min-width: 0; }
+.au-empty[data-layout="row"] { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 6px var(--au-gap-3) 14px; text-align: left; }
+.au-empty[data-layout="row"] .au-empty-icon { flex: none; width: 40px; height: 40px; margin: 0; }
+.au-empty[data-layout="row"] .au-empty-body { flex: 1 1 180px; justify-items: start; gap: 2px; }
+.au-empty[data-layout="row"] .au-empty-action { margin: 0; }
+.au-empty[data-layout="page"] { padding: 36px var(--au-gap-3); }
+.au-empty[data-layout="page"] .au-empty-icon { width: 48px; height: 48px; font-size: 22px; }
+.au-empty[data-layout="page"] .au-empty-title { font-size: var(--au-text-16); }
+.au-empty[data-layout="page"] .au-empty-text { max-width: 420px; }
+.au-empty[data-layout="page"] .au-empty-action { margin-top: 12px; }
+.au-empty[data-tone="ok"] .au-empty-icon { color: var(--au-done); background: color-mix(in srgb, var(--color-success) 13%, var(--color-surface)); }
+.au-empty[data-tone="problem"] .au-empty-icon { color: var(--au-waiting); background: color-mix(in srgb, var(--color-warning) 15%, var(--color-surface)); }
+.au-empty-steps { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; margin: 10px 0 0; padding: 0; list-style: none; counter-reset: au-empty-step; font-size: var(--au-text-13); }
+.au-empty-steps li { display: inline-flex; align-items: center; gap: 6px; counter-increment: au-empty-step; }
+.au-empty-steps li::before { content: counter(au-empty-step); display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: var(--au-text-12); font-weight: 700; background: var(--color-surface-subtle); }
 
 /* ---------- Tabs and segmented switch ---------- */
 .au-tabs { display: flex; flex-wrap: wrap; gap: 4px var(--au-gap-4); border-bottom: 1px solid var(--color-border); }

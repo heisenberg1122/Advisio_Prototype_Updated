@@ -45,7 +45,7 @@ import "./researcher-documents.css";
 import "./panel-documents.css";
 import { PanelistProjectMenu } from "./PanelistProjectMenu";
 import { DocumentAddMenu } from "@/components/documents/DocumentAddMenu";
-import { ListRow, PageBand, RowIcon, SectionCard } from "@/components/ui/advisio";
+import { EmptyNote, ListRow, PageBand, RowIcon, SectionCard } from "@/components/ui/advisio";
 import {
   documentStatusLabel,
   resolveDocumentSelection,
@@ -1311,7 +1311,7 @@ export default function DocumentWorkspacePage() {
                 )}
               </div>
             </div>
-          ) : !showPanelistPicker && (
+          ) : !(isPanelistPortal && !activeProjectId) && (
           <div className="rd-library-project flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 border-l-[3px] border-[var(--color-primary)] pl-2.5">
             <span className="min-w-0 break-words text-base font-bold text-[var(--color-text-primary)]">
               {activeProject
@@ -1414,6 +1414,17 @@ export default function DocumentWorkspacePage() {
             })}
           </ul>
         </SectionCard>
+      ) : isPanelistPortal && !activeProjectId ? (
+        <div className="au-card" data-guide={activeTab === "official" && !pageError ? "panelist-official-projects" : undefined}>
+          <EmptyNote
+            layout="page"
+            tone={invalidRequestedProjectId ? "problem" : undefined}
+            icon="ti-folder"
+            title={invalidRequestedProjectId ? "This project isn’t available" : "No panel projects yet"}
+            text={invalidRequestedProjectId ? "It may be outside your panel assignments." : "Projects appear here once you accept a panel assignment."}
+            action={<Button size="sm" icon={<i className="ti ti-calendar-event" aria-hidden="true" />} onClick={() => navigate("/panelist/dashboard?tab=schedule")}>View defense schedule</Button>}
+          />
+        </div>
       ) : !activeProjectId ? (
         <EmptyState
           data-guide={activeTab === "official" && !projects.length && !pageError ? (isPanelistPortal ? "panelist-official-projects" : isAdviserPortal ? "adviser-official-no-projects" : undefined) : undefined}
@@ -2138,10 +2149,11 @@ export default function DocumentWorkspacePage() {
                   </div>
                 ) : (
                   isPanelistPortal ? (
-                    <EmptyState
-                      icon={Archive}
+                    <EmptyNote
+                      layout="page"
+                      icon="ti-certificate"
                       title="No official copies for this project yet"
-                      description="The professor finalizes the approved manuscript after the defense. It'll appear here, signed and locked."
+                      text="The professor finalizes the approved manuscript after the defense. It'll appear here, signed and locked."
                       action={
                         <div className="flex flex-wrap justify-center gap-2">
                           <Button size="sm" icon={<i className="ti ti-file-text" aria-hidden="true" />} onClick={() => navigate("/panelist/reviews")}>

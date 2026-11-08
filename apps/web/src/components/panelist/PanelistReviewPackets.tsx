@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
+import { EmptyNote } from "@/components/ui/advisio";
+import { Button } from "@/components/ui/Button";
 import { PacketManuscriptWorkspace } from "./PacketManuscriptWorkspace";
 import { StructuredEvaluationWorkspace } from "./StructuredEvaluationWorkspace";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
@@ -47,7 +49,7 @@ export function PanelistReviewPackets() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const requestedSessionId = searchParams.get("sessionId") || "";
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["defense-review-packets"],
     queryFn: () =>
       apiClient.get<{ sessions: any[] }>("/api/defense-review-packets"),
@@ -324,37 +326,40 @@ export function PanelistReviewPackets() {
     return <ListPageSkeleton rows={4} className="p-0 sm:p-0 lg:p-0" />;
   if (error)
     return (
-      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
-        Unable to load defense documents.
+      <div className="au-card" role="alert">
+        <EmptyNote
+          layout="row"
+          tone="problem"
+          icon="ti-alert-triangle"
+          title="We couldn’t load your defense documents"
+          text="Your connection may have dropped. Try again in a moment."
+          action={<Button size="sm" variant="secondary" onClick={() => void refetch()}>Try again</Button>}
+        />
       </div>
     );
   if (!sessions.length)
     return (
-      <div data-guide="panelist-packet-empty" className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
-        <i className="ti ti-file-search text-4xl text-slate-300" />
-        <h3 className="mt-3 font-extrabold text-[var(--color-text-primary)]">
-          No manuscript is ready for review
-        </h3>
-        <p className="mt-1 text-base text-slate-500">
-          Accept your defense invitation to view the documents once the
-          coordinator shares them.
-        </p>
+      <div data-guide="panelist-packet-empty" className="au-card">
+        <EmptyNote
+          layout="page"
+          icon="ti-file-search"
+          title="No manuscript is ready for review"
+          text="Manuscripts appear here once you’ve accepted a panel and the coordinator shares the documents."
+          steps={["You accept a panel invitation", "The coordinator shares the documents", "You review the manuscript"]}
+        />
       </div>
     );
 
   if (!selected)
     return (
-      <div data-guide="panelist-packet-empty" className="rounded-2xl border border-dashed border-[var(--color-border)] p-8 text-center">
-        <h3 className="font-extrabold">
-          No manuscripts match this review status
-        </h3>
-        <button
-          type="button"
-          onClick={() => setReviewFilter("all")}
-          className="mt-3 font-bold underline"
-        >
-          Show all assigned manuscripts
-        </button>
+      <div data-guide="panelist-packet-empty" className="au-card">
+        <EmptyNote
+          layout="page"
+          icon="ti-filter-off"
+          title="No manuscripts match this review status"
+          text="Try a different status, or show everything assigned to you."
+          action={<Button size="sm" variant="secondary" onClick={() => setReviewFilter("all")}>Show all assigned manuscripts</Button>}
+        />
       </div>
     );
 
@@ -688,9 +693,7 @@ export function PanelistReviewPackets() {
                       </div>
                     ))
                   ) : (
-                    <p className="rounded-xl border border-dashed p-5 text-center text-base text-slate-400">
-                      No page comments yet.
-                    </p>
+                    <EmptyNote layout="row" icon="ti-message-2" title="No page comments yet" text="Comments you add to this manuscript appear here." />
                   )}
                 </div>
               </section>

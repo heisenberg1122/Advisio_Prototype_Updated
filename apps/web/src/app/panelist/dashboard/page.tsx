@@ -605,7 +605,7 @@ function PanelistDashboardContent() {
                                 })}
                               </ul>
                             ) : (
-                              <EmptyNote icon="ti-circle-check" title="All caught up" text="Score sheets appear here when a defense needs your evaluation." />
+                              <EmptyNote layout="row" tone="ok" icon="ti-circle-check" title="All caught up" text="No group is waiting for your score." action={<Button size="sm" variant="secondary" onClick={() => handleTabChange("grades")}>View results</Button>} />
                             )}
                           </SectionCard>
 
@@ -629,7 +629,7 @@ function PanelistDashboardContent() {
                                 })}
                               </ul>
                             ) : (
-                              <EmptyNote icon="ti-calendar-event" title="No defenses scheduled" text="New panel assignments appear here." />
+                              <EmptyNote layout="row" icon="ti-calendar-event" title="No defenses scheduled" text="New panel assignments appear here." />
                             )}
                           </SectionCard>
                         </div>
@@ -669,7 +669,7 @@ function PanelistDashboardContent() {
                                 ))}
                               </ul>
                             ) : (
-                              <EmptyNote icon="ti-file-check" title="No evaluation activity yet" text="Manuscripts and submitted evaluations appear here." />
+                              <EmptyNote layout="row" icon="ti-file-check" title="No evaluation activity yet" text="Manuscripts and submitted evaluations appear here." />
                             )}
                           </SectionCard>
 
@@ -710,7 +710,7 @@ function PanelistDashboardContent() {
                               })}
                             </div>
                           ) : (
-                            <EmptyNote icon="ti-flask" title="No assigned projects yet" text="Projects appear here when a defense panel is assigned." />
+                            <EmptyNote layout="row" icon="ti-flask" title="No assigned projects yet" text="Projects appear here when a defense panel is assigned." />
                           )}
                         </SectionCard>
                       </>
@@ -838,7 +838,7 @@ function PanelistDashboardContent() {
                         {!schedules.length ? (
                           <SectionCard title="Your defenses" titleId="ps-empty">
                             <div data-guide="panelist-schedule-empty">
-                              <EmptyNote icon="ti-calendar-event" title="No defenses assigned yet" text="Defense invitations appear here when a professor adds you to a panel." />
+                              <EmptyNote layout="page" icon="ti-calendar-event" title="No defenses assigned yet" text="Defense invitations appear here when a professor adds you to a panel." steps={["A professor invites you to a panel", "You accept the schedule", "You open the defense workspace"]} />
                             </div>
                           </SectionCard>
                         ) : (
@@ -900,7 +900,7 @@ function PanelistDashboardContent() {
                                   })}
                                 </ul>
                               ) : (
-                                <EmptyNote icon="ti-calendar-check" title="Nothing coming up" text="Confirmed and live defenses appear here." />
+                                <EmptyNote layout="row" icon="ti-calendar-check" title="Nothing coming up" text="Confirmed and live defenses appear here." />
                               )}
                             </SectionCard>
 
@@ -959,24 +959,216 @@ function PanelistDashboardContent() {
                       sessionId={pdfEvaluationSession.id}
                     />
                   ) : !liveSession || (requestedSessionId && liveSession.id !== requestedSessionId) ? (
-                    <div className="rounded-2xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface)] p-10 text-center">
-                      <i className="ti ti-broadcast-off text-4xl text-slate-300" />
-                      <h3 data-guide={liveError || dashboardError ? "panelist-evaluation-unavailable" : "panelist-evaluation-not-live"}
-                        data-panelist-evaluation-state={liveError || dashboardError ? "unverified" : !schedules.length ? "no-assignment" : requestedSessionId && !evaluationSession ? "session-unavailable" : "no-live-session"} className="mt-3 text-lg font-extrabold text-[var(--color-text-primary)]">
-                        {requestedSessionId ? "This evaluation is unavailable" : "No live defense session"}
-                      </h3>
-                      <p className="mt-1 text-base text-[var(--color-text-secondary)]">
-                        {requestedSessionId
-                          ? "Check your assignment and session readiness in Defense Schedule."
-                          : "The scoring sheet will unlock automatically when the professor starts your assigned defense."}
-                      </p>
-                      {liveError && (
-                        <p className="mt-3 text-base font-bold text-rose-600">
-                          Unable to verify the active session. Refresh or
-                          contact the session facilitator.
-                        </p>
-                      )}
-                    </div>
+                    (() => {
+                      const verificationFailed = Boolean(liveError || dashboardError);
+                      const evaluationState = verificationFailed
+                        ? "unverified"
+                        : !schedules.length
+                          ? "no-assignment"
+                          : requestedSessionId && !evaluationSession
+                            ? "session-unavailable"
+                            : "no-live-session";
+                      const now = Date.now();
+                      const monthOf = (value: Date) => value.toLocaleDateString("en-PH", { timeZone: "Asia/Manila", month: "short" });
+                      const dayOf = (value: Date) => value.toLocaleDateString("en-PH", { timeZone: "Asia/Manila", day: "numeric" });
+                      const timeOf = (value?: string | null) =>
+                        value ? new Date(value).toLocaleTimeString("en-PH", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" }) : "";
+                      const relativeDay = (value: Date) => {
+                        const offset = calendarDaysUntil(value, now);
+                        if (offset === 0) return "Today";
+                        if (offset === 1) return "Tomorrow";
+                        return `${monthOf(value)} ${dayOf(value)}`;
+                      };
+                      const tile = (value?: string | null, muted = false) => {
+                        const date = value ? new Date(value) : null;
+                        return (
+                          <DateTile
+                            tone={muted ? "muted" : undefined}
+                            top={date ? monthOf(date) : "TBA"}
+                            bottom={date ? dayOf(date) : "—"}
+                            label={date ? formatDateTime(value) : "Date to be announced"}
+                          />
+                        );
+                      };
+                      const upcoming = [...upcomingSchedules].sort(
+                        (a: any, b: any) => new Date(a.scheduledStart || 0).getTime() - new Date(b.scheduledStart || 0).getTime(),
+                      );
+                      const next: any = upcoming[0];
+                      const later = upcoming.slice(1, 4);
+                      const nextStart = next?.scheduledStart ? new Date(next.scheduledStart) : null;
+                      const nextNeedsResponse = ["PENDING", "RECONFIRMATION_REQUIRED"].includes(next?.myInvitation?.status);
+                      const submitted = [
+                        ...completedStructuredEvaluations.map((session: any) => ({ key: `structured-${session.id}`, id: session.id, title: session.research?.title, session, at: session.structuredEvaluations?.[0]?.lockedAt || session.endedAt || session.scheduledStart })),
+                        ...completedPdfEvaluations.map((session: any) => ({ key: `pdf-${session.id}`, id: session.id, title: session.research?.title, session, at: session.pdfEvaluations?.[0]?.lockedAt || session.endedAt || session.scheduledStart })),
+                        ...gradesSubmitted.map((grade: any) => ({
+                          key: `grade-${grade.id}`,
+                          id: grade.sessionId,
+                          title: grade.title,
+                          session: [...archives, ...schedules].find((session: any) => session.id === grade.sessionId) as any,
+                          at: grade.lockedAt,
+                        })),
+                      ].sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime());
+                      const decisionTone = (decision?: string | null): StatusTone =>
+                        decision === "APPROVED" ? "done" : decision === "REJECTED" ? "attention" : "waiting";
+                      const retry = () => {
+                        void queryClient.invalidateQueries({ queryKey: ["active-defense-session"] });
+                        void queryClient.invalidateQueries({ queryKey: ["panelist-dashboard-summary"] });
+                      };
+                      const toSchedule = (
+                        <Button size="sm" icon={<i className="ti ti-calendar-event" aria-hidden="true" />} onClick={() => handleTabChange("schedule")}>
+                          View defense schedule
+                        </Button>
+                      );
+                      return (
+                        <div
+                          className="pe"
+                          data-guide={verificationFailed ? "panelist-evaluation-unavailable" : "panelist-evaluation-not-live"}
+                          data-panelist-evaluation-state={evaluationState}
+                        >
+                          {verificationFailed ? (
+                            <div className="au-card pe-problem" role="alert">
+                              <EmptyNote
+                                layout="row"
+                                tone="problem"
+                                icon="ti-alert-triangle"
+                                title="We couldn’t check for a live defense"
+                                text="Your connection may have dropped. Try again, or contact the session facilitator."
+                                action={<Button size="sm" variant="secondary" onClick={retry}>Try again</Button>}
+                              />
+                            </div>
+                          ) : requestedSessionId ? (
+                            <div className="au-card">
+                              <EmptyNote
+                                layout="page"
+                                tone="problem"
+                                icon="ti-clipboard-off"
+                                title="This evaluation is unavailable"
+                                text="It may not be live yet, or it’s outside your panel assignments. Check the defense in your schedule."
+                                action={toSchedule}
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <PageBand
+                                titleId="pv-title"
+                                eyebrow="Panelist · Philippine time"
+                                title="Evaluations"
+                                meta="No defense is live right now. Scoring opens when the professor starts one."
+                                counts={
+                                  <CountStrip
+                                    label="Evaluation summary"
+                                    items={[
+                                      { label: "Live now", value: 0 },
+                                      { label: "Upcoming", value: upcoming.length, onClick: () => handleTabChange("schedule") },
+                                      { label: "Submitted", value: submitted.length, onClick: () => handleTabChange("grades") },
+                                    ]}
+                                  />
+                                }
+                              />
+                              {!next && !submitted.length ? (
+                                <div className="au-card">
+                                  <EmptyNote
+                                    layout="page"
+                                    icon="ti-clipboard-check"
+                                    title="No defenses to score yet"
+                                    text="Your score sheets appear here once you’re on a panel and the defense has started."
+                                    steps={["You accept a panel invitation", "You review the manuscript", "Score during the live defense"]}
+                                    action={toSchedule}
+                                  />
+                                </div>
+                              ) : (
+                                <>
+                                  {next ? (
+                                    <SectionCard
+                                      title={<span className="pe-kicker">Next up{nextStart ? ` · ${relativeDay(nextStart)}, ${timeOf(next.scheduledStart)}` : ""}</span>}
+                                      titleId="pv-next"
+                                      className="pe-focus"
+                                    >
+                                      <ListRow
+                                        leading={tile(next.scheduledStart)}
+                                        title={next.title}
+                                        titleHint={next.title}
+                                        meta={[attendanceMode(next), next.venue && next.venue !== "Online" && next.venue !== "To be announced" ? next.venue : null, next.myInvitation?.role ? readable(next.myInvitation.role) : null].filter(Boolean).join(" · ")}
+                                        end={
+                                          <Button size="sm" variant="secondary" onClick={() => router.push(`/panelist/defenses/${next.id}`)}>
+                                            Open workspace
+                                          </Button>
+                                        }
+                                      />
+                                      <p className="pe-card-note">
+                                        <i className="ti ti-info-circle" aria-hidden="true" />
+                                        {nextNeedsResponse
+                                          ? "Accept your invitation in the workspace first. The score sheet unlocks here when the defense starts."
+                                          : "The score sheet unlocks here automatically when the defense starts. You can read the manuscript beforehand."}
+                                      </p>
+                                    </SectionCard>
+                                  ) : (
+                                    <div className="au-card">
+                                      <EmptyNote layout="row" icon="ti-calendar-event" title="No upcoming defenses" text="New panel assignments appear here." action={toSchedule} />
+                                    </div>
+                                  )}
+                                  {(later.length > 0 || submitted.length > 0) && (
+                                  <div className={later.length > 0 && submitted.length > 0 ? "pe-pair" : "pe"}>
+                                    {later.length > 0 && (
+                                    <SectionCard
+                                      title="Later defenses"
+                                      titleId="pv-later"
+                                      count={later.length}
+                                      action={<CardLink onClick={() => handleTabChange("schedule")}>Schedule</CardLink>}
+                                    >
+                                        <ul className="au-list">
+                                          {later.map((session: any) => (
+                                            <li key={session.id}>
+                                              <ListRow
+                                                leading={tile(session.scheduledStart)}
+                                                title={session.title}
+                                                titleHint={session.title}
+                                                meta={[timeOf(session.scheduledStart), attendanceMode(session)].filter(Boolean).join(" · ")}
+                                                onClick={() => router.push(`/panelist/defenses/${session.id}`)}
+                                              />
+                                            </li>
+                                          ))}
+                                        </ul>
+                                    </SectionCard>
+                                    )}
+                                    {submitted.length > 0 && (
+                                    <SectionCard
+                                      title="Recently submitted"
+                                      titleId="pv-submitted"
+                                      count={submitted.length}
+                                      action={<CardLink onClick={() => handleTabChange("grades")}>Results</CardLink>}
+                                    >
+                                        <ul className="au-list">
+                                          {submitted.slice(0, 3).map((row) => (
+                                            <li key={row.key}>
+                                              <ListRow
+                                                leading={tile(row.at, true)}
+                                                title={row.title || "Research project"}
+                                                titleHint={row.title}
+                                                meta={[row.session?.defenseEvent?.defenseType ? readable(row.session.defenseEvent.defenseType) : "Defense", "locked"].join(" · ")}
+                                                end={
+                                                  row.session?.releasedAt ? (
+                                                    <StatusDot tone={decisionTone(row.session?.decision)}>{readable(row.session?.decision, "Released")}</StatusDot>
+                                                  ) : (
+                                                    <StatusDot tone="neutral">Awaiting release</StatusDot>
+                                                  )
+                                                }
+                                                onClick={() => router.push(`/panelist/dashboard?tab=evaluation&sessionId=${row.id}`)}
+                                              />
+                                            </li>
+                                          ))}
+                                        </ul>
+                                    </SectionCard>
+                                    )}
+                                  </div>
+                                  )}
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()
                   ) : (
                     <>
                       <section className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-500/10">
@@ -1308,7 +1500,7 @@ function PanelistDashboardContent() {
                         />
                         {!rows.length ? (
                           <SectionCard title="Your evaluations" titleId="pr-empty">
-                            <EmptyNote icon="ti-award" title="No submitted evaluations yet" text="Evaluations you submit and lock appear here, with the panel’s decision once it’s released." />
+                            <EmptyNote layout="page" icon="ti-award" title="No submitted evaluations yet" text="Evaluations you submit and lock appear here, with the panel’s decision once it’s released." action={<Button size="sm" icon={<i className="ti ti-calendar-event" aria-hidden="true" />} onClick={() => handleTabChange("schedule")}>View defense schedule</Button>} />
                           </SectionCard>
                         ) : (
                           <>
@@ -1395,9 +1587,7 @@ function PanelistDashboardContent() {
                       );
                     })}
                     {archives.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-400">
-                        No completed defense assignments yet.
-                      </div>
+                      <EmptyNote layout="page" icon="ti-archive" title="No completed defenses yet" text="Finished panel assignments appear here with your evaluation and the decision." />
                     )}
                   </div>
                 </div>
