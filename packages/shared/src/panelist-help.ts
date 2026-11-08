@@ -1,10 +1,11 @@
 import type { ResearcherHelpTopic } from "./researcher-help";
 
+import { panelistReviewRoutes } from "./panelist-review-routes";
+
 export const panelistRoutes = {
   overview: "/panelist/dashboard",
   schedule: "/panelist/dashboard?tab=schedule",
-  reviews: "/panelist/reviews",
-  packet: "/panelist/dashboard?tab=documents",
+  ...panelistReviewRoutes,
   evaluation: "/panelist/dashboard?tab=evaluation",
   results: "/panelist/dashboard?tab=grades",
   official: "/panelist/documents?tab=official",
@@ -179,7 +180,7 @@ export const PANELIST_HELP = [
       "defense packet",
       "published manuscript",
     ],
-    "Open the assigned defense’s review packet and check the published version, review checklist and annotation tools. Notes stay private until you explicitly share feedback, and review completion is a separate action.",
+    "In Manuscript Reviews, choose Defense Packets and select your defense. Check the published version, review checklist and annotation tools. Notes stay private until you explicitly share feedback, and review completion is a separate action.",
     "Access depends on your invitation and packet publication. Check session readiness if the packet is unavailable.",
   ),
   help(

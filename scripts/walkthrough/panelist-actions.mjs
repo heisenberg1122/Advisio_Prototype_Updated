@@ -3,7 +3,7 @@ export function panelistRoute(b, d) {
   if (b.action === "login") return "/login";
   if (["invitation", "respond"].includes(b.action)) return `/panelist/defenses/${g.readiness.sessionId}`;
   if (b.action === "workspace") return `/panelist/defenses/${g.readiness.sessionId}`;
-  if (["manuscript", "annotations"].includes(b.action)) return `/panelist/dashboard?tab=documents&sessionId=${g.readiness.sessionId}`;
+  if (["manuscript", "annotations"].includes(b.action)) return `/panelist/reviews?tab=defense-packets&sessionId=${encodeURIComponent(g.readiness.sessionId)}`;
   if (b.action === "live") return `/panelist/defenses/${g.release.sessionId}`;
   if (["structured-draft", "structured-final"].includes(b.action)) return `/panelist/dashboard?tab=evaluation&sessionId=${g.release.sessionId}`;
   if (["pdf-draft", "pdf-final"].includes(b.action)) return `/panelist/dashboard?tab=evaluation&sessionId=${g.schedule.sessionId}`;

@@ -819,12 +819,17 @@ export async function seedWorkspace(
       return choice.destination === "signatures"
         ? `/admin/inbox?view=signature-requests&documentId=${approvals[choice.project]}`
         : `/admin/dashboard?tab=defenses&sessionId=${defenseId}`;
-    if (role === "panelist")
-      return choice.destination === "reviews"
-        ? `/panelist/dashboard?tab=documents&sessionId=${defenseId}&review=${choice.id === "review-history" ? "history" : "pending"}`
-        : choice.destination === "results"
-          ? `/panelist/dashboard?tab=grades`
-          : `/panelist/dashboard?tab=evaluation&sessionId=${defenseId}`;
+    if (role === "panelist") {
+      if (choice.destination === "reviews") {
+        const params = new URLSearchParams({ tab: "defense-packets" });
+        if (defenseId) params.set("sessionId", defenseId);
+        params.set("review", choice.id === "review-history" ? "history" : "pending");
+        return `/panelist/reviews?${params}`;
+      }
+      return choice.destination === "results"
+        ? `/panelist/dashboard?tab=grades`
+        : `/panelist/dashboard?tab=evaluation&sessionId=${defenseId}`;
+    }
     if (role === "adviser")
       return choice.destination === "reviews"
         ? `/adviser/reviews`

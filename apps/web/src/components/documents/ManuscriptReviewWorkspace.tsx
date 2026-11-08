@@ -126,11 +126,13 @@ function statusVariant(status: Assignment["status"]) {
 }
 
 interface ManuscriptReviewWorkspaceProps {
+  navigation?: React.ReactNode;
   presentation?: "default" | "adviser" | "panelist";
 }
 
 export function ManuscriptReviewWorkspace({
   presentation = "default",
+  navigation,
 }: ManuscriptReviewWorkspaceProps) {
   const searchParams = useSearchParams();
   const contextualAssignmentId = searchParams.get("assignmentId");
@@ -783,6 +785,8 @@ export function ManuscriptReviewWorkspace({
           }
         />
       )}
+
+      {navigation}
 
       {error && !selected && (
         <div

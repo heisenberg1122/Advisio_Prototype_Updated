@@ -1,5 +1,7 @@
 import React, { useState, Suspense, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Navigate } from "react-router-dom";
+import { defensePacketsTab, panelistDefensePacketsHref, panelistReviewRoutes } from "@research-management/shared/src/panelist-review-routes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
@@ -17,7 +19,6 @@ import { CardLink, CountStrip, DateTile, EmptyNote, ListRow, PageBand, RowIcon, 
 import { Button } from "@/components/ui/Button";
 import "./panelist-home.css";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
-import { PanelistReviewPackets } from "@/components/panelist/PanelistReviewPackets";
 import { PdfEvaluationWorkspace } from "@/components/panelist/PdfEvaluationWorkspace";
 import { StructuredEvaluationWorkspace } from "@/components/panelist/StructuredEvaluationWorkspace";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
@@ -350,7 +351,11 @@ function PanelistDashboardContent() {
       )
     )
       return;
-    router.push(`/panelist/dashboard?tab=${tab}`);
+    router.push(
+      tab === defensePacketsTab
+        ? panelistReviewRoutes.packet
+        : `/panelist/dashboard?tab=${tab}`,
+    );
   };
 
   if ((dashboardLoading || liveLoading) && activeTab !== "messages") {
@@ -540,7 +545,7 @@ function PanelistDashboardContent() {
                     const submittedRows = submittedActivity.slice(0, Math.max(0, 4 - manuscriptRows.length));
                     const quickActions = [
                       { icon: "ti-calendar-event", label: "View schedule", hint: "Defense dates and invitations", onClick: () => handleTabChange("schedule") },
-                      { icon: "ti-file-search", label: "Review documents", hint: "Manuscripts for your panels", onClick: () => handleTabChange("documents") },
+                      { icon: "ti-file-search", label: "Defense packets", hint: "Manuscripts for your panels", onClick: () => handleTabChange(defensePacketsTab) },
                       { icon: "ti-clipboard-check", label: "Score defense", hint: "Open your score sheet", onClick: () => openEvaluation(firstEvaluation?.id) },
                       { icon: "ti-award", label: "View results", hint: "Submitted scores and decisions", onClick: () => handleTabChange("grades") },
                     ];
@@ -557,7 +562,7 @@ function PanelistDashboardContent() {
                             <CountStrip
                               label="Your evaluation work"
                               items={[
-                                { label: "Assigned", value: assignedProjects.length, onClick: () => handleTabChange("documents") },
+                                { label: "Assigned", value: assignedProjects.length, onClick: () => handleTabChange(defensePacketsTab) },
                                 { label: "To evaluate", value: evaluations.length, tone: evaluations.length ? "waiting" : undefined, onClick: () => handleTabChange("evaluation") },
                                 { label: "Upcoming", value: upcomingSchedules.length, onClick: () => handleTabChange("schedule") },
                                 { label: "Submitted", value: submittedCount, onClick: () => handleTabChange("grades") },
@@ -569,8 +574,8 @@ function PanelistDashboardContent() {
                               <Button size="sm" variant="secondary" icon={<i className="ti ti-clipboard-check" aria-hidden="true" />} onClick={() => openEvaluation(firstEvaluation?.id)}>
                                 Start evaluation
                               </Button>
-                              <Button size="sm" variant="ghost" className="pe-on-home" icon={<i className="ti ti-file-text" aria-hidden="true" />} onClick={() => handleTabChange("documents")}>
-                                Review manuscripts ({documents.length})
+                              <Button size="sm" variant="ghost" className="pe-on-home" icon={<i className="ti ti-file-text" aria-hidden="true" />} onClick={() => handleTabChange(defensePacketsTab)}>
+                                Defense packets ({documents.length} pending)
                               </Button>
                               <Button size="sm" variant="ghost" className="pe-on-home" icon={<i className="ti ti-calendar-event" aria-hidden="true" />} onClick={() => handleTabChange("schedule")}>
                                 Defense schedule
@@ -635,7 +640,7 @@ function PanelistDashboardContent() {
                         </div>
 
                         <div className="pe-row">
-                          <SectionCard title="Recent evaluation activity" titleId="pe-activity" action={<CardLink onClick={() => handleTabChange("documents")}>All manuscripts</CardLink>}>
+                          <SectionCard title="Recent evaluation activity" titleId="pe-activity" action={<CardLink onClick={() => handleTabChange(defensePacketsTab)}>All defense packets</CardLink>}>
                             <p className="pe-card-sub">Manuscripts to review and evaluations you've submitted</p>
                             {manuscriptRows.length || submittedRows.length ? (
                               <ul className="au-list">
@@ -650,7 +655,7 @@ function PanelistDashboardContent() {
                                         titleHint={item.research?.title}
                                         meta={`Defense documents · ${item.status === "LIVE" ? "defense live now" : due ? `${["Today", "Tomorrow"].includes(dayLabel(due)) ? dayLabel(due).toLowerCase() : dayLabel(due)} ${timeOf(item.scheduledStart)}` : "defense date to be set"}`}
                                         end={<StatusDot tone={started ? "neutral" : "waiting"}>{started ? "Started" : "Not reviewed"}</StatusDot>}
-                                        onClick={() => handleTabChange("documents")}
+                                        onClick={() => router.push(panelistDefensePacketsHref({ sessionId: item.id }))}
                                       />
                                     </li>
                                   );
@@ -694,7 +699,7 @@ function PanelistDashboardContent() {
                           title="Assigned projects"
                           titleId="pe-projects"
                           count={assignedProjects.length}
-                          action={<CardLink onClick={() => handleTabChange("documents")}>All manuscripts</CardLink>}
+                          action={<CardLink onClick={() => handleTabChange(defensePacketsTab)}>All defense packets</CardLink>}
                         >
                           {assignedProjects.length ? (
                             <div className="pe-project-grid">
@@ -944,7 +949,6 @@ function PanelistDashboardContent() {
                   })()}
                 </div>
               ),
-              documents: <PanelistReviewPackets />,
               evaluation: (
                 <div data-tour="evaluation-records" data-guide="panelist-evaluation" className="mx-auto flex w-full max-w-[1320px] flex-col gap-4">
                   {evaluationSession?.packet?.evaluationMode ===
@@ -1603,6 +1607,19 @@ function PanelistDashboardContent() {
 }
 
 export default function PanelistDashboardPage() {
+  const searchParams = useSearchParams();
+  if (searchParams.get("tab") === "documents") {
+    return (
+      <Navigate
+        to={panelistDefensePacketsHref({
+          sessionId: searchParams.get("sessionId"),
+          review: searchParams.get("review"),
+        })}
+        replace
+      />
+    );
+  }
+
   return (
     <Suspense fallback={<DashboardSkeleton />}>
       <PanelistDashboardContent />
