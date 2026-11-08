@@ -9,6 +9,7 @@ export function evaluationEntryUrl(origin: string, launcher?: string) {
   // The launcher checks availability only; sessions remain on the evaluation
   // origin. Never accept a visitor-supplied redirect destination.
   if (
+    launcher !== "https://advisio-ua.com/evaluate/start" &&
     launcher !== "https://advisio-prototype-updated.vercel.app/evaluate/start"
   )
     throw new Error(

@@ -63,7 +63,7 @@ export function EvaluationAbout({
         Answer and submit the TAM statements in your original Google Forms tab.
       </p>
       <a
-        href="https://advisio-prototype-updated.vercel.app"
+        href="https://advisio-ua.com"
         target="_blank"
         rel="noopener noreferrer"
       >

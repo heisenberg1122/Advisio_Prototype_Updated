@@ -1,0 +1,17 @@
+DirectoryIndex index.html
+
+Header always set X-Content-Type-Options "nosniff"
+Header always set X-Frame-Options "DENY"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
+RewriteEngine On
+RewriteRule ^\.well-known/ - [L]
+RewriteCond %{HTTPS} !=on [OR]
+RewriteCond %{HTTP_HOST} !^advisio-ua\.com$ [NC]
+RewriteRule ^ https://advisio-ua.com%{REQUEST_URI} [R=301,L,NE]
+RewriteRule ^evaluate/start/?$ evaluation-launcher.html [L]
+RewriteRule ^evaluate/status/?$ evaluation-status.php [L,QSD]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]
