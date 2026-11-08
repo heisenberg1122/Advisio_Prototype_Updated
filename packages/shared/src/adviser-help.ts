@@ -12,6 +12,7 @@ export const adviserRoutes = {
   inbox: "/adviser/inbox",
   settings: "/adviser/settings",
   calendar: "/adviser/calendar",
+  progress: "/adviser/dashboard?tab=progress",
 } as const;
 
 export type AdviserHelpId =
@@ -34,7 +35,8 @@ export type AdviserHelpId =
   | "ad-17"
   | "ad-17-inbox"
   | "ad-18"
-  | "ad-19";
+  | "ad-19"
+  | "ad-20";
 type Category = (typeof adviserCategories)[number];
 export const adviserCategories = [
   "Getting started",
@@ -271,6 +273,16 @@ export const ADVISER_HELP = [
     ],
     "Open the group under My Advisees, then check Milestones for stage and requirement statuses and Activity for recorded changes. Pending work is not necessarily overdue.",
     "If no milestones are shown, check whether a workflow has been assigned to the group.",
+    "research.view",
+  ),
+  help(
+    "ad-20",
+    progress,
+    "How do I compare my groups’ progress?",
+    r.progress,
+    ["group progress", "compare progress", "pending requirements"],
+    "Open Progress, choose an assigned group, and check its requirement statuses. Open workspace for the group’s detailed milestones and history. A pending requirement may still need submission or review.",
+    "If there are no assigned groups, check My Advisees and pending requests.",
     "research.view",
   ),
   help(

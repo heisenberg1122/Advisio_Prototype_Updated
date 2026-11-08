@@ -396,7 +396,7 @@ export function AcademicStructureManagement() {
               </span>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                  <h3 data-guide="sa-college-name" className="text-lg font-black text-slate-900 dark:text-white">
                     {college.name}
                   </h3>
                   <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-black text-slate-600 dark:bg-white/10 dark:text-slate-300">

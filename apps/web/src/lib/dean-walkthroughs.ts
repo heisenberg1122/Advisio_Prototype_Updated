@@ -6,7 +6,10 @@ import type {
   GuidedControlStep,
   GuidedJourney,
 } from "@/components/guide/guided-walkthrough-types";
-import { pageRouteKey } from "./workspace-tours";
+function pageRouteKey(href: string) {
+  const { pathname, searchParams } = new URL(href, "https://advisio.local");
+  return [pathname.replace(/\/$/, ""), searchParams.get("tab") || "overview", searchParams.get("section") || ""].join(":");
+}
 
 export function deanPageHelp(pathname: string, search: string): DeanHelpId {
   const current = pageRouteKey(pathname + search);

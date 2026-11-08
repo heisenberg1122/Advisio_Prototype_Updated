@@ -415,7 +415,7 @@ function ExistingDeanDashboardContent() {
               </article>
 
               <article className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
-                <h2 data-guide="dean-pipeline" className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Research Pipeline</h2>
+                <h2 data-guide="dean-pipeline" data-orientation="dean-pipeline" className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Research Pipeline</h2>
                 <p className="mt-1 text-base text-slate-500 dark:text-slate-400 font-medium">Groups distributed by active workflow milestone.</p>
                 <div className="mt-6 space-y-4">
                   {data.stageDistribution.map((item) => (
@@ -683,7 +683,7 @@ function AdviserWorkloadView({
       <div className="space-y-4">
         <div className="workspace-page-header flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 data-tour="adviser-workload" className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Adviser Directory & Workload</h2>
+            <h2 data-guide="adviser-workload" className="text-lg font-black tracking-tight text-slate-900 dark:text-white">Adviser Directory & Workload</h2>
             <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
               {canManage
                 ? "Assign advisers to a program, manage capacity, and control availability."

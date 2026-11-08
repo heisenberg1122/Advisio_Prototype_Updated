@@ -91,6 +91,15 @@ describe("State-dependent walkthroughs", () => {
     expect(unknown.steps.some((step) => step.id === "class-code")).toBe(false);
   });
 
+  it("skips the working-files tab when no project is selected", () => {
+    const { steps } = buildResearcherJourney(
+      "documents",
+      { ...state, projectId: null, hasDocuments: false },
+      "/student/documents",
+    );
+    expect(steps.map((step) => step.id)).toEqual(["documents-nav", "documents-empty"]);
+  });
+
   it("does not invent a member list when there is no group", () => {
     const journey = buildResearcherJourney(
       "group",

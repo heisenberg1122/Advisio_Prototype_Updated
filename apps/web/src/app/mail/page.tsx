@@ -9,7 +9,7 @@ import {
   Send,
   Trash2,
 } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { ResearcherInboxWorkspace } from "@/app/student/inbox/ResearcherInboxWorkspace";
 import { useAuth } from "@/providers/auth-provider";
 import { apiClient } from "@/lib/api-client";
@@ -97,6 +97,10 @@ export default function MailInboxPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { pathname } = useLocation();
+  // An orientation visit is read-only. Normal visits still synchronize approvals.
+  const orientationVisit = !pathname.startsWith("/student/") &&
+    searchParams.get("orientation") === "1";
   const canUseDeanInbox = Boolean(
     user?.roles.some((role) => ["DEAN"].includes(role)),
   );
@@ -130,7 +134,7 @@ export default function MailInboxPage() {
     queryKey: ["mail-dean-approval-sync", user?.id],
     queryFn: () =>
       apiClient.post<{ delivered: number }>("/api/mail/sync-dean-approvals", {}),
-    enabled: canSyncDeanApprovals,
+    enabled: canSyncDeanApprovals && !orientationVisit,
     staleTime: Number.POSITIVE_INFINITY,
     retry: false,
   });

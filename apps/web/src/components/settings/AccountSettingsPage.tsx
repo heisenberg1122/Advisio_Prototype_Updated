@@ -2,6 +2,7 @@
 
 import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "react-router-dom";
 import {
   Bell,
   Camera,
@@ -140,7 +141,14 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
     colorThemePreference,
     setColorThemePreference,
   } = useTheme();
+  const [searchParams] = useSearchParams();
+  const section = searchParams.get("section");
   const [activeTab, setActiveTab] = useState<SettingsTab>("account");
+  useEffect(() => {
+    if (guide?.enabled && guide.workspace !== "researcher") {
+      setActiveTab(section === "appearance" ? "appearance" : "account");
+    }
+  }, [guide?.enabled, guide?.workspace, section]);
   const [savedMessage, setSavedMessage] = useState("");
   const [editingAccount, setEditingAccount] = useState(false);
   const [accountName, setAccountName] = useState("");

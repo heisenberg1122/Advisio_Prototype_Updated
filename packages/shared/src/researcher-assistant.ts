@@ -13,19 +13,27 @@ import {
 import { PANELIST_HELP, panelistPopular, type PanelistHelpId } from "./panelist-help";
 import { DEAN_HELP, deanPopular, type DeanHelpId } from "./dean-help";
 
-export type AssistantWorkspace = "researcher" | "adviser" | "panelist" | "dean";
+import { facultyHelp, facultyPopular, type FacultyHelpId, type FacultyHelpWorkspace } from "./faculty-help";
+
+export const assistantWorkspaces = ["researcher", "adviser", "panelist", "coordinator", "dean", "system-admin"] as const;
+export type AssistantWorkspace = (typeof assistantWorkspaces)[number];
+export const isFacultyHelpWorkspace = (workspace: AssistantWorkspace): workspace is FacultyHelpWorkspace =>
+  workspace === "coordinator" || workspace === "system-admin";
 export const assistantWorkspaceLabels: Record<AssistantWorkspace, string> = {
   researcher: "Researcher",
   adviser: "Faculty Adviser",
   panelist: "Defense Panelist",
+  coordinator: "Professor Coordinator",
   dean: "College Dean",
+  "system-admin": "System Administration",
 };
-export const ASSISTANT_HELP_VERSION = "workspace-assistant-2";
+export const ASSISTANT_HELP_VERSION = "workspace-assistant-3";
 export type AssistantTopicId =
   | ResearcherHelpId
   | AdviserHelpId
   | PanelistHelpId
   | DeanHelpId
+  | FacultyHelpId
   | "tasks"
   | "history";
 export type AssistantActionKind = "navigate" | "show" | "guide";
@@ -34,7 +42,7 @@ export interface AssistantTopic {
   question: string;
   answer: string;
   href: string;
-  guide: ResearcherHelpId | AdviserHelpId | PanelistHelpId | DeanHelpId;
+  guide: ResearcherHelpId | AdviserHelpId | PanelistHelpId | DeanHelpId | FacultyHelpId;
   permission?: string;
   requirements?: string;
   projectRequired?: boolean;
@@ -227,7 +235,30 @@ const deanAssistantTopics: AssistantTopic[] = DEAN_HELP.map((topic) => ({
   requirements: topic.requirements,
   phrases: topic.keywords.map(normalizeAssistantQuestion),
 }));
-const topicsFor = (workspace: AssistantWorkspace) => ({
+const facultyAssistantTopics = Object.fromEntries(
+  Object.entries(facultyHelp).map(([workspace, topics]) => [workspace, topics.map((topic): AssistantTopic => ({
+    id: topic.id,
+    guide: topic.id,
+    question: topic.question,
+    answer: topic.answer.join("\n\n"),
+    href: topic.href,
+    permission: topic.permission,
+    requirements: topic.requirements,
+    phrases: topic.keywords.map(normalizeAssistantQuestion),
+  }))]),
+) as Record<FacultyHelpWorkspace, AssistantTopic[]>;
+
+export const assistantPopular: Record<AssistantWorkspace, readonly AssistantTopicId[]> = {
+  researcher: ["class", "group", "submit", "theme"],
+  adviser: adviserPopular,
+  panelist: panelistPopular,
+  ...facultyPopular,
+  dean: deanPopular,
+};
+
+const topicsFor = (workspace: AssistantWorkspace) => isFacultyHelpWorkspace(workspace)
+  ? facultyAssistantTopics[workspace]
+  : ({
   adviser: adviserAssistantTopics,
   panelist: panelistAssistantTopics,
   dean: deanAssistantTopics,
@@ -299,11 +330,7 @@ export function resolveAssistantQuestion(
   const available = authorizedAssistantTopics(permissions, workspace);
   const normalized = normalizeAssistantQuestion(question);
   if (workspace !== "researcher") {
-    const popular: readonly AssistantTopicId[] = {
-      adviser: adviserPopular,
-      panelist: panelistPopular,
-      dean: deanPopular,
-    }[workspace];
+    const popular = assistantPopular[workspace];
     const previous = available.find((topic) => topic.id === previousTopic);
     if (/^(yes|show me|take me there)$/.test(normalized) && previous)
       return { kind: "local", topic: previous };
@@ -325,6 +352,8 @@ export function resolveAssistantQuestion(
         adviser: /^(help|help me|group|review|consultation|request|show me|yes)$/,
         panelist: /^(help|help me|review|evaluation|defense|results|show me|yes)$/,
         dean: /^(help|help me|show me|yes)$/,
+        coordinator: /^(help|help me|show me|yes)$/,
+        "system-admin": /^(help|help me|show me|yes)$/,
       })[workspace].test(normalized)
     ) {
       return {
@@ -333,6 +362,8 @@ export function resolveAssistantQuestion(
           adviser: "What are you trying to do: find an advisee, review a manuscript, respond to a request, or plan a consultation?",
           panelist: "Are you looking for an invitation, reviewing a defense packet, completing an evaluation, or checking results?",
           dean: "Would you like to find research groups, check progress, review defense schedules, or open a report?",
+          coordinator: "Which coordination task do you need help with?",
+          "system-admin": "Which administrative task do you need help with?",
         }[workspace],
         topicIds: available
           .filter((topic) => popular.includes(topic.id))
@@ -347,9 +378,9 @@ export function resolveAssistantQuestion(
         normalized,
       ) || normalized.split(" ").length > 18;
     if (
-      !complex &&
       first &&
-      (first.score === 100 || !second || first.score >= second.score + 6)
+      (first.score === 100 ||
+        (!complex && (!second || first.score >= second.score + 6)))
     )
       return { kind: "local", topic: first.topic };
     return {

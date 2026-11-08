@@ -9,7 +9,6 @@ import {
   type AssistantRequest,
   type AssistantTopic,
   type AssistantTopicId,
-  type AssistantWorkspace,
 } from "@research-management/shared/src/researcher-assistant";
 import { z } from "zod";
 import { assistantInstructions } from "../config/assistant-instructions.js";
@@ -100,6 +99,11 @@ export const assistantRequestSchema = z
       .default([]),
   })
   .strict();
+
+export type TamAssistantRequest = Omit<AssistantRequest, "workspace"> & {
+  workspace?: z.infer<typeof assistantRequestSchema>["workspace"];
+};
+
 const modelReplySchema = z
   .object({
     text: z.string().trim().min(1).max(6000),
@@ -157,7 +161,7 @@ export class ResearcherAssistantService {
   }
 
   private fallback(
-    workspace: AssistantWorkspace,
+    workspace: NonNullable<TamAssistantRequest["workspace"]>,
     permissions: string[],
     message: string,
     topics: AssistantTopic[] = [],
@@ -187,7 +191,7 @@ export class ResearcherAssistantService {
 
   async answer(
     identity: AssistantIdentity,
-    request: AssistantRequest,
+    request: TamAssistantRequest,
     signal?: AbortSignal,
   ): Promise<AssistantReply> {
     const started = Date.now();

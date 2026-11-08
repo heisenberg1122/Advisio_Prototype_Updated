@@ -326,7 +326,9 @@ export function buildResearcherJourney(
           "nav-documents",
           "/student/documents",
         ),
-        {
+      ];
+      if (state.projectId)
+        steps.push({
           ...click(
             "working-tab",
             "Start in Document workspace",
@@ -334,8 +336,7 @@ export function buildResearcherJourney(
             "documents-workspace-tab",
           ),
           to: "/student/documents",
-        },
-      ];
+        });
       if (state.projectId && state.hasDocuments)
         steps.push(
           read(

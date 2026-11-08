@@ -316,7 +316,7 @@ export function UserManagement({
                   User Management
                 </h2>
                 {!invitationView && <span className="admin-users__count">{filteredUsers.length} accounts</span>}
-                <Button onClick={() => { setInviteTarget(undefined); setInviteOpen(true); }}>Invite user</Button>
+                <Button data-guide="sa-invite-user" onClick={() => { setInviteTarget(undefined); setInviteOpen(true); }}>Invite user</Button>
               </div>
               <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                 Verify accounts, assign multiple institutional roles, suspend
@@ -327,7 +327,7 @@ export function UserManagement({
             {!invitationView && <div className="admin-users__filters grid grid-cols-1 gap-2 sm:grid-cols-3">
               <input
                 aria-label="Search users"
-                data-tour="page-filter"
+                data-guide="sa-user-search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search name, email, or ID"

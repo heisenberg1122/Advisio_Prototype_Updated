@@ -6,11 +6,9 @@ import {
   AssistantRateError,
   ResearcherAssistantService,
   assistantRequestSchema,
+  type TamAssistantRequest,
 } from "../services/researcher-assistant.service.js";
-import {
-  assistantTopic,
-  type AssistantRequest,
-} from "@research-management/shared/src/researcher-assistant";
+import { assistantTopic } from "@research-management/shared/src/researcher-assistant";
 
 export function createResearcherAssistantRouter(
   service = new ResearcherAssistantService(),
@@ -74,7 +72,7 @@ export function createResearcherAssistantRouter(
           permissions: req.user!.permissions,
           roles: req.user!.roles,
         },
-        parsed.data as AssistantRequest,
+        parsed.data as TamAssistantRequest,
         controller.signal,
       );
       if (!res.destroyed) res.json(reply);

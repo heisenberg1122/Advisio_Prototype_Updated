@@ -9,7 +9,7 @@ import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
 import { AdvisioBrandMark } from "@/components/ui/AdvisioBrandMark";
 import { cn } from "@/lib/utils";
 import { GroupedWorkspaceNavigation } from "./GroupedWorkspaceNavigation";
-import { TourLauncher } from "@/providers/workspace-tour-provider";
+import { ResearcherGuideLauncher } from "@/providers/researcher-guide-provider";
 
 export interface NavSection {
   title?: string;
@@ -166,7 +166,7 @@ export function AppSidebar({
           )}
         >
           {/* Settings Link */}
-          <TourLauncher collapsed={isVisuallyCollapsed} />
+          <ResearcherGuideLauncher collapsed={isVisuallyCollapsed} />
           <Link
             href={settingsHref}
             onClick={handleMobileClose}

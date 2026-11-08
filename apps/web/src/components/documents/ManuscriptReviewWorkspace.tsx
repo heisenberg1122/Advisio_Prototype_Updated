@@ -137,6 +137,7 @@ export function ManuscriptReviewWorkspace({
   const searchParams = useSearchParams();
   const contextualAssignmentId = searchParams.get("assignmentId");
   const contextualVersionId = searchParams.get("versionId");
+  const orientationReviewId = searchParams.get("orientationReview");
   const openedContextRef = useRef("");
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -194,6 +195,9 @@ export function ManuscriptReviewWorkspace({
         .length,
     [assignments],
   );
+  const orientationReview = orientationReviewId
+    ? assignments.find((assignment) => assignment.id === orientationReviewId)
+    : undefined;
   const openSnapshot = async (assignment: Assignment) => {
     const versionId = assignment.documentVersion.id;
     if (!versionId) {
@@ -425,6 +429,7 @@ export function ManuscriptReviewWorkspace({
             variant="secondary"
             size="sm"
             icon={<ExternalLink className="h-4 w-4" />}
+            data-orientation-review={assignment.id}
             isLoading={openingId === assignment.id}
             onClick={() => void openSnapshot(assignment)}
           >
@@ -434,7 +439,7 @@ export function ManuscriptReviewWorkspace({
             <Button
               size="sm"
               icon={<MessageSquareText className="h-4 w-4" />}
-              data-guide={panelistTarget("open")}
+              data-guide={panelistTarget("open") ?? "faculty-review-open"}
               onClick={() => void openDecision(assignment)}
             >
               {assignment.review?.status === "DRAFT"
@@ -539,6 +544,7 @@ export function ManuscriptReviewWorkspace({
                 variant="secondary"
                 size="md"
                 icon={<ExternalLink className="h-4 w-4" />}
+                data-orientation-review={assignment.id}
                 isLoading={openingId === assignment.id}
                 onClick={() => void openSnapshot(assignment)}
               >
@@ -787,6 +793,32 @@ export function ManuscriptReviewWorkspace({
       )}
 
       {navigation}
+      {orientationReview && (
+        <section aria-labelledby="orientation-review-preview" className="space-y-3 rounded-xl border border-[var(--color-border)] p-4">
+          <h2 id="orientation-review-preview" data-orientation="review-preview" className="text-lg font-bold">
+            {orientationReview.document.title} · Version {orientationReview.documentVersion.versionNumber}
+          </h2>
+          <p>{assignmentDisplayState(orientationReview).label}</p>
+          {orientationReview.review?.status === "SUBMITTED" && (
+            <div className="rounded-lg bg-[var(--color-surface-subtle)] p-3">
+              <h3 className="font-semibold">Recorded feedback</h3>
+              {orientationReview.review.recommendation && <p>{readableStatus(orientationReview.review.recommendation)}</p>}
+              {orientationReview.review.overallComment && <p className="whitespace-pre-wrap">{orientationReview.review.overallComment}</p>}
+            </div>
+          )}
+          <div className="h-[50vh] min-h-64 overflow-hidden rounded-xl border border-[var(--color-border)]">
+            <SubmissionDocumentPreview
+              key={orientationReview.id}
+              versions={[{
+                ...orientationReview.documentVersion,
+                mimeType: orientationReview.documentVersion.mimeType || "application/octet-stream",
+              }]}
+              initialVersionId={orientationReview.documentVersion.id}
+              title={orientationReview.document.title}
+            />
+          </div>
+        </section>
+      )}
 
       {error && !selected && (
         <div
@@ -1052,7 +1084,7 @@ export function ManuscriptReviewWorkspace({
                 </label>
                 <textarea
                   id="review-overall"
-                  data-guide={isAdviserPresentation ? "adviser-review-feedback" : panelistTarget("feedback")}
+                  data-guide={isAdviserPresentation ? "adviser-review-feedback" : panelistTarget("feedback") ?? "faculty-review-feedback"}
                   rows={5}
                   value={overallComment}
                   onChange={(event) => setOverallComment(event.target.value)}
