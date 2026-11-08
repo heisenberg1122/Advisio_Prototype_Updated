@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { panelistDefensePacketsHref } from "@research-management/shared/src/panelist-review-routes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -311,7 +312,7 @@ export default function PanelistDefenseWorkspacePage() {
                 icon={<FileText className="h-4 w-4" />}
                 onClick={() =>
                   router.push(
-                    `/panelist/dashboard?tab=documents&sessionId=${session.id}`,
+                    panelistDefensePacketsHref({ sessionId: session.id }),
                   )
                 }
               >
@@ -555,7 +556,7 @@ export default function PanelistDefenseWorkspacePage() {
               <Button
                 onClick={() =>
                   router.push(
-                    `/panelist/dashboard?tab=documents&sessionId=${session.id}`,
+                    panelistDefensePacketsHref({ sessionId: session.id }),
                   )
                 }
                 icon={<ExternalLink className="h-4 w-4" />}

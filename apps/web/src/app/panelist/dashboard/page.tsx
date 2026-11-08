@@ -1,5 +1,7 @@
 import React, { useState, Suspense, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Navigate } from "react-router-dom";
+import { defensePacketsTab, panelistDefensePacketsHref, panelistReviewRoutes } from "@research-management/shared/src/panelist-review-routes";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Tag } from "@/components/ui/Tag";
@@ -12,7 +14,6 @@ import {
 } from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
-import { PanelistReviewPackets } from "@/components/panelist/PanelistReviewPackets";
 import { PdfEvaluationWorkspace } from "@/components/panelist/PdfEvaluationWorkspace";
 import { StructuredEvaluationWorkspace } from "@/components/panelist/StructuredEvaluationWorkspace";
 import { FacultyGroupChats } from "@/components/messaging/FacultyGroupChats";
@@ -340,7 +341,11 @@ function PanelistDashboardContent() {
       )
     )
       return;
-    router.push(`/panelist/dashboard?tab=${tab}`);
+    router.push(
+      tab === defensePacketsTab
+        ? panelistReviewRoutes.packet
+        : `/panelist/dashboard?tab=${tab}`,
+    );
   };
 
   if ((dashboardLoading || liveLoading) && activeTab !== "messages") {
@@ -499,11 +504,10 @@ function PanelistDashboardContent() {
                           Defense Schedule ({upcomingSchedules.length})
                         </button>
                         <button
-                          onClick={() => handleTabChange("documents")}
+                          onClick={() => handleTabChange(defensePacketsTab)}
                           className="inline-flex h-11 items-center gap-2 rounded-xl border border-[var(--color-border-strong)] bg-white/80 dark:bg-white/10 px-4 text-sm font-semibold text-[var(--color-text-primary)] dark:text-white dark:border-white/20 shadow-2xs backdrop-blur-xs transition hover:bg-white dark:hover:bg-white/20"
                         >
-                          <i className="ti ti-file-text text-base" /> Review
-                          Manuscripts ({documents.length})
+                          <i className="ti ti-file-text text-base" /> Defense packets ({documents.length} pending)
                         </button>
                       </>
                     }
@@ -517,7 +521,7 @@ function PanelistDashboardContent() {
                         suffix: "projects",
                         icon: "ti-flask",
                         tone: "bg-[#0B3A53]/10 text-[#0B3A53] dark:text-[#38bdf8]",
-                        tab: "documents",
+                        tab: defensePacketsTab,
                       },
                       {
                         label: "Pending Evaluations",
@@ -583,10 +587,10 @@ function PanelistDashboardContent() {
                         </p>
                       </div>
                       <button
-                        onClick={() => handleTabChange("documents")}
+                        onClick={() => handleTabChange(defensePacketsTab)}
                         className="shrink-0 text-sm font-bold text-[#0B3A53] hover:underline dark:text-[#C9A227]"
                       >
-                        Review manuscripts <i className="ti ti-chevron-right" />
+                        Defense packets <i className="ti ti-chevron-right" />
                       </button>
                     </div>
                     {assignedProjects.length > 0 ? (
@@ -788,7 +792,7 @@ function PanelistDashboardContent() {
                           documents.slice(0, 3).map((document: any) => (
                             <button
                               key={document.id}
-                              onClick={() => handleTabChange("documents")}
+                              onClick={() => router.push(panelistDefensePacketsHref({ sessionId: document.id }))}
                               className="flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 text-left transition hover:bg-white hover:shadow-xs dark:border-white/5 dark:bg-white/5"
                             >
                               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">
@@ -832,9 +836,9 @@ function PanelistDashboardContent() {
                             tab: "schedule",
                           },
                           {
-                            label: "Review documents",
+                            label: "Review defense packets",
                             icon: "ti-file-search",
-                            tab: "documents",
+                            tab: defensePacketsTab,
                           },
                           {
                             label: "Score defense",
@@ -1045,7 +1049,6 @@ function PanelistDashboardContent() {
                   </div>
                 </div>
               ),
-              documents: <PanelistReviewPackets />,
               evaluation: (
                 <div data-tour="evaluation-records" className="mx-auto flex w-full max-w-[1320px] flex-col gap-4">
                   {evaluationSession?.packet?.evaluationMode ===
@@ -1449,6 +1452,19 @@ function PanelistDashboardContent() {
 }
 
 export default function PanelistDashboardPage() {
+  const searchParams = useSearchParams();
+  if (searchParams.get("tab") === "documents") {
+    return (
+      <Navigate
+        to={panelistDefensePacketsHref({
+          sessionId: searchParams.get("sessionId"),
+          review: searchParams.get("review"),
+        })}
+        replace
+      />
+    );
+  }
+
   return (
     <Suspense fallback={<DashboardSkeleton />}>
       <PanelistDashboardContent />
