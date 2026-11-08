@@ -119,7 +119,7 @@ Add `https://advisio-ua.com` to the OAuth client's authorized JavaScript origins
 
 ## 5. Namecheap web app
 
-The `Deploy frontend to Namecheap` GitHub Actions workflow runs after both CI jobs pass for a push to `main`. It waits for Render to report the same commit and publishes the frontend to Stellar over explicit FTPS. The legacy Vercel production URL redirects to Namecheap so existing links keep working.
+The `Deploy frontend to Namecheap` GitHub Actions workflow runs after both CI jobs pass for a push to `main`. It waits for Render to report the same commit and publishes the frontend to Stellar over explicit FTPS. The legacy Vercel production URL redirects to Namecheap so existing links keep working. Vercel skips new Git deployments from `main` and retains its staging and preview configuration.
 
 Set up the `namecheap-production` environment in GitHub and restrict deployments to `main` where supported. Create a dedicated cPanel FTP account rooted at `public_html` and set `NAMECHEAP_FTPS_USERNAME` and `NAMECHEAP_FTPS_PASSWORD` as GitHub Actions secrets for that environment. The workflow uses the public production OAuth client ID. To replace it, set the `ADVISIO_GOOGLE_CLIENT_ID` Actions variable and update Render's matching client ID. The workflow sets the remaining build variables:
 

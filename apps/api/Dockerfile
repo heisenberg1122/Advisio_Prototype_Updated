@@ -13,7 +13,7 @@ COPY packages/validations/package.json ./packages/validations/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/email/package.json ./packages/email/
 
-RUN npm ci
+RUN npm ci --workspaces --include-workspace-root=false
 
 # Copy source
 COPY apps/api ./apps/api
