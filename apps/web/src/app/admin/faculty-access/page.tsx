@@ -4,37 +4,38 @@ import {
   AccountInvitations,
   InviteAccountDialog,
 } from "@/components/system-admin/AccountInvitations";
-import { Button } from "@/components/ui/Button";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { InlineFeedback } from "@/components/ui/advisio";
+import { RoleBand, plural } from "@/components/dashboards/RoleScreenParts";
 
 export default function FacultyAccessPage() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const invitations = useQuery({
+    queryKey: ["account-invitations"],
+    queryFn: () => apiClient.get<{ invitations: { status: string }[] }>("/api/account-invitations"),
+  });
+  const count = (status: string) => (invitations.data?.invitations || []).filter((item) => item.status === status).length;
   return (
-    <main className="workspace-page mx-auto flex w-full max-w-[1360px] flex-col gap-6 p-4 sm:p-6 lg:p-8">
-      <header className="workspace-page-header flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Faculty access</h1>
-          <p className="mt-2 text-[var(--color-text-secondary)]">
-            Invite advisers and request professor or panelist access for{" "}
-            {user?.college?.name || "your college"}.
-          </p>
-        </div>
-        <Button data-guide="de-faculty-invite" disabled={!user?.college} onClick={() => setOpen(true)}>
-          Invite or request access
-        </Button>
-      </header>
-      {message && (
-        <p
-          role="status"
-          className="rounded-xl bg-[var(--color-surface-muted)] p-4"
-        >
-          {message}
-        </p>
-      )}
-      <section className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-        <AccountInvitations />
-      </section>
+    <main className="workspace-page rs mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8">
+      <RoleBand
+        eyebrow="Research oversight"
+        title="Faculty access"
+        titleId="dean-faculty-title"
+        meta={`${plural(count("AWAITING_APPROVAL"), "request is", "requests are")} awaiting approval · invite advisers or request professor and panelist access for ${user?.college?.name || "your college"}`}
+        counts={[
+          { label: "Awaiting approval", value: count("AWAITING_APPROVAL"), tone: count("AWAITING_APPROVAL") ? "waiting" : undefined },
+          { label: "Invited", value: count("PENDING") },
+          { label: "Accepted", value: count("ACCEPTED") },
+        ]}
+        countsLabel="Invitation summary"
+        primary={{ label: "Invite or request access", phoneLabel: "Invite", icon: "ti-user-plus", guide: "de-faculty-invite", disabled: !user?.college, onClick: () => setOpen(true) }}
+        secondary={[{ label: "Refresh", icon: "ti-refresh", onClick: () => void invitations.refetch() }]}
+      />
+      {message && <InlineFeedback tone="ok">{message}</InlineFeedback>}
+      <AccountInvitations presentation="role" />
       {open && (
         <InviteAccountDialog
           users={[]}

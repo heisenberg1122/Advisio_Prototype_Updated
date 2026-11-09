@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { EmptyNote } from "@/components/ui/advisio";
+import { RoleBand, SearchField } from "@/components/dashboards/RoleScreenParts";
+import "./system-admin.css";
 
 type Major = {
   id: string;
@@ -169,6 +172,7 @@ export function AcademicStructureManagement() {
     staleTime: 30_000,
   });
 
+  const [search, setSearch] = useState("");
   const colleges = data?.colleges || [];
   const visibleColleges = colleges.filter(
     (college) => showArchived || college.isActive,
@@ -299,339 +303,142 @@ export function AcademicStructureManagement() {
     );
   }
 
+  const majorCount = colleges.reduce((total, college) => total + college.programs.reduce((sum, program) => sum + program.majors.filter((major) => major.isActive).length, 0), 0);
+  const programCount = colleges.reduce((total, college) => total + college.programs.filter((program) => program.isActive).length, 0);
+  const term = search.trim().toLowerCase();
+  const shownColleges = visibleColleges.filter(
+    (college) =>
+      !term ||
+      [college.name, college.code, ...college.programs.flatMap((program) => [program.name, program.code])]
+        .join(" ")
+        .toLowerCase()
+        .includes(term),
+  );
+  const addCollege = () => setEditor({ kind: "college", name: "", code: "", description: "", password: "" });
+  const addProgram = () =>
+    setEditor({
+      kind: "program",
+      collegeId: colleges.find((college) => college.isActive)?.id || "",
+      name: "",
+      code: "",
+      description: "",
+      hasMajors: false,
+      majors: [],
+      password: "",
+    });
+  const iconOf = (isActive: boolean) => (isActive ? "ti-archive" : "ti-rotate");
+
   return (
-    <div className="space-y-5">
+    <div className="rs">
       {success && (
         <div className="fixed right-5 top-5 z-[60] flex items-center gap-2 rounded-xl bg-[#0B3A53] px-4 py-3 text-xs font-bold text-white shadow-xl">
           <CheckCircle2 className="h-4 w-4 text-[#C9A227]" /> {success}
         </div>
       )}
 
-      <section className="workspace-page-header rounded-2xl border border-slate-200/80 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-[#101b2b]">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-sm font-black uppercase tracking-[0.2em] text-[#C9A227]">
-              Academic registry
-            </p>
-            <h2 className="mt-1 text-lg font-black text-slate-900 dark:text-white">
-              Colleges, programs & majors
-            </h2>
-            <p className="mt-1 text-base font-medium text-slate-500 dark:text-slate-400">
-              Manage the institution hierarchy without removing historical
-              records.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setShowArchived((value) => !value)}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 dark:border-white/10 dark:text-slate-300"
-            >
-              {showArchived ? "Hide archived" : "Show archived"}
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                setEditor({
-                  kind: "college",
-                  name: "",
-                  code: "",
-                  description: "",
-                  password: "",
-                })
-              }
-              className="inline-flex items-center gap-2 rounded-xl border border-[#0B3A53] px-4 py-2 text-sm font-black text-[#0B3A53] dark:border-[#C9A227] dark:text-[#C9A227]"
-            >
-              <Plus className="h-4 w-4" /> College
-            </button>
-            <button
-              type="button"
-              disabled={!colleges.some((college) => college.isActive)}
-              onClick={() =>
-                setEditor({
-                  kind: "program",
-                  collegeId:
-                    colleges.find((college) => college.isActive)?.id || "",
-                  name: "",
-                  code: "",
-                  description: "",
-                  hasMajors: false,
-                  majors: [],
-                  password: "",
-                })
-              }
-              className="inline-flex items-center gap-2 rounded-xl bg-[#C9A227] px-4 py-2 text-sm font-black text-[#0B3A53] disabled:opacity-50"
-            >
-              <Plus className="h-4 w-4" /> Program
-            </button>
-          </div>
+      <RoleBand
+        eyebrow="Academic registry"
+        title="Colleges and programs"
+        titleId="sa-colleges-title"
+        meta="Manage the institution's structure without removing historical records. Every change asks for your password."
+        counts={[
+          { label: "Colleges", value: colleges.filter((college) => college.isActive).length },
+          { label: "Programs", value: programCount },
+          { label: "Majors", value: majorCount },
+        ]}
+        countsLabel="Academic structure summary"
+        primary={{ label: "College", icon: "ti-plus", onClick: addCollege }}
+        secondary={[
+          { label: "Program", icon: "ti-plus", disabled: !colleges.some((college) => college.isActive), onClick: addProgram },
+          { label: showArchived ? "Hide archived" : "Show archived", icon: "ti-archive", onClick: () => setShowArchived((value) => !value) },
+        ]}
+      />
+      <div className="rs-tools">
+        <span />
+        <div className="rs-tools-end">
+          <SearchField value={search} onChange={setSearch} placeholder="Search college or program" tour={false} />
         </div>
-      </section>
+      </div>
 
       {isError && (
-        <button
-          type="button"
-          onClick={() => void refetch()}
-          className="w-full rounded-2xl border border-rose-200 bg-rose-50 p-5 text-left text-sm font-bold text-rose-700"
-        >
-          The academic structure could not be loaded. Click to retry.
-        </button>
-      )}
-
-      {!isError && visibleColleges.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center text-sm text-slate-500 dark:border-white/10 dark:bg-[#101b2b]">
-          No {showArchived ? "colleges" : "active colleges"} found.
+        <div className="rs-empty-card" role="alert">
+          <EmptyNote layout="row" tone="problem" icon="ti-alert-circle" title="The academic structure could not be loaded" action={<button type="button" className="au-link" onClick={() => void refetch()}>Try again</button>} />
         </div>
       )}
 
-      {visibleColleges.map((college) => (
-        <section
-          key={college.id}
-          className={`rounded-2xl border bg-white p-5 shadow-xs dark:bg-[#101b2b] ${college.isActive ? "border-slate-200/80 dark:border-white/10" : "border-amber-200 opacity-75 dark:border-amber-500/30"}`}
-        >
-          <div className="flex flex-col justify-between gap-3 border-b border-slate-100 pb-4 dark:border-white/5 sm:flex-row sm:items-start">
-            <div className="flex gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#0B3A53]/10 text-[#0B3A53] dark:bg-white/10 dark:text-[#C9A227]">
-                <Building2 className="h-5 w-5" />
+      {!isError && shownColleges.length === 0 && (
+        <div className="rs-empty-card">
+          <EmptyNote layout="row" icon="ti-building" title={term ? "No colleges match your search" : `No ${showArchived ? "colleges" : "active colleges"} found`} />
+        </div>
+      )}
+
+      {shownColleges.map((college) => {
+        const programs = college.programs.filter((program) => showArchived || program.isActive);
+        return (
+          <section key={college.id} className="rh-panel sa-college" data-archived={!college.isActive} aria-label={college.name}>
+            <div className="sa-college-head">
+              <span className="sa-college-code">{college.code}</span>
+              <div className="sa-college-text">
+                <h2 data-guide="sa-college-name">{college.name}{!college.isActive ? " (archived)" : ""}</h2>
+                <p>{college._count.programs} programs · {college._count.users} users · {college._count.researchProjects} projects</p>
+              </div>
+              <span className="rs-actions">
+                <button type="button" className="rs-icon-btn" aria-label={`Edit ${college.name}`} onClick={() => setEditor({ kind: "college", id: college.id, name: college.name, code: college.code, description: college.description || "", password: "" })}>
+                  <i className="ti ti-pencil" aria-hidden="true" />
+                </button>
+                <button type="button" className="rs-icon-btn" data-tone="danger" aria-label={`${college.isActive ? "Archive" : "Restore"} ${college.name}`} onClick={() => setStatusChange({ kind: "college", id: college.id, label: college.name, isActive: college.isActive, password: "" })}>
+                  <i className={`ti ${iconOf(college.isActive)}`} aria-hidden="true" />
+                </button>
               </span>
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 data-guide="sa-college-name" className="text-lg font-black text-slate-900 dark:text-white">
-                    {college.name}
-                  </h3>
-                  <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs font-black text-slate-600 dark:bg-white/10 dark:text-slate-300">
-                    {college.code}
+            </div>
+            {programs.map((program) => {
+              const majors = program.majors.filter((major) => showArchived || major.isActive);
+              return (
+                <div key={program.id} className="sa-program" data-archived={!program.isActive}>
+                  <div className="sa-program-text">
+                    <h3>{program.code} · {program.name}{!program.isActive ? " (archived)" : ""}</h3>
+                    <p>
+                      {program.hasMajors ? "Offers majors · " : ""}
+                      {program._count.users} users · {program._count.researchProjects} projects · {program._count.researchTypes} research types
+                    </p>
+                  </div>
+                  <span className="rs-actions">
+                    {program.hasMajors && program.isActive && (
+                      <button type="button" className="rh-secondary" onClick={() => setEditor({ kind: "major", programId: program.id, name: "", code: "", description: "", password: "" })}>
+                        <i className="ti ti-plus" aria-hidden="true" /> Major
+                      </button>
+                    )}
+                    <button type="button" className="rs-icon-btn" aria-label={`Edit ${program.name}`} onClick={() => setEditor({ kind: "program", id: program.id, collegeId: program.collegeId, name: program.name, code: program.code, description: program.description || "", hasMajors: program.hasMajors, majors: [], password: "" })}>
+                      <i className="ti ti-pencil" aria-hidden="true" />
+                    </button>
+                    <button type="button" className="rs-icon-btn" data-tone="danger" aria-label={`${program.isActive ? "Archive" : "Restore"} ${program.name}`} onClick={() => setStatusChange({ kind: "program", id: program.id, label: program.name, isActive: program.isActive, password: "" })}>
+                      <i className={`ti ${iconOf(program.isActive)}`} aria-hidden="true" />
+                    </button>
                   </span>
-                  {!college.isActive && (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black uppercase text-amber-700">
-                      Archived
-                    </span>
+                  {program.hasMajors && majors.length > 0 && (
+                    <div className="sa-majors">
+                      {majors.map((major) => (
+                        <span key={major.id} className="sa-major" data-archived={!major.isActive}>
+                          {major.name}
+                          {major.code && <small>{major.code}</small>}
+                          {!major.isActive && <small>Archived</small>}
+                          <button type="button" aria-label={`Edit ${major.name}`} onClick={() => setEditor({ kind: "major", id: major.id, programId: program.id, name: major.name, code: major.code || "", description: major.description || "", password: "" })}>
+                            <i className="ti ti-pencil" aria-hidden="true" />
+                          </button>
+                          <button type="button" aria-label={`${major.isActive ? "Archive" : "Restore"} ${major.name}`} onClick={() => setStatusChange({ kind: "major", id: major.id, label: major.name, isActive: major.isActive, password: "" })}>
+                            <i className={`ti ${iconOf(major.isActive)}`} aria-hidden="true" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <p className="mt-1 text-base text-slate-500">
-                  {college._count.programs} programs · {college._count.users}{" "}
-                  users · {college._count.researchProjects} projects
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setEditor({
-                    kind: "college",
-                    id: college.id,
-                    name: college.name,
-                    code: college.code,
-                    description: college.description || "",
-                    password: "",
-                  })
-                }
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 dark:border-white/10 dark:text-slate-300"
-              >
-                <Pencil className="h-3.5 w-3.5" /> Edit
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setStatusChange({
-                    kind: "college",
-                    id: college.id,
-                    label: college.name,
-                    isActive: college.isActive,
-                    password: "",
-                  })
-                }
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 dark:border-white/10 dark:text-slate-300"
-              >
-                {college.isActive ? (
-                  <Archive className="h-3.5 w-3.5" />
-                ) : (
-                  <RotateCcw className="h-3.5 w-3.5" />
-                )}{" "}
-                {college.isActive ? "Archive" : "Restore"}
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-4 space-y-3">
-            {college.programs
-              .filter((program) => showArchived || program.isActive)
-              .map((program) => (
-                <div
-                  key={program.id}
-                  className={`rounded-xl border p-4 ${program.isActive ? "border-slate-100 bg-slate-50/70 dark:border-white/5 dark:bg-white/[0.02]" : "border-amber-100 bg-amber-50/40 dark:border-amber-500/20 dark:bg-amber-500/5"}`}
-                >
-                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-bold text-slate-900 dark:text-white">
-                          {program.name}
-                        </span>
-                        <span className="font-mono text-xs font-black text-[#8A6A0B] dark:text-[#C9A227]">
-                          {program.code}
-                        </span>
-                        {program.hasMajors && (
-                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-black uppercase text-blue-700">
-                            Offers majors
-                          </span>
-                        )}
-                        {!program.isActive && (
-                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black uppercase text-amber-700">
-                            Archived
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1 text-base text-slate-400">
-                        {program._count.users} users ·{" "}
-                        {program._count.researchProjects} projects ·{" "}
-                        {program._count.researchTypes} research types
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {program.hasMajors && program.isActive && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setEditor({
-                              kind: "major",
-                              programId: program.id,
-                              name: "",
-                              code: "",
-                              description: "",
-                              password: "",
-                            })
-                          }
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-600 dark:border-white/10 dark:text-slate-300"
-                        >
-                          <Plus className="h-3 w-3" /> Major
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setEditor({
-                            kind: "program",
-                            id: program.id,
-                            collegeId: program.collegeId,
-                            name: program.name,
-                            code: program.code,
-                            description: program.description || "",
-                            hasMajors: program.hasMajors,
-                            majors: [],
-                            password: "",
-                          })
-                        }
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-600 dark:border-white/10 dark:text-slate-300"
-                      >
-                        <Pencil className="h-3 w-3" /> Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setStatusChange({
-                            kind: "program",
-                            id: program.id,
-                            label: program.name,
-                            isActive: program.isActive,
-                            password: "",
-                          })
-                        }
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-600 dark:border-white/10 dark:text-slate-300"
-                      >
-                        {program.isActive ? (
-                          <Archive className="h-3 w-3" />
-                        ) : (
-                          <RotateCcw className="h-3 w-3" />
-                        )}{" "}
-                        {program.isActive ? "Archive" : "Restore"}
-                      </button>
-                    </div>
-                  </div>
-
-                  {program.hasMajors &&
-                    program.majors.filter(
-                      (major) => showArchived || major.isActive,
-                    ).length > 0 && (
-                      <div className="mt-3 grid gap-2 border-t border-slate-200/70 pt-3 dark:border-white/5 sm:grid-cols-2">
-                        {program.majors
-                          .filter((major) => showArchived || major.isActive)
-                          .map((major) => (
-                            <div
-                              key={major.id}
-                              className="flex items-center justify-between rounded-lg bg-white px-3 py-2 dark:bg-white/5"
-                            >
-                              <div className="flex min-w-0 items-center gap-2">
-                                <GraduationCap className="h-3.5 w-3.5 shrink-0 text-[#C9A227]" />
-                                <span className="truncate text-xs font-bold text-slate-700 dark:text-slate-200">
-                                  {major.name}
-                                </span>
-                                {major.code && (
-                                  <span className="text-xs text-slate-400">
-                                    {major.code}
-                                  </span>
-                                )}
-                                {!major.isActive && (
-                                  <span className="text-xs font-bold text-amber-600">
-                                    Archived
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setEditor({
-                                      kind: "major",
-                                      id: major.id,
-                                      programId: program.id,
-                                      name: major.name,
-                                      code: major.code || "",
-                                      description: major.description || "",
-                                      password: "",
-                                    })
-                                  }
-                                  className="p-1.5 text-slate-400 hover:text-[#0B3A53]"
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setStatusChange({
-                                      kind: "major",
-                                      id: major.id,
-                                      label: major.name,
-                                      isActive: major.isActive,
-                                      password: "",
-                                    })
-                                  }
-                                  className="p-1.5 text-slate-400 hover:text-[#0B3A53]"
-                                >
-                                  {major.isActive ? (
-                                    <Archive className="h-3 w-3" />
-                                  ) : (
-                                    <RotateCcw className="h-3 w-3" />
-                                  )}
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    )}
-                </div>
-              ))}
-            {college.programs.filter(
-              (program) => showArchived || program.isActive,
-            ).length === 0 && (
-              <p className="rounded-xl border border-dashed border-slate-200 p-5 text-center text-base text-slate-400 dark:border-white/10">
-                No {showArchived ? "programs" : "active programs"} in this
-                college.
-              </p>
-            )}
-          </div>
-        </section>
-      ))}
+              );
+            })}
+            {programs.length === 0 && <p className="sa-empty-line">No {showArchived ? "programs" : "active programs"} in this college.</p>}
+          </section>
+        );
+      })}
 
       {editor && (
         <Dialog

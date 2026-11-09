@@ -437,7 +437,7 @@ export function DocumentSigningModal({
           <div className="min-w-0">
             <h2
               id="sign-document-title"
-              className="truncate text-lg font-extrabold text-[#102f49]"
+              className="truncate text-lg font-semibold text-[var(--color-text-primary)]"
             >
               Sign {document.docName}
             </h2>
@@ -477,7 +477,7 @@ export function DocumentSigningModal({
               <button
                 type="button"
                 onClick={() => changeZoom(1)}
-                className={`min-w-14 rounded-lg px-2 py-1.5 text-sm font-extrabold ${fitMode === "custom" && zoom === 1 ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                className={`min-w-14 rounded-lg px-2 py-1.5 text-sm font-semibold ${fitMode === "custom" && zoom === 1 ? "bg-[var(--color-primary)] text-[var(--college-on-primary)]" : "text-slate-600 hover:bg-slate-100"}`}
                 title="Reset zoom"
               >
                 {fitMode === "custom" ? `${Math.round(zoom * 100)}%` : "100%"}
@@ -495,14 +495,14 @@ export function DocumentSigningModal({
               <button
                 type="button"
                 onClick={() => setFitMode("width")}
-                className={`rounded-lg px-2.5 py-1.5 text-sm font-extrabold ${fitMode === "width" ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                className={`rounded-lg px-2.5 py-1.5 text-sm font-semibold ${fitMode === "width" ? "bg-[var(--color-primary)] text-[var(--college-on-primary)]" : "text-slate-600 hover:bg-slate-100"}`}
               >
                 Fit width
               </button>
               <button
                 type="button"
                 onClick={() => setFitMode("page")}
-                className={`rounded-lg px-2.5 py-1.5 text-sm font-extrabold ${fitMode === "page" ? "bg-[#173f63] text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                className={`rounded-lg px-2.5 py-1.5 text-sm font-semibold ${fitMode === "page" ? "bg-[var(--color-primary)] text-[var(--college-on-primary)]" : "text-slate-600 hover:bg-slate-100"}`}
               >
                 Fit page
               </button>
@@ -621,7 +621,7 @@ export function DocumentSigningModal({
             />
             <ol
               aria-label="Signing progress"
-              className="mb-5 flex justify-between text-xs font-bold text-[#173f63]"
+              className="mb-5 flex justify-between text-xs font-bold text-[var(--color-text-primary)]"
             >
               {["Read", "Sign", "Done"].map((step, index) => (
                 <li
@@ -630,7 +630,7 @@ export function DocumentSigningModal({
                   className="flex items-center gap-2"
                 >
                   <span
-                    className={`grid h-6 w-6 place-items-center rounded-full ${result || index < 2 ? "bg-[#173f63] text-white" : "bg-slate-100 text-slate-500"}`}
+                    className={`grid h-6 w-6 place-items-center rounded-full ${result || index < 2 ? "bg-[var(--color-primary)] text-[var(--college-on-primary)]" : "bg-slate-100 text-slate-500"}`}
                   >
                     {index + 1}
                   </span>
@@ -666,7 +666,7 @@ export function DocumentSigningModal({
                     className="advisio-signature-check"
                   />
                 </svg>
-                <h3 className="text-xl font-extrabold text-[#102f49]">
+                <h3 className="text-xl font-semibold text-[var(--color-text-primary)]">
                   Document signed
                 </h3>
                 <p className="text-base text-slate-600">
@@ -678,14 +678,14 @@ export function DocumentSigningModal({
                 <button
                   type="button"
                   onClick={downloadCopy}
-                  className="w-full rounded-xl bg-[#173f63] px-4 py-3 text-sm font-bold text-white"
+                  className="w-full rounded-xl bg-[var(--color-primary)] px-4 py-3 text-sm font-bold text-[var(--college-on-primary)]"
                 >
                   Download signed copy
                 </button>
                 <button
                   type="button"
                   onClick={close}
-                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-[#173f63]"
+                  className="w-full rounded-xl border border-[var(--color-border)] px-4 py-3 text-sm font-bold text-[var(--color-text-primary)]"
                 >
                   Done
                 </button>
@@ -693,7 +693,7 @@ export function DocumentSigningModal({
             ) : (
               <fieldset disabled={saving} className="min-w-0">
                 <section>
-                  <h3 className="text-lg font-extrabold text-[#102f49]">
+                  <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
                     Review and sign
                   </h3>
                   <p className="mt-1 text-base text-slate-500">
@@ -719,7 +719,7 @@ export function DocumentSigningModal({
                             setSaveSignature(false);
                             setError("");
                           }}
-                          className={`rounded-lg px-2 py-2 text-sm font-bold capitalize disabled:opacity-40 ${mode === value ? "bg-white text-[#173f63] shadow-sm" : "text-slate-600"}`}
+                          className={`rounded-lg px-2 py-2 text-sm font-bold capitalize disabled:opacity-40 ${mode === value ? "bg-white text-[var(--color-text-primary)] shadow-sm" : "text-slate-600"}`}
                         >
                           {value}
                         </button>
@@ -727,7 +727,7 @@ export function DocumentSigningModal({
                     )}
                   </div>
                   {mode === "saved" && (
-                    <div className="mt-3 rounded-xl border border-slate-200 p-3">
+                    <div className="mt-3 rounded-xl border border-[var(--color-border)] p-3">
                       <img
                         src={savedSignatureUrl}
                         alt="Saved signature"
@@ -755,7 +755,7 @@ export function DocumentSigningModal({
                         type="file"
                         accept="image/png,.png"
                         disabled={saving}
-                        className="mt-2 block w-full rounded-lg border border-slate-300 p-2 text-base focus-visible:outline-2"
+                        className="mt-2 block w-full rounded-lg border border-[var(--color-border)] p-2 text-base focus-visible:outline-2"
                         onChange={(event) =>
                           uploadSignature(event.target.files?.[0])
                         }
@@ -785,7 +785,7 @@ export function DocumentSigningModal({
                   )}
                 </section>
                 <section className="mt-6 border-t pt-5">
-                  <h3 className="text-lg font-extrabold text-[#102f49]">
+                  <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
                     2. Placement
                   </h3>
                   <div className="mt-3 flex items-center gap-2">
@@ -849,7 +849,7 @@ export function DocumentSigningModal({
                   </label>
                 </section>
                 <section className="mt-6 border-t pt-5">
-                  <h3 className="text-lg font-extrabold text-[#102f49]">
+                  <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
                     3. Confirm and sign
                   </h3>
                   {demoPassword && <p className="mt-3 rounded-lg bg-sky-50 p-3 text-sm text-sky-900">Fictional evaluation account: use the saved demo signature and password <code>{demoPassword}</code>. No personal password or signature is needed.</p>}
@@ -860,7 +860,7 @@ export function DocumentSigningModal({
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
                       autoComplete={demoPassword ? "off" : "current-password"}
-                      className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2.5 outline-none focus:border-[#173f63]"
+                      className="mt-2 w-full rounded-xl border border-[var(--color-border)] px-3 py-2.5 outline-none focus:border-[var(--color-primary)]"
                     />
                   </label>
                   <label className="mt-3 flex items-start gap-2 text-sm leading-5 text-slate-600">

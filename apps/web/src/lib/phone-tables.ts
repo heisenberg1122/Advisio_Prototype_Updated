@@ -32,7 +32,7 @@ function setAttribute(element: Element, name: string, value: string) {
   if (element.getAttribute(name) !== value) element.setAttribute(name, value);
 }
 
-function addToggle(row: HTMLTableRowElement, titleCell: HTMLTableCellElement) {
+function addToggle(row: HTMLElement, titleCell: HTMLElement) {
   let toggle = titleCell.querySelector<HTMLButtonElement>(`:scope > .${TOGGLE_CLASS}`);
   if (toggle) return;
   toggle = document.createElement("button");
@@ -92,6 +92,23 @@ function enhanceTable(table: HTMLTableElement) {
   }
 }
 
+/** Grid lists opt in with data-phone-rows="<title column>" and data-phone-summary. */
+function enhanceGridList(list: HTMLElement) {
+  const head = list.querySelector<HTMLElement>(":scope > .rs-row--head");
+  const labels = head ? Array.from(head.children).map((cell) => (cell.textContent ?? "").trim()) : [];
+  const titleIndex = Number(list.dataset.phoneRows) || 0;
+  const summary = new Set(configuredColumns(list.dataset.phoneSummary) ?? []);
+  list.querySelectorAll<HTMLElement>(":scope > .rs-row:not(.rs-row--head)").forEach((row) => {
+    const cells = Array.from(row.children) as HTMLElement[];
+    cells.forEach((cell, index) => {
+      const role = index === titleIndex ? "title" : cell.classList.contains("rs-actions") ? "actions" : summary.has(index) ? "summary" : "detail";
+      setAttribute(cell, CARD_ROLES, role);
+      setAttribute(cell, "data-label", labels[index] ?? "");
+    });
+    if (cells[titleIndex]) addToggle(row, cells[titleIndex]);
+  });
+}
+
 /** Centers the current tab once, so later swipes are never fought. */
 function revealActiveTabs(root: ParentNode) {
   const strips = root.querySelectorAll<HTMLElement>('.portal-workspace-tabs, .as-nav, .rm-folders, [role="tablist"]');
@@ -111,15 +128,16 @@ export function enhancePhoneLayout(root: ParentNode) {
   root.querySelectorAll("table").forEach((table) => {
     if (!table.matches(EXEMPT_TABLES)) enhanceTable(table);
   });
+  root.querySelectorAll<HTMLElement>("[data-phone-rows]").forEach(enhanceGridList);
   revealActiveTabs(root);
 }
 
 /** Opens the collapsed phone row holding a Guide target, so the step can point at it. */
 export function revealPhoneRowTarget(key: string | undefined, root: ParentNode = document) {
   if (!key || key.includes(":")) return false;
-  const matches = Array.from(root.querySelectorAll<HTMLElement>(`table[data-phone-cards] tbody [data-guide="${key}"]`));
+  const matches = Array.from(root.querySelectorAll<HTMLElement>(`:is(table[data-phone-cards] tbody, [data-phone-rows]) [data-guide="${key}"]`));
   if (matches.length === 0 || matches.some((match) => match.getClientRects().length > 0)) return false;
-  const row = matches[0].closest("tr");
+  const row = matches[0].closest<HTMLElement>("tr, .rs-row");
   const toggle = row?.querySelector<HTMLButtonElement>(`.${TOGGLE_CLASS}`);
   if (!row || !toggle || row.hasAttribute("data-phone-open")) return false;
   row.setAttribute("data-phone-open", "");

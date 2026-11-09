@@ -20,6 +20,8 @@ import { useFacultyProfile } from "@/hooks/use-faculty-profile";
 import { ProfileSkeleton } from "@/components/ui/Skeleton";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { RoleBand } from "@/components/dashboards/RoleScreenParts";
+import "./faculty-profile.css";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Tag } from "@/components/ui/Tag";
 import { useAsyncAction } from "@/hooks/use-async-action";
@@ -58,6 +60,19 @@ const RESEARCH_TYPE_OPTIONS = [
   "Qualitative Study",
   "Industry-Sponsored Project",
 ];
+
+const FACULTY_SECTIONS = [
+  { id: "title", label: "Title and designation", icon: "ti-id" },
+  { id: "summary", label: "Summary", icon: "ti-file-description" },
+  { id: "degrees", label: "Degrees", icon: "ti-school" },
+  { id: "expertise", label: "Expertise", icon: "ti-bulb" },
+  { id: "interests", label: "Research interests", icon: "ti-search" },
+  { id: "experience", label: "Experience", icon: "ti-briefcase" },
+  { id: "certifications", label: "Certifications", icon: "ti-certificate" },
+  { id: "publications", label: "Publications", icon: "ti-book" },
+  { id: "awards", label: "Awards", icon: "ti-award" },
+  { id: "preferences", label: "Advising preferences", icon: "ti-adjustments" },
+] as const;
 
 export function FacultyProfileEditForm() {
   const router = useRouter();
@@ -113,6 +128,7 @@ export function FacultyProfileEditForm() {
 
   const saveAction = useAsyncAction();
   const [isDirty, setIsDirty] = useState(false);
+  const [activeSection, setActiveSection] = useState<string>(FACULTY_SECTIONS[0].id);
 
   // Initialize from loaded database profile or query params
   useEffect(() => {
@@ -493,67 +509,42 @@ export function FacultyProfileEditForm() {
   }
 
   return (
-    <div className="phone-page-inset flex flex-col gap-6 w-full max-w-5xl mx-auto pb-12">
-      {/* Top Action Bar */}
-      <div className="phone-stack-header flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-[#17212B] dark:text-white">
-            Edit Faculty Professional Profile
-          </h2>
-          <p className="text-base text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage your academic CV credentials, specialties, and mentoring
-            background.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (
-                isDirty &&
-                !window.confirm(
-                  "You have unsaved changes. Discard and return to profile?",
-                )
-              ) {
-                return;
-              }
-              router.push("/adviser/settings?section=faculty");
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => void handleSave()}
-            status={saveAction.status}
-            loadingText="Saving profile..."
-            successText="Profile saved"
-            errorText="Try saving again"
-            icon={<Save className="h-4 w-4" />}
-          >
-            Save Changes
-          </Button>
-        </div>
-      </div>
+    <div className="phone-page-inset rs faculty-scope w-full max-w-[1200px] mx-auto pb-12">
+      <RoleBand
+        eyebrow="Faculty profile"
+        title="Edit your profile"
+        titleId="faculty-edit-title"
+        meta="Manage your academic credentials, specialties and mentoring background."
+      />
 
       <ActionFeedback
         id="faculty-profile-save-feedback"
         feedback={saveAction.feedback}
       />
 
-      <form onSubmit={handleSave} className="flex flex-col gap-6 text-xs">
+      <div className="faculty-edit">
+      <nav className="faculty-nav" aria-label="Profile sections">
+        {FACULTY_SECTIONS.map((section) => (
+          <button
+            key={section.id}
+            type="button"
+            aria-current={activeSection === section.id}
+            onClick={() => {
+              setActiveSection(section.id);
+              document.getElementById(`faculty-section-${section.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >
+            <i className={`ti ${section.icon}`} aria-hidden="true" /> {section.label}
+          </button>
+        ))}
+      </nav>
+      <form onSubmit={handleSave} className="faculty-form">
         {/* Section 1: Professional Header & Academic Title */}
-        <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-            <GraduationCap className="h-4 w-4 text-[#C9A227]" />
-            1. Academic Title & Faculty Designation
-          </h3>
+        <section id="faculty-section-title" className="rh-panel faculty-card">
+          <h2 className="faculty-title">Title and designation</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="font-bold text-[var(--color-text-primary)] block mb-1">
                 Academic Title & Credentials
               </label>
               <input
@@ -564,7 +555,7 @@ export function FacultyProfileEditForm() {
                   setAcademicTitle(e.target.value);
                 }}
                 placeholder="e.g. Dr., Prof., Ph.D., PE, MSCS"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
+                className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
               />
               <span className="text-xs text-slate-400 mt-1 block">
                 Displayed beside your name (e.g. Dr. Jane Doe)
@@ -572,7 +563,7 @@ export function FacultyProfileEditForm() {
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="font-bold text-[var(--color-text-primary)] block mb-1">
                 Official Position / Faculty Designation
               </label>
               <input
@@ -583,12 +574,12 @@ export function FacultyProfileEditForm() {
                   setFacultyDesignation(e.target.value);
                 }}
                 placeholder="e.g. Associate Professor, Department Chair, Instructor"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
+                className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
               />
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="font-bold text-[var(--color-text-primary)] block mb-1">
                 Department / Office
               </label>
               <input
@@ -599,12 +590,12 @@ export function FacultyProfileEditForm() {
                   setDepartment(e.target.value);
                 }}
                 placeholder="e.g. Department of Information Technology"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
+                className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
               />
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="font-bold text-[var(--color-text-primary)] block mb-1">
                 Profile Photo URL (Optional)
               </label>
               <input
@@ -615,21 +606,18 @@ export function FacultyProfileEditForm() {
                   setPhotoUrl(e.target.value);
                 }}
                 placeholder="https://..."
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
+                className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
               />
             </div>
           </div>
-        </Card>
+        </section>
 
         {/* Section 2: Professional Summary & Mentoring Philosophy */}
-        <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-            <Lightbulb className="h-4 w-4 text-[#C9A227]" />
-            2. Professional Summary & Mentoring Philosophy
-          </h3>
+        <section id="faculty-section-summary" className="rh-panel faculty-card">
+          <h2 className="faculty-title">Summary</h2>
           <div className="space-y-4">
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="font-bold text-[var(--color-text-primary)] block mb-1">
                 Short Faculty Biography
               </label>
               <textarea
@@ -640,12 +628,12 @@ export function FacultyProfileEditForm() {
                   setBiography(e.target.value);
                 }}
                 placeholder="Introduce your academic background, areas of focus, and experience mentoring researchers."
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
+                className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
               />
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="font-bold text-[var(--color-text-primary)] block mb-1">
                 Teaching Background
               </label>
               <textarea
@@ -656,12 +644,12 @@ export function FacultyProfileEditForm() {
                   setTeachingBackground(e.target.value);
                 }}
                 placeholder="Courses taught, subject matter experience, or curriculum expertise."
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
+                className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
               />
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="font-bold text-[var(--color-text-primary)] block mb-1">
                 Research Mentoring Philosophy
               </label>
               <textarea
@@ -672,12 +660,12 @@ export function FacultyProfileEditForm() {
                   setMentoringPhilosophy(e.target.value);
                 }}
                 placeholder="How do you guide students through proposal defense, writing, and empirical methodology?"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
+                className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
               />
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="font-bold text-[var(--color-text-primary)] block mb-1">
                 Types of Projects Preferred
               </label>
               <input
@@ -688,19 +676,16 @@ export function FacultyProfileEditForm() {
                   setPreferredProjectTypes(e.target.value);
                 }}
                 placeholder="e.g. Applied web/mobile systems, IoT sensor networks, machine learning pipelines"
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
+                className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
               />
             </div>
           </div>
-        </Card>
+        </section>
 
         {/* Section 3: Educational Background (Repeatable) */}
-        <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
-            <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
-              <GraduationCap className="h-4 w-4 text-[#C9A227]" />
-              3. Educational Background & Degrees
-            </h3>
+        <section id="faculty-section-degrees" className="rh-panel faculty-card">
+          <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+            <h2 className="faculty-title">Degrees</h2>
             <Button
               variant="outline"
               size="sm"
@@ -721,7 +706,7 @@ export function FacultyProfileEditForm() {
               {educations.map((edu, idx) => (
                 <div
                   key={edu.id || idx}
-                  className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 relative"
+                  className="p-4 rounded-xl bg-[var(--color-surface-subtle)] border border-[var(--color-border)] relative"
                 >
                   <button
                     type="button"
@@ -734,7 +719,7 @@ export function FacultyProfileEditForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pr-8">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Degree Level
                       </label>
                       <select
@@ -742,7 +727,7 @@ export function FacultyProfileEditForm() {
                         onChange={(e) =>
                           updateEducation(idx, "degreeLevel", e.target.value)
                         }
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       >
                         <option value="BACHELORS">Bachelor's Degree</option>
                         <option value="MASTERS">Master's Degree</option>
@@ -753,7 +738,7 @@ export function FacultyProfileEditForm() {
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Degree Title
                       </label>
                       <input
@@ -763,12 +748,12 @@ export function FacultyProfileEditForm() {
                           updateEducation(idx, "degreeName", e.target.value)
                         }
                         placeholder="e.g. BS in Information Technology"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Institution / University
                       </label>
                       <input
@@ -778,12 +763,12 @@ export function FacultyProfileEditForm() {
                           updateEducation(idx, "institution", e.target.value)
                         }
                         placeholder="e.g. University of the Assumption"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Graduation Year
                       </label>
                       <input
@@ -797,7 +782,7 @@ export function FacultyProfileEditForm() {
                           )
                         }
                         placeholder="e.g. 2018"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
                   </div>
@@ -805,14 +790,11 @@ export function FacultyProfileEditForm() {
               ))}
             </div>
           )}
-        </Card>
+        </section>
 
         {/* Section 4: Areas of Expertise */}
-        <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-            <Award className="h-4 w-4 text-[#C9A227]" />
-            4. Areas of Expertise & Specialty Tags
-          </h3>
+        <section id="faculty-section-expertise" className="rh-panel faculty-card">
+          <h2 className="faculty-title">Expertise</h2>
           <p className="text-slate-500">
             Select standard academic specialties or add your own custom
             institution-approved disciplines.
@@ -828,8 +810,8 @@ export function FacultyProfileEditForm() {
                   onClick={() => toggleSpecialty(spec)}
                   className={`px-3 py-1.5 rounded-xl font-bold text-sm transition cursor-pointer border ${
                     isSelected
-                      ? "bg-[#0B3A53] text-white border-[#0B3A53] dark:bg-[#C9A227] dark:text-[#101b2b] dark:border-[#C9A227]"
-                      : "bg-slate-50 dark:bg-white/5 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-white/10 hover:border-[#0B3A53]"
+                      ? "bg-[var(--color-primary)] text-[var(--college-on-primary)] border-[var(--color-primary)] dark:bg-[#C9A227] dark:text-[#101b2b] dark:border-[#C9A227]"
+                      : "bg-[var(--color-surface-subtle)] text-[var(--color-text-primary)] border-[var(--color-border)] hover:border-[var(--color-primary)]"
                   }`}
                 >
                   {isSelected ? "✓ " : "+ "}
@@ -851,7 +833,7 @@ export function FacultyProfileEditForm() {
                 }
               }}
               placeholder="Add custom specialty tag..."
-              className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+              className="flex-1 px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
             />
             <Button
               type="button"
@@ -862,25 +844,22 @@ export function FacultyProfileEditForm() {
               Add Tag
             </Button>
           </div>
-        </Card>
+        </section>
 
         {/* Section 5: Research Interests & Supervision */}
-        <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-            <Lightbulb className="h-4 w-4 text-[#C9A227]" />
-            5. Research Interests & Thesis Topics
-          </h3>
+        <section id="faculty-section-interests" className="rh-panel faculty-card">
+          <h2 className="faculty-title">Research interests</h2>
 
           <div className="space-y-4">
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="font-bold text-[var(--color-text-primary)] block mb-1">
                 Preferred Research Fields
               </label>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {researchInterests.map((interest, idx) => (
                   <span
                     key={idx}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/10 font-bold"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--color-surface-subtle)] font-bold"
                   >
                     {interest}
                     <button
@@ -910,7 +889,7 @@ export function FacultyProfileEditForm() {
                     }
                   }}
                   placeholder="e.g. Natural Language Processing, Health Informatics..."
-                  className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                  className="flex-1 px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                 />
                 <Button
                   type="button"
@@ -924,14 +903,14 @@ export function FacultyProfileEditForm() {
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              <label className="font-bold text-[var(--color-text-primary)] block mb-1">
                 Specialized Thesis Topics Supervised
               </label>
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {specializedTopics.map((topic, idx) => (
                   <span
                     key={idx}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-white/10 font-bold"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--color-surface-subtle)] font-bold"
                   >
                     {topic}
                     <button
@@ -961,7 +940,7 @@ export function FacultyProfileEditForm() {
                     }
                   }}
                   placeholder="e.g. Weed detection via neural networks, Mobile microfinance security..."
-                  className="flex-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                  className="flex-1 px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                 />
                 <Button
                   type="button"
@@ -975,7 +954,7 @@ export function FacultyProfileEditForm() {
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1.5">
+              <label className="font-bold text-[var(--color-text-primary)] block mb-1.5">
                 Accepted Research Types
               </label>
               <div className="flex flex-wrap gap-2">
@@ -989,7 +968,7 @@ export function FacultyProfileEditForm() {
                       className={`px-3 py-1.5 rounded-xl font-bold text-sm transition border cursor-pointer ${
                         isChecked
                           ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800"
-                          : "bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/10"
+                          : "bg-[var(--color-surface-subtle)] text-[var(--color-text-secondary)] border-[var(--color-border)]"
                       }`}
                     >
                       {isChecked ? "✓ " : ""}
@@ -1000,15 +979,12 @@ export function FacultyProfileEditForm() {
               </div>
             </div>
           </div>
-        </Card>
+        </section>
 
         {/* Section 6: Professional & Academic Experience (Repeatable) */}
-        <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
-            <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
-              <Briefcase className="h-4 w-4 text-[#C9A227]" />
-              6. Professional & Teaching Experience
-            </h3>
+        <section id="faculty-section-experience" className="rh-panel faculty-card">
+          <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+            <h2 className="faculty-title">Experience</h2>
             <Button
               variant="outline"
               size="sm"
@@ -1029,7 +1005,7 @@ export function FacultyProfileEditForm() {
               {experiences.map((exp, idx) => (
                 <div
                   key={exp.id || idx}
-                  className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 relative space-y-3"
+                  className="p-4 rounded-xl bg-[var(--color-surface-subtle)] border border-[var(--color-border)] relative space-y-3"
                 >
                   <button
                     type="button"
@@ -1042,7 +1018,7 @@ export function FacultyProfileEditForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pr-8">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Type
                       </label>
                       <select
@@ -1050,7 +1026,7 @@ export function FacultyProfileEditForm() {
                         onChange={(e) =>
                           updateExperience(idx, "type", e.target.value)
                         }
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       >
                         <option value="TEACHING">Teaching / Academic</option>
                         <option value="INDUSTRY">Industry / Corporate</option>
@@ -1062,7 +1038,7 @@ export function FacultyProfileEditForm() {
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Job Title / Position
                       </label>
                       <input
@@ -1072,12 +1048,12 @@ export function FacultyProfileEditForm() {
                           updateExperience(idx, "title", e.target.value)
                         }
                         placeholder="e.g. Associate Professor"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Organization / Company
                       </label>
                       <input
@@ -1087,7 +1063,7 @@ export function FacultyProfileEditForm() {
                           updateExperience(idx, "organization", e.target.value)
                         }
                         placeholder="e.g. University of the Assumption"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
                   </div>
@@ -1095,7 +1071,7 @@ export function FacultyProfileEditForm() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex items-center gap-3">
                       <div className="flex-1">
-                        <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                        <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                           Start Year
                         </label>
                         <input
@@ -1105,11 +1081,11 @@ export function FacultyProfileEditForm() {
                             updateExperience(idx, "startYear", e.target.value)
                           }
                           placeholder="e.g. 2018"
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                          className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                         />
                       </div>
                       <div className="flex-1">
-                        <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                        <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                           End Year
                         </label>
                         <input
@@ -1120,19 +1096,19 @@ export function FacultyProfileEditForm() {
                             updateExperience(idx, "endYear", e.target.value)
                           }
                           placeholder="e.g. 2022"
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white disabled:opacity-50"
+                          className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)] disabled:opacity-50"
                         />
                       </div>
                     </div>
                     <div className="flex items-end pb-2">
-                      <label className="inline-flex items-center gap-2 cursor-pointer font-bold text-slate-700 dark:text-slate-300">
+                      <label className="inline-flex items-center gap-2 cursor-pointer font-bold text-[var(--color-text-primary)]">
                         <input
                           type="checkbox"
                           checked={exp.isCurrent}
                           onChange={(e) =>
                             updateExperience(idx, "isCurrent", e.target.checked)
                           }
-                          className="rounded border-slate-300 text-[#0B3A53]"
+                          className="rounded border-slate-300 text-[var(--color-text-primary)]"
                         />
                         Currently active in this role
                       </label>
@@ -1142,15 +1118,12 @@ export function FacultyProfileEditForm() {
               ))}
             </div>
           )}
-        </Card>
+        </section>
 
         {/* Section 7: Certifications & Licenses (Repeatable) */}
-        <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
-            <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-[#C9A227]" />
-              7. Professional Certifications & Licenses
-            </h3>
+        <section id="faculty-section-certifications" className="rh-panel faculty-card">
+          <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+            <h2 className="faculty-title">Certifications</h2>
             <Button
               variant="outline"
               size="sm"
@@ -1170,7 +1143,7 @@ export function FacultyProfileEditForm() {
               {certifications.map((cert, idx) => (
                 <div
                   key={cert.id || idx}
-                  className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 relative"
+                  className="p-4 rounded-xl bg-[var(--color-surface-subtle)] border border-[var(--color-border)] relative"
                 >
                   <button
                     type="button"
@@ -1183,7 +1156,7 @@ export function FacultyProfileEditForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pr-8">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Certification Title
                       </label>
                       <input
@@ -1193,12 +1166,12 @@ export function FacultyProfileEditForm() {
                           updateCertification(idx, "title", e.target.value)
                         }
                         placeholder="e.g. AWS Solutions Architect"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Issuing Body / Organization
                       </label>
                       <input
@@ -1212,12 +1185,12 @@ export function FacultyProfileEditForm() {
                           )
                         }
                         placeholder="e.g. Amazon Web Services"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Year Issued
                       </label>
                       <input
@@ -1231,7 +1204,7 @@ export function FacultyProfileEditForm() {
                           )
                         }
                         placeholder="e.g. 2023"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
                   </div>
@@ -1239,15 +1212,12 @@ export function FacultyProfileEditForm() {
               ))}
             </div>
           )}
-        </Card>
+        </section>
 
         {/* Section 8: Publications & Contributions (Repeatable) */}
-        <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
-            <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
-              <FileText className="h-4 w-4 text-[#C9A227]" />
-              8. Publications & Research Contributions
-            </h3>
+        <section id="faculty-section-publications" className="rh-panel faculty-card">
+          <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+            <h2 className="faculty-title">Publications</h2>
             <Button
               variant="outline"
               size="sm"
@@ -1267,7 +1237,7 @@ export function FacultyProfileEditForm() {
               {publications.map((pub, idx) => (
                 <div
                   key={pub.id || idx}
-                  className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 relative space-y-3"
+                  className="p-4 rounded-xl bg-[var(--color-surface-subtle)] border border-[var(--color-border)] relative space-y-3"
                 >
                   <button
                     type="button"
@@ -1280,7 +1250,7 @@ export function FacultyProfileEditForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-8">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Publication Title
                       </label>
                       <input
@@ -1290,12 +1260,12 @@ export function FacultyProfileEditForm() {
                           updatePublication(idx, "title", e.target.value)
                         }
                         placeholder="e.g. Machine Learning in Academic Advising"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Venue / Journal / Conference
                       </label>
                       <input
@@ -1305,14 +1275,14 @@ export function FacultyProfileEditForm() {
                           updatePublication(idx, "venue", e.target.value)
                         }
                         placeholder="e.g. IEEE Transactions on Education"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Year
                       </label>
                       <input
@@ -1322,12 +1292,12 @@ export function FacultyProfileEditForm() {
                           updatePublication(idx, "year", e.target.value)
                         }
                         placeholder="e.g. 2024"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         URL / DOI Link (Optional)
                       </label>
                       <input
@@ -1337,7 +1307,7 @@ export function FacultyProfileEditForm() {
                           updatePublication(idx, "url", e.target.value)
                         }
                         placeholder="https://doi.org/..."
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
                   </div>
@@ -1345,15 +1315,12 @@ export function FacultyProfileEditForm() {
               ))}
             </div>
           )}
-        </Card>
+        </section>
 
         {/* Section 9: Awards & Achievements (Repeatable) */}
-        <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/10 pb-3">
-            <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2">
-              <Award className="h-4 w-4 text-[#C9A227]" />
-              9. Awards & Professional Achievements
-            </h3>
+        <section id="faculty-section-awards" className="rh-panel faculty-card">
+          <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-3">
+            <h2 className="faculty-title">Awards</h2>
             <Button
               variant="outline"
               size="sm"
@@ -1373,7 +1340,7 @@ export function FacultyProfileEditForm() {
               {awards.map((award, idx) => (
                 <div
                   key={award.id || idx}
-                  className="p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 relative"
+                  className="p-4 rounded-xl bg-[var(--color-surface-subtle)] border border-[var(--color-border)] relative"
                 >
                   <button
                     type="button"
@@ -1386,7 +1353,7 @@ export function FacultyProfileEditForm() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pr-8">
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Award Title
                       </label>
                       <input
@@ -1396,12 +1363,12 @@ export function FacultyProfileEditForm() {
                           updateAward(idx, "title", e.target.value)
                         }
                         placeholder="e.g. Outstanding Faculty Researcher"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Conferring Organization
                       </label>
                       <input
@@ -1415,12 +1382,12 @@ export function FacultyProfileEditForm() {
                           )
                         }
                         placeholder="e.g. University of the Assumption"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
 
                     <div>
-                      <label className="font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                      <label className="font-bold text-[var(--color-text-secondary)] block mb-1">
                         Year Received
                       </label>
                       <input
@@ -1430,7 +1397,7 @@ export function FacultyProfileEditForm() {
                           updateAward(idx, "year", e.target.value)
                         }
                         placeholder="e.g. 2023"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)]"
                       />
                     </div>
                   </div>
@@ -1438,14 +1405,11 @@ export function FacultyProfileEditForm() {
               ))}
             </div>
           )}
-        </Card>
+        </section>
 
         {/* Section 10: Advising Preferences */}
-        <Card className="p-6 border border-[#DDE3E8] dark:border-white/10 shadow-sm flex flex-col gap-4">
-          <h3 className="text-lg font-extrabold text-[#0B3A53] dark:text-[#C9A227] flex items-center gap-2 border-b border-slate-100 dark:border-white/10 pb-3">
-            <CheckCircle2 className="h-4 w-4 text-[#C9A227]" />
-            10. Advising Preferences & Group Expectations
-          </h3>
+        <section id="faculty-section-preferences" className="rh-panel faculty-card">
+          <h2 className="faculty-title">Advising preferences</h2>
           <div>
             <textarea
               rows={3}
@@ -1455,13 +1419,14 @@ export function FacultyProfileEditForm() {
                 setAdvisingPreferences(e.target.value);
               }}
               placeholder="e.g. Requires weekly progress consultation; groups must submit drafts 48 hours prior to meetings; prefers teams using GitHub for version control."
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
+              className="w-full px-3 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-white)] dark:bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-hidden focus:ring-2 focus:ring-[#0B3A53]"
             />
           </div>
-        </Card>
+        </section>
 
         {/* Bottom Actions */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-white/10">
+        <div className="faculty-save">
+          {isDirty && <span className="faculty-save-note">Unsaved changes</span>}
           <Button
             type="button"
             variant="outline"
@@ -1493,10 +1458,11 @@ export function FacultyProfileEditForm() {
             }
             icon={<Save className="h-4 w-4" />}
           >
-            Save Profile Changes
+            Save changes
           </Button>
         </div>
       </form>
+      </div>
     </div>
   );
 }

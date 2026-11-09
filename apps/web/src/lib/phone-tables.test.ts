@@ -100,6 +100,23 @@ describe("phone table rows", () => {
     expect(revealPhoneRowTarget("row-action")).toBe(false);
   });
 
+  it("collapses opted-in grid lists and restores them", () => {
+    document.body.innerHTML = `<div data-phone-rows="1" data-phone-summary="2">
+      <div class="rs-row rs-row--head"><span>When</span><span>Event</span><span>Outcome</span><span></span></div>
+      <div class="rs-row"><span>Today</span><span>Login</span><span>Success</span><div class="rs-actions"><button data-guide="grid-action">Details</button></div></div>
+    </div>`;
+    const list = document.body.firstElementChild!;
+    const before = list.outerHTML;
+    enhancePhoneLayout(document.body);
+    const row = list.querySelectorAll(".rs-row")[1];
+    expect(Array.from(row.children).map((cell) => cell.getAttribute("data-phone-role"))).toEqual(["detail", "title", "summary", "actions"]);
+    expect(row.querySelectorAll(".phone-row-toggle")).toHaveLength(1);
+    expect(revealPhoneRowTarget("grid-action")).toBe(true);
+    expect(row.hasAttribute("data-phone-open")).toBe(true);
+    resetPhoneLayout(document.body);
+    expect(list.outerHTML).toBe(before);
+  });
+
   it("ignores Guide targets outside phone rows", () => {
     table();
     expect(revealPhoneRowTarget("row-action")).toBe(false);

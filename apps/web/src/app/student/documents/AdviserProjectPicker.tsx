@@ -61,7 +61,7 @@ export function AdviserProjectPicker({
 
   return (
     <div className="pk">
-      <section className="pd-hero" aria-labelledby="adviser-documents-title">
+      <section className="pd-hero phone-slim-picker" aria-labelledby="adviser-documents-title">
         {seal && (
           <span className="pd-hero-seal" aria-hidden="true">
             <img src={seal} alt="" draggable={false} />

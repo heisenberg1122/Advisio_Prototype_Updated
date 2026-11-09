@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Download, FileBarChart, RefreshCw } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import type {
   DeanReport,
@@ -9,7 +8,6 @@ import type {
 import {
   actionClass,
   panelClass,
-  filtersClass,
   inputClass,
   useDeanFilters,
   DefaultYear,
@@ -22,7 +20,13 @@ import {
   dateTime,
 } from "./DeanMonitoringShared";
 import { PhoneFilters } from "@/components/ui/PhoneFilters";
+import { RoleBand, plural } from "@/components/dashboards/RoleScreenParts";
 
+const reportDetails: Record<ReportType, { icon: string; hint: string }> = {
+  "research-progress": { icon: "ti-chart-line", hint: "Stage, progress and risk" },
+  "defense-outcomes": { icon: "ti-gavel", hint: "Released panel decisions" },
+  "adviser-workload": { icon: "ti-user-check", hint: "Assignments and capacity" },
+};
 const reports: Record<ReportType, string> = {
   "research-progress": "Research Progress",
   "defense-outcomes": "Defense Outcomes",
@@ -94,60 +98,65 @@ export function DeanReportsView() {
       setExporting(null);
     }
   }
+  const chooseReport = (next: ReportType) => {
+    setFeedback(null);
+    update({
+      report: next,
+      stageId: null,
+      defenseType: null,
+      from: null,
+      to: null,
+      status: null,
+      researchTypeId: null,
+      availability: null,
+    });
+  };
+  const mainSummary = (report?.summary || []).filter(
+    (item) => !item.label.startsWith("Stage: ") && !item.label.startsWith("Status: "),
+  );
+  const bandSummary = report && !reportQuery.isError ? mainSummary.slice(0, 4) : [];
+  const extraSummary = mainSummary.slice(4);
   return (
-    <main className="workspace-page mx-auto flex max-w-[1360px] flex-col gap-5 p-4 text-[var(--color-text-primary)] sm:p-6 lg:p-8">
+    <main className="workspace-page rs mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8">
       <DefaultYear
         scope={report?.scope}
         selected={query.academicYearId}
         set={update}
       />
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--color-primary)]">
-            <FileBarChart size={16} />
-            Dean’s Office
-          </div>
-          <h1 className="text-2xl font-extrabold sm:text-3xl">
-            Research Reports
-          </h1>
-          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
-            {report?.scope.college.name || user?.college?.name} · Review college
-            research and export filtered results.
-          </p>
-        </div>
-        <button onClick={() => reportQuery.refetch()} className={actionClass}>
-          <RefreshCw size={15} />
-          Refresh
-        </button>
-      </header>
-      <section className={`${filtersClass} phone-filter-section`} aria-label="Report filters">
-        <PhoneFilters guide="report-selection" title="Choose report and filters">
-        <FilterField label="Report">
-          <select
-            data-guide="report-selection"
-            value={type}
-            className={inputClass}
-            onChange={(e) => {
-              setFeedback(null);
-              update({
-                report: e.target.value,
-                stageId: null,
-                defenseType: null,
-                from: null,
-                to: null,
-                status: null,
-                researchTypeId: null,
-                availability: null,
-              });
-            }}
-          >
-            {Object.entries(reports).map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </FilterField>
+      <RoleBand
+        eyebrow="Research oversight"
+        title="Reports"
+        titleId="dean-reports-title"
+        meta={report ? `${reports[type]} · ${plural(report.total, "record", "records")} in the current filters` : `${reports[type]} · ${user?.college?.name || "your college"}`}
+        counts={bandSummary.map((item) => ({ label: item.label, value: item.value }))}
+        countsLabel="Report summary"
+        primary={{
+          label: exporting === "pdf" ? "Generating…" : "Export PDF",
+          icon: "ti-download",
+          disabled: !report || Boolean(exporting) || report.total > 5000,
+          onClick: () => void download("pdf"),
+        }}
+        secondary={[
+          {
+            label: exporting === "csv" ? "Generating…" : "Export CSV",
+            icon: "ti-file-spreadsheet",
+            guide: "de-report-export",
+            disabled: !report || Boolean(exporting) || report.total > 5000,
+            onClick: () => void download("csv"),
+          },
+          { label: "Refresh", icon: "ti-refresh", onClick: () => void reportQuery.refetch() },
+        ]}
+      />
+      <div className="rs-risks" role="group" aria-label="Choose a report" data-guide="report-selection">
+        {(Object.keys(reports) as ReportType[]).map((key) => (
+          <button key={key} type="button" className="rs-risk" aria-pressed={type === key} onClick={() => chooseReport(key)}>
+            <span className="rh-icon" aria-hidden="true"><i className={`ti ${reportDetails[key].icon}`} /></span>
+            <span className="rs-text"><strong>{reports[key]}</strong><small>{reportDetails[key].hint}</small></span>
+          </button>
+        ))}
+      </div>
+      <section className="rs-filter-card phone-filter-section" aria-label="Report filters">
+        <PhoneFilters title="Filter this report">
         <ScopeFilters
           scope={report?.scope}
           query={query}
@@ -246,7 +255,7 @@ export function DeanReportsView() {
           <section className={`${panelClass} p-5`}>
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-extrabold">{report.title}</h2>
+                <h2 className="text-[17px] font-semibold tracking-[-0.01em]">{report.title}</h2>
                 <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
                   Preview generated {dateTime(report.generatedAt)} ·{" "}
                   {report.timezone}
@@ -255,22 +264,6 @@ export function DeanReportsView() {
                   Exports include all {report.total.toLocaleString()} matching
                   rows. A later export may reflect updates since this preview.
                 </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {(["pdf", "csv"] as const).map((format) => (
-                  <button
-                    key={format}
-                    data-guide={format === "csv" ? "de-report-export" : undefined}
-                    className={actionClass}
-                    disabled={Boolean(exporting) || report.total > 5000}
-                    onClick={() => void download(format)}
-                  >
-                    <Download size={15} />
-                    {exporting === format
-                      ? "Generating…"
-                      : `Export ${format.toUpperCase()}`}
-                  </button>
-                ))}
               </div>
             </div>
             {report.total > 5000 && (
@@ -300,13 +293,7 @@ export function DeanReportsView() {
               ))}
             </dl>
           </section>
-          <SummaryCards
-            items={report.summary.filter(
-              (s) =>
-                !s.label.startsWith("Stage: ") &&
-                !s.label.startsWith("Status: "),
-            )}
-          />
+          {extraSummary.length > 0 && <SummaryCards items={extraSummary} />}
           {report.summary.some(
             (s) =>
               s.label.startsWith("Stage: ") || s.label.startsWith("Status: "),
@@ -376,11 +363,11 @@ export function DeanReportsView() {
             className={`${panelClass} overflow-hidden`}
           >
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px] text-left text-sm">
-                <thead className="bg-[var(--color-surface-muted)] text-xs text-[var(--color-text-secondary)]">
+              <table className="rs-native-table">
+                <thead>
                   <tr>
                     {report.columns.map((c) => (
-                      <th scope="col" key={c.key} className="px-4 py-3">
+                      <th scope="col" key={c.key}>
                         {c.label}
                       </th>
                     ))}
@@ -390,10 +377,7 @@ export function DeanReportsView() {
                   {report.rows.map((r, i) => (
                     <tr key={String(r.id ?? i)}>
                       {report.columns.map((c) => (
-                        <td
-                          key={c.key}
-                          className="max-w-xs break-words px-4 py-3 align-top"
-                        >
+                        <td key={c.key}>
                           {r[c.key] ?? "—"}
                         </td>
                       ))}

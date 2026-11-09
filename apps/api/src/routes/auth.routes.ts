@@ -19,11 +19,13 @@ import {
   prisma,
   type AppearancePreference,
   type ColorThemePreference,
+  type HeadingFontPreference,
 } from "../lib/prisma.js";
 import { researchInterestsForProgram } from "@research-management/database";
 import {
   effectiveColorThemePreference,
   parseColorThemePreference,
+  parseHeadingFontPreference,
 } from "../lib/appearance-preference.js";
 import {
   loginSchema,
@@ -848,6 +850,7 @@ router.get("/me", requireProfileAuth, (req: Request, res: Response) => {
           user.colorThemePreference,
           req.user.roles,
         ),
+        headingFontPreference: user.headingFontPreference,
         roles: req.user.roles,
         permissions: req.user.permissions,
       },
@@ -879,9 +882,14 @@ router.patch(
         "colorThemePreference",
       );
 
-      if (!hasAppearancePreference && !hasColorThemePreference) {
+      const hasHeadingFontPreference = Object.prototype.hasOwnProperty.call(
+        req.body,
+        "headingFontPreference",
+      );
+
+      if (!hasAppearancePreference && !hasColorThemePreference && !hasHeadingFontPreference) {
         res.status(400).json({
-          error: "Provide an appearance or color theme preference.",
+          error: "Provide an appearance, color theme, or heading font preference.",
         });
         return;
       }
@@ -910,7 +918,19 @@ router.patch(
           parseColorThemePreference(req.body.colorThemePreference) || undefined;
         if (!requestedColorTheme) {
           res.status(400).json({
-            error: "Color theme must be DEFAULT_ADVISIO or COLLEGE_PROGRAM.",
+            error: "Color theme must be DEFAULT_ADVISIO, COLLEGE_PROGRAM, or COLLEGE_SOFT.",
+          });
+          return;
+        }
+      }
+
+      let headingFontPreference: HeadingFontPreference | undefined;
+      if (hasHeadingFontPreference) {
+        headingFontPreference =
+          parseHeadingFontPreference(req.body.headingFontPreference) || undefined;
+        if (!headingFontPreference) {
+          res.status(400).json({
+            error: "Heading font must be STANDARD or SERIF.",
           });
           return;
         }
@@ -928,8 +948,9 @@ router.patch(
           ...(hasColorThemePreference || req.user.roles.includes("SYSTEM_ADMIN")
             ? { colorThemePreference }
             : {}),
+          ...(headingFontPreference ? { headingFontPreference } : {}),
         },
-        select: { appearancePreference: true, colorThemePreference: true },
+        select: { appearancePreference: true, colorThemePreference: true, headingFontPreference: true },
       });
 
       res.json({
@@ -938,6 +959,7 @@ router.patch(
           user.colorThemePreference,
           req.user.roles,
         ),
+        headingFontPreference: user.headingFontPreference,
       });
     } catch {
       res

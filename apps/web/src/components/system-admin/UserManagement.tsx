@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiError } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/Button";
 import { PhoneFilters } from "@/components/ui/PhoneFilters";
 import { UserDetailsModal } from "./UserDetailsModal";
 import { AccountInvitations, InviteAccountDialog } from "./AccountInvitations";
+import { EmptyNote, SegmentedSwitch, StatusDot, type StatusTone } from "@/components/ui/advisio";
+import { FilterChips, RoleBand, SearchField, initials } from "@/components/dashboards/RoleScreenParts";
 import "./user-management.css";
+import "./system-admin.css";
 
 type RoleName =
   | "RESEARCHER"
@@ -46,16 +49,94 @@ const roleLabels: Record<RoleName, string> = {
 
 const isAssignableRole = (role: RoleName) => role !== "SYSTEM_ADMIN";
 
-const statusTone: Record<User["status"], string> = {
-  ACTIVE:
-    "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/40 dark:bg-emerald-950/40 dark:text-emerald-300",
-  PENDING:
-    "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800/40 dark:bg-amber-950/40 dark:text-amber-300",
-  SUSPENDED:
-    "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800/40 dark:bg-rose-950/40 dark:text-rose-300",
-  INACTIVE:
-    "border-slate-200 bg-slate-100 text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-300",
-};
+const statusDotTone: Record<User["status"], StatusTone> = { ACTIVE: "done", PENDING: "waiting", SUSPENDED: "attention", INACTIVE: "neutral" };
+const statusLabels: Record<User["status"], string> = { ACTIVE: "Active", PENDING: "Pending", SUSPENDED: "Suspended", INACTIVE: "Archived" };
+
+function UserActionsMenu({
+  name,
+  canSuspend,
+  canArchive,
+  blocked,
+  isSelf,
+  onDetails,
+  onRoles,
+  onCollege,
+  onSuspend,
+  onArchive,
+}: {
+  name: string;
+  canSuspend: boolean;
+  canArchive: boolean;
+  blocked: boolean;
+  isSelf: boolean;
+  onDetails: () => void;
+  onRoles: () => void;
+  onCollege: () => void;
+  onSuspend: () => void;
+  onArchive: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState<React.CSSProperties>({});
+  const wrap = useRef<HTMLSpanElement>(null);
+  const toggle = (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (open) return setOpen(false);
+    // Fixed to the viewport so scrolling page areas cannot clip the menu.
+    const box = event.currentTarget.getBoundingClientRect();
+    const menuHeight = 216;
+    const below = window.innerHeight - box.bottom > menuHeight + 12;
+    setPlace({
+      position: "fixed",
+      right: Math.max(8, window.innerWidth - box.right),
+      ...(below ? { top: box.bottom + 6 } : { bottom: window.innerHeight - box.top + 6 }),
+      left: "auto",
+    });
+    setOpen(true);
+  };
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent) => {
+      if (!wrap.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      wrap.current?.querySelector("button")?.focus();
+    };
+    const onMove = () => setOpen(false);
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onMove, true);
+    window.addEventListener("resize", onMove);
+    return () => {
+      window.removeEventListener("scroll", onMove, true);
+      window.removeEventListener("resize", onMove);
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const choose = (action: () => void) => () => {
+    setOpen(false);
+    action();
+  };
+  return (
+    <span className="sa-menu-wrap" ref={wrap}>
+      <button type="button" className="rs-icon-btn" aria-label={`More actions for ${name}`} aria-expanded={open} onClick={toggle}>
+        <i className="ti ti-dots" aria-hidden="true" />
+      </button>
+      <div className="sa-menu" hidden={!open} style={place}>
+        <button type="button" onClick={choose(onDetails)}><i className="ti ti-id" aria-hidden="true" />View details</button>
+        <button type="button" onClick={choose(onRoles)}><i className="ti ti-shield-check" aria-hidden="true" />Manage roles</button>
+        <button type="button" onClick={choose(onCollege)}><i className="ti ti-building" aria-hidden="true" />Assign college</button>
+        {canSuspend && (
+          <button type="button" data-tone="danger" disabled={blocked} title={isSelf ? "You cannot suspend your own account" : "Block sign-in while preserving records"} onClick={choose(onSuspend)}><i className="ti ti-ban" aria-hidden="true" />Suspend</button>
+        )}
+        {canArchive && (
+          <button type="button" data-tone="danger" disabled={blocked} onClick={choose(onArchive)}><i className="ti ti-archive" aria-hidden="true" />Archive</button>
+        )}
+      </div>
+    </span>
+  );
+}
 
 type Dialog = {
   type: "approve" | "roles" | "college" | "suspend" | "archive";
@@ -143,6 +224,11 @@ export function UserManagement({
       );
     });
   }, [usersQuery.data, search, roleFilter, statusFilter, archivedView]);
+
+  const currentUsers = (usersQuery.data?.users || []).filter((user) => user.status !== "INACTIVE");
+  const countStatus = (status: User["status"]) => currentUsers.filter((user) => user.status === status).length;
+  const pendingCount = countStatus("PENDING");
+  const sortedUsers = [...filteredUsers].sort((a, b) => Number(b.status === "PENDING") - Number(a.status === "PENDING"));
 
   const openDialog = (type: NonNullable<Dialog>["type"], user: User) => {
     setDialog({ type, user });
@@ -307,262 +393,129 @@ export function UserManagement({
   };
 
   return (
-    <div className="admin-users space-y-5">
-      <section className="admin-users__panel rounded-2xl border border-slate-200/80 bg-white dark:border-white/10 dark:bg-[#101b2b] shadow-xs">
-        <div className="workspace-page-header workspace-page-header--inset admin-users__header border-b border-slate-100 dark:border-white/5 p-5">
-          <div className="admin-users__header-content flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="admin-users__title-row">
-                <h2 className="text-lg font-black text-slate-900 dark:text-white">
-                  User Management
-                </h2>
-                {!invitationView && <span className="admin-users__count">{filteredUsers.length} accounts</span>}
-                <Button data-guide="sa-invite-user" onClick={() => { setInviteTarget(undefined); setInviteOpen(true); }}>Invite user</Button>
-              </div>
-              <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
-                Verify accounts, assign multiple institutional roles, suspend
-                access, and archive accounts while preserving their records and
-                files.
-              </p>
-            </div>
-            {!invitationView && <div className="admin-users__filters phone-filter-bar grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <input
-                aria-label="Search users"
-                data-guide="sa-user-search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search name, email, or ID"
-                className="min-w-64 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/5 px-3 py-2 text-base text-slate-900 dark:text-white outline-none focus:border-[#0B3A53]"
-              />
-              <PhoneFilters
-                title="Filter accounts"
-                activeCount={Number(roleFilter !== "ALL") + Number(!archivedView && statusFilter !== "ALL")}
-                onClear={() => { setRoleFilter("ALL"); if (!archivedView) setStatusFilter("ALL"); }}
-              >
-              <select
-                aria-label="Filter by role"
-                value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value)}
-                className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white px-3 py-2 text-base"
-              >
+    <div className="admin-users rs">
+      <RoleBand
+        eyebrow="System administration"
+        title="Users"
+        titleId="sa-users-title"
+        meta={`${pendingCount} ${pendingCount === 1 ? "account needs" : "accounts need"} verification · assign roles, colleges and access here`}
+        phoneStatus={pendingCount ? `${pendingCount} ${pendingCount === 1 ? "account needs" : "accounts need"} verification` : undefined}
+        counts={[
+          { label: "Accounts", value: currentUsers.length },
+          { label: "Active", value: countStatus("ACTIVE") },
+          { label: "To approve", value: pendingCount, tone: pendingCount ? "waiting" : undefined },
+          { label: "Suspended", value: countStatus("SUSPENDED") },
+        ]}
+        countsLabel="Account summary"
+        primary={{ label: "Invite user", icon: "ti-user-plus", guide: "sa-invite-user", onClick: () => { setInviteTarget(undefined); setInviteOpen(true); } }}
+      />
+      <div className="rs-tools">
+        <SegmentedSwitch
+          label="User account views"
+          value={invitationView ? "invites" : archivedView ? "archived" : "current"}
+          onChange={(view) => {
+            setInvitationView(view === "invites");
+            setArchivedView(view === "archived");
+            if (view !== "archived" && statusFilter === "INACTIVE") setStatusFilter("ALL");
+          }}
+          options={[
+            { value: "current", label: "Current users" },
+            { value: "archived", label: "Archived users" },
+            { value: "invites", label: "Invitations" },
+          ]}
+        />
+        {!invitationView && (
+          <div className="rs-tools-end phone-filter-bar">
+            <SearchField value={search} onChange={setSearch} placeholder="Search name, email, or ID" guide="sa-user-search" tour={false} />
+            <PhoneFilters title="Filter accounts" activeCount={Number(roleFilter !== "ALL")} onClear={() => setRoleFilter("ALL")}>
+              <select aria-label="Filter by role" className="rs-select" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
                 <option value="ALL">All categories</option>
                 {rolesQuery.data?.roles.map((role) => (
-                  <option key={role.id} value={role.name}>
-                    {roleLabels[role.name]}
-                  </option>
+                  <option key={role.id} value={role.name}>{roleLabels[role.name]}</option>
                 ))}
               </select>
-              <select
-                aria-label="Filter by account status"
-                disabled={archivedView}
-                value={archivedView ? "INACTIVE" : statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                className="rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#101b2b] text-slate-900 dark:text-white px-3 py-2 text-base"
-              >
-                <option value="ALL">All statuses</option>
-                <option value="PENDING">Pending verification</option>
-                <option value="ACTIVE">Active</option>
-                <option value="SUSPENDED">Suspended</option>
-                {archivedView && <option value="INACTIVE">Archived</option>}
-              </select>
-              </PhoneFilters>
-            </div>}
+            </PhoneFilters>
           </div>
-        </div>
-
-        <div
-          className="admin-users__views flex flex-wrap gap-2 border-b border-slate-100 p-5 dark:border-white/5"
-          role="group"
-          aria-label="User account views"
-        >
-          <Button
-            variant={archivedView || invitationView ? "secondary" : "primary"}
-            aria-pressed={!archivedView && !invitationView}
-            onClick={() => {
-              setArchivedView(false);
-              setInvitationView(false);
-              if (statusFilter === "INACTIVE") setStatusFilter("ALL");
-            }}
-          >
-            Current users
-          </Button>
-          <Button
-            variant={archivedView ? "primary" : "secondary"}
-            aria-pressed={archivedView && !invitationView}
-            onClick={() => { setArchivedView(true); setInvitationView(false); }}
-          >
-            Archived users
-          </Button>
-          <Button variant={invitationView ? "primary" : "secondary"} aria-pressed={invitationView} onClick={() => { setInvitationView(true); setArchivedView(false); }}>Invitations</Button>
-        </div>
-        {archivedView && (
-          <p className="px-5 pt-4 text-sm text-slate-500">
-            Archived accounts cannot sign in. Their records and files are
-            preserved. Verify identity before restoring access.
-          </p>
         )}
-
-        <ActionFeedback feedback={feedback} className="m-5" />
-
-        {invitationView ? <AccountInvitations /> : usersQuery.isLoading ? (
-          <div className="p-5">
-            <TableSkeleton rows={5} columns={7} />
-          </div>
-        ) : usersQuery.isError ? (
-          <div className="m-5 rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/40 p-5 text-center text-xs text-rose-700 dark:text-rose-300">
-            <p>
-              {usersQuery.error instanceof Error
-                ? usersQuery.error.message
-                : "Users could not be loaded."}
-            </p>
-            <button
-              onClick={() => void usersQuery.refetch()}
-              className="mt-2 font-bold underline"
-            >
-              Try again
-            </button>
-          </div>
-        ) : (
-          <div className="admin-users__table-scroll overflow-x-auto" role="region" aria-label="User accounts" tabIndex={0}>
-            <table data-phone-title="1" data-phone-summary="4" className="admin-users__table w-full min-w-[1050px] text-left text-sm">
-              <caption className="sr-only">User accounts, roles, academic assignments, status, and available account actions.</caption>
-              <thead className="bg-slate-50 dark:bg-white/[0.02] text-xs uppercase tracking-wider text-slate-400 font-black">
-                <tr>
-                  {[
-                    "ID",
-                    "User",
-                    "Category / Roles",
-                    "College / Program",
-                    "Status",
-                    "Last login",
-                    "Actions",
-                  ].map((heading) => (
-                    <th key={heading} scope="col" className="px-5 py-3 font-extrabold">
-                      {heading}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                {filteredUsers.map((user) => (
-                  <tr
-                    key={user.id}
-                    className="align-top hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors"
-                  >
-                    <td className="px-5 py-4 font-mono font-bold text-[#0B3A53] dark:text-[#C9A227]">
-                      {user.universityId}
-                    </td>
-                    <td className="px-5 py-4">
-                      <p className="font-extrabold text-slate-900 dark:text-white">
-                        {user.firstName}{" "}
-                        {user.middleName ? `${user.middleName} ` : ""}
-                        {user.lastName}
-                      </p>
-                      <p className="readable-metadata mt-0.5 text-base">
-                        {user.email}
-                      </p>
-                    </td>
-                    <td className="max-w-xs px-5 py-4">
-                      <div className="flex flex-wrap gap-1.5">
-                        {user.roles.map((item) => (
-                          <span
-                            key={item.role.id}
-                            className="rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 px-2.5 py-1 text-xs font-extrabold"
-                          >
-                            {roleLabels[item.role.name]}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      <p className="font-bold text-slate-700 dark:text-slate-300">
-                        {user.college?.code || "—"}
-                      </p>
-                      <p className="text-base text-slate-400">
-                        {user.program?.code || "No program"}
-                      </p>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span
-                        className={`rounded-full border px-2.5 py-1 text-xs font-extrabold ${statusTone[user.status]}`}
-                      >
-                        {user.status === "INACTIVE" ? "ARCHIVED" : user.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-xs text-slate-500 dark:text-slate-400">
-                      {user.lastLoginAt
-                        ? new Date(user.lastLoginAt).toLocaleString()
-                        : "Never"}
-                    </td>
-                    <td className="px-5 py-4">
-                      <div className="admin-users__actions flex flex-wrap gap-2">
-                        <button
-                          onClick={() => setDetailsUserId(user.id)}
-                          className="rounded-lg bg-[#0B3A53] px-3 py-1.5 font-bold text-white hover:bg-[#154d68]"
-                        >
-                          View details
-                        </button>
-                        {user.status !== "ACTIVE" && (
-                          <button
-                            onClick={() => openDialog("approve", user)}
-                            className="rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-3 py-1.5 font-extrabold text-white transition"
-                          >
-                            {user.status === "SUSPENDED" ||
-                            user.status === "INACTIVE"
-                              ? "Verify & restore"
-                              : "Verify & approve"}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => openDialog("roles", user)}
-                          className="rounded-lg border border-slate-200 dark:border-white/10 px-3 py-1.5 font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5"
-                        >
-                          Manage roles
-                        </button>
-                        <button
-                          onClick={() => openDialog("college", user)}
-                          className="rounded-lg border border-slate-200 dark:border-white/10 px-3 py-1.5 font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5"
-                        >
-                          Assign college
-                        </button>
-                        {user.status !== "SUSPENDED" &&
-                          user.status !== "INACTIVE" && (
-                            <button
-                              onClick={() => openDialog("suspend", user)}
-                              disabled={user.id === signedInUser?.id || working}
-                              title={
-                                user.id === signedInUser?.id
-                                  ? "You cannot suspend your own account"
-                                  : "Block sign-in while preserving records"
-                              }
-                              className="rounded-lg border border-amber-300 dark:border-amber-900/40 px-3 py-1.5 font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 disabled:opacity-50"
-                            >
-                              Suspend
-                            </button>
-                          )}
-                        {user.status !== "INACTIVE" && (
-                          <button
-                            disabled={user.id === signedInUser?.id || working}
-                            onClick={() => openDialog("archive", user)}
-                            className="rounded-lg border border-slate-200 px-3 py-1.5 font-bold text-slate-600 hover:bg-slate-50 dark:border-white/10 dark:text-slate-300 dark:hover:bg-white/5 disabled:opacity-50"
-                          >
-                            Archive
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredUsers.length === 0 && (
-              <div className="p-10 text-center text-xs text-slate-500 dark:text-slate-400">
-                No users match the selected filters.
+      </div>
+      {!invitationView && !archivedView && (
+        <FilterChips
+          label="Filter by account status"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: "ALL", label: "All", count: currentUsers.length },
+            { value: "PENDING", label: "Pending verification", count: pendingCount },
+            { value: "ACTIVE", label: "Active", count: countStatus("ACTIVE") },
+            { value: "SUSPENDED", label: "Suspended", count: countStatus("SUSPENDED") },
+          ]}
+        />
+      )}
+      {archivedView && <p className="rs-note">Archived accounts cannot sign in. Their records and files are preserved. Verify identity before restoring access.</p>}
+      <ActionFeedback feedback={feedback} />
+      {invitationView ? (
+        <div className="rs-table"><AccountInvitations /></div>
+      ) : usersQuery.isLoading ? (
+        <div className="rs-table" style={{ padding: 16 }}><TableSkeleton rows={5} columns={6} /></div>
+      ) : usersQuery.isError ? (
+        <div className="rs-empty-card" role="alert">
+          <EmptyNote
+            layout="row"
+            tone="problem"
+            icon="ti-alert-circle"
+            title={usersQuery.error instanceof Error ? usersQuery.error.message : "Users could not be loaded."}
+            action={<button type="button" className="au-link" onClick={() => void usersQuery.refetch()}>Try again</button>}
+          />
+        </div>
+      ) : sortedUsers.length ? (
+        <div className="rs-table sa-users-table" data-phone-rows="0" data-phone-summary="3" role="region" aria-label="User accounts" style={{ "--rs-cols": "minmax(0,1.6fr) minmax(0,1.1fr) 92px 100px 124px 176px" } as React.CSSProperties}>
+          <div className="rs-row rs-row--head"><span>User</span><span>Roles</span><span>College</span><span>Status</span><span>Last login</span><span /></div>
+          {sortedUsers.map((user) => {
+            const name = `${user.firstName} ${user.middleName ? `${user.middleName} ` : ""}${user.lastName}`;
+            const isSelf = user.id === signedInUser?.id;
+            return (
+              <div key={user.id} className={`rs-row rs-row--hover${user.status === "PENDING" ? " rs-row--tint" : ""}`}>
+                <div className="rs-who">
+                  <span className="rs-avatar" aria-hidden="true">{initials(`${user.firstName} ${user.lastName}`)}</span>
+                  <span className="rs-text"><strong>{name}</strong><small>{user.universityId} · {user.email}</small></span>
+                </div>
+                <span className="sa-roles rs-wide">
+                  {user.roles.map((item) => <span key={item.role.id} className="sa-role">{roleLabels[item.role.name]}</span>)}
+                </span>
+                <span className="rs-text rs-hide-small">
+                  <strong data-weight="normal">{user.college?.code || "—"}</strong>
+                  <small>{user.program?.code || "No program"}</small>
+                </span>
+                <StatusDot tone={statusDotTone[user.status]}>{statusLabels[user.status]}</StatusDot>
+                <span className="rs-note rs-hide-small">{user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "Never"}</span>
+                <div className="rs-actions">
+                  {user.status !== "ACTIVE" && (
+                    <button type="button" className="rs-primary" onClick={() => openDialog("approve", user)}>
+                      {user.status === "PENDING" ? "Verify & approve" : "Verify & restore"}
+                    </button>
+                  )}
+                  <UserActionsMenu
+                    name={name}
+                    canSuspend={user.status !== "SUSPENDED" && user.status !== "INACTIVE"}
+                    canArchive={user.status !== "INACTIVE"}
+                    blocked={isSelf || working}
+                    isSelf={isSelf}
+                    onDetails={() => setDetailsUserId(user.id)}
+                    onRoles={() => openDialog("roles", user)}
+                    onCollege={() => openDialog("college", user)}
+                    onSuspend={() => openDialog("suspend", user)}
+                    onArchive={() => openDialog("archive", user)}
+                  />
+                </div>
               </div>
-            )}
-          </div>
-        )}
-      </section>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rs-empty-card">
+          <EmptyNote layout="row" icon="ti-search" title="No users match the selected filters" text="Try another filter or clear your search." />
+        </div>
+      )}
 
       {inviteOpen ? <InviteAccountDialog initialUser={inviteTarget} users={usersQuery.data?.users || []} colleges={collegesQuery.data?.colleges || []} onClose={() => setInviteOpen(false)} onSent={(message) => { setInviteOpen(false); setInvitationView(true); setArchivedView(false); setFeedback({ tone: "success", message }); }} onManageExisting={(id) => { const existing = usersQuery.data?.users.find((user) => user.id === id); if (existing) { setInviteOpen(false); openDialog("roles", existing); } }} /> : null}
 

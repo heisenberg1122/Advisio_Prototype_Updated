@@ -153,6 +153,8 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
     collegeTheme,
     assignedCollegeTheme,
     colorThemePreference,
+    headingFontPreference,
+    setHeadingFontPreference,
     setColorThemePreference,
   } = useTheme();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -504,7 +506,7 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
                     <p>
                       {isSystemAdministrator
                         ? "System Administrators always use the original University of the Assumption-inspired Advisio theme."
-                        : "Use your college or program colors, or the original Advisio palette."}
+                        : "Use your college or program colors, a softer version of them, or the original Advisio palette."}
                     </p>
                   </div>
                 </div>
@@ -526,6 +528,39 @@ export default function AccountSettingsPage({ guideTarget }: { guideTarget?: str
                     <strong>{assignedCollegeTheme.key === "default" ? "College / program" : assignedCollegeTheme.name}</strong>
                     <span>{assignedCollegeTheme.key === "default" ? "No college or program theme is assigned" : "Your college or program colors"}</span>
                     {colorThemePreference === "COLLEGE_PROGRAM" && <span className="as-in-use"><Check className="h-3.5 w-3.5" aria-hidden="true" /> In use</span>}
+                  </button>
+                  <button
+                    type="button"
+                    className="as-theme"
+                    aria-pressed={colorThemePreference === "COLLEGE_SOFT"}
+                    disabled={isSystemAdministrator || assignedCollegeTheme.key === "default"}
+                    onClick={() => setColorThemePreference("COLLEGE_SOFT")}
+                  >
+                    {themeSwatch(`color-mix(in oklab, ${assignedCollegeTheme.referenceColor} 40%, #545e6c)`)}
+                    <strong>Soft college</strong>
+                    <span>Your college color, quiet and easy on the eyes</span>
+                    {colorThemePreference === "COLLEGE_SOFT" && <span className="as-in-use"><Check className="h-3.5 w-3.5" aria-hidden="true" /> In use</span>}
+                  </button>
+                </div>
+
+                <div className="as-section-head as-section-gap">
+                  <div>
+                    <h2>Heading font</h2>
+                    <p>Choose how page titles and section headings look.</p>
+                  </div>
+                </div>
+                <div className="as-themes">
+                  <button type="button" className="as-theme" aria-pressed={headingFontPreference === "STANDARD"} onClick={() => setHeadingFontPreference("STANDARD")}>
+                    <span className="as-font-sample" aria-hidden="true">Good day</span>
+                    <strong>Standard</strong>
+                    <span>Clean and modern</span>
+                    {headingFontPreference === "STANDARD" && <span className="as-in-use"><Check className="h-3.5 w-3.5" aria-hidden="true" /> In use</span>}
+                  </button>
+                  <button type="button" className="as-theme" aria-pressed={headingFontPreference === "SERIF"} onClick={() => setHeadingFontPreference("SERIF")}>
+                    <span className="as-font-sample as-font-sample--serif" aria-hidden="true">Good day</span>
+                    <strong>Serif</strong>
+                    <span>Scholarly titles and section headings</span>
+                    {headingFontPreference === "SERIF" && <span className="as-in-use"><Check className="h-3.5 w-3.5" aria-hidden="true" /> In use</span>}
                   </button>
                 </div>
 

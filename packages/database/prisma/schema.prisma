@@ -41,6 +41,12 @@ enum AppearancePreference {
 enum ColorThemePreference {
   DEFAULT_ADVISIO
   COLLEGE_PROGRAM
+  COLLEGE_SOFT
+}
+
+enum HeadingFontPreference {
+  STANDARD
+  SERIF
 }
 
 enum ResearcherDegreeLevel {
@@ -529,6 +535,7 @@ model User {
   programId                String?              @map("program_id") @db.Uuid
   appearancePreference     AppearancePreference @default(SYSTEM) @map("appearance_preference")
   colorThemePreference     ColorThemePreference @default(COLLEGE_PROGRAM) @map("color_theme_preference")
+  headingFontPreference    HeadingFontPreference @default(STANDARD) @map("heading_font_preference")
   status                   UserStatus           @default(PENDING)
   maxAdviseeGroups         Int                  @default(5) @map("max_advisee_groups")
   isAcceptingAdvisees      Boolean              @default(true) @map("is_accepting_advisees")

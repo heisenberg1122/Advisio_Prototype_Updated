@@ -12,6 +12,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { getAcademicIdentity } from "@/lib/academic-identity";
 import { DefenseReadiness } from "./DefenseReadiness";
 import "./researcher-defense.css";
+import "../student-screens.css";
+import { RoleBand } from "@/components/dashboards/RoleScreenParts";
 
 const activeStatuses = new Set([
   "LIVE",
@@ -67,86 +69,87 @@ export default function DefensePage() {
   if (isPending) return <DefenseSkeleton />;
   if (isError || !data)
     return (
-      <div className="researcher-defense rdf-fallback">
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700">
-          <h1 data-guide="researcher-defense-empty" className="font-extrabold">
-            Defense information could not be loaded.
-          </h1>
-          <p className="mt-1">
-            {error instanceof Error ? error.message : "Please try again."}
-          </p>
-          <button
-            type="button"
-            onClick={() => refetch()}
-            className="mt-3 font-extrabold underline"
-          >
-            Retry
-          </button>
+      <div className="rs mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8">
+        <RoleBand eyebrow="Research defense" title="Your defense" titleId="student-defense-title" guide="researcher-defense-empty" meta="We couldn't load your defense information." />
+        <div className="stu-notice" data-tone="attention" role="alert">
+          <i className="ti ti-alert-circle" aria-hidden="true" />
+          <div className="stu-notice-text">
+            <strong>Defense information could not be loaded</strong>
+            <span>{error instanceof Error ? error.message : "Please try again."}</span>
+          </div>
+          <button type="button" className="rh-secondary" onClick={() => refetch()}>Try again</button>
         </div>
       </div>
     );
   if (!data.project)
     return (
-      <div className="researcher-defense rdf-fallback">
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <i className="ti ti-presentation-off text-4xl text-slate-300" />
-          <h1 data-guide="researcher-defense-empty" className="mt-3 text-2xl font-extrabold text-[var(--color-text-primary)]">
-            {data.projects.length
-              ? "Select a research project"
-              : "No research project yet"}
-          </h1>
-          <p className="mt-2 text-base text-slate-500">
-            {projectSelection.invalidRequestedProjectId
+      <div className="rs mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8">
+        <RoleBand
+          eyebrow="Research defense"
+          title="Your defense"
+          titleId="student-defense-title"
+          guide="researcher-defense-empty"
+          meta={
+            projectSelection.invalidRequestedProjectId
               ? "That project is unavailable or you do not have access to it."
               : data.projects.length
-                ? "Choose which project's defense information to view."
-                : "Create or join a research project before tracking its defense."}
-          </p>
-          {data.projects.length ? (
-            <select
-              aria-label="Research project"
-              value=""
-              onChange={(event) =>
-                projectSelection.selectProject(event.target.value || null)
-              }
-              className="mx-auto mt-5 block h-11 w-full max-w-xl rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 text-base font-semibold"
-            >
-              <option value="">Choose a research project</option>
+                ? "Choose which project's defense to view."
+                : "Track schedules, panel and results here once you have a project."
+          }
+        />
+        {data.projects.length ? (
+          <section className="rh-panel" aria-labelledby="student-defense-pick">
+            <div className="rh-head"><h2 id="student-defense-pick">Select a research project</h2></div>
+            <ul className="rh-rows">
               {data.projects.map((project: any) => (
-                <option key={project.id} value={project.id}>
-                  {project.groupName || project.title}
-                </option>
+                <li key={project.id}>
+                  <div className="rh-row">
+                    <span className="rh-icon" aria-hidden="true"><i className="ti ti-folder" /></span>
+                    <div className="rh-text">
+                      <h3>{project.groupName || project.title}</h3>
+                      {project.groupName && project.title && <p>{project.title}</p>}
+                    </div>
+                    <button type="button" className="rh-secondary" aria-label={`Open defense for ${project.groupName || project.title}`} onClick={() => projectSelection.selectProject(project.id)}>Open</button>
+                  </div>
+                </li>
               ))}
-            </select>
-          ) : (
-            <Link
-              to="/student/dashboard?tab=group"
-              className="mt-5 inline-flex rounded-xl bg-[#173f63] px-5 py-2.5 text-sm font-extrabold text-white"
-            >
-              Open My Projects
-            </Link>
-          )}
-        </div>
+            </ul>
+          </section>
+        ) : (
+          <div className="stu-two">
+            <section className="rh-panel" aria-labelledby="student-defense-none">
+              <div className="stu-notice" data-tone="info">
+                <i className="ti ti-presentation" aria-hidden="true" />
+                <div className="stu-notice-text">
+                  <strong id="student-defense-none">No research project yet</strong>
+                  <span>Create or join a project before tracking its defense.</span>
+                </div>
+              </div>
+              <Link to="/student/dashboard?tab=group" className="rh-cta stu-wide-cta">Open My Projects <i className="ti ti-arrow-right" aria-hidden="true" /></Link>
+            </section>
+            <aside className="rh-panel" aria-labelledby="student-defense-before">
+              <div className="rh-head"><h2 id="student-defense-before">Before a defense</h2></div>
+              <ol className="stu-steps">
+                <li><span><strong>Join or create a project</strong></span></li>
+                <li><span><strong>Complete your milestones</strong></span></li>
+                <li><span><strong>Your coordinator schedules it</strong></span></li>
+              </ol>
+            </aside>
+          </div>
+        )}
       </div>
     );
   if (sessionId && !selectedSession)
     return (
-      <div className="researcher-defense rdf-fallback">
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
-          <h1 data-guide="researcher-defense-empty" className="font-extrabold">Defense session not found</h1>
-          <p className="mt-1">
-            This session is not assigned to your active research project, or it
-            is no longer available.
-          </p>
-          <button
-            type="button"
-            onClick={() =>
-              navigate(projectSelection.projectHref("/student/defense"))
-            }
-            className="mt-4 rounded-xl bg-[#173f63] px-4 py-2 text-sm font-extrabold text-white"
-          >
-            Open my defense
-          </button>
+      <div className="rs mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8">
+        <RoleBand eyebrow="Research defense" title="Your defense" titleId="student-defense-title" guide="researcher-defense-empty" meta="We couldn't find that defense session." />
+        <div className="stu-notice" data-tone="waiting" role="status">
+          <i className="ti ti-calendar-off" aria-hidden="true" />
+          <div className="stu-notice-text">
+            <strong>Defense session not found</strong>
+            <span>This session is not assigned to your active research project, or it is no longer available.</span>
+          </div>
+          <button type="button" className="rs-primary" onClick={() => navigate(projectSelection.projectHref("/student/defense"))}>Open my defense</button>
         </div>
       </div>
     );

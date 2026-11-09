@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, FileCheck2, FileText, Inbox, Mail, PenLine, Search, Send } from "lucide-react";
 import { DocumentSigningModal } from "@/components/adviser/AdviserDocumentSigningModal";
 import { apiClient } from "@/lib/api-client";
 import { FilesPageSkeleton, MailPageSkeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/providers/auth-provider";
+import { EmptyNote, InlineFeedback, StatusDot } from "@/components/ui/advisio";
+import { RoleBand, SearchField, initials } from "@/components/dashboards/RoleScreenParts";
+import "@/components/profile/faculty-profile.css";
 
 const apiBase = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
 
@@ -92,30 +94,163 @@ export default function SignatureCenterPage({ embedded = false }: { embedded?: b
     return isDean ? <MailPageSkeleton /> : <FilesPageSkeleton />;
   }
 
+  const isSigned = (version: any) => Boolean(version.signedSignature && !version.signedSignature.revokedAt);
+  const openSigning = ({ version, document, project }: any) =>
+    setSigningDocument({ versionId: version.id, docName: document.title, groupName: project.title, fileUrl: `/api/documents/versions/${version.id}/content` });
+
   if (!isDean) {
     const role = user?.roles?.find((item: string) => guidance[item]) || "ADVISER";
-    return <div className="mx-auto w-full max-w-6xl p-4 sm:p-6">
-      {signingDocument && <DocumentSigningModal document={signingDocument} onClose={() => setSigningDocument(null)} onSigned={(value) => { setSigningDocument(null); setNotice(value); queryClient.invalidateQueries({ queryKey: ["signature-center-projects"] }); }} />}
-      <section className="phone-compact-header rounded-2xl bg-[#0B3A53] p-6 text-white shadow-sm"><p className="text-sm font-extrabold uppercase tracking-[0.18em] text-[#f6a800]">Secure signature center</p><h1 className="mt-2 text-2xl font-black">{guidance[role].title}</h1><p className="mt-2 max-w-3xl text-base leading-6 text-slate-200">{guidance[role].text}</p></section>
-      {notice && <div className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">{notice}</div>}
-      <section className="phone-signature-list mt-5 space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">{documents.map(({ project, document, version }: any) => <article key={version.id} className="flex items-center justify-between gap-3 rounded-xl border bg-slate-50 p-4"><div><h3 className="font-extrabold text-[#102f49]">{document.title}</h3><p className="text-base text-slate-500">{project.title} · {version.fileName}</p></div><button onClick={() => setSigningDocument({ versionId: version.id, docName: document.title, groupName: project.title, fileUrl: `/api/documents/versions/${version.id}/content` })} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white">Review & sign</button></article>)}</section>
-    </div>;
+    return (
+      <div className="rs sc-page mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8">
+        {signingDocument && <DocumentSigningModal document={signingDocument} onClose={() => setSigningDocument(null)} onSigned={(value) => { setSigningDocument(null); setNotice(value); queryClient.invalidateQueries({ queryKey: ["signature-center-projects"] }); }} />}
+        <RoleBand
+          eyebrow="Secure signature center"
+          title={guidance[role].title}
+          titleId="signature-center-title"
+          meta={guidance[role].text}
+          counts={[{ label: "Documents", value: documents.length }]}
+          countsLabel="Signature summary"
+        />
+        {notice && <InlineFeedback tone="ok">{notice}</InlineFeedback>}
+        {documents.length > 0 && (
+          <div className="rs-tools">
+            <span />
+            <div className="rs-tools-end">
+              <SearchField value={search} onChange={setSearch} placeholder="Search document or project" tour={false} />
+            </div>
+          </div>
+        )}
+        {filtered.length ? (
+          <section className="rh-panel phone-signature-list" style={{ paddingBlock: 6 }} aria-label="Documents to sign">
+            <ul className="rh-rows" style={{ marginTop: 0 }}>
+              {filtered.map((item: any) => (
+                <li key={item.version.id}>
+                  <div className="rh-row">
+                    <span className="rh-icon" aria-hidden="true"><i className="ti ti-file-text" /></span>
+                    <div className="rh-text">
+                      <h3>{item.document.title}</h3>
+                      <p>{item.project.title} · {item.version.fileName}</p>
+                    </div>
+                    <button type="button" className="rs-primary" onClick={() => openSigning(item)}>
+                      <i className="ti ti-signature" aria-hidden="true" /> Review &amp; sign
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : (
+          <div className="rs-empty-card">
+            <EmptyNote
+              layout="row"
+              tone={documents.length ? undefined : "ok"}
+              icon={documents.length ? "ti-search" : "ti-circle-check"}
+              title={documents.length ? "No documents match" : "Nothing to sign right now"}
+              text={documents.length ? "Try another search." : "PDF submissions from your groups will appear here."}
+            />
+          </div>
+        )}
+      </div>
+    );
   }
 
-  return <div className={`${embedded ? "h-full min-h-0 border-0 rounded-none shadow-none" : "h-[calc(100vh-4rem)] min-h-0 overflow-hidden rounded-tl-[32px]"} overflow-hidden bg-white dark:bg-[var(--color-surface)]`}>
-    {signingDocument && <DocumentSigningModal document={signingDocument} onClose={() => setSigningDocument(null)} onSigned={(value) => { setSigningDocument(null); setNotice(value); queryClient.invalidateQueries({ queryKey: ["signature-center-projects"] }); queryClient.invalidateQueries({ queryKey: ["dean-inbox-threads"] }); queryClient.invalidateQueries({ queryKey: ["dean-inbox-messages"] }); }} />}
-    <div className="grid h-full md:grid-cols-[330px_1fr]">
-      <aside className="flex min-h-0 flex-col border-r border-[var(--color-border)]">
-        <div className="border-b border-[var(--color-border)] p-4"><div className="flex items-center gap-2"><Inbox className="h-5 w-5 text-[var(--color-primary)]" /><h1 className="text-2xl font-bold text-[var(--color-text-primary)] dark:text-white">Signature requests</h1><span className="ml-auto rounded-full bg-slate-100 px-2 py-1 text-xs font-extrabold text-slate-800 dark:bg-white/10 dark:text-white">{documents.length}</span></div><label className="mt-3 flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 dark:bg-white/5"><Search className="h-4 w-4 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search requests" className="w-full bg-transparent text-base outline-none dark:text-white" /></label></div>
-        <div className="min-h-0 flex-1 overflow-y-auto">{threadsLoading ? <p className="p-6 text-center text-base text-slate-400">Loading inbox…</p> : filtered.length === 0 ? <div className="p-6 text-center"><p className="text-base font-semibold text-slate-400">No signature requests addressed to you.</p><p className="mt-2 text-base leading-5 text-slate-400">Requests sent to another Dean remain in that Dean’s private inbox.</p></div> : filtered.map((item: any) => { const active = item.document.id === selected?.document.id; const signed = Boolean(item.version.signedSignature && !item.version.signedSignature.revokedAt); return <button key={item.document.id} onClick={() => setSelectedId(item.document.id)} className={`w-full border-b p-4 text-left transition ${active ? "bg-[var(--color-primary-light)]/60 text-[var(--color-text-primary)]" : "hover:bg-slate-50 dark:hover:bg-white/5"}`}><div className="flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#173f63] text-xs font-black text-white">{item.project.title.slice(0, 2).toUpperCase()}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-extrabold text-slate-800 dark:text-white">{item.project.title}</p><div className="mt-0.5 flex items-center gap-2"><p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-600 dark:text-slate-300">{item.document.title}</p><span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-extrabold ${signed ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{signed ? "Signed" : "Pending"}</span></div><p className="mt-1 truncate text-sm text-slate-400">From {[item.requester?.firstName, item.requester?.lastName].filter(Boolean).join(" ") || "Professor"} · {new Date(item.version.uploadedAt).toLocaleDateString()}</p></div></div></button>; })}</div>
-      </aside>
-      <div className="flex min-h-0 flex-col">{!selected ? <div className="grid h-full place-items-center text-center"><div><Mail className="mx-auto h-12 w-12 text-[var(--color-text-muted)] opacity-60" /><p className="mt-3 font-bold text-[var(--color-text-secondary)]">Select a message to read it</p></div></div> : <>
-        <header className="border-b border-[var(--color-border)] px-5 py-4"><div className="flex flex-wrap items-center justify-between gap-3"><div className="min-w-0"><div className="flex items-center gap-2"><h2 className="truncate text-lg font-bold text-[var(--color-text-primary)] dark:text-white">{selected.document.title}</h2>{selected.version.signedSignature && !selected.version.signedSignature.revokedAt && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-extrabold text-emerald-700">Signed</span>}</div><p className="mt-1 text-base text-slate-500">{selected.project.title} · sent by {[selected.requester?.firstName, selected.requester?.lastName].filter(Boolean).join(" ") || "Professor"}</p></div><button disabled={Boolean(selected.version.signedSignature && !selected.version.signedSignature.revokedAt)} onClick={() => setSigningDocument({ versionId: selected.version.id, docName: selected.document.title, groupName: selected.project.title, fileUrl: `/api/documents/versions/${selected.version.id}/content` })} className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-emerald-100 disabled:text-emerald-700 transition"><PenLine className="h-4 w-4" />{selected.version.signedSignature && !selected.version.signedSignature.revokedAt ? "Signed" : "Add signature"}</button></div>{selected.version.signedSignature && !selected.version.signedSignature.revokedAt && <p className="mt-2 text-sm font-semibold text-emerald-700">Signed by {[selected.version.signedSignature.signedBy?.firstName, selected.version.signedSignature.signedBy?.lastName].filter(Boolean).join(" ") || "Dean"} · {new Date(selected.version.signedSignature.signedAt).toLocaleString()} · Verification: {selected.version.signedSignature.verificationCode}</p>}{notice && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-base font-bold text-emerald-700">{notice}</p>}</header>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-5 dark:bg-black/10">
-          {messages.map((item) => { const mine = item.author.id === user?.id; return <div key={item.id} className={`${mine ? "ml-auto rounded-tr-md bg-[var(--color-primary)] text-white" : "mr-auto rounded-tl-md border border-[var(--color-border)] bg-white text-[var(--color-text-primary)] dark:border-white/10 dark:bg-white/5 dark:text-slate-100"} max-w-[85%] rounded-2xl p-4`}><div className={`flex items-center gap-2 text-xs font-bold ${mine ? "text-sky-100" : "text-slate-500"}`}><FileCheck2 className="h-4 w-4" />{[item.author.firstName, item.author.middleName, item.author.lastName].filter(Boolean).join(" ")} · {new Date(item.createdAt).toLocaleString()}</div><p className="mt-2 whitespace-pre-wrap text-base leading-6">{item.message}</p>{item.attachmentVersion?.id && <button type="button" onClick={() => openFile(item.attachmentVersion?.id).catch((error) => setNotice(error.message))} className={`mt-3 flex w-full items-center gap-2 rounded-xl p-3 text-left text-sm font-extrabold ${mine ? "bg-white/10 hover:bg-white/15" : "border border-slate-200 bg-slate-50 text-[var(--color-primary)] hover:bg-slate-100"}`}><FileText className={`h-5 w-5 ${mine ? "text-amber-300" : "text-amber-600"}`} /><span className="min-w-0 flex-1 truncate">{item.attachmentVersion.fileName}</span><Download className="h-4 w-4" /></button>}</div>; })}
+  const signedCount = documents.filter((item: any) => isSigned(item.version)).length;
+  const requesterName = (item: any) => [item?.requester?.firstName, item?.requester?.lastName].filter(Boolean).join(" ") || "Professor";
+  const selectedSigned = selected ? isSigned(selected.version) : false;
+  const inbox = (
+    <div className="sc-inbox">
+      {signingDocument && <DocumentSigningModal document={signingDocument} onClose={() => setSigningDocument(null)} onSigned={(value) => { setSigningDocument(null); setNotice(value); queryClient.invalidateQueries({ queryKey: ["signature-center-projects"] }); queryClient.invalidateQueries({ queryKey: ["dean-inbox-threads"] }); queryClient.invalidateQueries({ queryKey: ["dean-inbox-messages"] }); }} />}
+      <aside className="sc-list">
+        <div className="sc-list-head">
+          {embedded && <h1>Signature requests</h1>}
+          <SearchField value={search} onChange={setSearch} placeholder="Search requests" tour={false} />
         </div>
-        <form onSubmit={(e) => { e.preventDefault(); if (reply.trim()) sendReply.mutate(); }} className="border-t border-[var(--color-border)] p-4"><div className="flex items-end gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)]/50 p-2 focus-within:border-[var(--color-primary)] transition"><textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder='Type a reply, e.g. “I already signed your request. Good luck!”' rows={2} className="max-h-32 min-h-12 flex-1 resize-none bg-transparent px-2 py-1 text-base outline-none dark:text-white" /><button type="submit" disabled={!reply.trim() || sendReply.isPending} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-dark)] disabled:opacity-40 transition" aria-label="Send reply"><Send className="h-4 w-4" /></button></div>{sendReply.isError && <p className="mt-2 text-base font-bold text-rose-600">{(sendReply.error as Error).message}</p>}</form>
-      </>}</div>
+        <div className="sc-list-scroll">
+          {threadsLoading ? (
+            <p className="rs-note" style={{ padding: 20, textAlign: "center" }}>Loading inbox…</p>
+          ) : filtered.length === 0 ? (
+            <EmptyNote layout="row" icon="ti-inbox" title="No signature requests addressed to you" text="Requests sent to another Dean remain in that Dean's private inbox." />
+          ) : (
+            filtered.map((item: any) => (
+              <button key={item.document.id} type="button" className="sc-item" aria-current={item.document.id === selected?.document.id} onClick={() => setSelectedId(item.document.id)}>
+                <span className="rs-avatar" data-tone="dark" aria-hidden="true">{initials(item.project.title).slice(0, 2)}</span>
+                <span className="rs-text">
+                  <strong>{item.document.title}</strong>
+                  <small>{item.project.title}</small>
+                  <small>From {requesterName(item)} · {new Date(item.version.uploadedAt).toLocaleDateString()}</small>
+                </span>
+                <StatusDot tone={isSigned(item.version) ? "done" : "waiting"}>{isSigned(item.version) ? "Signed" : "Pending"}</StatusDot>
+              </button>
+            ))
+          )}
+        </div>
+      </aside>
+      <section className="sc-pane" aria-label="Signature request">
+        {!selected ? (
+          <div style={{ margin: "auto" }}><EmptyNote icon="ti-mail" title="Select a request to read it" /></div>
+        ) : (
+          <>
+            <div className="sc-pane-top">
+              <div>
+                <h2>{selected.document.title}</h2>
+                <p>{selected.project.title} · sent by {requesterName(selected)}</p>
+              </div>
+              {selectedSigned ? (
+                <StatusDot tone="done">Signed</StatusDot>
+              ) : (
+                <button type="button" className="rs-primary" onClick={() => openSigning(selected)}>
+                  <i className="ti ti-pencil" aria-hidden="true" /> Add signature
+                </button>
+              )}
+              {selectedSigned && (
+                <p className="sc-signed">
+                  Signed by {[selected.version.signedSignature.signedBy?.firstName, selected.version.signedSignature.signedBy?.lastName].filter(Boolean).join(" ") || "Dean"} · {new Date(selected.version.signedSignature.signedAt).toLocaleString()} · Verification: {selected.version.signedSignature.verificationCode}
+                </p>
+              )}
+              {notice && <p className="sc-signed">{notice}</p>}
+            </div>
+            <div className="sc-messages">
+              {messages.map((item) => (
+                <div key={item.id} className="sc-message" data-mine={item.author.id === user?.id}>
+                  <small>{[item.author.firstName, item.author.middleName, item.author.lastName].filter(Boolean).join(" ")} · {new Date(item.createdAt).toLocaleString()}</small>
+                  <p>{item.message}</p>
+                  {item.attachmentVersion?.id && (
+                    <button type="button" className="sc-attachment" onClick={() => openFile(item.attachmentVersion?.id).catch((error) => setNotice(error.message))}>
+                      <i className="ti ti-file-text" aria-hidden="true" />
+                      <span>{item.attachmentVersion.fileName}</span>
+                      <i className="ti ti-download" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <form className="sc-reply" onSubmit={(e) => { e.preventDefault(); if (reply.trim()) sendReply.mutate(); }}>
+              <textarea value={reply} onChange={(e) => setReply(e.target.value)} placeholder='Type a reply, e.g. "I already signed your request. Good luck!"' aria-label="Reply" rows={2} />
+              <button type="submit" className="rs-primary" disabled={!reply.trim() || sendReply.isPending} aria-label="Send reply"><i className="ti ti-send" aria-hidden="true" /></button>
+            </form>
+            {sendReply.isError && <p className="sc-error">{(sendReply.error as Error).message}</p>}
+          </>
+        )}
+      </section>
     </div>
-  </div>;
+  );
+
+  if (embedded) return <div className="sc-embedded">{inbox}</div>;
+  return (
+    <div className="rs sc-page mx-auto w-full max-w-[1360px] p-4 sm:p-6 lg:p-8">
+      <RoleBand
+        eyebrow="Dean's office"
+        title="Signature requests"
+        titleId="signature-requests-title"
+        meta={documents.length - signedCount ? `${documents.length - signedCount} ${documents.length - signedCount === 1 ? "request is" : "requests are"} waiting for your signature.` : "Nothing is waiting for your signature."}
+        counts={[
+          { label: "Requests", value: documents.length },
+          { label: "Pending", value: documents.length - signedCount, tone: documents.length - signedCount ? "waiting" : undefined },
+          { label: "Signed", value: signedCount },
+        ]}
+        countsLabel="Signature request summary"
+      />
+      {inbox}
+    </div>
+  );
 }

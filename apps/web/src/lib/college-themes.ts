@@ -32,7 +32,8 @@ export type CollegeThemeKey =
   | "soe"
   | CourseThemeKey;
 
-export type ColorThemePreference = "DEFAULT_ADVISIO" | "COLLEGE_PROGRAM";
+export type ColorThemePreference = "DEFAULT_ADVISIO" | "COLLEGE_PROGRAM" | "COLLEGE_SOFT";
+export type HeadingFontPreference = "STANDARD" | "SERIF";
 
 export interface CollegeThemePalette {
   appBackground: string;

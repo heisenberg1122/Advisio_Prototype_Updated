@@ -19,6 +19,9 @@ import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";
 import { CardsPageSkeleton, DashboardSkeleton, FilesPageSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import "@/components/dashboards/student/my-project-workspace.css";
+import "../student-screens.css";
+import { EmptyNote, StatusDot } from "@/components/ui/advisio";
+import { RoleBand, initials } from "@/components/dashboards/RoleScreenParts";
 import { StudentProjectOverview } from "@/components/dashboards/student/StudentProjectOverview";
 import { ProjectGroupPanel } from "@/components/dashboards/student/ProjectGroupPanel";
 import {
@@ -1248,7 +1251,7 @@ function StudentDashboardContent() {
         
 
 
-        {activeTab === "group" && projectSection === "my-group" && <h1 className="sr-only">Group &amp; Members</h1>}
+        {activeTab === "group" && projectSection === "my-group" && (activeProject || !activeWorkspace) && <h1 className="sr-only">Group &amp; Members</h1>}
         {(() => {
           const tabTitles: Record<string, string> = {
             overview: "Researcher Dashboard",
@@ -1621,54 +1624,93 @@ function StudentDashboardContent() {
                       </>,
                     } : undefined}
                   />
-                ) : activeWorkspace ? <>
-                  <div className="mp-panel mp-group-identity" data-guide="group-identity">
-                    <h2 className="text-lg font-bold text-[#102f49]">{activeProject ? activeProject.groupName || "Research team" : activeWorkspace?.name}</h2>
-                    <p className="mt-1 text-base text-slate-600">{activeProject?.title || "Research project awaiting registration by your leader."}</p>
-                    <p className="mt-2 text-sm font-semibold text-[#173f63]">Your role: {(activeProject ? isGroupLeader : isWorkspaceLeader) ? "Group Leader" : "Member"}</p>
-                  </div>
-                  <div className="mp-group-layout">
-                  <div className="mp-group-team">
-                  {activeProject ? (
-                      <div className="mp-project-roster">
-                      {isGroupLeader && pendingJoinRequests.length > 0 && (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center justify-between"><div><h2 className="font-extrabold text-[#102f49]">Pending join requests</h2><p className="mt-1 text-base text-slate-600">Approve only researchers who should receive this project’s workflow and files.</p></div><span className="rounded-full bg-amber-200 px-2.5 py-1 text-xs font-extrabold text-amber-900">{pendingJoinRequests.length}</span></div><div className="mt-3 space-y-2">{pendingJoinRequests.map((request: any) => <div key={request.id} className="flex flex-col gap-3 rounded-xl bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#102f49]">{request.requester ? `${request.requester.firstName} ${request.requester.lastName}` : "Researcher"}</p><p className="text-base text-slate-500">{request.requester?.email} · Requested {new Date(request.createdAt).toLocaleDateString()}</p></div><div className="flex gap-2"><button onClick={() => decideJoinRequest(request.id, "REJECT")} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-700">Reject</button><button onClick={() => decideJoinRequest(request.id, "ACCEPT")} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-extrabold text-white">Accept</button></div></div>)}</div></div>
+                ) : activeWorkspace ? (
+                  <div className="rs">
+                    <RoleBand
+                      eyebrow="Group and members"
+                      title={activeWorkspace.name}
+                      titleId="student-group-title"
+                      guide="group-identity"
+                      meta="Research project awaiting registration by your leader."
+                      counts={[
+                        { label: "Members", value: (activeWorkspace.members || []).filter((member: any) => !member.leftAt).length },
+                        { label: "Your role", value: isWorkspaceLeader ? "Leader" : "Member" },
+                      ]}
+                      countsLabel="Group summary"
+                    />
+                    <div className="stu-notice" data-tone="waiting">
+                      <i className="ti ti-file-plus" aria-hidden="true" />
+                      <div className="stu-notice-text">
+                        <strong>{isWorkspaceLeader ? "Add your research project" : "Waiting for your leader"}</strong>
+                        <span>{isWorkspaceLeader ? "Register the title so your group can start its workflow." : "Your leader still needs to register the research project."}</span>
+                      </div>
+                      {canCreateResearch && !activeWorkspace.projects?.length && (
+                        <button type="button" className="rs-primary" onClick={() => { setCreateTitle(""); setShowCreateModal(true); }}>Add research project</button>
                       )}
-                      <div className="mp-panel mp-roster" data-guide="group-members">
-                        <div className="flex items-center justify-between"><h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Active researchers</h2><span className="mp-member-count">{activeStudentMembers.length} member{activeStudentMembers.length === 1 ? "" : "s"}</span></div>
-                        <div className="mp-members">{activeStudentMembers.map((member: any) => <div key={member.id} className="mp-member-row"><div><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{(member.userId === user?.id || member.user?.id === user?.id) ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.projectRole === "LEADER" ? "Group Leader" : "Member"}</p></div>{isGroupLeader && member.projectRole === "MEMBER" && <div className="flex gap-2"><button onClick={() => setGroupAction({ type: "transfer", member })} className="rounded-lg border border-blue-200 px-3 py-1.5 text-sm font-bold text-blue-700">Transfer leadership</button><button onClick={() => setGroupAction({ type: "remove", member })} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-600">Remove</button></div>}</div>)}</div>
-                      </div>
-                      </div>
-                  ) : <div className="mp-panel mp-roster" data-guide="group-members"><h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Group members</h2><div className="mp-members">{(activeWorkspace.members || []).filter((member: any) => !member.leftAt).map((member: any) => <div key={member.id} className="mp-member-row"><p className="text-base font-bold text-[#102f49]">{member.user.firstName} {member.user.lastName}{member.userId === user?.id ? " (You)" : ""}</p><p className="text-base text-slate-500">{member.user.email} · {member.role === "LEADER" ? "Group Leader" : "Member"}</p></div>)}</div></div>}
-
-                  {activeProject && <div className="mp-collaboration"><button onClick={() => handleTabChange("group-chats")} className="rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Group messages</button><button onClick={() => router.push(projectSelection.projectHref("/student/tasks"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Tasks</button><button onClick={() => router.push(projectSelection.projectHref("/student/group-files"))} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-[#173f63]">Shared files</button></div>}
-                  {activeProject && !isGroupLeader && currentMembership && <button onClick={() => setGroupAction({ type: "leave" })} className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-bold text-amber-700">Leave group</button>}
-                  </div>
-                  {!activeProject && isWorkspaceLeader && activeWorkspace?.participationMode === "GROUP" && <div className="mp-email-invitation"><TeamEmailInvitation teamId={activeWorkspace.id} kind="workspace" /></div>}
-                  {activeProject && <div className="mp-group-tools">{isGroupLeader && (
-                                                  <div className="mp-panel mp-access">
-                            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Group access</h2>
-                            <label className="mt-3 block text-sm font-bold text-slate-600">Working arrangement<select value={projectParticipationMode} onChange={(event) => setProjectParticipationMode(event.target.value as "SOLO" | "GROUP")} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="SOLO">Solo</option><option value="GROUP">Group</option></select></label>
-                            {projectParticipationMode === "GROUP" && <><label className="mt-3 block text-sm font-bold text-slate-600">How researchers can join<select value={projectAccessMode} onChange={(event) => setProjectAccessMode(event.target.value as typeof projectAccessMode)} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="INVITE_ONLY">Invite only</option><option value="PUBLIC_APPROVAL">Code access — leader approval</option><option value="PUBLIC_OPEN">Code access — join immediately</option></select></label><label className="mt-3 flex items-center gap-2 text-sm font-bold text-slate-600"><input type="checkbox" checked={projectInviteEnabled} onChange={(event) => setProjectInviteEnabled(event.target.checked)} />Accept joins using the current code</label></>}
-                            <button onClick={handleSaveProjectAccess} disabled={projectAccessSaving} className="mt-4 rounded-lg bg-[#173f63] px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">{projectAccessSaving ? "Saving…" : "Save access settings"}</button>
-                          </div>
-
-                      )}{isGroupLeader && (
-                        <div className="mp-access-stack">
-                          <TeamEmailInvitation teamId={activeProject.id} kind="project" />
-                          <div className="mp-panel mp-invitation-code">
-                            <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Invitation code and link</h2>
-                            <p className="mt-1 text-base text-slate-600">Researchers review the group before joining or requesting approval.</p>
-                            {inviteCode ? <div className="mt-3 space-y-2"><div className="rounded-lg bg-white p-3 font-mono text-sm font-bold text-[#173f63]">Code: {inviteCode}</div><div className="flex flex-wrap gap-2"><button onClick={() => navigator.clipboard.writeText(inviteCode).then(() => triggerToast("Invite code copied."))} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-700"><i className="ti ti-copy mr-1" />Copy code</button><button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join-group?code=${inviteCode}`).then(() => triggerToast("Shareable link copied."))} className="rounded-lg bg-[#173f63] px-3 py-2 text-sm font-extrabold text-white"><i className="ti ti-link mr-1" />Copy link</button><button onClick={handleCreateInvite} className="rounded-lg px-3 py-2 text-sm font-bold text-slate-600">Rotate code</button></div></div> : <button onClick={handleCreateInvite} className="mt-3 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"><i className="ti ti-user-plus mr-1" />Create invitation</button>}
-                          </div>
+                    </div>
+                    <div className="rh-grid">
+                      <section className="rh-panel" aria-labelledby="student-group-members" data-guide="group-members">
+                        <div className="rh-head">
+                          <h2 id="student-group-members">Group members</h2>
+                          <span className="rh-pill">{(activeWorkspace.members || []).filter((member: any) => !member.leftAt).length}</span>
                         </div>
-                      )}
-                      </div>}
-                  {!activeProject && isWorkspaceLeader && activeWorkspace?.participationMode === "GROUP" && <div className="mp-panel mp-workspace-invitation"><h2 className="font-semibold text-[var(--color-text-primary)]">Workspace invitation</h2><p className="mt-2 font-mono text-base text-[var(--color-primary)]">{activeWorkspace.inviteCode}</p><button type="button" onClick={() => navigator.clipboard.writeText(activeWorkspace.inviteCode).then(() => triggerToast("Invite code copied."))} className="mt-3 text-sm font-semibold text-[var(--color-primary)] hover:underline">Copy code</button></div>}
-                  {!activeProject && canDeleteWorkspace && <button onClick={() => { setWorkspaceDeleteError(""); setWorkspaceToDelete({ id: activeWorkspace.id, name: activeWorkspace.name }); }} className="rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-sm font-extrabold text-rose-700 hover:bg-rose-50"><i className="ti ti-trash mr-1" />Delete workspace</button>}
-
+                        <div style={{ marginTop: 6 }}>
+                          {(activeWorkspace.members || []).filter((member: any) => !member.leftAt).map((member: any) => (
+                            <div key={member.id} className="stu-member">
+                              <span className="rs-avatar" aria-hidden="true">{initials(`${member.user.firstName} ${member.user.lastName}`)}</span>
+                              <span className="rs-text">
+                                <strong>{member.user.firstName} {member.user.lastName}{member.userId === user?.id ? " (You)" : ""}</strong>
+                                <small>{member.user.email}</small>
+                              </span>
+                              <StatusDot tone={member.role === "LEADER" ? "done" : "neutral"}>{member.role === "LEADER" ? "Leader" : "Member"}</StatusDot>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                      <div className="rh-col">
+                        {isWorkspaceLeader && activeWorkspace?.participationMode === "GROUP" ? (
+                          <>
+                            <section className="rh-panel" aria-labelledby="student-group-code">
+                              <div className="rh-head"><h2 id="student-group-code">Invite by code</h2></div>
+                              <p className="rh-lede">Researchers review the group before joining.</p>
+                              <div className="stu-code-chip">
+                                <span>{activeWorkspace.inviteCode}</span>
+                                <button type="button" className="rs-icon-btn" aria-label="Copy invite code" onClick={() => navigator.clipboard.writeText(activeWorkspace.inviteCode).then(() => triggerToast("Invite code copied."))}>
+                                  <i className="ti ti-copy" aria-hidden="true" />
+                                </button>
+                              </div>
+                            </section>
+                            <div className="mp-email-invitation"><TeamEmailInvitation teamId={activeWorkspace.id} kind="workspace" /></div>
+                          </>
+                        ) : !isWorkspaceLeader ? (
+                          <section className="rh-panel" aria-labelledby="student-group-next">
+                            <div className="rh-head"><h2 id="student-group-next">What happens next</h2></div>
+                            <ol className="stu-steps">
+                              <li><span><strong>Your leader registers the project</strong></span></li>
+                              <li><span><strong>Your group starts its workflow</strong></span></li>
+                              <li><span><strong>Tasks appear for everyone</strong></span></li>
+                            </ol>
+                          </section>
+                        ) : null}
+                        {canDeleteWorkspace && (
+                          <button type="button" className="stu-danger-link" onClick={() => { setWorkspaceDeleteError(""); setWorkspaceToDelete({ id: activeWorkspace.id, name: activeWorkspace.name }); }}>
+                            <i className="ti ti-trash" aria-hidden="true" /> Delete workspace
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </> : <div className="rounded-xl border border-dashed border-slate-300 p-6 text-center"><p className="text-base text-slate-500" data-guide={isWorkspaceLoading ? undefined : "group-empty"}>{isWorkspaceLoading ? "Loading your group…" : !workspaceData ? "Unable to load your group. Refresh to try again." : "You have not joined a research group yet."}</p>{workspaceData && <button onClick={() => handleTabChange("group")} className="mt-4 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-bold text-white">Open My Project</button>}</div>}
+                ) : (
+                  <div className="rs-empty-card" data-guide={isWorkspaceLoading ? undefined : "group-empty"}>
+                    <EmptyNote
+                      layout="row"
+                      icon="ti-users-group"
+                      title={isWorkspaceLoading ? "Loading your group…" : !workspaceData ? "Unable to load your group" : "You have not joined a research group yet"}
+                      text={!isWorkspaceLoading && !workspaceData ? "Refresh to try again." : undefined}
+                      action={workspaceData ? <button type="button" className="rs-primary" onClick={() => handleTabChange("group")}>Open My Project</button> : undefined}
+                    />
+                  </div>
+                )}
               </section>
             ),
             group: (

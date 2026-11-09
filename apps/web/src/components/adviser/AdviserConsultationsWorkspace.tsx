@@ -129,7 +129,7 @@ export function AdviserConsultationsWorkspace({
 
   return (
     <div className="adviser-overview mx-auto flex w-full max-w-[1360px] flex-col gap-6">
-      <section className="adviser-overview__hero" aria-labelledby="adviser-consultations-title">
+      <section className="adviser-overview__hero phone-slim-hero" aria-labelledby="adviser-consultations-title">
         {seal && <img className="adviser-overview__seal" src={seal} alt="" aria-hidden="true" draggable={false} />}
         <header className="adviser-overview__hero-heading">
           <div>
@@ -149,7 +149,7 @@ export function AdviserConsultationsWorkspace({
           </dl>
         </header>
         <div className="adviser-overview__hero-actions">
-          <button type="button" data-guide="adviser-consultation-open" className="adviser-overview__hero-primary" onClick={onSchedule}>
+          <button type="button" data-guide="adviser-consultation-open" className="adviser-overview__hero-primary" data-phone-label="Schedule" onClick={onSchedule}>
             <i className="ti ti-plus" aria-hidden="true" /> Schedule consultation
           </button>
         </div>
