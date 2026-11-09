@@ -28,7 +28,7 @@
       request = controller;
       const timeout = setTimeout(() => controller.abort(), 10_000);
       try {
-        // Vercel forwards only this public health check. No account cookies,
+        // The frontend host forwards only this public health check. No account cookies,
         // session tokens, or questionnaire answers are sent to the service.
         const response = await fetch(`/evaluate/status?t=${Date.now()}`, {
           cache: "no-store",

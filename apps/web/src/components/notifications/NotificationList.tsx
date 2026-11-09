@@ -1,53 +1,62 @@
 "use client";
 
 import React, { useState } from "react";
-import { cn } from "@/lib/utils";
 import { useNotifications, AppNotification } from "@/hooks/use-notifications";
-import { Tag } from "@/components/ui/Tag";
 import { useRouter } from "next/navigation";
 import { NotificationListSkeleton } from "@/components/ui/Skeleton";
+import { useAuth } from "@/hooks/use-auth";
+import { getAcademicIdentity } from "@/lib/academic-identity";
+import { calendarDaysUntil } from "@/lib/researcher-home";
+import "./notification-list.css";
 
-const iconMap = {
-  success: {
-    icon: "ti-circle-check",
-    bg: "bg-emerald-50",
-    text: "text-emerald-600",
-    border: "border-emerald-100",
-  },
-  info: {
-    icon: "ti-info-circle",
-    bg: "bg-blue-50",
-    text: "text-blue-600",
-    border: "border-blue-100",
-  },
-  warning: {
-    icon: "ti-alert-triangle",
-    bg: "bg-amber-50",
-    text: "text-amber-600",
-    border: "border-amber-100",
-  },
-  danger: {
-    icon: "ti-alert-circle",
-    bg: "bg-rose-50",
-    text: "text-rose-600",
-    border: "border-rose-100",
-  },
+const MODULE_ICONS: Record<string, string> = {
+  Documents: "ti-file-text",
+  Consultation: "ti-calendar-event",
+  Defense: "ti-presentation",
+  Milestones: "ti-flag",
+  Announcements: "ti-speakerphone",
+  "Adviser Requests": "ti-user-check",
 };
-
-const moduleVariantMap: Record<
-  string,
-  "info" | "success" | "warn" | "danger" | "neutral"
-> = {
-  Documents: "info",
-  Consultation: "success",
-  Defense: "warn",
-  Milestones: "danger",
-  Announcements: "neutral",
-  "Adviser Requests": "warn",
+const TYPE_ICONS: Record<AppNotification["type"], string> = {
+  success: "ti-circle-check",
+  info: "ti-info-circle",
+  warning: "ti-alert-triangle",
+  danger: "ti-alert-circle",
 };
+const INBOXES = [
+  { value: undefined, label: "Updates" },
+  { value: "account", label: "Account" },
+  { value: "earlier", label: "Earlier" },
+] as const;
 
-export function NotificationList() {
+function dayGroup(notification: AppNotification, now: number) {
+  if (!notification.createdAt) return "Recent";
+  const date = new Date(notification.createdAt);
+  if (Number.isNaN(date.getTime())) return "Recent";
+  const offset = calendarDaysUntil(date, now);
+  if (offset === 0) return "Today";
+  if (offset === -1) return "Yesterday";
+  if (offset > -7) return "This week";
+  return date.toLocaleDateString("en-PH", { timeZone: "Asia/Manila", month: "long", year: "numeric" });
+}
+
+function timeLabel(notification: AppNotification, group: string) {
+  if (!notification.createdAt) return notification.time;
+  const date = new Date(notification.createdAt);
+  if (Number.isNaN(date.getTime())) return notification.time;
+  return group === "Today" || group === "Yesterday"
+    ? date.toLocaleTimeString("en-PH", { timeZone: "Asia/Manila", hour: "numeric", minute: "2-digit" })
+    : notification.time;
+}
+
+/**
+ * Notification inbox. `standalone` renders its own card with a header band
+ * (the researcher page); other portals wrap it in their own card.
+ */
+export function NotificationList({ standalone = false }: { standalone?: boolean }) {
   const router = useRouter();
+  const { user } = useAuth();
+  const seal = standalone ? getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc : undefined;
   const [inbox, setInbox] = useState<"account" | "earlier" | undefined>();
   const {
     notifications,
@@ -60,186 +69,126 @@ export function NotificationList() {
     markAllAsRead,
     deleteNotification,
   } = useNotifications(inbox);
-
   const [activeTab, setActiveTab] = useState<"all" | "unread" | "read">("all");
 
   if (loading) {
     return <NotificationListSkeleton rows={5} />;
   }
 
+  const now = Date.now();
   const filtered = notifications.filter((n) => {
     if (activeTab === "unread") return !n.read;
     if (activeTab === "read") return n.read;
     return true;
   });
+  const groups: Array<{ label: string; items: AppNotification[] }> = [];
+  for (const notification of filtered) {
+    const label = dayGroup(notification, now);
+    if (groups.at(-1)?.label !== label) groups.push({ label, items: [] });
+    groups.at(-1)!.items.push(notification);
+  }
 
   const handleNotificationClick = async (n: AppNotification) => {
     if (!n.read && !(await markAsRead(n.id))) return;
-    if (n.link) {
-      router.push(n.link);
-    }
+    if (n.link) router.push(n.link);
   };
 
-  return (
-    <div className="flex flex-col gap-4 text-[12.5px]">
-      <div className="flex flex-wrap gap-2" data-guide="notification-inbox" aria-label="Notification inbox">
-        {([undefined, "account", "earlier"] as const).map((value) => (
-          <button
-            key={value || "dashboard"}
-            type="button"
-            aria-pressed={inbox === value}
-            onClick={() => setInbox(value)}
-            className={`rounded-lg border px-3 py-2 font-bold ${inbox === value ? "bg-blue-100 text-blue-900" : "bg-white text-slate-600"}`}
-          >
-            {value === "account"
-              ? "Account notices"
-              : value === "earlier"
-                ? "Earlier notifications"
-                : "Dashboard updates"}
-          </button>
-        ))}
-      </div>
-      <p className="font-bold">{inboxLabel}</p>
-      {error && (
-        <div role="alert" className="rounded-lg bg-rose-50 p-3 text-rose-800">
-          {error}{" "}
-          <button type="button" onClick={retry} className="underline">
-            Retry
-          </button>
-        </div>
+  const markAll = unreadCount > 0 && (
+    <button type="button" onClick={markAllAsRead} className="nl-btn" aria-label={`Mark ${inboxLabel.toLowerCase()} as read`}>
+      <i className="ti ti-checks" aria-hidden="true" /> Mark all as read
+    </button>
+  );
+
+  const body = (
+    <>
+      {standalone && (
+        <header className="nl-band">
+          {seal && <img className="nl-seal" src={seal} alt="" aria-hidden="true" draggable={false} />}
+          <div>
+            <p><strong>Notifications</strong> · {inboxLabel}</p>
+            <h1>{unreadCount ? `${unreadCount} unread` : "You're all caught up"}</h1>
+          </div>
+          {markAll}
+        </header>
       )}
-      {/* Controls Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-        {/* Filter Tabs */}
-        <div className="flex gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
-          {(["all", "unread", "read"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                "px-3 py-1.5 rounded-md font-bold transition capitalize cursor-pointer",
-                activeTab === tab
-                  ? "bg-white text-[#1b4264] shadow-sm border border-slate-200"
-                  : "text-slate-500 hover:text-slate-800",
-              )}
-            >
-              {tab}
-              {tab === "unread" && unreadCount > 0 && (
-                <span className="ml-1.5 bg-[#ffa400] text-[#1b4264] px-1.5 py-0.5 rounded-full text-xs font-extrabold">
-                  {unreadCount}
-                </span>
-              )}
+      <div className="nl-controls">
+        <div className="nl-tabs" role="group" aria-label="Notification inbox">
+          {INBOXES.map(({ value, label }) => (
+            <button key={label} type="button" aria-pressed={inbox === value} onClick={() => setInbox(value)}>
+              {label}
             </button>
           ))}
         </div>
-
-        {/* Action Button */}
-        {unreadCount > 0 && (
-          <button
-            onClick={markAllAsRead}
-            className="px-3.5 py-1.5 border border-[#1b4264]/20 hover:border-[#1b4264] hover:bg-slate-50 text-[#1b4264] font-bold rounded-lg transition active:scale-[0.98] cursor-pointer"
-          >
-            Mark {inboxLabel.toLowerCase()} as read
-          </button>
-        )}
-      </div>
-
-      {/* Notifications List */}
-      {error ? null : filtered.length === 0 ? (
-        <div className="text-center py-12 border border-dashed border-slate-200 bg-slate-50/50 rounded-2xl flex flex-col items-center gap-3">
-          <div className="w-12 h-12 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-400">
-            <i className="ti ti-bell-off text-xl" />
+        <div className="nl-controls-side">
+          <div className="nl-seg" role="group" aria-label="Filter notifications">
+            {(["all", "unread", "read"] as const).map((tab) => (
+              <button key={tab} type="button" aria-pressed={activeTab === tab} onClick={() => setActiveTab(tab)}>
+                {tab === "all" ? "All" : tab === "unread" ? "Unread" : "Read"}
+                {tab === "unread" && unreadCount > 0 && <span className="nl-seg-count">{unreadCount}</span>}
+              </button>
+            ))}
           </div>
-          <div className="font-bold text-slate-500">
-            No {activeTab !== "all" ? activeTab : ""} notifications found
-          </div>
-          <p className="text-base text-slate-400 font-medium">
-            You are all caught up!
-          </p>
+          {!standalone && markAll}
         </div>
-      ) : (
-        <div className="flex flex-col gap-2.5">
-          {filtered.map((n) => {
-            const styles = iconMap[n.type] || iconMap.info;
-            return (
-              <div
-                key={n.id}
-                onClick={() => handleNotificationClick(n)}
-                className={cn(
-                  "p-4 rounded-xl border border-slate-200 flex items-start gap-4 transition-all duration-150 relative group cursor-pointer hover:border-slate-350 hover:shadow-sm",
-                  n.read ? "bg-white" : "bg-slate-50/60 font-semibold",
-                )}
-              >
-                {/* Unread Indicator Dot */}
-                {!n.read && (
-                  <span className="absolute left-2.5 top-[22px] w-2 h-2 bg-[#ffa400] rounded-full border border-white" />
-                )}
-
-                {/* Left Icon */}
-                <div
-                  className={cn(
-                    "w-9 h-9 rounded-xl border flex items-center justify-center text-lg flex-shrink-0",
-                    styles.bg,
-                    styles.text,
-                    styles.border,
-                  )}
-                >
-                  <i className={cn("ti", styles.icon)} />
-                </div>
-
-                {/* Message Body */}
-                <div className="flex-1 min-w-0 pr-8">
-                  <div className="flex items-center flex-wrap gap-2 mb-0.5">
-                    <span className="font-extrabold text-[#1b4264] text-[13.5px] leading-tight break-words min-w-0">
-                      {n.title}
-                    </span>
-                    {n.module && (
-                      <Tag
-                        variant={moduleVariantMap[n.module] || "neutral"}
-                        size="sm"
-                      >
-                        {n.module}
-                      </Tag>
-                    )}
-                  </div>
-                  <p className="text-slate-650 text-base leading-relaxed break-words font-medium">
-                    {n.message}
-                  </p>
-                  <span className="text-xs text-slate-400 font-bold block mt-1.5">
-                    {n.time}
-                  </span>
-                </div>
-
-                {/* Right Action Menu */}
-                <div className="absolute right-3 top-3.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {!n.read && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        markAsRead(n.id);
-                      }}
-                      title="Mark as read"
-                      className="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 hover:text-emerald-600 text-slate-500 flex items-center justify-center cursor-pointer transition active:scale-[0.9]"
-                    >
-                      <i className="ti ti-check text-base" />
-                    </button>
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteNotification(n.id);
-                    }}
-                    title="Dismiss notification"
-                    className="w-7 h-7 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 hover:text-rose-600 text-slate-500 flex items-center justify-center cursor-pointer transition active:scale-[0.9]"
-                  >
-                    <i className="ti ti-trash text-base" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+      </div>
+      {error && (
+        <div role="alert" className="nl-error">
+          {error}{" "}
+          <button type="button" onClick={retry}>Retry</button>
         </div>
       )}
-    </div>
+      {error ? null : filtered.length === 0 ? (
+        <div className="nl-empty">
+          <span className="nl-empty-icon"><i className="ti ti-bell-off" aria-hidden="true" /></span>
+          <p>{activeTab === "unread" ? "No unread notifications" : activeTab === "read" ? "Nothing read yet" : "No notifications here"}</p>
+          <span>You're all caught up.</span>
+        </div>
+      ) : (
+        groups.map((group) => (
+          <section key={group.label} className="nl-group" aria-label={group.label}>
+            <h2>{group.label}</h2>
+            <ul>
+              {group.items.map((n) => (
+                <li key={n.id} className="nl-item" data-read={n.read} data-type={n.type}>
+                  <button type="button" className="nl-item-main" onClick={() => handleNotificationClick(n)}>
+                    <span className="nl-dot" aria-hidden="true" />
+                    <span className="nl-icon" aria-hidden="true">
+                      <i className={`ti ${(n.module && MODULE_ICONS[n.module]) || TYPE_ICONS[n.type] || TYPE_ICONS.info}`} />
+                    </span>
+                    <span className="nl-text">
+                      <span className="nl-title">
+                        {!n.read && <span className="sr-only">Unread: </span>}
+                        {n.title}
+                      </span>
+                      <span className="nl-message">{n.message}</span>
+                      {(n.module || n.link) && (
+                        <span className="nl-meta">
+                          {n.module}
+                          {n.module && n.link ? " · " : ""}
+                          {n.link && <span className="nl-open">Open <i className="ti ti-arrow-right" aria-hidden="true" /></span>}
+                        </span>
+                      )}
+                    </span>
+                    <time className="nl-time" dateTime={n.createdAt}>{timeLabel(n, group.label)}</time>
+                  </button>
+                  <span className="nl-actions">
+                    {!n.read && (
+                      <button type="button" onClick={() => markAsRead(n.id)} title="Mark as read" aria-label={`Mark "${n.title}" as read`}>
+                        <i className="ti ti-check" aria-hidden="true" />
+                      </button>
+                    )}
+                    <button type="button" onClick={() => deleteNotification(n.id)} title="Dismiss notification" aria-label={`Dismiss "${n.title}"`}>
+                      <i className="ti ti-x" aria-hidden="true" />
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      )}
+    </>
   );
+
+  return <div className="nl" data-standalone={standalone}>{body}</div>;
 }

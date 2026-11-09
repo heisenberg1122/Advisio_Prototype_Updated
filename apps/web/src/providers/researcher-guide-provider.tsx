@@ -34,9 +34,6 @@ import {
   buildAdviserJourney,
 } from "@/lib/adviser-walkthroughs";
 import { buildPanelistJourney, panelistPageHelp } from "@/lib/panelist-walkthroughs";
-import { buildDeanJourney, deanPageHelp } from "@/lib/dean-walkthroughs";
-import { formatAdminLink } from "@/lib/dashboard-navigation";
-import type { DeanHelpId } from "@research-management/shared/src/dean-help";
 import type { PanelistHelpId } from "@research-management/shared/src/panelist-help";
 import type { AdviserHelpId } from "@research-management/shared/src/adviser-help";
 import { GuideDrawer, type GuideHelpId } from "@/components/guide/GuideDrawer";
@@ -51,10 +48,15 @@ import type {
 import { cn } from "@/lib/utils";
 import {
   resolveAssistantAction,
+  isFacultyHelpWorkspace,
   type AssistantWorkspace,
 } from "@research-management/shared/src/researcher-assistant";
+import { buildFacultyJourney, facultyPageHelp } from "@/lib/faculty-walkthroughs";
 import { FloatingResearcherAssistant } from "@/components/guide/FloatingResearcherAssistant";
-import { authorizedAdviserHelp } from "@research-management/shared/src/guide-help";
+import { useWorkspaceOrientation } from "@/hooks/use-workspace-orientation";
+import { orientationProgressKey } from "@/lib/orientation-progress";
+
+const noPermissions: readonly string[] = [];
 
 type TopicId = GuideHelpId | "introduction";
 interface ActiveJourney {
@@ -70,6 +72,7 @@ interface ActiveJourney {
 }
 interface ResearcherGuideContext {
   workspace: AssistantWorkspace;
+  page: GuideHelpId | undefined;
   enabled: boolean;
   busy: boolean;
   drawerOpen: boolean;
@@ -111,31 +114,25 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     ? "/student/join-group"
     : location.pathname;
   const eligible = eligibleTourWorkspace(user, researcherRoute);
-  const evaluation = token === "__evaluation__";
-  const dean =
-    activeWorkspace?.id === "dean" &&
-    eligible === "dean" &&
-    Boolean(user?.college?.id);
-  const adviser =
-    activeWorkspace?.id === "adviser" &&
-    eligible === "adviser" &&
-    Boolean(user?.college?.id);
-  const panelist =
-    !evaluation &&
-    activeWorkspace?.id === "panelist" &&
-    eligible === "panelist" &&
-    Boolean(user?.college?.id);
-  const workspace: AssistantWorkspace = dean
-    ? "dean"
-    : panelist ? "panelist" : adviser ? "adviser" : "researcher";
+  const workspace: AssistantWorkspace = eligible ?? "researcher";
+  const adviser = workspace === "adviser";
+  const panelist = workspace === "panelist";
   const researcher = workspace === "researcher";
+  const faculty = isFacultyHelpWorkspace(workspace) ? workspace : null;
   const enabled =
+    Boolean(user && eligible) &&
     !isLoading &&
     !isSwitchingCollege &&
-    (!researcher ||
-      ((activeWorkspace?.id === "researcher" || groupJoinPage) &&
-        eligible === "researcher"));
+    (activeWorkspace?.id === eligible || (groupJoinPage && researcher)) &&
+    (researcher || workspace === "system-admin" || Boolean(user?.college?.id));
   const href = location.pathname + location.search;
+  const page = faculty
+    ? facultyPageHelp(faculty, href, user?.permissions || [])
+    : panelist
+      ? panelistPageHelp(location.pathname, location.search)
+      : adviser
+        ? adviserPageHelp(location.pathname, location.search)
+        : researcherPageHelp(location.pathname, location.search);
   const [drawer, setDrawer] = useState(false),
     [selected, setSelected] = useState<GuideHelpId | null>(null),
     [query, setQuery] = useState("");
@@ -146,6 +143,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     enabled && researcher && (drawer || Boolean(active)),
     user?.id,
   );
+  const evaluation = token === "__evaluation__";
   const session = useQuery({
     queryKey: [
       "workspace-tour-evaluation-session",
@@ -257,20 +255,36 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
   const topicLoading = (topic: TopicId) =>
     researcher && loading(topic as ResearcherHelpId | "introduction");
   const routeHref = (destination: string, project?: string | null) =>
-    researcher ? projectHref(destination, project) : dean ? formatAdminLink(destination, "dean") : destination;
-  const canStart = (topic: TopicId) => {
-    if (researcher || topic === "introduction") return true;
-    const permissions = user?.permissions || [];
-    return adviser
-      ? authorizedAdviserHelp(permissions).some((item) => item.id === topic)
-      : Boolean(resolveAssistantAction(topic + ":show", permissions, workspace));
-  };
+    researcher ? projectHref(destination, project) : destination;
   const hasEdits = () =>
     hasDirtyForms() ||
     Array.from(edited.current).some(
       ([element, original]) =>
         element.isConnected && valueOf(element) !== original,
     );
+  const orientation = useWorkspaceOrientation({
+    workspace: enabled && !researcher ? workspace : null,
+    permissions: user?.permissions ?? noPermissions,
+    scope,
+    storageKey: enabled && !researcher && (!evaluation || sessionKey !== "pending")
+      ? orientationProgressKey(progressKey("introduction", null))
+      : null,
+    evaluation,
+    drawerOpen: drawer,
+    hasEdits,
+    onBegin: () => {
+      setActive(null);
+      setRequested(null);
+      setDrawer(false);
+      setNotice("");
+    },
+    onEnd: (message) => {
+      setSelected(null);
+      setQuery("");
+      setDrawer(true);
+      setNotice(message);
+    },
+  });
   const end = (completed: boolean, explore = false) => {
     if (running) save(running, completed && !running.skipped);
     setActive(null);
@@ -296,7 +310,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     }
     setNotice(
       completed
-        ? panelist || dean
+        ? (panelist || faculty)
           ? "Walkthrough finished. You can return to Guide for another task."
           : adviser
           ? "Walkthrough finished. No decision, approval or meeting was submitted by the Guide."
@@ -342,7 +356,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
         return;
       if (
         element.closest(
-          "[data-researcher-guide-drawer], [data-researcher-assistant], [data-dean-guide-filter]",
+          "[data-researcher-guide-drawer], [data-researcher-assistant]",
         )
       )
         return;
@@ -373,13 +387,17 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (lastLocation.current === location.key) return;
     lastLocation.current = location.key;
-    if (running && (navigationType === "POP" || !ownNavigation.current)) {
+    const sameFacultyView =
+      faculty && running &&
+      navigationType === "REPLACE" &&
+      routeKey(running.href) === routeKey(href);
+    if (running && (navigationType === "POP" || (!ownNavigation.current && !sameFacultyView))) {
       setActive(null);
       cleanView();
       setNotice(
         "The page changed, so the walkthrough paused. Open Guide to continue with the current page.",
       );
-    } else if ((panelist || dean) && running && running.href !== href) {
+    } else if ((panelist || faculty) && running && running.href !== href) {
       setActive({ ...running, href });
     }
   }, [location.key]);
@@ -403,9 +421,19 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
   }, [state.projectId, state.classAccess, state.projectKnown]);
 
   const begin = (topic: TopicId) => {
-    if (!enabled || !canStart(topic)) return;
-    const journey = dean
-      ? buildDeanJourney(topic as DeanHelpId | "introduction", user?.permissions || [])
+    if (
+      !enabled ||
+      (!researcher &&
+        topic !== "introduction" &&
+        !resolveAssistantAction(
+          topic + ":show",
+          user?.permissions || [],
+          workspace,
+        ))
+    )
+      return;
+    const journey = faculty
+      ? buildFacultyJourney(faculty, topic, href, user?.permissions || [])
       : panelist
       ? buildPanelistJourney(topic as PanelistHelpId | "introduction", href)
       : adviser
@@ -419,13 +447,18 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
           state,
           location.pathname,
         );
+    if (!journey) {
+      setRequested(null);
+      setNotice("Choose a help question available in this workspace.");
+      return;
+    }
     const leavesPage = journey.steps.some((step) =>
       [step.route, step.to, ...step.targets.map((target) => target.to)].some(
         (destination) =>
           destination && routeKey(destination) !== routeKey(href),
       ),
     );
-    const changesView = (panelist || dean) && journey.steps.some((step) =>
+    const changesView = (panelist || faculty) && journey.steps.some((step) =>
       step.targets.some((target) => target.interaction === "click"),
     );
     if ((leavesPage || adviser || changesView) && hasEdits()) {
@@ -463,7 +496,17 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     setNotice("");
   };
   const start = (topic: TopicId) => {
-    if (!enabled || !canStart(topic)) return;
+    if (
+      !enabled ||
+      (!researcher &&
+        topic !== "introduction" &&
+        !resolveAssistantAction(
+          topic + ":show",
+          user?.permissions || [],
+          workspace,
+        ))
+    )
+      return;
     if (topicLoading(topic)) {
       setRequested(topic);
       setNotice(
@@ -623,10 +666,11 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
     <Context.Provider
       value={{
         workspace,
+        page,
         enabled,
         open,
         act,
-        busy: Boolean(running || requested),
+        busy: Boolean(running || requested || orientation.active),
         drawerOpen: drawer,
       }}
     >
@@ -635,21 +679,12 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
         <GuideDrawer
           workspace={workspace}
           permissions={user?.permissions || []}
-          page={
-            dean
-              ? deanPageHelp(location.pathname, location.search)
-              : panelist
-              ? panelistPageHelp(location.pathname, location.search)
-              : adviser
-              ? adviserPageHelp(location.pathname, location.search)
-              : researcherPageHelp(location.pathname, location.search)
-          }
+          page={page}
           selected={selected}
           query={query}
           state={state}
           loading={selected ? topicLoading(selected) : false}
           introductionCompleted={introductionCompleted}
-          introductionAtTop={adviser && routeKey(href) === "/adviser/dashboard:overview:"}
           notice={notice}
           onQuery={(value) => {
             setQuery(value);
@@ -672,14 +707,43 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
             restoreFocus();
           }}
           onStart={start}
+          orientation={researcher ? undefined : {
+            status: orientation.status,
+            begin: orientation.begin,
+          }}
+        />
+      )}
+      {orientation.active && (
+        <GuidedWalkthrough
+          key={orientation.active.step.id}
+          step={orientation.active.step}
+          index={orientation.active.stepIndex}
+          total={orientation.active.chapter.steps.length}
+          orientation={{
+            chapter: orientation.active.chapter.title,
+            index: orientation.active.chapterIndex,
+            total: orientation.active.chapterCount,
+            nextChapter: orientation.active.nextChapter,
+            onSkipChapter: orientation.active.skipChapter,
+          }}
+          routeReady={orientation.active.routeReady}
+          canGoBack={orientation.active.canGoBack}
+          isLast={orientation.active.last}
+          onIntent={() => {}}
+          onNext={orientation.active.next}
+          onBack={orientation.active.back}
+          onExit={orientation.active.exit}
+          onRetry={orientation.active.retry}
+          onExplore={orientation.active.finish}
         />
       )}
       {running && step && (
         <GuidedWalkthrough
           key={running.step}
+          routeReady={!faculty || !step.route || routeKey(step.route) === routeKey(href)}
           step={step}
           index={stepIndex}
-          total={researcher || dean ? running.journey.steps.length : undefined}
+          total={researcher ? running.journey.steps.length : undefined}
           canGoBack={Boolean(running.history.length)}
           isLast={
             stepIndex === running.journey.steps.length - 1 ||
@@ -693,7 +757,7 @@ export function ResearcherGuideProvider({ children }: { children: ReactNode }) {
           onExplore={() => end(true, true)}
         />
       )}
-      {enabled && dean && <FloatingResearcherAssistant key={scope} />}
+      {enabled && workspace === "dean" && <FloatingResearcherAssistant key={scope} />}
     </Context.Provider>
   );
 }
@@ -711,7 +775,6 @@ export function ResearcherGuideLauncher({
     <button
       type="button"
       data-guide="guide-launcher"
-      data-tour="tour-launcher"
       aria-label="Guide"
       aria-haspopup="dialog"
       title={collapsed ? "Guide" : undefined}

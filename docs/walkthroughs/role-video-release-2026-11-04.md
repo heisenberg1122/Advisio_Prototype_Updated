@@ -1,5 +1,7 @@
 # Role video release — November 4, 2026
 
+> Historical release notes. The current website publishes written walkthroughs and transcripts. See [published written walkthroughs](../../walkthrough/README.md#published-written-walkthroughs).
+
 This release adds the completed Dean (7:47), Research Coordinator (9:46), and Faculty Adviser (8:05) walkthroughs to the existing Researcher tutorial. All footage uses fictional records. Narration, comments, decisions, signatures, grades, and role handoffs follow the applicable workspace permissions.
 
 ## Viewing and downloads

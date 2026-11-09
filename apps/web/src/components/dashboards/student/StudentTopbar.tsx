@@ -11,9 +11,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/student/defense": "Defense Center",
   "/student/grades": "Grades",
   "/student/notifications": "Notifications",
-  "/student/profile": "My Profile",
   "/student/profile/edit": "Edit Profile",
-  "/student/settings": "Settings",
+  "/student/settings": "Account Settings",
   "/student/tasks": "Tasks & Requirements",
   "/student/documents": "Document Workspace",
   "/student/group-files": "Group Files",
@@ -59,7 +58,6 @@ export function StudentTopbar() {
       hideTitle={(pathname === "/student/dashboard" || pathname === "/dashboard") && currentTab === "overview"}
       subtitle="University Research Workspace"
       notificationsHref="/student/notifications"
-      profileHref="/student/profile"
       settingsHref="/student/settings"
       searchPlaceholder="Search anything..."
       variant="workspace"

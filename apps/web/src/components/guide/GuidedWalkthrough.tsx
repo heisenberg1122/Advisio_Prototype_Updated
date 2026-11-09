@@ -1,14 +1,14 @@
 import {
   useEffect,
   useEffectEvent,
-  useId,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
-import { connectedGuideGeometry, type GuideRect } from "./guide-geometry";
+import { GuideConnector } from "./GuideConnector";
+import { guidePlacement, type GuideRect } from "./guide-geometry";
 import type {
   GuidedControlStep,
   GuidedTarget,
@@ -16,12 +16,13 @@ import type {
 import "./researcher-guide.css";
 
 export function findGuideTarget(key: string): HTMLElement | null {
-  const tour = key.startsWith("tour:");
   const elements = key.startsWith("id:")
     ? [document.getElementById(key.slice(3))]
     : Array.from(
         document.querySelectorAll<HTMLElement>(
-          tour ? `[data-tour="${key.slice(5)}"]` : `[data-guide="${key}"]`,
+          key.startsWith("css:") ? key.slice(4) :
+            key.startsWith("orientation:") ? `[data-orientation="${key.slice(12)}"]` :
+              `[data-guide="${key}"]`,
         ),
       );
   return (
@@ -38,10 +39,19 @@ export function findGuideTarget(key: string): HTMLElement | null {
     ) || null
   );
 }
+export function guideTargetNotice(
+  node: HTMLElement,
+  state: { empty?: string; disabled?: string },
+) {
+  if (node.dataset.guideEmpty === "true" && state.empty) return state.empty;
+  if (node.matches(':disabled, [aria-disabled="true"]')) return state.disabled;
+}
+
 interface Props {
   step: GuidedControlStep;
   index: number;
   total?: number;
+  routeReady?: boolean;
   canGoBack: boolean;
   isLast: boolean;
   onIntent: () => void;
@@ -54,11 +64,19 @@ interface Props {
   onExit: () => void;
   onRetry: () => void;
   onExplore: () => void;
+  orientation?: {
+    chapter: string;
+    index: number;
+    total: number;
+    nextChapter?: string;
+    onSkipChapter: () => void;
+  };
 }
 export function GuidedWalkthrough({
   step,
   index,
   total,
+  routeReady = true,
   canGoBack,
   isLast,
   onIntent,
@@ -67,6 +85,7 @@ export function GuidedWalkthrough({
   onExit,
   onRetry,
   onExplore,
+  orientation,
 }: Props) {
   const [rect, setRect] = useState<GuideRect | null>(null);
   const [variant, setVariant] = useState<GuidedTarget | null>(null);
@@ -82,7 +101,6 @@ export function GuidedWalkthrough({
     tooltip = useRef<HTMLDivElement>(null),
     primary = useRef<HTMLButtonElement>(null);
   const exit = useRef<HTMLButtonElement>(null);
-  const marker = "guide-arrow-" + useId().replace(/[^a-z0-9]/gi, "");
   const clickIntent = useEffectEvent(() => onIntent());
   const interacted = useEffectEvent((target: GuidedTarget) =>
     onNext(target, false, true),
@@ -98,11 +116,18 @@ export function GuidedWalkthrough({
     setVariant(null);
     setMissing(false);
     const update = () => {
-      const found = step.targets
+      const width = innerWidth, height = innerHeight;
+      setViewport((previous) =>
+        previous.width === width && previous.height === height
+          ? previous
+          : { width, height },
+      );
+      const found = routeReady ? step.targets
         .map((target) => ({ target, node: findGuideTarget(target.key) }))
-        .find((item) => item.node);
+        .find((item) => item.node) : undefined;
       if (!found) {
         setRect((previous) => (previous ? null : previous));
+        element.current = null;
         if (performance.now() - started > 7000) setMissing(true);
       } else {
         element.current = found.node;
@@ -114,9 +139,7 @@ export function GuidedWalkthrough({
             behavior: "instant",
           });
         }
-        const bounds = found.node!.getBoundingClientRect(),
-          width = innerWidth,
-          height = innerHeight;
+        const bounds = found.node!.getBoundingClientRect();
         if (
           bounds.bottom <= 0 ||
           bounds.top >= height ||
@@ -148,16 +171,11 @@ export function GuidedWalkthrough({
               ? previous
               : next,
           );
-          setViewport((previous) =>
-            previous.width === width && previous.height === height
-              ? previous
-              : { width, height },
-          );
           setVariant(found.target);
-          const description =
-            found.node!.dataset.guideEmpty === "true" && found.target.emptyText
-              ? found.target.emptyText
-              : found.target.text || step.text;
+          const description = guideTargetNotice(found.node!, {
+            empty: found.target.emptyText,
+            disabled: found.target.disabledText,
+          }) || found.target.text || step.text;
           setText(
             description.replace(
               "{name}",
@@ -187,7 +205,7 @@ export function GuidedWalkthrough({
         );
       if (
         !targetElement?.contains(event.target as Node) ||
-        targetElement.hasAttribute("disabled")
+        targetElement.matches(':disabled, [aria-disabled="true"]')
       )
         return;
       if (
@@ -222,7 +240,7 @@ export function GuidedWalkthrough({
       document.removeEventListener("keydown", capture, true);
       document.removeEventListener("change", capture, true);
     };
-  }, [step, retry]);
+  }, [step, retry, routeReady]);
 
   useLayoutEffect(() => {
     const measure = () =>
@@ -233,10 +251,13 @@ export function GuidedWalkthrough({
     const observer = new ResizeObserver(measure);
     if (tooltip.current) observer.observe(tooltip.current);
     return () => observer.disconnect();
-  }, []);
+  }, [text, rect !== null, missing, canGoBack, isLast]);
   const ready = Boolean(rect) || missing;
   const interaction = variant?.interaction || "read";
-  const clickRequired = interaction === "click" && !variant?.optional;
+  const clickRequired =
+    interaction === "click" &&
+    !variant?.optional &&
+    !element.current?.matches(':disabled, [aria-disabled="true"]');
   useEffect(() => {
     const target = element.current;
     if (!ready) exit.current?.focus({ preventScroll: true });
@@ -244,7 +265,7 @@ export function GuidedWalkthrough({
       !missing &&
       (clickRequired || interaction === "input") &&
       target &&
-      !target.hasAttribute("disabled")
+      !target.matches(':disabled, [aria-disabled="true"]')
     )
       target.focus({ preventScroll: true });
     else primary.current?.focus({ preventScroll: true });
@@ -267,7 +288,7 @@ export function GuidedWalkthrough({
         control.matches(
           "button,a[href],input:not([type=file]),select,summary,[role=button]",
         ) &&
-        !control.hasAttribute("disabled")
+        !control.matches(':disabled, [aria-disabled="true"]')
           ? [control]
           : [];
       const buttons = Array.from(
@@ -282,7 +303,7 @@ export function GuidedWalkthrough({
             ),
           ).filter(
             (node) =>
-              node.getClientRects().length && !node.hasAttribute("disabled"),
+              node.getClientRects().length && !node.matches(':disabled, [aria-disabled="true"]'),
           )
         : safe;
       const focusable = [...choices, ...buttons];
@@ -319,14 +340,13 @@ export function GuidedWalkthrough({
         bounds.bottom > rect.top
       );
     });
-  const geometry = rect
-    ? connectedGuideGeometry(
-        rect,
-        { width, height: tooltipHeight },
-        viewport,
-        Boolean(horizontalChoices),
-      )
-    : null;
+  const dockMobileSidebar = Boolean(orientation && step.id === "home:sidebar" && viewport.width < 640);
+  const { connector, ...placement } = guidePlacement(
+    dockMobileSidebar ? null : rect,
+    { width, height: tooltipHeight },
+    viewport,
+    Boolean(horizontalChoices),
+  );
   const nextDisabled = !ready || (!missing && clickRequired);
   const optional = Boolean(variant?.optional);
   const terminal = isLast || variant?.next === "finish";
@@ -382,53 +402,23 @@ export function GuidedWalkthrough({
           />
         </>
       )}
-      {geometry && (
-        <svg
-          className="researcher-guide-walkthrough__connector"
-          aria-hidden="true"
-          width={viewport.width}
-          height={viewport.height}
-        >
-          <defs>
-            <marker
-              id={marker}
-              markerWidth="7"
-              markerHeight="7"
-              refX="6"
-              refY="3.5"
-              orient="auto"
-            >
-              <path d="M 0 0 L 7 3.5 L 0 7 Z" fill="currentColor" />
-            </marker>
-          </defs>
-          <path
-            data-guide-connector="true"
-            data-target-x={geometry.end.x}
-            data-target-y={geometry.end.y}
-            d={geometry.path}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            markerEnd={`url(#${marker})`}
-          />
-        </svg>
-      )}
+      {connector && <GuideConnector connector={connector} viewport={viewport} />}
       <div
         ref={tooltip}
         className="researcher-guide-walkthrough__tooltip"
+        data-guide-docked={Boolean(rect && !connector) || undefined}
         role="dialog"
         aria-labelledby="researcher-step-title"
         aria-describedby="researcher-step-text"
-        style={{
-          width,
-          left: geometry?.left ?? Math.max(12, viewport.width - width - 16),
-          top:
-            geometry?.top ?? Math.max(12, viewport.height - tooltipHeight - 24),
-          maxHeight: geometry?.maxHeight ?? viewport.height - 24,
-        }}
+        style={{ width, ...placement }}
       >
         <div className="researcher-guide-walkthrough__top">
           <span role="status" aria-live="polite">
+            {orientation && (
+              <strong className="workspace-orientation-chapter">
+                Chapter {orientation.index + 1} of {orientation.total} · {orientation.chapter}
+              </strong>
+            )}
             Step {index + 1}
             {total ? " of " + total : ""}
           </span>
@@ -458,6 +448,11 @@ export function GuidedWalkthrough({
               ? "Finding this control on the page…"
               : text}
         </p>
+        {orientation?.nextChapter && (
+          <p className="researcher-guide-walkthrough__hint">
+            Next, we’ll look at {orientation.nextChapter}.
+          </p>
+        )}
         {clickRequired && rect && (
           <p className="researcher-guide-walkthrough__hint">
             {variant?.anyMatching
@@ -478,6 +473,11 @@ export function GuidedWalkthrough({
             <button type="button" onClick={onBack}>
               <ArrowLeft size={14} />
               Back
+            </button>
+          )}
+          {orientation && !isLast && (
+            <button type="button" onClick={orientation.onSkipChapter}>
+              Skip chapter
             </button>
           )}
           {missing && (
@@ -508,7 +508,7 @@ export function GuidedWalkthrough({
             {!terminal && !optional && <ArrowRight size={14} />}
           </button>
         </div>
-        {isLast && (
+        {isLast && !orientation && (
           <button
             type="button"
             className="researcher-guide-walkthrough__explore"

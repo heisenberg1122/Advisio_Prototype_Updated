@@ -2,7 +2,7 @@
 
 import { AppSidebar, NavSection } from "@/components/layout/AppSidebar";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
-import {
+import { Bell,
   LayoutDashboard,
   Megaphone,
   Users,
@@ -104,6 +104,7 @@ export const PROFESSOR_NAV_SECTIONS: NavSection[] = [
         icon: MessageSquare,
       },
       { label: "Inbox", href: "/professor/inbox", icon: Mail },
+      { label: "Notifications", href: "/professor/notifications", icon: Bell },
     ],
   },
 ];
@@ -120,7 +121,6 @@ export function ProfessorSidebar() {
       collapsed={collapsed}
       onToggleCollapse={toggle}
       settingsHref="/professor/settings"
-      profileHref="/professor/profile"
       variant="workspace"
     />
   );

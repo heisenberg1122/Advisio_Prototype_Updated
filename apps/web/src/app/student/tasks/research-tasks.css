@@ -446,3 +446,516 @@
   .task-submission-dialog button,
   .task-details-workspace .task-submission-review { transition: none; }
 }
+
+/* Counters double as filters for the requirement list. */
+.research-tasks .rt-filters {
+  gap: 6px;
+  padding: 6px;
+}
+.research-tasks .rt-filters > button {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--rt-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+.research-tasks .rt-filters > button strong {
+  color: var(--color-text-primary);
+  font-size: 1.25rem;
+  line-height: 1.4;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.research-tasks .rt-filters > button:hover {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+.research-tasks .rt-filters > button[aria-pressed="true"] {
+  border-color: var(--rt-line);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(20, 35, 50, 0.06);
+}
+.research-tasks .rt-filters > button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.research-tasks .rt-filter-empty {
+  padding: 18px 20px;
+  border: 1px dashed var(--rt-line);
+  border-radius: 12px;
+  color: var(--rt-text-secondary);
+  font-size: 0.875rem;
+}
+.research-tasks .rt-filter-empty button {
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Locked stages sit back so the stage you can work on stands out. */
+.research-tasks .rt-milestone[data-status="LOCKED"] {
+  background: color-mix(in srgb, var(--color-surface-subtle) 55%, var(--color-surface));
+  box-shadow: none;
+}
+.research-tasks .rt-milestone[data-status="LOCKED"] .rt-task-title {
+  color: var(--rt-text-secondary);
+}
+.research-tasks .rt-milestone[data-status="LOCKED"]:hover {
+  background: var(--color-surface);
+}
+@media (max-width: 767px) {
+  .research-tasks .rt-filters > button {
+    flex: 1 1 auto;
+    justify-content: space-between;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .research-tasks .rt-filters > button {
+    transition: none;
+  }
+}
+
+/* Workflow header matches Project Overview and Group: soft tint, faint seal,
+   and plain status text instead of a pill. */
+.research-tasks .rt-workflow {
+  position: relative;
+  overflow: hidden;
+  border-width: 1px;
+  background: linear-gradient(
+    120deg,
+    var(--color-surface) 0%,
+    color-mix(in srgb, color-mix(in srgb, var(--color-primary) 8%, var(--color-surface)) 40%, var(--color-surface)) 45%,
+    color-mix(in srgb, var(--color-primary) 8%, var(--color-surface)) 100%
+  );
+}
+.research-tasks .rt-workflow > :not(.rt-workflow-seal) {
+  position: relative;
+}
+.research-tasks .rt-workflow-seal {
+  position: absolute;
+  top: -40px;
+  right: -30px;
+  width: 230px;
+  height: 230px;
+  object-fit: contain;
+  opacity: 0.07;
+  filter: grayscale(1);
+  pointer-events: none;
+  user-select: none;
+}
+.dark .research-tasks .rt-workflow-seal {
+  opacity: 0.06;
+}
+.research-tasks .rt-workflow-state {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  color: var(--rt-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.research-tasks .rt-workflow-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.research-tasks .rt-workflow-state--active {
+  color: var(--color-success);
+}
+
+/* Card status as quiet text with a small marker, matching Project Overview. */
+.app-workspace .research-tasks .rt-milestone .rt-status {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--rt-text-secondary) !important;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.app-workspace .research-tasks .rt-milestone:not([data-status="LOCKED"]) .rt-status::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.app-workspace .research-tasks .rt-milestone:is([data-status="IN_PROGRESS"], [data-status="NOT_STARTED"], [data-status="READY_TO_START"]) .rt-status {
+  color: var(--color-primary) !important;
+}
+.app-workspace .research-tasks .rt-milestone:is([data-status="APPROVED"], [data-status="COMPLETED"]) .rt-status {
+  color: var(--color-success) !important;
+}
+.app-workspace .research-tasks .rt-milestone:is([data-status="REVISION_REQUIRED"], [data-status="REJECTED"], [data-status="DECLINED"]) .rt-status {
+  color: var(--color-danger) !important;
+}
+/* The success token is a light green in some themes; darken it for text. */
+.research-tasks .rt-workflow-state--active,
+.app-workspace .research-tasks .rt-milestone:is([data-status="APPROVED"], [data-status="COMPLETED"]) .rt-status {
+  color: color-mix(in srgb, var(--color-success) 55%, var(--color-text-primary)) !important;
+}
+.dark .research-tasks .rt-workflow-state--active,
+.dark .app-workspace .research-tasks .rt-milestone:is([data-status="APPROVED"], [data-status="COMPLETED"]) .rt-status {
+  color: var(--color-success) !important;
+}
+
+/* Subtle status palette: green = approved, yellow = in progress or awaiting
+   review, red = needs revision. Text stays dark enough to read. */
+.research-tasks {
+  --rt-ok: color-mix(in srgb, var(--color-success) 55%, var(--color-text-primary));
+  --rt-wait: color-mix(in srgb, var(--color-warning) 58%, var(--color-text-primary));
+  --rt-bad: color-mix(in srgb, var(--color-danger) 80%, var(--color-text-primary));
+}
+.dark .research-tasks {
+  --rt-ok: var(--color-success);
+  --rt-wait: var(--color-warning);
+  --rt-bad: var(--color-danger);
+}
+.research-tasks .rt-filters strong[data-tone="approved"] { color: var(--rt-ok); }
+.research-tasks .rt-filters strong[data-tone="remaining"] { color: var(--rt-wait); }
+.app-workspace .research-tasks .rt-milestone:is([data-status="IN_PROGRESS"], [data-status="NOT_STARTED"], [data-status="READY_TO_START"], [data-status="SUBMITTED"], [data-status="UNDER_REVIEW"], [data-status="PENDING_ADVISER"]) .rt-status {
+  color: var(--rt-wait) !important;
+}
+.research-tasks .rt-workflow-state--active,
+.app-workspace .research-tasks .rt-milestone:is([data-status="APPROVED"], [data-status="COMPLETED"]) .rt-status {
+  color: var(--rt-ok) !important;
+}
+.app-workspace .research-tasks .rt-milestone:is([data-status="REVISION_REQUIRED"], [data-status="REJECTED"], [data-status="DECLINED"]) .rt-status {
+  color: var(--rt-bad) !important;
+}
+
+/* Current and urgent work reads as a priority: a soft tint and a left bar. */
+.research-tasks .rt-milestone:is([data-status="IN_PROGRESS"], [data-status="NOT_STARTED"], [data-status="READY_TO_START"]) {
+  border-color: color-mix(in srgb, var(--color-warning) 45%, var(--rt-line));
+  background: color-mix(in srgb, var(--color-warning) 6%, var(--color-surface));
+  box-shadow: inset 4px 0 0 color-mix(in srgb, var(--color-warning) 80%, transparent);
+}
+.research-tasks .rt-milestone:is([data-status="REVISION_REQUIRED"], [data-status="REJECTED"], [data-status="DECLINED"]) {
+  border-color: color-mix(in srgb, var(--color-danger) 35%, var(--rt-line));
+  background: color-mix(in srgb, var(--color-danger) 5%, var(--color-surface));
+  box-shadow: inset 4px 0 0 color-mix(in srgb, var(--color-danger) 75%, transparent);
+}
+.research-tasks .rt-milestone:is([data-status="IN_PROGRESS"], [data-status="NOT_STARTED"], [data-status="READY_TO_START"])::before {
+  display: none;
+}
+
+/* Sort control at the right end of the counter bar. */
+.research-tasks .rt-sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 0 6px 0 12px;
+  color: var(--rt-text-secondary);
+  font-size: 0.8125rem;
+}
+.research-tasks .rt-sort select {
+  min-height: 36px;
+  padding: 6px 30px 6px 10px;
+  border: 1px solid var(--rt-line);
+  border-radius: 9px;
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.research-tasks .rt-sort select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+@media (max-width: 767px) {
+  .research-tasks .rt-sort {
+    width: 100%;
+    margin-left: 0;
+    padding: 4px 6px;
+    justify-content: space-between;
+  }
+}
+
+/* Priority cards: no side stripe. A soft wash fading from the top-left and a
+   warm outline mark the ongoing or urgent card. */
+.research-tasks .rt-milestone:is([data-status="IN_PROGRESS"], [data-status="NOT_STARTED"], [data-status="READY_TO_START"]) {
+  border-color: color-mix(in srgb, var(--color-warning) 40%, var(--rt-line));
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--color-warning) 11%, transparent) 0%, transparent 55%),
+    var(--color-surface);
+  box-shadow: 0 1px 2px rgba(20, 35, 50, 0.04), 0 6px 18px color-mix(in srgb, var(--color-warning) 10%, transparent);
+}
+.research-tasks .rt-milestone:is([data-status="REVISION_REQUIRED"], [data-status="REJECTED"], [data-status="DECLINED"]) {
+  border-color: color-mix(in srgb, var(--color-danger) 32%, var(--rt-line));
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--color-danger) 8%, transparent) 0%, transparent 55%),
+    var(--color-surface);
+  box-shadow: 0 1px 2px rgba(20, 35, 50, 0.04), 0 6px 18px color-mix(in srgb, var(--color-danger) 8%, transparent);
+}
+
+/* Card / list toggle beside Sort. */
+.research-tasks .rt-view {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--rt-line);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+.research-tasks .rt-view button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--rt-text-secondary);
+  font-size: 1.0625rem;
+}
+.research-tasks .rt-view button:hover {
+  color: var(--color-text-primary);
+}
+.research-tasks .rt-view button[aria-pressed="true"] {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+}
+.research-tasks .rt-view button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* List view: one compact row per stage, using the same card markup so
+   clicks, keyboard access and Guide targets work exactly as in card view. */
+.research-tasks .rt-milestones--list {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--rt-line);
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+.research-tasks .rt-milestones--list > .rt-milestone {
+  margin: 0;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.research-tasks .rt-milestones--list > .rt-milestone + .rt-milestone {
+  border-top: 1px solid var(--rt-line);
+}
+.research-tasks .rt-milestones--list > .rt-milestone::before {
+  display: none;
+}
+.research-tasks .rt-milestones--list .rt-card-layout {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.research-tasks .rt-milestones--list .rt-card-content {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.research-tasks .rt-milestones--list .rt-stage-row {
+  margin: 0;
+}
+.research-tasks .rt-milestones--list .rt-stage-topic {
+  display: none;
+}
+.research-tasks .rt-milestones--list .rt-task-title {
+  overflow: hidden;
+  margin: 0;
+  font-size: 0.9375rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.research-tasks .rt-milestones--list :is(.rt-active-label, .rt-condition, .rt-description, .rt-submission) {
+  display: none;
+}
+.research-tasks .rt-milestones--list .rt-metadata {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.research-tasks .rt-milestones--list .rt-metadata > span:not(.rt-due) {
+  display: none;
+}
+.research-tasks .rt-milestones--list .rt-due {
+  padding: 0;
+  border: 0;
+  white-space: nowrap;
+}
+.research-tasks .rt-milestones--list .rt-card-aside {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  min-width: 170px;
+  margin: 0;
+}
+.research-tasks .rt-milestones--list .rt-details {
+  font-size: 0;
+  padding: 0;
+  min-height: 0;
+  background: none;
+  border: 0;
+}
+.research-tasks .rt-milestones--list .rt-details i {
+  font-size: 1rem;
+  color: var(--rt-text-secondary);
+}
+@media (max-width: 767px) {
+  .research-tasks .rt-view {
+    margin-left: auto;
+  }
+  .research-tasks .rt-milestones--list .rt-card-content {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .research-tasks .rt-milestones--list .rt-card-aside {
+    min-width: 0;
+  }
+}
+
+/* List view, final layout: every row identical in size and column positions,
+   whatever its status. The in-progress card styles don't apply here. */
+.research-tasks .rt-milestones--list > .rt-milestone,
+.research-tasks .rt-milestones--list > .rt-milestone:is([data-status="IN_PROGRESS"], [data-status="NOT_STARTED"], [data-status="READY_TO_START"], [data-status="REVISION_REQUIRED"], [data-status="REJECTED"], [data-status="DECLINED"]) {
+  padding: 0 18px;
+  border: 0;
+  box-shadow: none;
+  transition: background-color 140ms ease;
+}
+.research-tasks .rt-milestones--list > .rt-milestone + .rt-milestone {
+  border-top: 1px solid var(--rt-line);
+}
+.research-tasks .rt-milestones--list .rt-card-layout {
+  min-height: 52px;
+}
+.research-tasks .rt-milestones--list .rt-card-content {
+  grid-template-columns: 64px minmax(0, 1fr) 132px;
+}
+.research-tasks .rt-milestones--list .rt-stage {
+  color: var(--rt-text-secondary);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+}
+.research-tasks .rt-milestones--list .rt-milestone .rt-task-title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+.research-tasks .rt-milestones--list .rt-milestone[data-status="LOCKED"] .rt-task-title {
+  color: var(--rt-text-secondary);
+}
+.research-tasks .rt-milestones--list .rt-due {
+  color: var(--rt-text-secondary);
+  font-size: 0.8125rem;
+  text-align: right;
+}
+.research-tasks .rt-milestones--list .rt-card-aside {
+  justify-content: space-between;
+  width: 168px;
+  min-width: 168px;
+  gap: 10px;
+}
+.research-tasks .rt-milestones--list .rt-milestone .rt-details,
+.research-tasks .rt-milestones--list .rt-milestone:is(:hover, :focus-visible) .rt-details {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent !important;
+  color: var(--rt-text-secondary);
+  font-size: 0;
+  text-decoration: none;
+  box-shadow: none;
+}
+.research-tasks .rt-milestones--list .rt-details i {
+  font-size: 1rem;
+  transition: transform 140ms ease;
+}
+.research-tasks .rt-milestones--list > .rt-milestone:hover {
+  background: var(--color-surface-subtle);
+}
+.research-tasks .rt-milestones--list > .rt-milestone:hover .rt-details i {
+  color: var(--color-text-primary);
+  transform: translateX(2px);
+}
+.research-tasks .rt-milestones--list > .rt-milestone:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+/* Current and urgent rows: a quiet tint across the row, slightly bolder title. */
+.research-tasks .rt-milestones--list > .rt-milestone:is([data-status="IN_PROGRESS"], [data-status="NOT_STARTED"], [data-status="READY_TO_START"]) {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--color-warning) 12%, var(--color-surface)) 0%, var(--color-surface) 70%);
+}
+.research-tasks .rt-milestones--list > .rt-milestone:is([data-status="REVISION_REQUIRED"], [data-status="REJECTED"], [data-status="DECLINED"]) {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--color-danger) 9%, var(--color-surface)) 0%, var(--color-surface) 70%);
+}
+.research-tasks .rt-milestones--list > .rt-milestone:is([data-status="IN_PROGRESS"], [data-status="NOT_STARTED"], [data-status="READY_TO_START"], [data-status="REVISION_REQUIRED"], [data-status="REJECTED"], [data-status="DECLINED"]) .rt-task-title {
+  font-weight: 650;
+}
+@media (max-width: 767px) {
+  .research-tasks .rt-milestones--list > .rt-milestone,
+  .research-tasks .rt-milestones--list > .rt-milestone:is([data-status="IN_PROGRESS"], [data-status="NOT_STARTED"], [data-status="READY_TO_START"], [data-status="REVISION_REQUIRED"], [data-status="REJECTED"], [data-status="DECLINED"]) {
+    padding: 10px 14px;
+  }
+  .research-tasks .rt-milestones--list .rt-card-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .research-tasks .rt-milestones--list .rt-due {
+    text-align: left;
+  }
+  .research-tasks .rt-milestones--list .rt-card-aside {
+    width: auto;
+    min-width: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .research-tasks .rt-milestones--list > .rt-milestone,
+  .research-tasks .rt-milestones--list .rt-details i {
+    transition: none;
+  }
+}
+/* The in-progress card adds space above its details; not in list rows. */
+.research-tasks .rt-milestones--list > .rt-milestone .rt-metadata,
+.research-tasks .rt-milestones--list > .rt-milestone .rt-stage-row {
+  margin: 0 !important;
+}
+/* Current and urgent rows get a soft outline all the way around. */
+.research-tasks .rt-milestones--list > .rt-milestone:is([data-status="IN_PROGRESS"], [data-status="NOT_STARTED"], [data-status="READY_TO_START"]) {
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-warning) 60%, transparent);
+}
+.research-tasks .rt-milestones--list > .rt-milestone:is([data-status="REVISION_REQUIRED"], [data-status="REJECTED"], [data-status="DECLINED"]) {
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--color-danger) 45%, transparent);
+}
+/* Hide the row dividers touching an outlined row so the outline stays clean. */
+.research-tasks .rt-milestones--list > .rt-milestone:is([data-status="IN_PROGRESS"], [data-status="NOT_STARTED"], [data-status="READY_TO_START"], [data-status="REVISION_REQUIRED"], [data-status="REJECTED"], [data-status="DECLINED"]),
+.research-tasks .rt-milestones--list > .rt-milestone:is([data-status="IN_PROGRESS"], [data-status="NOT_STARTED"], [data-status="READY_TO_START"], [data-status="REVISION_REQUIRED"], [data-status="REJECTED"], [data-status="DECLINED"]) + .rt-milestone {
+  border-top-color: transparent;
+}

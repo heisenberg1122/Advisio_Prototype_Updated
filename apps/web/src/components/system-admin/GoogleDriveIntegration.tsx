@@ -315,7 +315,7 @@ export function GoogleDriveIntegration({
         </div>
         {storageMetrics}
         <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-white/5">
-          <span className="text-xs text-slate-400">
+          <span data-guide="sa-drive-status" className="text-xs text-slate-400">
             Connection checked {dateLabel(data.lastCheckedAt)}
           </span>
           <button

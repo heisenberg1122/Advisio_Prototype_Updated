@@ -3,7 +3,6 @@ import express from "express";
 import http from "node:http";
 import type { Request, Response, NextFunction } from "express";
 import { getPermissionsForRoles } from "@research-management/auth";
-import { evaluationContext } from "../evaluation/context.js";
 
 // Authentication itself has existing coverage. This isolated router harness verifies
 // that the new endpoint invokes it and enforces the resulting role/permission scope.
@@ -11,7 +10,7 @@ vi.mock("../middleware/auth.js", () => ({
   requireAuth(req: Request, res: Response, next: NextFunction) {
     const role = req.get("x-test-role");
     if (
-      !["RESEARCHER", "ADVISER", "PANELIST", "DEAN", "SYSTEM_ADMIN"].includes(
+      !["RESEARCHER", "ADVISER", "PANELIST", "RESEARCH_COORDINATOR", "DEAN", "SYSTEM_ADMIN"].includes(
         role || "",
       )
     ) {
@@ -19,7 +18,7 @@ vi.mock("../middleware/auth.js", () => ({
       return;
     }
     req.user = {
-      id: role === "ADVISER" || role === "PANELIST" || role === "DEAN" ? `test-${role.toLowerCase()}` : "test-account",
+      id: `test-${role!.toLowerCase()}`,
       email: "test@example.test",
       universityId: "test",
       roles: [role as "RESEARCHER"],
@@ -35,7 +34,7 @@ import {
   assistantConfig,
 } from "../services/researcher-assistant.service.js";
 
-describe("Authenticated Researcher help API", () => {
+describe("Authenticated workspace help API", () => {
   let server: http.Server, base: string;
   const provider = vi.fn<typeof fetch>();
   const service = new ResearcherAssistantService(
@@ -45,10 +44,6 @@ describe("Authenticated Researcher help API", () => {
   beforeAll(async () => {
     const app = express();
     app.use(express.json({ limit: "12kb" }));
-    app.use((req, _res, next) => {
-      if (!req.get("x-test-evaluation")) return next();
-      evaluationContext.run({ id: "test-evaluation", storageRoot: "", prisma: {} as never }, next);
-    });
     app.use(
       "/api/researcher-assistant",
       createResearcherAssistantRouter(service),
@@ -125,7 +120,7 @@ describe("Authenticated Researcher help API", () => {
     expect(result.status).toBe(200);
     const metrics = await result.json();
     expect(metrics.requests).toBe(4);
-    expect(JSON.stringify(metrics)).not.toContain("test-account");
+    expect(JSON.stringify(metrics)).not.toContain("test-researcher");
     expect(JSON.stringify(metrics)).not.toContain("Where can");
   });
   it("authorizes Panelist help only in a college with the Panelist role", async () => {
@@ -139,25 +134,19 @@ describe("Authenticated Researcher help API", () => {
     expect(await result.json()).toMatchObject({ source: "local", topicIds: ["pn-04"] });
     expect(provider).not.toHaveBeenCalled();
   });
-  it("serves Dean help only to a Dean in an active college, including in evaluation", async () => {
-    const body = {
-      message: "How do I view or export a research report?",
-      page: "dean-overview",
-      workspace: "dean",
-    };
-    expect((await post(body, "SYSTEM_ADMIN")).status).toBe(403);
-    expect((await post(body, "DEAN", { "X-Test-No-College": "1" })).status).toBe(403);
-    const evaluationHeaders = { "X-Test-Evaluation": "1" };
-    expect((await post(body, "SYSTEM_ADMIN", evaluationHeaders)).status).toBe(403);
-    expect((await post(body, "DEAN", { ...evaluationHeaders, "X-Test-No-College": "1" })).status).toBe(403);
-    expect((await post({ message: "How do I join a class?" }, "RESEARCHER", evaluationHeaders)).status).toBe(403);
-    const evaluation = await post(body, "DEAN", evaluationHeaders);
-    expect(evaluation.status).toBe(200);
-    expect(await evaluation.json()).toMatchObject({ source: "local", topicIds: ["dean-reports"] });
-    expect((await post({ ...body, page: "pn-04" }, "DEAN")).status).toBe(400);
-    const result = await post(body, "DEAN");
+  it.each([
+    ["coordinator", "RESEARCH_COORDINATOR", "co-workflow", "How do I create a workflow?"],
+    ["dean", "DEAN", "de-reports", "How do I view or export a college report?"],
+    ["system-admin", "SYSTEM_ADMIN", "sa-audit", "How do I investigate an audit event?"],
+  ])("serves %s local help without invoking a model", async (workspace, role, page, message) => {
+    const body = { workspace, page, message, allowAI: true };
+    expect((await post(body, "ADVISER")).status).toBe(403);
+    expect((await post({ ...body, previousTopic: "class" }, role)).status).toBe(400);
+    const result = await post(body, role, workspace === "system-admin" ? { "X-Test-No-College": "1" } : {});
     expect(result.status).toBe(200);
-    expect(await result.json()).toMatchObject({ source: "local", topicIds: ["dean-reports"] });
+    expect(await result.json()).toMatchObject({ source: "local", topicIds: [page] });
+    if (workspace !== "system-admin")
+      expect((await post(body, role, { "X-Test-No-College": "1" })).status).toBe(403);
     expect(provider).not.toHaveBeenCalled();
   });
   it("uses only the requested workspace and requires an approved Adviser college", async () => {

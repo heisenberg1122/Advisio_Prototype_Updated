@@ -2,7 +2,7 @@
 
 The supported production topology is:
 
-- Web SPA: Vercel, rooted at `apps/web`
+- Web SPA: Namecheap Stellar at `https://advisio-ua.com`, built from `apps/web`
 - API: the existing Render Docker web service, using `apps/api/Dockerfile` from the repository root
 - Database: managed PostgreSQL
 - Documents: Google Drive OAuth, in a dedicated production folder named `ADVISIO_RESEARCH_DOCUMENTS`
@@ -82,7 +82,7 @@ The bootstrap refuses weak passwords, refuses to modify a non-admin account, and
 
 Reuse the existing Render service. Configure it as a Docker web service with repository root `.` and Dockerfile path `apps/api/Dockerfile`. The API listens on Render's `PORT`; do not hard-code a public port.
 
-Copy only the Render/server variables from `.env.production.example` into Render. Use the Vercel production origin for both `WEB_URL` and `CORS_ORIGIN`. Keep all demo and self-signup flags `false`.
+Copy only the Render/server variables from `.env.production.example` into Render. Use `https://advisio-ua.com` for `WEB_URL` and include it in `CORS_ORIGIN`. Keep all demo and self-signup flags `false`. Enable automatic deployments from `main` so the frontend workflow can verify that the API serves the same revision.
 
 Set the health check path to:
 
@@ -115,24 +115,24 @@ In Google Cloud Console, add the exact production callback:
 https://YOUR_RENDER_DOMAIN/api/integrations/google-drive/callback
 ```
 
-Add the exact Vercel production origin to the OAuth client's authorized JavaScript origins. Store the client secret and integration encryption key only in Render. After deployment, connect Drive through an authorized admin account and perform an upload/download smoke test in the production folder.
+Add `https://advisio-ua.com` to the OAuth client's authorized JavaScript origins. Store the client secret and integration encryption key only in Render. After deployment, connect Drive through an authorized admin account and perform an upload/download smoke test in the production folder.
 
-## 5. Vercel web app
+## 5. Namecheap web app
 
-Reuse the existing Vercel project and set its root directory to `apps/web`. The committed `vercel.json` installs from the monorepo root, builds validations and the SPA, applies SPA rewrites, and adds baseline security headers.
+The `Deploy frontend to Namecheap` GitHub Actions workflow runs after both CI jobs pass for a push to `main`. It waits for Render to report the same commit and publishes the frontend to Stellar over explicit FTPS. The legacy Vercel production URL redirects to Namecheap so existing links keep working. Vercel skips new Git deployments from `main` and retains its staging and preview configuration.
 
-Configure these build-time variables in Vercel:
+Set up the `namecheap-production` environment in GitHub and restrict deployments to `main` where supported. Create a dedicated cPanel FTP account rooted at `public_html` and set `NAMECHEAP_FTPS_USERNAME` and `NAMECHEAP_FTPS_PASSWORD` as GitHub Actions secrets for that environment. The workflow uses the public production OAuth client ID. To replace it, set the `ADVISIO_GOOGLE_CLIENT_ID` Actions variable and update Render's matching client ID. The workflow sets the remaining build variables:
 
 ```text
 VITE_API_URL=https://YOUR_RENDER_DOMAIN
-VITE_GOOGLE_SIGN_IN_CLIENT_ID=YOUR_GOOGLE_OAUTH_CLIENT_ID
+VITE_GOOGLE_SIGN_IN_CLIENT_ID=<public production OAuth client ID>
 VITE_GOOGLE_SIGN_IN_ALLOW_SELF_SIGNUP=false
 VITE_ENABLE_DEMO_ACCOUNTS=false
 ```
 
 `VITE_API_URL` is the API origin without a trailing `/api`. Never place database credentials, Google client secrets, JWT secrets, or integration keys in `VITE_*` variables because they are embedded in the public browser bundle.
 
-Deploy a Vercel preview first. Promote to production only after the staging checks below pass and the owner explicitly approves public launch.
+For a manual deployment, build the SPA with the same variables, copy both hosting files from `deploy/namecheap` into `apps/web/dist`, then upload the contents to cPanel `public_html`. Include `.htaccess` so direct links and the evaluation launcher work.
 
 ## 6. Staging acceptance checklist
 
@@ -153,6 +153,6 @@ The complete eight-role UAT matrix, Git synchronization procedure, environment p
 
 ## 7. Rollback
 
-If application checks fail, roll Render and Vercel back to the previous known-good commit. Do not reverse a database migration blindly. Restore the pre-deployment snapshot only after confirming the failed release wrote incompatible data and after preserving any newer legitimate production records.
+If application checks fail, restore the previous known-good frontend build in Namecheap and roll back the Render API to its matching commit. Do not reverse a database migration blindly. Restore the pre-deployment snapshot only after confirming the failed release wrote incompatible data and after preserving any newer legitimate production records.
 
 Public launch remains a separate, explicit approval step.

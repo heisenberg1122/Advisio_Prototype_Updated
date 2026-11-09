@@ -86,12 +86,15 @@ export function resolveProjectNextStep({
   loading,
   error,
   isLeader,
+  defenseDecision,
 }: {
   project: OverviewProject;
   milestones?: ProjectMilestoneProgress[];
   loading?: boolean;
   error?: boolean;
   isLeader: boolean;
+  /** The released official defense decision, when one exists. */
+  defenseDecision?: string | null;
 }): ProjectNextStep {
   if (project.workflowAccessRemoved)
     return {
@@ -139,6 +142,36 @@ export function resolveProjectNextStep({
       tone: "neutral",
       action: { kind: "retry" },
       buttonLabel: "Retry",
+    };
+  if (project.workflowInstance.completedAt && defenseDecision === "APPROVED")
+    return {
+      label: "Research complete",
+      title: "Your research is complete",
+      description:
+        "Your defense was approved. Your official result is on the Defense page.",
+      tone: "success",
+      action: { kind: "defense" },
+      buttonLabel: "View defense result",
+    };
+  if (project.workflowInstance.completedAt && defenseDecision === "APPROVED_WITH_MINOR_REVISIONS")
+    return {
+      label: "Defense approved",
+      title: "Finish your minor revisions",
+      description:
+        "Your defense was approved with minor revisions. Check the panel’s recommendations on the Defense page.",
+      tone: "action",
+      action: { kind: "defense" },
+      buttonLabel: "View recommendations",
+    };
+  if (project.workflowInstance.completedAt && defenseDecision)
+    return {
+      label: "Defense result released",
+      title: "Review your defense result",
+      description:
+        "Check the panel’s decision and what to do next on the Defense page.",
+      tone: "action",
+      action: { kind: "defense" },
+      buttonLabel: "View defense result",
     };
   if (project.workflowInstance.completedAt)
     return {
@@ -319,6 +352,10 @@ export interface OverviewRecord {
   detail?: string;
   href?: string;
   date?: string;
+  /** Show the time as well as the date, for scheduled sessions. */
+  dateWithTime?: boolean;
+  /** Highlight the date, for deadlines that are overdue or within a week. */
+  urgent?: boolean;
 }
 
 const revisionStatuses = ["REVISION_REQUIRED", "REJECTED", "NEEDS_REVISION"];

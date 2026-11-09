@@ -1,0 +1,73 @@
+name: Deploy frontend to Namecheap
+
+on:
+  workflow_run:
+    workflows: [Advisio CI Pipeline]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: advisio-namecheap-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: namecheap-production
+      url: https://advisio-ua.com
+    env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+      VITE_API_URL: https://advisio-prototype-updated.onrender.com
+      VITE_GOOGLE_SIGN_IN_CLIENT_ID: ${{ vars.ADVISIO_GOOGLE_CLIENT_ID || '989211986700-otr46h3hs3l8t3tlfmm2rst9dpbnrgmq.apps.googleusercontent.com' }}
+      VITE_GOOGLE_SIGN_IN_ALLOW_SELF_SIGNUP: 'false'
+      VITE_ENABLE_DEMO_ACCOUNTS: 'false'
+    steps:
+      - name: Check that the tested commit is still current
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          main_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          if [[ "$main_sha" == "$RELEASE_SHA" ]]; then
+            echo 'deploy=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'A newer commit is on main. Its own CI run will handle deployment.'
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.current.outputs.deploy == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        if: steps.current.outputs.deploy == 'true'
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Build the production frontend
+        if: steps.current.outputs.deploy == 'true'
+        run: |
+          npm ci --workspace=web --workspace=@research-management/auth --workspace=@research-management/shared --workspace=@research-management/validations --include-workspace-root=false
+          npm run build --workspace=@research-management/auth
+          npm run build --workspace=@research-management/validations
+          npm run build --workspace=web
+          cp deploy/namecheap/.htaccess deploy/namecheap/evaluation-status.php apps/web/dist/
+
+      - name: Wait for Render and publish the frontend
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NAMECHEAP_FTPS_USERNAME: ${{ secrets.NAMECHEAP_FTPS_USERNAME }}
+          NAMECHEAP_FTPS_PASSWORD: ${{ secrets.NAMECHEAP_FTPS_PASSWORD }}
+        run: bash deploy/namecheap/publish.sh

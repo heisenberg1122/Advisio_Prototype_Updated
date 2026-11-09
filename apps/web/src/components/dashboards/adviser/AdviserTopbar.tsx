@@ -5,7 +5,6 @@ import { AppTopbar } from "@/components/layout/AppTopbar";
 
 const PAGE_TITLES: Record<string, string> = {
   "/adviser/reviews": "Document Reviews",
-  "/adviser/profile": "My Profile",
   "/adviser/profile/edit": "Edit Profile",
   "/adviser/notifications": "Notifications",
   "/adviser/settings": "Account Settings",
@@ -44,7 +43,6 @@ export function AdviserTopbar() {
       hideTitle={pathname === "/adviser/dashboard" && currentTab === "overview"}
       subtitle="Faculty Advising Center"
       notificationsHref="/adviser/notifications"
-      profileHref="/adviser/profile"
       settingsHref="/adviser/settings"
       searchPlaceholder="Search advisees, manuscripts, requests..."
       variant="workspace"

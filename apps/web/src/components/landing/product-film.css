@@ -2,8 +2,7 @@
   padding-block: clamp(28px, 4vw, 56px) clamp(20px, 3vw, 42px);
 }
 
-.landing-page .lp-film-card,
-.landing-page .lp-film-dialog {
+.landing-page .lp-film-card {
   border: 1px solid var(--lp-line);
   background: var(--lp-dark-surface, #fff);
   color: var(--lp-ink);
@@ -62,132 +61,11 @@
 }
 
 .landing-page .lp-film-poster {
-  position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 16 / 9;
-  padding: 0;
-  overflow: hidden;
+  height: auto;
   border: 1px solid var(--lp-line);
   border-radius: 11px;
-  background: #e4eef5;
-}
-
-.landing-page .lp-film-poster img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.landing-page :is(.lp-film-play, .lp-film-duration) {
-  position: absolute;
-  bottom: clamp(8px, 2vw, 18px);
-  background: #0b3553;
-  color: #fff;
-}
-
-.landing-page .lp-film-play {
-  left: clamp(8px, 2vw, 18px);
-  display: grid;
-  place-items: center;
-  width: clamp(44px, 4.5vw, 58px);
-  aspect-ratio: 1;
-  border: 1px solid #ffffff80;
-  border-radius: 50%;
-  box-shadow: 0 4px 16px #0b35534d;
-}
-
-.landing-page .lp-film-poster:hover .lp-film-play {
-  background: #174965;
-}
-
-.landing-page .lp-film-duration {
-  right: clamp(8px, 2vw, 18px);
-  padding: 4px 8px;
-  border-radius: 5px;
-  font-size: 0.8rem;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-}
-
-html:has(.lp-film-dialog[open]) {
-  overflow: hidden;
-}
-
-.landing-page .lp-film-dialog {
-  position: fixed;
-  inset: 0;
-  width: min(1120px, calc(100% - 28px));
-  max-height: calc(100dvh - 28px);
-  margin: auto;
-  padding: clamp(10px, 2vw, 20px);
-  overflow: auto;
-  overscroll-behavior: contain;
-  border-radius: 16px;
-}
-
-.landing-page .lp-film-dialog::backdrop {
-  background: #061827d9;
-}
-
-.landing-page .lp-film-dialog-header,
-.landing-page .lp-film-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.landing-page .lp-film-dialog-header {
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 12px;
-}
-
-.landing-page .lp-film-dialog-header h2 {
-  font-size: clamp(1rem, 2vw, 1.45rem);
-  font-weight: 650;
-  line-height: 1.2;
-}
-
-.landing-page .lp-film-controls button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0 9px;
-  border: 1px solid var(--lp-line);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--lp-navy);
-  font-size: 0.82rem;
-  font-weight: 650;
-}
-
-.landing-page .lp-film-controls button:hover {
-  background: var(--lp-dark-raised, #edf3f7);
-}
-
-.landing-page .lp-film-dialog video {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  max-height: calc(100dvh - 112px);
-  border-radius: 9px;
-  background: #081e30;
-  object-fit: contain;
-}
-
-.landing-page .lp-film-error {
-  margin-top: 12px;
-  color: var(--lp-muted);
-}
-
-.landing-page .lp-film-error a {
-  color: var(--lp-navy);
-  text-decoration: underline;
 }
 
 @media (max-width: 740px) {

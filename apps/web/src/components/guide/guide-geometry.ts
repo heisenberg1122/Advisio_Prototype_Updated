@@ -8,18 +8,30 @@ export interface GuideRect {
 }
 const clamp = (value: number, low: number, high: number) =>
   Math.max(low, Math.min(value, Math.max(low, high)));
-export function connectedGuideGeometry(
-  target: GuideRect,
+export function guidePlacement(
+  target: GuideRect | null,
   tooltip: { width: number; height: number },
   viewport: { width: number; height: number },
   preferVertical = false,
 ) {
   const gap = 22,
     edge = 12;
+  const viewportHeight = Math.max(0, viewport.height - 2 * edge);
+  const centered = (viewport.width - tooltip.width) / 2;
+  if (!target) {
+    return {
+      left: centered,
+      top: Math.max(edge, viewport.height - tooltip.height - edge),
+      maxHeight: viewportHeight,
+      connector: null,
+    };
+  }
   const above = target.top - gap - edge;
   const below = viewport.height - target.bottom - gap - edge;
+  const minimumHeight = 176;
   let left: number, top: number;
   let side: "left" | "right" | "top" | "bottom";
+  let maxHeight = viewportHeight;
   if (
     !preferVertical &&
     viewport.width - target.right >= tooltip.width + gap + edge
@@ -31,21 +43,31 @@ export function connectedGuideGeometry(
     side = "left";
     left = target.left - tooltip.width - gap;
     top = target.top + (target.height - tooltip.height) / 2;
-  } else if (below >= tooltip.height || below > above) {
+  } else if (below >= minimumHeight && (below >= tooltip.height || below >= above)) {
     side = "bottom";
     left = target.left;
     top = target.bottom + gap;
-  } else {
+    maxHeight = below;
+  } else if (above >= minimumHeight) {
     side = "top";
     left = target.left;
-    top = target.top - Math.min(tooltip.height, Math.max(above, 120)) - gap;
+    maxHeight = above;
+    top = target.top - Math.min(tooltip.height, maxHeight) - gap;
+  } else {
+    // A short screen can leave no room for a readable box beside the highlight.
+    const maxHeight = Math.min(
+      viewportHeight,
+      Math.floor(viewport.height * 0.45),
+      Math.max(152, Math.floor(viewport.height / 3)),
+    );
+    const height = Math.min(tooltip.height, maxHeight);
+    return {
+      left: centered,
+      top: below >= above ? viewport.height - height - edge : edge,
+      maxHeight,
+      connector: null,
+    };
   }
-  const maxHeight =
-    side === "top"
-      ? Math.max(above, 120)
-      : side === "bottom"
-        ? Math.max(below, 120)
-        : viewport.height - 2 * edge;
   const height = Math.min(tooltip.height, maxHeight);
   left = clamp(left, edge, viewport.width - tooltip.width - edge);
   top = clamp(top, edge, viewport.height - height - edge);
@@ -77,7 +99,6 @@ export function connectedGuideGeometry(
     left,
     top,
     maxHeight,
-    end,
-    path: `M ${start.x} ${start.y} L ${end.x} ${end.y}`,
+    connector: { end, path: `M ${start.x} ${start.y} L ${end.x} ${end.y}` },
   };
 }

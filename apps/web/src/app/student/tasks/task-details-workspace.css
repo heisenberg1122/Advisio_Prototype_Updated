@@ -201,3 +201,92 @@
 @media (prefers-reduced-motion: reduce) {
   .td-academic-workspace :is(button, a, input, textarea) { transition: none; }
 }
+
+/* Details page refinements: one status as quiet text, the due date under the
+   title, equal submission choices, and the same thin card border as the app. */
+.td-academic-workspace {
+  --td-ok: color-mix(in srgb, var(--color-success) 55%, var(--color-text-primary));
+  --td-wait: color-mix(in srgb, var(--color-warning) 58%, var(--color-text-primary));
+  --td-bad: color-mix(in srgb, var(--color-danger) 80%, var(--color-text-primary));
+}
+.dark .td-academic-workspace {
+  --td-ok: var(--color-success);
+  --td-wait: var(--color-warning);
+  --td-bad: var(--color-danger);
+}
+.td-academic-workspace .td-status-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.td-academic-workspace .td-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.td-academic-workspace .td-status::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.td-academic-workspace .td-status:is([data-status="IN_PROGRESS"], [data-status="NOT_STARTED"], [data-status="READY_TO_START"], [data-status="SUBMITTED"], [data-status="UNDER_REVIEW"], [data-status="PENDING_ADVISER"], [data-status="AWAITING_GRADE"]) {
+  color: var(--td-wait);
+}
+.td-academic-workspace .td-status:is([data-status="APPROVED"], [data-status="COMPLETED"]) {
+  color: var(--td-ok);
+}
+.td-academic-workspace .td-status:is([data-status="REVISION_REQUIRED"], [data-status="REJECTED"], [data-status="DECLINED"]) {
+  color: var(--td-bad);
+}
+.td-academic-workspace .td-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.td-academic-workspace .td-due--soon {
+  color: var(--td-wait);
+  font-weight: 600;
+}
+.td-academic-workspace .td-due--overdue {
+  color: var(--td-bad);
+  font-weight: 600;
+}
+.td-academic-workspace .td-document {
+  border: 1px solid var(--td-line, var(--color-border));
+  box-shadow: 0 1px 2px rgba(20, 35, 50, 0.04);
+}
+/* Both submission choices look equal and clearly clickable; neither looks
+   disabled. Hover and keyboard focus show which one you're about to pick. */
+.td-academic-workspace .td-action-area .grid > button {
+  border-width: 1px;
+  border-color: var(--td-line, var(--color-border));
+  background: var(--color-surface);
+  transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+.td-academic-workspace .td-action-area .grid > button:hover,
+.td-academic-workspace .td-action-area .grid > button:focus-visible {
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .td-academic-workspace .td-action-area .grid > button {
+    transition: none;
+  }
+}
+/* Same capitalised status style as the Tasks list. */
+.td-academic-workspace .td-status {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}

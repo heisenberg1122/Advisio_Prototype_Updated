@@ -6,21 +6,6 @@
   "captionCount": 199,
   "files": [
     {
-      "name": "master-1080p.mp4",
-      "bytes": 44054793,
-      "sha256": "7366c5786eaafa56049cdb950a5428712fedb1d8e9347e11465db0f2b58a0f1f"
-    },
-    {
-      "name": "coordinator-web.mp4",
-      "bytes": 21247802,
-      "sha256": "9936aee309fa66966e37cf6d056418425a527b75854b6799addde7dfab604b0f"
-    },
-    {
-      "name": "coordinator-captioned.mp4",
-      "bytes": 22836780,
-      "sha256": "a311ed1772a69d73facd55c4882a558615bc6b92f9b115f22cfbcb32a25bc6eb"
-    },
-    {
       "name": "subtitles.vtt",
       "bytes": 16445,
       "sha256": "d327f43af537bf8c339323e865d419d6f71750051e5d80110243c3382aa8ba0d"
@@ -47,33 +32,8 @@
     },
     {
       "name": "media.json",
-      "bytes": 1143,
-      "sha256": "f55bad9fce0cddaa48983a4a55feb1b96bcc5db039573718deb0769bdaf12896"
-    },
-    {
-      "name": "chapters/setup.mp4",
-      "bytes": 10091054,
-      "sha256": "c6584ba0925a40e4a9f72dc302be6cb0df8204ebe1a90bf7453c0011e8b22acf"
-    },
-    {
-      "name": "chapters/monitoring.mp4",
-      "bytes": 10519376,
-      "sha256": "1a13dddbe221931995b1d0d6a4c622c08184293d6572e9bf322ca120fc040e8d"
-    },
-    {
-      "name": "chapters/academic-records.mp4",
-      "bytes": 3398288,
-      "sha256": "2902b2584cd4fc02cfcfa9518b2473709430a81a2a2f4c88c5da9abfbd9d081c"
-    },
-    {
-      "name": "chapters/defense.mp4",
-      "bytes": 11229878,
-      "sha256": "e6b29c6b9e3ee1f8a0dc9584e73d70707f5307abea4e537b2d564413d75dc569"
-    },
-    {
-      "name": "chapters/communication.mp4",
-      "bytes": 2089755,
-      "sha256": "dc711f9385f6e6a2ba358b5b91b9b59f432f76640c0fd95964ac0c4cbe207cf6"
+      "bytes": 1060,
+      "sha256": "9093cbdf5cd98a5b95c6194a31ff38d79d24d9e77621af30f09f31e0d4f4e03a"
     }
   ]
 }

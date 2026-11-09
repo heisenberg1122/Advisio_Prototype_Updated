@@ -82,10 +82,10 @@ const variantStyles: Record<NonNullable<ButtonProps["variant"]>, string> = {
 };
 
 const sizeStyles: Record<NonNullable<ButtonProps["size"]>, string> = {
-  sm: "min-h-9 px-3.5 py-2 text-sm rounded-xl gap-1.5 font-semibold",
-  md: "min-h-10 px-4 py-2 text-sm rounded-xl gap-2 font-semibold",
-  lg: "min-h-11 px-5 py-2.5 text-base rounded-xl gap-2.5 font-semibold",
-  icon: "h-10 w-10 p-0 rounded-xl justify-center",
+  sm: "min-h-9 px-3.5 py-2 text-sm rounded-[10px] gap-1.5 font-semibold",
+  md: "min-h-10 px-4 py-2 text-sm rounded-[10px] gap-2 font-semibold",
+  lg: "min-h-11 px-5 py-2.5 text-base rounded-[10px] gap-2.5 font-semibold",
+  icon: "h-10 w-10 p-0 rounded-[10px] justify-center",
 };
 
 export function Button({

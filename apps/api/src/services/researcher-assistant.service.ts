@@ -2,6 +2,8 @@ import {
   ASSISTANT_HELP_VERSION,
   assistantTopic,
   assistantWorkspaceLabels,
+  assistantWorkspaces,
+  assistantPopular,
   authorizedAssistantTopics,
   resolveAssistantQuestion,
   type AssistantAIProvider,
@@ -77,11 +79,10 @@ export interface AssistantIdentity {
   id: string;
   collegeId?: string | null;
   permissions: string[];
-  roles?: readonly string[];
 }
 export const assistantRequestSchema = z
   .object({
-    workspace: z.enum(["researcher", "adviser", "panelist", "dean"]).optional(),
+    workspace: z.enum(assistantWorkspaces).optional(),
     message: z.string().trim().min(1).max(1600),
     page: z.string().max(30).optional(),
     previousTopic: z.string().max(30).optional(),
@@ -168,14 +169,7 @@ export class ResearcherAssistantService {
     const topicIds = (
       topics.length
         ? topics
-        : allowed.filter((topic) =>
-            ({
-              adviser: ["ad-01", "ad-07", "ad-13"],
-              panelist: ["pn-02", "pn-07", "pn-12"],
-              dean: ["dean-groups", "dean-defenses", "dean-reports"],
-              researcher: ["class", "group", "documents"],
-            })[workspace].includes(topic.id),
-          )
+        : allowed.filter((topic) => assistantPopular[workspace].includes(topic.id))
     )
       .filter((topic) =>
         allowed.some((allowedTopic) => allowedTopic.id === topic.id),
@@ -208,19 +202,6 @@ export class ResearcherAssistantService {
         workspace,
       );
       if (resolution.kind === "local") {
-        if (
-          workspace === "dean" &&
-          resolution.topic.id === "dean-panel-evaluation" &&
-          identity.roles &&
-          !identity.roles.includes("PANELIST")
-        ) {
-          this.metrics.withoutAI++;
-          return {
-            source: "local",
-            text: "Your active college does not have a Panelist role assigned to this account. You can still use Defenses for Dean oversight. If you expect a panel assignment, check with your coordinator or System Administrator.",
-            topicIds: [resolution.topic.id],
-          };
-        }
         const key =
           ASSISTANT_HELP_VERSION +
           ":" +
@@ -306,7 +287,9 @@ export class ResearcherAssistantService {
         ({
           adviser: "Use only Adviser procedures. Never infer group assignments, request capacity, review status, or meeting availability. A submitted recommendation applies only to its assigned manuscript version.",
           panelist: "Use only Panelist procedures. Distinguish review assignments from defense packets, configured evaluation modes, drafts from locked submissions, and personal evaluations from release-gated official decisions. Never infer assignment, readiness, scoring or release status.",
-          dean: "Use only Dean procedures. Explain how to find and filter information in the active college. Never infer current risk, assignments, approval status, or access to a record.",
+          coordinator: "Explain draft versus published workflows, private versus released grades, and eligibility gates without inferring a group's status.",
+          dean: "Use only college-scoped oversight procedures. Never infer access, risk, workload, or release status for a particular record.",
+          "system-admin": "Use only authorized platform administration guidance. Do not offer operational commands or instructions to bypass role, integration or backup controls.",
           researcher: "Class/workflow access and joining a research group are different processes. In Documents, Submission History lists uploaded versions and their statuses. To confirm an academic submission, open the requirement in Tasks & Requirements and check its status there.",
         })[workspace],
         "You have no research records, grades, messages, enrollment status or documents. Never claim to have checked them. State approval and availability dependencies accurately.",

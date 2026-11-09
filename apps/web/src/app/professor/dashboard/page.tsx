@@ -4303,6 +4303,7 @@ function ProfessorDashboardContent() {
                           resetDefenseForm();
                           setShowDefenseForm(true);
                         }}
+                        data-guide="co-defense-create"
                         disabled={!eligibleDefenseGroups.length}
                         className="rounded-xl bg-[#f6a800] px-5 py-3 text-sm font-extrabold text-[#102f49] disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -4480,7 +4481,7 @@ function ProfessorDashboardContent() {
                     <div className="cdf-event-heading flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-start md:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-extrabold text-[#102f49]">
+                          <h3 data-guide="co-defense-event" className="text-lg font-extrabold text-[#102f49]">
                             {defenseEvent.code}
                           </h3>
                           <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-extrabold text-blue-700">
@@ -5314,6 +5315,7 @@ function ProfessorDashboardContent() {
                             onChange={(event) =>
                               setSubmissionSearch(event.target.value)
                             }
+                            data-guide="co-submission-search"
                             placeholder="Requirement or research group"
                             data-tour="page-filter"
                             className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-3 text-base font-normal normal-case tracking-normal outline-none focus:border-[#173f63]"
@@ -5330,6 +5332,7 @@ function ProfessorDashboardContent() {
                     <button
                       type="button"
                       role="tab"
+                      data-guide="co-review-queue"
                       aria-selected={submissionView === "review"}
                       onClick={() =>
                         updateSubmissionQuery({ submissionView: null })
@@ -5498,6 +5501,7 @@ function ProfessorDashboardContent() {
                       }
                       placeholder="Search project, adviser, research type, or program…"
                       data-tour="page-filter"
+                      data-guide="co-project-search"
                       aria-label="Search research projects"
                       className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-base text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-[#173f63] focus:ring-2 focus:ring-[#173f63]/10"
                     />
@@ -5796,6 +5800,7 @@ function ProfessorDashboardContent() {
                           selectedWorkflow.status === "PUBLISHED" ||
                           publishingWorkflow
                         }
+                        data-guide="co-workflow-publish"
                         onClick={() => setShowPublishConfirmation(true)}
                         className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] shadow-sm transition hover:bg-[var(--color-primary-dark)] disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -5881,6 +5886,7 @@ function ProfessorDashboardContent() {
                       <button
                         key={item.id}
                         id={`workflow-tab-${item.id}`}
+                        data-guide={item.id === "participants" ? "co-workflow-participants" : undefined}
                         type="button"
                         role="tab"
                         aria-selected={workflowView === item.id}
@@ -6130,6 +6136,7 @@ function ProfessorDashboardContent() {
                                     setShowWorkflowCreateMenu((value) => !value)
                                   }
                                   disabled={!selectedWorkflowId}
+                                  data-guide="co-workflow-create"
                                   aria-haspopup="menu"
                                   aria-expanded={showWorkflowCreateMenu}
                                   className="rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-extrabold text-[var(--college-on-primary)] shadow-sm disabled:cursor-not-allowed disabled:opacity-40 dark:text-[var(--college-on-primary-dark)]"
@@ -6429,6 +6436,7 @@ function ProfessorDashboardContent() {
                                         ? openTopicEditor()
                                         : setCreatingWorkflow(true)
                                     }
+                                    data-guide={workflows.length ? undefined : "co-workflow-new"}
                                     className="mt-4 rounded-xl bg-[#f6a800] px-4 py-2.5 text-sm font-extrabold text-[#102f49]"
                                   >
                                     {workflows.length
@@ -6446,7 +6454,7 @@ function ProfessorDashboardContent() {
                               <button type="button" onClick={() => setShowStudentPreview(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-primary-light)] text-[var(--color-primary)]"><i className="ti ti-eye" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Preview as Student</strong><span className="text-xs text-[var(--color-text-secondary)]">See the published student view</span></span></button>
                               <button type="button" onClick={() => setWorkflowView("resources")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-books" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Guides & Templates</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage shared workflow resources</span></span></button>
                               <button type="button" onClick={() => setWorkflowView("participants")} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-users" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Participants</strong><span className="text-xs text-[var(--color-text-secondary)]">Manage assigned researchers</span></span></button>
-                              <button type="button" onClick={() => setCreatingWorkflow(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-copy-plus" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Create another workflow</strong><span className="text-xs text-[var(--color-text-secondary)]">Start a separate workflow configuration</span></span></button>
+                              <button type="button" data-guide="co-workflow-new" onClick={() => setCreatingWorkflow(true)} className="flex w-full items-center gap-3 py-3 text-left"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--color-surface-subtle)] text-[var(--color-primary)]"><i className="ti ti-copy-plus" /></span><span><strong className="block text-sm text-[var(--color-text-primary)]">Create another workflow</strong><span className="text-xs text-[var(--color-text-secondary)]">Start a separate workflow configuration</span></span></button>
                               <button type="button" disabled={!selectedWorkflow || deletingWorkflow} onClick={() => { if (!selectedWorkflow) return; setWorkflowToDelete({ id: selectedWorkflow.id, name: selectedWorkflow.name }); setDeleteConfirmation(""); setDeleteWorkflowError(""); }} className="flex w-full items-center gap-3 py-3 text-left disabled:opacity-50"><span className="grid h-9 w-9 place-items-center rounded-full bg-rose-50 text-rose-600"><i className="ti ti-trash" /></span><span><strong className="block text-sm text-rose-700">Delete workflow</strong><span className="text-xs text-[var(--color-text-secondary)]">Available only when no project is linked</span></span></button>
                             </div>
                           </section>

@@ -24,6 +24,8 @@ import {
   type StudentRecord,
   type TeacherRecord,
 } from "./class-record-types";
+import { useAuth } from "@/hooks/use-auth";
+import { getAcademicIdentity } from "@/lib/academic-identity";
 import "./class-record.css";
 
 const percentage = (n: number | null | undefined) =>
@@ -51,9 +53,14 @@ type ScoreEdit = {
 
 export default function ClassRecordWorkspace({
   student = false,
+  switcher,
 }: {
   student?: boolean;
+  /** Student view only: the Class / Defense grades switch shown in the header. */
+  switcher?: React.ReactNode;
 }) {
+  const { user } = useAuth();
+  const seal = student ? getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc : undefined;
   const [params, setParams] = useSearchParams();
   const [classes, setClasses] = useState<RecordClass[]>([]);
   const [workflowId, setWorkflowId] = useState(params.get("workflowId") || "");
@@ -302,31 +309,88 @@ export default function ClassRecordWorkspace({
 
   return (
     <PageContainer maxWidth="full" className="class-record min-w-0">
-      <PageHeader
-        variant="plain"
-        title={student ? "My Grades" : "Class Record"}
-        category={student ? "YOUR ACADEMIC RECORD" : "COURSE WORKSPACE"}
-        subtitle={
-          student
-            ? "Your released period grades, activities, and attendance."
-            : "Individual grades and attendance, with linked research milestones."
-        }
-        actions={
-          <Button
-            variant="outline"
-            icon={<RefreshCw size={16} />}
-            disabled={!!busy || loading || !workflowId}
-            onClick={() => {
-              if (allowSwitch()) {
-                clearEdits();
-                void load();
-              }
-            }}
-          >
-            Refresh
-          </Button>
-        }
-      />
+      {student ? (
+        <header className="cr-student-hero">
+          {seal && <img className="cr-seal" src={seal} alt="" aria-hidden="true" draggable={false} />}
+          <div className="cr-hero-main">
+            <p className="cr-eyebrow">Your academic record</p>
+            <h1>My Grades</h1>
+            {classes.length <= 1 ? (
+              <p className="cr-hero-class-name" data-guide="student-grade-context" data-tour="class-selection">
+                {classes[0] ? `${classes[0].name} · ${classes[0].professor}` : "No class yet"}
+              </p>
+            ) : (
+            <label className="cr-hero-class">
+              <span className="sr-only">Class / workflow</span>
+              <select
+                aria-label="Class / workflow"
+                data-guide="student-grade-context"
+                data-tour="class-selection"
+                value={workflowId}
+                disabled={!!busy}
+                onChange={(e) => chooseClass(e.target.value)}
+              >
+                {!classes.length && <option value="">No classes available</option>}
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} · {c.professor}
+                  </option>
+                ))}
+              </select>
+            </label>
+            )}
+            <p className="cr-hero-note">
+              <ShieldCheck size={14} aria-hidden="true" /> Only grades your professor has released are shown.
+            </p>
+          </div>
+          <div className="cr-hero-actions">
+            {switcher}
+            <button
+              type="button"
+              className="cr-icon-button"
+              aria-label="Refresh grades"
+              title="Refresh grades"
+              disabled={!!busy || loading || !workflowId}
+              onClick={() => {
+                if (allowSwitch()) {
+                  clearEdits();
+                  void load();
+                }
+              }}
+            >
+              <RefreshCw size={16} aria-hidden="true" />
+            </button>
+          </div>
+        </header>
+      ) : (
+        <>
+        <PageHeader
+          variant="plain"
+          title={student ? "My Grades" : "Class Record"}
+          category={student ? "YOUR ACADEMIC RECORD" : "COURSE WORKSPACE"}
+          subtitle={
+            student
+              ? "Your released period grades, activities, and attendance."
+              : "Individual grades and attendance, with linked research milestones."
+          }
+          actions={
+            <Button
+              variant="outline"
+              icon={<RefreshCw size={16} />}
+              disabled={!!busy || loading || !workflowId}
+              onClick={() => {
+                if (allowSwitch()) {
+                  clearEdits();
+                  void load();
+                }
+              }}
+            >
+              Refresh
+            </Button>
+          }
+        />
+        </>
+      )}
       {error && (
         <div role="alert" className="cr-alert cr-alert-error">
           {error}{" "}
@@ -340,37 +404,40 @@ export default function ClassRecordWorkspace({
           {notice}
         </div>
       )}
-      <div className="cr-toolbar cr-panel">
-        <label className="cr-class-selector">
-          Class / workflow
-          <select
-            aria-label="Class / workflow"
-            data-guide={student ? "student-grade-context" : undefined}
-            data-tour="class-selection"
-            value={workflowId}
-            disabled={!!busy}
-            onChange={(e) => chooseClass(e.target.value)}
-          >
-            {!classes.length && <option value="">No classes available</option>}
-            {classes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} · {c.professor}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span className="cr-muted">
-          {student ? (
-            <>
-              <ShieldCheck size={16} /> Only your released record is visible.
-            </>
-          ) : (
-            <>
-              <BookOpen size={16} /> Drafts are private to the class professor.
-            </>
-          )}
-        </span>
-      </div>
+      {!student && (
+        <div className="cr-toolbar cr-panel">
+          <label className="cr-class-selector">
+            Class / workflow
+            <select
+              aria-label="Class / workflow"
+              data-guide="co-class-select"
+              data-guide-empty={!classes.length}
+              data-tour="class-selection"
+              value={workflowId}
+              disabled={!!busy}
+              onChange={(e) => chooseClass(e.target.value)}
+            >
+              {!classes.length && <option value="">No classes available</option>}
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} · {c.professor}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="cr-muted">
+            {student ? (
+              <>
+                <ShieldCheck size={16} /> Only your released record is visible.
+              </>
+            ) : (
+              <>
+                <BookOpen size={16} /> Drafts are private to the class professor.
+              </>
+            )}
+          </span>
+        </div>
+      )}
       {loading ? (
         <div className="cr-panel cr-empty" role="status">
           Loading class record…
@@ -411,182 +478,38 @@ export default function ClassRecordWorkspace({
         </div>
       ) : (
         <>
-          <div
-            className="cr-period-tabs"
-            role="tablist"
-            aria-label="Grading period"
-          >
-            {recordPeriods.map((p) => (
-              <button
-                key={p}
-                role="tab"
-                aria-selected={p === code}
-                disabled={!!busy}
-                onClick={() => changeTab(p)}
-              >
-                {periodLabels[p]}
-                {student &&
-                  mine?.periods.find((x) => x.code === p)?.release && (
-                    <span className="cr-dot" />
-                  )}
-              </button>
-            ))}
-          </div>
+          {!student && (
+            <div
+              className="cr-period-tabs"
+              role="tablist"
+              aria-label="Grading period"
+            >
+              {recordPeriods.map((p) => (
+                <button
+                  key={p}
+                  role="tab"
+                  aria-selected={p === code}
+                  disabled={!!busy}
+                  onClick={() => changeTab(p)}
+                >
+                  {periodLabels[p]}
+                  {student &&
+                    mine?.periods.find((x) => x.code === p)?.release && (
+                      <span className="cr-dot" />
+                    )}
+                </button>
+              ))}
+            </div>
+          )}
           {student ? (
-            <>
-              <div className="cr-summary">
-                <div className="cr-panel">
-                  <span>{periodLabels[code]} grade</span>
-                  <strong>
-                    {percentage(released?.snapshot.calculation.score)}
-                  </strong>
-                  <small>
-                    {released
-                      ? `Released ${formatReviewDateTime(released.releasedAt)}`
-                      : "Not released yet"}
-                  </small>
-                </div>
-                <div className="cr-panel">
-                  <span>Attendance</span>
-                  <strong>
-                    {released
-                      ? `${released.snapshot.calculation.attendance.present + released.snapshot.calculation.attendance.late} attended`
-                      : "—"}
-                  </strong>
-                  <small>
-                    {released
-                      ? attendanceSummary(released.snapshot)
-                      : "Available when your professor releases this period"}
-                  </small>
-                </div>
-                <div className="cr-panel">
-                  <span>Overall grade</span>
-                  <strong>{percentage(mine?.overall)}</strong>
-                  <small>
-                    Available after all three periods are released with weights
-                    totaling 100%.
-                  </small>
-                </div>
-              </div>
-              {!released ? (
-                <div className="cr-panel cr-empty">
-                  <ShieldCheck size={30} />
-                  <h2>{periodLabels[code]} grades are not released yet</h2>
-                  <p>
-                    Your professor’s drafts stay private. Your published record
-                    will appear here.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div
-                    className="cr-subtabs"
-                    role="group"
-                    aria-label="Record view"
-                  >
-                    {[
-                      ["grades", "Activities"],
-                      ["attendance", "Attendance"],
-                      ["history", "Release history"],
-                    ].map(([id, label]) => (
-                      <button
-                        key={id}
-                        aria-pressed={mode === id}
-                        onClick={() => setMode(id)}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  {mode === "grades" ? (
-                    <div className="cr-panel">
-                      <div className="cr-section-heading">
-                        <h2>{periodLabels[code]} activity breakdown</h2>
-                        <span className="cr-muted">
-                          Released by {released.releasedByName}
-                        </span>
-                      </div>
-                      <div className="cr-table-scroll">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Activity</th>
-                              <th>Type</th>
-                              <th>Released score</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {released.snapshot.entries.map((e) => (
-                              <tr key={e.itemId}>
-                                <td>{e.title}</td>
-                                <td>
-                                  {e.kind === "MILESTONE"
-                                    ? "Group milestone"
-                                    : "Individual"}
-                                </td>
-                                <td>
-                                  {scoreText(e.score, e.maxPoints, e.state)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <PolicyNote snapshot={released.snapshot} />
-                    </div>
-                  ) : mode === "attendance" ? (
-                    <div className="cr-panel">
-                      <div className="cr-section-heading">
-                        <h2>Released attendance</h2>
-                        <span className="cr-muted">
-                          {attendanceSummary(released.snapshot)}
-                        </span>
-                      </div>
-                      <div className="cr-table-scroll">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Date</th>
-                              <th>Session</th>
-                              <th>Status</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {released.snapshot.attendance.map((a) => (
-                              <tr key={a.sessionId}>
-                                <td>{dateLabel(a.date)}</td>
-                                <td>{a.title}</td>
-                                <td>
-                                  <span
-                                    className={`cr-attendance-status cr-status-${a.status?.toLowerCase()}`}
-                                  >
-                                    {a.status
-                                      ? statusLabels[a.status]
-                                      : "Unmarked"}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        {!released.snapshot.attendance.length && (
-                          <p className="cr-empty">
-                            No attendance dates in this release.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <ReleaseHistory mine={mine!} />
-                  )}
-                  {released.snapshot.reason && (
-                    <p className="cr-muted">
-                      Professor’s release note: {released.snapshot.reason}
-                    </p>
-                  )}
-                </>
-              )}
-            </>
+            <StudentRecordView
+              mine={mine}
+              code={code}
+              mode={mode}
+              busy={!!busy}
+              onPeriod={(p) => changeTab(p)}
+              onMode={setMode}
+            />
           ) : (
             period && (
               <>
@@ -623,6 +546,7 @@ export default function ClassRecordWorkspace({
                     aria-label="Record view"
                   >
                     <button
+                      data-guide="co-grade-tab"
                       aria-pressed={mode === "grades"}
                       disabled={!!busy}
                       onClick={() => changeTab(code, "grades")}
@@ -630,6 +554,7 @@ export default function ClassRecordWorkspace({
                       <BookOpen size={15} /> Grades
                     </button>
                     <button
+                      data-guide="co-attendance-tab"
                       aria-pressed={mode === "attendance"}
                       disabled={!!busy}
                       onClick={() => changeTab(code, "attendance")}
@@ -637,6 +562,7 @@ export default function ClassRecordWorkspace({
                       <CalendarCheck size={15} /> Attendance
                     </button>
                     <button
+                      data-orientation="class-history"
                       aria-pressed={mode === "history"}
                       disabled={!!busy}
                       onClick={() => changeTab(code, "history")}
@@ -1029,6 +955,7 @@ export default function ClassRecordWorkspace({
                               !period.rows.length ||
                               period.rows.some((r) => !r.calculation.complete)
                             }
+                            data-guide="co-release-period"
                             onClick={() => openDialog("release")}
                           >
                             Release period
@@ -1369,13 +1296,15 @@ function historyDetail(value: TeacherRecord["history"][number]["newValues"]) {
     return `${value.studentName} · ${percentage(value.score)}`;
   return "";
 }
-function PolicyNote({ snapshot }: { snapshot: RecordSnapshot }) {
+function PolicyNote({ snapshot, hideWeights = false }: { snapshot: RecordSnapshot; hideWeights?: boolean }) {
   return (
     <p className="cr-policy">
       {snapshot.weights
-        ? `Weighted categories: group milestones ${snapshot.weights.MILESTONE}%, individual activities ${snapshot.weights.INDIVIDUAL}%, attendance ${snapshot.weights.ATTENDANCE}%.`
-        : "Calculated from total earned activity points divided by total possible activity points. Attendance is recorded separately."}{" "}
-      Excused activities and dates are excluded.
+        ? hideWeights
+          ? ""
+          : `Weighted categories: group milestones ${snapshot.weights.MILESTONE}%, individual activities ${snapshot.weights.INDIVIDUAL}%, attendance ${snapshot.weights.ATTENDANCE}%.`
+        : "Calculated from total earned activity points divided by total possible activity points. Attendance is recorded separately."}
+      {snapshot.weights && hideWeights ? "" : " "}Excused activities and dates are excluded.
       {snapshot.weights && snapshot.weights.ATTENDANCE > 0
         ? ` Late attendance earns ${snapshot.lateCredit}% credit.`
         : ""}
@@ -1396,5 +1325,214 @@ function ReleaseHistory({ mine }: { mine: StudentRecord }) {
         </div>
       ))}
     </div>
+  );
+}
+
+const scorePercent = (entry: RecordSnapshot["entries"][number]) =>
+  entry.state === "EXCUSED" || !entry.maxPoints
+    ? null
+    : entry.state === "MISSING"
+      ? 0
+      : entry.score === null
+        ? null
+        : Math.round((entry.score / entry.maxPoints) * 100);
+
+/** Split bar showing how the period grade is weighted. */
+function WeightBar({ weights }: { weights: NonNullable<RecordSnapshot["weights"]> }) {
+  const parts = [
+    { key: "INDIVIDUAL", label: "Individual activities", value: weights.INDIVIDUAL },
+    { key: "MILESTONE", label: "Group milestones", value: weights.MILESTONE },
+    { key: "ATTENDANCE", label: "Attendance", value: weights.ATTENDANCE },
+  ];
+  return (
+    <div className="cr-weights">
+      <p className="cr-weights-title">How this grade is weighted</p>
+      <div className="cr-weights-bar" aria-hidden="true">
+        {parts.filter((part) => part.value > 0).map((part) => (
+          <span key={part.key} data-kind={part.key} style={{ flexGrow: part.value }} />
+        ))}
+      </div>
+      <ul className="cr-weights-legend">
+        {parts.map((part) => (
+          <li key={part.key} data-kind={part.key} data-empty={part.value === 0}>
+            {part.label} {part.value}%
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** The researcher's own released record: period cards, then one breakdown card. */
+function StudentRecordView({
+  mine,
+  code,
+  mode,
+  busy,
+  onPeriod,
+  onMode,
+}: {
+  mine: StudentRecord | null;
+  code: string;
+  mode: string;
+  busy: boolean;
+  onPeriod: (code: string) => void;
+  onMode: (mode: string) => void;
+}) {
+  const released = mine?.periods.find((p) => p.code === code)?.release;
+  const attendance = released?.snapshot.calculation.attendance;
+  const attended = attendance ? attendance.present + attendance.late : 0;
+  const attendanceLine = attendance
+    ? `${attendance.present} present · ${attendance.absent} absent · ${attendance.late} late · ${attendance.excused} excused`
+    : "";
+  return (
+    <>
+      <div className="cr-periods">
+        <div className="cr-period-cards" role="tablist" aria-label="Grading period">
+          {recordPeriods.map((p) => {
+            const release = mine?.periods.find((x) => x.code === p)?.release;
+            return (
+              <button
+                key={p}
+                type="button"
+                role="tab"
+                aria-selected={p === code}
+                disabled={busy}
+                className="cr-period-card"
+                data-released={Boolean(release)}
+                onClick={() => onPeriod(p)}
+              >
+                <span className="cr-period-top">
+                  <span className="cr-period-name">{periodLabels[p]}</span>
+                  <span className="cr-state">{release ? "Released" : "Not released"}</span>
+                </span>
+                <strong>{release ? percentage(release.snapshot.calculation.score) : "—"}</strong>
+                <small>{release ? `Released ${formatReviewDateTime(release.releasedAt)}` : "Appears once released"}</small>
+              </button>
+            );
+          })}
+        </div>
+        <div className="cr-period-card cr-overall" data-released={mine?.overall != null}>
+          <span className="cr-period-top">
+            <span className="cr-period-name">Overall</span>
+          </span>
+          <strong>{percentage(mine?.overall)}</strong>
+          <small>{mine?.overall != null ? "All three periods released" : "After all 3 periods are released"}</small>
+        </div>
+      </div>
+
+      {!released ? (
+        <div className="cr-panel cr-empty">
+          <ShieldCheck size={30} />
+          <h2>{periodLabels[code]} grades are not released yet</h2>
+          <p>Your professor’s drafts stay private. Your published record will appear here.</p>
+        </div>
+      ) : (
+        <>
+          <section className="cr-panel cr-breakdown" aria-labelledby="cr-breakdown-title">
+            <div className="cr-breakdown-head">
+              <div>
+                <h2 id="cr-breakdown-title">{periodLabels[code]} breakdown</h2>
+                <span className="cr-muted">Released by {released.releasedByName}</span>
+              </div>
+              <div className="cr-breakdown-tabs" role="group" aria-label="Record view">
+                {[
+                  ["grades", "Activities"],
+                  ["attendance", `Attendance · ${attended} attended`],
+                  ["history", "Release history"],
+                ].map(([id, label]) => (
+                  <button key={id} type="button" aria-pressed={mode === id} onClick={() => onMode(id)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {mode === "grades" ? (
+              <>
+                {released.snapshot.weights && <WeightBar weights={released.snapshot.weights} />}
+                <div className="cr-table-scroll">
+                  <table className="cr-scores">
+                    <thead>
+                      <tr>
+                        <th>Activity</th>
+                        <th>Type</th>
+                        <th>Score</th>
+                        <th className="cr-num">%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {released.snapshot.entries.map((e) => {
+                        const pct = scorePercent(e);
+                        return (
+                          <tr key={e.itemId}>
+                            <td className="cr-activity">{e.title}</td>
+                            <td className="cr-kind">
+                              <i className={`ti ${e.kind === "MILESTONE" ? "ti-users" : "ti-user"}`} aria-hidden="true" />
+                              {e.kind === "MILESTONE" ? "Group milestone" : "Individual"}
+                            </td>
+                            <td>
+                              <span className="cr-score">
+                                <span>{scoreText(e.score, e.maxPoints, e.state)}</span>
+                                {pct !== null && (
+                                  <span className="cr-score-bar" aria-hidden="true">
+                                    <span data-low={pct < 75} style={{ width: `${Math.min(100, pct)}%` }} />
+                                  </span>
+                                )}
+                              </span>
+                            </td>
+                            <td className="cr-num">{pct === null ? "—" : `${pct}%`}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <PolicyNote snapshot={released.snapshot} hideWeights />
+              </>
+            ) : mode === "attendance" ? (
+              <>
+                <p className="cr-breakdown-line">{attendanceLine}</p>
+                <div className="cr-table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Session</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {released.snapshot.attendance.map((a) => (
+                        <tr key={a.sessionId}>
+                          <td>{dateLabel(a.date)}</td>
+                          <td>{a.title}</td>
+                          <td>
+                            <span className={`cr-attendance-status cr-status-${a.status?.toLowerCase()}`}>
+                              {a.status ? statusLabels[a.status] : "Unmarked"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {!released.snapshot.attendance.length && <p className="cr-empty">No attendance dates in this release.</p>}
+                </div>
+              </>
+            ) : (
+              mine && <ReleaseHistory mine={mine} />
+            )}
+          </section>
+          {released.snapshot.reason && (
+            <div className="cr-panel cr-note">
+              <i className="ti ti-message-2" aria-hidden="true" />
+              <p>
+                <small>Note from your professor</small>
+                {released.snapshot.reason}
+              </p>
+            </div>
+          )}
+        </>
+      )}
+    </>
   );
 }

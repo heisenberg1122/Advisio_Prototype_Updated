@@ -235,7 +235,7 @@ function ConsultationWorkspace({ workspace, scope }: { workspace: Workspace; sco
 
       {notice && <InlineFeedback tone="ok">{notice}</InlineFeedback>}
       {approval.error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{approval.error.message}</p>}
-      <SectionCard title={<span data-guide="faculty-consultations">Project consultations</span>} titleId="consultations-list" count={consultations.isSuccess ? items.length : undefined}>
+      <SectionCard title="Project consultations" titleId="consultations-list" count={consultations.isSuccess ? items.length : undefined}>
         {consultations.isPending && <p role="status" className="au-card-body text-sm text-[var(--color-text-secondary)]">Loading consultations…</p>}
         {consultations.isError && (
           <div className="au-card-body space-y-3">

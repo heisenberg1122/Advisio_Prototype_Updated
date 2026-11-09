@@ -1,0 +1,125 @@
+/* Messages: one card with a tinted band above the chat list and conversation. */
+.gc-card {
+  overflow: visible;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card-soft);
+}
+.gc-band {
+  position: relative;
+  overflow: hidden;
+  padding: 20px 22px 18px;
+  border-bottom: 1px solid var(--color-border);
+  background:
+    radial-gradient(120% 160% at 100% 0%, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 62%),
+    color-mix(in srgb, var(--color-surface-subtle) 55%, var(--color-surface));
+}
+.gc-band > :not(.gc-seal) { position: relative; }
+.gc-seal {
+  position: absolute;
+  top: -40px;
+  right: -30px;
+  width: 230px;
+  height: 230px;
+  object-fit: contain;
+  opacity: 0.06;
+  filter: grayscale(1);
+  pointer-events: none;
+  user-select: none;
+}
+.gc-band p { font-size: 13px; color: var(--color-text-secondary); }
+.gc-band strong { font-weight: 700; color: var(--color-text-primary); }
+.gc-band h1 { margin-top: 4px; font-size: 26px; font-weight: 700; line-height: 1.2; color: var(--color-text-primary); }
+.gc-side-empty { padding: 6px 4px; font-size: 13px; color: var(--color-text-secondary); }
+.gc-side-note { margin-top: 14px; padding: 10px 4px 0; border-top: 1px solid var(--color-border); font-size: 12.5px; color: var(--color-text-secondary); }
+
+@media (max-width: 640px) {
+  .gc-band { padding: 16px; }
+  .gc-band h1 { font-size: 22px; }
+}
+
+/* Researcher with no chats yet: one full-width panel. */
+.gc-empty { padding: 24px 22px 26px; }
+.gc-empty-lead { display: flex; align-items: flex-start; gap: 14px; max-width: 620px; }
+.gc-empty-lead strong { display: block; font-size: 15px; font-weight: 700; color: var(--color-text-primary); }
+.gc-empty-lead span > span { display: block; margin-top: 3px; font-size: 13.5px; line-height: 1.55; color: var(--color-text-secondary); }
+.gc-empty-icon { display: grid; flex: none; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--color-surface-subtle); color: var(--color-text-secondary); }
+.gc-empty-sub { margin: 22px 0 8px; font-size: 12.5px; font-weight: 700; color: var(--color-text-secondary); }
+.gc-empty-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.gc-empty-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 11px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.gc-empty-links a:hover { border-color: color-mix(in srgb, var(--color-primary) 40%, var(--color-border)); color: var(--color-primary); }
+.gc-empty-links .ti { font-size: 17px; color: var(--color-text-secondary); }
+
+/* "Start group chat" offer */
+.gc-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 18px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
+}
+.gc-offer-people { display: flex; flex: none; }
+.gc-offer-people > span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  margin-left: -9px;
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface));
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+.gc-offer-people > span:first-child { margin-left: 0; }
+.gc-offer-people > span[data-adviser="true"] { background: var(--color-surface-subtle); color: var(--color-text-secondary); }
+.gc-offer-text { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 200px; }
+.gc-offer-text strong { font-size: 15px; font-weight: 700; color: var(--color-text-primary); }
+.gc-offer-text span { font-size: 13.5px; line-height: 1.5; color: var(--color-text-secondary); }
+.gc-offer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: var(--color-primary);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--college-on-primary, #fff);
+}
+.gc-offer-btn:hover:not(:disabled) { background: var(--color-primary-dark, var(--color-primary)); }
+.gc-offer-btn:disabled { opacity: 0.7; cursor: progress; }
+.gc-offer-side { margin-bottom: 14px; }
+.gc-offer-side .gc-offer { padding: 12px; gap: 10px; }
+.gc-offer-side .gc-offer-text { min-width: 0; }
+.gc-offer-side .gc-offer-btn { width: 100%; justify-content: center; }
+.dark .gc-offer-people > span { color: color-mix(in srgb, var(--color-primary) 55%, white); }
+
+@media (max-width: 640px) {
+  .gc-empty { padding: 18px 16px 20px; }
+  .gc-offer-btn { width: 100%; justify-content: center; }
+}
+
+/* The card no longer clips (so pop-ups can extend past it); round the inner corners instead. */
+.gc-band { border-radius: 16px 16px 0 0; }
+.gc-body { border-radius: 0 0 16px 16px; }
+.gc-body > aside { border-bottom-left-radius: 16px; }
+.gc-body > main { border-bottom-right-radius: 16px; }
+.gc-empty { border-radius: 0 0 16px 16px; }

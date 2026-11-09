@@ -6,6 +6,7 @@ import { AccountActionDetails } from "./AccountActionDetails";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Button } from "@/components/ui/Button";
+import { PhoneFilters } from "@/components/ui/PhoneFilters";
 import { UserDetailsModal } from "./UserDetailsModal";
 import { AccountInvitations, InviteAccountDialog } from "./AccountInvitations";
 import "./user-management.css";
@@ -316,7 +317,7 @@ export function UserManagement({
                   User Management
                 </h2>
                 {!invitationView && <span className="admin-users__count">{filteredUsers.length} accounts</span>}
-                <Button onClick={() => { setInviteTarget(undefined); setInviteOpen(true); }}>Invite user</Button>
+                <Button data-guide="sa-invite-user" onClick={() => { setInviteTarget(undefined); setInviteOpen(true); }}>Invite user</Button>
               </div>
               <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
                 Verify accounts, assign multiple institutional roles, suspend
@@ -324,15 +325,20 @@ export function UserManagement({
                 files.
               </p>
             </div>
-            {!invitationView && <div className="admin-users__filters grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {!invitationView && <div className="admin-users__filters phone-filter-bar grid grid-cols-1 gap-2 sm:grid-cols-3">
               <input
                 aria-label="Search users"
-                data-tour="page-filter"
+                data-guide="sa-user-search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search name, email, or ID"
                 className="min-w-64 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-50/70 dark:bg-white/5 px-3 py-2 text-base text-slate-900 dark:text-white outline-none focus:border-[#0B3A53]"
               />
+              <PhoneFilters
+                title="Filter accounts"
+                activeCount={Number(roleFilter !== "ALL") + Number(!archivedView && statusFilter !== "ALL")}
+                onClear={() => { setRoleFilter("ALL"); if (!archivedView) setStatusFilter("ALL"); }}
+              >
               <select
                 aria-label="Filter by role"
                 value={roleFilter}
@@ -359,6 +365,7 @@ export function UserManagement({
                 <option value="SUSPENDED">Suspended</option>
                 {archivedView && <option value="INACTIVE">Archived</option>}
               </select>
+              </PhoneFilters>
             </div>}
           </div>
         </div>
@@ -417,7 +424,7 @@ export function UserManagement({
           </div>
         ) : (
           <div className="admin-users__table-scroll overflow-x-auto" role="region" aria-label="User accounts" tabIndex={0}>
-            <table className="admin-users__table w-full min-w-[1050px] text-left text-sm">
+            <table data-phone-title="1" data-phone-summary="4" className="admin-users__table w-full min-w-[1050px] text-left text-sm">
               <caption className="sr-only">User accounts, roles, academic assignments, status, and available account actions.</caption>
               <thead className="bg-slate-50 dark:bg-white/[0.02] text-xs uppercase tracking-wider text-slate-400 font-black">
                 <tr>

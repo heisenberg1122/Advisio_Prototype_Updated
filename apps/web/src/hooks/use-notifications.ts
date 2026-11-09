@@ -26,6 +26,8 @@ export interface AppNotification {
     | "Announcements"
     | "Adviser Requests";
   link?: string;
+  /** Raw creation time, for grouping by day. */
+  createdAt?: string;
 }
 
 export function useNotifications(selectedInbox?: "account" | "earlier") {
@@ -69,6 +71,7 @@ export function useNotifications(selectedInbox?: "account" | "earlier") {
             title: item.title,
             message: item.message,
             audience: item.audience,
+            createdAt: item.createdAt,
             time: new Date(item.createdAt).toLocaleString(undefined, {
               month: "short",
               day: "numeric",

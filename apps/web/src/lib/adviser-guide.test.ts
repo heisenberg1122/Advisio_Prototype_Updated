@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ADVISER_HELP } from "@research-management/shared/src/adviser-help";
 import { searchHelpTopics } from "@research-management/shared/src/researcher-help";
-import {
-  authorizedAdviserHelp,
-  normalizeGuideQuestion,
-} from "@research-management/shared/src/guide-help";
+import { resolveAssistantAction, resolveAssistantQuestion } from "@research-management/shared/src/researcher-assistant";
 import { adviserPageHelp, buildAdviserJourney } from "./adviser-walkthroughs";
 
 describe("Adviser Guide", () => {
@@ -17,41 +14,23 @@ describe("Adviser Guide", () => {
     );
   });
 
-  it("keeps Guide topics scoped to Adviser permissions without AI", () => {
+  it("routes the exact group progress question to verified help", () => {
+    expect(adviserPageHelp("/adviser/dashboard", "?tab=progress")).toBe("ad-20");
     expect(
-      authorizedAdviserHelp([]).some((topic) => topic.id === "ad-07"),
-    ).toBe(false);
+      resolveAssistantQuestion("How do I compare my groups’ progress?", ["research.view"], undefined, "adviser"),
+    ).toMatchObject({ kind: "local", topic: { id: "ad-20" } });
+    expect(resolveAssistantAction("ad-20:show", [], "adviser")).toBeNull();
+  });
+
+  it("keeps executable actions scoped to the Adviser workspace and permissions", () => {
     expect(
-      authorizedAdviserHelp(["document.view"]).some(
-        (topic) => topic.id === "ad-07",
-      ),
-    ).toBe(true);
+      resolveAssistantAction("class:navigate", ["document.view"], "adviser"),
+    ).toBeNull();
+    expect(resolveAssistantAction("ad-07:show", [])).toBeNull();
+    expect(resolveAssistantAction("ad-07:show", [], "adviser")).toBeNull();
     expect(
-      authorizedAdviserHelp([]).find((topic) => topic.id === "ad-17-inbox")
-        ?.href,
+      resolveAssistantAction("ad-17-inbox:navigate", [], "adviser")?.topic.href,
     ).toBe("/adviser/inbox");
-    expect(
-      authorizedAdviserHelp([]).some((topic) => String(topic.id) === "class"),
-    ).toBe(false);
-  });
-
-  it("keeps Taglish help search available without AI", () => {
-    expect(
-      searchHelpTopics(
-        normalizeGuideQuestion("saan makikita my group"),
-        ADVISER_HELP,
-      ).length,
-    ).toBeGreaterThan(0);
-  });
-
-  it("keeps Settings help accurate for TAM without an Assistant control", () => {
-    const topic = ADVISER_HELP.find((topic) => topic.id === "ad-19")!;
-    expect(topic.question).toBe("How do I find my settings?");
-    expect(topic.answer.join(" ")).not.toMatch(/assistant/i);
-    const journey = buildAdviserJourney(topic.id, "/adviser/dashboard", []);
-    expect(journey.steps.length).toBeGreaterThan(0);
-    expect(JSON.stringify(journey)).not.toMatch(/assistant/i);
-    expect(journey.steps[0].route).toBe("/adviser/settings");
   });
 
   it("preserves the current group when opening its progress walkthrough", () => {
@@ -74,7 +53,11 @@ describe("Adviser Guide", () => {
       ]);
       for (const step of journey.steps) {
         for (const target of step.targets) {
-          if (/accept|approve|recommendation|meeting$/.test(target.key)) {
+          if (
+            /accept|approve|recommendation|meeting$|assistant-switch/.test(
+              target.key,
+            )
+          ) {
             expect(target.interaction).toBeUndefined();
           }
         }

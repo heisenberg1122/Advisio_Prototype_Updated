@@ -1,7 +1,7 @@
 import { Router } from "express";
+import { getWorkspaceById } from "@research-management/auth";
 import { requireAuth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/rbac.js";
-import { evaluationContext } from "../evaluation/context.js";
 import {
   AssistantRateError,
   ResearcherAssistantService,
@@ -45,16 +45,11 @@ export function createResearcherAssistantRouter(
       return;
     }
     const workspace = parsed.data.workspace ?? "researcher";
-    const requiredRole = ({
-      adviser: "ADVISER",
-      panelist: "PANELIST",
-      dean: "DEAN",
-      researcher: "RESEARCHER",
-    } as const)[workspace];
+    const requiredRole = getWorkspaceById(workspace)?.role;
     if (
+      !requiredRole ||
       !req.user!.roles.includes(requiredRole) ||
-      (workspace !== "researcher" && !req.user!.collegeId) ||
-      (Boolean(evaluationContext.getStore()) && workspace !== "dean")
+      (workspace !== "researcher" && workspace !== "system-admin" && !req.user!.collegeId)
     ) {
       res
         .status(403)
@@ -72,7 +67,6 @@ export function createResearcherAssistantRouter(
           id: req.user!.id,
           collegeId: req.user!.collegeId,
           permissions: req.user!.permissions,
-          roles: req.user!.roles,
         },
         parsed.data as AssistantRequest,
         controller.signal,

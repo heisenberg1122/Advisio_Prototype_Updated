@@ -39,7 +39,6 @@
   gap: 12px;
   margin: 24px 0;
 }
-.researcher-walkthrough button,
 .researcher-walkthrough select,
 .rw-actions a {
   cursor: pointer;
@@ -54,61 +53,15 @@
   text-align: left;
   max-width: 100%;
 }
-.rw-actions button:first-child {
-  background: #173f63;
-  color: white;
-  border-color: #173f63;
-}
 .rw-actions a {
   display: inline-flex;
   align-items: center;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.researcher-walkthrough :is(button, select, a, summary, video):focus-visible {
+.researcher-walkthrough :is(select, a, summary):focus-visible {
   outline: 3px solid #93680b;
   outline-offset: 3px;
-}
-.researcher-walkthrough video {
-  width: 100%;
-  max-width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #0f283b;
-  border-radius: 10px;
-}
-.researcher-walkthrough video::cue {
-  font-size: clamp(14px, 1.5vw, 24px);
-  background-color: #122e43;
-  color: #fff;
-}
-.rw-help {
-  color: #455e73;
-  font-size: 14px;
-}
-.rw-chapters {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 16px 0;
-}
-.rw-chapters button {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  align-items: center;
-}
-.rw-chapters button[aria-current="true"] {
-  border-color: #173f63;
-  background: #eaf0f5;
-  box-shadow: inset 4px 0 #173f63;
-}
-.rw-chapters small {
-  white-space: nowrap;
-}
-.rw-availability {
-  border-left: 3px solid #a07417;
-  padding: 14px 18px;
-  background: #fbf7ed;
 }
 .researcher-walkthrough details {
   border-top: 1px solid #d6e0e7;
@@ -129,17 +82,7 @@
 .rw-activity {
   color: #455e73;
 }
-.rw-handoff {
-  padding: 16px 20px;
-  margin-top: 16px;
-  border: 1px solid #bdccd8;
-  border-radius: 10px;
-  background: #f3f6f8;
-}
 @media (max-width: 620px) {
-  .rw-chapters {
-    grid-template-columns: minmax(0, 1fr);
-  }
   .rw-actions > * {
     width: 100%;
     justify-content: center;

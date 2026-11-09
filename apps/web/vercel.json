@@ -1,9 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "installCommand": "cd ../.. && npm ci",
+  "installCommand": "cd ../.. && npm ci --workspace=web --workspace=@research-management/auth --workspace=@research-management/shared --workspace=@research-management/validations --include-workspace-root=false",
   "buildCommand": "cd ../.. && npm run build --workspace=@research-management/auth && npm run build --workspace=@research-management/validations && npm run build --workspace=web",
   "outputDirectory": "dist",
+  "git": {
+    "deploymentEnabled": { "main": false }
+  },
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "advisio-prototype-updated\\.vercel\\.app" }],
+      "destination": "https://advisio-ua.com/:path*",
+      "permanent": false
+    }
+  ],
   "headers": [
     {
       "source": "/evaluate/status",

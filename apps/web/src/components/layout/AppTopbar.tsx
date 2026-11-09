@@ -9,7 +9,6 @@ import {
   Search,
   LogOut,
   Settings,
-  User,
   Moon,
   Sun,
   X,
@@ -48,7 +47,6 @@ export interface AppTopbarProps {
   actions?: React.ReactNode;
   searchPlaceholder?: string;
   onSearch?: (query: string) => void;
-  profileHref?: string;
   variant?: "default" | "workspace";
 }
 
@@ -70,7 +68,6 @@ export function AppTopbar({
   actions,
   searchPlaceholder = "Search anything...",
   onSearch,
-  profileHref = "/student/profile",
   variant = "default",
 }: AppTopbarProps) {
   const router = useRouter();
@@ -85,6 +82,8 @@ export function AppTopbar({
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const searchToggleRef = useRef<HTMLButtonElement>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const profileRef = useRef<HTMLDivElement>(null);
@@ -116,6 +115,7 @@ export function AppTopbar({
         !searchRef.current.contains(event.target as Node)
       ) {
         setIsSearchOpen(false);
+        if (!searchInputRef.current?.value) setIsSearchExpanded(false);
       }
     }
 
@@ -123,10 +123,15 @@ export function AppTopbar({
       if (event.key === "Escape") {
         setIsProfileOpen(false);
         setIsSearchOpen(false);
+        if (searchRef.current?.contains(document.activeElement)) {
+          setIsSearchExpanded(false);
+          setTimeout(() => searchToggleRef.current?.focus(), 0);
+        }
       }
       // ⌘K or Ctrl+K shortcut to focus search
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
         event.preventDefault();
+        setIsSearchExpanded(true);
         setIsSearchOpen(true);
         setTimeout(() => searchInputRef.current?.focus(), 50);
       }
@@ -157,17 +162,9 @@ export function AppTopbar({
       category: "Navigation" as const,
     })),
     {
-      id: "profile",
-      label: "User Profile",
-      subtitle: "View and edit personal academic profile",
-      icon: User,
-      href: profileHref,
-      category: "Navigation",
-    },
-    {
       id: "settings",
       label: "Account Settings",
-      subtitle: "Preferences, appearance, and security",
+      subtitle: "Profile, preferences, appearance, and security",
       icon: Settings,
       href: settingsHref,
       category: "Navigation",
@@ -259,8 +256,24 @@ export function AppTopbar({
         {/* Centered Interactive Search Bar */}
         <div
           ref={searchRef}
-          className="relative hidden min-w-0 max-w-[340px] flex-1 md:block"
+          className={cn("relative hidden min-w-0 md:block", isSearchExpanded ? "max-w-[320px] flex-1" : "flex-none")}
         >
+          {!isSearchExpanded ? (
+            <button
+              ref={searchToggleRef}
+              type="button"
+              aria-label="Search (Ctrl+K)"
+              title="Search (Ctrl+K)"
+              onClick={() => {
+                setIsSearchExpanded(true);
+                setIsSearchOpen(true);
+                setTimeout(() => searchInputRef.current?.focus(), 30);
+              }}
+              className="topbar-icon-btn"
+            >
+              <Search className="h-5 w-5" aria-hidden="true" />
+            </button>
+          ) : (
           <label
             className={cn(
               "flex h-10 items-center gap-2.5 rounded-full px-4 text-slate-400 transition-all focus-within:border-[var(--color-primary)] focus-within:bg-[var(--color-surface)] focus-within:ring-2 focus-within:ring-[var(--college-focus-ring)] cursor-text",
@@ -282,24 +295,26 @@ export function AppTopbar({
               className="min-w-0 w-full bg-transparent text-base text-[var(--color-text-primary)] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none outline-none"
               aria-label="Search navigation and topics"
             />
-            {searchQuery ? (
-              <button
-                type="button"
-                onClick={() => {
+            <button
+              type="button"
+              onClick={() => {
+                if (searchQuery) {
                   setSearchQuery("");
+                  onSearch?.("");
                   searchInputRef.current?.focus();
-                }}
-                aria-label="Clear search"
-                className="rounded text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] dark:hover:text-white"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            ) : (
-              <kbd className="hidden items-center rounded border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-slate-500 lg:inline-flex">
-                ⌘K
-              </kbd>
-            )}
+                } else {
+                  setIsSearchOpen(false);
+                  setIsSearchExpanded(false);
+                  setTimeout(() => searchToggleRef.current?.focus(), 0);
+                }
+              }}
+              aria-label={searchQuery ? "Clear search" : "Close search"}
+              className="rounded text-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)] dark:hover:text-white"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           </label>
+          )}
 
           {/* Search Dropdown / Live Results */}
           {isSearchOpen && (
@@ -416,9 +431,9 @@ export function AppTopbar({
                   <p className="truncate text-sm text-slate-400 dark:text-slate-400">
                     {userEmail}
                   </p>
-                  <span className="mt-1 inline-flex items-center rounded-full border border-[var(--color-primary)]/30 bg-[var(--color-primary-light)] px-2 py-0.5 text-xs font-extrabold uppercase tracking-wide text-[var(--color-primary)]">
-                    {activeRoleBadge}
-                  </span>
+                  <p className="mt-0.5 truncate text-xs font-semibold text-[var(--color-text-secondary)]">
+                    {String(activeRoleBadge || "").charAt(0).toUpperCase() + String(activeRoleBadge || "").slice(1).toLowerCase()}
+                  </p>
                 </div>
 
 
@@ -430,6 +445,15 @@ export function AppTopbar({
 
               {/* Theme Toggle & Links */}
               <div className="py-2 space-y-1">
+                {/* Settings Link */}
+                <Link
+                  href={settingsHref}
+                  onClick={() => setIsProfileOpen(false)}
+                  className="flex items-center gap-2.5 p-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
+                >
+                  <Settings className="h-4 w-4 text-slate-400 dark:text-slate-500" />
+                  <span>Account Settings</span>
+                </Link>
                 {/* Theme Switcher Button */}
                 <button
                   type="button"
@@ -463,35 +487,6 @@ export function AppTopbar({
 
                 </button>
 
-                {/* Profile Link */}
-                <Link
-                  href={profileHref}
-                  onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
-                >
-                  <User className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-                  <span>My Profile</span>
-                </Link>
-
-                {/* Settings Link */}
-                <Link
-                  href={settingsHref}
-                  onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
-                >
-                  <Settings className="h-4 w-4 text-slate-400 dark:text-slate-500" />
-                  <span>Account Settings</span>
-                </Link>
-              </div>
-
-
-
-              {/* Institutional Branding Badge */}
-              <div className="flex items-center justify-between border-t border-slate-100 px-2 pb-2 pt-2 text-xs text-slate-400 dark:border-white/10 dark:text-slate-500">
-                <span>University of the Assumption</span>
-                <span className="font-bold text-[var(--color-primary)] dark:text-white">
-                  UA ADVISIO
-                </span>
               </div>
 
 

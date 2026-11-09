@@ -1,6 +1,6 @@
 # ADVISIO role walkthrough production
 
-Researcher, Dean, Research Coordinator, Faculty Adviser, and Panelist walkthroughs are authored. The engine reads a role script and generated timeline; it does not render anything for a visitor. The website serves a pre-rendered MP4 with native controls and a VTT track. The old public mock animation is replaced by this same optional player and written guide. The [Dean production plan](../docs/walkthroughs/dean-production-plan.md) describes its isolated recording server and commands. Shared commands default to Researcher; use `--role=dean` for Dean assets.
+Advisio publishes written guides and transcripts for Researchers, Deans, Research Coordinators, Faculty Advisers, and Panelists. The recording tools are for local review. Shared recording commands default to Researcher. Use `--role=dean` for Dean assets and see the [Dean production plan](../docs/walkthroughs/dean-production-plan.md) for setup.
 
 ## Source and audit
 
@@ -37,9 +37,9 @@ npm run walkthrough:researcher:render
 npm run walkthrough:researcher:verify
 ```
 
-`npm run walkthrough:researcher:all` runs guide generation → ElevenLabs voice → timed capture → render and static publication → exported-media verification. Capture implementation is verified first in `--audit` mode, which deliberately makes short, **non-publishable** clips without captions or estimated speech. The browser viewport is fixed at 1366×768, with the output composed at 1920×1080. Timed production capture requires the matching generated voice. Attention cues and selected scrolling use the narration's character timestamps. The renderer uses restrained focus regions while retaining full navigation views. It rejects audit clips, capture errors, mismatched viewport dimensions, missing beats, stale script hashes, shorter-than-narration clips, and a runtime over ten minutes.
+`npm run walkthrough:researcher:all` runs guide generation → ElevenLabs voice → timed capture → local render → exported-media verification. Capture implementation is verified first in `--audit` mode, which deliberately makes short, **non-publishable** clips without captions or estimated speech. The browser viewport is fixed at 1366×768, with the output composed at 1920×1080. Timed production capture requires the matching generated voice. Attention cues and selected scrolling use the narration's character timestamps. The renderer uses restrained focus regions while retaining full navigation views. It rejects audit clips, capture errors, mismatched viewport dimensions, missing beats, stale script hashes, shorter-than-narration clips, and a runtime over ten minutes.
 
-Run `node scripts/walkthrough/qa-player.mjs` against the local Vite server for four responsive player checks. It uses synthetic media only inside its test browser to exercise native playback, caption tracks and seeking. This test fixture never becomes walkthrough footage and is never published. It also tests the honest missing-media state.
+Run `node scripts/walkthrough/qa-guides.mjs` against the local Vite server for four responsive checks of the written guide, transcript, and dashboard link. Pass the server origin as the first argument if it differs from `http://localhost:3100`.
 
 All capture requests use a newly provisioned student/BSIT evaluation session. Authentication remains in memory. The seed is reused without changing core data, workflow rules or role permissions. The supplied version-three PDF is downloaded from the session's revision endpoint. Resubmission and Group Files creation use normal UI controls in that disposable session. No mail, invitations or external meeting requests are sent. Capture ends the session on success/failure. A session abandoned by a terminated process expires under the existing evaluation policy.
 
@@ -57,13 +57,13 @@ Generated files are in `.walkthrough/researcher/` (ignored):
 - `export/researcher-captioned.mp4`: web-size burned-in alternative.
 - Poster, SRT, VTT, full transcript, chapter metadata and `media.json`.
 
-The render command composes the product footage once with Remotion. FFmpeg creates the burned-in alternatives from the same measured caption data, measures narration loudness, applies two-pass normalization to -16 LUFS / -1.5 dBTP, encodes H.264/AAC with fast-start metadata and checks encoded runtime. It publishes web assets to `apps/web/public/walkthroughs/researcher/`. The two completed web MP4s are tracked with their captions and metadata so repository builds include playable media. Raw recordings, narration caches, private fixture manifests, and the original Researcher 1080p master remain under the ignored `.walkthrough/` directory, which is also excluded from Docker build context. The separately verified Dean, Coordinator, and Adviser releases include their finalized 1080p masters and available chapter videos. Generate/copy the completed bundle **before building the deployment artifact**. Avoid copying over a bundle on a live server; publish it through an atomic site build/deployment.
+The render command composes and encodes footage under the ignored `.walkthrough/` directory for offline review. The `--publish` flag is retired. Use `npm run walkthrough:publish` to rebuild the written pages from the tracked transcripts and chapter data.
 
-The evaluation guide embeds the component only for Researchers. `/walkthrough/research-dashboard` is the public companion. Both offer a written guide and transcript. Continue never depends on elapsed video time or guide completion. Until matching `media.json` and media files exist, the component truthfully reports that narration is unavailable; it does not play a mock video. The metadata script hash must match the generated web text.
+The public Researcher companion at `/walkthrough/research-dashboard` provides a written guide and transcript. Evaluation participants can continue to their activities without completing the guide.
 
 ## Release review
 
-Review the inventory against current UI before every regeneration. Confirm real product captures, fictional identities, version-specific feedback, actual returned submission status, truthful defense/grade empty states, no third-party connection success, all spoken text captioned, caption safe margins, readable desktop detail, and mobile native captions. Listen to every narration beat for pronunciation, natural tutor delivery, pacing and audio clipping. Compare transcript against audio; view the full export for cursor drift, cropped panels, stale/failed states and transition artifacts. Validate actual exported playback/fullscreen/volume/captions on devices in addition to automated test fixtures. No background music is used.
+Review the inventory against current UI before every regeneration. Confirm real product captures, fictional identities, version-specific feedback, actual returned submission status, truthful defense/grade empty states, no third-party connection success, all spoken text captioned, caption safe margins, readable desktop detail, and mobile native captions. Listen to every narration beat for pronunciation, natural tutor delivery, pacing and audio clipping. Compare transcript against audio; view the full export for cursor drift, cropped panels, stale/failed states and transition artifacts. Review local exports for playback and captions on the target devices. No background music is used.
 
 Sources used for implementation: [Playwright recording](https://playwright.dev/docs/videos), [ElevenLabs timing endpoint](https://elevenlabs.io/docs/api-reference/text-to-speech/convert-with-timestamps/), [Remotion metadata](https://www.remotion.dev/docs/dynamic-metadata), [Remotion recorded video](https://www.remotion.dev/docs/offthreadvideo). Motion follows restrained spotlight, annotation and progress patterns; no BrewedOps source/assets are copied.
 
@@ -71,12 +71,10 @@ The [Coordinator production plan](../docs/walkthroughs/coordinator-production-pl
 
 The [Faculty Adviser production plan](../docs/walkthroughs/adviser-production-plan.md) describes the six-chapter recording, isolated fixture, review lifecycle, and cached-narration workflow. Use `--role=adviser` with shared commands.
 
-## Shared role-video release
+## Published written walkthroughs
 
-Run `npm run walkthrough:publish` to copy the verified Dean, Coordinator, Adviser, and three Panelist-variant deliverables into `apps/web/public/walkthroughs/` without regenerating narration or rendering video. It checks each script hash and verified MP4 byte count, copies an explicit release-file allowlist, and records SHA-256 checksums. Private credentials, demo manifests, capture evidence, and voice-provider caches stay local.
+Run `npm run walkthrough:publish` to rebuild the role pages and catalog in `apps/web/public/walkthroughs/`. The command reads tracked text and chapter data and refreshes the release checksums.
 
-After building the web app, `/walkthroughs/index.html` lists the releases. The role players are `/walkthroughs/dean/index.html`, `/walkthroughs/coordinator/index.html`, and `/walkthroughs/adviser/index.html`. Each includes native video controls, selectable captions, chapter seeking, transcript, subtitles, 1080p master, and a captioned copy. Coordinator and Adviser also include their separate chapter downloads. The existing Researcher companion remains at `/walkthrough/research-dashboard`.
+Open `/walkthroughs/index.html` to find the Dean, Coordinator, Adviser, and three Panelist guides. Each guide lists its chapters and provides the complete transcript. The Researcher guide remains at `/walkthrough/research-dashboard`.
 
-The [Panelist production plan](../docs/walkthroughs/panelist-production-plan.md) covers shared preparation scenes and separate structured/PDF evaluation variants. Generate narration once with `--role=panelist`, then derive the three release variants with `npm run walkthrough:panelist:variants`.
-
-Panelist release pages are `/walkthroughs/panelist-structured/index.html`, `/walkthroughs/panelist-pdf/index.html`, and `/walkthroughs/panelist-preparation/index.html`. Choose the full evaluation video matching the defense's configured method; the preparation-only video is an optional quick reference. Each release includes its verified 1080p master, web/captioned copies, chapters, transcript, and subtitles.
+The [Panelist production plan](../docs/walkthroughs/panelist-production-plan.md) describes the local structured, PDF, and preparation recording workflows.

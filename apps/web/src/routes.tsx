@@ -41,18 +41,17 @@ const StudentGradesPage = lazy(() => import("./app/student/grades/page"));
 const StudentNotificationsPage = lazy(
   () => import("./app/student/notifications/page"),
 );
-const StudentProfilePage = lazy(() => import("./app/student/profile/page"));
 const StudentProfileEditPage = lazy(
   () => import("./app/student/profile/edit/page"),
 );
 const StudentSettingsPage = lazy(() => import("./app/student/settings/page"));
+const AccountSettingsPage = lazy(() => import("./components/settings/AccountSettingsPage"));
 
 const AdviserLayout = lazy(() => import("./app/adviser/layout"));
 const AdviserDashboardPage = lazy(() => import("./app/adviser/dashboard/page"));
 const AdviserResearchGroupWorkspacePage = lazy(
   () => import("./app/adviser/advisees/[researchId]/page"),
 );
-const AdviserProfilePage = lazy(() => import("./app/adviser/profile/page"));
 const AdviserProfileEditPage = lazy(
   () => import("./app/adviser/profile/edit/page"),
 );
@@ -68,7 +67,6 @@ const PanelistDashboardPage = lazy(
 const PanelistDefenseWorkspacePage = lazy(
   () => import("./app/panelist/defenses/[sessionId]/page"),
 );
-const PanelistProfilePage = lazy(() => import("./app/panelist/profile/page"));
 const PanelistProfileEditPage = lazy(
   () => import("./app/panelist/profile/edit/page"),
 );
@@ -81,7 +79,6 @@ const ProfessorLayout = lazy(() => import("./app/professor/layout"));
 const ProfessorDashboardPage = lazy(
   () => import("./app/professor/dashboard/page"),
 );
-const ProfessorProfilePage = lazy(() => import("./app/professor/profile/page"));
 const ProfessorProfileEditPage = lazy(
   () => import("./app/professor/profile/edit/page"),
 );
@@ -100,16 +97,12 @@ const SystemAdminDashboardPage = lazy(
 const SystemAdminNotificationsPage = lazy(
   () => import("./app/system-admin/notifications/page"),
 );
-const SystemAdminProfilePage = lazy(
-  () => import("./app/system-admin/profile/page"),
-);
 const SystemAdminProfileEditPage = lazy(
   () => import("./app/system-admin/profile/edit/page"),
 );
 
 const AdminLayout = lazy(() => import("./app/admin/layout"));
 const AdminDashboardPage = lazy(() => import("./app/admin/dashboard/page"));
-const AdminProfilePage = lazy(() => import("./app/admin/profile/page"));
 const AdminProfileEditPage = lazy(
   () => import("./app/admin/profile/edit/page"),
 );
@@ -151,6 +144,23 @@ function StudentPortal({ children }: { children: React.ReactNode }) {
       <StudentLayout>{children}</StudentLayout>
     </ProtectedRoute>
   );
+}
+
+function LegacyProfileRoute({ settingsPath, faculty = false }: { settingsPath: string; faculty?: boolean }) {
+  const { search, hash } = useLocation();
+  const params = new URLSearchParams(search);
+  params.delete("tab");
+  if (faculty) params.set("section", "faculty");
+  const query = params.toString();
+  return <Navigate to={`${settingsPath}${query ? `?${query}` : ""}${hash}`} replace />;
+}
+
+function StudentDashboardRoute() {
+  const { search } = useLocation();
+  const tab = new URLSearchParams(search).get("tab");
+  return tab === "profile" || tab === "settings"
+    ? <LegacyProfileRoute settingsPath="/student/settings" />
+    : <StudentDashboardPage />;
 }
 
 function LegacyStudentSubmissionsRoute() {
@@ -295,7 +305,7 @@ export function AppRoutes() {
           path="/dashboard"
           element={
             <StudentPortal>
-              <StudentDashboardPage />
+              <StudentDashboardRoute />
             </StudentPortal>
           }
         />
@@ -307,7 +317,7 @@ export function AppRoutes() {
           path="/student/dashboard"
           element={
             <StudentPortal>
-              <StudentDashboardPage />
+              <StudentDashboardRoute />
             </StudentPortal>
           }
         />
@@ -438,7 +448,7 @@ export function AppRoutes() {
           path="/student/profile"
           element={
             <StudentPortal>
-              <StudentProfilePage />
+              <LegacyProfileRoute settingsPath="/student/settings" />
             </StudentPortal>
           }
         />
@@ -488,9 +498,7 @@ export function AppRoutes() {
           path="/adviser/profile"
           element={
             <ProtectedRoute allowedRoles={["ADVISER", "SYSTEM_ADMIN"]}>
-              <AdviserLayout>
-                <AdviserProfilePage />
-              </AdviserLayout>
+              <LegacyProfileRoute settingsPath="/adviser/settings" faculty />
             </ProtectedRoute>
           }
         />
@@ -594,9 +602,7 @@ export function AppRoutes() {
           path="/panelist/profile"
           element={
             <ProtectedRoute allowedRoles={["PANELIST", "SYSTEM_ADMIN"]}>
-              <PanelistLayout>
-                <PanelistProfilePage />
-              </PanelistLayout>
+              <LegacyProfileRoute settingsPath="/panelist/settings" />
             </ProtectedRoute>
           }
         />
@@ -706,9 +712,7 @@ export function AppRoutes() {
                 "SYSTEM_ADMIN",
               ]}
             >
-              <ProfessorLayout>
-                <ProfessorProfilePage />
-              </ProfessorLayout>
+              <LegacyProfileRoute settingsPath="/professor/settings" />
             </ProtectedRoute>
           }
         />
@@ -941,9 +945,7 @@ export function AppRoutes() {
           path="/system-admin/profile"
           element={
             <ProtectedRoute allowedRoles={["SYSTEM_ADMIN"]}>
-              <SystemAdminLayout>
-                <SystemAdminProfilePage />
-              </SystemAdminLayout>
+              <LegacyProfileRoute settingsPath="/system-admin/settings" />
             </ProtectedRoute>
           }
         />
@@ -953,6 +955,16 @@ export function AppRoutes() {
             <ProtectedRoute allowedRoles={["SYSTEM_ADMIN"]}>
               <SystemAdminLayout>
                 <SystemAdminProfileEditPage />
+              </SystemAdminLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/system-admin/settings"
+          element={
+            <ProtectedRoute allowedRoles={["SYSTEM_ADMIN"]}>
+              <SystemAdminLayout>
+                <AccountSettingsPage />
               </SystemAdminLayout>
             </ProtectedRoute>
           }
@@ -991,9 +1003,7 @@ export function AppRoutes() {
           path="/admin/profile"
           element={
             <ProtectedRoute allowedRoles={["ADMIN", "SYSTEM_ADMIN", "DEAN"]}>
-              <AdminLayout>
-                <AdminProfilePage />
-              </AdminLayout>
+              <LegacyProfileRoute settingsPath="/admin/settings" />
             </ProtectedRoute>
           }
         />

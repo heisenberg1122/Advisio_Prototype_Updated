@@ -47,7 +47,7 @@ node scripts/walkthrough/verify-dean-playback.mjs
 
 After the mutating rehearsal, start the server with `--fresh` before the production capture. For recovery during the same run, use `--resume` with the capture command; do not create a new fixture midway through a production run. The `--only=<chapter ids>` option supports rehearsal diagnostics. A full production export still requires every beat.
 
-The source of truth is `walkthrough/dean/dean-script.json`. Outputs remain under ignored `.walkthrough/dean/`, including raw clips, the 1080p master, two 720p alternatives, SRT/VTT captions, chapter metadata, poster, transcript, screenshots, and verification results. `--publish` is optional and only copies a reviewed static bundle into the web public directory; it does not deploy or push anything.
+The source of truth is `walkthrough/dean/dean-script.json`. Recording outputs stay under the ignored `.walkthrough/dean/` directory for local review. Run `npm run walkthrough:publish` to rebuild the public written guide from the tracked transcript and chapter data.
 
 ## Recording prerequisites repaired
 

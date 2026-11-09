@@ -8,51 +8,45 @@ import pdf from "../../../public/walkthroughs/panelist-pdf/media.json";
 import preparation from "../../../public/walkthroughs/panelist-preparation/media.json";
 import { ResearcherWalkthrough } from "./ResearcherWalkthrough";
 
-const recordings = {
-  dean: { folder: "dean", media: dean },
-  professor: { folder: "coordinator", media: coordinator },
-  adviser: { folder: "adviser", media: adviser },
-  structured: { folder: "panelist-structured", media: structured },
-  pdf: { folder: "panelist-pdf", media: pdf },
-  preparation: { folder: "panelist-preparation", media: preparation },
+const guides = {
+  dean: { folder: "dean", title: dean.title },
+  professor: { folder: "coordinator", title: coordinator.title },
+  adviser: { folder: "adviser", title: adviser.title },
+  structured: { folder: "panelist-structured", title: structured.title },
+  pdf: { folder: "panelist-pdf", title: pdf.title },
+  preparation: { folder: "panelist-preparation", title: preparation.title },
 };
 
 export function EvaluationWalkthrough({ role }: { role?: string }) {
   const [panelistMode, setPanelistMode] = useState<
     "structured" | "pdf" | "preparation"
   >("structured");
-  const [failed, setFailed] = useState(false);
   if (role === "student") return <ResearcherWalkthrough context="evaluation" />;
-  const recording =
+  const guide =
     role === "panelist"
-      ? recordings[panelistMode]
+      ? guides[panelistMode]
       : role === "dean" || role === "professor" || role === "adviser"
-        ? recordings[role]
+        ? guides[role]
         : null;
-  if (!recording) return null;
-  const { folder, media } = recording;
-  const root = `/walkthroughs/${folder}/`;
+  if (!guide) return null;
+  const { folder, title } = guide;
   return (
     <section
       className="researcher-walkthrough"
       aria-labelledby="role-walkthrough-heading"
     >
-      <p className="rw-eyebrow">Optional video guide</p>
-      <h2 id="role-walkthrough-heading">{media.title}</h2>
-      <p>
-        Watch the walkthrough, read the guide below, or start your activities at
-        any time. Watching the video is optional.
-      </p>
+      <p className="rw-eyebrow">Optional written guide</p>
+      <h2 id="role-walkthrough-heading">{title}</h2>
+      <p>Read the walkthrough or start your activities at any time.</p>
       {role === "panelist" && (
         <div className="rw-actions">
-          <label htmlFor="panelist-video-mode">Choose a Panelist guide</label>
+          <label htmlFor="panelist-guide-mode">Choose a Panelist guide</label>
           <select
-            id="panelist-video-mode"
+            id="panelist-guide-mode"
             value={panelistMode}
-            onChange={(event) => {
-              setPanelistMode(event.target.value as typeof panelistMode);
-              setFailed(false);
-            }}
+            onChange={(event) =>
+              setPanelistMode(event.target.value as typeof panelistMode)
+            }
           >
             <option value="structured">Structured evaluation</option>
             <option value="pdf">PDF evaluation</option>
@@ -60,36 +54,15 @@ export function EvaluationWalkthrough({ role }: { role?: string }) {
           </select>
         </div>
       )}
-      <video
-        key={folder}
-        controls
-        playsInline
-        preload="metadata"
-        poster={`${root}${media.poster}`}
-        aria-label={media.title}
-        onError={() => setFailed(true)}
-      >
-        <source src={`${root}${media.video}`} type="video/mp4" />
-        <track
-          kind="captions"
-          src={`${root}${media.captions}`}
-          srcLang="en"
-          label="English"
-          default
-        />
-        Your browser does not support this video. You can read the written guide
-        or continue to your activities.
-      </video>
-      {failed && (
-        <p className="rw-availability" role="status">
-          The video could not load. Try opening it in a new tab, read the written
-          guide, or continue to your activities.
-        </p>
-      )}
       <div className="rw-actions">
-        <a href={`${root}index.html`} target="_blank" rel="noopener noreferrer">
-          Open video in new tab <ExternalLink size={16} aria-hidden="true" />
+        <a
+          href={`/walkthroughs/${folder}/index.html`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Open written guide <ExternalLink size={16} aria-hidden="true" />
         </a>
+        <a href={`/walkthroughs/${folder}/transcript.txt`}>Read transcript</a>
       </div>
     </section>
   );

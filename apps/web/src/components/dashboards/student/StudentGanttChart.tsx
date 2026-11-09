@@ -1,6 +1,8 @@
 import React, { useMemo } from "react";
-import { buildWorkflowTimeline, calculateMilestoneProgress, WorkflowProjectLike } from "@/lib/workflow-progress";
+import { buildWorkflowTimeline, WorkflowProjectLike } from "@/lib/workflow-progress";
 import { WORKFLOW_TIME_ZONE } from "@/lib/workflow-deadlines";
+import { calendarDaysUntil, relativeDays } from "@/lib/researcher-home";
+import "./gantt-chart.css";
 
 interface StudentGanttChartProps {
   project?: (WorkflowProjectLike & { title?: string }) | null;
@@ -13,10 +15,17 @@ interface StudentGanttChartProps {
   }>;
 }
 
-const DAY_WIDTH = 12;
-const LABEL_WIDTH = 260;
-
+const DAY_MS = 86_400_000;
 const formatDate = (date: Date) => date.toLocaleDateString("en-PH", { month: "short", day: "numeric", timeZone: WORKFLOW_TIME_ZONE });
+const formatPart = (date: Date, part: "month" | "day") =>
+  date.toLocaleDateString("en-PH", part === "month" ? { month: "long", timeZone: WORKFLOW_TIME_ZONE } : { day: "numeric", timeZone: WORKFLOW_TIME_ZONE });
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** "Oct 10 – 24" within one month, "Oct 28 – Nov 10" across months. */
+function formatRange(start: Date, end: Date) {
+  const sameMonth = formatPart(start, "month") === formatPart(end, "month");
+  return `${formatDate(start)} – ${sameMonth ? formatPart(end, "day") : formatDate(end)}`;
+}
 
 export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGanttChartProps) {
   const stages = useMemo(() => {
@@ -34,23 +43,6 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
       };
     });
   }, [milestoneProgress, project]);
-  const progress = calculateMilestoneProgress(
-    milestoneProgress,
-    Boolean(project?.workflowInstance?.completedAt),
-  );
-  const timelineStart = stages.length
-    ? new Date(Math.min(...stages.map((stage) => stage.startDate.getTime())))
-    : undefined;
-  const timelineEnd = stages.length
-    ? Math.max(...stages.map((stage) => stage.endDate.getTime()))
-    : 0;
-  const totalDays = timelineStart
-    ? Math.max(1, Math.ceil((timelineEnd - timelineStart.getTime()) / 86_400_000))
-    : 0;
-  const chartWidth = Math.max(720, totalDays * DAY_WIDTH + 40);
-  const todayOffset = timelineStart
-    ? Math.floor((Date.now() - timelineStart.getTime()) / 86_400_000) * DAY_WIDTH
-    : -1;
 
   if (!stages.length) {
     return (
@@ -62,97 +54,118 @@ export function StudentGanttChart({ project, milestoneProgress = [] }: StudentGa
     );
   }
 
+  const now = Date.now();
+  const firstStart = new Date(Math.min(...stages.map((stage) => stage.startDate.getTime())));
+  const lastEnd = new Date(Math.max(...stages.map((stage) => stage.endDate.getTime())));
+  // Start the scale on the Monday of the first week so week columns line up.
+  const weekday = WEEKDAYS.indexOf(firstStart.toLocaleDateString("en-US", { weekday: "short", timeZone: WORKFLOW_TIME_ZONE }));
+  const scaleStart = new Date(firstStart.getTime() - Math.max(0, weekday) * DAY_MS);
+  const dayIndex = (date: Date) => calendarDaysUntil(date, scaleStart.getTime());
+  const weeks = Math.max(4, Math.ceil((dayIndex(lastEnd) + 1) / 7));
+  const totalDays = weeks * 7;
+  const pct = (days: number) => `${(days / totalDays) * 100}%`;
+
+  const months: Array<{ label: string; start: number }> = [];
+  for (let day = 0; day < totalDays; day += 1) {
+    const label = formatPart(new Date(scaleStart.getTime() + day * DAY_MS), "month");
+    // Skip a month that only peeks in at the very end; its name would be clipped.
+    if (months.at(-1)?.label !== label && totalDays - day >= 6) months.push({ label, start: day });
+  }
+  const todayIndex = dayIndex(new Date(now));
+  const showToday = todayIndex >= 0 && todayIndex < totalDays;
+
+  const completed = stages.filter((stage) => stage.status === "completed").length;
+  const current = stages.find((stage) => stage.status === "active") || stages.find((stage) => stage.status !== "completed");
+  const grouped = stages.some((stage) => stage.topic?.title);
+
   return (
-    <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card-soft)]" aria-label="Project Gantt timeline">
-      <div className="flex flex-col gap-3 border-b border-[var(--color-border)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-[var(--color-text-primary)]" data-guide="timeline-plan">Project Gantt Timeline</h3>
-          <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">Dates follow milestone targets and legacy durations in Philippine time. Milestones without a target use a projected span.</p>
+    <section className="gc" aria-label="Project Gantt timeline">
+      <header className="gc-head">
+        <div className="min-w-0">
+          <h3 data-guide="timeline-plan">Research timeline</h3>
+          <p>
+            {current ? (
+              <>
+                {current.status === "active" ? "Now on" : "Next up"} <strong>{current.name}</strong>
+                {" · due "}{formatDate(current.endDate)}{" · "}{relativeDays(current.endDate, now)}
+              </>
+            ) : (
+              "Every milestone is approved."
+            )}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="h-2 w-32 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
-            <div className="h-full rounded-full bg-emerald-500" style={{ width: `${progress}%` }} />
-          </div>
-          <span className="text-sm font-bold text-[var(--color-primary)]">{progress}%</span>
-        </div>
+        <dl className="gc-stats">
+          <div><dt>Completed</dt><dd>{completed} of {stages.length}</dd></div>
+          <div><dt>Expected finish</dt><dd>{formatDate(lastEnd)}</dd></div>
+        </dl>
+      </header>
+
+      <div className="gc-legend" aria-hidden="true">
+        <span><i data-tone="completed" />Approved</span>
+        <span><i data-tone="active" />In progress</span>
+        <span><i data-tone="upcoming" />Planned</span>
+        {showToday && <span className="gc-legend-today"><i data-tone="today" />Today, {formatDate(new Date(now))}</span>}
       </div>
 
-      <div className="hidden overflow-x-auto md:block">
-        <div style={{ minWidth: LABEL_WIDTH + chartWidth }}>
-          <div className="flex h-12 border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] text-xs font-semibold text-[var(--color-text-secondary)]">
-            <div className="sticky left-0 z-20 flex items-center border-r border-[var(--color-border)] bg-[var(--color-surface-muted)] px-4 text-[var(--color-text-primary)]" style={{ width: LABEL_WIDTH }}>
-              Milestone
-            </div>
-            <div className="relative" style={{ width: chartWidth }}>
-              {stages.map((stage) => {
-                const left = Math.floor((stage.startDate.getTime() - timelineStart!.getTime()) / 86_400_000) * DAY_WIDTH;
-                return <span key={stage.id} className="absolute top-3.5 text-xs text-[var(--color-text-secondary)]" style={{ left: left + 6 }}>{formatDate(stage.startDate)}</span>;
-              })}
+      <div className="gc-scroll">
+        <div className="gc-body" style={{ "--gc-weeks": weeks } as React.CSSProperties}>
+          <div className="gc-row gc-scale" aria-hidden="true">
+            <div className="gc-label">Milestone</div>
+            <div className="gc-track">
+              {months.map((month, index) => (
+                <span key={`${month.label}-${month.start}`} className="gc-month" data-first={index === 0} style={{ left: pct(month.start) }}>{month.label}</span>
+              ))}
+              {Array.from({ length: weeks }, (_, week) => (
+                <span key={week} className="gc-week" style={{ left: pct(week * 7) }}>
+                  {formatPart(new Date(scaleStart.getTime() + week * 7 * DAY_MS), "day")}
+                </span>
+              ))}
+              {showToday && <span className="gc-today-dot" style={{ left: pct(todayIndex + 0.5) }} />}
             </div>
           </div>
-          <div className="relative">
-            {todayOffset >= 0 && todayOffset <= chartWidth && (
-              <div className="pointer-events-none absolute bottom-0 top-0 z-10 w-px bg-rose-500" style={{ left: LABEL_WIDTH + todayOffset }}>
-                <span className="absolute -top-5 -translate-x-1/2 rounded bg-rose-500 px-1.5 py-0.5 text-xs font-bold text-white shadow-xs">TODAY</span>
-              </div>
-            )}
-            {stages.map((stage) => {
-              const left = Math.floor((stage.startDate.getTime() - timelineStart!.getTime()) / 86_400_000) * DAY_WIDTH;
-              const width = Math.max(40, stage.durationDays * DAY_WIDTH);
-              const isCompleted = stage.status === "completed";
-              const isActive = stage.status === "active";
-              const dotColor = isCompleted ? "bg-emerald-500" : isActive ? "bg-[var(--color-primary)]" : "bg-[var(--color-text-muted)]";
-              const barClasses = isCompleted
-                ? "bg-emerald-600 text-white font-semibold"
-                : isActive
-                ? "bg-[var(--color-primary)] text-white font-semibold shadow-xs ring-1 ring-[var(--college-focus-ring)]"
-                : "bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)] border border-[var(--color-border)] font-medium";
 
-              return (
-                <div key={stage.id} className="flex h-16 border-b border-[var(--color-border-subtle)] last:border-b-0">
-                  <div className="sticky left-0 z-20 flex items-center gap-2 border-r border-[var(--color-border)] bg-[var(--color-surface)] px-4" style={{ width: LABEL_WIDTH }}>
-                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dotColor}`} />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">{stage.topic?.title || "Ungrouped"}</p>
-                      <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]" title={`${stage.sequence}. ${stage.name}`}>{stage.sequence}. {stage.name}</p>
-                      <p className="mt-0.5 text-base text-[var(--color-text-secondary)]">{stage.durationDays} days{stage.requiresApproval ? " · Approval gate" : ""}</p>
-                    </div>
+          {stages.map((stage, index) => {
+            const start = Math.max(0, dayIndex(stage.startDate));
+            const span = Math.max(1, dayIndex(stage.endDate) - start + 1);
+            const rightLabel = (start + span) / totalDays < 0.78;
+            const range = formatRange(stage.startDate, stage.endDate);
+            const showGroup = grouped && stage.topic?.title && stage.topic.title !== stages[index - 1]?.topic?.title;
+            return (
+              <React.Fragment key={stage.id}>
+                {showGroup && <div className="gc-group">{stage.topic?.title}</div>}
+                <div
+                  className="gc-row"
+                  data-status={stage.status}
+                  title={`${stage.name}: ${range} · ${stage.durationDays} days${stage.requiresApproval ? " · Adviser approval needed" : ""}`}
+                >
+                  <div className="gc-label">
+                    <span className="gc-num" aria-hidden="true">
+                      {stage.status === "completed" ? <i className="ti ti-check" /> : stage.sequence}
+                    </span>
+                    <span className="gc-name">{stage.name}</span>
+                    <span className="sr-only">
+                      {`, ${stage.status === "completed" ? "approved" : stage.status === "active" ? "in progress" : "planned"}, ${range}`}
+                    </span>
                   </div>
-                  <div className="relative bg-[linear-gradient(to_right,var(--color-border-subtle)_1px,transparent_1px)] bg-[size:84px_100%]" style={{ width: chartWidth }}>
-                    <div
-                      className={`absolute top-4 flex h-7 items-center rounded-lg px-2 text-xs transition ${barClasses}`}
-                      style={{ left, width }}
-                      title={`${formatDate(stage.startDate)} – ${formatDate(stage.endDate)}`}
+                  <div className="gc-track" aria-hidden="true">
+                    <span className="gc-bar" style={{ left: pct(start), width: pct(span) }} />
+                    <span
+                      className="gc-dates"
+                      style={rightLabel ? { left: `calc(${pct(start + span)} + 8px)` } : { right: `calc(${pct(totalDays - start)} + 8px)` }}
                     >
-                      <span className="truncate">{formatDate(stage.startDate)} – {formatDate(stage.endDate)}</span>
-                    </div>
+                      {range}
+                    </span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
+              </React.Fragment>
+            );
+          })}
+
+          {showToday && <span className="gc-today-line" aria-hidden="true" style={{ "--gc-today": todayIndex + 0.5, "--gc-days": totalDays } as React.CSSProperties} />}
         </div>
       </div>
 
-      <div className="divide-y divide-[var(--color-border-subtle)] md:hidden">
-        {stages.map((stage) => {
-          const isCompleted = stage.status === "completed";
-          const isActive = stage.status === "active";
-          const dotColor = isCompleted ? "bg-emerald-500" : isActive ? "bg-[var(--color-primary)]" : "bg-[var(--color-text-muted)]";
-
-          return (
-            <div key={stage.id} className="flex items-start gap-3 p-4">
-              <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${dotColor}`} />
-              <div>
-                <p className="text-sm font-extrabold uppercase tracking-wide text-[var(--color-text-muted)]">{stage.topic?.title || "Ungrouped milestones"}</p>
-                <p className="text-base font-bold text-[var(--color-text-primary)]">{stage.sequence}. {stage.name}</p>
-                <p className="mt-1 text-base text-[var(--color-text-secondary)]">{formatDate(stage.startDate)} – {formatDate(stage.endDate)} · {stage.durationDays} days</p>
-                <p className="mt-1 text-sm font-bold uppercase tracking-wide text-[var(--color-text-muted)]">{stage.status}{stage.requiresApproval ? " · Adviser approval required" : ""}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <p className="gc-note">Planned dates follow milestone targets in Philippine time. Milestones without a target use a projected span.</p>
     </section>
   );
 }

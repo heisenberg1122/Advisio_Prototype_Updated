@@ -5,6 +5,7 @@ import {
   useState,
   type PointerEvent,
 } from "react";
+import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
 import {
   GlobalWorkerOptions,
   getDocument,
@@ -87,6 +88,7 @@ export function PdfEvaluationWorkspace({
   readOnly?: boolean;
 }) {
   const manuscript = Boolean(manuscriptVersionId);
+  const { registerDirtyForm } = useDashboardWorkspace();
   const base = manuscript
     ? `/api/defense-sessions/${sessionId}/manuscript-annotations/${manuscriptVersionId}`
     : `/api/defense-sessions/${sessionId}/pdf-evaluation`;
@@ -257,6 +259,11 @@ export function PdfEvaluationWorkspace({
     },
     [signatureUrl],
   );
+  useEffect(() => registerDirtyForm({
+    id: `panelist-pdf:${sessionId}:${manuscriptVersionId || "evaluation"}`,
+    isDirty: () => current.current.dirty,
+  }), [registerDirtyForm, sessionId, manuscriptVersionId]);
+
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => {
@@ -585,7 +592,7 @@ export function PdfEvaluationWorkspace({
     );
   if (!detail || !pdf)
     return (
-      <div className="rounded-xl border p-6 text-rose-600" role="alert">
+      <div data-guide={!manuscript ? "panelist-evaluation-unavailable" : undefined} data-panelist-evaluation-state={manuscript ? undefined : "unverified"} className="rounded-xl border p-6 text-rose-600" role="alert">
         {error ||
           (manuscript
             ? "The manuscript review could not be opened."
@@ -600,7 +607,7 @@ export function PdfEvaluationWorkspace({
           : "rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden"
       }
     >
-      <header className="border-b border-[var(--color-border)] p-5 flex flex-wrap items-start justify-between gap-3">
+      <header data-guide={manuscript ? undefined : locked ? "panelist-evaluation-locked" : !detail.editable ? "panelist-evaluation-unavailable" : undefined} data-panelist-evaluation-state={manuscript ? undefined : locked ? "locked" : detail.editable ? "editable" : "unverified"} className="border-b border-[var(--color-border)] p-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-bold uppercase tracking-widest text-emerald-600">
             {manuscript
@@ -1170,6 +1177,7 @@ export function PdfEvaluationWorkspace({
             <>
               <button
                 disabled={!editable}
+                data-guide={!manuscript && detail.editable ? "panelist-save-draft" : undefined}
                 className={styleButton}
                 onClick={() =>
                   action(async () => {
@@ -1186,6 +1194,7 @@ export function PdfEvaluationWorkspace({
                   !marks.length
                 }
                 className={primary}
+                data-guide={!manuscript && detail.editable ? "panelist-evaluation-pdf-preview" : undefined}
                 onClick={() => action(previewDraft)}
               >
                 {manuscript

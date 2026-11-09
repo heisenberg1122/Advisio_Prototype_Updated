@@ -1,5 +1,7 @@
 # Panelist video release — November 4, 2026
 
+> Historical release notes. The current website publishes written walkthroughs and transcripts. See [published written walkthroughs](../../walkthrough/README.md#published-written-walkthroughs).
+
 This release adds three independently watchable Panelist tutorials. Choose the evaluation video matching the defense's configured method; panelists do not need to watch both full variants.
 
 | Video | Runtime | Published page |

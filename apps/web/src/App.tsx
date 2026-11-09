@@ -5,7 +5,6 @@ import { DashboardWorkspaceProvider } from './providers/dashboard-workspace-prov
 import { ActiveProjectProvider } from './providers/active-project-provider';
 import { AppRoutes } from './routes';
 import { EvaluationBanner } from './components/evaluation/EvaluationBanner';
-import { WorkspaceTourProvider } from './providers/workspace-tour-provider';
 import { ResearcherGuideProvider } from './providers/researcher-guide-provider';
 
 export default function App() {
@@ -14,12 +13,10 @@ export default function App() {
       <Providers>
         <DashboardWorkspaceProvider>
           <ActiveProjectProvider>
-            <WorkspaceTourProvider>
-              <ResearcherGuideProvider>
-                <AppRoutes />
-                <EvaluationBanner />
-              </ResearcherGuideProvider>
-            </WorkspaceTourProvider>
+            <ResearcherGuideProvider>
+              <AppRoutes />
+              <EvaluationBanner />
+            </ResearcherGuideProvider>
           </ActiveProjectProvider>
         </DashboardWorkspaceProvider>
       </Providers>

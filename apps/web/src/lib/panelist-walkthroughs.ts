@@ -88,7 +88,7 @@ const overview = () =>
     "overview",
     "Your assigned work",
     "Start here to see assigned projects and upcoming defenses.",
-    [target("overview")],
+    [{ key: "id:pe-queue", text: "Check the evaluation queue for work that still needs your score." }],
     routes.overview,
   );
 const schedule = () =>
@@ -97,10 +97,10 @@ const schedule = () =>
     "Defense Schedule",
     "Check the session’s date, venue when available, and schedule status. A tentative date may change.",
     [
-      target("schedule", {
-        emptyText:
-          "Your assigned defenses will appear here once they’re available.",
-      }),
+      { key: "id:ps-waiting", text: "Start with invitations waiting for your response. Confirm the date and venue before responding." },
+      { key: "id:ps-upcoming", text: "Check the date, venue, and status of upcoming or live defenses." },
+      { key: "id:ps-completed", text: "Completed and closed sessions appear in this list." },
+      { key: "id:ps-empty", text: "Assigned defenses appear here after an invitation becomes available." },
     ],
     routes.schedule,
   );
@@ -111,9 +111,7 @@ const invitation = () =>
     "The invitation status on each defense card shows whether you need to respond or reconfirm.",
     [
       target("invitation"),
-      target("schedule", {
-        text: "Check the listed sessions for an invitation in your name. Your panel assignments appear here once available.",
-      }),
+      { key: "id:ps-title", text: "Check the listed sessions for an invitation in your name. Panel assignments appear here once available." },
     ],
     routes.schedule,
   );
@@ -190,7 +188,7 @@ const evaluation = () =>
       target("evaluation-unavailable", {
         text: "Scoring is unavailable. Read the page’s message for the specific requirement or error.",
       }),
-      target("evaluation"),
+      target("save-draft", { text: "The evaluation form is open. Save draft keeps your work private while scoring is available." }),
     ],
     routes.evaluation,
   );
@@ -199,7 +197,7 @@ const results = () =>
     "results",
     "Results",
     "Your own completed evaluation and the official decision are separate. Look for the official release status.",
-    [target("results")],
+    [{ key: "id:pr-awaiting" }, { key: "id:pr-released" }, { key: "id:pr-empty" }],
     routes.results,
   );
 const sidebar = (
@@ -293,9 +291,7 @@ export function buildPanelistJourney(
           "Accept invitation records your acceptance. If you’re unavailable, open the decline form to enter a reason. Verify the schedule before you decide.",
           [
             target("invite-actions"),
-            target("schedule", {
-              text: "There is no pending response control visible. Check the invitation status on your session.",
-            }),
+            { key: "id:ps-title", text: "There is no pending response control visible. Check the invitation status on your session." },
           ],
         ),
       ];
@@ -457,9 +453,7 @@ export function buildPanelistJourney(
           "Use View my completed evaluation when the record offers it.",
           [
             target("completed-evaluation"),
-            target("results", {
-              text: "There is no completed evaluation link visible. Check your submitted records for this defense.",
-            }),
+            { key: "id:pr-title", text: "There is no completed evaluation link visible. Check your submitted records for this defense." },
           ],
         ),
       ];
@@ -473,9 +467,7 @@ export function buildPanelistJourney(
           "Check the release label. A pending decision remains separate from your own locked evaluation.",
           [
             target("release-status"),
-            target("results", {
-              text: "No official decision is visible for this view. Check back after the authorized release.",
-            }),
+            { key: "id:pr-title", text: "No official decision is visible for this view. Check back after the authorized release." },
           ],
         ),
       ];

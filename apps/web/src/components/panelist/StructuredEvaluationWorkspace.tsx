@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { IconFileTypePdf } from "@tabler/icons-react";
+import { useDashboardWorkspace } from "@/providers/dashboard-workspace-provider";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { apiClient } from "@/lib/api-client";
@@ -22,6 +23,7 @@ export function StructuredEvaluationWorkspace({
   sessionId: string;
 }) {
   const { user } = useAuth();
+  const { registerDirtyForm } = useDashboardWorkspace();
   const query = useQuery({
     queryKey: ["structured-evaluation", sessionId],
     queryFn: () =>
@@ -102,6 +104,11 @@ export function StructuredEvaluationWorkspace({
     }, 900);
     return () => clearTimeout(timer);
   }, [answers, ready, item?.lockedAt, query.data?.sessionStatus, review]);
+  useEffect(() => registerDirtyForm({
+    id: `panelist-structured:${sessionId}`,
+    isDirty: () => initialized.current && JSON.stringify(latest.current) !== saved.current,
+  }), [registerDirtyForm, sessionId]);
+
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
       if (JSON.stringify(latest.current) !== saved.current) {
@@ -161,7 +168,7 @@ export function StructuredEvaluationWorkspace({
   };
   if (query.isPending || (!ready && !query.isError))
     return <p>Loading digital evaluation…</p>;
-  if (query.isError) return <p role="alert">{query.error.message}</p>;
+  if (query.isError) return <p data-guide="panelist-evaluation-unavailable" data-panelist-evaluation-state="unverified" role="alert">{query.error.message}</p>;
   const snapshot = query.data.snapshot,
     locked = Boolean(item?.lockedAt),
     editable = query.data.sessionStatus === "LIVE" && !locked;
@@ -200,7 +207,7 @@ export function StructuredEvaluationWorkspace({
             </code>
           </div>
         )}
-        <p className="mt-2 text-sm">
+        <p data-guide={locked ? "panelist-evaluation-locked" : editable ? undefined : "panelist-evaluation-not-live"} data-panelist-evaluation-state={locked ? "locked" : editable ? "editable" : query.data.sessionStatus === "COMPLETED" ? "closed" : "no-live-session"} className="mt-2 text-sm">
           {locked
             ? "Final evaluation · Locked"
             : editable
@@ -262,6 +269,7 @@ export function StructuredEvaluationWorkspace({
             <button
               disabled={busy}
               className={evaluationButton}
+              data-guide="panelist-save-draft"
               onClick={async () => {
                 setBusy(true);
                 try {
@@ -280,6 +288,7 @@ export function StructuredEvaluationWorkspace({
             <button
               disabled={busy}
               className={`${evaluationButton} bg-[var(--color-primary)] text-white`}
+              data-guide="panelist-evaluation-structured-preview"
               onClick={preview}
             >
               Review evaluation PDF

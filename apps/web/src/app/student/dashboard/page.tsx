@@ -1,9 +1,8 @@
-import {
-  OverviewHeader,
-  OverviewDefenseResult,
-  OverviewConsultation,
-  OverviewGettingStarted,
-} from "@/components/dashboards/student/overview/ResearchCommandCenter";
+import { OverviewDefenseResult, OverviewGettingStarted } from "@/components/dashboards/student/overview/ResearchCommandCenter";
+import { ResearcherComingUp, ResearcherHomeHero, ResearcherLatestUpdates, ResearcherNextStep, ResearcherWorkflows } from "@/components/dashboards/student/overview/ResearcherHome";
+import { buildComingUp, buildJourney, buildLatestUpdates, memberInitials } from "@/lib/researcher-home";
+import { getAcademicIdentity } from "@/lib/academic-identity";
+import { humanizeTimestamps } from "@/lib/project-overview-display";
 import { WorkflowAccessInbox } from "@/components/workflow/WorkflowAccessInbox";
 import { JoinedWorkflows } from "@/components/workflow/JoinedWorkflows";
 import { resolveStudentWorkflow } from "@/lib/student-workflow-context";
@@ -12,7 +11,6 @@ import React, { useState, Suspense, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTheme } from "@/providers/theme-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { apiClient } from "@/lib/api-client";
 import { calculateMilestoneProgress } from "@/lib/workflow-progress";
@@ -22,6 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { CardsPageSkeleton, DashboardSkeleton, FilesPageSkeleton, ListPageSkeleton, TablePageSkeleton } from "@/components/ui/Skeleton";
 import "@/components/dashboards/student/my-project-workspace.css";
 import { StudentProjectOverview } from "@/components/dashboards/student/StudentProjectOverview";
+import { ProjectGroupPanel } from "@/components/dashboards/student/ProjectGroupPanel";
 import {
   currentProjectMilestone, overviewDate, overviewStatus, pendingProjectRequirements, projectActivityHref,
   projectConsultationHref, projectSectionHref, resolveProjectNextStep, summarizeProjectDocuments,
@@ -40,6 +39,8 @@ import {
   type ConsultationItem,
 } from "@/lib/consultation-store";
 import { StudentGanttChart } from "@/components/dashboards/student/StudentGanttChart";
+import { ConsultationsHub } from "@/components/consultations/ConsultationsHub";
+import { MilestoneDetails, RecordedActivity } from "@/components/dashboards/student/TimelineDetails";
 import { getOrderedWorkflowStages } from "@/lib/workflow-progress";
 import { useNotifications as useStudentNotifications } from "@/hooks/use-student";
 import { useActiveProject } from "@/providers/active-project-provider";
@@ -58,7 +59,6 @@ function StudentDashboardContent() {
     params.set("section", "my-group");
     router.replace(`/student/dashboard?${params}`);
   }, [requestedTab, searchParams, router]);
-  const { isDark, toggleTheme } = useTheme();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: apiNotifications = [] } = useStudentNotifications();
@@ -863,8 +863,7 @@ function StudentDashboardContent() {
     else handleTabChange(action.kind === "timeline" ? "milestones" : action.kind);
   };
 
-  const [consultFilter, setConsultFilter] = useState<"all" | "approved" | "pending">("all");
-  const consultationRef = useRef<HTMLDivElement>(null);
+  const consultationRef = useRef<HTMLLIElement>(null);
   const linkedConsultation = consultations.find(({ id }) => id === requestedConsultationId);
   useEffect(() => {
     if (!linkedConsultation || !["consultations", "consultation-repo", "consultation-requests"].includes(activeTab)) return;
@@ -872,166 +871,23 @@ function StudentDashboardContent() {
     consultationRef.current?.scrollIntoView({ block: "nearest" });
   }, [activeTab, linkedConsultation?.id]);
 
-  const renderConsultationsHub = () => {
-    const filteredConsultations = consultations.filter((c: ConsultationItem) => {
-      if (c.id === linkedConsultation?.id) return true;
-      if (consultFilter === "approved") return c.status !== "pending" && c.status !== "requested";
-      if (consultFilter === "pending") return c.status === "pending" || c.status === "requested";
-      return true;
-    });
-    return (
-      <div className="flex flex-col gap-6">
-        <header className="researcher-consultation-hero flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-subtle)] p-5 sm:p-6">
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Consultations</h1>
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <ConsultationBooking key={activeProject?.id} projectId={activeProject?.id} firstName={user?.firstName} />
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              onClick={() => handleStartConference(DEFAULT_SHARED_MEET_URL, "Advising Video Conference")}
-            >
-              Instant Google Meet
-            </Button>
-          </div>
-        </header>
-
-      {/* Your sessions Container */}
-      <div className="flex min-w-0 flex-col gap-5">
-        <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 sm:p-6 shadow-xs">
-          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary)]">
-                <i className="ti ti-calendar-time text-lg" />
-              </span>
-              <h3 className="flex items-center gap-2 text-lg font-extrabold text-[var(--color-text-primary)] dark:text-white" data-guide="researcher-consultation-status">
-                Your sessions
-              </h3>
-            </div>
-
-            <div role="group" aria-label="Filter consultations" className="flex flex-wrap items-center gap-1 rounded-xl bg-[var(--color-surface-muted)] p-1 text-xs font-bold border border-[var(--color-border)]">
-              <button
-                type="button"
-                aria-pressed={consultFilter === "all"}
-                onClick={() => setConsultFilter("all")}
-                className={`h-8 cursor-pointer rounded-lg px-3 transition ${
-                  consultFilter === "all" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-                }`}
-              >
-                All ({consultations.length})
-              </button>
-              <button
-                type="button"
-                aria-pressed={consultFilter === "approved"}
-                onClick={() => setConsultFilter("approved")}
-                className={`h-8 cursor-pointer rounded-lg px-3 transition ${
-                  consultFilter === "approved" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-                }`}
-              >
-                Confirmed
-              </button>
-              <button
-                type="button"
-                aria-pressed={consultFilter === "pending"}
-                onClick={() => setConsultFilter("pending")}
-                className={`h-8 cursor-pointer rounded-lg px-3 transition ${
-                  consultFilter === "pending" ? "bg-[var(--color-primary)] text-white shadow-xs font-bold" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-                }`}
-              >
-                Pending
-              </button>
-            </div>
-          </div>
-
-          {filteredConsultations.length > 0 ? (
-            <div className="flex flex-col gap-3">
-              {filteredConsultations.map((c: any) => (
-                <div
-                  key={c.id}
-                  ref={c.id === linkedConsultation?.id ? consultationRef : undefined}
-                  tabIndex={c.id === linkedConsultation?.id ? -1 : undefined}
-                  className="flex flex-col gap-4 focus-visible:outline-2 focus-visible:outline-[var(--color-primary)] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-xs transition hover:shadow-sm sm:p-5"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-bold text-[var(--color-text-primary)] dark:text-white">{c.topic}</span>
-                        <Tag variant={c.status === "pending" || c.status === "requested" ? "warn" : "success"}>
-                          {c.status === "pending" || c.status === "requested" ? "Pending Approval" : "Confirmed"}
-                        </Tag>
-                      </div>
-                      <span className="mt-1 block text-xs text-[var(--color-text-secondary)]">
-                        {c.groupName || "Research Group"} · {c.date} at {c.time} ({c.mode})
-                      </span>
-                      {c.meetingUrl && (
-                        <span className="mt-2 inline-block break-all rounded-lg bg-[var(--color-primary-light)] px-2 py-1 font-mono text-xs text-[var(--color-primary)]">
-                          {c.meetingUrl}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-auto">
-                      <button
-                        onClick={() => handleOpenTranscriptModal(c)}
-                        className="px-3 py-1.5 bg-[var(--color-surface)] hover:bg-[var(--color-surface-muted)] text-[var(--color-text-primary)] font-bold rounded-lg border border-[var(--color-border)] text-sm shadow-xs cursor-pointer transition flex items-center gap-1"
-                      >
-                        <i className="ti ti-file-text text-[var(--color-primary)]" />
-                        <span>{c.notes || (c.transcript && c.transcript.length > 0) ? "Notes & Chat" : "Import Chat"}</span>
-                      </button>
-                      {c.status !== "pending" && c.status !== "requested" && (
-                        <button
-                          onClick={() => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
-                          className="min-h-11 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm shadow-xs transition cursor-pointer flex items-center gap-1"
-                        >
-                          <i className="ti ti-video" />
-                          <span>Join Meet</span>
-                        </button>
-                      )}
-                      {c.meetingUrl && (
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(c.meetingUrl);
-                            triggerToast("Copied Google Meet link!");
-                          }}
-                          aria-label="Copy meeting link"
-                          title="Copy Meet Link"
-                          className="grid h-11 w-11 place-items-center bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-surface-muted)] rounded-lg text-[var(--color-text-secondary)] cursor-pointer text-sm"
-                        >
-                          <i className="ti ti-copy" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {c.notes && (
-                    <div className="rounded-xl bg-[var(--color-surface-muted)] p-4 text-xs text-[var(--color-text-secondary)]">
-                      <span className="mb-1 block font-bold text-[var(--color-text-primary)] dark:text-white">Adviser Feedback & Summary:</span>
-                      <p className="whitespace-pre-wrap">{c.notes}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--color-primary-light)] text-2xl text-[var(--color-primary)]">
-                <i className="ti ti-calendar-off" />
-              </div>
-              <div>
-                <h4 className="text-lg font-extrabold tracking-tight text-[var(--color-text-primary)] dark:text-white">No Consultations Found</h4>
-                <p className="mt-1.5 max-w-sm text-base leading-6 text-[var(--color-text-secondary)]">
-                  {consultFilter === "all"
-                    ? "Use Book a Consultation Session to send your first request."
-                    : `No ${consultFilter} consultations found.`}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-      </div>
-    );
-  };
+  const renderConsultationsHub = () => (
+    <ConsultationsHub
+      consultations={consultations}
+      projectTitle={activeProject?.title}
+      linkedId={linkedConsultation?.id}
+      linkedRef={consultationRef}
+      booking={<ConsultationBooking key={activeProject?.id} projectId={activeProject?.id} firstName={user?.firstName} />}
+      onInstantMeet={() => handleStartConference(DEFAULT_SHARED_MEET_URL, "Advising Video Conference")}
+      onJoin={(c) => handleStartConference(c.meetingUrl || DEFAULT_SHARED_MEET_URL, c.topic)}
+      onNotes={(c) => handleOpenTranscriptModal(c)}
+      onCopyLink={(c) => {
+        if (!c.meetingUrl) return;
+        navigator.clipboard.writeText(c.meetingUrl);
+        triggerToast("Copied Google Meet link!");
+      }}
+    />
+  );
 
     const renderSubmissionsHub = () => {
     return (
@@ -1269,26 +1125,86 @@ function StudentDashboardContent() {
     loading: progressLoading,
     error: progressError,
     isLeader: isGroupLeader,
+    defenseDecision: officialDefenseResult?.releasedAt ? officialDefenseResult.decision : null,
   }) : null;
   const homeDeadlines = activeProject && !progressError
     ? pendingProjectRequirements(activeProject, manuscriptWorkflowData?.milestones, now)
-      .filter(({ dueAt, priority }) => dueAt && dueAt.getTime() >= now && priority < 3).slice(0, 3)
+      .filter(({ dueAt, overdue, priority }) => dueAt && (overdue || dueAt.getTime() >= now) && priority < 3).slice(0, 4)
     : [];
   const projectActivity = activeProject && !activeProject.workflowAccessRemoved && !progressError
     ? (manuscriptWorkflowData?.activity || []).slice(0, 4).map((event) => ({
-      id: event.id, title: event.title, detail: event.description, date: event.timestamp,
+      id: event.id, title: event.title, detail: humanizeTimestamps(event.description), date: event.timestamp,
       href: projectActivityHref(event, activeProject.id),
     }))
     : [];
+  const homeJourney = buildJourney(
+    manuscriptWorkflowData?.milestones,
+    activeProject ? currentProjectMilestone(activeProject, manuscriptWorkflowData?.milestones)?.id : undefined,
+    Boolean(activeProject?.workflowInstance?.completedAt),
+  );
+  const homeLogoSrc = getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc;
+  const homeMembers = activeStudentMembers.map((member: any) => ({ id: member.id, initials: memberInitials(member.user) }));
+  const homeComingUp = buildComingUp([
+    ...homeDeadlines.map((task) => ({
+      id: task.id, kind: "deadline" as const, title: task.title, date: task.dueAt!,
+      href: studentTaskDetailsHref(task.id, activeProject?.id),
+    })),
+    ...(activeProject ? upcomingConsultations.map((item: ConsultationItem) => ({
+      id: item.id, kind: "consultation" as const, title: item.topic, date: item.scheduledStart, mode: item.mode,
+      href: projectConsultationHref(activeProject.id, item.id),
+    })) : []),
+    ...(activeProject && upcomingDefense ? [{
+      id: upcomingDefense.id, kind: "defense" as const, title: "Scheduled defense", date: upcomingDefense.scheduledStart,
+      href: projectSelection.projectHref(`/student/defense/${upcomingDefense.id}`),
+    }] : []),
+  ], now);
+  const homeUpdates = buildLatestUpdates([
+    ...apiNotifications.map((notification: { id: string; title: string; message?: string; createdAt: string; actionUrl?: string; isRead?: boolean }) => ({
+      id: notification.id, title: notification.title || notification.message, date: notification.createdAt,
+      href: notificationLink(notification.actionUrl, "student"), unread: !notification.isRead,
+    })),
+    ...projectActivity.map(({ id, title, href, date }) => ({ id, title, date, href })),
+  ]);
+  const homeSetupSteps = [
+    {
+      label: activeProject || canStartProject ? "Register project" : "View group",
+      icon: "ti-file-description",
+      description: "View your project or register a research title.",
+      complete: Boolean(activeProject?.registeredAt),
+      onClick: () => !activeProject && canStartProject ? setShowCreateModal(true) : handleTabChange("group"),
+    },
+    {
+      label: "Set up your group",
+      icon: "ti-users",
+      description: "Invite your team, if any.",
+      complete: activeStudentMembers.length > 1,
+      onClick: () => handleTabChange("my-group"),
+    },
+    {
+      label: "Choose an adviser",
+      icon: "ti-user-check",
+      description: isGroupLeader ? "Browse verified faculty and send a formal request." : "View your project\u2019s adviser status.",
+      complete: Boolean(activeAdviserMembership),
+      onClick: () => isGroupLeader ? handleTabChange("adviser-pool") : handleTabChange("group"),
+    },
+  ];
+  // The group step is optional because solo research is allowed.
+  const homeSetupComplete = homeSetupSteps[0].complete && homeSetupSteps[2].complete;
+  const homeGettingStarted = (
+    <OverviewGettingStarted
+      onTour={() => localStorage.getItem("advisio_token") === "__evaluation__" ? window.dispatchEvent(new Event("advisio:evaluation-activities")) : router.push("/walkthrough/research-dashboard")}
+      steps={homeSetupSteps}
+    />
+  );
   const academic: OverviewRecord[] = [];
   if (activeProject && upcomingConsultation) academic.push({
     id: upcomingConsultation.id, title: upcomingConsultation.topic,
-    detail: `Confirmed consultation · ${overviewDate(upcomingConsultation.scheduledStart, true)}`,
+    detail: "Confirmed", date: upcomingConsultation.scheduledStart, dateWithTime: true,
     href: projectConsultationHref(activeProject.id, upcomingConsultation.id),
   });
   if (activeProject && upcomingDefense) academic.push({
     id: upcomingDefense.id, title: "Scheduled defense",
-    detail: overviewDate(upcomingDefense.scheduledStart, true),
+    detail: "Scheduled", date: upcomingDefense.scheduledStart, dateWithTime: true,
     href: projectSelection.projectHref(`/student/defense/${upcomingDefense.id}`),
   });
   if (activeProject && officialDefenseResult?.releasedAt) academic.push({
@@ -1348,111 +1264,63 @@ function StudentDashboardContent() {
             conferencing: "Group Conferencing",
             defense: "Defense Schedule",
             certificates: "Certificates of Completion",
-            settings: "Settings",
-            profile: "My Profile",
             notifications: "Notifications",
           };
 
           const tabContent: Record<string, React.ReactNode> = {
             overview: (
-              <div className="research-command-center">
-                <OverviewHeader firstName={user?.firstName} actions={null} />
-                <div className="rcc-workflow-access"><WorkflowAccessInbox /></div>
-                <section className="rcc-panel researcher-home-project" data-tour="researcher-project">
-                  <div>
-                    <p className="rcc-eyebrow">Active research project</p>
-                    <h2 className="rcc-project-title">{activeProject?.title || (activeProject ? "Research title not added" : "Select or register a project")}</h2>
-                    {activeProject && (
-                      <p className="rcc-supporting">
-                        {activeProject.workflowAccessRemoved ? "Workflow access removed"
-                          : activeProject.workflowInstance?.completedAt ? "Workflow completed"
-                          : currentProjectMilestone(activeProject, manuscriptWorkflowData?.milestones)?.name
-                            || activeProject.workflowInstance?.currentStage?.name || "No current stage"}
-                      </p>
-                    )}
-                  </div>
-                  {isResearchError ? (
+              <div className="research-command-center researcher-home">
+                <ResearcherHomeHero
+                  firstName={user?.firstName}
+                  title={activeProject?.title || (activeProject ? "Research title not added" : "Let\u2019s set up your research project")}
+                  steps={homeJourney}
+                  progress={activeProject && !progressLoading && !progressError && homeJourney.length ? projectProgress : null}
+                  members={homeMembers}
+                  memberCount={homeMembers.length}
+                  adviserName={[activeAdviserMembership?.user?.firstName, activeAdviserMembership?.user?.lastName].filter(Boolean).join(" ")}
+                  logoSrc={homeLogoSrc}
+                  action={isResearchError ? (
                     <button type="button" onClick={() => void refetchResearch()} className="rcc-button rcc-button--secondary">Retry project lookup</button>
                   ) : (
-                    <Link href={projectSelection.projectHref(projectSectionHref("overview"), activeProject?.id)} className="rcc-button rcc-button--secondary">Open Research Workspace</Link>
+                    <Link href={projectSelection.projectHref(projectSectionHref("overview"), activeProject?.id)} className="rcc-button rcc-button--secondary">Open research workspace <i aria-hidden="true" className="ti ti-arrow-right" /></Link>
                   )}
-                </section>
-                {homeNextStep && (
-                  <section className="rcc-panel researcher-home-next" data-tour="researcher-next">
-                    <div>
-                      <p className="rcc-eyebrow">{homeNextStep.label}</p>
-                      <h2>{homeNextStep.title}</h2>
-                      <p className="rcc-supporting">{homeNextStep.description}</p>
-                    </div>
-                    {homeNextStep.action && <button type="button" onClick={() => handleProjectAction(homeNextStep.action!)} className="rcc-button rcc-button--primary">{homeNextStep.buttonLabel}</button>}
-                  </section>
-                )}
+                />
+                <div className="rcc-workflow-access"><WorkflowAccessInbox /></div>
                 {officialDefenseResult && <OverviewDefenseResult decision={officialDefenseResult.decision} releasedOn={overviewDate(officialDefenseResult.releasedAt)} />}
-                <div className="rcc-activity-grid researcher-home-grid">
-                  <section className="rcc-panel" data-tour="researcher-deadlines">
-                    <h2>Upcoming deadlines</h2>
-                    {homeDeadlines.length > 0 ? <ul className="researcher-home-list">
-                      {homeDeadlines.map((task) => (
-                        <li key={task.id}>
-                          <Link href={studentTaskDetailsHref(task.id, activeProject?.id)}>{task.title}</Link>
-                          <time dateTime={task.dueAt!.toISOString()}>{overviewDate(task.dueAt!)}</time>
-                        </li>
-                      ))}
-                    </ul> : <p className="rcc-supporting">{isMilestoneLoading ? "Checking deadlines…" : isMilestoneError ? "Deadlines could not be loaded." : "No upcoming deadlines for the selected project."}</p>}
-                  </section>
-                  <OverviewConsultation consultation={upcomingConsultation || null} onConsultations={() => handleTabChange("consultations")} />
-                  <section className="rcc-panel">
-                    <div className="rcc-panel-heading">
-                      <h2>Notifications</h2>
-                      <Link className="rcc-link" href={projectSelection.projectHref("/student/notifications")}>View all</Link>
-                    </div>
-                    {apiNotifications.length > 0 ? <ul className="researcher-home-list">
-                      {apiNotifications.slice(0, 3).map((notification: { id: string; title: string; message?: string; createdAt: string; actionUrl?: string; isRead?: boolean }) => {
-                        const href = notificationLink(notification.actionUrl, "student");
-                        const label = notification.title || notification.message;
-                        return <li key={notification.id}>
-                          <span>{!notification.isRead && <strong>Unread · </strong>}{href ? <Link href={href}>{label}</Link> : label}</span>
-                          <time dateTime={notification.createdAt}>{overviewDate(notification.createdAt)}</time>
-                        </li>;
-                      })}
-                    </ul> : <p className="rcc-supporting">No recent notifications.</p>}
-                  </section>
-                  <section className="rcc-panel">
-                    <h2>Recent research updates</h2>
-                    {projectActivity.length > 0 ? <ul className="researcher-home-list">
-                      {projectActivity.slice(0, 3).map(({ id, title, href, date }) => (
-                        <li key={id}><Link href={href!}>{title}</Link>{date && <time dateTime={date}>{overviewDate(date)}</time>}</li>
-                      ))}
-                    </ul> : <p className="rcc-supporting">{isMilestoneLoading ? "Checking project activity…" : isMilestoneError ? "Project activity could not be loaded." : "No recent research updates."}</p>}
-                  </section>
-                  <OverviewGettingStarted
-                    onTour={() => localStorage.getItem("advisio_token") === "__evaluation__" ? window.dispatchEvent(new Event("advisio:evaluation-activities")) : router.push("/walkthrough/research-dashboard")}
-                    steps={[
-                      {
-                        label: activeProject || canStartProject ? "Register project" : "View group",
-                        icon: "ti-file-description",
-                        description: "View your project or register a research title.",
-                        complete: Boolean(activeProject?.registeredAt),
-                        onClick: () => !activeProject && canStartProject ? setShowCreateModal(true) : handleTabChange("group"),
-                      },
-                      {
-                        label: "Set up your group",
-                        icon: "ti-users",
-                        description: "Invite your team, if any.",
-                        complete: activeStudentMembers.length > 1,
-                        onClick: () => handleTabChange("my-group"),
-                      },
-                      {
-                        label: "Choose an adviser",
-                        icon: "ti-user-check",
-                        description: isGroupLeader ? "Browse verified faculty and send a formal request." : "View your project’s adviser status.",
-                        complete: Boolean(activeAdviserMembership),
-                        onClick: () => isGroupLeader ? handleTabChange("adviser-pool") : handleTabChange("group"),
-                      },
-                    ]}
+                {homeNextStep ? (
+                  <ResearcherNextStep
+                    step={homeNextStep}
+                    now={now}
+                    action={homeNextStep.action ? <button type="button" onClick={() => handleProjectAction(homeNextStep.action!)} className="rcc-button rcc-button--primary">{homeNextStep.buttonLabel} <i aria-hidden="true" className="ti ti-arrow-right" /></button> : null}
                   />
-                  <div className="rcc-joined"><JoinedWorkflows enrollments={workflowEnrollmentData?.enrollments || []} /></div>
+                ) : (
+                  <ResearcherNextStep
+                    step={{ label: "Your next step", tone: "neutral", title: canStartProject ? "Register your research project" : "Select your research project", description: canStartProject ? "Add your project to start tracking milestones, deadlines, and consultations here." : "Choose a project, or check with your group leader if you haven\u2019t been added to one yet." }}
+                    now={now}
+                    action={<button type="button" onClick={() => canStartProject ? setShowCreateModal(true) : handleTabChange("group")} className="rcc-button rcc-button--primary">{canStartProject ? "Get started" : "View projects"} <i aria-hidden="true" className="ti ti-arrow-right" /></button>}
+                  />
+                )}
+                <div className="rh-columns">
+                  {activeProject ? (
+                    <ResearcherComingUp
+                      items={homeComingUp}
+                      emptyMessage={isMilestoneLoading ? "Checking deadlines\u2026" : isMilestoneError ? "Deadlines could not be loaded." : "No upcoming deadlines or consultations for this project."}
+                      calendarHref={projectSelection.projectHref("/student/calendar")}
+                      onBookConsultation={() => handleTabChange("consultations")}
+                    />
+                  ) : homeGettingStarted}
+                  {(activeProject || homeUpdates.length > 0) && (
+                    <ResearcherLatestUpdates
+                      items={homeUpdates}
+                      emptyMessage={isMilestoneLoading ? "Checking project activity\u2026" : "No recent updates."}
+                      viewAllHref={projectSelection.projectHref("/student/notifications")}
+                    />
+                  )}
                 </div>
+                {activeProject && !homeSetupComplete && homeGettingStarted}
+                <ResearcherWorkflows count={workflowEnrollmentData?.enrollments?.length || 0}>
+                  <JoinedWorkflows enrollments={workflowEnrollmentData?.enrollments || []} />
+                </ResearcherWorkflows>
               </div>
             ),
             "overview-legacy": (
@@ -1713,29 +1581,47 @@ function StudentDashboardContent() {
                 </div>
               </>
             ),
-            profile: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-lg">Student profile Info</h3>
-                <p className="text-base text-slate-400 font-bold">Edit your student representative details, institutional identity cards, and department classifications.</p>
-                <div className="flex flex-col gap-3 mt-2 text-[12px]">
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-slate-600">Student Name</label>
-                    <input type="text" readOnly value={`${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Student Researcher"} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg focus:outline-none" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-slate-600">Represented Department</label>
-                    <input type="text" readOnly value={user?.college?.name || user?.program?.name || "College of Computing"} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg focus:outline-none" />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="font-bold text-slate-600">Student ID Number</label>
-                    <input type="text" readOnly value={user?.universityId || "Not Assigned"} className="bg-slate-50 border border-slate-200 p-2.5 rounded-lg focus:outline-none" />
-                  </div>
-                </div>
-              </div>
-            ),
             "my-group": (
               <section className="student-projects-readable mp-workspace mp-group">
-                {!activeProject && (researchData?.projects?.length || 0) > 0 ? <p data-guide="group-selection" className="text-base text-[var(--color-text-secondary)]">Select a research project above to view its group.</p> : activeProject || activeWorkspace ? <>
+                {!activeProject && (researchData?.projects?.length || 0) > 0 ? <p data-guide="group-selection" className="text-base text-[var(--color-text-secondary)]">Select a research project above to view its group.</p> : activeProject ? (
+                  <ProjectGroupPanel
+                    groupName={activeProject.groupName || "Research team"}
+                    projectTitle={activeProject.title}
+                    isLeader={isGroupLeader}
+                    logoSrc={homeLogoSrc}
+                    members={activeStudentMembers.map((member: any) => ({
+                      id: member.id,
+                      name: [member.user?.firstName, member.user?.lastName].filter(Boolean).join(" ") || "Group member",
+                      email: member.user?.email,
+                      leader: member.projectRole === "LEADER",
+                      isYou: member.userId === user?.id || member.user?.id === user?.id,
+                      raw: member,
+                    }))}
+                    joinRequests={isGroupLeader && pendingJoinRequests.length > 0 ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center justify-between"><div><h2 className="font-extrabold text-[#102f49]">Pending join requests</h2><p className="mt-1 text-base text-slate-600">Approve only researchers who should receive this project’s workflow and files.</p></div><span className="rounded-full bg-amber-200 px-2.5 py-1 text-xs font-extrabold text-amber-900">{pendingJoinRequests.length}</span></div><div className="mt-3 space-y-2">{pendingJoinRequests.map((request: any) => <div key={request.id} className="flex flex-col gap-3 rounded-xl bg-white p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-base font-bold text-[#102f49]">{request.requester ? `${request.requester.firstName} ${request.requester.lastName}` : "Researcher"}</p><p className="text-base text-slate-500">{request.requester?.email} · Requested {new Date(request.createdAt).toLocaleDateString()}</p></div><div className="flex gap-2"><button onClick={() => decideJoinRequest(request.id, "REJECT")} className="rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-bold text-rose-700">Reject</button><button onClick={() => decideJoinRequest(request.id, "ACCEPT")} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-extrabold text-white">Accept</button></div></div>)}</div></div> : null}
+                    onTransfer={(member) => setGroupAction({ type: "transfer", member })}
+                    onRemove={(member) => setGroupAction({ type: "remove", member })}
+                    onLeave={!isGroupLeader && currentMembership ? () => setGroupAction({ type: "leave" }) : undefined}
+                    onMessages={() => handleTabChange("group-chats")}
+                    onTasks={() => router.push(projectSelection.projectHref("/student/tasks"))}
+                    onFiles={() => router.push(projectSelection.projectHref("/student/group-files"))}
+                    invite={isGroupLeader ? <>
+                      <TeamEmailInvitation teamId={activeProject.id} kind="project" />
+                      <div className="mp-panel mp-invitation-code">
+                      <h2 className="text-lg font-semibold text-[var(--color-text-primary)]">Invitation code and link</h2>
+                      <p className="mt-1 text-base text-slate-600">Researchers review the group before joining or requesting approval.</p>
+                      {inviteCode ? <div className="mt-3 space-y-2"><div className="rounded-lg bg-white p-3 font-mono text-sm font-bold text-[#173f63]">Code: {inviteCode}</div><div className="flex flex-wrap gap-2"><button onClick={() => navigator.clipboard.writeText(inviteCode).then(() => triggerToast("Invite code copied."))} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-bold text-blue-700"><i className="ti ti-copy mr-1" />Copy code</button><button onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join-group?code=${inviteCode}`).then(() => triggerToast("Shareable link copied."))} className="rounded-lg bg-[#173f63] px-3 py-2 text-sm font-extrabold text-white"><i className="ti ti-link mr-1" />Copy link</button><button onClick={handleCreateInvite} className="rounded-lg px-3 py-2 text-sm font-bold text-slate-600">Rotate code</button></div></div> : <button onClick={handleCreateInvite} className="mt-3 rounded-xl bg-[#173f63] px-4 py-2.5 text-sm font-extrabold text-white"><i className="ti ti-user-plus mr-1" />Create invitation</button>}
+                      </div>
+                    </> : undefined}
+                    settings={isGroupLeader ? {
+                      summary: [projectParticipationMode === "SOLO" ? "Solo" : "Group", projectParticipationMode === "GROUP" ? ({ INVITE_ONLY: "Invite only", PUBLIC_APPROVAL: "Code access, leader approval", PUBLIC_OPEN: "Code access, join immediately" } as Record<string, string>)[projectAccessMode] : null].filter(Boolean).join(" · "),
+                      content: <>
+                        <label className="mt-3 block text-sm font-bold text-slate-600">Working arrangement<select value={projectParticipationMode} onChange={(event) => setProjectParticipationMode(event.target.value as "SOLO" | "GROUP")} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="SOLO">Solo</option><option value="GROUP">Group</option></select></label>
+                        {projectParticipationMode === "GROUP" && <><label className="mt-3 block text-sm font-bold text-slate-600">How researchers can join<select value={projectAccessMode} onChange={(event) => setProjectAccessMode(event.target.value as typeof projectAccessMode)} className="mt-1.5 h-10 w-full rounded-lg border border-blue-200 bg-white px-3"><option value="INVITE_ONLY">Invite only</option><option value="PUBLIC_APPROVAL">Code access — leader approval</option><option value="PUBLIC_OPEN">Code access — join immediately</option></select></label><label className="mt-3 flex items-center gap-2 text-sm font-bold text-slate-600"><input type="checkbox" checked={projectInviteEnabled} onChange={(event) => setProjectInviteEnabled(event.target.checked)} />Accept joins using the current code</label></>}
+                        <button onClick={handleSaveProjectAccess} disabled={projectAccessSaving} className="mt-4 rounded-lg bg-[#173f63] px-4 py-2 text-sm font-extrabold text-white disabled:opacity-50">{projectAccessSaving ? "Saving…" : "Save access settings"}</button>
+                      </>,
+                    } : undefined}
+                  />
+                ) : activeWorkspace ? <>
                   <div className="mp-panel mp-group-identity" data-guide="group-identity">
                     <h2 className="text-lg font-bold text-[#102f49]">{activeProject ? activeProject.groupName || "Research team" : activeWorkspace?.name}</h2>
                     <p className="mt-1 text-base text-slate-600">{activeProject?.title || "Research project awaiting registration by your leader."}</p>
@@ -1796,6 +1682,8 @@ function StudentDashboardContent() {
                   <StudentProjectOverview
                     project={activeProject}
                     isLeader={isGroupLeader}
+                    defenseDecision={officialDefenseResult?.releasedAt ? officialDefenseResult.decision : null}
+                    logoSrc={homeLogoSrc}
                     workflowName={activeProject.workflowInstance?.workflow?.name}
                     coordinator={workflowProject && activeWorkflowEnrollment?.workflow?.creator ? [activeWorkflowEnrollment.workflow.creator.firstName, activeWorkflowEnrollment.workflow.creator.lastName].filter(Boolean).join(" ") || activeWorkflowEnrollment.workflow.creator.email : undefined}
                     academicYear={activeProject.academicYear?.name}
@@ -2043,44 +1931,12 @@ function StudentDashboardContent() {
             milestones: (
               <div className="flex flex-col gap-5">
                 <StudentGanttChart project={activeProject} milestoneProgress={manuscriptWorkflowData?.milestones || []} />
-                <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card-soft)] sm:p-6">
-                  <h3 className="text-lg font-bold text-[var(--color-text-primary)]">Recorded research activity</h3>
-                  <p className="mt-1 text-base text-[var(--color-text-secondary)]">Actual events from manuscript, milestone, consultation, defense, and official-copy records. The Gantt chart above remains the planned schedule.</p>
-                  <div className="mt-4 space-y-2">
-                    {(manuscriptWorkflowData?.activity || []).slice(0, 12).map((event: any) => {
-                      const href = activeProject ? projectActivityHref(event, activeProject.id) : null;
-                      const content = <><span className="min-w-0"><span className="block text-sm font-semibold text-[var(--color-text-primary)]">{event.title}</span><span className="block truncate text-xs text-[var(--color-text-secondary)]">{event.description}</span></span><time className="shrink-0 text-xs text-[var(--color-text-muted)]">{new Date(event.timestamp).toLocaleString()}</time></>;
-                      return href ? <button key={event.id} type="button" onClick={() => router.push(href)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-muted)] p-3 text-left hover:border-[var(--color-primary)]">{content}</button> : <div key={event.id} className="flex items-center justify-between gap-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-muted)] p-3">{content}</div>;
-                    })}
-                    {!manuscriptWorkflowData?.activity?.length && <p className="rounded-xl border border-dashed border-[var(--color-border)] p-5 text-center text-base text-[var(--color-text-secondary)]">No recorded workflow activity for this project yet.</p>}
-                  </div>
-                </div>
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                  <h3 className="font-extrabold text-[#1b4264] text-lg" data-guide="timeline-milestones">Milestone Details</h3>
-                  <p className="text-base text-slate-400 font-bold">Review the professor-defined sequence, target dates, approval gates, and current status.</p>
-                  <div className="flex flex-col gap-2.5 mt-2">
-                  {milestones.length > 0 ? (
-                    milestones.map((m, index) => (
-                      <React.Fragment key={m.id}>
-                      {(index === 0 || milestones[index - 1]?.topicId !== m.topicId) && <div className="mt-3 flex items-center gap-2 first:mt-0"><span className="grid h-7 w-7 place-items-center rounded-lg bg-[#1b4264] text-white"><i className="ti ti-folders text-xs" /></span><span className="text-xs font-extrabold uppercase tracking-wide text-[#1b4264]">{m.topicTitle}</span></div>}
-                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex justify-between items-start gap-4 text-[12.5px] shadow-sm">
-                        <div className="min-w-0 flex-1">
-                          <span className="font-bold text-[#1b4264] block">{m.sequence}. {m.title}</span>
-                          <span className="mt-0.5 block text-xs text-slate-500">{m.category} · {formatMilestoneTarget(m)}{m.requiresApproval ? " · Adviser approval required" : ""}</span>
-                          {m.isBlocked && <p className="mt-2 text-sm font-semibold text-amber-700">Complete and obtain approval for {m.requiredMilestone?.name || "the required milestone"} first.</p>}
-                          {m.description && <p className="mt-2 whitespace-pre-wrap text-base leading-5 text-slate-600">{m.description}</p>}
-                        </div>
-                        <Tag variant={m.status === 'completed' ? 'success' : m.status === 'in-progress' ? 'warn' : 'info'}>{m.status}</Tag>
-                      </div>
-                      </React.Fragment>
-                    ))
-                  ) : (
-                    <div className="text-xs text-slate-400 py-6 text-center">
-                      No project milestones recorded. Register your research study to initiate workflow.
-                    </div>
-                  )}
-                  </div>
-                </div>
+                <RecordedActivity
+                  events={manuscriptWorkflowData?.activity || []}
+                  hrefFor={(event) => (activeProject ? projectActivityHref(event, activeProject.id) : null)}
+                  onOpen={(href) => router.push(href)}
+                />
+                <MilestoneDetails milestones={milestones} formatTarget={(milestone) => formatMilestoneTarget(milestone as Parameters<typeof formatMilestoneTarget>[0])} />
               </div>
             ),
             consultations: renderConsultationsHub(),
@@ -2258,33 +2114,6 @@ function StudentDashboardContent() {
                   >
                     View Status
                   </button>
-                </div>
-              </div>
-            ),
-            settings: (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4">
-                <h3 className="font-extrabold text-[#1b4264] text-lg">Portal Settings</h3>
-                <p className="text-base text-slate-400 font-bold">Manage your notification channels, authentication credentials, and user preferences.</p>
-                <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl text-[12.5px] mt-2 flex flex-col gap-4 shadow-sm">
-                  <div className="flex justify-between items-center pb-3 border-b border-slate-200">
-                    <div>
-                      <span className="font-bold text-[#1b4264] block">Email Notifications</span>
-                      <span className="text-xs text-slate-400">Receive system notifications via email address.</span>
-                    </div>
-                    <input type="checkbox" defaultChecked className="accent-[#ffa400] w-4 h-4 cursor-pointer" />
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className="font-bold text-[#1b4264] block">Dark Mode</span>
-                      <span className="text-xs text-slate-400">Switch platform styling theme to night vision.</span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={isDark}
-                      onChange={toggleTheme}
-                      className="accent-[#ffa400] w-4 h-4 cursor-pointer"
-                    />
-                  </div>
                 </div>
               </div>
             ),

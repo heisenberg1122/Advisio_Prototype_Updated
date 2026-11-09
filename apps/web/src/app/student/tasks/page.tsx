@@ -22,6 +22,8 @@ import { TablePageSkeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useAuth } from "@/hooks/use-auth";
+import { getAcademicIdentity } from "@/lib/academic-identity";
+import { calendarDaysUntil, relativeDays } from "@/lib/researcher-home";
 import { WorkflowResourcesCard } from "@/components/workflow/WorkflowResourcesCard";
 import { AdviserProfileModal } from "@/components/profile/AdviserProfileModal";
 import { AdviserRequestProgressTracker } from "@/components/workflow/AdviserRequestProgressTracker";
@@ -85,6 +87,7 @@ function taskDisplayStatus(task: any, currentSequence: number) {
 
 export default function ResearchTasksPage() {
   const { user } = useAuth();
+  const workflowSeal = getAcademicIdentity({ college: user?.college, program: user?.program })?.logoSrc;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { taskId: routeTaskId } = useParams<{ taskId: string }>();
@@ -105,6 +108,23 @@ export default function ResearchTasksPage() {
     null,
   );
   const [workflowCode, setWorkflowCode] = useState("");
+  const [taskFilter, setTaskFilter] = useState<"all" | "approved" | "remaining">("all");
+  const [taskSort, setTaskSort] = useState<"priority" | "order">("priority");
+  const [taskView, setTaskView] = useState<"cards" | "list">(() => {
+    try {
+      return window.localStorage.getItem("advisio_tasks_view") === "list" ? "list" : "cards";
+    } catch {
+      return "cards";
+    }
+  });
+  const chooseTaskView = (view: "cards" | "list") => {
+    setTaskView(view);
+    try {
+      window.localStorage.setItem("advisio_tasks_view", view);
+    } catch {
+      // The choice still applies for this visit when storage is unavailable.
+    }
+  };
   const [activeSection, setActiveSection] = useState<
     "requirements" | "resources"
   >("requirements");
@@ -486,12 +506,40 @@ export default function ResearchTasksPage() {
   const invitationDeclined = searchParams.get("invitation") === "declined";
   const currentSequence =
     workflowProject?.workflowInstance?.currentStage?.sequence || 0;
-  const completed = tasks.filter(
-    (task: any) =>
-      task.submission?.status === "APPROVED" ||
-      task.adviserMilestone?.status === "APPROVED" ||
-      task.stage.sequence < currentSequence,
-  ).length;
+  const isApprovedTask = (task: any) =>
+    task.submission?.status === "APPROVED" ||
+    task.adviserMilestone?.status === "APPROVED" ||
+    task.stage.sequence < currentSequence;
+  const completed = tasks.filter(isApprovedTask).length;
+  // Priority puts work needing attention first, then current work, then work
+  // awaiting review, then locked stages, then approved ones; stage order breaks
+  // ties. "Stage order" follows the professor's sequence exactly.
+  const priorityRank = (task: any) => {
+    const status = taskDisplayStatus(task, currentSequence);
+    if (["REVISION_REQUIRED", "REJECTED", "DECLINED"].includes(status)) return 0;
+    if (["IN_PROGRESS", "NOT_STARTED", "READY_TO_START"].includes(status)) return 1;
+    if (["SUBMITTED", "UNDER_REVIEW", "PENDING_ADVISER"].includes(status)) return 2;
+    if (status === "LOCKED") return 3;
+    return 4;
+  };
+  const filteredTasks =
+    taskFilter === "approved"
+      ? tasks.filter(isApprovedTask)
+      : taskFilter === "remaining"
+        ? tasks.filter((task: any) => !isApprovedTask(task))
+        : tasks;
+  const visibleTasks =
+    taskSort === "priority"
+      ? filteredTasks
+          .map((task: any, index: number) => ({ task, index, rank: priorityRank(task) }))
+          .sort((a: any, b: any) => a.rank - b.rank || a.index - b.index)
+          .map(({ task }: any) => task)
+      : filteredTasks;
+  const taskFilters = [
+    { id: "all" as const, label: "Total requirements", count: tasks.length },
+    { id: "approved" as const, label: "Approved", count: completed },
+    { id: "remaining" as const, label: "Remaining", count: Math.max(0, tasks.length - completed) },
+  ];
   const activeMembers = (workflowProject?.members || []).filter(
     (member: any) =>
       !member.leftAt && ["LEADER", "MEMBER"].includes(member.projectRole),
@@ -639,6 +687,7 @@ export default function ResearchTasksPage() {
 
       <section className={`grid gap-4 ${enrollments.length === 0 ? "lg:grid-cols-[minmax(0,1.45fr)_minmax(320px,.75fr)]" : ""}`}>
         <div className="rt-workflow">
+          {workflowSeal && <img className="rt-workflow-seal" src={workflowSeal} alt="" aria-hidden="true" draggable={false} />}
           <div className="rt-workflow-heading" data-guide="class-status">
             <div>
               <p className="rt-eyebrow">
@@ -670,13 +719,13 @@ export default function ResearchTasksPage() {
                 </>
               )}
             </div>
-            <Tag className="rt-workflow-status" variant={activeEnrollment ? "success" : "info"}>
+            <p className={`rt-workflow-state ${activeEnrollment ? "rt-workflow-state--active" : ""}`}>
               {activeEnrollment
                 ? "Active"
                 : workflowAccessRemoved
                   ? "Removed"
                   : "Not joined"}
-            </Tag>
+            </p>
           </div>
           {activeEnrollment && (
             <div className="rt-workflow-metadata">
@@ -803,11 +852,34 @@ export default function ResearchTasksPage() {
 
       {activeSection === "requirements" ? (
         <>
-          <dl className="rt-statistics">
-            <div><dt>Total requirements</dt><dd>{tasks.length}</dd></div>
-            <div><dt>Approved</dt><dd>{completed}</dd></div>
-            <div><dt>Remaining</dt><dd>{Math.max(0, tasks.length - completed)}</dd></div>
-          </dl>
+          <div className="rt-statistics rt-filters" role="group" aria-label="Filter requirements">
+            {taskFilters.map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                aria-pressed={taskFilter === filter.id}
+                onClick={() => setTaskFilter(filter.id)}
+              >
+                <span>{filter.label}</span>
+                <strong data-tone={filter.id}>{filter.count}</strong>
+              </button>
+            ))}
+            <label className="rt-sort">
+              <span>Sort</span>
+              <select value={taskSort} onChange={(event) => setTaskSort(event.target.value as "priority" | "order")}>
+                <option value="priority">Priority</option>
+                <option value="order">Stage order</option>
+              </select>
+            </label>
+            <div className="rt-view" role="group" aria-label="Requirement layout">
+              <button type="button" aria-pressed={taskView === "cards"} aria-label="Card view" title="Card view" onClick={() => chooseTaskView("cards")}>
+                <i className="ti ti-layout-grid" aria-hidden="true" />
+              </button>
+              <button type="button" aria-pressed={taskView === "list"} aria-label="List view" title="List view" onClick={() => chooseTaskView("list")}>
+                <i className="ti ti-list" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
 
           {!tasks.length ? (
             <Empty
@@ -818,7 +890,7 @@ export default function ResearchTasksPage() {
               }
             />
           ) : (
-            <section data-tour="task-records" className="rt-milestones">
+            <section data-tour="task-records" className={`rt-milestones ${taskView === "list" ? "rt-milestones--list" : ""}`}>
               {!workflowProject && (
                 <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
                   <i className="ti ti-eye mt-0.5 text-lg" />
@@ -831,7 +903,13 @@ export default function ResearchTasksPage() {
                   </div>
                 </div>
               )}
-              {tasks.map((task: any) => {
+              {!visibleTasks.length && (
+                <p className="rt-filter-empty">
+                  {taskFilter === "approved" ? "No approved requirements yet." : "Every requirement is approved."}{" "}
+                  <button type="button" onClick={() => setTaskFilter("all")}>Show all requirements</button>
+                </p>
+              )}
+              {visibleTasks.map((task: any) => {
                 const status = taskDisplayStatus(task, currentSequence);
                 return (
                   <article
@@ -852,8 +930,8 @@ export default function ResearchTasksPage() {
                       <div className="rt-card-content">
                         <div className="rt-stage-row">
                           <p className="rt-stage">
-                            {task.stage.topic?.title || "Ungrouped milestones"}{" "}
-                            · Stage {task.stage.sequence}
+                            <span className="rt-stage-topic">{task.stage.topic?.title || "Ungrouped milestones"} · </span>
+                            Stage {task.stage.sequence}
                           </p>
                           {(status === "IN_PROGRESS" ||
                             status === "NOT_STARTED") && (
@@ -867,13 +945,13 @@ export default function ResearchTasksPage() {
                         <h2 className="rt-task-title">
                           {task.title}
                         </h2>
-                        {task.conditionMessage && <p className="mt-2 text-sm font-semibold text-amber-700 dark:text-amber-300">{task.conditionMessage}</p>}
+                        {task.conditionMessage && <p className="rt-condition mt-2 text-sm font-semibold text-amber-700 dark:text-amber-300">{task.conditionMessage}</p>}
                         <p className="rt-description">
                           {task.instructions}
                         </p>
                         <div className="rt-metadata">
                           {needsAdviserApproval(task) && <span>Adviser approval required</span>}
-                          <span>
+                          <span className="rt-due">
                             {formatTaskDeadline(task)}
                           </span>
                           {!task.milestoneOnly && (
@@ -1415,15 +1493,13 @@ export function MilestoneDetailsWorkspace({
       setSubmissionError(error?.message || "Unable to submit this file.");
     }
   };
+  const parsedDue = task.stage?.targetCompletionDate ? new Date(task.stage.targetCompletionDate) : null;
+  const dueDate = parsedDue && Number.isFinite(parsedDue.getTime()) ? parsedDue : null;
+  const isDone = ["APPROVED", "COMPLETED"].includes(status);
+  const dueDays = dueDate ? calendarDaysUntil(dueDate, Date.now()) : null;
+  const dueTone = !dueDate || isDone || dueDays === null ? null : dueDays < 0 ? "overdue" : dueDays <= 7 ? "soon" : null;
   return (
     <div className="task-details-workspace td-academic-workspace">
-      <Link
-        to={backHref}
-        className="inline-flex items-center gap-2 rounded-lg text-sm font-semibold text-[var(--color-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--college-focus-ring)]"
-      >
-        <i className="ti ti-arrow-left" aria-hidden="true" />
-        Back to Tasks
-      </Link>
       <header data-tour="task-details" className="td-header">
         <nav
           aria-label="Breadcrumb"
@@ -1456,21 +1532,17 @@ export function MilestoneDetailsWorkspace({
                 project?.workflowInstance?.workflow?.name ||
                 "Research workflow"}
             </p>
+            <p className={`td-due ${dueTone ? `td-due--${dueTone}` : ""}`}>
+              <i className="ti ti-clock" aria-hidden="true" />
+              {formatTaskDeadline(task)}
+              {dueDate && !isDone && ` · ${dueDays! < 0 ? `${Math.abs(dueDays!)} ${Math.abs(dueDays!) === 1 ? "day" : "days"} overdue` : relativeDays(dueDate, Date.now())}`}
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Tag
-              data-guide="task-status"
-              variant={
-                status === "APPROVED" || status === "COMPLETED"
-                  ? "success"
-                  : status === "REVISION_REQUIRED" || status === "REJECTED"
-                    ? "warn"
-                    : "info"
-              }
-            >
+          <div className="td-status-group">
+            <p className="td-status" data-guide="task-status" data-status={status}>
               {status.replace(/_/g, " ")}
-            </Tag>
-            {awaitingGrade && <Tag variant="info">Awaiting grade</Tag>}
+            </p>
+            {awaitingGrade && <p className="td-status" data-status="AWAITING_GRADE">Awaiting grade</p>}
           </div>
         </div>
       </header>
@@ -1505,19 +1577,6 @@ export function MilestoneDetailsWorkspace({
                 No additional instructions were provided for this milestone.
               </p>
             )}
-            <div className="td-requirements">
-              {needsAdviserApproval(task) && <Tag variant="info">Adviser approval required</Tag>}
-              <span className="rounded-lg bg-[var(--color-surface-muted)] px-2.5 py-1.5">
-                {task.requiresDocument === false
-                  ? "No document required"
-                  : `Accepted: ${task.milestoneOnly ? "PDF, DOCX after starting" : task.allowedFileTypes}`}
-              </span>
-              {task.isRequired && (
-                <span className="rounded-lg bg-[var(--color-primary-light)] px-2.5 py-1.5 text-[var(--color-primary)]">
-                  Required
-                </span>
-              )}
-            </div>
           </section>
           <div className="td-action-area" data-guide={task.previewOnly || task.isTitleProposal || task.locked || task.isAdviserMilestone || task.milestoneOnly || task.noDocumentRequired || !submissionOptionsQuery.isPending ? "task-action-info" : undefined}>
           {task.previewOnly ? (
@@ -2210,6 +2269,11 @@ function MilestoneInformationPanel({
             value={formatTaskDeadline(task)}
           />
           <InformationRow
+            icon="ti-checklist"
+            label="Requirement"
+            value={[task.isRequired === false ? "Optional" : "Required", needsAdviserApproval(task) ? "adviser approval needed" : null].filter(Boolean).join(", ")}
+          />
+          <InformationRow
             icon="ti-file-type-pdf"
             label="Accepted formats"
             value={formats}
@@ -2218,11 +2282,6 @@ function MilestoneInformationPanel({
             icon="ti-user-shield"
             label="Adviser"
             value={adviser ? memberName(adviser) : "No adviser assigned"}
-          />
-          <InformationRow
-            icon="ti-progress-check"
-            label="Workflow status"
-            value={(progress?.status || status).replace(/_/g, " ")}
           />
         </dl>
       </section>

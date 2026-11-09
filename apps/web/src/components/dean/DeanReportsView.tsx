@@ -21,6 +21,7 @@ import {
   readable,
   dateTime,
 } from "./DeanMonitoringShared";
+import { PhoneFilters } from "@/components/ui/PhoneFilters";
 
 const reports: Record<ReportType, string> = {
   "research-progress": "Research Progress",
@@ -119,10 +120,11 @@ export function DeanReportsView() {
           Refresh
         </button>
       </header>
-      <section className={filtersClass} aria-label="Report filters" data-dean-guide-filter>
+      <section className={`${filtersClass} phone-filter-section`} aria-label="Report filters">
+        <PhoneFilters guide="report-selection" title="Choose report and filters">
         <FilterField label="Report">
           <select
-            data-tour="report-selection"
+            data-guide="report-selection"
             value={type}
             className={inputClass}
             onChange={(e) => {
@@ -232,6 +234,7 @@ export function DeanReportsView() {
         >
           Reset filters
         </button>
+        </PhoneFilters>
       </section>
       <QueryState
         loading={reportQuery.isPending}
@@ -253,10 +256,11 @@ export function DeanReportsView() {
                   rows. A later export may reflect updates since this preview.
                 </p>
               </div>
-              <div data-guide="dean-report-exports" className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2">
                 {(["pdf", "csv"] as const).map((format) => (
                   <button
                     key={format}
+                    data-guide={format === "csv" ? "de-report-export" : undefined}
                     className={actionClass}
                     disabled={Boolean(exporting) || report.total > 5000}
                     onClick={() => void download(format)}

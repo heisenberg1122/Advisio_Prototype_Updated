@@ -2,7 +2,7 @@
 
 import { AppSidebar, NavSection } from "@/components/layout/AppSidebar";
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed";
-import {
+import { Bell,
   LayoutDashboard,
   CalendarCheck,
   CalendarDays,
@@ -44,6 +44,7 @@ export const PANELIST_NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Messages", href: "/panelist/dashboard?tab=messages", tabName: "messages", icon: MessageSquare },
       { label: "Inbox", href: "/panelist/inbox", icon: Mail },
+      { label: "Notifications", href: "/panelist/notifications", icon: Bell },
     ],
   },
 ];
@@ -55,12 +56,17 @@ export function PanelistSidebar() {
     <AppSidebar
       roleTitle="Defense Panelist"
       roleBadge="PANELIST CENTER"
-      navSections={PANELIST_NAV_SECTIONS}
+      navSections={PANELIST_NAV_SECTIONS.map((section) => ({
+        ...section,
+        items: section.items.map((item) => ({
+          ...item,
+          guideTarget: "panelist-nav-" + (item.tabName || item.href.split("?")[0].split("/").at(-1)),
+        })),
+      }))}
       groupedNavigation
       collapsed={collapsed}
       onToggleCollapse={toggle}
       settingsHref="/panelist/settings"
-      profileHref="/panelist/profile"
       variant="workspace"
     />
   );

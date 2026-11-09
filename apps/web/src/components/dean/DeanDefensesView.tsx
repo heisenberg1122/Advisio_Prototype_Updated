@@ -24,6 +24,7 @@ import {
   readable,
   dateTime,
 } from "./DeanMonitoringShared";
+import { PhoneFilters } from "@/components/ui/PhoneFilters";
 
 export function DeanDefensesView() {
   const { query, update, reset, identity, user } = useDeanFilters("defenses");
@@ -105,7 +106,8 @@ export function DeanDefensesView() {
           Refresh
         </button>
       </header>
-      <section aria-label="Defense filters" data-dean-guide-filter className={filtersClass}>
+      <section aria-label="Defense filters" className={`${filtersClass} phone-filter-section`}>
+        <PhoneFilters guide="de-monitor-search" title="Filter defenses">
         <ScopeFilters
           scope={data?.scope}
           query={query}
@@ -141,6 +143,7 @@ export function DeanDefensesView() {
         <button className={actionClass} onClick={reset}>
           Reset filters
         </button>
+        </PhoneFilters>
       </section>
       <QueryState
         loading={dataQuery.isPending}
@@ -174,7 +177,6 @@ export function DeanDefensesView() {
             <div
               className="flex flex-wrap gap-2 border-b border-[var(--color-border)] p-3"
               aria-label="Defense views"
-              data-guide="dean-defense-views"
             >
               {[
                 ["upcoming", "Upcoming"],
@@ -184,7 +186,6 @@ export function DeanDefensesView() {
               ].map(([view, label]) => (
                 <button
                   key={view}
-                  data-guide={view === "completed" ? "dean-defense-completed" : undefined}
                   aria-pressed={(query.view || "upcoming") === view}
                   onClick={() => update({ view })}
                   className={`${actionClass} ${(query.view || "upcoming") === view ? "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary)]" : ""}`}
@@ -194,7 +195,7 @@ export function DeanDefensesView() {
               ))}
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
+              <table data-phone-title="1" data-phone-summary="4" className="w-full min-w-[900px] text-left text-sm">
                 <thead className="bg-[var(--color-surface-muted)] text-xs text-[var(--color-text-secondary)]">
                   <tr>
                     {[
@@ -255,7 +256,6 @@ export function DeanDefensesView() {
                         <button
                           className={actionClass}
                           onClick={() => setSelected(row.id)}
-                          data-guide="dean-defense-details"
                         >
                           View details
                         </button>
@@ -279,14 +279,7 @@ export function DeanDefensesView() {
           </section>
           {user?.roles.includes("PANELIST") && (
             <section className={`${panelClass} p-5`}>
-              <h2
-                data-guide="dean-panel-assignments"
-                data-guide-empty={!data.myAssignments.length}
-                data-dean-panel-evaluation={data.myAssignments.some((row) => row.myAssignment?.canEvaluate) ? "available" : "unavailable"}
-                className="text-lg font-extrabold"
-              >
-                My Panel Assignments
-              </h2>
+              <h2 className="text-lg font-extrabold">My Panel Assignments</h2>
               <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
                 Your assignments in this college, using the selected filters.
                 Evaluation opens in your Panelist workspace.

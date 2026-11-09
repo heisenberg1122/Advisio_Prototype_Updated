@@ -5,7 +5,7 @@
     "duration": 466.604,
     "chapters": 15,
     "page": "dean/index.html",
-    "bytes": 57865375
+    "bytes": 85902
   },
   {
     "role": "coordinator",
@@ -13,7 +13,7 @@
     "duration": 586.399,
     "chapters": 5,
     "page": "coordinator/index.html",
-    "bytes": 125566616
+    "bytes": 98807
   },
   {
     "role": "adviser",
@@ -21,7 +21,7 @@
     "duration": 484.601,
     "chapters": 6,
     "page": "adviser/index.html",
-    "bytes": 97786431
+    "bytes": 86707
   },
   {
     "role": "panelist-structured",
@@ -29,7 +29,7 @@
     "duration": 380.1,
     "chapters": 6,
     "page": "panelist-structured/index.html",
-    "bytes": 69299555
+    "bytes": 90142
   },
   {
     "role": "panelist-pdf",
@@ -37,7 +37,7 @@
     "duration": 371.9,
     "chapters": 6,
     "page": "panelist-pdf/index.html",
-    "bytes": 67892926
+    "bytes": 82562
   },
   {
     "role": "panelist-preparation",
@@ -45,6 +45,6 @@
     "duration": 206.801,
     "chapters": 3,
     "page": "panelist-preparation/index.html",
-    "bytes": 37708523
+    "bytes": 75641
   }
 ]
